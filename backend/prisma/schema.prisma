@@ -94,6 +94,7 @@ model Organization {
   categoriasOrc      CategoriaOrcamento[]
   fornecedoresOrc    FornecedorOrcamento[]
   sistemaConfigs     SistemaConfig[]
+  apontamentosHoras  ApontamentoHoras[]
   whatsappConfig     OrgWhatsappConfig?
 
   @@map("organizations")
@@ -1156,17 +1157,20 @@ model SupplierHistory {
 // ── Apontamentos ──────────────────────────────────────────────────────────────
 
 model ApontamentoHoras {
-  id        String   @id @default(uuid())
-  chamadoId String   @map("chamado_id")
-  userId    String   @map("user_id")
-  minutos   Int
-  descricao String?  @db.Text
-  data      DateTime @default(now())
-  criadoEm  DateTime @default(now()) @map("criado_em")
-  chamado   Chamado  @relation(fields: [chamadoId], references: [id], onDelete: Cascade)
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id             String   @id @default(uuid())
+  chamadoId      String   @map("chamado_id")
+  userId         String   @map("user_id")
+  organizationId String?  @map("organization_id")
+  minutos        Int
+  descricao      String?  @db.Text
+  data           DateTime @default(now())
+  criadoEm       DateTime @default(now()) @map("criado_em")
+  chamado        Chamado      @relation(fields: [chamadoId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization   Organization? @relation(fields: [organizationId], references: [id])
   @@index([chamadoId])
   @@index([userId])
+  @@index([organizationId])
   @@index([data(sort: Desc)])
   @@map("apontamentos_horas")
 }
