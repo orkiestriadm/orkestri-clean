@@ -2,7 +2,7 @@ import { NestFactory } from "@nestjs/core";
 import { ValidationPipe, Logger } from "@nestjs/common";
 import { AppModule } from "./app.module";
 import helmet from "helmet";
-import cookieParser from "cookie-parser";
+import * as cookieParser from "cookie-parser";
 
 async function bootstrap() {
   const logger = new Logger("Bootstrap");

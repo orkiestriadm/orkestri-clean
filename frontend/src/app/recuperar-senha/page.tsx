@@ -1,18 +1,18 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { api } from "@/lib/api";
 import { OrkestriLogo } from "@/components/ui/logo";
 
-type Step = "whatsapp" | "otp" | "nova-senha" | "ok";
+type Step = "email" | "enviado" | "nova-senha" | "ok";
 
 function PasswordStrength({ senha }: { senha: string }) {
   const checks = [
     { label: "Mínimo 8 caracteres", ok: senha.length >= 8 },
-    { label: "Letra maiúscula", ok: /[A-Z]/.test(senha) },
-    { label: "Letra minúscula", ok: /[a-z]/.test(senha) },
-    { label: "Número", ok: /[0-9]/.test(senha) },
+    { label: "Letra maiúscula",      ok: /[A-Z]/.test(senha) },
+    { label: "Letra minúscula",      ok: /[a-z]/.test(senha) },
+    { label: "Número",               ok: /[0-9]/.test(senha) },
   ];
   if (!senha) return null;
   return (
@@ -27,41 +27,38 @@ function PasswordStrength({ senha }: { senha: string }) {
   );
 }
 
-export default function RecuperarSenhaPage() {
+function RecuperarSenhaContent() {
   const router = useRouter();
-  const [step, setStep] = useState<Step>("whatsapp");
-  const [whatsapp, setWhatsapp] = useState("");
-  const [otp, setOtp] = useState("");
-  const [resetToken, setResetToken] = useState("");
+  const searchParams = useSearchParams();
+
+  const [step, setStep]           = useState<Step>("email");
+  const [email, setEmail]         = useState("");
   const [novaSenha, setNovaSenha] = useState("");
   const [confirmar, setConfirmar] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [resetToken, setResetToken] = useState("");
+  const [loading, setLoading]     = useState(false);
+  const [error, setError]         = useState("");
+
+  // Se vier com ?token=xxx na URL, pula direto para o passo de nova senha
+  useEffect(() => {
+    const token = searchParams.get("token");
+    if (token) {
+      setResetToken(token);
+      setStep("nova-senha");
+    }
+  }, [searchParams]);
 
   const inputClass = "w-full bg-black/5 dark:bg-black/50 border border-zinc-200 dark:border-zinc-800 rounded-xl py-3.5 px-4 text-zinc-900 dark:text-white text-[15px] focus:outline-none focus:border-zinc-400 dark:focus:border-zinc-500 focus:bg-white dark:focus:bg-black transition-colors placeholder:text-zinc-400 dark:placeholder:text-zinc-600";
 
-  const handleEnviarOtp = async (e: React.FormEvent) => {
+  const handleEnviarEmail = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!whatsapp) { setError("Informe seu número de WhatsApp."); return; }
+    if (!email) { setError("Informe seu e-mail."); return; }
     setLoading(true); setError("");
     try {
-      await api.post("/auth/enviar-otp", { whatsapp });
-      setStep("otp");
+      await api.post("/auth/esqueci-senha", { email });
+      setStep("enviado");
     } catch (err: any) {
-      setError(err.response?.data?.message || "Erro ao enviar código.");
-    } finally { setLoading(false); }
-  };
-
-  const handleVerificarOtp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!otp || otp.length !== 6) { setError("Digite o código de 6 dígitos."); return; }
-    setLoading(true); setError("");
-    try {
-      const { data } = await api.post("/auth/verificar-otp", { whatsapp, codigo: otp });
-      setResetToken(data.resetToken);
-      setStep("nova-senha");
-    } catch (err: any) {
-      setError(err.response?.data?.message || "Código inválido ou expirado.");
+      setError(err.response?.data?.message || "Erro ao enviar e-mail.");
     } finally { setLoading(false); }
   };
 
@@ -76,11 +73,9 @@ export default function RecuperarSenhaPage() {
       await api.post("/auth/redefinir-senha", { resetToken, novaSenha });
       setStep("ok");
     } catch (err: any) {
-      setError(err.response?.data?.message || "Erro ao redefinir senha.");
+      setError(err.response?.data?.message || "Token inválido ou expirado. Solicite um novo link.");
     } finally { setLoading(false); }
   };
-
-  const stepLabel = { whatsapp: "1/3", otp: "2/3", "nova-senha": "3/3", ok: "" }[step];
 
   return (
     <div className="relative min-h-screen bg-zinc-50 dark:bg-black flex items-center justify-center font-display">
@@ -96,56 +91,73 @@ export default function RecuperarSenhaPage() {
           <h1 className="text-3xl font-semibold tracking-tight text-zinc-900 dark:text-white mb-1">
             Recuperar senha
           </h1>
-          {stepLabel && (
-            <p className="text-[13px] text-zinc-400 dark:text-zinc-500 font-medium">Etapa {stepLabel}</p>
+          {step === "nova-senha" && (
+            <p className="text-[13px] text-zinc-400 dark:text-zinc-500 font-medium">Defina sua nova senha</p>
           )}
         </div>
 
         <div className="bg-white/70 dark:bg-zinc-950/80 backdrop-blur-2xl border border-black/5 dark:border-white/10 rounded-2xl p-8 shadow-2xl">
 
-          {step === "whatsapp" && (
-            <form onSubmit={handleEnviarOtp} className="flex flex-col gap-5">
+          {/* PASSO 1 — digitar email */}
+          {step === "email" && (
+            <form onSubmit={handleEnviarEmail} className="flex flex-col gap-5">
+              <p className="text-[14px] text-zinc-500 dark:text-zinc-400">
+                Informe o e-mail cadastrado na sua conta. Enviaremos um link para redefinir sua senha.
+              </p>
               <div>
-                <p className="text-[14px] text-zinc-500 dark:text-zinc-400 mb-5">
-                  Informe o número de WhatsApp cadastrado na sua conta. Enviaremos um código de verificação.
-                </p>
-                <label className="text-[13px] font-medium text-zinc-500 dark:text-zinc-400 block mb-1.5">WhatsApp</label>
-                <input type="tel" value={whatsapp} onChange={e => setWhatsapp(e.target.value)} placeholder="(11) 99999-9999" className={inputClass} />
-              </div>
-              {error && <div className="text-[13px] text-red-600 dark:text-red-400 font-medium text-center bg-red-50 dark:bg-red-950/20 py-2 rounded-lg">{error}</div>}
-              <button type="submit" disabled={loading} className="w-full py-3.5 rounded-xl bg-zinc-900 dark:bg-white text-white dark:text-black font-semibold text-[15px] hover:bg-zinc-800 dark:hover:bg-zinc-200 transition-colors disabled:opacity-50 shadow-md">
-                {loading ? "Enviando..." : "Enviar código"}
-              </button>
-            </form>
-          )}
-
-          {step === "otp" && (
-            <form onSubmit={handleVerificarOtp} className="flex flex-col gap-5">
-              <div>
-                <p className="text-[14px] text-zinc-500 dark:text-zinc-400 mb-5">
-                  Digite o código de 6 dígitos enviado para seu WhatsApp. Ele expira em 5 minutos.
-                </p>
-                <label className="text-[13px] font-medium text-zinc-500 dark:text-zinc-400 block mb-1.5">Código de verificação</label>
+                <label className="text-[13px] font-medium text-zinc-500 dark:text-zinc-400 block mb-1.5">E-mail</label>
                 <input
-                  type="text"
-                  inputMode="numeric"
-                  maxLength={6}
-                  value={otp}
-                  onChange={e => setOtp(e.target.value.replace(/\D/g, ""))}
-                  placeholder="000000"
-                  className={inputClass + " tracking-[0.5em] text-center text-2xl font-mono"}
+                  type="email"
+                  value={email}
+                  onChange={e => setEmail(e.target.value)}
+                  placeholder="seu@email.com"
+                  className={inputClass}
+                  autoFocus
                 />
               </div>
-              {error && <div className="text-[13px] text-red-600 dark:text-red-400 font-medium text-center bg-red-50 dark:bg-red-950/20 py-2 rounded-lg">{error}</div>}
-              <button type="submit" disabled={loading || otp.length !== 6} className="w-full py-3.5 rounded-xl bg-zinc-900 dark:bg-white text-white dark:text-black font-semibold text-[15px] hover:bg-zinc-800 dark:hover:bg-zinc-200 transition-colors disabled:opacity-50 shadow-md">
-                {loading ? "Verificando..." : "Verificar código"}
-              </button>
-              <button type="button" onClick={() => { setStep("whatsapp"); setOtp(""); setError(""); }} className="text-[13px] text-zinc-500 hover:text-zinc-900 dark:hover:text-white transition-colors text-center">
-                ← Usar outro número
+              {error && (
+                <div className="text-[13px] text-red-600 dark:text-red-400 font-medium text-center bg-red-50 dark:bg-red-950/20 py-2 rounded-lg">{error}</div>
+              )}
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full py-3.5 rounded-xl bg-zinc-900 dark:bg-white text-white dark:text-black font-semibold text-[15px] hover:bg-zinc-800 dark:hover:bg-zinc-200 transition-colors disabled:opacity-50 shadow-md"
+              >
+                {loading ? "Enviando..." : "Enviar link de redefinição"}
               </button>
             </form>
           )}
 
+          {/* PASSO 2 — aguardar email */}
+          {step === "enviado" && (
+            <div className="flex flex-col items-center text-center gap-4 py-2">
+              <div className="w-16 h-16 rounded-full bg-violet-100 dark:bg-violet-900/30 flex items-center justify-center">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-violet-600 dark:text-violet-400">
+                  <rect x="2" y="4" width="20" height="16" rx="2"/>
+                  <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>
+                </svg>
+              </div>
+              <div>
+                <h2 className="text-lg font-semibold text-zinc-900 dark:text-white mb-1">Verifique seu e-mail</h2>
+                <p className="text-[13px] text-zinc-500 dark:text-zinc-400 leading-relaxed">
+                  Se <strong>{email}</strong> estiver cadastrado, você receberá um link para redefinir sua senha.
+                </p>
+              </div>
+              <div className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-4 text-[12px] text-zinc-500 dark:text-zinc-400 text-left">
+                <strong className="text-zinc-700 dark:text-zinc-300">Não recebeu?</strong><br />
+                Verifique a pasta de spam. O link expira em <strong>30 minutos</strong>.
+              </div>
+              <button
+                type="button"
+                onClick={() => { setStep("email"); setError(""); }}
+                className="text-[13px] text-zinc-500 hover:text-zinc-900 dark:hover:text-white transition-colors"
+              >
+                ← Usar outro e-mail
+              </button>
+            </div>
+          )}
+
+          {/* PASSO 3 — nova senha (vindo do link do email) */}
           {step === "nova-senha" && (
             <form onSubmit={handleRedefinir} className="flex flex-col gap-5">
               <p className="text-[14px] text-zinc-500 dark:text-zinc-400">
@@ -153,23 +165,43 @@ export default function RecuperarSenhaPage() {
               </p>
               <div>
                 <label className="text-[13px] font-medium text-zinc-500 dark:text-zinc-400 block mb-1.5">Nova senha</label>
-                <input type="password" value={novaSenha} onChange={e => setNovaSenha(e.target.value)} placeholder="••••••••" className={inputClass + " tracking-widest"} />
+                <input
+                  type="password"
+                  value={novaSenha}
+                  onChange={e => setNovaSenha(e.target.value)}
+                  placeholder="••••••••"
+                  className={inputClass + " tracking-widest"}
+                  autoFocus
+                />
                 <PasswordStrength senha={novaSenha} />
               </div>
               <div>
                 <label className="text-[13px] font-medium text-zinc-500 dark:text-zinc-400 block mb-1.5">Confirmar senha</label>
-                <input type="password" value={confirmar} onChange={e => setConfirmar(e.target.value)} placeholder="••••••••" className={inputClass + " tracking-widest"} />
+                <input
+                  type="password"
+                  value={confirmar}
+                  onChange={e => setConfirmar(e.target.value)}
+                  placeholder="••••••••"
+                  className={inputClass + " tracking-widest"}
+                />
                 {confirmar && novaSenha !== confirmar && (
                   <p className="text-[12px] text-red-500 mt-1.5">As senhas não coincidem.</p>
                 )}
               </div>
-              {error && <div className="text-[13px] text-red-600 dark:text-red-400 font-medium text-center bg-red-50 dark:bg-red-950/20 py-2 rounded-lg">{error}</div>}
-              <button type="submit" disabled={loading || !isValid || novaSenha !== confirmar} className="w-full py-3.5 rounded-xl bg-zinc-900 dark:bg-white text-white dark:text-black font-semibold text-[15px] hover:bg-zinc-800 dark:hover:bg-zinc-200 transition-colors disabled:opacity-50 shadow-md">
+              {error && (
+                <div className="text-[13px] text-red-600 dark:text-red-400 font-medium text-center bg-red-50 dark:bg-red-950/20 py-2 rounded-lg">{error}</div>
+              )}
+              <button
+                type="submit"
+                disabled={loading || !isValid || novaSenha !== confirmar}
+                className="w-full py-3.5 rounded-xl bg-zinc-900 dark:bg-white text-white dark:text-black font-semibold text-[15px] hover:bg-zinc-800 dark:hover:bg-zinc-200 transition-colors disabled:opacity-50 shadow-md"
+              >
                 {loading ? "Salvando..." : "Redefinir senha"}
               </button>
             </form>
           )}
 
+          {/* PASSO 4 — sucesso */}
           {step === "ok" && (
             <div className="text-center py-4">
               <div className="w-14 h-14 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center mx-auto mb-5">
@@ -181,7 +213,10 @@ export default function RecuperarSenhaPage() {
               <p className="text-[14px] text-zinc-500 dark:text-zinc-400 mb-8">
                 Sua senha foi alterada com sucesso. Faça login com a nova senha.
               </p>
-              <Link href="/login" className="inline-block w-full py-3.5 rounded-xl bg-zinc-900 dark:bg-white text-white dark:text-black font-semibold text-[15px] hover:bg-zinc-800 dark:hover:bg-zinc-200 transition-colors text-center shadow-md">
+              <Link
+                href="/login"
+                className="inline-block w-full py-3.5 rounded-xl bg-zinc-900 dark:bg-white text-white dark:text-black font-semibold text-[15px] hover:bg-zinc-800 dark:hover:bg-zinc-200 transition-colors text-center shadow-md"
+              >
                 Ir para o login
               </Link>
             </div>
@@ -195,5 +230,13 @@ export default function RecuperarSenhaPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function RecuperarSenhaPage() {
+  return (
+    <Suspense>
+      <RecuperarSenhaContent />
+    </Suspense>
   );
 }

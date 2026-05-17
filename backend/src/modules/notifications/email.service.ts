@@ -73,6 +73,27 @@ export class EmailService {
 
   // ── Auth ───────────────────────────────────────────────────────────────────
 
+  async sendPasswordResetLink(toEmail: string, nome: string, resetUrl: string): Promise<void> {
+    await this.send(
+      toEmail,
+      "Redefinição de senha — Orkestri",
+      this.layout(`
+        <p>Olá, <strong>${nome}</strong>!</p>
+        <p>Recebemos uma solicitação para redefinir a senha da sua conta. Clique no botão abaixo para criar uma nova senha:</p>
+        <div style="text-align:center;margin:24px 0;">
+          <a href="${resetUrl}" class="btn">Redefinir minha senha</a>
+        </div>
+        <div class="info-box" style="font-size:12px;color:#6b7280;">
+          ⏱️ Este link expira em <strong>30 minutos</strong>.<br><br>
+          Se você não solicitou a redefinição de senha, ignore este email — sua conta continua segura.
+        </div>
+        <hr class="divider">
+        <p style="font-size:11px;color:#9ca3af;">Se o botão não funcionar, copie e cole este link no navegador:<br>
+        <span style="color:#4f46e5;word-break:break-all;">${resetUrl}</span></p>
+      `)
+    );
+  }
+
   async sendPasswordResetRequest(toEmail: string, nomeUsuario: string, nomeAdmin: string, adminEmail: string): Promise<void> {
     await this.send(
       adminEmail,

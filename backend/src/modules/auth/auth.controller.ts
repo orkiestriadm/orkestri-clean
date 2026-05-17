@@ -116,6 +116,14 @@ export class AuthController {
     return this.auth.logout(req.user.id, req.user._iat, req.user._exp);
   }
 
+  // Clears the session cookie without requiring a valid token (handles expired/invalid tokens)
+  @Post("clear")
+  @HttpCode(200)
+  clearSession(@Res({ passthrough: true }) res: Response) {
+    res.clearCookie("orkestri_token", { path: "/" });
+    return { ok: true };
+  }
+
   // ── Solicitações de acesso ────────────────────────────────────────────────
 
   @Post("solicitar-acesso")
