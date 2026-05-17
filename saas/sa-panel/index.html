@@ -1,0 +1,1571 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Orkestri — SA Panel</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg:            #07090f;
+      --surface:       #0c1220;
+      --card:          #101828;
+      --card-hover:    #141f30;
+      --border:        #1c2a40;
+      --border-light:  #243248;
+      --primary:       #6366f1;
+      --primary-dark:  #4f46e5;
+      --primary-light: #818cf8;
+      --primary-glow:  rgba(99,102,241,.18);
+      --primary-dim:   rgba(99,102,241,.10);
+      --violet:        #8b5cf6;
+      --cyan:          #06b6d4;
+      --green:         #10b981;
+      --green-dim:     rgba(16,185,129,.12);
+      --yellow:        #f59e0b;
+      --yellow-dim:    rgba(245,158,11,.10);
+      --red:           #ef4444;
+      --red-dim:       rgba(239,68,68,.10);
+      --text:          #e2e8f0;
+      --text-2:        #94a3b8;
+      --muted:         #475569;
+      --mono:          'JetBrains Mono', monospace;
+      --radius:        10px;
+      --shadow-sm:     0 1px 3px rgba(0,0,0,.4);
+      --shadow-md:     0 4px 16px rgba(0,0,0,.5);
+      --shadow-lg:     0 8px 32px rgba(0,0,0,.6);
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', system-ui, sans-serif;
+      font-size: 14px;
+      line-height: 1.55;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ── Scrollbar ─────────────────────────────────────────────────────────── */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border-light); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+
+    /* ── Layout ────────────────────────────────────────────────────────────── */
+    .layout { display: flex; height: 100vh; overflow: hidden; }
+
+    /* ── Sidebar ───────────────────────────────────────────────────────────── */
+    .sidebar {
+      width: 252px; min-width: 252px;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      display: flex; flex-direction: column;
+      position: relative; overflow: hidden;
+    }
+    .sidebar::before {
+      content: '';
+      position: absolute; top: 0; left: 0; right: 0; height: 180px;
+      background: radial-gradient(ellipse at top left, rgba(99,102,241,.12) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    .sidebar-logo {
+      padding: 20px 18px 18px;
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; gap: 12px;
+      position: relative;
+    }
+    .logo-mark {
+      width: 36px; height: 36px; border-radius: 10px;
+      background: linear-gradient(135deg, var(--primary), var(--violet));
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 900; font-size: 18px; color: #fff;
+      box-shadow: 0 4px 12px rgba(99,102,241,.4);
+      flex-shrink: 0;
+    }
+    .logo-text-wrap { flex: 1; min-width: 0; }
+    .logo-title { font-weight: 800; font-size: 16px; letter-spacing: -.3px; }
+    .logo-sub {
+      font-family: var(--mono); font-size: 9px;
+      color: var(--primary-light); letter-spacing: .12em;
+      text-transform: uppercase; margin-top: 1px;
+    }
+    .logo-env {
+      padding: 2px 7px; border-radius: 20px;
+      background: var(--primary-dim); border: 1px solid rgba(99,102,241,.25);
+      font-size: 9px; font-weight: 700; color: var(--primary-light);
+      font-family: var(--mono); text-transform: uppercase; letter-spacing: .08em;
+      flex-shrink: 0;
+    }
+
+    .sidebar-section-label {
+      padding: 16px 18px 6px;
+      font-size: 9px; font-weight: 700; color: var(--muted);
+      text-transform: uppercase; letter-spacing: .12em;
+    }
+
+    .sidebar-nav { flex: 1; padding: 8px; display: flex; flex-direction: column; gap: 2px; }
+
+    .nav-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 9px 12px; border-radius: 8px;
+      cursor: pointer; color: var(--text-2); font-size: 13px; font-weight: 500;
+      transition: all .15s; border: none; background: none; width: 100%;
+      text-align: left; position: relative;
+    }
+    .nav-item:hover { background: var(--primary-dim); color: var(--text); }
+    .nav-item.active {
+      background: linear-gradient(135deg, rgba(99,102,241,.18), rgba(139,92,246,.10));
+      color: var(--primary-light);
+      border: 1px solid rgba(99,102,241,.2);
+    }
+    .nav-item.active::before {
+      content: '';
+      position: absolute; left: 0; top: 50%; transform: translateY(-50%);
+      width: 3px; height: 18px; background: var(--primary);
+      border-radius: 0 2px 2px 0;
+    }
+    .nav-item svg { flex-shrink: 0; opacity: .8; }
+    .nav-item.active svg { opacity: 1; }
+    .nav-badge {
+      margin-left: auto; background: var(--primary-dim);
+      color: var(--primary-light); border-radius: 20px;
+      padding: 1px 7px; font-size: 10px; font-weight: 700;
+      font-family: var(--mono);
+    }
+
+    /* ── Token section ─────────────────────────────────────────────────────── */
+    .sidebar-footer { padding: 12px; border-top: 1px solid var(--border); }
+    .token-card {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: var(--radius); overflow: hidden;
+    }
+    .token-header {
+      padding: 10px 12px 0;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .token-label {
+      font-family: var(--mono); font-size: 9px; text-transform: uppercase;
+      letter-spacing: .1em; color: var(--muted); display: flex; align-items: center; gap: 5px;
+    }
+    .token-status {
+      width: 7px; height: 7px; border-radius: 50%;
+      background: var(--red); transition: background .3s; flex-shrink: 0;
+    }
+    .token-status.ok { background: var(--green); box-shadow: 0 0 6px var(--green); }
+    .token-status.checking { background: var(--yellow); animation: pulse 1s infinite; }
+    .token-actions { display: flex; align-items: center; gap: 4px; }
+    .token-verify-btn {
+      background: none; border: none; color: var(--muted); cursor: pointer;
+      font-size: 10px; font-family: var(--mono); text-transform: uppercase;
+      letter-spacing: .06em; padding: 2px 6px; border-radius: 4px;
+      transition: all .15s;
+    }
+    .token-verify-btn:hover { color: var(--primary-light); background: var(--primary-dim); }
+    .token-input-wrap { position: relative; padding: 6px 10px 10px; }
+    .token-input-wrap input {
+      width: 100%; background: none; border: none;
+      color: var(--text); font-family: var(--mono); font-size: 11px;
+      outline: none; padding-right: 28px;
+    }
+    .token-eye {
+      position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+      background: none; border: none; color: var(--muted); cursor: pointer;
+      padding: 2px; display: flex; align-items: center;
+    }
+    .token-eye:hover { color: var(--text); }
+    .token-connected {
+      padding: 6px 10px 10px;
+      display: flex; align-items: center; gap: 6px;
+      font-size: 11px; color: var(--green); font-weight: 500;
+    }
+
+    /* ── Main ──────────────────────────────────────────────────────────────── */
+    .main { flex: 1; overflow-y: auto; background: var(--bg); }
+
+    /* ── Page ──────────────────────────────────────────────────────────────── */
+    .page { display: none; padding: 32px 36px; }
+    .page.active { display: block; animation: fadeIn .2s ease; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+
+    .page-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 28px; }
+    .page-title { font-size: 24px; font-weight: 800; letter-spacing: -.4px; }
+    .page-sub { color: var(--text-2); font-size: 13px; margin-top: 4px; }
+    .page-actions { display: flex; gap: 8px; align-items: center; }
+
+    /* ── Stats ─────────────────────────────────────────────────────────────── */
+    .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
+    .stat-card {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 14px; padding: 20px 22px;
+      transition: border-color .2s, transform .2s;
+      cursor: default;
+    }
+    .stat-card:hover { border-color: var(--border-light); transform: translateY(-1px); }
+    .stat-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 12px; }
+    .stat-icon {
+      width: 34px; height: 34px; border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .stat-icon.indigo { background: linear-gradient(135deg, rgba(99,102,241,.2), rgba(99,102,241,.08)); color: var(--primary-light); }
+    .stat-icon.green  { background: linear-gradient(135deg, rgba(16,185,129,.2), rgba(16,185,129,.08)); color: var(--green); }
+    .stat-icon.red    { background: linear-gradient(135deg, rgba(239,68,68,.2), rgba(239,68,68,.08)); color: var(--red); }
+    .stat-icon.yellow { background: linear-gradient(135deg, rgba(245,158,11,.2), rgba(245,158,11,.08)); color: var(--yellow); }
+    .stat-label { font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; }
+    .stat-value { font-size: 32px; font-weight: 800; letter-spacing: -.5px; }
+    .stat-value.g { color: var(--green); }
+    .stat-value.r { color: var(--red); }
+    .stat-value.y { color: var(--yellow); }
+
+    /* ── Toolbar ───────────────────────────────────────────────────────────── */
+    .toolbar { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+    .search-wrap { flex: 1; position: relative; }
+    .search-wrap .search-icon {
+      position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
+      color: var(--muted); pointer-events: none;
+    }
+    .search-wrap input {
+      width: 100%; background: var(--card); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 9px 12px 9px 36px;
+      color: var(--text); font-size: 13px; outline: none;
+      transition: border-color .15s, box-shadow .15s;
+    }
+    .search-wrap input:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px var(--primary-dim);
+    }
+    .search-wrap input::placeholder { color: var(--muted); }
+    .filter-select {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 9px 30px 9px 11px;
+      color: var(--text); font-size: 12px; font-weight: 500; outline: none;
+      cursor: pointer; appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+      background-repeat: no-repeat; background-position: right 8px center;
+      transition: border-color .15s;
+    }
+    .filter-select:focus { border-color: var(--primary); outline: none; }
+    .refresh-info { display: flex; align-items: center; gap: 6px; font-size: 11px; font-family: var(--mono); color: var(--muted); white-space: nowrap; }
+    .refresh-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); animation: pulse 2s infinite; }
+
+    /* ── Table ─────────────────────────────────────────────────────────────── */
+    .table-wrap {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 14px; overflow: hidden;
+    }
+    table { width: 100%; border-collapse: collapse; min-width: 980px; }
+    thead th {
+      padding: 11px 16px; text-align: left;
+      font-size: 10px; font-weight: 700; font-family: var(--mono);
+      text-transform: uppercase; letter-spacing: .1em; color: var(--muted);
+      border-bottom: 1px solid var(--border); background: var(--surface);
+      white-space: nowrap; cursor: pointer; user-select: none;
+      transition: color .15s;
+    }
+    thead th:hover { color: var(--text-2); }
+    thead th.sort-asc .sort-icon::after  { content: ' ↑'; }
+    thead th.sort-desc .sort-icon::after { content: ' ↓'; }
+    thead th:not(.sort-asc):not(.sort-desc) .sort-icon::after { content: ''; }
+    tbody tr { border-bottom: 1px solid var(--border); transition: background .1s; }
+    tbody tr:last-child { border-bottom: none; }
+    tbody tr:hover { background: var(--card-hover); }
+    tbody td { padding: 14px 16px; vertical-align: middle; }
+
+    /* ── Badges ────────────────────────────────────────────────────────────── */
+    .badge {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 3px 9px; border-radius: 20px;
+      font-size: 11px; font-weight: 600; font-family: var(--mono); white-space: nowrap;
+    }
+    .badge::before { content: ''; width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+    .badge.healthy, .badge.running { background: var(--green-dim); color: var(--green); }
+    .badge.healthy::before, .badge.running::before { background: var(--green); }
+    .badge.starting { background: var(--yellow-dim); color: var(--yellow); }
+    .badge.starting::before { background: var(--yellow); animation: pulse 1s infinite; }
+    .badge.absent, .badge.unhealthy, .badge.exited { background: var(--red-dim); color: var(--red); }
+    .badge.absent::before, .badge.unhealthy::before, .badge.exited::before { background: var(--red); }
+
+    .plan-badge {
+      display: inline-flex; padding: 2px 9px; border-radius: 20px;
+      font-size: 10px; font-weight: 700; font-family: var(--mono);
+      text-transform: uppercase; letter-spacing: .06em;
+    }
+    .plan-basico       { background: rgba(100,116,139,.15); color: #94a3b8; border: 1px solid rgba(100,116,139,.2); }
+    .plan-profissional { background: rgba(99,102,241,.15); color: #818cf8; border: 1px solid rgba(99,102,241,.25); }
+    .plan-enterprise   { background: rgba(16,185,129,.15); color: #10b981; border: 1px solid rgba(16,185,129,.25); }
+    .plan-personalizado{ background: rgba(245,158,11,.15); color: #f59e0b; border: 1px solid rgba(245,158,11,.25); }
+
+    /* ── Buttons ───────────────────────────────────────────────────────────── */
+    .btn {
+      display: inline-flex; align-items: center; gap: 7px;
+      padding: 9px 16px; border-radius: var(--radius);
+      font-size: 13px; font-weight: 600; cursor: pointer;
+      border: none; transition: all .15s; white-space: nowrap;
+      font-family: 'Inter', sans-serif;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, var(--primary), var(--violet));
+      color: #fff;
+      box-shadow: 0 2px 10px rgba(99,102,241,.35);
+    }
+    .btn-primary:hover {
+      background: linear-gradient(135deg, var(--primary-dark), #7c3aed);
+      box-shadow: 0 4px 16px rgba(99,102,241,.45);
+      transform: translateY(-1px);
+    }
+    .btn-primary:active { transform: translateY(0); }
+    .btn-outline {
+      background: var(--card); color: var(--text);
+      border: 1px solid var(--border);
+    }
+    .btn-outline:hover { background: var(--card-hover); border-color: var(--border-light); }
+    .btn-danger {
+      background: transparent; color: var(--red);
+      border: 1px solid rgba(239,68,68,.3);
+    }
+    .btn-danger:hover { background: var(--red-dim); border-color: rgba(239,68,68,.5); }
+    .btn-warn {
+      background: transparent; color: var(--yellow);
+      border: 1px solid rgba(245,158,11,.3);
+    }
+    .btn-warn:hover { background: var(--yellow-dim); border-color: rgba(245,158,11,.5); }
+    .btn-sm { padding: 6px 11px; font-size: 12px; border-radius: 7px; }
+    .btn:disabled { opacity: .5; cursor: not-allowed; transform: none !important; box-shadow: none !important; }
+    .btn svg { flex-shrink: 0; }
+
+    /* ── Modal ─────────────────────────────────────────────────────────────── */
+    .modal-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,.8);
+      display: none; align-items: center; justify-content: center;
+      z-index: 100; backdrop-filter: blur(6px);
+    }
+    .modal-overlay.open { display: flex; animation: fadeIn .15s ease; }
+    .modal {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 18px; width: 500px; max-height: 90vh; overflow-y: auto;
+      box-shadow: var(--shadow-lg);
+    }
+    .modal-header {
+      padding: 22px 26px; border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; gap: 12px; justify-content: space-between;
+    }
+    .modal-title-wrap { display: flex; align-items: center; gap: 12px; }
+    .modal-icon {
+      width: 38px; height: 38px; border-radius: 10px;
+      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    }
+    .modal-icon.success { background: var(--green-dim); color: var(--green); }
+    .modal-icon.danger  { background: var(--red-dim); color: var(--red); }
+    .modal-icon.warn    { background: var(--yellow-dim); color: var(--yellow); }
+    .modal-icon.indigo  { background: var(--primary-dim); color: var(--primary-light); }
+    .modal-title { font-size: 16px; font-weight: 700; }
+    .modal-close {
+      background: none; border: none; color: var(--muted); cursor: pointer;
+      font-size: 22px; line-height: 1; padding: 0 4px; transition: color .15s;
+      margin-left: auto;
+    }
+    .modal-close:hover { color: var(--text); }
+    .modal-body { padding: 24px 26px; display: flex; flex-direction: column; gap: 18px; }
+    .modal-footer {
+      padding: 18px 26px; border-top: 1px solid var(--border);
+      display: flex; justify-content: flex-end; gap: 8px;
+    }
+
+    /* ── Form ──────────────────────────────────────────────────────────────── */
+    .form-card {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 16px; overflow: hidden;
+    }
+    .form-section { padding: 22px 26px; }
+    .form-section + .form-section { border-top: 1px solid var(--border); }
+    .form-section-header { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; }
+    .form-section-icon {
+      width: 34px; height: 34px; border-radius: 9px;
+      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+      background: linear-gradient(135deg, rgba(99,102,241,.2), rgba(139,92,246,.12));
+      color: var(--primary-light);
+    }
+    .form-section-title { font-size: 13px; font-weight: 700; color: var(--text); }
+    .form-section-sub { font-size: 11px; color: var(--text-2); margin-top: 1px; }
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .col-2 { grid-column: span 2; }
+
+    .field { display: flex; flex-direction: column; gap: 6px; }
+    .field label {
+      font-size: 11px; font-weight: 700; color: var(--text-2);
+      text-transform: uppercase; letter-spacing: .08em;
+      display: flex; align-items: center; gap: 4px;
+    }
+    .field label .req { color: var(--red); }
+    .field input, .field select, .field textarea {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 10px 13px;
+      color: var(--text); font-size: 13px; outline: none;
+      transition: border-color .15s, box-shadow .15s;
+      font-family: 'Inter', sans-serif;
+    }
+    .field input:focus, .field select:focus, .field textarea:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px var(--primary-dim);
+      background: #0e1b30;
+    }
+    .field select {
+      cursor: pointer; appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+      background-repeat: no-repeat; background-position: right 12px center;
+      padding-right: 34px;
+    }
+    .field textarea { resize: vertical; min-height: 86px; line-height: 1.55; }
+    .field .hint { font-size: 11px; color: var(--muted); line-height: 1.4; }
+    .field input::placeholder, .field textarea::placeholder { color: var(--muted); }
+    .confirm-input { border-color: rgba(239,68,68,.4) !important; }
+    .confirm-input:focus { border-color: var(--red) !important; box-shadow: 0 0 0 3px var(--red-dim) !important; }
+
+    /* ── Slug preview ──────────────────────────────────────────────────────── */
+    #slugPreview {
+      font-family: var(--mono); font-size: 11px; color: var(--cyan);
+      background: rgba(6,182,212,.08); border: 1px solid rgba(6,182,212,.2);
+      border-radius: 6px; padding: 5px 10px;
+      display: none;
+    }
+    #slugPreview.visible { display: block; }
+
+    /* ── Credential box ────────────────────────────────────────────────────── */
+    .cred-box {
+      background: var(--surface);
+      border: 1px solid rgba(16,185,129,.3);
+      border-radius: 12px; overflow: hidden;
+    }
+    .cred-box-header {
+      background: rgba(16,185,129,.08);
+      padding: 12px 16px;
+      display: flex; align-items: center; gap: 8px;
+      border-bottom: 1px solid rgba(16,185,129,.2);
+    }
+    .cred-box-title { color: var(--green); font-family: var(--mono); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .1em; }
+    .cred-row {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 11px 16px; gap: 10px;
+    }
+    .cred-row + .cred-row { border-top: 1px solid var(--border); }
+    .cred-key { font-family: var(--mono); font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; flex-shrink: 0; min-width: 56px; }
+    .cred-val { font-family: var(--mono); font-size: 12px; font-weight: 600; color: var(--text); flex: 1; word-break: break-all; }
+    .cred-val.highlight { color: var(--yellow); }
+    .copy-btn {
+      background: var(--card); border: 1px solid var(--border);
+      color: var(--muted); cursor: pointer;
+      padding: 3px 9px; border-radius: 5px; font-size: 10px; font-weight: 600;
+      transition: all .15s; white-space: nowrap; font-family: 'Inter', sans-serif;
+    }
+    .copy-btn:hover { color: var(--text); border-color: var(--border-light); }
+
+    /* ── Logs ──────────────────────────────────────────────────────────────── */
+    .log-box {
+      background: #050810; border: 1px solid var(--border);
+      border-radius: 10px; padding: 16px;
+      font-family: var(--mono); font-size: 11px; color: #7c8db5;
+      max-height: 320px; overflow-y: auto;
+      white-space: pre-wrap; word-break: break-all; line-height: 1.65;
+    }
+    .log-tabs { display: flex; gap: 6px; margin-bottom: 12px; }
+    .log-tab {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 7px; padding: 6px 13px; font-size: 12px; font-weight: 600;
+      cursor: pointer; color: var(--muted); transition: all .15s;
+      font-family: 'Inter', sans-serif;
+    }
+    .log-tab:hover { color: var(--text-2); }
+    .log-tab.active { background: var(--primary-dim); border-color: rgba(99,102,241,.3); color: var(--primary-light); }
+
+    /* ── Alert ─────────────────────────────────────────────────────────────── */
+    .alert { padding: 13px 15px; border-radius: var(--radius); font-size: 13px; line-height: 1.5; }
+    .alert-warn   { background: var(--yellow-dim); border: 1px solid rgba(245,158,11,.3); color: var(--yellow); }
+    .alert-danger { background: var(--red-dim); border: 1px solid rgba(239,68,68,.3); color: var(--red); }
+    .alert-info   { background: var(--primary-dim); border: 1px solid rgba(99,102,241,.3); color: var(--primary-light); }
+    .alert-success{ background: var(--green-dim); border: 1px solid rgba(16,185,129,.3); color: var(--green); }
+
+    /* ── Spinner ───────────────────────────────────────────────────────────── */
+    .spinner {
+      width: 15px; height: 15px;
+      border: 2px solid rgba(255,255,255,.2);
+      border-top-color: currentColor;
+      border-radius: 50%; animation: spin .6s linear infinite;
+      display: inline-block; flex-shrink: 0;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    @keyframes pulse { 0%,100% { opacity: 1 } 50% { opacity: .35 } }
+
+    /* ── Form footer ───────────────────────────────────────────────────────── */
+    .form-footer {
+      padding: 18px 26px; border-top: 1px solid var(--border);
+      background: rgba(0,0,0,.15);
+      display: flex; align-items: center; gap: 14px;
+    }
+    .form-footer-note { font-size: 12px; color: var(--muted); flex: 1; }
+
+    /* ── Toast ─────────────────────────────────────────────────────────────── */
+    #toastContainer {
+      position: fixed; top: 20px; right: 20px; z-index: 999;
+      display: flex; flex-direction: column; gap: 8px; pointer-events: none;
+    }
+    .toast {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 12px; padding: 14px 16px;
+      min-width: 290px; max-width: 400px;
+      display: flex; align-items: flex-start; gap: 12px;
+      pointer-events: all; animation: toastIn .2s ease;
+      box-shadow: 0 8px 32px rgba(0,0,0,.5), 0 2px 8px rgba(0,0,0,.3);
+    }
+    .toast.removing { animation: toastOut .2s ease forwards; }
+    .toast-icon { flex-shrink: 0; margin-top: 1px; }
+    .toast-body { flex: 1; }
+    .toast-title { font-weight: 700; font-size: 13px; margin-bottom: 2px; }
+    .toast-msg { font-size: 12px; color: var(--text-2); line-height: 1.4; }
+    .toast-close { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 18px; line-height: 1; padding: 0; flex-shrink: 0; }
+    .toast-close:hover { color: var(--text); }
+    .toast.success { border-left: 3px solid var(--green); }
+    .toast.error   { border-left: 3px solid var(--red); }
+    .toast.warn    { border-left: 3px solid var(--yellow); }
+    .toast.info    { border-left: 3px solid var(--primary); }
+    .toast-progress { height: 2px; border-radius: 1px; margin-top: 9px; animation: toastProgress linear forwards; }
+    .toast.success .toast-progress { background: var(--green); }
+    .toast.error   .toast-progress { background: var(--red); }
+    .toast.warn    .toast-progress { background: var(--yellow); }
+    .toast.info    .toast-progress { background: var(--primary); }
+    @keyframes toastIn  { from { opacity:0; transform:translateX(16px); } to { opacity:1; transform:translateX(0); } }
+    @keyframes toastOut { from { opacity:1; transform:translateX(0); } to { opacity:0; transform:translateX(16px); } }
+    @keyframes toastProgress { from { width:100%; } to { width:0%; } }
+
+    /* ── Empty state ───────────────────────────────────────────────────────── */
+    .empty-state { text-align: center; padding: 64px 20px; }
+    .empty-state svg { color: var(--muted); margin-bottom: 14px; opacity: .35; }
+    .empty-state .empty-title { font-size: 14px; font-weight: 600; color: var(--text-2); margin-bottom: 4px; }
+    .empty-state .empty-sub { font-size: 12px; color: var(--muted); }
+
+    /* ── Detail grid ───────────────────────────────────────────────────────── */
+    .detail-grid { display: grid; grid-template-columns: 110px 1fr; gap: 10px 16px; }
+    .detail-key { font-size: 11px; color: var(--muted); font-family: var(--mono); text-transform: uppercase; letter-spacing: .07em; padding-top: 2px; }
+    .detail-val { font-size: 13px; font-weight: 500; word-break: break-all; }
+
+    /* ── Divider ───────────────────────────────────────────────────────────── */
+    .divider { height: 1px; background: var(--border); margin: 4px 0; }
+
+    /* ── Update page ───────────────────────────────────────────────────────── */
+    .update-card {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 16px; padding: 28px;
+      display: flex; flex-direction: column; gap: 20px;
+      max-width: 600px;
+    }
+    .update-card h3 { font-size: 15px; font-weight: 700; }
+    .update-card p { font-size: 13px; color: var(--text-2); line-height: 1.55; }
+
+    /* ── Tenant slug cell ──────────────────────────────────────────────────── */
+    .slug-chip {
+      font-family: var(--mono); font-weight: 600; font-size: 13px;
+      color: var(--primary-light); background: var(--primary-dim);
+      padding: 2px 9px; border-radius: 5px; display: inline-block;
+    }
+    .domain-link {
+      color: var(--cyan); text-decoration: none;
+      font-family: var(--mono); font-size: 11px;
+    }
+    .domain-link:hover { text-decoration: underline; }
+
+    /* ── Provision success banner ──────────────────────────────────────────── */
+    .success-banner {
+      background: linear-gradient(135deg, rgba(16,185,129,.12), rgba(6,182,212,.08));
+      border: 1px solid rgba(16,185,129,.25);
+      border-radius: 12px; padding: 16px 18px;
+      display: flex; align-items: flex-start; gap: 12px;
+    }
+    .success-banner svg { color: var(--green); flex-shrink: 0; margin-top: 1px; }
+    .success-banner-text { font-size: 13px; color: var(--text); line-height: 1.5; }
+    .success-banner-sub { font-size: 12px; color: var(--text-2); margin-top: 2px; }
+  </style>
+</head>
+<body>
+
+<div id="toastContainer"></div>
+
+<div class="layout">
+  <!-- ── Sidebar ─────────────────────────────────────────────────────────── -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-mark">O</div>
+      <div class="logo-text-wrap">
+        <div class="logo-title">Orkestri</div>
+        <div class="logo-sub">SA Panel</div>
+      </div>
+      <span class="logo-env">Admin</span>
+    </div>
+
+    <nav class="sidebar-nav">
+      <div class="sidebar-section-label">Gestão</div>
+      <button class="nav-item active" data-page="tenants" onclick="showPage('tenants', this)">
+        <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+        Tenants
+        <span class="nav-badge" id="navBadge" style="display:none">0</span>
+      </button>
+      <button class="nav-item" data-page="provision" onclick="showPage('provision', this)">
+        <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+        Novo Tenant
+      </button>
+
+      <div class="divider" style="margin: 6px 0"></div>
+      <div class="sidebar-section-label">Sistema</div>
+
+      <button class="nav-item" data-page="update" onclick="showPage('update', this)">
+        <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21.5 2v6h-6M2.5 22v-6h6"/><path d="M2 11.5a10 10 0 0118.8-2.3M22 12.5a10 10 0 01-18.8 2.2"/></svg>
+        Atualizar Todos
+      </button>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="token-card">
+        <div class="token-header">
+          <div class="token-label">
+            <span class="token-status" id="tokenStatus" title="Status da conexão"></span>
+            Token SA
+          </div>
+          <div class="token-actions">
+            <button class="token-verify-btn" onclick="verifyToken()">verificar</button>
+          </div>
+        </div>
+        <div class="token-input-wrap">
+          <input type="password" id="tokenInput" placeholder="Cole o token aqui..." oninput="onTokenChange()" autocomplete="new-password" />
+          <button class="token-eye" onclick="toggleTokenVis(this)" title="Mostrar/ocultar">
+            <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ── Main ────────────────────────────────────────────────────────────── -->
+  <main class="main">
+
+    <!-- Tenants page -->
+    <div id="page-tenants" class="page active" style="padding-top:36px">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Tenants</div>
+          <div class="page-sub">Instâncias ativas do Orkestri</div>
+        </div>
+        <div class="page-actions">
+          <button class="btn btn-outline btn-sm" onclick="loadTenants()">
+            <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21.5 2v6h-6M2.5 22v-6h6"/><path d="M2 11.5a10 10 0 0118.8-2.3M22 12.5a10 10 0 01-18.8 2.2"/></svg>
+            Atualizar
+          </button>
+          <button class="btn btn-primary btn-sm" onclick="showPage('provision', document.querySelector('[data-page=provision]'))">
+            <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+            Novo Tenant
+          </button>
+        </div>
+      </div>
+
+      <div class="stats-grid" id="statsGrid">
+        <div class="stat-card">
+          <div class="stat-header">
+            <div class="stat-icon indigo">
+              <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+            </div>
+          </div>
+          <div class="stat-label">Total</div>
+          <div class="stat-value" id="statTotal">—</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-header">
+            <div class="stat-icon green">
+              <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+            </div>
+          </div>
+          <div class="stat-label">Ativos</div>
+          <div class="stat-value g" id="statActive">—</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-header">
+            <div class="stat-icon red">
+              <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            </div>
+          </div>
+          <div class="stat-label">Com Problema</div>
+          <div class="stat-value r" id="statIssues">—</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-header">
+            <div class="stat-icon yellow">
+              <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            </div>
+          </div>
+          <div class="stat-label">Iniciando</div>
+          <div class="stat-value y" id="statStarting">—</div>
+        </div>
+      </div>
+
+      <div class="toolbar">
+        <div class="search-wrap">
+          <svg class="search-icon" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+          <input type="text" id="searchInput" placeholder="Buscar por slug, empresa ou e-mail..." oninput="filterTable()" />
+        </div>
+        <select class="filter-select" id="filterPlano" onchange="filterTable()">
+          <option value="">Todos os planos</option>
+          <option value="basico">Básico</option>
+          <option value="profissional">Profissional</option>
+          <option value="enterprise">Enterprise</option>
+          <option value="personalizado">Personalizado</option>
+        </select>
+        <select class="filter-select" id="filterStatus" onchange="filterTable()">
+          <option value="">Todos os status</option>
+          <option value="healthy">Saudável</option>
+          <option value="starting">Iniciando</option>
+          <option value="issues">Com problema</option>
+        </select>
+        <div class="refresh-info" id="refreshInfo" style="display:none">
+          <span class="refresh-dot"></span>
+          <span id="refreshCountdown"></span>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th onclick="sortTable('slug')">Tenant <span class="sort-icon"></span></th>
+              <th onclick="sortTable('nome')">Empresa <span class="sort-icon"></span></th>
+              <th onclick="sortTable('plano')">Plano <span class="sort-icon"></span></th>
+              <th>URL</th>
+              <th>PG</th>
+              <th>API</th>
+              <th>Frontend</th>
+              <th>Redis</th>
+              <th onclick="sortTable('provisionedAt')">Provisionado <span class="sort-icon"></span></th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="tenantTable">
+            <tr><td colspan="10" style="text-align:center;padding:48px;color:var(--muted)">Carregando...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Provision page -->
+    <div id="page-provision" class="page">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Novo Tenant</div>
+          <div class="page-sub">Provisiona uma nova instância isolada do Orkestri</div>
+        </div>
+      </div>
+
+      <div style="max-width:680px">
+        <div class="form-card">
+
+          <!-- Empresa -->
+          <div class="form-section">
+            <div class="form-section-header">
+              <div class="form-section-icon">
+                <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 21h18M3 7v14M21 7v14M6 3h12l3 4H3L6 3zM9 21V12h6v9"/></svg>
+              </div>
+              <div>
+                <div class="form-section-title">Dados da Empresa</div>
+                <div class="form-section-sub">Identificação e informações comerciais</div>
+              </div>
+            </div>
+            <div class="form-grid">
+              <div class="field col-2">
+                <label>Slug — Identificador único<span class="req">*</span></label>
+                <input type="text" id="provSlug" placeholder="ex: acme, cliente01, tech-solutions" oninput="updateSlugPreview()" autocomplete="off" />
+                <div id="slugPreview"></div>
+                <div class="hint">Apenas letras minúsculas, números e hífens. Máx 20 caracteres. Não pode ser alterado depois.</div>
+              </div>
+              <div class="field col-2">
+                <label>Nome da Empresa<span class="req">*</span></label>
+                <input type="text" id="provNome" placeholder="ex: Acme Tecnologia Ltda." />
+              </div>
+              <div class="field">
+                <label>CNPJ</label>
+                <input type="text" id="provCnpj" placeholder="00.000.000/0001-00" oninput="maskCnpj(this)" maxlength="18" />
+              </div>
+              <div class="field">
+                <label>Telefone</label>
+                <input type="text" id="provTelefone" placeholder="(11) 99999-9999" oninput="maskTelefone(this)" maxlength="15" />
+              </div>
+              <div class="field">
+                <label>Website</label>
+                <input type="url" id="provWebsite" placeholder="https://empresa.com.br" />
+              </div>
+              <div class="field">
+                <label>Plano<span class="req">*</span></label>
+                <select id="provPlano">
+                  <option value="basico">Básico</option>
+                  <option value="profissional" selected>Profissional</option>
+                  <option value="enterprise">Enterprise</option>
+                  <option value="personalizado">Personalizado</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- Administrador -->
+          <div class="form-section">
+            <div class="form-section-header">
+              <div class="form-section-icon">
+                <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+              </div>
+              <div>
+                <div class="form-section-title">Administrador do Sistema</div>
+                <div class="form-section-sub">Receberá o acesso inicial com senha temporária por e-mail</div>
+              </div>
+            </div>
+            <div class="form-grid">
+              <div class="field col-2">
+                <label>E-mail<span class="req">*</span></label>
+                <input type="email" id="provEmail" placeholder="admin@empresa.com.br" />
+              </div>
+              <div class="field col-2">
+                <label>Nome do Administrador</label>
+                <input type="text" id="provAdminNome" placeholder="João Silva (opcional)" />
+              </div>
+            </div>
+          </div>
+
+          <!-- Observações -->
+          <div class="form-section">
+            <div class="form-section-header">
+              <div class="form-section-icon">
+                <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+              </div>
+              <div>
+                <div class="form-section-title">Observações</div>
+                <div class="form-section-sub">Notas internas sobre o contrato (opcional)</div>
+              </div>
+            </div>
+            <div class="field">
+              <textarea id="provObs" placeholder="Contato comercial, particularidades do contrato, prazo de implantação..."></textarea>
+            </div>
+          </div>
+
+          <div class="form-footer">
+            <div class="form-footer-note">
+              <svg width="13" height="13" style="display:inline;vertical-align:-2px;margin-right:4px;color:var(--yellow)" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+              Provisionamento leva até 2 minutos para os containers iniciarem.
+            </div>
+            <button class="btn btn-primary" id="btnProvision" onclick="doProvision()">
+              <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+              Provisionar Tenant
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Update page -->
+    <div id="page-update" class="page">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Atualizar Todos</div>
+          <div class="page-sub">Aplica a versão mais recente das imagens em todos os tenants</div>
+        </div>
+      </div>
+      <div class="update-card">
+        <div>
+          <h3>Atualização global de containers</h3>
+          <p style="margin-top:6px">Faz pull das imagens <code style="font-family:var(--mono);font-size:12px;background:var(--surface);padding:1px 5px;border-radius:4px">orkestri/api:latest</code> e <code style="font-family:var(--mono);font-size:12px;background:var(--surface);padding:1px 5px;border-radius:4px">orkestri/frontend:latest</code> e reinicia os containers de API e Frontend de todos os tenants.</p>
+        </div>
+        <div class="alert alert-warn" style="font-size:12px">
+          ⚠&nbsp; Postgres e Redis <strong>não são reiniciados</strong>. Tenants ficarão offline por ~30 segundos durante o restart.
+        </div>
+        <button class="btn btn-primary" id="btnUpdateAll" onclick="doUpdateAll()" style="align-self:flex-start">
+          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21.5 2v6h-6M2.5 22v-6h6"/><path d="M2 11.5a10 10 0 0118.8-2.3M22 12.5a10 10 0 01-18.8 2.2"/></svg>
+          Atualizar Todos os Tenants
+        </button>
+        <div id="updateOutput" style="display:none">
+          <div style="font-size:10px;font-family:var(--mono);text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:8px">Output</div>
+          <div class="log-box" id="updateLog"></div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- ── Credential Modal ─────────────────────────────────────────────────────── -->
+<div class="modal-overlay" id="credModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title-wrap">
+        <div class="modal-icon success">
+          <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+        </div>
+        <div class="modal-title">Tenant Provisionado</div>
+      </div>
+      <button class="modal-close" onclick="closeModal('credModal')">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="success-banner">
+        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+        <div>
+          <div class="success-banner-text">Instância criada e containers em execução.</div>
+          <div class="success-banner-sub">O administrador pode fazer login imediatamente com as credenciais abaixo.</div>
+        </div>
+      </div>
+      <div class="cred-box">
+        <div class="cred-box-header">
+          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+          <div class="cred-box-title">Credenciais de acesso — salve agora</div>
+        </div>
+        <div class="cred-row"><span class="cred-key">URL</span><span class="cred-val" id="credUrl"></span><button class="copy-btn" onclick="copy('credUrl')">copiar</button></div>
+        <div class="cred-row"><span class="cred-key">E-mail</span><span class="cred-val" id="credEmail"></span><button class="copy-btn" onclick="copy('credEmail')">copiar</button></div>
+        <div class="cred-row"><span class="cred-key">Senha</span><span class="cred-val highlight" id="credPass"></span><button class="copy-btn" onclick="copy('credPass')">copiar</button></div>
+      </div>
+      <div class="alert alert-danger" style="font-size:12px">
+        <strong>Esta senha não pode ser recuperada.</strong> Anote-a imediatamente ou envie ao administrador antes de fechar esta janela.
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('credModal')">Fechar</button>
+      <button class="btn btn-primary" onclick="closeModal('credModal');showPage('tenants',document.querySelector('[data-page=tenants]'));loadTenants()">
+        <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+        Ver Tenants
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Delete Modal ─────────────────────────────────────────────────────────── -->
+<div class="modal-overlay" id="deleteModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title-wrap">
+        <div class="modal-icon danger">
+          <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
+        </div>
+        <div class="modal-title" style="color:var(--red)">Remover Tenant</div>
+      </div>
+      <button class="modal-close" onclick="closeModal('deleteModal')">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="alert alert-danger">
+        Esta operação é <strong>IRREVERSÍVEL</strong>. Todos os dados, banco de dados e containers serão permanentemente removidos. Não há como desfazer.
+      </div>
+      <div class="field">
+        <label>Para confirmar, digite o slug <strong id="deleteSlugLabel" style="color:var(--red);font-family:var(--mono)"></strong></label>
+        <input type="text" id="deleteConfirmInput" class="confirm-input" placeholder="Digite o slug exato para confirmar" oninput="checkDeleteConfirm()" autocomplete="off" />
+      </div>
+      <div id="deleteLog" style="display:none" class="log-box"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('deleteModal')">Cancelar</button>
+      <button class="btn btn-danger" id="btnDeleteConfirm" onclick="confirmDelete()" disabled>Remover Permanentemente</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Logs Modal ────────────────────────────────────────────────────────────── -->
+<div class="modal-overlay" id="logsModal">
+  <div class="modal" style="width:680px">
+    <div class="modal-header">
+      <div class="modal-title-wrap">
+        <div class="modal-icon indigo">
+          <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+        </div>
+        <div class="modal-title" id="logsModalTitle">Logs</div>
+      </div>
+      <button class="modal-close" onclick="closeModal('logsModal')">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="log-tabs">
+        <button class="log-tab active" id="tab-api" onclick="showLogs(currentLogSlug,'api',this)">API</button>
+        <button class="log-tab" id="tab-frontend" onclick="showLogs(currentLogSlug,'frontend',this)">Frontend</button>
+        <button class="log-tab" id="tab-postgres" onclick="showLogs(currentLogSlug,'postgres',this)">Postgres</button>
+        <button class="log-tab" id="tab-redis" onclick="showLogs(currentLogSlug,'redis',this)">Redis</button>
+      </div>
+      <div class="log-box" id="logsContent" style="min-height:260px">Carregando...</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Edit Modal ────────────────────────────────────────────────────────────── -->
+<div class="modal-overlay" id="editModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title-wrap">
+        <div class="modal-icon indigo">
+          <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        </div>
+        <div class="modal-title">Editar Tenant</div>
+      </div>
+      <button class="modal-close" onclick="closeModal('editModal')">&times;</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="editSlug" />
+      <div class="form-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+        <div class="field col-2" style="grid-column:span 2">
+          <label>Nome da Empresa</label>
+          <input type="text" id="editNome" />
+        </div>
+        <div class="field" style="grid-column:span 1">
+          <label>CNPJ</label>
+          <input type="text" id="editCnpj" oninput="maskCnpj(this)" maxlength="18" />
+        </div>
+        <div class="field" style="grid-column:span 1">
+          <label>Telefone</label>
+          <input type="text" id="editTelefone" oninput="maskTelefone(this)" maxlength="15" />
+        </div>
+        <div class="field" style="grid-column:span 1">
+          <label>Website</label>
+          <input type="url" id="editWebsite" />
+        </div>
+        <div class="field" style="grid-column:span 1">
+          <label>Plano</label>
+          <select id="editPlano">
+            <option value="basico">Básico</option>
+            <option value="profissional">Profissional</option>
+            <option value="enterprise">Enterprise</option>
+            <option value="personalizado">Personalizado</option>
+          </select>
+        </div>
+        <div class="field" style="grid-column:span 2">
+          <label>Observações</label>
+          <textarea id="editObs" style="min-height:80px"></textarea>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('editModal')">Cancelar</button>
+      <button class="btn btn-primary" id="btnEditSave" onclick="saveEdit()">Salvar Alterações</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Restart Modal ─────────────────────────────────────────────────────────── -->
+<div class="modal-overlay" id="restartModal">
+  <div class="modal" style="width:440px">
+    <div class="modal-header">
+      <div class="modal-title-wrap">
+        <div class="modal-icon warn">
+          <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21.5 2v6h-6M2.5 22v-6h6"/><path d="M2 11.5a10 10 0 0118.8-2.3M22 12.5a10 10 0 01-18.8 2.2"/></svg>
+        </div>
+        <div class="modal-title" style="color:var(--yellow)">Reiniciar Tenant</div>
+      </div>
+      <button class="modal-close" onclick="closeModal('restartModal')">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="alert alert-warn">Isso reiniciará os containers de API e Frontend do tenant <strong id="restartSlugLabel" style="font-family:var(--mono)"></strong>. O tenant ficará offline por ~30 segundos.</div>
+      <div id="restartLog" style="display:none" class="log-box"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('restartModal')">Cancelar</button>
+      <button class="btn btn-warn" id="btnRestartConfirm" onclick="confirmRestart()">Reiniciar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const API = "";
+let currentDeleteSlug = null;
+let currentLogSlug = null;
+let currentRestartSlug = null;
+let allTenants = [];
+let sortField = null;
+let sortDir = 1;
+let refreshTimer = null;
+let refreshCountdown = 60;
+
+// ── Token visibility ───────────────────────────────────────────────────────────
+function toggleTokenVis(btn) {
+  const input = document.getElementById("tokenInput");
+  const isPass = input.type === "password";
+  input.type = isPass ? "text" : "password";
+  btn.innerHTML = isPass
+    ? `<svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>`
+    : `<svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>`;
+}
+
+// ── Toast system ───────────────────────────────────────────────────────────────
+const TOAST_ICONS = {
+  success: `<svg width="18" height="18" fill="none" stroke="#10b981" stroke-width="2" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>`,
+  error:   `<svg width="18" height="18" fill="none" stroke="#ef4444" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>`,
+  warn:    `<svg width="18" height="18" fill="none" stroke="#f59e0b" stroke-width="2" viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`,
+  info:    `<svg width="18" height="18" fill="none" stroke="#6366f1" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>`,
+};
+
+function toast(type, title, msg, duration = 4000) {
+  const c = document.getElementById("toastContainer");
+  const el = document.createElement("div");
+  el.className = `toast ${type}`;
+  el.innerHTML = `
+    <div class="toast-icon">${TOAST_ICONS[type]}</div>
+    <div class="toast-body">
+      <div class="toast-title">${title}</div>
+      ${msg ? `<div class="toast-msg">${msg}</div>` : ""}
+      <div class="toast-progress" style="animation-duration:${duration}ms"></div>
+    </div>
+    <button class="toast-close" onclick="this.closest('.toast').remove()">&times;</button>
+  `;
+  c.appendChild(el);
+  setTimeout(() => { el.classList.add("removing"); setTimeout(() => el.remove(), 200); }, duration);
+}
+
+// ── Token ──────────────────────────────────────────────────────────────────────
+function token() { return document.getElementById("tokenInput").value.trim(); }
+function headers() { return { "Authorization": `Bearer ${token()}`, "Content-Type": "application/json" }; }
+
+function onTokenChange() {
+  localStorage.setItem("orkestri_sa_token", token());
+  document.getElementById("tokenStatus").className = "token-status";
+}
+
+async function verifyToken() {
+  if (!token()) return;
+  const el = document.getElementById("tokenStatus");
+  el.className = "token-status checking";
+  try {
+    const res = await fetch(`${API}/api/tenants`, { headers: headers() });
+    el.className = "token-status " + (res.ok ? "ok" : "");
+    if (!res.ok) toast("error", "Token inválido", "Verifique o token SA no rodapé esquerdo.");
+  } catch { el.className = "token-status"; }
+}
+
+// ── Helpers ────────────────────────────────────────────────────────────────────
+function showPage(name, btn) {
+  document.querySelectorAll(".page").forEach(p => p.classList.remove("active"));
+  document.querySelectorAll(".nav-item").forEach(b => b.classList.remove("active"));
+  document.getElementById(`page-${name}`).classList.add("active");
+  if (btn) btn.classList.add("active");
+  if (name === "tenants") loadTenants();
+}
+function openModal(id)  { document.getElementById(id).classList.add("open"); }
+function closeModal(id) { document.getElementById(id).classList.remove("open"); }
+
+function copy(id) {
+  const el = document.getElementById(id);
+  navigator.clipboard.writeText(el.textContent).then(() => {
+    const orig = el.style.color;
+    el.style.color = "var(--green)";
+    setTimeout(() => el.style.color = orig, 800);
+    toast("success", "Copiado!", null, 1500);
+  });
+}
+
+function statusBadge(s) {
+  const cls = { healthy:"healthy", running:"running", starting:"starting", absent:"absent", unhealthy:"unhealthy", exited:"exited" }[s] || "absent";
+  return `<span class="badge ${cls}">${s || "absent"}</span>`;
+}
+
+function planBadge(p) {
+  const labels = { basico:"Básico", profissional:"Pro", enterprise:"Enterprise", personalizado:"Custom" };
+  const cls = { basico:"basico", profissional:"profissional", enterprise:"enterprise", personalizado:"personalizado" }[p] || "profissional";
+  return `<span class="plan-badge plan-${cls}">${labels[p] || p || "Pro"}</span>`;
+}
+
+function formatDate(d) {
+  if (!d) return "—";
+  return new Date(d).toLocaleDateString("pt-BR", { day:"2-digit", month:"2-digit", year:"numeric" });
+}
+
+// ── Input masks ────────────────────────────────────────────────────────────────
+function maskCnpj(el) {
+  let v = el.value.replace(/\D/g,"").slice(0,14);
+  if (v.length > 12) v = v.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/,"$1.$2.$3/$4-$5");
+  else if (v.length > 8) v = v.replace(/^(\d{2})(\d{3})(\d{3})(\d{0,4})/,"$1.$2.$3/$4");
+  else if (v.length > 5) v = v.replace(/^(\d{2})(\d{3})(\d{0,3})/,"$1.$2.$3");
+  else if (v.length > 2) v = v.replace(/^(\d{2})(\d{0,3})/,"$1.$2");
+  el.value = v;
+}
+
+function maskTelefone(el) {
+  let v = el.value.replace(/\D/g,"").slice(0,11);
+  if (v.length > 10) v = v.replace(/^(\d{2})(\d{5})(\d{4})/,"($1) $2-$3");
+  else if (v.length > 6) v = v.replace(/^(\d{2})(\d{4,5})(\d{0,4})/,"($1) $2-$3");
+  else if (v.length > 2) v = v.replace(/^(\d{2})(\d{0,5})/,"($1) $2");
+  else if (v.length > 0) v = v.replace(/^(\d{0,2})/,"($1");
+  el.value = v;
+}
+
+// ── Slug preview ───────────────────────────────────────────────────────────────
+function updateSlugPreview() {
+  const val = document.getElementById("provSlug").value;
+  const el = document.getElementById("slugPreview");
+  if (val) {
+    el.textContent = `→  https://${val}.orkestri.com.br`;
+    el.classList.add("visible");
+  } else {
+    el.classList.remove("visible");
+  }
+}
+
+// ── Sort ───────────────────────────────────────────────────────────────────────
+function sortTable(field) {
+  if (sortField === field) sortDir *= -1;
+  else { sortField = field; sortDir = 1; }
+  document.querySelectorAll("thead th").forEach(th => th.classList.remove("sort-asc","sort-desc"));
+  const ths = document.querySelectorAll("thead th");
+  const fieldMap = { slug:0, nome:1, plano:2, provisionedAt:8 };
+  const idx = fieldMap[field];
+  if (idx !== undefined) ths[idx].classList.add(sortDir === 1 ? "sort-asc" : "sort-desc");
+  renderTable(getFiltered());
+}
+
+// ── Filter ─────────────────────────────────────────────────────────────────────
+function getFiltered() {
+  const q = (document.getElementById("searchInput")?.value || "").toLowerCase();
+  const plano = document.getElementById("filterPlano")?.value || "";
+  const status = document.getElementById("filterStatus")?.value || "";
+  let list = [...allTenants];
+  if (q) list = list.filter(t => t.slug?.toLowerCase().includes(q) || t.nome?.toLowerCase().includes(q) || t.adminEmail?.toLowerCase().includes(q));
+  if (plano) list = list.filter(t => t.plano === plano);
+  if (status === "healthy") list = list.filter(t => ["healthy","running"].includes(t.containers?.api));
+  else if (status === "starting") list = list.filter(t => t.containers?.api === "starting");
+  else if (status === "issues") list = list.filter(t => !["healthy","running","starting"].includes(t.containers?.api));
+  if (sortField) {
+    list.sort((a,b) => {
+      const av = (a[sortField]||"").toString().toLowerCase();
+      const bv = (b[sortField]||"").toString().toLowerCase();
+      return av < bv ? -sortDir : av > bv ? sortDir : 0;
+    });
+  }
+  return list;
+}
+function filterTable() { renderTable(getFiltered()); }
+
+// ── Auto-refresh ───────────────────────────────────────────────────────────────
+function startAutoRefresh() {
+  clearInterval(refreshTimer);
+  refreshCountdown = 60;
+  document.getElementById("refreshInfo").style.display = "flex";
+  updateCountdown();
+  refreshTimer = setInterval(() => {
+    refreshCountdown--;
+    if (refreshCountdown <= 0) { loadTenants(); refreshCountdown = 60; }
+    updateCountdown();
+  }, 1000);
+}
+function updateCountdown() {
+  const el = document.getElementById("refreshCountdown");
+  if (el) el.textContent = `auto-refresh em ${refreshCountdown}s`;
+}
+
+// ── Tenants ────────────────────────────────────────────────────────────────────
+async function loadTenants() {
+  const tbody = document.getElementById("tenantTable");
+  tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;padding:48px;color:var(--muted)"><span class="spinner" style="border-top-color:var(--primary-light)"></span></td></tr>`;
+  try {
+    const res = await fetch(`${API}/api/tenants`, { headers: headers() });
+    if (res.status === 401) {
+      tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;padding:48px;color:var(--red)">Token inválido — configure o Token SA no rodapé esquerdo.</td></tr>`;
+      document.getElementById("tokenStatus").className = "token-status";
+      return;
+    }
+    const { tenants } = await res.json();
+    allTenants = tenants;
+    document.getElementById("tokenStatus").className = "token-status ok";
+    updateStats(tenants);
+    renderTable(getFiltered());
+    startAutoRefresh();
+    const badge = document.getElementById("navBadge");
+    if (tenants.length > 0) { badge.textContent = tenants.length; badge.style.display = ""; }
+    else { badge.style.display = "none"; }
+  } catch (e) {
+    tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;padding:48px;color:var(--red)">Erro ao carregar: ${e.message}</td></tr>`;
+  }
+}
+
+function updateStats(tenants) {
+  let active = 0, issues = 0, starting = 0;
+  tenants.forEach(t => {
+    const s = t.containers?.api || "absent";
+    if (s === "healthy" || s === "running") active++;
+    else if (s === "starting") starting++;
+    else issues++;
+  });
+  document.getElementById("statTotal").textContent = tenants.length;
+  document.getElementById("statActive").textContent = active;
+  document.getElementById("statIssues").textContent = issues;
+  document.getElementById("statStarting").textContent = starting;
+}
+
+function renderTable(tenants) {
+  const tbody = document.getElementById("tenantTable");
+  if (tenants.length === 0) {
+    const isFiltered = document.getElementById("searchInput")?.value || document.getElementById("filterPlano")?.value || document.getElementById("filterStatus")?.value;
+    tbody.innerHTML = `<tr><td colspan="10"><div class="empty-state">
+      <svg width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+      <div class="empty-title">${isFiltered ? "Nenhum tenant encontrado" : "Nenhum tenant ainda"}</div>
+      <div class="empty-sub">${isFiltered ? "Tente outros filtros ou termos de busca." : '<a href="#" onclick="showPage(\'provision\',document.querySelector(\'[data-page=provision]\')); return false;" style="color:var(--primary-light)">Provisionar o primeiro tenant</a>'}</div>
+    </div></td></tr>`;
+    return;
+  }
+  tbody.innerHTML = tenants.map(t => `
+    <tr>
+      <td><span class="slug-chip">${t.slug}</span></td>
+      <td>
+        <div style="font-weight:600;font-size:13px">${t.nome}</div>
+        ${t.cnpj ? `<div style="font-size:11px;color:var(--muted);font-family:var(--mono);margin-top:1px">${t.cnpj}</div>` : ""}
+      </td>
+      <td>${planBadge(t.plano)}</td>
+      <td><a class="domain-link" href="https://${t.domain}" target="_blank">${t.domain}</a></td>
+      <td>${statusBadge(t.containers?.postgres)}</td>
+      <td>${statusBadge(t.containers?.api)}</td>
+      <td>${statusBadge(t.containers?.frontend)}</td>
+      <td>${statusBadge(t.containers?.redis)}</td>
+      <td style="color:var(--muted);font-size:12px;white-space:nowrap">${formatDate(t.provisionedAt)}</td>
+      <td>
+        <div style="display:flex;gap:4px;flex-wrap:nowrap;justify-content:flex-end">
+          <button class="btn btn-sm btn-outline" onclick="openLogs('${t.slug}')" title="Ver logs">
+            <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          </button>
+          <button class="btn btn-sm btn-outline" onclick="openEdit('${t.slug}')" title="Editar">
+            <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          </button>
+          <button class="btn btn-sm btn-outline" onclick="doBackup('${t.slug}', this)" title="Backup">
+            <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          </button>
+          <button class="btn btn-sm btn-warn" onclick="openRestart('${t.slug}')" title="Reiniciar">
+            <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21.5 2v6h-6M2.5 22v-6h6"/><path d="M2 11.5a10 10 0 0118.8-2.3M22 12.5a10 10 0 01-18.8 2.2"/></svg>
+          </button>
+          <button class="btn btn-sm btn-danger" onclick="openDelete('${t.slug}', '${t.nome.replace(/'/g,"\\'")}')">
+            <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
+          </button>
+        </div>
+      </td>
+    </tr>`).join("");
+}
+
+// ── Provision ──────────────────────────────────────────────────────────────────
+async function doProvision() {
+  const slug = document.getElementById("provSlug").value.trim();
+  const nome = document.getElementById("provNome").value.trim();
+  const email = document.getElementById("provEmail").value.trim();
+  const adminNome = document.getElementById("provAdminNome").value.trim();
+  const cnpj = document.getElementById("provCnpj").value.trim();
+  const telefone = document.getElementById("provTelefone").value.trim();
+  const website = document.getElementById("provWebsite").value.trim();
+  const plano = document.getElementById("provPlano").value;
+  const observacoes = document.getElementById("provObs").value.trim();
+
+  if (!slug || !nome || !email) {
+    toast("warn", "Campos obrigatórios", "Preencha: Slug, Nome da Empresa e E-mail.");
+    return;
+  }
+
+  const btn = document.getElementById("btnProvision");
+  btn.disabled = true;
+  btn.innerHTML = `<span class="spinner"></span> Provisionando...`;
+
+  try {
+    const res = await fetch(`${API}/api/tenants`, {
+      method: "POST", headers: headers(),
+      body: JSON.stringify({ slug, nome, adminEmail: email, adminNome: adminNome || "Administrador", cnpj, telefone, website, plano, observacoes }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error + (data.detail ? ": " + data.detail : ""));
+    document.getElementById("credUrl").textContent = `https://${slug}.orkestri.com.br`;
+    document.getElementById("credEmail").textContent = email;
+    document.getElementById("credPass").textContent = data.adminPass || "(veja no terminal)";
+    openModal("credModal");
+    ["provSlug","provNome","provEmail","provAdminNome","provCnpj","provTelefone","provWebsite","provObs"].forEach(id => { document.getElementById(id).value = ""; });
+    document.getElementById("provPlano").value = "profissional";
+    document.getElementById("slugPreview").textContent = "";
+    document.getElementById("slugPreview").classList.remove("visible");
+    toast("success", "Tenant provisionado!", `${slug}.orkestri.com.br está ativo.`);
+  } catch (e) {
+    toast("error", "Erro ao provisionar", e.message);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = `<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg> Provisionar Tenant`;
+  }
+}
+
+// ── Update all ─────────────────────────────────────────────────────────────────
+async function doUpdateAll() {
+  const btn = document.getElementById("btnUpdateAll");
+  btn.disabled = true;
+  btn.innerHTML = `<span class="spinner"></span> Atualizando...`;
+  document.getElementById("updateOutput").style.display = "block";
+  document.getElementById("updateLog").textContent = "Executando update-all.sh...";
+  try {
+    const res = await fetch(`${API}/api/update-all`, { method: "POST", headers: headers() });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    document.getElementById("updateLog").textContent = data.output;
+    toast("success", "Atualização concluída", "Todos os tenants foram atualizados.");
+  } catch (e) {
+    document.getElementById("updateLog").textContent = "Erro: " + e.message;
+    toast("error", "Erro na atualização", e.message);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = `<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21.5 2v6h-6M2.5 22v-6h6"/><path d="M2 11.5a10 10 0 0118.8-2.3M22 12.5a10 10 0 01-18.8 2.2"/></svg> Atualizar Todos os Tenants`;
+  }
+}
+
+// ── Delete ─────────────────────────────────────────────────────────────────────
+function openDelete(slug, nome) {
+  currentDeleteSlug = slug;
+  document.getElementById("deleteSlugLabel").textContent = slug;
+  document.getElementById("deleteConfirmInput").value = "";
+  document.getElementById("deleteLog").style.display = "none";
+  document.getElementById("deleteLog").textContent = "";
+  document.getElementById("btnDeleteConfirm").disabled = true;
+  openModal("deleteModal");
+  setTimeout(() => document.getElementById("deleteConfirmInput").focus(), 100);
+}
+
+function checkDeleteConfirm() {
+  document.getElementById("btnDeleteConfirm").disabled =
+    document.getElementById("deleteConfirmInput").value !== currentDeleteSlug;
+}
+
+async function confirmDelete() {
+  if (!currentDeleteSlug) return;
+  const btn = document.getElementById("btnDeleteConfirm");
+  btn.disabled = true;
+  btn.innerHTML = `<span class="spinner"></span> Removendo...`;
+  try {
+    const res = await fetch(`${API}/api/tenants/${currentDeleteSlug}`, { method: "DELETE", headers: headers() });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    document.getElementById("deleteLog").style.display = "block";
+    document.getElementById("deleteLog").textContent = data.output;
+    toast("success", "Tenant removido", `${currentDeleteSlug} foi permanentemente removido.`);
+    setTimeout(() => { closeModal("deleteModal"); loadTenants(); }, 2000);
+  } catch (e) {
+    document.getElementById("deleteLog").style.display = "block";
+    document.getElementById("deleteLog").textContent = "Erro: " + e.message;
+    toast("error", "Erro ao remover", e.message);
+    btn.disabled = false;
+    btn.innerHTML = "Remover Permanentemente";
+  }
+}
+
+// ── Logs ───────────────────────────────────────────────────────────────────────
+function openLogs(slug) {
+  currentLogSlug = slug;
+  document.getElementById("logsModalTitle").textContent = `Logs — ${slug}`;
+  document.querySelectorAll(".log-tab").forEach(t => t.classList.remove("active"));
+  document.getElementById("tab-api").classList.add("active");
+  openModal("logsModal");
+  showLogs(slug, "api", document.getElementById("tab-api"));
+}
+
+async function showLogs(slug, service, tabEl) {
+  document.querySelectorAll(".log-tab").forEach(t => t.classList.remove("active"));
+  if (tabEl) tabEl.classList.add("active");
+  document.getElementById("logsContent").textContent = "Carregando...";
+  try {
+    const res = await fetch(`${API}/api/tenants/${slug}/logs/${service}`, { headers: headers() });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    document.getElementById("logsContent").textContent = data.logs || "(sem logs)";
+    document.getElementById("logsContent").scrollTop = 9999;
+  } catch (e) {
+    document.getElementById("logsContent").textContent = "Erro: " + e.message;
+  }
+}
+
+// ── Backup ─────────────────────────────────────────────────────────────────────
+async function doBackup(slug, btn) {
+  btn.disabled = true;
+  btn.innerHTML = `<span class="spinner" style="width:12px;height:12px;border-width:1.5px"></span>`;
+  try {
+    const res = await fetch(`${API}/api/tenants/${slug}/backup`, { method: "POST", headers: headers() });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    toast("success", "Backup concluído", `Backup de ${slug} realizado com sucesso.`);
+  } catch (e) {
+    toast("error", "Erro no backup", e.message);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = `<svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>`;
+  }
+}
+
+// ── Restart ────────────────────────────────────────────────────────────────────
+function openRestart(slug) {
+  currentRestartSlug = slug;
+  document.getElementById("restartSlugLabel").textContent = slug;
+  document.getElementById("restartLog").style.display = "none";
+  document.getElementById("restartLog").textContent = "";
+  document.getElementById("btnRestartConfirm").disabled = false;
+  document.getElementById("btnRestartConfirm").innerHTML = "Reiniciar";
+  openModal("restartModal");
+}
+
+async function confirmRestart() {
+  if (!currentRestartSlug) return;
+  const btn = document.getElementById("btnRestartConfirm");
+  btn.disabled = true;
+  btn.innerHTML = `<span class="spinner"></span> Reiniciando...`;
+  try {
+    const res = await fetch(`${API}/api/tenants/${currentRestartSlug}/restart`, { method: "POST", headers: headers() });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    document.getElementById("restartLog").style.display = "block";
+    document.getElementById("restartLog").textContent = data.output || "Containers reiniciados.";
+    toast("success", "Restart concluído", `${currentRestartSlug} foi reiniciado.`);
+    setTimeout(() => { closeModal("restartModal"); loadTenants(); }, 2000);
+  } catch (e) {
+    toast("error", "Erro ao reiniciar", e.message);
+    btn.disabled = false;
+    btn.innerHTML = "Reiniciar";
+  }
+}
+
+// ── Edit ───────────────────────────────────────────────────────────────────────
+function openEdit(slug) {
+  const t = allTenants.find(t => t.slug === slug);
+  if (!t) return;
+  document.getElementById("editSlug").value = slug;
+  document.getElementById("editNome").value = t.nome || "";
+  document.getElementById("editCnpj").value = t.cnpj || "";
+  document.getElementById("editTelefone").value = t.telefone || "";
+  document.getElementById("editWebsite").value = t.website || "";
+  document.getElementById("editPlano").value = t.plano || "profissional";
+  document.getElementById("editObs").value = t.observacoes || "";
+  document.getElementById("btnEditSave").disabled = false;
+  document.getElementById("btnEditSave").innerHTML = "Salvar Alterações";
+  openModal("editModal");
+}
+
+async function saveEdit() {
+  const slug = document.getElementById("editSlug").value;
+  const btn = document.getElementById("btnEditSave");
+  btn.disabled = true;
+  btn.innerHTML = `<span class="spinner"></span> Salvando...`;
+  const body = {
+    nome: document.getElementById("editNome").value.trim(),
+    cnpj: document.getElementById("editCnpj").value.trim(),
+    telefone: document.getElementById("editTelefone").value.trim(),
+    website: document.getElementById("editWebsite").value.trim(),
+    plano: document.getElementById("editPlano").value,
+    observacoes: document.getElementById("editObs").value.trim(),
+  };
+  try {
+    const res = await fetch(`${API}/api/tenants/${slug}`, { method: "PATCH", headers: headers(), body: JSON.stringify(body) });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    toast("success", "Tenant atualizado", `Dados de ${slug} salvos com sucesso.`);
+    closeModal("editModal");
+    loadTenants();
+  } catch (e) {
+    toast("error", "Erro ao salvar", e.message);
+    btn.disabled = false;
+    btn.innerHTML = "Salvar Alterações";
+  }
+}
+
+// ── Init ───────────────────────────────────────────────────────────────────────
+document.addEventListener("DOMContentLoaded", () => {
+  const saved = localStorage.getItem("orkestri_sa_token");
+  if (saved) document.getElementById("tokenInput").value = saved;
+  loadTenants();
+});
+</script>
+</body>
+</html>

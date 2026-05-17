@@ -39,5 +39,11 @@ backend/node_modules/.prisma/
 .claude/
 
 # Misc
-saas/
 fm2.js
+
+# saas — ignorar dados de runtime, mas versionar código
+saas/tenants.json
+saas/tenants/
+saas/nginx-conf/
+saas/backup/
+saas/*.log

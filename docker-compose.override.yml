@@ -1,0 +1,21 @@
+# Override para desenvolvimento local no Windows com Docker Desktop.
+# Usado automaticamente pelo docker compose (não precisa especificar -f).
+#
+# O que muda em relação ao docker-compose.yml principal:
+#   - Evolution desligado (poupa ~1.5GB de RAM; WhatsApp não é testável localmente)
+#   - SA Panel usa //./pipe/docker_engine (named pipe do Windows) para docker socket
+
+services:
+  evolution:
+    deploy:
+      replicas: 0
+
+  sa_panel:
+    environment:
+      PORT: 3001
+      SA_TOKEN: ${SA_TOKEN}
+      SA_ALLOWED_ORIGINS: "http://localhost:8080,http://localhost"
+    volumes:
+      - ./saas:/saas
+      - //./pipe/docker_engine:/var/run/docker.sock
+      - ./saas/nginx-conf:/etc/nginx/conf.d
