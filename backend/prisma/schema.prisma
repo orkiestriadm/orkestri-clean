@@ -1,0 +1,1201 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ── Enums ──────────────────────────────────
+
+enum ProjectStatus {
+  PLANEJAMENTO
+  EM_ANDAMENTO
+  PAUSADO
+  CONCLUIDO
+  CANCELADO
+}
+
+enum Priority {
+  BAIXA
+  MEDIA
+  ALTA
+  URGENTE
+}
+
+enum TaskStatus {
+  A_FAZER
+  EM_ANDAMENTO
+  EM_REVISAO
+  CONCLUIDA
+  CANCELADA
+}
+
+enum EventType {
+  PESSOAL
+  REUNIAO
+  PROJETO
+  EXTERNO
+  COMPROMISSO
+  LEMBRETE
+}
+
+enum NoteType {
+  TEXTO
+  CHECKLIST
+}
+
+enum Recurrence {
+  DIARIA
+  SEMANAL
+  QUINZENAL
+  MENSAL
+}
+
+enum ProjectTipo {
+  PROJETO
+  NEGOCIO
+}
+
+// ── Multi-tenancy ──────────────────────────────────────────────────────────────
+
+model Organization {
+  id           String   @id @default(uuid())
+  nome         String
+  slug         String   @unique
+  plano        String   @default("starter")
+  ativo        Boolean  @default(true)
+  criadoEm     DateTime @default(now()) @map("criado_em")
+  atualizadoEm DateTime @updatedAt @map("atualizado_em")
+
+  users              User[]
+  chamados           Chamado[]
+  clientes           Cliente[]
+  contratos          Contrato[]
+  faturas            Fatura[]
+  projetos           Project[]
+  notas              Note[]
+  noteLabels         NoteLabel[]
+  eventos            Event[]
+  automacoes         Automacao[]
+  ativos             Ativo[]
+  categoriasAtivo    CategoriaAtivo[]
+  artigos            ArtigoConhecimento[]
+  categoriasConhec   CategoriaConhecimento[]
+  suppliers          Supplier[]
+  slaRegras          SlaRegra[]
+  alertConfigs       AlertConfig[]
+  setores            Setor[]
+  auditLogs          AuditLog[]
+  orcamentoCiclos    OrcamentoCiclo[]
+  centrosCusto       CentroCusto[]
+  categoriasOrc      CategoriaOrcamento[]
+  fornecedoresOrc    FornecedorOrcamento[]
+  sistemaConfigs     SistemaConfig[]
+  whatsappConfig     OrgWhatsappConfig?
+
+  @@map("organizations")
+}
+
+model OrgWhatsappConfig {
+  id             String    @id @default(uuid())
+  organizationId String    @unique @map("organization_id")
+  instanceName   String    @unique @map("instance_name")
+  phoneNumber    String?   @map("phone_number")
+  conectado      Boolean   @default(false)
+  ultimaConexao  DateTime? @map("ultima_conexao")
+  criadoEm      DateTime  @default(now()) @map("criado_em")
+  atualizadoEm  DateTime  @updatedAt @map("atualizado_em")
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  @@map("org_whatsapp_configs")
+}
+
+model SuperAdmin {
+  id        String   @id @default(uuid())
+  userId    String   @unique @map("user_id")
+  criadoEm DateTime @default(now()) @map("criado_em")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@map("super_admins")
+}
+
+// ── Users ─────────────────────────────────────────────────────────────────────
+
+model User {
+  id               String    @id @default(uuid())
+  organizationId   String    @map("organization_id")
+  nome             String
+  email            String
+  senhaHash        String    @map("senha_hash")
+  ativo            Boolean   @default(true)
+  avatar           String?
+  ultimoLogin      DateTime? @map("ultimo_login")
+  primeiroAcesso   Boolean   @default(true)  @map("primeiro_acesso")
+  bloqueado        Boolean   @default(false) @map("bloqueado")
+  tentativasFalhas Int       @default(0)     @map("tentativas_falhas")
+  criadoEm        DateTime  @default(now()) @map("criado_em")
+  atualizadoEm    DateTime  @updatedAt @map("atualizado_em")
+
+  organization     Organization @relation(fields: [organizationId], references: [id])
+  superAdmin       SuperAdmin?
+  userRoles        UserRole[]  @relation("UserToRoles")
+  rolesAtrib       UserRole[]  @relation("AtribuidoPor")
+  sessions         UserSession[]
+  eventsOwner      Event[]     @relation("EventOwner")
+  eventsCriados    Event[]     @relation("EventCreator")
+  eventParticipants EventParticipant[]
+  projectsOwner    Project[]  @relation("ProjectOwner")
+  projectMembers   ProjectMember[]
+  tasksAssignee    Task[]     @relation("TaskAssignee")
+  tasksCriadas     Task[]     @relation("TaskCreator")
+  taskComments     TaskComment[]
+  notes            Note[]
+  noteLabels       NoteLabel[]
+  noteCollabs      NoteCollaborator[]
+  checklistItems   ChecklistItem[] @relation("ChecklistAssignee")
+  dailyTasks       DailyTask[]
+  notifications    Notification[]
+  auditLogs        AuditLog[]
+  profile          UserProfile?
+  chamadosSolicitados      Chamado[]          @relation("ChamadoSolicitante")
+  chamadosAtendidos        Chamado[]          @relation("ChamadoAtendente")
+  comentariosChamado       ChamadoComentario[]
+  permissionOverrides      UserPermissionOverride[]
+  passwordResetOtps        PasswordResetOtp[]
+  clientesResponsavel      Cliente[]         @relation("ClienteResponsavel")
+  clienteTimelines         ClienteTimeline[]
+  ciclosAprovados          OrcamentoCiclo[]  @relation("CicloAprovador")
+  centrosCustoResponsavel  CentroCusto[]     @relation("CentroCustoResp")
+  itensOrcamentoCriados    ItemOrcamento[]   @relation("ItemCriador")
+  lancamentosOrcamento     ItemOrcamentoMes[] @relation("LancadoPor")
+  aprovacoesSolicitadas    AprovacaoOrcamento[] @relation("AprovSolicitante")
+  aprovacoesDecididas      AprovacaoOrcamento[] @relation("AprovDecisao")
+  orcamentoTimelines       OrcamentoTimeline[]  @relation("OrcTimeline")
+  suppliersCriados         Supplier[]           @relation("SupplierCriador")
+  supplierHistory          SupplierHistory[]
+  supplierDocuments        SupplierDocument[]
+  setoresResponsavel       Setor[]              @relation("SetorResponsavel")
+  artigosConhecimento      ArtigoConhecimento[] @relation("ArtigoAutor")
+  ativosResponsavel        Ativo[]              @relation("AtivoResponsavel")
+  transferenciasRealizadas TransferenciaAtivo[] @relation("TransfPor")
+  transferenciasRecebidas  TransferenciaAtivo[] @relation("TransfPara")
+  transferenciasEnviadas   TransferenciaAtivo[] @relation("TransfDe")
+  apontamentosHoras        ApontamentoHoras[]
+  contratosResponsavel     Contrato[]           @relation("ContratoResponsavel")
+  faturas                  Fatura[]             @relation("FaturaCriador")
+
+  @@unique([organizationId, email])
+  @@index([organizationId])
+  @@map("users")
+}
+
+// ── Orçamento ──────────────────────────────────────────────────────────────────
+
+model OrcamentoCiclo {
+  id             String   @id @default(uuid())
+  organizationId String   @map("organization_id")
+  ano            Int
+  descricao      String?
+  status         String   @default("rascunho")
+  aprovadoPorId  String?  @map("aprovado_por_id")
+  aprovadoPor    User?    @relation("CicloAprovador", fields: [aprovadoPorId], references: [id], onDelete: SetNull)
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  itens          ItemOrcamento[]
+  criadoEm      DateTime @default(now()) @map("criado_em")
+  atualizadoEm  DateTime @updatedAt @map("atualizado_em")
+  @@unique([organizationId, ano])
+  @@map("orcamento_ciclos")
+}
+
+model CentroCusto {
+  id             String   @id @default(uuid())
+  organizationId String   @map("organization_id")
+  codigo         String
+  nome           String
+  descricao      String?
+  cor            String   @default("#a78bfa")
+  ativo          Boolean  @default(true)
+  responsavelId  String?  @map("responsavel_id")
+  responsavel    User?    @relation("CentroCustoResp", fields: [responsavelId], references: [id], onDelete: SetNull)
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  itens          ItemOrcamento[]
+  criadoEm      DateTime @default(now()) @map("criado_em")
+  @@unique([organizationId, codigo])
+  @@map("centros_custo")
+}
+
+model CategoriaOrcamento {
+  id             String   @id @default(uuid())
+  organizationId String   @map("organization_id")
+  tipo           String
+  codigo         String
+  nome           String
+  cor            String   @default("#a78bfa")
+  icone          String?
+  paiId          String?  @map("pai_id")
+  pai            CategoriaOrcamento?  @relation("CatPai", fields: [paiId], references: [id])
+  filhas         CategoriaOrcamento[] @relation("CatPai")
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  itens          ItemOrcamento[]
+  criadoEm      DateTime @default(now()) @map("criado_em")
+  @@index([organizationId])
+  @@map("categorias_orcamento")
+}
+
+model FornecedorOrcamento {
+  id             String   @id @default(uuid())
+  organizationId String   @map("organization_id")
+  nome           String
+  cnpj           String?
+  email          String?
+  telefone       String?
+  segmento       String?
+  ativo          Boolean  @default(true)
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  itens          ItemOrcamento[]
+  criadoEm      DateTime @default(now()) @map("criado_em")
+  @@index([organizationId])
+  @@map("fornecedores_orcamento")
+}
+
+model ItemOrcamento {
+  id              String   @id @default(uuid())
+  cicloId         String   @map("ciclo_id")
+  ciclo           OrcamentoCiclo @relation(fields: [cicloId], references: [id])
+  centroCustoId   String?  @map("centro_custo_id")
+  centroCusto     CentroCusto? @relation(fields: [centroCustoId], references: [id])
+  categoriaId     String   @map("categoria_id")
+  categoria       CategoriaOrcamento @relation(fields: [categoriaId], references: [id])
+  tipo            String
+  nome            String
+  descricao       String?
+  fornecedorId    String?  @map("fornecedor_id")
+  fornecedor      FornecedorOrcamento? @relation(fields: [fornecedorId], references: [id])
+  supplierId      String?  @map("supplier_id")
+  supplier        Supplier? @relation("ItemSupplier", fields: [supplierId], references: [id], onDelete: SetNull)
+  recorrente      Boolean  @default(false)
+  periodicidade   String   @default("mensal")
+  status          String   @default("ativo")
+  observacoes     String?
+  meses           ItemOrcamentoMes[]
+  timeline        OrcamentoTimeline[]
+  aprovacoes      AprovacaoOrcamento[]
+  criadoPorId     String   @map("criado_por_id")
+  criadoPor       User     @relation("ItemCriador", fields: [criadoPorId], references: [id])
+  criadoEm        DateTime @default(now()) @map("criado_em")
+  atualizadoEm    DateTime @updatedAt @map("atualizado_em")
+  @@map("itens_orcamento")
+}
+
+model ItemOrcamentoMes {
+  id              String    @id @default(uuid())
+  itemId          String    @map("item_id")
+  item            ItemOrcamento @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  mes             Int
+  valorPrevisto   Float     @default(0) @map("valor_previsto")
+  valorRealizado  Float?    @map("valor_realizado")
+  status          String    @default("pendente")
+  observacoes     String?
+  lancadoPorId    String?   @map("lancado_por_id")
+  lancadoPor      User?     @relation("LancadoPor", fields: [lancadoPorId], references: [id], onDelete: SetNull)
+  lancadoEm       DateTime? @map("lancado_em")
+  @@unique([itemId, mes])
+  @@map("itens_orcamento_mes")
+}
+
+model AprovacaoOrcamento {
+  id              String   @id @default(uuid())
+  itemId          String?  @map("item_id")
+  item            ItemOrcamento? @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  tipo            String
+  status          String   @default("pendente")
+  solicitadoPorId String   @map("solicitado_por_id")
+  solicitadoPor   User     @relation("AprovSolicitante", fields: [solicitadoPorId], references: [id])
+  aprovadoPorId   String?  @map("aprovado_por_id")
+  aprovadoPor     User?    @relation("AprovDecisao", fields: [aprovadoPorId], references: [id], onDelete: SetNull)
+  observacoes     String?
+  criadoEm        DateTime @default(now()) @map("criado_em")
+  resolvidoEm     DateTime? @map("resolvido_em")
+  @@map("aprovacoes_orcamento")
+}
+
+model OrcamentoTimeline {
+  id        String   @id @default(uuid())
+  itemId    String   @map("item_id")
+  item      ItemOrcamento @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  tipo      String
+  titulo    String
+  descricao String?
+  userId    String?  @map("user_id")
+  user      User?    @relation("OrcTimeline", fields: [userId], references: [id], onDelete: SetNull)
+  criadoEm  DateTime @default(now()) @map("criado_em")
+  @@map("orcamento_timeline")
+}
+
+// ── Auth / Access ──────────────────────────────────────────────────────────────
+
+model UserRequest {
+  id              String    @id @default(uuid())
+  organizationId  String?   @map("organization_id")
+  nome            String
+  email           String
+  whatsapp        String?
+  cargo           String?
+  departamento    String?
+  empresa         String?
+  motivacao       String?
+  status          String    @default("PENDENTE")
+  approvedById    String?   @map("approved_by_id")
+  approvedAt      DateTime? @map("approved_at")
+  rejectionReason String?   @map("rejection_reason")
+  criadoEm       DateTime  @default(now()) @map("criado_em")
+  atualizadoEm   DateTime  @updatedAt      @map("atualizado_em")
+  @@map("user_requests")
+}
+
+model PasswordResetOtp {
+  id           String   @id @default(uuid())
+  userId       String   @map("user_id")
+  otpCode      String   @map("otp_code")
+  otpExpiresAt DateTime @map("otp_expires_at")
+  otpAttempts  Int      @default(0) @map("otp_attempts")
+  used         Boolean  @default(false)
+  criadoEm    DateTime @default(now()) @map("criado_em")
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@map("password_reset_otps")
+}
+
+model UserProfile {
+  id               String   @id @default(uuid())
+  userId           String   @unique @map("user_id")
+  whatsapp         String?
+  whatsappAlertas  Boolean  @default(false) @map("whatsapp_alertas")
+  criadoEm        DateTime @default(now()) @map("criado_em")
+  twoFactorSecret  String?  @map("two_factor_secret")
+  twoFactorAtivo   Boolean  @default(false) @map("two_factor_ativo")
+  twoFactorBackup  String?  @map("two_factor_backup")
+  statusOnline     String?  @default("disponivel") @map("status_online")
+  setorId          String?  @map("setor_id")
+  cargo            String?
+  telefone         String?
+  modulos          String   @default("[\"projetos\",\"keep\",\"gantt\",\"relatorios\"]")
+  setor            Setor?   @relation(fields: [setorId], references: [id])
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@map("user_profiles")
+}
+
+model Role {
+  id          String   @id @default(uuid())
+  nome        String   @unique
+  descricao   String?
+  isMaster    Boolean  @default(false) @map("is_master")
+  nivel       Int      @default(0)
+  criadoEm   DateTime @default(now()) @map("criado_em")
+  userRoles        UserRole[]
+  rolePermissions  RolePermission[]
+  @@map("roles")
+}
+
+model UserRole {
+  userId         String   @map("user_id")
+  roleId         String   @map("role_id")
+  atribuidoPorId String?  @map("atribuido_por")
+  atribuidoEm   DateTime @default(now()) @map("atribuido_em")
+  user         User  @relation("UserToRoles", fields: [userId], references: [id], onDelete: Cascade)
+  role         Role  @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  atribuidoPor User? @relation("AtribuidoPor", fields: [atribuidoPorId], references: [id])
+  @@id([userId, roleId])
+  @@map("user_roles")
+}
+
+model Permission {
+  id        String   @id @default(uuid())
+  recurso   String
+  acao      String
+  descricao String?
+  criadoEm DateTime @default(now()) @map("criado_em")
+  rolePermissions        RolePermission[]
+  userPermissionOverrides UserPermissionOverride[]
+  @@unique([recurso, acao])
+  @@map("permissions")
+}
+
+model RolePermission {
+  roleId       String @map("role_id")
+  permissionId String @map("permission_id")
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  @@id([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+model UserPermissionOverride {
+  id           String   @id @default(uuid())
+  userId       String   @map("user_id")
+  permissionId String   @map("permission_id")
+  conceder     Boolean  @default(true)
+  criadoEm   DateTime @default(now()) @map("criado_em")
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  @@unique([userId, permissionId])
+  @@map("user_permission_overrides")
+}
+
+model UserSession {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  tokenHash String   @map("token_hash")
+  ipAddress String?  @map("ip_address")
+  expiraEm DateTime @map("expira_em")
+  criadoEm DateTime @default(now()) @map("criado_em")
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([tokenHash])
+  @@map("user_sessions")
+}
+
+// ── Agenda ────────────────────────────────────────────────────────────────────
+
+model Event {
+  id             String    @id @default(uuid())
+  organizationId String    @map("organization_id")
+  userId         String    @map("user_id")
+  criadoPorId    String    @map("created_by")
+  titulo         String
+  descricao      String?
+  tipo           EventType @default(PESSOAL)
+  cor            String?
+  inicio         DateTime
+  fim            DateTime?
+  diaTodo        Boolean   @default(false) @map("dia_todo")
+  origemTipo     String?   @map("origem_tipo")
+  origemId       String?   @map("origem_id")
+  confirmado     Boolean   @default(true)
+  recorrencia    Recurrence?  @map("recorrencia")
+  recorrenciaFim DateTime? @map("recorrencia_fim")
+  local          String?
+  ata            String?   @db.Text
+  criadoEm      DateTime  @default(now()) @map("criado_em")
+  atualizadoEm  DateTime  @updatedAt @map("atualizado_em")
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  user           User         @relation("EventOwner", fields: [userId], references: [id])
+  criadoPor      User         @relation("EventCreator", fields: [criadoPorId], references: [id])
+  participants   EventParticipant[]
+  @@index([organizationId, inicio])
+  @@index([userId, inicio])
+  @@index([criadoPorId])
+  @@map("events")
+}
+
+model EventParticipant {
+  id      String @id @default(uuid())
+  eventId String @map("event_id")
+  userId  String @map("user_id")
+  status  String @default("pendente")
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([eventId, userId])
+  @@map("event_participants")
+}
+
+// ── CRM ───────────────────────────────────────────────────────────────────────
+
+model Cliente {
+  id             String    @id @default(uuid())
+  organizationId String    @map("organization_id")
+  nome           String
+  empresa        String?
+  cargo          String?
+  email          String?
+  telefone       String?
+  cnpj           String?
+  site           String?
+  cidade         String?
+  estado         String?
+  segmento       String?
+  origem         String?
+  statusLead     String    @default("ativo") @map("status_lead")
+  notas          String?   @db.Text
+  ativo          Boolean   @default(true)
+  responsavelId  String?   @map("responsavel_id")
+  saudeScore     Int       @default(100) @map("saude_score")
+  portalToken    String?   @unique @map("portal_token")
+  criadoEm      DateTime  @default(now()) @map("criado_em")
+  atualizadoEm  DateTime  @updatedAt @map("atualizado_em")
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  responsavel    User?        @relation("ClienteResponsavel", fields: [responsavelId], references: [id])
+  projetos       Project[]
+  chamados       Chamado[]
+  contratos      Contrato[]
+  faturas        Fatura[]
+  timeline       ClienteTimeline[]
+  @@index([organizationId])
+  @@map("clientes")
+}
+
+model Contrato {
+  id             String    @id @default(uuid())
+  organizationId String    @map("organization_id")
+  numero         Int?
+  titulo         String    @default("")
+  clienteId      String    @map("cliente_id")
+  tipo           String    @default("servico")
+  plano          String?
+  status         String    @default("vigente")
+  slaHoras       Int?      @map("sla_horas")
+  vigenciaInicio DateTime? @map("vigencia_inicio")
+  vigenciaFim    DateTime? @map("vigencia_fim")
+  valor          Float?
+  responsavelId  String?   @map("responsavel_id")
+  ativo          Boolean   @default(true)
+  observacoes    String?   @db.Text
+  criadoEm      DateTime  @default(now()) @map("criado_em")
+  atualizadoEm  DateTime  @updatedAt @map("atualizado_em")
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  cliente        Cliente      @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+  responsavel    User?        @relation("ContratoResponsavel", fields: [responsavelId], references: [id], onDelete: SetNull)
+  faturas        Fatura[]
+  @@index([organizationId])
+  @@index([clienteId])
+  @@index([status])
+  @@map("contratos")
+}
+
+model ClienteTimeline {
+  id             String   @id @default(uuid())
+  clienteId      String   @map("cliente_id")
+  tipo           String
+  titulo         String
+  descricao      String?  @db.Text
+  referenciaTipo String?  @map("referencia_tipo")
+  referenciaId   String?  @map("referencia_id")
+  userId         String?  @map("user_id")
+  criadoEm      DateTime @default(now()) @map("criado_em")
+  cliente        Cliente  @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+  user           User?    @relation(fields: [userId], references: [id])
+  @@index([clienteId, criadoEm])
+  @@map("cliente_timeline")
+}
+
+// ── Service Desk ──────────────────────────────────────────────────────────────
+
+model SlaRegra {
+  id              String   @id @default(uuid())
+  organizationId  String   @map("organization_id")
+  nome            String
+  prioridade      String
+  categoria       String?
+  prazoRespostaH  Int      @default(4)  @map("prazo_resposta_h")
+  prazoResolucaoH Int      @default(24) @map("prazo_resolucao_h")
+  ativo           Boolean  @default(true)
+  criadoEm        DateTime @default(now()) @map("criado_em")
+  atualizadoEm    DateTime @updatedAt @map("atualizado_em")
+  organization    Organization @relation(fields: [organizationId], references: [id])
+  chamados        Chamado[]
+  @@unique([organizationId, prioridade, categoria])
+  @@map("sla_regras")
+}
+
+model Chamado {
+  id                 String    @id @default(uuid())
+  organizationId     String    @map("organization_id")
+  numero             Int       @default(autoincrement())
+  titulo             String
+  descricao          String    @db.Text
+  status             String    @default("aberto")
+  prioridade         String    @default("media")
+  categoria          String?
+  tags               String?
+  solicitanteId      String    @map("solicitante_id")
+  atendenteId        String?   @map("atendente_id")
+  clienteId          String?   @map("cliente_id")
+  slaHoras           Int?      @map("sla_horas")
+  slaRegraId         String?   @map("sla_regra_id")
+  slaRespostaAt      DateTime? @map("sla_resposta_at")
+  slaResolucaoAt     DateTime? @map("sla_resolucao_at")
+  primeiraRespostaEm DateTime? @map("primeira_resposta_em")
+  resolvidoEm        DateTime? @map("resolvido_em")
+  fechadoEm          DateTime? @map("fechado_em")
+  avaliacao          Int?
+  avaliacaoNota      String?   @map("avaliacao_nota") @db.Text
+  criadoEm           DateTime  @default(now()) @map("criado_em")
+  atualizadoEm       DateTime  @updatedAt @map("atualizado_em")
+  organization  Organization       @relation(fields: [organizationId], references: [id])
+  solicitante   User               @relation("ChamadoSolicitante", fields: [solicitanteId], references: [id])
+  atendente     User?              @relation("ChamadoAtendente", fields: [atendenteId], references: [id])
+  cliente       Cliente?           @relation(fields: [clienteId], references: [id], onDelete: SetNull)
+  slaRegra      SlaRegra?          @relation(fields: [slaRegraId], references: [id], onDelete: SetNull)
+  comentarios   ChamadoComentario[]
+  apontamentos  ApontamentoHoras[]
+  @@index([organizationId, status])
+  @@index([organizationId, prioridade])
+  @@index([solicitanteId])
+  @@index([atendenteId])
+  @@map("chamados")
+}
+
+model ChamadoComentario {
+  id        String   @id @default(uuid())
+  chamadoId String   @map("chamado_id")
+  userId    String   @map("user_id")
+  texto     String   @db.Text
+  interno   Boolean  @default(false)
+  criadoEm  DateTime @default(now()) @map("criado_em")
+  chamado   Chamado  @relation(fields: [chamadoId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@map("chamado_comentarios")
+}
+
+// ── Projetos ──────────────────────────────────────────────────────────────────
+
+model Project {
+  id             String        @id @default(uuid())
+  organizationId String        @map("organization_id")
+  criadoPorId    String        @map("created_by")
+  tipo           ProjectTipo   @default(PROJETO)
+  clienteId      String?       @map("cliente_id")
+  titulo         String
+  descricao      String?
+  status         ProjectStatus @default(PLANEJAMENTO)
+  prioridade     Priority      @default(MEDIA)
+  valor          Float?
+  dataInicio     DateTime?     @map("data_inicio")
+  dataFim        DateTime?     @map("data_fim")
+  progressoPct   Int           @default(0) @map("progresso_pct")
+  cor            String?
+  criadoEm      DateTime @default(now()) @map("criado_em")
+  atualizadoEm  DateTime @updatedAt @map("atualizado_em")
+  organization  Organization    @relation(fields: [organizationId], references: [id])
+  criadoPor     User            @relation("ProjectOwner", fields: [criadoPorId], references: [id])
+  cliente       Cliente?        @relation(fields: [clienteId], references: [id])
+  members       ProjectMember[]
+  milestones    Milestone[]
+  tasks         Task[]
+  @@index([organizationId, status])
+  @@index([criadoPorId])
+  @@index([tipo])
+  @@map("projects")
+}
+
+model ProjectMember {
+  projectId    String   @map("project_id")
+  userId       String   @map("user_id")
+  papel        String   @default("membro")
+  adicionadoEm DateTime @default(now()) @map("adicionado_em")
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@id([projectId, userId])
+  @@map("project_members")
+}
+
+model Milestone {
+  id        String   @id @default(uuid())
+  projectId String   @map("project_id")
+  titulo    String
+  descricao String?
+  dataAlvo  DateTime @map("data_alvo")
+  concluido Boolean  @default(false)
+  criadoEm DateTime @default(now()) @map("criado_em")
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  tasks   Task[]
+  @@map("milestones")
+}
+
+model Task {
+  id             String     @id @default(uuid())
+  projectId      String     @map("project_id")
+  milestoneId    String?    @map("milestone_id")
+  assigneeId     String?    @map("assignee_id")
+  criadoPorId    String     @map("created_by")
+  titulo         String
+  descricao      String?
+  status         TaskStatus @default(A_FAZER)
+  prioridade     Priority   @default(MEDIA)
+  dataVencimento DateTime?  @map("data_vencimento")
+  criadoEm      DateTime @default(now()) @map("criado_em")
+  atualizadoEm  DateTime @updatedAt @map("atualizado_em")
+  project   Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  milestone Milestone? @relation(fields: [milestoneId], references: [id])
+  assignee  User?      @relation("TaskAssignee", fields: [assigneeId], references: [id])
+  criadoPor User       @relation("TaskCreator", fields: [criadoPorId], references: [id])
+  comments  TaskComment[]
+  @@index([projectId, status])
+  @@index([assigneeId])
+  @@map("tasks")
+}
+
+model TaskComment {
+  id       String   @id @default(uuid())
+  taskId   String   @map("task_id")
+  userId   String   @map("user_id")
+  conteudo String
+  criadoEm DateTime @default(now()) @map("criado_em")
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id])
+  @@map("task_comments")
+}
+
+// ── Keep / Notes ──────────────────────────────────────────────────────────────
+
+model Note {
+  id             String   @id @default(uuid())
+  organizationId String   @map("organization_id")
+  userId         String   @map("user_id")
+  titulo         String?
+  conteudo       String?
+  cor            String?
+  fixado         Boolean  @default(false)
+  arquivado      Boolean  @default(false)
+  lixeira        Boolean  @default(false)
+  tipo           NoteType @default(TEXTO)
+  ordem          Int      @default(0)
+  criadoEm      DateTime @default(now()) @map("criado_em")
+  atualizadoEm  DateTime @updatedAt @map("atualizado_em")
+  organization  Organization       @relation(fields: [organizationId], references: [id])
+  user          User               @relation(fields: [userId], references: [id])
+  labels        NoteLabelMap[]
+  collaborators NoteCollaborator[]
+  checklists    Checklist[]
+  @@index([organizationId, userId, arquivado, lixeira])
+  @@map("notes")
+}
+
+model NoteLabel {
+  id             String @id @default(uuid())
+  organizationId String @map("organization_id")
+  userId         String @map("user_id")
+  nome           String
+  cor            String?
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  user           User         @relation(fields: [userId], references: [id])
+  notes          NoteLabelMap[]
+  @@unique([organizationId, userId, nome])
+  @@map("note_labels")
+}
+
+model NoteLabelMap {
+  noteId  String @map("note_id")
+  labelId String @map("label_id")
+  note  Note      @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  label NoteLabel @relation(fields: [labelId], references: [id], onDelete: Cascade)
+  @@id([noteId, labelId])
+  @@map("note_label_map")
+}
+
+model NoteCollaborator {
+  noteId    String @map("note_id")
+  userId    String @map("user_id")
+  permissao String @default("leitura")
+  note Note @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@id([noteId, userId])
+  @@map("note_collaborators")
+}
+
+model Checklist {
+  id     String @id @default(uuid())
+  noteId String @map("note_id")
+  titulo String?
+  ordem  Int    @default(0)
+  note  Note            @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  items ChecklistItem[]
+  @@map("checklists")
+}
+
+model ChecklistItem {
+  id             String    @id @default(uuid())
+  checklistId    String    @map("checklist_id")
+  assigneeId     String?   @map("assignee_id")
+  descricao      String
+  concluido      Boolean   @default(false)
+  dataVencimento DateTime? @map("data_vencimento")
+  ordem          Int       @default(0)
+  criadoEm      DateTime  @default(now()) @map("criado_em")
+  checklist  Checklist   @relation(fields: [checklistId], references: [id], onDelete: Cascade)
+  assignee   User?       @relation("ChecklistAssignee", fields: [assigneeId], references: [id])
+  dailyTasks DailyTask[]
+  @@map("checklist_items")
+}
+
+model DailyTask {
+  id              String   @id @default(uuid())
+  userId          String   @map("user_id")
+  checklistItemId String?  @map("checklist_item_id")
+  titulo          String
+  concluido       Boolean  @default(false)
+  data            DateTime @db.Date
+  tipo            String   @default("TAREFA")
+  prioridade      Int      @default(0)
+  criadoEm       DateTime @default(now()) @map("criado_em")
+  user          User           @relation(fields: [userId], references: [id])
+  checklistItem ChecklistItem? @relation(fields: [checklistItemId], references: [id])
+  @@index([userId, data])
+  @@map("daily_tasks")
+}
+
+// ── Notifications / Audit ─────────────────────────────────────────────────────
+
+model Notification {
+  id             String   @id @default(uuid())
+  userId         String   @map("user_id")
+  tipo           String
+  titulo         String
+  mensagem       String?
+  referenciaTipo String?  @map("referencia_tipo")
+  referenciaId   String?  @map("referencia_id")
+  lida           Boolean  @default(false)
+  criadoEm      DateTime @default(now()) @map("criado_em")
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([userId, lida])
+  @@index([tipo])
+  @@index([criadoEm])
+  @@map("notifications")
+}
+
+model AuditLog {
+  id             String   @id @default(uuid())
+  organizationId String   @map("organization_id")
+  userId         String?  @map("user_id")
+  modulo         String?
+  tabela         String
+  registroId     String   @map("registro_id")
+  acao           String
+  descricao      String?
+  dados          Json?
+  ip             String?
+  criadoEm      DateTime @default(now()) @map("criado_em")
+  organization  Organization @relation(fields: [organizationId], references: [id])
+  user          User?        @relation(fields: [userId], references: [id])
+  @@index([organizationId, criadoEm(sort: Desc)])
+  @@index([userId])
+  @@index([tabela, acao])
+  @@map("audit_log")
+}
+
+// ── Automações ────────────────────────────────────────────────────────────────
+
+model Automacao {
+  id             String    @id @default(uuid())
+  organizationId String    @map("organization_id")
+  nome           String
+  descricao      String?
+  trigger        String
+  condicoes      Json      @default("[]")
+  acoes          Json      @default("[]")
+  ativo          Boolean   @default(true)
+  totalExecucoes Int       @default(0) @map("total_execucoes")
+  ultimaExecucao DateTime? @map("ultima_execucao")
+  criadoEm       DateTime  @default(now()) @map("criado_em")
+  atualizadoEm   DateTime  @updatedAt @map("atualizado_em")
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  execucoes      AutomacaoExecucao[]
+  @@index([organizationId])
+  @@map("automacoes")
+}
+
+model AutomacaoExecucao {
+  id          String   @id @default(uuid())
+  automacaoId String   @map("automacao_id")
+  trigger     String
+  contextId   String   @map("context_id")
+  resultado   String   @default("sucesso")
+  detalhes    Json?
+  criadoEm    DateTime @default(now()) @map("criado_em")
+  automacao   Automacao @relation(fields: [automacaoId], references: [id], onDelete: Cascade)
+  @@index([automacaoId])
+  @@index([criadoEm(sort: Desc)])
+  @@map("automacao_execucoes")
+}
+
+// ── Ativos ────────────────────────────────────────────────────────────────────
+
+model CategoriaAtivo {
+  id             String   @id @default(uuid())
+  organizationId String   @map("organization_id")
+  nome           String
+  descricao      String?
+  icone          String   @default("monitor")
+  cor            String   @default("#7c3aed")
+  ativo          Boolean  @default(true)
+  criadoEm      DateTime @default(now()) @map("criado_em")
+  organization  Organization @relation(fields: [organizationId], references: [id])
+  ativos        Ativo[]
+  @@unique([organizationId, nome])
+  @@map("categorias_ativo")
+}
+
+model Ativo {
+  id              String    @id @default(uuid())
+  organizationId  String    @map("organization_id")
+  codigo          String
+  nome            String
+  descricao       String?
+  categoriaId     String?   @map("categoria_id")
+  status          String    @default("ativo")
+  marca           String?
+  modelo          String?
+  numeroSerie     String?   @map("numero_serie")
+  localizacao     String?
+  responsavelId   String?   @map("responsavel_id")
+  setorId         String?   @map("setor_id")
+  dataAquisicao   DateTime? @map("data_aquisicao")
+  valorAquisicao  Float?    @map("valor_aquisicao")
+  dataGarantiaFim DateTime? @map("data_garantia_fim")
+  observacoes     String?   @db.Text
+  criadoEm       DateTime  @default(now()) @map("criado_em")
+  atualizadoEm   DateTime  @updatedAt @map("atualizado_em")
+  organization  Organization    @relation(fields: [organizationId], references: [id])
+  categoria     CategoriaAtivo? @relation(fields: [categoriaId], references: [id], onDelete: SetNull)
+  responsavel   User?           @relation("AtivoResponsavel", fields: [responsavelId], references: [id], onDelete: SetNull)
+  setor         Setor?          @relation(fields: [setorId], references: [id], onDelete: SetNull)
+  transferencias TransferenciaAtivo[]
+  @@unique([organizationId, codigo])
+  @@index([organizationId, status])
+  @@index([responsavelId])
+  @@map("ativos")
+}
+
+model TransferenciaAtivo {
+  id              String   @id @default(uuid())
+  ativoId         String   @map("ativo_id")
+  deResponsavelId  String? @map("de_responsavel_id")
+  paraResponsavelId String? @map("para_responsavel_id")
+  deSetorId       String?  @map("de_setor_id")
+  paraSetorId     String?  @map("para_setor_id")
+  motivo          String?
+  realizadoPorId  String   @map("realizado_por_id")
+  criadoEm        DateTime @default(now()) @map("criado_em")
+  ativo           Ativo  @relation(fields: [ativoId], references: [id], onDelete: Cascade)
+  deResponsavel   User?  @relation("TransfDe",   fields: [deResponsavelId],   references: [id], onDelete: SetNull)
+  paraResponsavel User?  @relation("TransfPara", fields: [paraResponsavelId], references: [id], onDelete: SetNull)
+  realizadoPor    User   @relation("TransfPor",  fields: [realizadoPorId],    references: [id])
+  @@index([ativoId])
+  @@map("transferencias_ativo")
+}
+
+// ── Conhecimento ──────────────────────────────────────────────────────────────
+
+model CategoriaConhecimento {
+  id             String   @id @default(uuid())
+  organizationId String   @map("organization_id")
+  nome           String
+  descricao      String?
+  icone          String   @default("book")
+  cor            String   @default("#7c3aed")
+  ordem          Int      @default(0)
+  ativo          Boolean  @default(true)
+  criadoEm      DateTime @default(now()) @map("criado_em")
+  organization  Organization @relation(fields: [organizationId], references: [id])
+  artigos       ArtigoConhecimento[]
+  @@unique([organizationId, nome])
+  @@map("categorias_conhecimento")
+}
+
+model ArtigoConhecimento {
+  id             String   @id @default(uuid())
+  organizationId String   @map("organization_id")
+  titulo         String
+  slug           String
+  resumo         String?
+  conteudo       String   @db.Text
+  status         String   @default("rascunho")
+  categoriaId    String?  @map("categoria_id")
+  tags           String[] @default([])
+  visualizacoes  Int      @default(0)
+  autorId        String   @map("autor_id")
+  publicadoEm    DateTime? @map("publicado_em")
+  criadoEm       DateTime @default(now()) @map("criado_em")
+  atualizadoEm   DateTime @updatedAt @map("atualizado_em")
+  organization  Organization           @relation(fields: [organizationId], references: [id])
+  categoria     CategoriaConhecimento? @relation(fields: [categoriaId], references: [id], onDelete: SetNull)
+  autor         User @relation("ArtigoAutor", fields: [autorId], references: [id])
+  @@unique([organizationId, slug])
+  @@index([organizationId, status])
+  @@map("artigos_conhecimento")
+}
+
+// ── Configurações ─────────────────────────────────────────────────────────────
+
+model AlertConfig {
+  id             String   @id @default(uuid())
+  organizationId String   @map("organization_id")
+  minutos        Int
+  ativo          Boolean  @default(true)
+  emoji          String   @default(">>>")
+  titulo         String
+  mensagem       String
+  criadoEm      DateTime @default(now()) @map("criado_em")
+  atualizadoEm  DateTime @updatedAt @map("atualizado_em")
+  organization  Organization @relation(fields: [organizationId], references: [id])
+  @@unique([organizationId, minutos])
+  @@map("alert_configs")
+}
+
+model Setor {
+  id             String   @id @default(uuid())
+  organizationId String   @map("organization_id")
+  nome           String
+  descricao      String?
+  cor            String?
+  ativo          Boolean  @default(true)
+  parentId       String?  @map("parent_id")
+  responsavelId  String?  @map("responsavel_id")
+  criadoEm      DateTime @default(now()) @map("criado_em")
+  organization  Organization @relation(fields: [organizationId], references: [id])
+  parent        Setor?   @relation("SetorHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
+  filhos        Setor[]  @relation("SetorHierarchy")
+  responsavel   User?    @relation("SetorResponsavel", fields: [responsavelId], references: [id], onDelete: SetNull)
+  users         UserProfile[]
+  ativos        Ativo[]
+  @@unique([organizationId, nome])
+  @@map("setores")
+}
+
+model SistemaConfig {
+  id             String   @id @default(uuid())
+  organizationId String   @map("organization_id")
+  chave          String
+  valor          String
+  criadoEm      DateTime @default(now()) @map("criado_em")
+  atualizadoEm  DateTime @updatedAt @map("atualizado_em")
+  organization  Organization @relation(fields: [organizationId], references: [id])
+  @@unique([organizationId, chave])
+  @@map("sistema_configs")
+}
+
+// ── Suppliers ──────────────────────────────────────────────────────────────────
+
+model Supplier {
+  id                     String   @id @default(uuid())
+  organizationId         String   @map("organization_id")
+  razaoSocial            String   @map("razao_social")
+  nomeFantasia           String?  @map("nome_fantasia")
+  cnpj                   String?
+  inscricaoEstadual      String?  @map("inscricao_estadual")
+  inscricaoMunicipal     String?  @map("inscricao_municipal")
+  tipoEmpresa            String   @default("LTDA") @map("tipo_empresa")
+  categorias             String[] @default([])
+  status                 String   @default("ativo")
+  contatoNome            String?  @map("contato_nome")
+  contatoCargo           String?  @map("contato_cargo")
+  contatoTelefone        String?  @map("contato_telefone")
+  contatoTelefone2       String?  @map("contato_telefone2")
+  contatoWhatsapp        String?  @map("contato_whatsapp")
+  contatoEmail           String?  @map("contato_email")
+  contatoEmailFinanceiro String?  @map("contato_email_financeiro")
+  site                   String?
+  cep                    String?
+  logradouro             String?
+  numero                 String?
+  complemento            String?
+  bairro                 String?
+  cidade                 String?
+  estado                 String?
+  pais                   String?  @default("Brasil")
+  banco                  String?
+  agencia                String?
+  conta                  String?
+  tipoConta              String?  @map("tipo_conta")
+  pixChave               String?  @map("pix_chave")
+  condicaoPagamento      String?  @map("condicao_pagamento")
+  prazoMedio             Int?     @map("prazo_medio")
+  moeda                  String   @default("BRL")
+  observacoes            String?
+  criadoPorId            String?  @map("criado_por_id")
+  criadoPor              User?    @relation("SupplierCriador", fields: [criadoPorId], references: [id], onDelete: SetNull)
+  organization           Organization @relation(fields: [organizationId], references: [id])
+  contacts               SupplierContact[]
+  documents              SupplierDocument[]
+  history                SupplierHistory[]
+  itensOrcamento         ItemOrcamento[]   @relation("ItemSupplier")
+  criadoEm               DateTime @default(now()) @map("criado_em")
+  atualizadoEm           DateTime @updatedAt @map("atualizado_em")
+  @@index([organizationId])
+  @@map("suppliers")
+}
+
+model SupplierContact {
+  id         String   @id @default(uuid())
+  supplierId String   @map("supplier_id")
+  supplier   Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  nome       String
+  cargo      String?
+  telefone   String?
+  email      String?
+  principal  Boolean  @default(false)
+  criadoEm  DateTime @default(now()) @map("criado_em")
+  @@map("supplier_contacts")
+}
+
+model SupplierDocument {
+  id           String   @id @default(uuid())
+  supplierId   String   @map("supplier_id")
+  supplier     Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  nome         String
+  tipo         String?
+  url          String
+  tamanho      Int?
+  criadoPorId  String?  @map("criado_por_id")
+  criadoPor    User?    @relation(fields: [criadoPorId], references: [id], onDelete: SetNull)
+  criadoEm    DateTime @default(now()) @map("criado_em")
+  @@map("supplier_documents")
+}
+
+model SupplierHistory {
+  id         String   @id @default(uuid())
+  supplierId String   @map("supplier_id")
+  supplier   Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  usuarioId  String?  @map("usuario_id")
+  usuario    User?    @relation(fields: [usuarioId], references: [id], onDelete: SetNull)
+  acao       String
+  detalhes   Json?
+  criadoEm  DateTime @default(now()) @map("criado_em")
+  @@map("supplier_history")
+}
+
+// ── Apontamentos ──────────────────────────────────────────────────────────────
+
+model ApontamentoHoras {
+  id        String   @id @default(uuid())
+  chamadoId String   @map("chamado_id")
+  userId    String   @map("user_id")
+  minutos   Int
+  descricao String?  @db.Text
+  data      DateTime @default(now())
+  criadoEm  DateTime @default(now()) @map("criado_em")
+  chamado   Chamado  @relation(fields: [chamadoId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([chamadoId])
+  @@index([userId])
+  @@index([data(sort: Desc)])
+  @@map("apontamentos_horas")
+}
+
+// ── Faturamento ───────────────────────────────────────────────────────────────
+
+model Fatura {
+  id             String    @id @default(uuid())
+  organizationId String    @map("organization_id")
+  numero         Int       @default(autoincrement())
+  contratoId     String?   @map("contrato_id")
+  clienteId      String    @map("cliente_id")
+  criadoPorId    String?   @map("criado_por_id")
+  descricao      String?
+  valor          Float
+  dataEmissao    DateTime  @default(now()) @map("data_emissao")
+  dataVencimento DateTime  @map("data_vencimento")
+  dataPagamento  DateTime? @map("data_pagamento")
+  status         String    @default("pendente")
+  observacoes    String?   @db.Text
+  criadoEm       DateTime  @default(now()) @map("criado_em")
+  atualizadoEm   DateTime  @updatedAt @map("atualizado_em")
+  organization  Organization @relation(fields: [organizationId], references: [id])
+  contrato      Contrato?    @relation(fields: [contratoId], references: [id], onDelete: SetNull)
+  cliente       Cliente      @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+  criadoPor     User?        @relation("FaturaCriador", fields: [criadoPorId], references: [id], onDelete: SetNull)
+  @@index([organizationId, status])
+  @@index([clienteId])
+  @@index([contratoId])
+  @@index([dataVencimento(sort: Desc)])
+  @@map("faturas")
+}

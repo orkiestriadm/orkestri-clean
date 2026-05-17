@@ -1,0 +1,43 @@
+# Secrets — never commit
+.env
+.env.*
+*.env
+!*.env.example
+
+# Dependencies
+node_modules/
+**/node_modules/
+
+# Build outputs
+backend/dist/
+frontend/.next/
+frontend/out/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# Docker volumes / local data
+backup/
+*.dump
+*.sql.gz
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# Prisma generated (rebuilt on deploy)
+backend/node_modules/.prisma/
+
+# Claude AI internal files
+.claude/
+
+# Misc
+saas/
+fm2.js
