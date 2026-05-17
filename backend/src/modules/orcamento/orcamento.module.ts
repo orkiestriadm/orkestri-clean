@@ -305,11 +305,17 @@ class OrcamentoController {
 
   @Patch("ciclos/:id/ativar")
   @Permissions("orcamento:admin")
-  async ativarCiclo(@Param("id") id: string) {
-    const ciclo = await (this.prisma as any).orcamentoCiclo.findUnique({ where: { id } });
+  async ativarCiclo(@Param("id") id: string, @Req() req: any) {
+    const orgId = req.user?.organizationId;
+    const ciclo = await (this.prisma as any).orcamentoCiclo.findFirst({
+      where: { id, ...(orgId ? { organizationId: orgId } : {}) },
+    });
     if (!ciclo) throw new NotFoundException("Ciclo não encontrado");
-    // Desativa outros ciclos ativos
-    await (this.prisma as any).orcamentoCiclo.updateMany({ where: { status: "ativo" }, data: { status: "rascunho" } });
+    // Desativa apenas ciclos da mesma organização
+    await (this.prisma as any).orcamentoCiclo.updateMany({
+      where: { status: "ativo", ...(orgId ? { organizationId: orgId } : {}) },
+      data: { status: "rascunho" },
+    });
     return (this.prisma as any).orcamentoCiclo.update({ where: { id }, data: { status: "ativo" } });
   }
 

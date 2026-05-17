@@ -206,9 +206,10 @@ class ClientesController {
 
   @Get(":id")
   @Permissions("crm:ver")
-  async findOne(@Param("id") id: string) {
-    const c = await this.prisma.cliente.findUnique({
-      where: { id },
+  async findOne(@Param("id") id: string, @Req() req: any) {
+    const orgId = req.user?.organizationId;
+    const c = await this.prisma.cliente.findFirst({
+      where: { id, ...(orgId ? { organizationId: orgId } as any : {}) },
       include: {
         projetos: {
           include: { members: { include: { user: { select: { id: true, nome: true, avatar: true } } } } },
@@ -250,7 +251,8 @@ class ClientesController {
   @Put(":id")
   @Permissions("crm:editar")
   async update(@Param("id") id: string, @Body() dto: UpdateClienteDto, @Req() req: any) {
-    const exists = await this.prisma.cliente.findUnique({ where: { id } });
+    const orgId = req.user?.organizationId;
+    const exists = await this.prisma.cliente.findFirst({ where: { id, ...(orgId ? { organizationId: orgId } as any : {}) } });
     if (!exists) throw new NotFoundException("Cliente não encontrado");
     const { responsavelId, ...rest } = dto;
     const updated = await this.prisma.cliente.update({
@@ -319,7 +321,8 @@ class ClientesController {
   @Permissions("crm:deletar")
   async remove(@Param("id") id: string, @Req() req: any) {
     if (!req.user?.isMaster) throw new ForbiddenException("Apenas masters podem remover clientes");
-    const exists = await this.prisma.cliente.findUnique({ where: { id } });
+    const orgId = req.user?.organizationId;
+    const exists = await this.prisma.cliente.findFirst({ where: { id, ...(orgId ? { organizationId: orgId } as any : {}) } });
     if (!exists) throw new NotFoundException("Cliente não encontrado");
     await this.prisma.project.updateMany({ where: { clienteId: id }, data: { clienteId: null } });
     await this.prisma.cliente.delete({ where: { id } });

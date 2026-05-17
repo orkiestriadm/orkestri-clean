@@ -472,7 +472,21 @@ export class AuthService implements OnModuleInit {
     };
   }
 
-  async logout(_userId: string) { return { message: "Logout realizado" }; }
+  async logout(userId: string, iat?: number, exp?: number) {
+    if (iat && exp) {
+      const now = Math.floor(Date.now() / 1000);
+      const ttl = exp - now;
+      if (ttl > 0) {
+        await this.cache.set(`blacklist:jwt:${userId}:${iat}`, 1, ttl);
+      }
+    }
+    return { message: "Logout realizado" };
+  }
+
+  async isTokenBlacklisted(userId: string, iat: number): Promise<boolean> {
+    const val = await this.cache.get<number>(`blacklist:jwt:${userId}:${iat}`);
+    return val !== null;
+  }
 
   private async logAudit(userId: string | null, modulo: string, tabela: string, registroId: string, acao: string, descricao: string, organizationId?: string) {
     try {
@@ -536,8 +550,15 @@ export class AuthService implements OnModuleInit {
 
   async createUserRequest(dto: {
     nome: string; email: string; whatsapp?: string; cargo?: string;
-    departamento?: string; empresa?: string; motivacao?: string;
+    departamento?: string; empresa?: string; motivacao?: string; organizationId?: string;
   }) {
+    // Validate organizationId if provided
+    if (dto.organizationId) {
+      const org = await this.prisma.organization.findFirst({
+        where: { id: dto.organizationId, ativo: true } as any,
+      });
+      if (!org) throw new BadRequestException("Organização não encontrada ou inativa.");
+    }
     const existing = await this.prisma.user.findFirst({ where: { email: dto.email } });
     if (existing) throw new BadRequestException("Este e-mail já possui cadastro no sistema.");
     const pending = await (this.prisma as any).userRequest.findFirst({
@@ -597,7 +618,8 @@ export class AuthService implements OnModuleInit {
     if (!req) throw new NotFoundException("Solicitação não encontrada.");
     if (req.status !== "PENDENTE") throw new BadRequestException("Solicitação já processada.");
 
-    const tempPassword = "123@mudar";
+    const chars = "abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789!@#$";
+    const tempPassword = Array.from({ length: 12 }, () => chars[Math.floor(Math.random() * chars.length)]).join("") + "A1!";
     const senhaHash = await bcrypt.hash(tempPassword, 12);
 
     // Determina role padrão
@@ -625,7 +647,7 @@ export class AuthService implements OnModuleInit {
         primeiroAcesso: true,
         bloqueado: false,
         tentativasFalhas: 0,
-        organizationId: requestUser.organizationId || "00000000-0000-0000-0000-000000000001",
+        organizationId: req.organizationId || requestUser.organizationId || "00000000-0000-0000-0000-000000000001",
       } as any,
     });
     await this.prisma.userProfile.create({
@@ -668,6 +690,23 @@ export class AuthService implements OnModuleInit {
     }
     this.email.sendAccountRejected(req.email, req.nome, reason).catch(() => {});
     return { message: "Solicitação rejeitada." };
+  }
+
+  // ── Reset de senha via Email ───────────────────────────────────────────────────
+
+  async sendPasswordResetEmail(email: string) {
+    const user = await this.prisma.user.findFirst({ where: { email } });
+    if (!user) return { message: "Se o e-mail estiver cadastrado, você receberá o link de redefinição." };
+    if (!user.ativo || (user as any).bloqueado) return { message: "Se o e-mail estiver cadastrado, você receberá o link de redefinição." };
+
+    const resetToken = this.jwt.sign(
+      { sub: user.id, type: "email_reset" },
+      { secret: this.config.get("JWT_SECRET"), expiresIn: "30m" },
+    );
+    const appUrl = this.config.get("APP_URL", "http://localhost");
+    const resetUrl = `${appUrl}/recuperar-senha?token=${resetToken}`;
+    this.email.sendPasswordResetLink(user.email, user.nome, resetUrl).catch(() => {});
+    return { message: "Se o e-mail estiver cadastrado, você receberá o link de redefinição." };
   }
 
   // ── OTP via WhatsApp ───────────────────────────────────────────────────────────
@@ -742,7 +781,7 @@ export class AuthService implements OnModuleInit {
     } catch {
       throw new UnauthorizedException("Token inválido ou expirado.");
     }
-    if (payload.type !== "reset") throw new UnauthorizedException("Token inválido.");
+    if (payload.type !== "reset" && payload.type !== "email_reset") throw new UnauthorizedException("Token inválido.");
     this.validatePasswordStrength(novaSenha);
     const hash = await bcrypt.hash(novaSenha, 12);
     await this.prisma.user.update({
@@ -776,6 +815,15 @@ export class AuthService implements OnModuleInit {
 
   getTenantInfo() {
     return { nome: this.config.get("TENANT_NOME", "Orkestri") };
+  }
+
+  async getPublicOrganizations() {
+    const orgs = await this.prisma.organization.findMany({
+      where: { ativo: true } as any,
+      select: { id: true, nome: true } as any,
+      orderBy: { nome: "asc" } as any,
+    });
+    return orgs;
   }
 
   private validatePasswordStrength(senha: string) {

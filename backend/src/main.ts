@@ -2,10 +2,14 @@ import { NestFactory } from "@nestjs/core";
 import { ValidationPipe, Logger } from "@nestjs/common";
 import { AppModule } from "./app.module";
 import helmet from "helmet";
+import cookieParser from "cookie-parser";
 
 async function bootstrap() {
   const logger = new Logger("Bootstrap");
   const app = await NestFactory.create(AppModule);
+
+  // Cookie parsing (required for HttpOnly JWT cookies)
+  app.use(cookieParser());
 
   // Security headers
   app.use(helmet());

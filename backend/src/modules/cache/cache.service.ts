@@ -62,6 +62,24 @@ export class CacheService implements OnModuleDestroy {
     } catch {}
   }
 
+  /** Atomic increment with sliding-window expiry. Returns current count (0 = Redis down). */
+  async rateLimitIncr(key: string, windowSeconds: number): Promise<number> {
+    if (!this.available) return 0;
+    try {
+      const count = await this.client.incr(key);
+      if (count === 1) await this.client.expire(key, windowSeconds);
+      return count;
+    } catch {
+      return 0;
+    }
+  }
+
+  /** Returns remaining TTL in seconds (-2 = key missing, -1 = no expiry, 0 = Redis down). */
+  async ttl(key: string): Promise<number> {
+    if (!this.available) return 0;
+    try { return await this.client.ttl(key); } catch { return 0; }
+  }
+
   onModuleDestroy() {
     this.client.disconnect();
   }

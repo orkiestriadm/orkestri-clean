@@ -16,7 +16,7 @@ export default function LoginPage() {
 
   useEffect(() => {
     setMounted(true);
-    if (document.cookie.includes("orkestri_token")) router.replace("/dashboard");
+    // With HttpOnly cookies we can't read them from JS — let middleware handle redirects
   }, []);
   useEffect(() => { if (user) router.replace("/dashboard"); }, [user]);
   useEffect(() => { if (error) clearError(); }, [email, senha]);

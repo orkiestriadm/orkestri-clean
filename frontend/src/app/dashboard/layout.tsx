@@ -32,12 +32,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }, []);
 
   useEffect(() => {
-    const hasCookie = document.cookie.includes("orkestri_token");
-    if (!hasCookie) { router.replace("/login"); return; }
     if (!user) {
+      // Try to restore session — cookie is sent automatically (HttpOnly, withCredentials)
       authApi.me()
         .then(u => { useAuthStore.setState({ user: u }); setReady(true); })
-        .catch(() => { document.cookie = "orkestri_token=; max-age=0; path=/"; router.replace("/login"); });
+        .catch(() => { router.replace("/login"); });
     } else { setReady(true); }
   }, []);
 

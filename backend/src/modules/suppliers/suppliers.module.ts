@@ -251,9 +251,10 @@ class SuppliersController {
 
   @Get(":id")
   @Permissions("fornecedores:ver")
-  async findOne(@Param("id") id: string) {
-    const s = await (this.prisma as any).supplier.findUnique({
-      where: { id },
+  async findOne(@Param("id") id: string, @Req() req: any) {
+    const orgId = req.user?.organizationId;
+    const s = await (this.prisma as any).supplier.findFirst({
+      where: { id, ...(orgId ? { organizationId: orgId } : {}) },
       include: {
         criadoPor: { select: { id: true, nome: true } },
         contacts: { orderBy: [{ principal: "desc" }, { criadoEm: "asc" }] },

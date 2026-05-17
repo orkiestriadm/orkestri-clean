@@ -31,7 +31,7 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   logout: async () => {
     try { await authApi.logout(); } catch {}
-    document.cookie = "orkestri_token=; max-age=0; path=/";
+    // HttpOnly cookie is cleared by the backend — no JS access needed
     set({ user: null, token: null });
   },
 

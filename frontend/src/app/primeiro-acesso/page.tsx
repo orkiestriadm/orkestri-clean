@@ -39,9 +39,7 @@ export default function PrimeiroAcessoPage() {
 
   useEffect(() => {
     setMounted(true);
-    if (!document.cookie.includes("orkestri_token")) {
-      router.replace("/login");
-    }
+    // Session validation is handled by the middleware and /auth/me call
   }, []);
 
   const isValid = novaSenha.length >= 8 && /[A-Z]/.test(novaSenha) && /[a-z]/.test(novaSenha) && /[0-9]/.test(novaSenha);

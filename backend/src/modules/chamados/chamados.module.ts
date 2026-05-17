@@ -251,10 +251,11 @@ class ChamadosController {
     const prioridade = PRIORIDADE_VALID.includes(dto.prioridade || "") ? dto.prioridade! : "media";
     const slaHoras = SLA_HORAS[prioridade];
     const orgId = req.user?.organizationId;
+    const stripHtml = (s: string) => s.replace(/<[^>]*>/g, "").trim();
     const chamado = await this.prisma.chamado.create({
       data: {
-        titulo: dto.titulo.trim(),
-        descricao: dto.descricao.trim(),
+        titulo: stripHtml(dto.titulo),
+        descricao: stripHtml(dto.descricao),
         prioridade,
         categoria: dto.categoria,
         tags: dto.tags,
@@ -310,11 +311,12 @@ class ChamadosController {
     if (dto.status && !STATUS_VALID.includes(dto.status)) throw new BadRequestException("Status invalido");
     const resolvidoEm = dto.status === "resolvido" && existing.status !== "resolvido" ? new Date() : undefined;
     const fechadoEm   = dto.status === "fechado"   && existing.status !== "fechado"   ? new Date() : undefined;
+    const stripHtml = (s: string) => s.replace(/<[^>]*>/g, "").trim();
     const updated = await this.prisma.chamado.update({
       where: { id },
       data: {
-        ...(dto.titulo     && { titulo: dto.titulo }),
-        ...(dto.descricao  && { descricao: dto.descricao }),
+        ...(dto.titulo     && { titulo: stripHtml(dto.titulo) }),
+        ...(dto.descricao  && { descricao: stripHtml(dto.descricao) }),
         ...(dto.prioridade && { prioridade: dto.prioridade, slaHoras: SLA_HORAS[dto.prioridade] }),
         ...(dto.categoria  !== undefined && { categoria: dto.categoria || null }),
         ...(dto.tags       !== undefined && { tags: dto.tags || null }),
@@ -371,7 +373,7 @@ class ChamadosController {
   }
 
   @Patch(":id/status")
-  @Permissions("chamados:ver")
+  @Permissions("chamados:editar")
   async changeStatus(@Param("id") id: string, @Body() body: { status: string }, @Req() req: any) {
     if (!STATUS_VALID.includes(body.status)) throw new BadRequestException("Status invalido");
     const existing = await this.prisma.chamado.findUnique({ where: { id } });
