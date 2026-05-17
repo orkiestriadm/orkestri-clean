@@ -23,6 +23,9 @@ backup/
 *.dump
 *.sql.gz
 
+# SSL certificates (generated on server, never committed)
+ssl/
+
 # OS
 .DS_Store
 Thumbs.db
