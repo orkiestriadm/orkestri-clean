@@ -1,223 +1,152 @@
-# Orkestri — Guia de Instalação
+# Orkiestri
 
-Sistema de organização de demandas com agenda, planner de projetos e keep de anotações.
-
----
-
-## Pré-requisitos da VM
-
-| Recurso | Mínimo | Recomendado |
-|---|---|---|
-| SO | Ubuntu 22.04 | Ubuntu 22.04 / 24.04 |
-| CPU | 2 vCPUs | 4 vCPUs |
-| RAM | 4 GB | 8 GB |
-| Disco | 20 GB | 50 GB |
-| Porta 80 | Aberta | Aberta |
+Sistema SaaS multi-tenant de orquestramento de demandas — chamados, projetos, agenda, contratos, ativos e base de conhecimento.
 
 ---
 
-## Instalação em 1 comando
+## Stack
 
-Copie a pasta do projeto para a VM e execute:
-
-```bash
-sudo bash scripts/install.sh
-```
-
-O instalador faz **tudo automaticamente**:
-- Instala Docker e Docker Compose se não existirem
-- Gera as chaves de segurança (JWT) aleatórias
-- Configura o banco de dados PostgreSQL
-- Faz o build de todos os containers
-- Cria e ativa o serviço systemd para **auto-start no boot**
-- Exibe o IP de acesso e as credenciais ao final
-
----
-
-## O que acontece quando a VM liga
-
-```
-VM liga
-  └─ systemd inicia
-       └─ orkestri.service inicia automaticamente
-            ├─ PostgreSQL sobe
-            ├─ Redis sobe
-            ├─ API NestJS sobe + executa migrations
-            └─ Frontend Next.js sobe
-                 └─ Nginx roteia tudo na porta 80
-```
-
-Nenhuma intervenção manual necessária. O sistema estará disponível em:
-
-```
-http://IP_DA_VM
-```
-
----
-
-## Credenciais iniciais
-
-| Campo | Valor padrão |
+| Camada | Tecnologia |
 |---|---|
-| E-mail | admin@orkestri.local |
-| Senha | Admin@123 |
-
-> **Troque a senha imediatamente após o primeiro login.**
-
----
-
-## Comandos de gestão
-
-Após a instalação, use o comando global `orkestri`:
-
-```bash
-orkestri status    # Status de todos os containers
-orkestri start     # Inicia o sistema
-orkestri stop      # Para o sistema
-orkestri restart   # Reinicia
-orkestri logs      # Logs em tempo real
-orkestri logs api  # Logs de um serviço específico
-orkestri ip        # Mostra o endereço de acesso
-```
-
-Ou via systemd:
-
-```bash
-sudo systemctl status orkestri
-sudo systemctl start orkestri
-sudo systemctl stop orkestri
-sudo systemctl restart orkestri
-```
+| Backend | NestJS + Prisma + PostgreSQL + Redis |
+| Frontend | Next.js 14 (App Router) |
+| Infra | Docker Compose + Nginx + Let's Encrypt |
+| Auth | JWT em cookie HttpOnly |
+| E-mail | Resend |
+| WhatsApp | Evolution API |
 
 ---
 
-## Verificar se está funcionando
+## Desenvolvimento local (Windows)
+
+**Pré-requisitos:** Docker Desktop, Git
 
 ```bash
-# Status dos containers
-orkestri status
+# 1. Clone
+git clone https://github.com/orkiestriadm/orkestri-clean.git
+cd orkestri-clean
 
-# Deve mostrar algo como:
-# NAME                STATUS          PORTS
-# orkestri_postgres   healthy
-# orkestri_redis      healthy
-# orkestri_api        healthy
-# orkestri_frontend   running
-# orkestri_nginx      running         0.0.0.0:80->80/tcp
+# 2. Crie o .env (peça ao time o arquivo com os valores)
+cp .env.example .env   # edite os valores
+
+# 3. Suba a stack (docker-compose.override.yml é carregado automaticamente)
+docker compose up -d
+
+# 4. Acesse
+# Frontend: http://localhost
+# API:      http://localhost/api
+# SA Panel: http://localhost:8080
 ```
 
-Se algum container não subiu:
+> Evolution API é desligada automaticamente no override local (economiza ~1.5 GB de RAM).
+
+---
+
+## Deploy em produção (AWS Lightsail)
+
+### Pré-requisitos
+
+- Instância Ubuntu 24.04 com portas 80 e 443 abertas
+- Domínio apontando para o IP da instância (registros A `@` e `www`)
+- Arquivo `.env.production` preenchido (nunca commitar)
+
+### Passo 1 — Enviar código para o servidor
+
+No Windows (Git Bash ou WSL):
 
 ```bash
-orkestri logs api       # Ver erros da API
-orkestri logs postgres  # Ver erros do banco
+bash deploy.sh <IP_DO_SERVIDOR>
+```
+
+O script envia o código via rsync e copia `.env.production` como `.env` no servidor.
+
+### Passo 2 — Configurar o servidor (primeira vez)
+
+```bash
+ssh ubuntu@<IP_DO_SERVIDOR>
+bash /opt/orkestri/scripts/setup-server.sh
+```
+
+Instala Docker, constrói as imagens e sobe todos os serviços.
+
+### Passo 3 — Obter certificado SSL
+
+Após o DNS propagar (teste com `curl http://<domínio>/health`):
+
+```bash
+cd /opt/orkestri && bash scripts/init-ssl.sh
+```
+
+Gera certificado Let's Encrypt e recarrega nginx com HTTPS.
+
+### Deploys subsequentes
+
+```bash
+# Do Windows:
+bash deploy.sh <IP_DO_SERVIDOR>
+
+# No servidor:
+cd /opt/orkestri
+git pull
+sudo docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
 ```
 
 ---
 
-## Estrutura de arquivos
+## Variáveis de ambiente obrigatórias
+
+| Variável | Descrição |
+|---|---|
+| `POSTGRES_DB/USER/PASSWORD` | Banco de dados |
+| `REDIS_PASSWORD` | Redis |
+| `JWT_SECRET` / `JWT_REFRESH_SECRET` | Assinatura de tokens |
+| `SA_TOKEN` | Autenticação do SA Panel |
+| `CORS_ORIGINS` | Origens permitidas |
+| `APP_URL` | URL pública do sistema |
+| `MASTER_EMAIL/PASSWORD/NOME` | Usuário administrador inicial |
+| `RESEND_API_KEY` | Envio de e-mails |
+| `EVOLUTION_API_KEY` | Integração WhatsApp |
+
+---
+
+## Gestão dos containers
+
+```bash
+# Status
+sudo docker compose -f docker-compose.yml -f docker-compose.prod.yml ps
+
+# Logs
+sudo docker logs orkestri_api --tail 50
+sudo docker logs orkestri_nginx --tail 50
+
+# Restart de um serviço
+sudo docker compose -f docker-compose.yml -f docker-compose.prod.yml restart api
+
+# Rebuild completo
+sudo docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+```
+
+---
+
+## Estrutura do projeto
 
 ```
-orkestri/
-├── docker-compose.yml        # Orquestra os serviços
-├── .env                      # Variáveis de ambiente (gerado no install)
+orkestri-clean/
+├── backend/          # API NestJS
+│   ├── prisma/       # Schema e migrations
+│   └── src/
+├── frontend/         # Next.js
+│   └── src/
+├── saas/
+│   └── sa-panel/     # Super Admin Panel (Express)
 ├── nginx/
-│   └── nginx.conf            # Proxy reverso + WebSocket
-├── backend/
-│   ├── Dockerfile
-│   ├── prisma/
-│   │   └── schema.prisma     # Schema completo do banco de dados
-│   └── src/
-│       ├── main.ts
-│       ├── app.module.ts
-│       └── modules/
-│           ├── auth/          # Login, JWT, sessões
-│           ├── users/         # Gestão de usuários
-│           └── health/        # Health check endpoint
-├── frontend/
-│   ├── Dockerfile
-│   └── src/
-│       ├── app/
-│       │   ├── login/         # Tela de login
-│       │   └── dashboard/     # Dashboard (em construção)
-│       ├── lib/
-│       │   ├── api.ts         # Cliente Axios
-│       │   └── store.ts       # Estado global Zustand
-│       └── styles/
-│           └── globals.css    # Design system Orkestri
-└── scripts/
-    ├── install.sh             # Instalador completo
-    └── init.sql               # Extensões do PostgreSQL
+│   ├── nginx.conf         # Config local
+│   └── nginx-ssl.conf     # Config produção (HTTPS)
+├── scripts/
+│   ├── init-ssl.sh        # Obtém certificado Let's Encrypt
+│   └── setup-server.sh    # Bootstrap do servidor
+├── docker-compose.yml          # Base
+├── docker-compose.override.yml # Dev local (Windows)
+├── docker-compose.prod.yml     # Produção
+└── deploy.sh                   # Envia código para o servidor
 ```
-
----
-
-## Atualização do sistema
-
-```bash
-cd ~/orkestri
-
-# Puxa novas versões e reconstrói
-docker compose pull
-docker compose up -d --build --remove-orphans
-
-# Migrations são executadas automaticamente no start da API
-```
-
----
-
-## Acesso ao banco de dados (opcional)
-
-Para acessar o PostgreSQL diretamente (ex: via DBeaver):
-
-```bash
-# Descomente a linha ports no docker-compose.yml:
-# postgres:
-#   ports:
-#     - "5432:5432"
-
-# Reinicie o postgres
-docker compose restart postgres
-```
-
-Credenciais do banco estão no arquivo `.env`.
-
----
-
-## Backup
-
-```bash
-# Backup do banco
-source ~/orkestri/.env
-docker exec orkestri_postgres pg_dump -U $POSTGRES_USER $POSTGRES_DB \
-  | gzip > ~/orkestri-backup-$(date +%Y%m%d).sql.gz
-
-# Restaurar
-gunzip -c backup.sql.gz \
-  | docker exec -i orkestri_postgres psql -U $POSTGRES_USER $POSTGRES_DB
-```
-
----
-
-## Firewall (UFW)
-
-Se a VM tiver UFW ativo:
-
-```bash
-sudo ufw allow 80/tcp
-sudo ufw allow 22/tcp
-sudo ufw enable
-```
-
----
-
-## Progresso do desenvolvimento
-
-- [x] Banco de dados (schema completo com todas as tabelas)
-- [x] Auth API (login, JWT, sessões, usuário master automático)
-- [x] Tela de login (design futurístico)
-- [ ] Dashboard principal
-- [ ] Módulo de Agenda
-- [ ] Módulo de Projetos (Planner)
-- [ ] Módulo Keep (notas + tasks diárias)
-- [ ] Gestão de usuários (painel master)
