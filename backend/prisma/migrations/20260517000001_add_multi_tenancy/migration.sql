@@ -270,20 +270,19 @@ DO $$ BEGIN
   ALTER TABLE "chamados" RENAME CONSTRAINT "chamados_solicitante_fkey" TO "chamados_solicitante_id_fkey";
 EXCEPTION WHEN undefined_object THEN NULL; END $$;
 
--- Rename indexes (wrap in DO blocks to ignore if they don't exist)
--- Note: ALTER INDEX throws 42P01 (undefined_table), not 42704 (undefined_object), so use OTHERS
-DO $$ BEGIN ALTER INDEX "idx_apontamentos_chamado" RENAME TO "apontamentos_horas_chamado_id_idx"; EXCEPTION WHEN others THEN NULL; END $$;
-DO $$ BEGIN ALTER INDEX "idx_apontamentos_data" RENAME TO "apontamentos_horas_data_idx"; EXCEPTION WHEN others THEN NULL; END $$;
-DO $$ BEGIN ALTER INDEX "idx_apontamentos_user" RENAME TO "apontamentos_horas_user_id_idx"; EXCEPTION WHEN others THEN NULL; END $$;
-DO $$ BEGIN ALTER INDEX "idx_artigos_status" RENAME TO "artigos_conhecimento_status_idx"; EXCEPTION WHEN others THEN NULL; END $$;
-DO $$ BEGIN ALTER INDEX "idx_ativos_status" RENAME TO "ativos_status_idx"; EXCEPTION WHEN others THEN NULL; END $$;
-DO $$ BEGIN ALTER INDEX "idx_audit_criado_em" RENAME TO "audit_log_criado_em_idx"; EXCEPTION WHEN others THEN NULL; END $$;
-DO $$ BEGIN ALTER INDEX "idx_audit_user_id" RENAME TO "audit_log_user_id_idx"; EXCEPTION WHEN others THEN NULL; END $$;
-DO $$ BEGIN ALTER INDEX "idx_automacao_exec_dt" RENAME TO "automacao_execucoes_criado_em_idx"; EXCEPTION WHEN others THEN NULL; END $$;
-DO $$ BEGIN ALTER INDEX "idx_automacao_exec_id" RENAME TO "automacao_execucoes_automacao_id_idx"; EXCEPTION WHEN others THEN NULL; END $$;
-DO $$ BEGIN ALTER INDEX "chamados_atendente_idx" RENAME TO "chamados_atendente_id_idx"; EXCEPTION WHEN others THEN NULL; END $$;
-DO $$ BEGIN ALTER INDEX "chamados_solicitante_idx" RENAME TO "chamados_solicitante_id_idx"; EXCEPTION WHEN others THEN NULL; END $$;
-DO $$ BEGIN ALTER INDEX "cliente_timeline_idx" RENAME TO "cliente_timeline_cliente_id_criado_em_idx"; EXCEPTION WHEN others THEN NULL; END $$;
-DO $$ BEGIN ALTER INDEX "idx_contratos_status" RENAME TO "contratos_status_idx"; EXCEPTION WHEN others THEN NULL; END $$;
-DO $$ BEGIN ALTER INDEX "notes_user_arquivado_idx" RENAME TO "notes_user_id_arquivado_lixeira_idx"; EXCEPTION WHEN others THEN NULL; END $$;
-DO $$ BEGIN ALTER INDEX "idx_transf_ativo" RENAME TO "transferencias_ativo_ativo_id_idx"; EXCEPTION WHEN others THEN NULL; END $$;
+-- Rename indexes only if they exist (safe for both existing and fresh databases)
+DO $$ BEGIN IF EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_apontamentos_chamado') THEN EXECUTE 'ALTER INDEX idx_apontamentos_chamado RENAME TO apontamentos_horas_chamado_id_idx'; END IF; END $$;
+DO $$ BEGIN IF EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_apontamentos_data') THEN EXECUTE 'ALTER INDEX idx_apontamentos_data RENAME TO apontamentos_horas_data_idx'; END IF; END $$;
+DO $$ BEGIN IF EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_apontamentos_user') THEN EXECUTE 'ALTER INDEX idx_apontamentos_user RENAME TO apontamentos_horas_user_id_idx'; END IF; END $$;
+DO $$ BEGIN IF EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_artigos_status') THEN EXECUTE 'ALTER INDEX idx_artigos_status RENAME TO artigos_conhecimento_status_idx'; END IF; END $$;
+DO $$ BEGIN IF EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_ativos_status') THEN EXECUTE 'ALTER INDEX idx_ativos_status RENAME TO ativos_status_idx'; END IF; END $$;
+DO $$ BEGIN IF EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_audit_criado_em') THEN EXECUTE 'ALTER INDEX idx_audit_criado_em RENAME TO audit_log_criado_em_idx'; END IF; END $$;
+DO $$ BEGIN IF EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_audit_user_id') THEN EXECUTE 'ALTER INDEX idx_audit_user_id RENAME TO audit_log_user_id_idx'; END IF; END $$;
+DO $$ BEGIN IF EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_automacao_exec_dt') THEN EXECUTE 'ALTER INDEX idx_automacao_exec_dt RENAME TO automacao_execucoes_criado_em_idx'; END IF; END $$;
+DO $$ BEGIN IF EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_automacao_exec_id') THEN EXECUTE 'ALTER INDEX idx_automacao_exec_id RENAME TO automacao_execucoes_automacao_id_idx'; END IF; END $$;
+DO $$ BEGIN IF EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'chamados_atendente_idx') THEN EXECUTE 'ALTER INDEX chamados_atendente_idx RENAME TO chamados_atendente_id_idx'; END IF; END $$;
+DO $$ BEGIN IF EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'chamados_solicitante_idx') THEN EXECUTE 'ALTER INDEX chamados_solicitante_idx RENAME TO chamados_solicitante_id_idx'; END IF; END $$;
+DO $$ BEGIN IF EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'cliente_timeline_idx') THEN EXECUTE 'ALTER INDEX cliente_timeline_idx RENAME TO cliente_timeline_cliente_id_criado_em_idx'; END IF; END $$;
+DO $$ BEGIN IF EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_contratos_status') THEN EXECUTE 'ALTER INDEX idx_contratos_status RENAME TO contratos_status_idx'; END IF; END $$;
+DO $$ BEGIN IF EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'notes_user_arquivado_idx') THEN EXECUTE 'ALTER INDEX notes_user_arquivado_idx RENAME TO notes_user_id_arquivado_lixeira_idx'; END IF; END $$;
+DO $$ BEGIN IF EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_transf_ativo') THEN EXECUTE 'ALTER INDEX idx_transf_ativo RENAME TO transferencias_ativo_ativo_id_idx'; END IF; END $$;
