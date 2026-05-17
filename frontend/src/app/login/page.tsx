@@ -52,10 +52,10 @@ export default function LoginPage() {
       <div className="relative z-10 w-full max-w-[440px] px-8">
         <div className="flex flex-col items-center mb-12">
           <div className="mb-6 shadow-xl rounded-[30px] overflow-hidden">
-            <OrkestriLogo size={56} />
+            <OrkestriLogo size={72} />
           </div>
-          <h1 className="text-4xl font-semibold tracking-tight text-zinc-900 dark:text-white mb-2">
-            Orkestri
+          <h1 className="text-5xl font-semibold tracking-tight text-zinc-900 dark:text-white mb-2">
+            Orkiestri
           </h1>
           <p className="text-[15px] text-zinc-500 dark:text-zinc-400 font-medium text-center">
             Faça login no seu workspace.
@@ -133,8 +133,9 @@ export default function LoginPage() {
           </Link>
         </div>
 
-        <div className="mt-4 text-center">
-          <p className="text-[13px] text-zinc-500 dark:text-zinc-600 font-medium">Orkestri System • Version 2.0.4</p>
+        <div className="mt-4 text-center space-y-1">
+          <p className="text-[13px] text-zinc-500 dark:text-zinc-600 font-medium">Orkiestri System • Version 2.0.4</p>
+          <p className="text-[12px] text-zinc-400 dark:text-zinc-700">© Orkiestri — Todos os direitos reservados</p>
         </div>
       </div>
     </div>

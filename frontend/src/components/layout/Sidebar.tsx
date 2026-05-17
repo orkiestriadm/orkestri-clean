@@ -132,7 +132,7 @@ export default function Sidebar() {
         <div className="flex items-center gap-3">
           <OrkestriLogo size={32} />
           <div>
-            <div className="font-display text-base font-extrabold text-foreground tracking-tight leading-tight">Orkestri</div>
+            <div className="font-display text-base font-extrabold text-foreground tracking-tight leading-tight">Orkiestri</div>
             <div className="text-[9px] text-muted-foreground font-mono tracking-[0.12em] uppercase leading-none mt-0.5">Orquestramento v1.0</div>
           </div>
         </div>
@@ -223,6 +223,7 @@ export default function Sidebar() {
           <LogOut size={15} />
           {loggingOut ? "Saindo..." : "Sair do sistema"}
         </button>
+        <p className="text-[10px] text-muted-foreground/50 text-center mt-2 leading-tight">© Orkiestri — Todos os direitos reservados</p>
       </div>
     </aside>
   );
