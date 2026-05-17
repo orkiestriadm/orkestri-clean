@@ -5,6 +5,7 @@ import { Type } from "class-transformer";
 import { ConfigService } from "@nestjs/config";
 import { PrismaService } from "../../prisma/prisma.service";
 import { WhatsAppService } from "../notifications/whatsapp.service";
+import { EmailService } from "../notifications/email.service";
 import { Permissions } from "../auth/permissions.decorator";
 import { PermissionsGuard } from "../auth/permissions.guard";
 import { SlaService } from "../sla/sla.module";
@@ -118,6 +119,7 @@ class ChamadosController {
   constructor(
     private prisma: PrismaService,
     private wa: WhatsAppService,
+    private email: EmailService,
     private config: ConfigService,
     private sla: SlaService,
     private automacao: AutomacaoService,
@@ -280,12 +282,16 @@ class ChamadosController {
 
     if (dto.atendenteId && dto.atendenteId !== req.user.id) {
       await this.notificarAtendente(dto.atendenteId, chamado, "atribuido");
+      const atendente = await this.prisma.user.findUnique({ where: { id: dto.atendenteId }, select: { email: true, nome: true } });
       const phone = await this.getUserPhone(dto.atendenteId);
       if (phone) this.wa.sendChamadoAtribuido(phone, chamado.numero, chamado.titulo, chamado.prioridade, this.deadlineFor(chamado.criadoEm, chamado.slaHoras), this.appUrl).catch(() => {});
+      if (atendente?.email) this.email.sendChamadoAtribuido(atendente.email, atendente.nome, chamado.numero, chamado.titulo, chamado.prioridade, chamado.solicitante?.nome || "").catch(() => {});
     }
     // Notifica solicitante da abertura
+    const solicitante = await this.prisma.user.findUnique({ where: { id: chamado.solicitanteId }, select: { email: true, nome: true } });
     const solPhone = await this.getUserPhone(chamado.solicitanteId);
     if (solPhone) this.wa.sendChamadoAberto(solPhone, chamado.numero, chamado.titulo, chamado.prioridade, chamado.slaHoras, this.appUrl).catch(() => {});
+    if (solicitante?.email) this.email.sendChamadoAberto(solicitante.email, solicitante.nome, chamado.numero, chamado.titulo, chamado.prioridade, chamado.slaHoras).catch(() => {});
 
     // Fire automations async (non-blocking)
     this.automacao.executar("chamado_criado", { id: chamado.id, numero: chamado.numero, titulo: chamado.titulo, prioridade, status: chamado.status, categoria: dto.categoria || null, solicitanteId: chamado.solicitanteId, atendenteId: chamado.atendenteId || null, clienteId: chamado.clienteId || null }).catch(() => {});
@@ -334,17 +340,27 @@ class ChamadosController {
 
     if (dto.atendenteId && dto.atendenteId !== existing.atendenteId && dto.atendenteId !== req.user.id) {
       await this.notificarAtendente(dto.atendenteId, updated, "atribuido");
+      const atendente = await this.prisma.user.findUnique({ where: { id: dto.atendenteId }, select: { email: true, nome: true } });
       const phone = await this.getUserPhone(dto.atendenteId);
       if (phone) this.wa.sendChamadoAtribuido(phone, updated.numero, updated.titulo, updated.prioridade, this.deadlineFor(updated.criadoEm, updated.slaHoras), this.appUrl).catch(() => {});
+      if (atendente?.email) this.email.sendChamadoAtribuido(atendente.email, atendente.nome, updated.numero, updated.titulo, updated.prioridade, updated.solicitante?.nome || "").catch(() => {});
     }
     if (dto.status && dto.status !== existing.status && existing.solicitanteId !== req.user.id) {
       await this.notificarSolicitante(existing.solicitanteId, updated, dto.status);
+      const solicitante = await this.prisma.user.findUnique({ where: { id: existing.solicitanteId }, select: { email: true, nome: true } });
       const phone = await this.getUserPhone(existing.solicitanteId);
       if (phone) {
         if (dto.status === "resolvido") {
           this.wa.sendChamadoResolvido(phone, updated.numero, updated.titulo, this.appUrl).catch(() => {});
         } else {
           this.wa.sendChamadoStatus(phone, updated.numero, updated.titulo, dto.status, this.appUrl).catch(() => {});
+        }
+      }
+      if (solicitante?.email) {
+        if (dto.status === "resolvido") {
+          this.email.sendChamadoResolvido(solicitante.email, solicitante.nome, updated.numero, updated.titulo).catch(() => {});
+        } else {
+          this.email.sendChamadoStatus(solicitante.email, solicitante.nome, updated.numero, updated.titulo, dto.status).catch(() => {});
         }
       }
     }
@@ -371,12 +387,20 @@ class ChamadosController {
     });
     if (existing.solicitanteId !== req.user.id) {
       await this.notificarSolicitante(existing.solicitanteId, updated, body.status);
+      const solicitante = await this.prisma.user.findUnique({ where: { id: existing.solicitanteId }, select: { email: true, nome: true } });
       const phone = await this.getUserPhone(existing.solicitanteId);
       if (phone) {
         if (body.status === "resolvido") {
           this.wa.sendChamadoResolvido(phone, updated.numero, updated.titulo, this.appUrl).catch(() => {});
         } else {
           this.wa.sendChamadoStatus(phone, updated.numero, updated.titulo, body.status, this.appUrl).catch(() => {});
+        }
+      }
+      if (solicitante?.email) {
+        if (body.status === "resolvido") {
+          this.email.sendChamadoResolvido(solicitante.email, solicitante.nome, updated.numero, updated.titulo).catch(() => {});
+        } else {
+          this.email.sendChamadoStatus(solicitante.email, solicitante.nome, updated.numero, updated.titulo, body.status).catch(() => {});
         }
       }
     }
@@ -525,10 +549,11 @@ class ChamadosController {
 import { SlaModule } from "../sla/sla.module";
 import { AutomacoesModule } from "../automacoes/automacoes.module";
 import { WebhooksModule } from "../automacoes/webhooks.module";
+import { NotificationsModule } from "../notifications/notifications.module";
 
 @Module({
-  imports:     [SlaModule, AutomacoesModule, WebhooksModule],
+  imports:     [SlaModule, AutomacoesModule, WebhooksModule, NotificationsModule],
   controllers: [ChamadosController],
-  providers:   [WhatsAppService],
+  providers:   [WhatsAppService, EmailService],
 })
 export class ChamadosModule {}

@@ -4,6 +4,7 @@ import { ConfigService } from "@nestjs/config";
 import { PrismaService } from "../../prisma/prisma.service";
 import { CacheService } from "../cache/cache.service";
 import { WhatsAppService } from "../notifications/whatsapp.service";
+import { EmailService } from "../notifications/email.service";
 import * as bcrypt from "bcryptjs";
 
 // Todas as permissões do sistema no formato "recurso:acao"
@@ -231,6 +232,7 @@ export class AuthService implements OnModuleInit {
     private config: ConfigService,
     private cache: CacheService,
     private wa: WhatsAppService,
+    private email: EmailService,
   ) {}
 
   async onModuleInit() {
@@ -487,17 +489,23 @@ export class AuthService implements OnModuleInit {
   async forgotPassword(email: string) {
     const user = await this.prisma.user.findFirst({ where: { email } });
     if (!user) return { message: "Se o e-mail existir, o master sera notificado" };
-    const masterId = await this.getMasterUserId();
-    await this.prisma.notification.create({
-      data: {
-        userId: masterId,
-        tipo: "reset_senha",
-        titulo: "Solicitacao de reset de senha",
-        mensagem: user.nome + " (" + user.email + ") solicitou redefinicao de senha.",
-        referenciaTipo: "user",
-        referenciaId: user.id,
-      },
+    const master = await this.prisma.user.findFirst({
+      where: { ativo: true, userRoles: { some: { role: { isMaster: true } } } },
+      orderBy: { criadoEm: "asc" },
     });
+    if (master) {
+      await this.prisma.notification.create({
+        data: {
+          userId: master.id,
+          tipo: "reset_senha",
+          titulo: "Solicitacao de reset de senha",
+          mensagem: user.nome + " (" + user.email + ") solicitou redefinicao de senha.",
+          referenciaTipo: "user",
+          referenciaId: user.id,
+        },
+      });
+      this.email.sendPasswordResetRequest(user.email, user.nome, master.nome, master.email).catch(() => {});
+    }
     return { message: "Solicitacao enviada. O administrador sera notificado." };
   }
 
@@ -630,7 +638,7 @@ export class AuthService implements OnModuleInit {
     });
     if (defaultRole) {
       await this.prisma.userRole.create({
-        data: { userId, roleId: defaultRole.id, atribuidoPor: requestUser.id, atribuidoEm: new Date() } as any,
+        data: { userId, roleId: defaultRole.id, atribuidoPorId: requestUser.id, atribuidoEm: new Date() } as any,
       });
     }
     await (this.prisma as any).userRequest.update({
@@ -641,6 +649,7 @@ export class AuthService implements OnModuleInit {
     if (whatsapp) {
       this.wa.sendAccountApproved(whatsapp, nome, email, appUrl).catch(() => {});
     }
+    this.email.sendAccountApproved(email, nome, tempPassword).catch(() => {});
     this.logAudit(requestUser.id, "usuarios", "users", userId, "CREATE", `Conta aprovada via solicitação: ${email}`).catch(() => {});
     return { message: "Usuário aprovado com sucesso.", userId };
   }
@@ -657,6 +666,7 @@ export class AuthService implements OnModuleInit {
     if (req.whatsapp) {
       this.wa.sendAccountRejected(req.whatsapp, req.nome).catch(() => {});
     }
+    this.email.sendAccountRejected(req.email, req.nome, reason).catch(() => {});
     return { message: "Solicitação rejeitada." };
   }
 

@@ -1,4 +1,5 @@
 import { Module, Controller, Get, Post, Body, Param, Query, UseGuards, Req, ForbiddenException, Sse, MessageEvent } from "@nestjs/common";
+import { EmailService } from "./email.service";
 import { Observable, interval, from, switchMap, map, startWith } from "rxjs";
 import { JwtService } from "@nestjs/jwt";
 import { ConfigService } from "@nestjs/config";
@@ -207,8 +208,8 @@ import { JwtModule } from "@nestjs/jwt";
       useFactory: (c: ConfigService) => ({ secret: c.get("JWT_SECRET", "fallback_secret") }),
     }),
   ],
-  providers: [WhatsAppService, AlertScheduler, ConfigService],
+  providers: [WhatsAppService, AlertScheduler, EmailService, ConfigService],
   controllers: [NotificationsController],
-  exports: [WhatsAppService, AlertScheduler],
+  exports: [WhatsAppService, AlertScheduler, EmailService],
 })
 export class NotificationsModule {}
