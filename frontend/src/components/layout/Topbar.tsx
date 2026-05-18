@@ -38,7 +38,6 @@ const TITLES: Record<string, { label: string; desc: string }> = {
 
 export default function Topbar({ children }: { children?: React.ReactNode }) {
   const path = usePathname();
-  const router = useRouter();
   const { user } = useAuthStore();
   const meta = TITLES[path] || { label: "Orkestri", desc: "" };
   const dateStr = new Date().toLocaleDateString("pt-BR", { weekday: "short", day: "numeric", month: "short" });
