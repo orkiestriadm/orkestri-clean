@@ -33,10 +33,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   useEffect(() => {
     if (!user) {
-      // Try to restore session — cookie is sent automatically (HttpOnly, withCredentials)
+      const fallback = setTimeout(() => { router.replace("/login"); }, 12000);
       authApi.me()
-        .then(u => { useAuthStore.setState({ user: u }); setReady(true); })
-        .catch(() => { router.replace("/login"); });
+        .then(u => { clearTimeout(fallback); useAuthStore.setState({ user: u }); setReady(true); })
+        .catch(() => { clearTimeout(fallback); router.replace("/login"); });
+      return () => clearTimeout(fallback);
     } else { setReady(true); }
   }, []);
 

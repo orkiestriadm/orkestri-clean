@@ -6,7 +6,7 @@ const BASE = typeof window !== "undefined"
   : "http://localhost/api";
 
 // withCredentials: true ensures HttpOnly cookies are sent automatically
-export const api = axios.create({ baseURL: BASE, withCredentials: true });
+export const api = axios.create({ baseURL: BASE, withCredentials: true, timeout: 10000 });
 
 // ── Response interceptor: error handling global ──
 api.interceptors.response.use(
