@@ -24,6 +24,7 @@ function OrgCard({ org, onRefresh }: { org: Org; onRefresh: () => void }) {
   const [expanded, setExpanded] = useState(false);
   const [waStatus, setWaStatus] = useState<WaStatus | null>(null);
   const [waLoading, setWaLoading] = useState(false);
+  const [liveConnected, setLiveConnected] = useState<boolean | null>(null);
   const [qr, setQr] = useState<string | null>(null);
   const [qrLoading, setQrLoading] = useState(false);
   const [inviteOpen, setInviteOpen] = useState(false);
@@ -49,7 +50,16 @@ function OrgCard({ org, onRefresh }: { org: Org; onRefresh: () => void }) {
     try {
       const r = await api.get(`/superadmin/organizations/${org.id}/whatsapp/status`);
       setWaStatus(r.data);
+      setLiveConnected(r.data.connected);
     } catch { } finally { setWaLoading(false); }
+  }, [org.id]);
+
+  useEffect(() => {
+    if (org.whatsapp) {
+      api.get(`/superadmin/organizations/${org.id}/whatsapp/status`)
+        .then(r => setLiveConnected(r.data.connected))
+        .catch(() => {});
+    }
   }, [org.id]);
 
   useEffect(() => { if (expanded) refreshWaStatus(); }, [expanded]);
@@ -109,8 +119,8 @@ function OrgCard({ org, onRefresh }: { org: Org; onRefresh: () => void }) {
             <span style={{ fontSize: 11, color: "var(--text-muted)" }}>{org.usuarios} usuário{org.usuarios !== 1 ? "s" : ""}</span>
             <span style={{ fontSize: 11, color: "var(--text-muted)" }}>{org.chamados} chamado{org.chamados !== 1 ? "s" : ""}</span>
             {org.whatsapp && (
-              <span style={{ fontSize: 11, color: org.whatsapp.conectado ? "var(--accent-green)" : "var(--text-muted)" }}>
-                WA {org.whatsapp.conectado ? "conectado" : "desconectado"}
+              <span style={{ fontSize: 11, color: (liveConnected ?? org.whatsapp.conectado) ? "var(--accent-green)" : "var(--text-muted)" }}>
+                WA {(liveConnected ?? org.whatsapp.conectado) ? "conectado" : "desconectado"}
               </span>
             )}
           </div>

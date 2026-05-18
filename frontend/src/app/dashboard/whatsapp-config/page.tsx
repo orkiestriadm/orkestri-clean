@@ -40,8 +40,8 @@ function OrgWhatsAppPanel() {
     setQrLoading(true); setQr(null);
     try {
       const r = await api.get("/organizations/me/whatsapp/qrcode");
-      const b64 = r.data?.base64 || r.data?.qrcode?.base64;
-      if (b64) setQr(`data:image/png;base64,${b64}`);
+      const raw = r.data?.base64 || r.data?.qrcode?.base64 || r.data?.code;
+      if (raw) setQr(raw.startsWith("data:") ? raw : `data:image/png;base64,${raw}`);
       else setMsg({ text: "QR Code indisponível. Tente novamente.", ok: false });
     } catch { setMsg({ text: "Erro ao buscar QR Code.", ok: false }); }
     finally { setQrLoading(false); setTimeout(() => setMsg(null), 5000); }

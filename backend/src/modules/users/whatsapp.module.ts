@@ -1,4 +1,4 @@
-import { Module, Controller, Get, Post, Patch, Body, UseGuards, Req } from "@nestjs/common";
+import { Module, Controller, Get, Post, Patch, Body, UseGuards, Req, BadRequestException } from "@nestjs/common";
 import { AuthGuard } from "@nestjs/passport";
 import { PrismaService } from "../../prisma/prisma.service";
 import { WhatsAppService } from "../notifications/whatsapp.service";
@@ -33,10 +33,10 @@ class UserWhatsAppController {
   async testarWhatsApp(@Req() req: any) {
     const user = await this.prisma.user.findUnique({ where: { id: req.user.id } });
     const profile = await this.prisma.userProfile.findUnique({ where: { userId: req.user.id } });
-    if (!profile?.whatsapp) throw new Error("Numero nao configurado");
+    if (!profile?.whatsapp) throw new BadRequestException("Numero nao configurado");
     const msg = "*Orkestri* - Teste\n\nOla, " + (user?.nome || "") + "!\n\nNotificacoes WhatsApp funcionando.";
-    const ok = await this.wa.sendMessage(profile.whatsapp, msg);
-    if (!ok) throw new Error("Falha ao enviar");
+    const ok = await this.wa.sendMessageForOrg(req.user.organizationId, profile.whatsapp, msg);
+    if (!ok) throw new BadRequestException("Falha ao enviar. Verifique se o WhatsApp da organizacao esta conectado.");
     return { sucesso: true };
   }
 }
