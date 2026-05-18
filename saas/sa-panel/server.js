@@ -80,15 +80,30 @@ const ALLOWED_ORIGINS = process.env.SA_ALLOWED_ORIGINS
   ? process.env.SA_ALLOWED_ORIGINS.split(",").map(s => s.trim())
   : [];
 
-app.use(cors({
-  origin: (origin, cb) => {
-    // Allow requests with no origin (curl, server-to-server)
-    if (!origin) return cb(null, true);
-    if (ALLOWED_ORIGINS.length === 0 || ALLOWED_ORIGINS.includes(origin)) return cb(null, true);
-    cb(new Error("CORS not allowed"));
-  },
-  credentials: true,
-}));
+// Custom CORS: allows same-host origin (browser accessing SA Panel directly)
+// + any origin in SA_ALLOWED_ORIGINS + requests with no origin (curl/server)
+app.use((req, res, next) => {
+  const origin = req.headers["origin"];
+  const host   = req.headers["host"];
+
+  if (!origin) return next();
+
+  const originHost = origin.replace(/^https?:\/\//, "");
+  const allowed =
+    ALLOWED_ORIGINS.length === 0 ||
+    ALLOWED_ORIGINS.includes(origin) ||
+    originHost === host;
+
+  if (!allowed) return res.status(403).json({ error: "CORS not allowed" });
+
+  res.setHeader("Access-Control-Allow-Origin",      origin);
+  res.setHeader("Access-Control-Allow-Credentials", "true");
+  res.setHeader("Access-Control-Allow-Methods",     "GET,POST,PUT,PATCH,DELETE,OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers",     "Content-Type,Authorization");
+
+  if (req.method === "OPTIONS") return res.sendStatus(204);
+  next();
+});
 app.use(express.json());
 
 // Static files — served WITHOUT the SA token
