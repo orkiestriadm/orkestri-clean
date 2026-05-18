@@ -64,8 +64,12 @@ function OrgCard({ org, onRefresh }: { org: Org; onRefresh: () => void }) {
     setQrLoading(true); setQr(null);
     try {
       const r = await api.get(`/superadmin/organizations/${org.id}/whatsapp/qrcode`);
-      const b64 = r.data?.base64 || r.data?.qrcode?.base64;
-      setQr(b64 ? `data:image/png;base64,${b64}` : null);
+      const raw = r.data?.base64 || r.data?.qrcode?.base64 || r.data?.code;
+      if (raw) {
+        setQr(raw.startsWith("data:") ? raw : `data:image/png;base64,${raw}`);
+      } else {
+        setQr(null);
+      }
     } catch { } finally { setQrLoading(false); }
   };
 
