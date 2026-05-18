@@ -29,7 +29,20 @@ function OrgCard({ org, onRefresh }: { org: Org; onRefresh: () => void }) {
   const [inviteOpen, setInviteOpen] = useState(false);
   const [invite, setInvite] = useState({ nome: "", email: "", senha: "" });
   const [inviting, setInviting] = useState(false);
+  const [entering, setEntering] = useState(false);
   const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
+
+  const enterAsOrg = async () => {
+    setEntering(true);
+    try {
+      await api.post(`/superadmin/organizations/${org.id}/impersonate`);
+      window.location.href = "/dashboard";
+    } catch (e: any) {
+      setMsg({ text: e?.response?.data?.message || "Erro ao entrar na organização", ok: false });
+      setTimeout(() => setMsg(null), 4000);
+      setEntering(false);
+    }
+  };
 
   const refreshWaStatus = useCallback(async () => {
     setWaLoading(true);
@@ -98,6 +111,17 @@ function OrgCard({ org, onRefresh }: { org: Org; onRefresh: () => void }) {
             )}
           </div>
         </div>
+        {org.slug !== "default" && (
+          <button
+            className="btn btn-ghost"
+            style={{ fontSize: 11, padding: "4px 10px", flexShrink: 0 }}
+            onClick={e => { e.stopPropagation(); enterAsOrg(); }}
+            disabled={entering}
+            title="Entrar no contexto desta organização"
+          >
+            {entering ? "Entrando..." : "Entrar como"}
+          </button>
+        )}
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ transform: expanded ? "rotate(180deg)" : "none", transition: "transform 0.2s", color: "var(--text-muted)", flexShrink: 0 }}><path d="M6 9l6 6 6-6" /></svg>
       </div>
 

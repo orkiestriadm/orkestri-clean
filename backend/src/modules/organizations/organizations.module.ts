@@ -1,9 +1,14 @@
 import {
   Module, Controller, Get, Post, Put, Patch, Delete,
-  Body, Param, UseGuards, Req, ForbiddenException, NotFoundException, ConflictException,
+  Body, Param, UseGuards, Req, Res, HttpCode,
+  ForbiddenException, NotFoundException, ConflictException,
 } from "@nestjs/common";
 import { AuthGuard } from "@nestjs/passport";
 import { IsString, IsOptional, IsBoolean, IsEmail, MinLength } from "class-validator";
+import { ConfigService } from "@nestjs/config";
+import { JwtService } from "@nestjs/jwt";
+import { JwtModule } from "@nestjs/jwt";
+import { Response } from "express";
 import { PrismaService } from "../../prisma/prisma.service";
 import { WhatsAppService } from "../notifications/whatsapp.service";
 import * as bcrypt from "bcryptjs";
@@ -34,7 +39,7 @@ function isSuperAdmin(req: any) {
 @Controller("superadmin/organizations")
 @UseGuards(AuthGuard("jwt"))
 class SuperAdminOrgsController {
-  constructor(private prisma: PrismaService, private wa: WhatsAppService) {}
+  constructor(private prisma: PrismaService, private wa: WhatsAppService, private config: ConfigService, private jwtService: JwtService) {}
 
   private guard(req: any) {
     if (!isSuperAdmin(req)) throw new ForbiddenException("Acesso restrito a super-admins");
@@ -170,6 +175,44 @@ class SuperAdminOrgsController {
     });
     return { ok: true };
   }
+
+  @Post(":id/impersonate")
+  @HttpCode(200)
+  async impersonate(@Req() req: any, @Res({ passthrough: true }) res: Response, @Param("id") orgId: string) {
+    this.guard(req);
+    if (req.user.impersonating) throw new ForbiddenException("Saia do modo de impersonation antes de entrar em outra organização");
+    const org = await (this.prisma as any).organization.findUnique({ where: { id: orgId } });
+    if (!org) throw new NotFoundException("Organização não encontrada");
+
+    const token = this.jwtService.sign(
+      { sub: req.user.id, email: req.user.email, impersonating: true, targetOrgId: org.id, targetOrgName: org.nome },
+      { secret: this.config.get<string>("JWT_SECRET"), expiresIn: "8h" },
+    );
+
+    const original = (req as any).cookies?.orkestri_token;
+    const isSecure = req.headers["x-forwarded-proto"] === "https";
+    const opts = { httpOnly: true, sameSite: "strict" as const, secure: isSecure, maxAge: 8 * 60 * 60 * 1000, path: "/" };
+    if (original) res.cookie("orkestri_sa_token", original, opts);
+    res.cookie("orkestri_token", token, opts);
+
+    return { ok: true, orgName: org.nome, orgId: org.id };
+  }
+}
+
+@Controller("superadmin")
+@UseGuards(AuthGuard("jwt"))
+class SuperAdminController {
+  @Post("exit-impersonation")
+  @HttpCode(200)
+  exitImpersonation(@Req() req: any, @Res({ passthrough: true }) res: Response) {
+    const saToken = (req as any).cookies?.orkestri_sa_token;
+    if (!saToken) return { ok: true };
+    const isSecure = req.headers["x-forwarded-proto"] === "https";
+    const opts = { httpOnly: true, sameSite: "strict" as const, secure: isSecure, maxAge: 8 * 60 * 60 * 1000, path: "/" };
+    res.cookie("orkestri_token", saToken, opts);
+    res.clearCookie("orkestri_sa_token", { path: "/" });
+    return { ok: true };
+  }
 }
 
 // ── Org-master: manage own org's WhatsApp (non-super-admin master) ─────────────
@@ -218,7 +261,13 @@ class OrgWhatsAppController {
 }
 
 @Module({
-  controllers: [SuperAdminOrgsController, OrgWhatsAppController],
+  imports: [
+    JwtModule.registerAsync({
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => ({ secret: config.get("JWT_SECRET"), signOptions: { expiresIn: "8h" } }),
+    }),
+  ],
+  controllers: [SuperAdminOrgsController, SuperAdminController, OrgWhatsAppController],
   providers: [WhatsAppService],
 })
 export class OrganizationsModule {}

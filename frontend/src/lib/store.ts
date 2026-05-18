@@ -6,6 +6,9 @@ export interface User {
   avatar?: string; roles: string[]; isMaster: boolean;
   modulos: string[];
   permissions: string[];
+  impersonating?: boolean;
+  impersonatingOrgName?: string;
+  organizationId?: string;
 }
 interface AuthState {
   user: User | null; token: string | null;

@@ -106,7 +106,20 @@ export class AuthController {
 
   @Get("me")
   @UseGuards(AuthGuard("jwt"))
-  me(@Req() req: any) { return this.auth.me(req.user.id); }
+  async me(@Req() req: any) {
+    const base = await this.auth.me(req.user.id);
+    if (req.user.impersonating) {
+      return {
+        ...base,
+        organizationId: req.user.organizationId,
+        isMaster: true,
+        permissions: ["*"],
+        impersonating: true,
+        impersonatingOrgName: req.user.impersonatingOrgName,
+      };
+    }
+    return base;
+  }
 
   @Post("logout")
   @UseGuards(AuthGuard("jwt"))

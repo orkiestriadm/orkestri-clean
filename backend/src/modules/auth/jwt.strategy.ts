@@ -28,6 +28,22 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     }
     const user = await this.prisma.user.findUnique({ where: { id: payload.sub } });
     if (!user || !user.ativo) throw new UnauthorizedException();
+
+    // Impersonation: super-admin operating within another org's context
+    if (payload.impersonating && payload.targetOrgId) {
+      return {
+        id: payload.sub, email: payload.email,
+        organizationId: payload.targetOrgId,
+        roles: ["master"],
+        isMaster: true,
+        permissions: ["*"],
+        impersonating: true,
+        impersonatingOrgName: payload.targetOrgName,
+        _iat: payload.iat,
+        _exp: payload.exp,
+      };
+    }
+
     const permissions = await this.authService.resolvePermissions(payload.sub);
     return {
       id: payload.sub, email: payload.email,
