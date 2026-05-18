@@ -53,13 +53,15 @@ function Modal({ title, onClose, children, maxWidth=520 }: any) {
 }
 function ConfirmModal({ title, message, confirmLabel, danger, onConfirm, onClose }: any) {
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
   return (
     <Modal title={title} onClose={onClose} maxWidth={400}>
       <p style={{ color:"var(--text-secondary)", fontSize:13, marginBottom:24, lineHeight:1.6 }}>{message}</p>
+      {error && <p style={{ color:"var(--danger)", fontSize:12, marginBottom:12, textAlign:"center" }}>{error}</p>}
       <div style={{ display:"flex", gap:10 }}>
         <button className="btn btn-ghost" style={{ flex:1 }} onClick={onClose}>Cancelar</button>
         <button className={`btn ${danger?"btn-danger":"btn-violet"}`} style={{ flex:2 }} disabled={loading}
-          onClick={async()=>{ setLoading(true); await onConfirm(); setLoading(false); onClose(); }}>
+          onClick={async()=>{ setLoading(true); setError(""); try { await onConfirm(); onClose(); } catch(e:any) { setError(e?.response?.data?.message || "Erro ao executar operação"); } finally { setLoading(false); } }}>
           {loading?<Spin/>:confirmLabel}
         </button>
       </div>

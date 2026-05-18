@@ -246,6 +246,26 @@ class UsersController {
     if (!user) throw new NotFoundException("Usuario nao encontrado");
 
     await this.prisma.$transaction(async (tx) => {
+      // Nullify optional FK refs that have no CASCADE/SET NULL in DB
+      await tx.userRole.updateMany({ where: { atribuidoPorId: id }, data: { atribuidoPorId: null } });
+      await tx.task.updateMany({ where: { assigneeId: id }, data: { assigneeId: null } });
+      await tx.chamado.updateMany({ where: { atendenteId: id }, data: { atendenteId: null } });
+      await tx.clienteTimeline.updateMany({ where: { userId: id }, data: { userId: null } });
+      await tx.auditLog.updateMany({ where: { userId: id }, data: { userId: null } });
+      await tx.checklistItem.updateMany({ where: { assigneeId: id }, data: { assigneeId: null } });
+
+      // Delete approval requests made by this user
+      await tx.aprovacaoOrcamento.deleteMany({ where: { solicitadoPorId: id } });
+      // Delete orcamento items created by user (cascades: meses, timeline, aprovacoes)
+      await tx.itemOrcamento.deleteMany({ where: { criadoPorId: id } });
+      // Delete knowledge base articles authored by user
+      await tx.artigoConhecimento.deleteMany({ where: { autorId: id } });
+      // Delete asset transfers performed by user
+      await tx.transferenciaAtivo.deleteMany({ where: { realizadoPorId: id } });
+      // Delete chamados where user was the requester (cascades: comentarios, apontamentos)
+      await tx.chamado.deleteMany({ where: { solicitanteId: id } });
+
+      // Delete owned records
       await tx.taskComment.deleteMany({ where: { userId: id } });
       await tx.task.deleteMany({ where: { criadoPorId: id } });
       await tx.project.deleteMany({ where: { criadoPorId: id } });
@@ -253,8 +273,12 @@ class UsersController {
       await tx.note.deleteMany({ where: { userId: id } });
       await tx.noteLabel.deleteMany({ where: { userId: id } });
       await tx.dailyTask.deleteMany({ where: { userId: id } });
+
+      // Delete user — DB CASCADE handles: SuperAdmin, PasswordResetOtp, UserProfile,
+      // UserRole, UserPermissionOverride, UserSession, EventParticipant,
+      // ChamadoComentario, ProjectMember, Notification, ApontamentoHoras, NoteCollaborator
       await tx.user.delete({ where: { id } });
-    });
+    }, { timeout: 30000 });
 
     await this.cache.del(CACHE_USER(id), CACHE_USERS_LIST, `${CACHE_USERS_LIST}:true`, `${CACHE_USERS_LIST}:0`);
     return { message: "Usuario removido permanentemente" };

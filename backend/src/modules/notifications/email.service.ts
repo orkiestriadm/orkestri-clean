@@ -5,7 +5,7 @@ import { Resend } from "resend";
 @Injectable()
 export class EmailService {
   private readonly logger = new Logger(EmailService.name);
-  private resend: Resend;
+  private resend: Resend | null = null;
   private from: string;
   private appUrl: string;
 
@@ -15,11 +15,15 @@ export class EmailService {
     const fromAddr = this.config.get<string>("EMAIL_FROM", "onboarding@resend.dev");
     this.from = `${fromName} <${fromAddr}>`;
     this.appUrl = this.config.get<string>("APP_URL", "http://localhost");
-    this.resend = new Resend(apiKey);
+    if (apiKey) {
+      this.resend = new Resend(apiKey);
+    } else {
+      this.logger.warn("RESEND_API_KEY não configurada — envio de e-mails desativado.");
+    }
   }
 
   private async send(to: string, subject: string, html: string): Promise<void> {
-    if (!to) return;
+    if (!to || !this.resend) return;
     try {
       await this.resend.emails.send({ from: this.from, to, subject, html });
       this.logger.log(`Email enviado para ${to}: ${subject}`);
