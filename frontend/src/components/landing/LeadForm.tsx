@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useRef } from 'react'
+import type { ElementType } from 'react'
 import { motion, useInView } from 'framer-motion'
 import { Send, CheckCircle2, Loader2, User, Building2, Phone, Mail, MessageSquare } from 'lucide-react'
 
@@ -27,7 +28,7 @@ function Field({
   label, name, type = 'text', placeholder, icon: Icon, value, onChange, error, multiline,
 }: {
   label: string; name: keyof FormData; type?: string; placeholder: string
-  icon: React.ElementType; value: string; onChange: (v: string) => void
+  icon: ElementType; value: string; onChange: (v: string) => void
   error?: string; multiline?: boolean
 }) {
   return (

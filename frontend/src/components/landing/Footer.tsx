@@ -1,6 +1,6 @@
 'use client'
 
-import { motion } from 'framer-motion'
+import type { ReactNode } from 'react'
 import Link from 'next/link'
 
 function scrollTo(href: string) {
@@ -38,7 +38,7 @@ const LINKS = {
   ],
 }
 
-function SocialIcon({ children, href }: { children: React.ReactNode; href: string }) {
+function SocialIcon({ children, href }: { children: ReactNode; href: string }) {
   return (
     <a
       href={href}

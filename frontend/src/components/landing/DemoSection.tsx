@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useRef } from 'react'
+import type { ReactNode } from 'react'
 import { motion, useInView, AnimatePresence } from 'framer-motion'
 import { LayoutDashboard, Users, FolderKanban, DollarSign, Truck } from 'lucide-react'
 
@@ -82,10 +83,10 @@ function CRMScreen() {
 
 function ProjectsScreen() {
   const cols = [
-    { title: 'Backlog', color: '#8888aa', cards: ['Redesign do portal', 'API v3 — auth'] },
-    { title: 'Em andamento', color: '#a78bfa', cards: ['Projeto Expansão Alpha', 'Módulo Financeiro', 'Integ. WhatsApp'] },
-    { title: 'Revisão', color: '#fbbf24', cards: ['Dashboard v2', 'Onboarding flow'] },
-    { title: 'Concluído', color: '#34d399', cards: ['Setup DevOps', 'SSO Enterprise'] },
+    { title: 'Backlog', color: '#8888aa', cards: [{ text: 'Redesign do portal', pct: 45 }, { text: 'API v3 — auth', pct: 20 }] },
+    { title: 'Em andamento', color: '#a78bfa', cards: [{ text: 'Projeto Expansão Alpha', pct: 65 }, { text: 'Módulo Financeiro', pct: 40 }, { text: 'Integ. WhatsApp', pct: 80 }] },
+    { title: 'Revisão', color: '#fbbf24', cards: [{ text: 'Dashboard v2', pct: 88 }, { text: 'Onboarding flow', pct: 72 }] },
+    { title: 'Concluído', color: '#34d399', cards: [{ text: 'Setup DevOps', pct: 100 }, { text: 'SSO Enterprise', pct: 100 }] },
   ]
   return (
     <div className="p-4 h-full">
@@ -98,12 +99,12 @@ function ProjectsScreen() {
               <span className="ml-auto text-[8px] text-[var(--text-muted)]">{col.cards.length}</span>
             </div>
             {col.cards.map(card => (
-              <div key={card} className="rounded-lg border border-[rgba(162,130,255,0.1)] bg-[rgba(12,12,34,0.6)] p-2.5 hover:border-[rgba(162,130,255,0.25)] transition-colors cursor-pointer">
-                <div className="text-[9px] text-[var(--text-primary)] font-medium leading-tight mb-1">{card}</div>
+              <div key={card.text} className="rounded-lg border border-[rgba(162,130,255,0.1)] bg-[rgba(12,12,34,0.6)] p-2.5 hover:border-[rgba(162,130,255,0.25)] transition-colors cursor-pointer">
+                <div className="text-[9px] text-[var(--text-primary)] font-medium leading-tight mb-1">{card.text}</div>
                 <div className="flex items-center gap-1 mt-2">
                   <div className="w-3.5 h-3.5 rounded-full bg-gradient-to-br from-violet-500 to-violet-700 text-[6px] text-white flex items-center justify-center">G</div>
                   <div className="flex-1 h-0.5 rounded-full bg-[rgba(162,130,255,0.1)]">
-                    <div className="h-full rounded-full" style={{ width: `${30 + Math.random()*60}%`, background: col.color }} />
+                    <div className="h-full rounded-full" style={{ width: `${card.pct}%`, background: col.color }} />
                   </div>
                 </div>
               </div>
@@ -139,12 +140,12 @@ function FinanceScreen() {
           <span className="flex items-center gap-1 text-[9px] text-[var(--text-muted)]"><span className="w-2 h-1 rounded-full bg-[#a78bfa] inline-block"/>CAPEX</span>
           <span className="flex items-center gap-1 text-[9px] text-[var(--text-muted)]"><span className="w-2 h-1 rounded-full bg-[#22d3ee] inline-block"/>OPEX</span>
         </div>
-        <div className="flex items-end gap-2 h-24">
+        <div className="flex items-end gap-2" style={{ height: 88 }}>
           {months.map((m, i) => (
-            <div key={m} className="flex-1 flex flex-col items-center gap-0.5">
-              <div className="w-full flex gap-0.5 items-end">
-                <div className="flex-1 rounded-t-sm bg-[#a78bfa]/60" style={{ height: `${capex[i]}%` }} />
-                <div className="flex-1 rounded-t-sm bg-[#22d3ee]/50" style={{ height: `${opex[i]}%` }} />
+            <div key={m} className="flex-1 flex flex-col items-center gap-0.5 justify-end">
+              <div className="flex gap-0.5 items-end w-full">
+                <div className="flex-1 rounded-t-sm bg-[#a78bfa]/60" style={{ height: Math.round(capex[i] * 0.76) }} />
+                <div className="flex-1 rounded-t-sm bg-[#22d3ee]/50" style={{ height: Math.round(opex[i] * 0.76) }} />
               </div>
               <span className="text-[7px] text-[var(--text-muted)]">{m}</span>
             </div>
@@ -196,7 +197,7 @@ function SuppliersScreen() {
   )
 }
 
-const SCREENS: Record<string, React.ReactNode> = {
+const SCREENS: Record<string, ReactNode> = {
   overview: <OverviewScreen />,
   crm: <CRMScreen />,
   projects: <ProjectsScreen />,

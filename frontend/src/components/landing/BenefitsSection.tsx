@@ -123,7 +123,6 @@ export default function BenefitsSection() {
                 key={benefit.title}
                 variants={item}
                 className="group relative rounded-2xl border border-[rgba(162,130,255,0.1)] bg-[rgba(12,12,34,0.6)] backdrop-blur-sm p-6 hover:border-[rgba(162,130,255,0.25)] transition-all duration-300 hover:-translate-y-1 cursor-default"
-                style={{ ['--glow' as string]: benefit.glow }}
               >
                 {/* Hover glow */}
                 <div className="absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"
