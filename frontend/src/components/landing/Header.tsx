@@ -1,0 +1,152 @@
+'use client'
+
+import { useState, useEffect } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
+import Link from 'next/link'
+import { Menu, X, ArrowRight } from 'lucide-react'
+
+const NAV_LINKS = [
+  { label: 'Plataforma', href: '#plataforma' },
+  { label: 'Módulos', href: '#modulos' },
+  { label: 'Benefícios', href: '#beneficios' },
+  { label: 'Contato', href: '#contato' },
+]
+
+function scrollTo(href: string) {
+  const el = document.querySelector(href)
+  if (!el) return
+  const top = el.getBoundingClientRect().top + window.scrollY - 80
+  window.scrollTo({ top, behavior: 'smooth' })
+}
+
+export default function Header() {
+  const [scrolled, setScrolled] = useState(false)
+  const [open, setOpen] = useState(false)
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 24)
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [])
+
+  useEffect(() => {
+    document.body.style.overflow = open ? 'hidden' : ''
+    return () => { document.body.style.overflow = '' }
+  }, [open])
+
+  return (
+    <>
+      <motion.header
+        initial={{ y: -80, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
+          scrolled
+            ? 'bg-[#06060f]/90 backdrop-blur-2xl border-b border-[rgba(162,130,255,0.12)] shadow-[0_8px_32px_rgba(0,0,0,0.5)]'
+            : 'bg-transparent'
+        }`}
+      >
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16 lg:h-20">
+
+            {/* Logo */}
+            <Link href="/" className="flex items-center gap-2.5 group shrink-0">
+              <div className="w-8 h-8 rounded-[10px] bg-gradient-to-br from-violet-500 to-violet-700 flex items-center justify-center shadow-[0_0_20px_rgba(167,139,250,0.45)] group-hover:shadow-[0_0_28px_rgba(167,139,250,0.65)] transition-shadow">
+                <span className="font-display font-bold text-white text-sm leading-none">O</span>
+              </div>
+              <span className="font-display font-bold text-[17px] text-[var(--text-primary)] group-hover:text-[var(--accent-violet)] transition-colors">
+                Orkiestri
+              </span>
+            </Link>
+
+            {/* Desktop nav */}
+            <nav className="hidden md:flex items-center gap-0.5">
+              {NAV_LINKS.map(link => (
+                <button
+                  key={link.href}
+                  onClick={() => scrollTo(link.href)}
+                  className="px-4 py-2 text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors rounded-lg hover:bg-[rgba(167,139,250,0.06)] cursor-pointer"
+                >
+                  {link.label}
+                </button>
+              ))}
+            </nav>
+
+            {/* CTA + hamburger */}
+            <div className="flex items-center gap-3">
+              <Link
+                href="/login"
+                onClick={() => {
+                  /* Analytics: dispare evento "login_intent" aqui */
+                }}
+                className="hidden sm:inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-gradient-to-r from-violet-600 to-violet-500 text-white text-sm font-medium hover:from-violet-500 hover:to-violet-400 transition-all shadow-[0_0_20px_rgba(124,58,237,0.35)] hover:shadow-[0_0_32px_rgba(124,58,237,0.55)] hover:-translate-y-px active:translate-y-0 active:shadow-none"
+              >
+                Entrar <ArrowRight size={14} />
+              </Link>
+
+              <button
+                onClick={() => setOpen(v => !v)}
+                className="md:hidden p-2 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors"
+                aria-label="Menu"
+              >
+                {open ? <X size={20} /> : <Menu size={20} />}
+              </button>
+            </div>
+          </div>
+        </div>
+      </motion.header>
+
+      {/* Mobile drawer */}
+      <AnimatePresence>
+        {open && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              onClick={() => setOpen(false)}
+              className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm md:hidden"
+            />
+            <motion.nav
+              initial={{ x: '100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '100%' }}
+              transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+              className="fixed top-0 right-0 bottom-0 z-50 w-72 bg-[#0c0c22] border-l border-[rgba(162,130,255,0.12)] flex flex-col md:hidden"
+            >
+              <div className="flex items-center justify-between px-5 h-16 border-b border-[rgba(162,130,255,0.08)]">
+                <span className="font-display font-bold text-[var(--text-primary)]">Menu</span>
+                <button onClick={() => setOpen(false)} className="p-1.5 text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div className="flex flex-col gap-1 p-4 flex-1">
+                {NAV_LINKS.map(link => (
+                  <button
+                    key={link.href}
+                    onClick={() => { scrollTo(link.href); setOpen(false) }}
+                    className="flex items-center px-4 py-3.5 text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] rounded-xl transition-colors text-left"
+                  >
+                    {link.label}
+                  </button>
+                ))}
+              </div>
+
+              <div className="p-4 border-t border-[rgba(162,130,255,0.08)]">
+                <Link
+                  href="/login"
+                  onClick={() => setOpen(false)}
+                  className="flex items-center justify-center gap-2 w-full py-3.5 rounded-xl bg-gradient-to-r from-violet-600 to-violet-500 text-white font-medium text-sm shadow-[0_0_20px_rgba(124,58,237,0.35)]"
+                >
+                  Entrar no sistema <ArrowRight size={15} />
+                </Link>
+              </div>
+            </motion.nav>
+          </>
+        )}
+      </AnimatePresence>
+    </>
+  )
+}
