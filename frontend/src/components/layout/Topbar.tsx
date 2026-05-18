@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { Menu, Focus, Search } from "lucide-react";
 import ThemeToggle from "@/components/ui/ThemeToggle";
 import PasswordRequests from "@/components/ui/PasswordRequests";
