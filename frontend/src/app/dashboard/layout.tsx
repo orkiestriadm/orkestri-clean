@@ -53,7 +53,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="app-shell">
-      <div style={{ position:"fixed", inset:0, pointerEvents:"none", zIndex:0, backgroundImage:"linear-gradient(rgba(124,58,237,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(124,58,237,0.03) 1px,transparent 1px)", backgroundSize:"48px 48px" }} />
+      <div style={{ position:"fixed", inset:0, pointerEvents:"none", zIndex:0, backgroundImage:"linear-gradient(var(--grid-line) 1px,transparent 1px),linear-gradient(90deg,var(--grid-line) 1px,transparent 1px)", backgroundSize:"48px 48px" }} />
       <NotificationInitializer />
       <AlertBanner />
 

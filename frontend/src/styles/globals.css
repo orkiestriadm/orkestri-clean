@@ -8,24 +8,24 @@
   color-scheme: light;
 
   /* shadcn/ui tokens */
-  --background: 240 20% 97%;
-  --foreground: 240 18% 14%;
+  --background: 0 0% 96%;
+  --foreground: 0 0% 11%;
   --card: 0 0% 100%;
-  --card-foreground: 240 18% 14%;
+  --card-foreground: 0 0% 11%;
   --popover: 0 0% 100%;
-  --popover-foreground: 240 18% 14%;
+  --popover-foreground: 0 0% 11%;
   --primary: 263 75% 52%;
   --primary-foreground: 0 0% 100%;
-  --secondary: 240 10% 93%;
-  --secondary-foreground: 240 15% 22%;
-  --muted: 240 10% 93%;
-  --muted-foreground: 240 8% 48%;
-  --accent: 240 10% 93%;
-  --accent-foreground: 240 15% 22%;
+  --secondary: 0 0% 94%;
+  --secondary-foreground: 0 0% 14%;
+  --muted: 0 0% 94%;
+  --muted-foreground: 0 0% 44%;
+  --accent: 0 0% 94%;
+  --accent-foreground: 0 0% 14%;
   --destructive: 0 72% 51%;
   --destructive-foreground: 0 0% 100%;
-  --border: 240 12% 88%;
-  --input: 240 12% 88%;
+  --border: 0 0% 89%;
+  --input: 0 0% 89%;
   --ring: 263 75% 52%;
   --radius: 0.625rem;
 
@@ -35,42 +35,45 @@
   --font-mono: "JetBrains Mono", monospace;
   --sidebar-w: 232px;
 
-  /* Surfaces */
-  --bg-primary:   #f4f3fa;
-  --bg-secondary: #eceaf6;
+  /* Surfaces — Apple-inspired neutral */
+  --bg-primary:   #f5f5f7;
+  --bg-secondary: #ffffff;
   --bg-card:      #ffffff;
-  --bg-glass:     rgba(255,255,255,0.8);
-  --bg-hover:     rgba(109,40,217,0.05);
-  --bg-active:    rgba(109,40,217,0.08);
+  --bg-glass:     rgba(255,255,255,0.85);
+  --bg-hover:     rgba(0,0,0,0.04);
+  --bg-active:    rgba(124,58,237,0.07);
 
-  /* Borders */
-  --border-subtle: rgba(109,40,217,0.09);
-  --border-medium: rgba(109,40,217,0.18);
-  --border-strong: rgba(109,40,217,0.28);
+  /* Borders — neutral, not violet-tinted */
+  --border-subtle: rgba(0,0,0,0.07);
+  --border-medium: rgba(0,0,0,0.13);
+  --border-strong: rgba(0,0,0,0.22);
 
-  /* Text */
-  --text-primary:   #18172a;
-  --text-secondary: #54536e;
-  --text-muted:     #9492ae;
-  --text-faint:     #c2c0d4;
+  /* Text — Apple label hierarchy */
+  --text-primary:   #1d1d1f;
+  --text-secondary: #6e6e73;
+  --text-muted:     #98989e;
+  --text-faint:     #c7c7cc;
 
   /* Brand accents */
   --accent-violet:     #6d28d9;
-  --accent-violet-dim: rgba(109,40,217,0.10);
+  --accent-violet-dim: rgba(124,58,237,0.08);
   --accent-cyan:       #0284c7;
   --accent-green:      #059669;
   --accent-amber:      #d97706;
   --accent-red:        #dc2626;
 
   /* UI */
-  --modal-bg:       #ffffff;
-  --shadow-card:    0 1px 3px rgba(0,0,0,0.07), 0 4px 16px rgba(0,0,0,0.05);
-  --shadow-elevated:0 8px 32px rgba(0,0,0,0.10), 0 2px 8px rgba(0,0,0,0.05);
-  --shadow-input:   0 0 0 3px rgba(109,40,217,0.10);
+  --modal-bg:        #ffffff;
+  --shadow-card:     0 1px 2px rgba(0,0,0,0.06), 0 2px 8px rgba(0,0,0,0.04);
+  --shadow-elevated: 0 4px 24px rgba(0,0,0,0.08), 0 1px 4px rgba(0,0,0,0.04);
+  --shadow-input:    0 0 0 3px rgba(124,58,237,0.12);
+
+  /* Grid background */
+  --grid-line: rgba(0,0,0,0.03);
 
   /* Skeleton shimmer (light) */
-  --skeleton-from: rgba(0,0,0,0.06);
-  --skeleton-via:  rgba(0,0,0,0.02);
+  --skeleton-from: rgba(0,0,0,0.07);
+  --skeleton-via:  rgba(0,0,0,0.03);
 }
 
 /* ── Design Tokens — Dark Mode ──────────────────────────────── */
@@ -78,61 +81,64 @@
   color-scheme: dark;
 
   /* shadcn/ui tokens */
-  --background: 240 22% 4%;
-  --foreground: 240 12% 93%;
-  --card: 240 20% 6%;
-  --card-foreground: 240 12% 93%;
-  --popover: 240 22% 5%;
-  --popover-foreground: 240 12% 93%;
-  --primary: 263 72% 62%;
+  --background: 240 5% 7%;
+  --foreground: 0 0% 96%;
+  --card: 240 4% 11%;
+  --card-foreground: 0 0% 96%;
+  --popover: 240 4% 11%;
+  --popover-foreground: 0 0% 96%;
+  --primary: 263 72% 68%;
   --primary-foreground: 0 0% 100%;
-  --secondary: 240 16% 10%;
-  --secondary-foreground: 240 12% 80%;
-  --muted: 240 16% 10%;
-  --muted-foreground: 240 8% 40%;
-  --accent: 240 16% 10%;
-  --accent-foreground: 240 12% 80%;
+  --secondary: 240 4% 14%;
+  --secondary-foreground: 0 0% 80%;
+  --muted: 240 4% 14%;
+  --muted-foreground: 0 0% 45%;
+  --accent: 240 4% 14%;
+  --accent-foreground: 0 0% 80%;
   --destructive: 0 62% 48%;
   --destructive-foreground: 0 0% 100%;
-  --border: 240 16% 10%;
-  --input: 240 16% 10%;
-  --ring: 263 72% 62%;
+  --border: 240 4% 14%;
+  --input: 240 4% 14%;
+  --ring: 263 72% 68%;
 
-  /* Surfaces */
-  --bg-primary:   #07071a;
-  --bg-secondary: #0d0d22;
-  --bg-card:      rgba(13,13,34,0.98);
-  --bg-glass:     rgba(255,255,255,0.03);
-  --bg-hover:     rgba(124,58,237,0.07);
-  --bg-active:    rgba(124,58,237,0.12);
+  /* Surfaces — neutral premium dark (Apple/Linear inspired) */
+  --bg-primary:   #111113;
+  --bg-secondary: #161618;
+  --bg-card:      #1c1c1e;
+  --bg-glass:     rgba(255,255,255,0.04);
+  --bg-hover:     rgba(255,255,255,0.05);
+  --bg-active:    rgba(255,255,255,0.09);
 
-  /* Borders */
-  --border-subtle: rgba(255,255,255,0.055);
-  --border-medium: rgba(124,58,237,0.22);
-  --border-strong: rgba(124,58,237,0.38);
+  /* Borders — neutral, clean */
+  --border-subtle: rgba(255,255,255,0.08);
+  --border-medium: rgba(255,255,255,0.14);
+  --border-strong: rgba(255,255,255,0.24);
 
-  /* Text */
-  --text-primary:   #edecea;
-  --text-secondary: rgba(255,255,255,0.60);
-  --text-muted:     rgba(255,255,255,0.28);
-  --text-faint:     rgba(255,255,255,0.13);
+  /* Text — Apple dark label hierarchy */
+  --text-primary:   #f5f5f7;
+  --text-secondary: rgba(235,235,245,0.60);
+  --text-muted:     rgba(235,235,245,0.30);
+  --text-faint:     rgba(235,235,245,0.14);
 
   /* Brand accents */
   --accent-violet:     #a78bfa;
-  --accent-violet-dim: rgba(167,139,250,0.10);
+  --accent-violet-dim: rgba(167,139,250,0.12);
   --accent-cyan:       #22d3ee;
-  --accent-green:      #10b981;
-  --accent-amber:      #f59e0b;
-  --accent-red:        #ef4444;
+  --accent-green:      #34d399;
+  --accent-amber:      #fbbf24;
+  --accent-red:        #f87171;
 
   /* UI */
-  --modal-bg:       #0d0d22;
-  --shadow-card:    0 1px 3px rgba(0,0,0,0.45), 0 4px 16px rgba(0,0,0,0.32);
-  --shadow-elevated:0 8px 40px rgba(0,0,0,0.55), 0 2px 8px rgba(0,0,0,0.32), 0 0 0 1px rgba(255,255,255,0.04);
-  --shadow-input:   0 0 0 3px rgba(124,58,237,0.14);
+  --modal-bg:        #1c1c1e;
+  --shadow-card:     0 1px 3px rgba(0,0,0,0.5), 0 2px 12px rgba(0,0,0,0.3);
+  --shadow-elevated: 0 8px 40px rgba(0,0,0,0.6), 0 2px 8px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.05);
+  --shadow-input:    0 0 0 3px rgba(167,139,250,0.18);
+
+  /* Grid background */
+  --grid-line: rgba(255,255,255,0.025);
 
   /* Skeleton shimmer (dark) */
-  --skeleton-from: rgba(255,255,255,0.05);
+  --skeleton-from: rgba(255,255,255,0.06);
   --skeleton-via:  rgba(255,255,255,0.02);
 }
 
@@ -188,12 +194,12 @@
   display: flex;
   flex-direction: column;
   /* Dark sidebar tokens — always applied */
-  --sidebar-bg:       #0d0d22;
-  --sidebar-border:   rgba(255,255,255,0.055);
-  --sidebar-text:     rgba(255,255,255,0.40);
-  --sidebar-text-hi:  rgba(255,255,255,0.82);
-  --sidebar-hover:    rgba(255,255,255,0.04);
-  --sidebar-active-bg: rgba(167,139,250,0.12);
+  --sidebar-bg:         #0d0d0f;
+  --sidebar-border:     rgba(255,255,255,0.06);
+  --sidebar-text:       rgba(255,255,255,0.38);
+  --sidebar-text-hi:    rgba(255,255,255,0.85);
+  --sidebar-hover:      rgba(255,255,255,0.045);
+  --sidebar-active-bg:  rgba(167,139,250,0.13);
   --sidebar-active-text: #a78bfa;
   background: var(--sidebar-bg);
   border-right: 1px solid var(--sidebar-border);

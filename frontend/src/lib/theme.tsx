@@ -2,21 +2,17 @@
 import { createContext, useContext, useEffect, useState } from "react";
 
 type Theme = "dark" | "light";
-const ThemeCtx = createContext<{ theme: Theme; toggle: () => void }>({ theme: "dark", toggle: () => {} });
+const ThemeCtx = createContext<{ theme: Theme; toggle: () => void }>({ theme: "light", toggle: () => {} });
 
 function getPreferredTheme(): Theme {
-  if (typeof window === "undefined") return "dark";
-  // Desktop (mouse/trackpad): sempre dark, sem exceção
-  const isMobile = window.matchMedia("(pointer: coarse)").matches;
-  if (!isMobile) return "dark";
-  // Mobile: localStorage primeiro, depois preferência do OS
+  if (typeof window === "undefined") return "light";
   const saved = localStorage.getItem("orkestri-theme") as Theme | null;
   if (saved === "dark" || saved === "light") return saved;
-  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  return "light";
 }
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setTheme] = useState<Theme>("dark");
+  const [theme, setTheme] = useState<Theme>("light");
 
   useEffect(() => {
     const t = getPreferredTheme();
