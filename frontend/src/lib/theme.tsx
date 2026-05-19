@@ -6,7 +6,7 @@ const ThemeCtx = createContext<{ theme: Theme; toggle: () => void }>({ theme: "l
 
 function getPreferredTheme(): Theme {
   if (typeof window === "undefined") return "light";
-  const saved = localStorage.getItem("orkestri-theme") as Theme | null;
+  const saved = localStorage.getItem("orkestri-theme-v2") as Theme | null;
   if (saved === "dark" || saved === "light") return saved;
   return "light";
 }
@@ -25,7 +25,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     const html = document.documentElement;
     html.classList.add("theme-transitioning");
     setTheme(next);
-    localStorage.setItem("orkestri-theme", next);
+    localStorage.setItem("orkestri-theme-v2", next);
     html.setAttribute("data-theme", next);
     setTimeout(() => html.classList.remove("theme-transitioning"), 300);
   };
