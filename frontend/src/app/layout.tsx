@@ -12,7 +12,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="pt-BR">
       <head>
         {/* Anti-FOUC: set data-theme before React hydrates */}
-        <script dangerouslySetInnerHTML={{ __html: `(function(){try{var t=localStorage.getItem('orkestri-theme');if(!t){var m=window.matchMedia('(pointer:coarse)').matches;t=m?(window.matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light'):'dark';}document.documentElement.setAttribute('data-theme',t);}catch(e){}})();` }} />
+        <script dangerouslySetInnerHTML={{ __html: `(function(){try{var m=window.matchMedia('(pointer:coarse)').matches;var t=m?(localStorage.getItem('orkestri-theme')||(window.matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light')):'dark';document.documentElement.setAttribute('data-theme',t);}catch(e){document.documentElement.setAttribute('data-theme','dark');}})();` }} />
       </head>
       <body>
         <ThemeProvider>

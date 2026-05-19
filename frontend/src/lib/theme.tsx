@@ -6,12 +6,13 @@ const ThemeCtx = createContext<{ theme: Theme; toggle: () => void }>({ theme: "d
 
 function getPreferredTheme(): Theme {
   if (typeof window === "undefined") return "dark";
+  // Desktop (mouse/trackpad): sempre dark, sem exceção
+  const isMobile = window.matchMedia("(pointer: coarse)").matches;
+  if (!isMobile) return "dark";
+  // Mobile: localStorage primeiro, depois preferência do OS
   const saved = localStorage.getItem("orkestri-theme") as Theme | null;
   if (saved === "dark" || saved === "light") return saved;
-  // Mobile (touch): segue OS preference. Desktop: sempre dark.
-  const isMobile = window.matchMedia("(pointer: coarse)").matches;
-  if (isMobile) return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-  return "dark";
+  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
 }
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
