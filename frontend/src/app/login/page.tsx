@@ -6,6 +6,7 @@ import { useAuthStore } from "@/lib/store";
 import { authApi } from "@/lib/api";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowRight, Shield, Zap, BarChart3, Eye, EyeOff, CheckCircle2 } from "lucide-react";
+import { BrandLogo } from "@/components/ui/logo";
 
 const FEATURES = [
   { icon: Shield, label: "Segurança enterprise", desc: "Multi-tenant, JWT HttpOnly, OWASP nativo" },
@@ -77,7 +78,7 @@ export default function LoginPage() {
       >
         {/* Logo */}
         <Link href="/">
-          <img src="/logo-orkiestri-dark.png" alt="Logo Orkiestri" className="h-12 w-auto object-contain mix-blend-screen" />
+          <BrandLogo size="lg" />
         </Link>
 
         {/* Main statement */}
@@ -164,7 +165,7 @@ export default function LoginPage() {
         >
           {/* Mobile logo */}
           <div className="mb-10 lg:hidden flex justify-center">
-            <img src="/logo-orkiestri-dark.png" alt="Logo Orkiestri" className="h-12 w-auto object-contain mix-blend-screen" />
+            <BrandLogo size="lg" />
           </div>
 
           {/* Header */}

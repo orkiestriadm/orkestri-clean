@@ -2,6 +2,7 @@
 
 import type { ReactNode } from 'react'
 import Link from 'next/link'
+import { BrandLogo } from '@/components/ui/logo'
 
 function scrollTo(href: string) {
   if (!href.startsWith('#')) return
@@ -65,7 +66,7 @@ export default function Footer() {
           {/* Brand */}
           <div className="col-span-2 sm:col-span-3 lg:col-span-1">
             <Link href="/" className="inline-block mb-4">
-              <img src="/logo-orkiestri-dark.png" alt="Logo Orkiestri" className="h-9 w-auto object-contain mix-blend-screen" />
+              <BrandLogo size="md" />
             </Link>
             <p className="text-[var(--text-muted)] text-sm leading-relaxed max-w-[200px] mb-6">
               Plataforma corporativa de gestão operacional enterprise.

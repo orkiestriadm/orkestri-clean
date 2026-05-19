@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { useAuthStore } from "@/lib/store";
 import UserStatus from "@/components/ui/UserStatus";
+import { BrandLogo } from "@/components/ui/logo";
 import { cn } from "@/lib/utils";
 
 type NavItem  = { href: string; label: string; icon: any; permission: string | null };
@@ -134,7 +135,7 @@ export default function Sidebar() {
     <aside className="sidebar">
       {/* ── Logo ── */}
       <div className="flex items-center justify-center h-14 border-b border-white/[0.04] shrink-0 px-4">
-        <img src="/logo-orkiestri-dark.png" alt="Logo Orkiestri" className="h-10 w-auto object-contain mix-blend-screen" />
+        <BrandLogo size="sm" />
       </div>
 
       {/* ── Navigation ── */}

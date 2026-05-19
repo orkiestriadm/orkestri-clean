@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import Link from 'next/link'
 import { Menu, X, ArrowRight } from 'lucide-react'
+import { BrandLogo } from '@/components/ui/logo'
 
 const NAV_LINKS = [
   { label: 'Plataforma', href: '#plataforma' },
@@ -52,7 +53,7 @@ export default function Header() {
 
             {/* Logo */}
             <Link href="/" className="flex items-center shrink-0">
-              <img src="/logo-orkiestri-dark.png" alt="Logo Orkiestri" className="h-9 w-auto object-contain mix-blend-screen" />
+              <BrandLogo size="md" />
             </Link>
 
             {/* Desktop nav */}
