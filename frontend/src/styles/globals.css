@@ -42,6 +42,7 @@
   --bg-glass:     rgba(255, 255, 255, 0.85);
   --bg-hover:     rgba(0, 0, 0, 0.04);
   --bg-active:    rgba(124, 58, 237, 0.07);
+  --modal-bg:     var(--bg-card);
 
   /* Borders */
   --border-subtle: rgba(0, 0, 0, 0.08);
@@ -109,6 +110,7 @@
   --bg-glass:     rgba(22, 22, 24, 0.75);
   --bg-hover:     rgba(255, 255, 255, 0.05);
   --bg-active:    rgba(255, 255, 255, 0.08);
+  --modal-bg:     var(--bg-card);
 
   /* Borders (Subtle, glass-like) */
   --border-subtle: rgba(255, 255, 255, 0.08);
