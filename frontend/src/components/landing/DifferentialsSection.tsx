@@ -50,7 +50,7 @@ export default function DifferentialsSection() {
               initial={{ opacity: 0, y: 20 }}
               animate={inView ? { opacity: 1, y: 0 } : {}}
               transition={{ delay: 0.1 + i * 0.1, duration: 0.5 }}
-              className="rounded-2xl border border-[rgba(162,130,255,0.12)] bg-[rgba(12,12,34,0.6)] backdrop-blur-sm p-6 text-center"
+              className="lp-card rounded-2xl border border-[rgba(162,130,255,0.12)] backdrop-blur-sm p-6 text-center"
             >
               <div className="font-display font-bold text-3xl sm:text-4xl mb-1" style={{ color: stat.color }}>
                 {stat.value}
@@ -86,7 +86,7 @@ export default function DifferentialsSection() {
             </p>
 
             {/* Compare table */}
-            <div className="rounded-2xl border border-[rgba(162,130,255,0.12)] bg-[rgba(12,12,34,0.5)] overflow-hidden">
+            <div className="lp-card-sm rounded-2xl border border-[rgba(162,130,255,0.12)] overflow-hidden">
               <div className="grid grid-cols-3 px-4 py-2.5 border-b border-[rgba(162,130,255,0.08)] text-[11px] text-[var(--text-muted)] font-medium">
                 <span>Característica</span>
                 <span className="text-center text-[var(--accent-violet)]">Orkiestri</span>
@@ -122,7 +122,7 @@ export default function DifferentialsSection() {
                   initial={{ opacity: 0, x: 20 }}
                   animate={inView ? { opacity: 1, x: 0 } : {}}
                   transition={{ delay: 0.35 + i * 0.06, duration: 0.4 }}
-                  className="flex items-start gap-3 p-4 rounded-xl border border-[rgba(162,130,255,0.08)] bg-[rgba(12,12,34,0.4)] hover:border-[rgba(162,130,255,0.2)] hover:bg-[rgba(167,139,250,0.04)] transition-all duration-200"
+                  className="lp-card-sm flex items-start gap-3 p-4 rounded-xl border border-[rgba(162,130,255,0.08)] hover:border-[rgba(162,130,255,0.2)] transition-all duration-200"
                 >
                   <div className="w-5 h-5 rounded-full bg-[rgba(52,211,153,0.15)] border border-[rgba(52,211,153,0.3)] flex items-center justify-center shrink-0 mt-0.5">
                     <Check size={11} className="text-[#34d399]" />

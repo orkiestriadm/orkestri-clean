@@ -113,7 +113,7 @@ export default function FaqSection() {
         </motion.div>
 
         {inView && (
-          <div className="rounded-2xl border border-[rgba(162,130,255,0.1)] bg-[rgba(10,10,28,0.6)] backdrop-blur-sm px-7 sm:px-10">
+          <div className="lp-card rounded-2xl border border-[rgba(162,130,255,0.1)] backdrop-blur-sm px-7 sm:px-10">
             {FAQS.map((faq, i) => (
               <FaqItem key={faq.q} q={faq.q} a={faq.a} i={i} inView={inView} />
             ))}

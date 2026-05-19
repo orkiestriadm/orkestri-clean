@@ -75,7 +75,7 @@ export default function TestimonialsSection() {
               initial={{ opacity: 0, y: 30 }}
               animate={inView ? { opacity: 1, y: 0 } : {}}
               transition={{ delay: 0.1 + i * 0.12, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-              className="group relative rounded-2xl border border-[rgba(162,130,255,0.12)] bg-[rgba(12,12,34,0.7)] backdrop-blur-sm p-7 hover:border-[rgba(162,130,255,0.25)] transition-all duration-300 hover:-translate-y-1 flex flex-col"
+              className="lp-card group relative rounded-2xl border border-[rgba(162,130,255,0.12)] backdrop-blur-sm p-7 hover:border-[rgba(162,130,255,0.25)] transition-all duration-300 hover:-translate-y-1 flex flex-col"
             >
               {/* Quote icon */}
               <Quote size={28} className="text-[rgba(167,139,250,0.2)] mb-4 shrink-0" />
@@ -113,7 +113,7 @@ export default function TestimonialsSection() {
           transition={{ delay: 0.5, duration: 0.5 }}
           className="mt-12 text-center"
         >
-          <div className="inline-flex items-center gap-6 px-8 py-4 rounded-2xl border border-[rgba(162,130,255,0.1)] bg-[rgba(12,12,34,0.4)]">
+          <div className="lp-card-sm inline-flex items-center gap-6 px-8 py-4 rounded-2xl border border-[rgba(162,130,255,0.1)]">
             <div className="text-center">
               <div className="font-display font-bold text-2xl text-[var(--accent-violet)]">4,9</div>
               <div className="text-xs text-[var(--text-muted)] mt-0.5">Nota média</div>

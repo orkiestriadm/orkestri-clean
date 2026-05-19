@@ -98,7 +98,7 @@ function SmallCard({ benefit, index, wide }: { benefit: Benefit; index: number; 
   return (
     <motion.div
       variants={itemAnim}
-      className={`group relative rounded-2xl border border-[rgba(162,130,255,0.1)] bg-[rgba(10,10,30,0.7)] backdrop-blur-sm p-6 overflow-hidden cursor-default transition-all duration-300 hover:-translate-y-1.5 hover:border-[rgba(162,130,255,0.28)]${wide ? ' lg:col-span-2' : ''}`}
+      className={`lp-card group relative rounded-2xl border border-[rgba(162,130,255,0.1)] backdrop-blur-sm p-6 overflow-hidden cursor-default transition-all duration-300 hover:-translate-y-1.5 hover:border-[rgba(162,130,255,0.28)]${wide ? ' lg:col-span-2' : ''}`}
     >
       {/* Linha de acento no topo — cor do card */}
       <div
@@ -157,7 +157,7 @@ function LargeCard({ benefit }: { benefit: Benefit }) {
   return (
     <motion.div
       variants={itemAnim}
-      className="group relative lg:col-span-2 rounded-2xl border border-[rgba(162,130,255,0.1)] bg-[rgba(10,10,30,0.7)] backdrop-blur-sm p-7 overflow-hidden cursor-default transition-all duration-300 hover:-translate-y-1.5 hover:border-[rgba(162,130,255,0.28)]"
+      className="lp-card group relative lg:col-span-2 rounded-2xl border border-[rgba(162,130,255,0.1)] backdrop-blur-sm p-7 overflow-hidden cursor-default transition-all duration-300 hover:-translate-y-1.5 hover:border-[rgba(162,130,255,0.28)]"
     >
       {/* Linha de acento no topo — cor do card */}
       <div

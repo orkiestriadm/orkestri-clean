@@ -88,7 +88,7 @@ export default function StepsSection() {
                 initial={{ opacity: 0, y: 36 }}
                 animate={inView ? { opacity: 1, y: 0 } : {}}
                 transition={{ delay: 0.12 + i * 0.15, duration: 0.65, ease: [0.22, 1, 0.36, 1] }}
-                className="group relative rounded-2xl border bg-[rgba(10,10,30,0.7)] backdrop-blur-sm p-8 transition-all duration-300 hover:-translate-y-1.5 cursor-default"
+                className="lp-card group relative rounded-2xl border backdrop-blur-sm p-8 transition-all duration-300 hover:-translate-y-1.5 cursor-default"
                 style={{ borderColor: `${step.color}22` }}
               >
                 {/* Hover glow */}

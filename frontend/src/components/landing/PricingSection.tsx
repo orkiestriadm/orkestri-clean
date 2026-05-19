@@ -118,7 +118,7 @@ export default function PricingSection() {
               className={`relative rounded-2xl border flex flex-col transition-all duration-300 ${
                 plan.highlight
                   ? 'bg-gradient-to-b from-[rgba(124,58,237,0.14)] to-[rgba(10,10,28,0.9)] border-[rgba(124,58,237,0.45)] shadow-[0_0_60px_rgba(124,58,237,0.12),0_0_0_1px_rgba(124,58,237,0.15)] scale-[1.02] lg:scale-105'
-                  : 'bg-[rgba(10,10,28,0.6)] border-[rgba(162,130,255,0.1)] backdrop-blur-sm hover:border-[rgba(162,130,255,0.25)] hover:-translate-y-1'
+                  : 'lp-card border-[rgba(162,130,255,0.1)] backdrop-blur-sm hover:border-[rgba(162,130,255,0.25)] hover:-translate-y-1'
               }`}
             >
               {plan.badge && (

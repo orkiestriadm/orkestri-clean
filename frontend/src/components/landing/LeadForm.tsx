@@ -154,7 +154,7 @@ export default function LeadForm() {
             animate={inView ? { opacity: 1, x: 0 } : {}}
             transition={{ duration: 0.7, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
           >
-            <div className="relative rounded-2xl border border-[rgba(162,130,255,0.15)] bg-[rgba(12,12,34,0.7)] backdrop-blur-xl p-8 shadow-[0_24px_60px_rgba(0,0,0,0.4)]">
+            <div className="lp-card relative rounded-2xl border border-[rgba(162,130,255,0.15)] backdrop-blur-xl p-8 shadow-[0_24px_60px_rgba(0,0,0,0.4)]">
               {/* Glow */}
               <div className="absolute -inset-px rounded-2xl bg-gradient-to-br from-violet-600/10 via-transparent to-cyan-500/5 pointer-events-none" />
 

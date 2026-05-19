@@ -417,6 +417,10 @@
 }
 @media (max-width: 768px) { .mobile-menu-btn { display: flex; } }
 
+/* ── Landing cards — gradiente roxo profundo (padrão Hero) ─── */
+.lp-card    { background: linear-gradient(145deg, rgba(76,29,149,0.18) 0%, rgba(8,8,22,0.93) 55%); }
+.lp-card-sm { background: linear-gradient(145deg, rgba(76,29,149,0.11) 0%, rgba(8,8,22,0.82) 55%); }
+
 /* ── Landing page (always dark, isolated from theme) ───────── */
 .landing-dark {
   --bg-primary: #06060f;

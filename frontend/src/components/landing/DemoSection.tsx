@@ -36,14 +36,14 @@ function OverviewScreen() {
     <div className="p-4 h-full flex flex-col gap-3">
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
         {cols.map(c => (
-          <div key={c.label} className="rounded-xl border border-[rgba(162,130,255,0.12)] bg-[rgba(12,12,34,0.6)] p-3">
+          <div key={c.label} className="rounded-xl border border-[rgba(162,130,255,0.12)] lp-card-sm bg-transparent p-3">
             <div className="text-[10px] text-[var(--text-muted)] mb-1">{c.label}</div>
             <div className="text-lg font-display font-bold" style={{ color: c.color }}>{c.value}</div>
             <div className="text-[9px] mt-0.5 text-[var(--text-muted)]">{c.change}</div>
           </div>
         ))}
       </div>
-      <div className="flex-1 rounded-xl border border-[rgba(162,130,255,0.1)] bg-[rgba(12,12,34,0.4)] p-3 overflow-hidden">
+      <div className="flex-1 rounded-xl border border-[rgba(162,130,255,0.1)] lp-card-sm bg-transparent p-3 overflow-hidden">
         <div className="text-[10px] font-medium text-[var(--text-secondary)] mb-3">Atividade dos últimos 30 dias</div>
         <div className="flex items-end gap-1 h-20">
           {[40,65,45,80,55,90,70,85,60,75,50,88,72,95,68,82,58,77,63,90,45,70,55,85,60,78,92,65,80,88].map((h, i) => (
@@ -84,7 +84,7 @@ function AgendaScreen() {
       {/* Events list */}
       <div className="flex-1 flex flex-col gap-2">
         {events.map((ev, i) => (
-          <div key={i} className="flex items-center gap-3 rounded-xl border border-[rgba(162,130,255,0.1)] bg-[rgba(12,12,34,0.5)] px-3 py-2.5 hover:border-[rgba(162,130,255,0.22)] transition-colors">
+          <div key={i} className="flex items-center gap-3 rounded-xl border border-[rgba(162,130,255,0.1)] lp-card-sm bg-transparent px-3 py-2.5 hover:border-[rgba(162,130,255,0.22)] transition-colors">
             <div className="text-[9px] font-mono text-[var(--text-muted)] w-8 shrink-0">{ev.time}</div>
             <div className="w-0.5 self-stretch rounded-full shrink-0" style={{ background: typeColor[ev.type] }} />
             <div className="flex-1 min-w-0">
@@ -133,7 +133,7 @@ function ChamadosScreen() {
           { label: 'Via WhatsApp', value: '9', color: '#25D366' },
           { label: 'Resolvidos hoje', value: '23', color: '#34d399' },
         ].map(s => (
-          <div key={s.label} className="rounded-xl border border-[rgba(162,130,255,0.1)] bg-[rgba(12,12,34,0.6)] p-2">
+          <div key={s.label} className="rounded-xl border border-[rgba(162,130,255,0.1)] lp-card-sm bg-transparent p-2">
             <div className="text-[8px] text-[var(--text-muted)] mb-0.5 truncate">{s.label}</div>
             <div className="text-sm font-display font-bold" style={{ color: s.color }}>{s.value}</div>
           </div>
@@ -141,7 +141,7 @@ function ChamadosScreen() {
       </div>
 
       {/* Tickets list */}
-      <div className="flex-1 rounded-xl border border-[rgba(162,130,255,0.1)] bg-[rgba(12,12,34,0.4)] overflow-hidden">
+      <div className="flex-1 rounded-xl border border-[rgba(162,130,255,0.1)] lp-card-sm bg-transparent overflow-hidden">
         {tickets.map((t, i) => (
           <div key={i} className="flex items-center gap-2.5 px-3 py-2.5 border-b border-[rgba(162,130,255,0.05)] last:border-0 hover:bg-[rgba(167,139,250,0.04)] transition-colors">
             <div className="shrink-0">
@@ -193,7 +193,7 @@ function ProjectsScreen() {
               <span className="ml-auto text-[8px] text-[var(--text-muted)]">{col.cards.length}</span>
             </div>
             {col.cards.map(card => (
-              <div key={card.text} className="rounded-lg border border-[rgba(162,130,255,0.1)] bg-[rgba(12,12,34,0.6)] p-2.5 hover:border-[rgba(162,130,255,0.25)] transition-colors cursor-pointer">
+              <div key={card.text} className="rounded-lg border border-[rgba(162,130,255,0.1)] lp-card-sm bg-transparent p-2.5 hover:border-[rgba(162,130,255,0.25)] transition-colors cursor-pointer">
                 <div className="text-[9px] text-[var(--text-primary)] font-medium leading-tight mb-1">{card.text}</div>
                 <div className="flex items-center gap-1 mt-2">
                   <div className="w-3.5 h-3.5 rounded-full bg-gradient-to-br from-violet-500 to-violet-700 text-[6px] text-white flex items-center justify-center">G</div>
@@ -222,13 +222,13 @@ function FinanceScreen() {
           { label: 'CAPEX', value: 'R$ 480K', color: '#a78bfa' },
           { label: 'OPEX', value: 'R$ 268K', color: '#22d3ee' },
         ].map(m => (
-          <div key={m.label} className="rounded-xl border border-[rgba(162,130,255,0.1)] bg-[rgba(12,12,34,0.6)] p-2.5">
+          <div key={m.label} className="rounded-xl border border-[rgba(162,130,255,0.1)] lp-card-sm bg-transparent p-2.5">
             <div className="text-[9px] text-[var(--text-muted)] mb-1">{m.label}</div>
             <div className="text-sm font-display font-bold" style={{ color: m.color }}>{m.value}</div>
           </div>
         ))}
       </div>
-      <div className="flex-1 rounded-xl border border-[rgba(162,130,255,0.1)] bg-[rgba(12,12,34,0.4)] p-3">
+      <div className="flex-1 rounded-xl border border-[rgba(162,130,255,0.1)] lp-card-sm bg-transparent p-3">
         <div className="text-[10px] font-medium text-[var(--text-secondary)] mb-3 flex items-center gap-3">
           CAPEX vs OPEX — 2025
           <span className="flex items-center gap-1 text-[9px] text-[var(--text-muted)]"><span className="w-2 h-1 rounded-full bg-[#a78bfa] inline-block"/>CAPEX</span>
@@ -262,13 +262,13 @@ function SuppliersScreen() {
     <div className="p-4 h-full flex flex-col gap-3">
       <div className="grid grid-cols-3 gap-2">
         {[{l:'Total',v:'94'},{l:'Aprovados',v:'78'},{l:'Em avaliação',v:'16'}].map(m=>(
-          <div key={m.l} className="rounded-xl border border-[rgba(162,130,255,0.1)] bg-[rgba(12,12,34,0.6)] p-2.5">
+          <div key={m.l} className="rounded-xl border border-[rgba(162,130,255,0.1)] lp-card-sm bg-transparent p-2.5">
             <div className="text-[9px] text-[var(--text-muted)]">{m.l}</div>
             <div className="text-base font-display font-bold text-[var(--accent-violet)]">{m.v}</div>
           </div>
         ))}
       </div>
-      <div className="flex-1 rounded-xl border border-[rgba(162,130,255,0.1)] bg-[rgba(12,12,34,0.4)] overflow-hidden">
+      <div className="flex-1 rounded-xl border border-[rgba(162,130,255,0.1)] lp-card-sm bg-transparent overflow-hidden">
         {suppliers.map((s, i) => (
           <div key={i} className="flex items-center gap-3 px-3 py-2.5 border-b border-[rgba(162,130,255,0.05)] last:border-0 hover:bg-[rgba(167,139,250,0.04)] transition-colors">
             <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-violet-500/30 to-cyan-500/20 border border-[rgba(162,130,255,0.2)] flex items-center justify-center text-[9px] font-bold text-[var(--accent-violet)] shrink-0">
@@ -337,7 +337,7 @@ export default function DemoSection() {
           initial={{ opacity: 0, y: 20 }}
           animate={inView ? { opacity: 1, y: 0 } : {}}
           transition={{ duration: 0.5, delay: 0.15 }}
-          className="flex items-center gap-1 p-1 rounded-2xl border border-[rgba(162,130,255,0.12)] bg-[rgba(12,12,34,0.6)] backdrop-blur-xl mb-4 overflow-x-auto scrollbar-none"
+          className="lp-card flex items-center gap-1 p-1 rounded-2xl border border-[rgba(162,130,255,0.12)] backdrop-blur-xl mb-4 overflow-x-auto scrollbar-none"
         >
           {TABS.map(tab => {
             const Icon = tab.icon

@@ -129,7 +129,7 @@ export default function ModulesSection() {
               <motion.div
                 key={mod.name}
                 variants={item}
-                className="group relative rounded-2xl border border-[rgba(162,130,255,0.1)] bg-[rgba(12,12,34,0.7)] backdrop-blur-sm p-6 hover:-translate-y-1.5 hover:border-[rgba(162,130,255,0.35)] transition-all duration-300 cursor-default overflow-hidden"
+                className="lp-card group relative rounded-2xl border border-[rgba(162,130,255,0.1)] backdrop-blur-sm p-6 hover:-translate-y-1.5 hover:border-[rgba(162,130,255,0.35)] transition-all duration-300 cursor-default overflow-hidden"
               >
                 {/* Gradient overlay on hover */}
                 <div className={`absolute inset-0 rounded-2xl bg-gradient-to-b ${mod.gradient} opacity-0 group-hover:opacity-100 transition-opacity duration-300`} />
