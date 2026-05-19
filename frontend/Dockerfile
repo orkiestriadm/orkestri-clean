@@ -19,7 +19,7 @@ RUN apk add --no-cache libc6-compat
 RUN addgroup -S app && adduser -S app -G app
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
-RUN mkdir -p ./public
+COPY --from=builder /app/public ./public
 RUN chown -R app:app /app
 USER app
 EXPOSE 3000
