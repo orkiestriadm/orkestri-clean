@@ -106,7 +106,7 @@ function OrgCard({ org, onRefresh }: { org: Org; onRefresh: () => void }) {
   const planoColor = { starter: "var(--text-muted)", professional: "var(--accent-cyan)", enterprise: "var(--accent-violet)" }[org.plano] || "var(--text-muted)";
 
   return (
-    <div className="card" style={{ padding: 0, overflow: "hidden" }}>
+    <div className="card-premium" style={{ padding: 0, overflow: "hidden" }}>
       <div style={{ padding: "16px 20px", display: "flex", alignItems: "center", gap: 12, cursor: "pointer" }} onClick={() => setExpanded(e => !e)}>
         <div style={{ width: 10, height: 10, borderRadius: "50%", background: org.ativo ? "var(--accent-green)" : "var(--text-muted)", flexShrink: 0 }} />
         <div style={{ flex: 1, minWidth: 0 }}>
@@ -215,7 +215,7 @@ function NewOrgModal({ onClose, onCreated }: { onClose: () => void; onCreated: (
 
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100 }}>
-      <div className="card" style={{ width: 420, padding: 24, display: "flex", flexDirection: "column", gap: 16 }}>
+      <div className="surface-elevated" style={{ width: 420, padding: 24, display: "flex", flexDirection: "column", gap: 16 }}>
         <div style={{ fontFamily: "var(--font-display)", fontSize: 16, fontWeight: 700 }}>Nova Organização</div>
         {err && <div style={{ fontSize: 12, color: "var(--accent-red)" }}>{err}</div>}
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
