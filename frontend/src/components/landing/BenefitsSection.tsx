@@ -245,7 +245,7 @@ export default function BenefitsSection() {
   const inView = useInView(ref, { once: true, margin: '-8%' })
 
   return (
-    <section id="beneficios" ref={ref} className="landing-dark relative py-24 lg:py-32 overflow-hidden">
+    <section id="beneficios" ref={ref} className="landing-dark bg-[var(--bg-primary)] relative py-24 lg:py-32 overflow-hidden">
       {/* Background */}
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[rgba(167,139,250,0.3)] to-transparent" />
