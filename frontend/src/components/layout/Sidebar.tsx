@@ -133,8 +133,8 @@ export default function Sidebar() {
   return (
     <aside className="sidebar">
       {/* ── Logo ── */}
-      <div className="flex items-center px-5 h-14 border-b border-white/[0.04] shrink-0">
-        <img src="/logo-orkiestri-dark.png" alt="Logo Orkiestri" className="h-7 w-auto object-contain" />
+      <div className="flex items-center justify-center h-14 border-b border-white/[0.04] shrink-0 px-4">
+        <img src="/logo-orkiestri-dark.png" alt="Logo Orkiestri" className="h-10 w-auto object-contain mix-blend-screen" />
       </div>
 
       {/* ── Navigation ── */}

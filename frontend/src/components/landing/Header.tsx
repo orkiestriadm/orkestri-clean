@@ -52,7 +52,7 @@ export default function Header() {
 
             {/* Logo */}
             <Link href="/" className="flex items-center shrink-0">
-              <img src="/logo-orkiestri-dark.png" alt="Logo Orkiestri" className="h-7 w-auto object-contain" />
+              <img src="/logo-orkiestri-dark.png" alt="Logo Orkiestri" className="h-9 w-auto object-contain mix-blend-screen" />
             </Link>
 
             {/* Desktop nav */}

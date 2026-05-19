@@ -77,7 +77,7 @@ export default function LoginPage() {
       >
         {/* Logo */}
         <Link href="/">
-          <img src="/logo-orkiestri-dark.png" alt="Logo Orkiestri" className="h-9 w-auto object-contain" />
+          <img src="/logo-orkiestri-dark.png" alt="Logo Orkiestri" className="h-12 w-auto object-contain mix-blend-screen" />
         </Link>
 
         {/* Main statement */}
@@ -164,7 +164,7 @@ export default function LoginPage() {
         >
           {/* Mobile logo */}
           <div className="mb-10 lg:hidden flex justify-center">
-            <img src="/logo-orkiestri-dark.png" alt="Logo Orkiestri" className="h-9 w-auto object-contain" />
+            <img src="/logo-orkiestri-dark.png" alt="Logo Orkiestri" className="h-12 w-auto object-contain mix-blend-screen" />
           </div>
 
           {/* Header */}
