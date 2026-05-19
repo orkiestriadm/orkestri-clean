@@ -8,7 +8,10 @@ function getPreferredTheme(): Theme {
   if (typeof window === "undefined") return "dark";
   const saved = localStorage.getItem("orkestri-theme") as Theme | null;
   if (saved === "dark" || saved === "light") return saved;
-  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  // Mobile (touch): segue OS preference. Desktop: sempre dark.
+  const isMobile = window.matchMedia("(pointer: coarse)").matches;
+  if (isMobile) return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  return "dark";
 }
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
