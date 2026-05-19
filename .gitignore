@@ -39,9 +39,10 @@ Thumbs.db
 backend/node_modules/.prisma/
 
 # Claude AI internal files (settings pessoais ignorados, skills versionadas)
-.claude/
-!.claude/skills/
-!.claude/skills/**
+.claude/settings.json
+.claude/settings.local.json
+.claude/**/__pycache__/
+.claude/**/*.pyc
 
 # Misc
 fm2.js

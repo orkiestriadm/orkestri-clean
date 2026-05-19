@@ -16,7 +16,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body>
         <ThemeProvider>
-          <div className="noise-overlay" />
           {children}
           <ToastContainer />
         </ThemeProvider>

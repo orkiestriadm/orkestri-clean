@@ -15,7 +15,8 @@ services:
       PORT: 3001
       SA_TOKEN: ${SA_TOKEN}
       SA_ALLOWED_ORIGINS: "http://localhost:8080,http://localhost"
+      # Windows: Docker Desktop must have "Expose daemon on tcp://localhost:2375" enabled
+      DOCKER_HOST: tcp://host.docker.internal:2375
     volumes:
       - ./saas:/saas
-      - //./pipe/docker_engine:/var/run/docker.sock
       - ./saas/nginx-conf:/etc/nginx/conf.d

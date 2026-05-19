@@ -1,0 +1,756 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Guia GitHub — Orkestri</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Segoe UI', Arial, sans-serif;
+    font-size: 13px;
+    color: #1a1a2e;
+    background: #fff;
+    line-height: 1.6;
+  }
+
+  /* CAPA */
+  .cover {
+    height: 100vh;
+    background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    color: white;
+    page-break-after: always;
+  }
+  .cover .logo-text {
+    font-size: 52px;
+    font-weight: 900;
+    letter-spacing: -2px;
+    background: linear-gradient(90deg, #a78bfa, #818cf8);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 8px;
+  }
+  .cover .subtitle {
+    font-size: 22px;
+    color: #c4b5fd;
+    font-weight: 300;
+    margin-bottom: 60px;
+  }
+  .cover .badge {
+    background: rgba(167,139,250,0.15);
+    border: 1px solid rgba(167,139,250,0.3);
+    border-radius: 50px;
+    padding: 10px 28px;
+    font-size: 13px;
+    color: #a78bfa;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: 16px;
+  }
+  .cover .date { color: #6b7280; font-size: 12px; margin-top: 60px; }
+
+  /* LAYOUT */
+  .page {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 48px 56px;
+  }
+
+  /* SEÇÕES */
+  .section {
+    margin-bottom: 48px;
+    page-break-inside: avoid;
+  }
+
+  .section-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 20px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid #ede9fe;
+  }
+  .section-number {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #7c3aed, #4f46e5);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 14px;
+    flex-shrink: 0;
+  }
+  .section-title {
+    font-size: 20px;
+    font-weight: 700;
+    color: #1e1b4b;
+  }
+  .section-desc {
+    font-size: 12px;
+    color: #6b7280;
+    font-weight: 400;
+    margin-top: 2px;
+  }
+
+  /* CARDS */
+  .card {
+    background: #f9f7ff;
+    border: 1px solid #ede9fe;
+    border-radius: 12px;
+    padding: 20px 24px;
+    margin-bottom: 16px;
+  }
+  .card-title {
+    font-weight: 700;
+    color: #4c1d95;
+    font-size: 14px;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .card-title .icon { font-size: 16px; }
+
+  /* STEPS */
+  .steps { display: flex; flex-direction: column; gap: 12px; }
+  .step {
+    display: flex;
+    gap: 16px;
+    align-items: flex-start;
+  }
+  .step-num {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: #7c3aed;
+    color: white;
+    font-weight: 700;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+  .step-content { flex: 1; }
+  .step-label { font-weight: 600; color: #1e1b4b; margin-bottom: 4px; }
+  .step-desc { color: #4b5563; font-size: 12px; }
+
+  /* CODE BLOCKS */
+  .code-block {
+    background: #1e1b4b;
+    border-radius: 10px;
+    padding: 16px 20px;
+    margin: 12px 0;
+    font-family: 'Consolas', 'Courier New', monospace;
+    font-size: 12.5px;
+    line-height: 1.8;
+    overflow: hidden;
+  }
+  .code-block .comment { color: #6b7280; }
+  .code-block .cmd { color: #a78bfa; }
+  .code-block .str { color: #34d399; }
+  .code-block .flag { color: #fbbf24; }
+  .code-line { display: block; }
+  .code-line::before {
+    content: '$ ';
+    color: #4f46e5;
+    font-weight: 700;
+  }
+  .code-line.comment-line::before { content: ''; }
+  .code-line.comment-line { color: #6b7280; padding-left: 16px; }
+  .code-line.output-line::before { content: '  '; }
+  .code-line.output-line { color: #34d399; font-size: 11px; }
+
+  /* ALERT BOXES */
+  .alert {
+    border-radius: 10px;
+    padding: 14px 18px;
+    margin: 16px 0;
+    font-size: 12.5px;
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+  }
+  .alert-icon { font-size: 18px; flex-shrink: 0; margin-top: -1px; }
+  .alert.info { background: #eff6ff; border-left: 4px solid #3b82f6; }
+  .alert.info .alert-icon::before { content: 'ℹ️'; }
+  .alert.warning { background: #fffbeb; border-left: 4px solid #f59e0b; }
+  .alert.warning .alert-icon::before { content: '⚠️'; }
+  .alert.success { background: #f0fdf4; border-left: 4px solid #22c55e; }
+  .alert.success .alert-icon::before { content: '✅'; }
+  .alert.danger { background: #fef2f2; border-left: 4px solid #ef4444; }
+  .alert.danger .alert-icon::before { content: '🚫'; }
+  .alert-text strong { display: block; margin-bottom: 4px; color: #111827; }
+  .alert-text { color: #374151; }
+
+  /* TABLE */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 12px 0;
+    font-size: 12px;
+  }
+  th {
+    background: #4c1d95;
+    color: white;
+    padding: 10px 14px;
+    text-align: left;
+    font-weight: 600;
+  }
+  th:first-child { border-radius: 8px 0 0 0; }
+  th:last-child { border-radius: 0 8px 0 0; }
+  td {
+    padding: 10px 14px;
+    border-bottom: 1px solid #ede9fe;
+    color: #374151;
+  }
+  tr:nth-child(even) td { background: #f9f7ff; }
+  td code {
+    background: #ede9fe;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: 'Consolas', monospace;
+    font-size: 11px;
+    color: #4c1d95;
+  }
+
+  /* DIVIDER */
+  .divider { border: none; border-top: 1px solid #ede9fe; margin: 32px 0; }
+
+  /* DEV CARD */
+  .dev-info {
+    background: linear-gradient(135deg, #1e1b4b, #2d1b69);
+    border-radius: 14px;
+    padding: 24px 28px;
+    color: white;
+    margin: 16px 0;
+  }
+  .dev-info h3 { color: #a78bfa; margin-bottom: 16px; font-size: 15px; }
+  .dev-info .info-row {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 10px;
+    font-size: 12.5px;
+  }
+  .dev-info .info-label { color: #9ca3af; width: 100px; flex-shrink: 0; }
+  .dev-info .info-value { color: #e5e7eb; font-family: 'Consolas', monospace; word-break: break-all; }
+
+  /* PAGE BREAK */
+  .page-break { page-break-before: always; padding-top: 48px; }
+
+  /* FLOW DIAGRAM */
+  .flow {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    margin: 20px 0;
+    flex-wrap: wrap;
+  }
+  .flow-box {
+    background: linear-gradient(135deg, #7c3aed, #4f46e5);
+    color: white;
+    padding: 10px 16px;
+    border-radius: 8px;
+    font-size: 11.5px;
+    font-weight: 600;
+    text-align: center;
+    min-width: 90px;
+  }
+  .flow-box.gray { background: #374151; }
+  .flow-box.green { background: linear-gradient(135deg, #059669, #047857); }
+  .flow-box.orange { background: linear-gradient(135deg, #d97706, #b45309); }
+  .flow-arrow {
+    color: #7c3aed;
+    font-size: 20px;
+    padding: 0 6px;
+    font-weight: 700;
+  }
+
+  /* FOOTER */
+  .footer {
+    text-align: center;
+    color: #9ca3af;
+    font-size: 11px;
+    margin-top: 60px;
+    padding-top: 20px;
+    border-top: 1px solid #ede9fe;
+  }
+
+  /* PRINT */
+  @media print {
+    body { font-size: 12px; }
+    .cover { height: 100vh; }
+    .page { padding: 36px 44px; }
+    .section { page-break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+
+<!-- CAPA -->
+<div class="cover">
+  <div class="badge">Guia Técnico Interno</div>
+  <div class="logo-text">Orkestri</div>
+  <div class="subtitle">Guia de Uso do GitHub</div>
+  <div style="color:#a78bfa; font-size:15px; font-weight:300; max-width:420px; line-height:1.7">
+    Como fazer atualizações no sistema, trabalhar com sua equipe de desenvolvimento e manter o código organizado.
+  </div>
+  <div class="date">Versão 1.0 — Maio 2026 · Repositório: github.com/orkiestriadm/orkestri-clean</div>
+</div>
+
+<!-- CONTEÚDO -->
+<div class="page">
+
+  <!-- ÍNDICE -->
+  <div class="section">
+    <div class="section-header">
+      <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#4f46e5);color:white;display:flex;align-items:center;justify-content:center;font-size:18px;">📋</div>
+      <div>
+        <div class="section-title">O que está neste guia</div>
+        <div class="section-desc">Para você e sua equipe</div>
+      </div>
+    </div>
+    <table>
+      <tr><th>#</th><th>Seção</th><th>Para quem</th></tr>
+      <tr><td>1</td><td>Conceitos básicos — o que é o GitHub</td><td>Todos</td></tr>
+      <tr><td>2</td><td>Fluxo do dia a dia — como subir atualizações</td><td>Você (dono)</td></tr>
+      <tr><td>3</td><td>Configuração inicial para desenvolvedores</td><td>Devs contratados</td></tr>
+      <tr><td>4</td><td>Fluxo para desenvolvedores — branches e PRs</td><td>Devs contratados</td></tr>
+      <tr><td>5</td><td>Comandos de referência rápida</td><td>Todos</td></tr>
+      <tr><td>6</td><td>Regras e boas práticas</td><td>Todos</td></tr>
+    </table>
+  </div>
+
+  <hr class="divider">
+
+  <!-- SEÇÃO 1 -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-number">1</div>
+      <div>
+        <div class="section-title">Conceitos Básicos</div>
+        <div class="section-desc">O que é Git e GitHub, sem complicar</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title"><span class="icon">📦</span> Git (local)</div>
+      É um sistema que guarda o histórico de todas as mudanças no seu código. Fica instalado no seu computador. Pense como um "Ctrl+Z infinito" que sabe exatamente o que mudou, quando, e quem mudou.
+    </div>
+
+    <div class="card">
+      <div class="card-title"><span class="icon">☁️</span> GitHub (nuvem)</div>
+      É onde o código fica armazenado online. Funciona como um Google Drive para código — todos da equipe conseguem baixar, enviar e ver as mudanças de forma organizada.
+    </div>
+
+    <div class="card">
+      <div class="card-title"><span class="icon">🔑</span> Três comandos que você vai usar sempre</div>
+      <div style="margin-top:8px;">
+        <div class="flow" style="gap:8px;flex-wrap:nowrap;">
+          <div class="flow-box">git add<br><span style="font-size:10px;opacity:0.8">seleciona</span></div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-box orange">git commit<br><span style="font-size:10px;opacity:0.8">salva local</span></div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-box green">git push<br><span style="font-size:10px;opacity:0.8">envia GitHub</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="alert info">
+      <div class="alert-icon"></div>
+      <div class="alert-text">
+        <strong>Repositório do Orkestri</strong>
+        github.com/orkiestriadm/orkestri-clean — privado, só quem você convidar tem acesso.
+      </div>
+    </div>
+  </div>
+
+  <hr class="divider">
+
+  <!-- SEÇÃO 2 -->
+  <div class="section page-break">
+    <div class="section-header">
+      <div class="section-number">2</div>
+      <div>
+        <div class="section-title">Seu Fluxo do Dia a Dia</div>
+        <div class="section-desc">Como subir atualizações quando você mesmo mexe no sistema</div>
+      </div>
+    </div>
+
+    <div class="alert warning">
+      <div class="alert-icon"></div>
+      <div class="alert-text">
+        <strong>Antes de tudo — faça isso uma vez só (configuração do token)</strong>
+        Para não precisar digitar senha toda vez, rode este comando no terminal do servidor ou na sua máquina onde o projeto está:
+      </div>
+    </div>
+
+    <div class="code-block">
+      <span class="code-line comment-line"># Salva o token para não pedir toda vez (rode uma vez só)</span>
+      <span class="code-line"><span class="cmd">git</span> config --global credential.helper store</span>
+      <span class="code-line comment-line"># Depois do primeiro push com token, ele fica salvo automaticamente</span>
+    </div>
+
+    <div style="margin-top:24px; margin-bottom:12px; font-weight:700; color:#1e1b4b; font-size:14px;">
+      Passo a passo para subir uma atualização:
+    </div>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-content">
+          <div class="step-label">Abra o terminal na pasta do projeto</div>
+          <div class="step-desc">No Windows: abra o PowerShell ou CMD, navegue até a pasta <code style="background:#ede9fe;padding:1px 5px;border-radius:3px;font-family:monospace">c:\orkestri-clean</code></div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-content">
+          <div class="step-label">Veja o que mudou</div>
+          <div class="code-block" style="margin-top:6px;">
+            <span class="code-line"><span class="cmd">git</span> status</span>
+            <span class="code-line output-line">modified: frontend/src/app/dashboard/chamados/page.tsx</span>
+            <span class="code-line output-line">modified: backend/src/modules/chamados/chamados.module.ts</span>
+          </div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-content">
+          <div class="step-label">Selecione os arquivos alterados</div>
+          <div class="code-block" style="margin-top:6px;">
+            <span class="code-line comment-line"># Selecionar tudo de uma vez (mais comum)</span>
+            <span class="code-line"><span class="cmd">git</span> add .</span>
+            <span class="code-line comment-line"># OU selecionar arquivo específico</span>
+            <span class="code-line"><span class="cmd">git</span> add frontend/src/app/dashboard/chamados/page.tsx</span>
+          </div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">4</div>
+        <div class="step-content">
+          <div class="step-label">Crie um commit com descrição do que foi feito</div>
+          <div class="code-block" style="margin-top:6px;">
+            <span class="code-line comment-line"># A mensagem descreve O QUE mudou e POR QUÊ</span>
+            <span class="code-line"><span class="cmd">git</span> commit -m <span class="str">"fix: corrige filtro de chamados por data"</span></span>
+            <span class="code-line"><span class="cmd">git</span> commit -m <span class="str">"feat: adiciona campo de prioridade no chamado"</span></span>
+            <span class="code-line"><span class="cmd">git</span> commit -m <span class="str">"update: ajusta layout da página de clientes"</span></span>
+          </div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">5</div>
+        <div class="step-content">
+          <div class="step-label">Envie para o GitHub</div>
+          <div class="code-block" style="margin-top:6px;">
+            <span class="code-line"><span class="cmd">git</span> push</span>
+            <span class="code-line output-line">To https://github.com/orkiestriadm/orkestri-clean.git</span>
+            <span class="code-line output-line">   fa660e4..3a8b2c1  main -> main</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="alert success">
+      <div class="alert-icon"></div>
+      <div class="alert-text">
+        <strong>Resumo em 3 linhas (copie e cole sempre que precisar)</strong>
+        <code style="display:block; font-family:monospace; margin-top:6px; color:#065f46;">
+          git add .&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+          git commit -m "descrição do que mudou"<br>
+          git push
+        </code>
+      </div>
+    </div>
+  </div>
+
+  <hr class="divider">
+
+  <!-- SEÇÃO 3 -->
+  <div class="section page-break">
+    <div class="section-header">
+      <div class="section-number">3</div>
+      <div>
+        <div class="section-title">Configuração para Desenvolvedores</div>
+        <div class="section-desc">O que passar para cada dev contratado — faça isso uma vez por pessoa</div>
+      </div>
+    </div>
+
+    <div class="alert info">
+      <div class="alert-icon"></div>
+      <div class="alert-text">
+        <strong>Passo 0 — Convidar o dev no GitHub</strong>
+        Acesse: github.com/orkiestriadm/orkestri-clean → Settings → Collaborators → Add people → digite o usuário GitHub do dev.
+      </div>
+    </div>
+
+    <div style="margin-bottom:12px; font-weight:700; color:#1e1b4b; font-size:14px;">
+      Informações para passar para o desenvolvedor:
+    </div>
+
+    <div class="dev-info">
+      <h3>📋 Ficha de Acesso — Desenvolvedor Orkestri</h3>
+      <div class="info-row">
+        <div class="info-label">Repositório:</div>
+        <div class="info-value">https://github.com/orkiestriadm/orkestri-clean.git</div>
+      </div>
+      <div class="info-row">
+        <div class="info-label">Branch main:</div>
+        <div class="info-value">main (produção — não commitar direto aqui)</div>
+      </div>
+      <div class="info-row">
+        <div class="info-label">Stack:</div>
+        <div class="info-value">NestJS (backend) + Next.js 15 (frontend) + PostgreSQL + Redis</div>
+      </div>
+      <div class="info-row">
+        <div class="info-label">Docker:</div>
+        <div class="info-value">docker compose up -d (sobe tudo localmente)</div>
+      </div>
+      <div class="info-row">
+        <div class="info-label">.env:</div>
+        <div class="info-value">Pedir ao líder do projeto — não está no repositório</div>
+      </div>
+    </div>
+
+    <div style="margin: 20px 0 12px; font-weight:700; color:#1e1b4b; font-size:14px;">
+      Comandos que o dev roda na primeira vez (clone):
+    </div>
+
+    <div class="code-block">
+      <span class="code-line comment-line"># 1. Clonar o repositório</span>
+      <span class="code-line"><span class="cmd">git</span> clone https://github.com/orkiestriadm/orkestri-clean.git</span>
+      <span class="code-line"><span class="cmd">cd</span> orkestri-clean</span>
+      <span class="code-line comment-line"></span>
+      <span class="code-line comment-line"># 2. Copiar o arquivo de variáveis de ambiente</span>
+      <span class="code-line"><span class="cmd">cp</span> .env.example .env</span>
+      <span class="code-line comment-line"># (preencher os valores reais que o líder passar)</span>
+      <span class="code-line comment-line"></span>
+      <span class="code-line comment-line"># 3. Subir o ambiente local com Docker</span>
+      <span class="code-line"><span class="cmd">docker</span> compose up -d</span>
+      <span class="code-line comment-line"></span>
+      <span class="code-line comment-line"># 4. Verificar se está rodando</span>
+      <span class="code-line"><span class="cmd">docker</span> compose ps</span>
+    </div>
+
+    <div class="alert warning">
+      <div class="alert-icon"></div>
+      <div class="alert-text">
+        <strong>Nunca compartilhe o arquivo .env por email ou WhatsApp</strong>
+        Ele contém senhas e chaves secretas. Use um gerenciador de senhas seguro (ex: 1Password, Bitwarden) ou compartilhe presencialmente.
+      </div>
+    </div>
+  </div>
+
+  <hr class="divider">
+
+  <!-- SEÇÃO 4 -->
+  <div class="section page-break">
+    <div class="section-header">
+      <div class="section-number">4</div>
+      <div>
+        <div class="section-title">Fluxo para Desenvolvedores</div>
+        <div class="section-desc">Como a equipe deve trabalhar — branches e Pull Requests</div>
+      </div>
+    </div>
+
+    <div class="alert danger">
+      <div class="alert-icon"></div>
+      <div class="alert-text">
+        <strong>Regra de ouro — ninguém commita direto na branch main</strong>
+        A branch <code style="font-family:monospace">main</code> é o código de produção. Todo dev trabalha em uma branch separada e só une via Pull Request aprovado por você.
+      </div>
+    </div>
+
+    <div style="margin: 20px 0 12px; font-weight:700; color:#1e1b4b; font-size:14px;">
+      Fluxo completo do desenvolvedor:
+    </div>
+
+    <div class="flow" style="gap:6px; margin-bottom:24px; justify-content:flex-start;">
+      <div class="flow-box gray" style="font-size:11px;">main<br>(produção)</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box" style="font-size:11px;">nova branch<br>feature/xxx</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box orange" style="font-size:11px;">commits<br>diários</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box" style="font-size:11px;">Pull<br>Request</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box green" style="font-size:11px;">aprovação<br>→ main</div>
+    </div>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-content">
+          <div class="step-label">Baixar a versão mais atual antes de começar</div>
+          <div class="code-block" style="margin-top:6px;">
+            <span class="code-line"><span class="cmd">git</span> pull origin main</span>
+          </div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-content">
+          <div class="step-label">Criar uma branch com nome descritivo</div>
+          <div class="code-block" style="margin-top:6px;">
+            <span class="code-line comment-line"># Padrão: feature/nome, fix/nome, update/nome</span>
+            <span class="code-line"><span class="cmd">git</span> checkout -b <span class="str">feature/relatorio-sla</span></span>
+            <span class="code-line"><span class="cmd">git</span> checkout -b <span class="str">fix/erro-login-portal</span></span>
+            <span class="code-line"><span class="cmd">git</span> checkout -b <span class="str">update/layout-chamados</span></span>
+          </div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-content">
+          <div class="step-label">Desenvolver e commitar com frequência</div>
+          <div class="code-block" style="margin-top:6px;">
+            <span class="code-line"><span class="cmd">git</span> add .</span>
+            <span class="code-line"><span class="cmd">git</span> commit -m <span class="str">"feat: adiciona gráfico de SLA por setor"</span></span>
+          </div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">4</div>
+        <div class="step-content">
+          <div class="step-label">Enviar a branch para o GitHub</div>
+          <div class="code-block" style="margin-top:6px;">
+            <span class="code-line"><span class="cmd">git</span> push origin feature/relatorio-sla</span>
+          </div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">5</div>
+        <div class="step-content">
+          <div class="step-label">Abrir um Pull Request no GitHub</div>
+          <div class="step-desc">
+            Acesse github.com/orkiestriadm/orkestri-clean → aparecerá um botão "Compare & pull request" → clique nele → descreva o que foi feito → clique em "Create pull request".
+          </div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">6</div>
+        <div class="step-content">
+          <div class="step-label">Você revisa e aprova (ou pede ajustes)</div>
+          <div class="step-desc">
+            No GitHub, você recebe uma notificação. Pode ver exatamente o que mudou linha por linha. Se estiver OK, clique em "Merge pull request" para unir ao main.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <hr class="divider">
+
+  <!-- SEÇÃO 5 -->
+  <div class="section page-break">
+    <div class="section-header">
+      <div class="section-number">5</div>
+      <div>
+        <div class="section-title">Referência Rápida de Comandos</div>
+        <div class="section-desc">Cole na parede ou salve no celular</div>
+      </div>
+    </div>
+
+    <table>
+      <tr><th>O que fazer</th><th>Comando</th></tr>
+      <tr><td>Ver o que mudou</td><td><code>git status</code></td></tr>
+      <tr><td>Ver diferença nos arquivos</td><td><code>git diff</code></td></tr>
+      <tr><td>Selecionar tudo</td><td><code>git add .</code></td></tr>
+      <tr><td>Selecionar arquivo específico</td><td><code>git add nome-do-arquivo.ts</code></td></tr>
+      <tr><td>Salvar localmente</td><td><code>git commit -m "mensagem"</code></td></tr>
+      <tr><td>Enviar para GitHub</td><td><code>git push</code></td></tr>
+      <tr><td>Baixar atualizações do GitHub</td><td><code>git pull</code></td></tr>
+      <tr><td>Criar nova branch</td><td><code>git checkout -b nome-da-branch</code></td></tr>
+      <tr><td>Trocar de branch</td><td><code>git checkout main</code></td></tr>
+      <tr><td>Ver histórico de commits</td><td><code>git log --oneline</code></td></tr>
+      <tr><td>Ver branches existentes</td><td><code>git branch</code></td></tr>
+      <tr><td>Desfazer mudanças não commitadas</td><td><code>git checkout -- .</code></td></tr>
+    </table>
+
+    <div style="margin-top:24px; margin-bottom:12px; font-weight:700; color:#1e1b4b; font-size:14px;">
+      Padrão de mensagens de commit:
+    </div>
+
+    <table>
+      <tr><th>Prefixo</th><th>Quando usar</th><th>Exemplo</th></tr>
+      <tr><td><code>feat:</code></td><td>Nova funcionalidade</td><td><code>feat: campo de prioridade no chamado</code></td></tr>
+      <tr><td><code>fix:</code></td><td>Correção de bug</td><td><code>fix: erro ao fechar chamado sem SLA</code></td></tr>
+      <tr><td><code>update:</code></td><td>Melhoria em algo existente</td><td><code>update: redesign da tela de clientes</code></td></tr>
+      <tr><td><code>refactor:</code></td><td>Reorganização de código</td><td><code>refactor: extrai lógica de SLA para service</code></td></tr>
+      <tr><td><code>docs:</code></td><td>Documentação</td><td><code>docs: atualiza README com setup</code></td></tr>
+      <tr><td><code>chore:</code></td><td>Tarefas de manutenção</td><td><code>chore: atualiza dependências</code></td></tr>
+    </table>
+  </div>
+
+  <hr class="divider">
+
+  <!-- SEÇÃO 6 -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-number">6</div>
+      <div>
+        <div class="section-title">Regras e Boas Práticas</div>
+        <div class="section-desc">Para manter o projeto organizado e seguro</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title"><span class="icon">🔒</span> Segurança — o que nunca vai para o GitHub</div>
+      <div style="margin-top:8px; font-size:12px; color:#374151; line-height:1.8;">
+        ✗ Arquivo <strong>.env</strong> (senhas do banco, chaves JWT, token do WhatsApp)<br>
+        ✗ Arquivos de backup (.sql, .dump)<br>
+        ✗ Logs do sistema<br>
+        ✗ node_modules (pasta de dependências)<br>
+        <br>
+        <em>Esses itens já estão bloqueados no arquivo <code style="background:#ede9fe;padding:1px 5px;border-radius:3px;font-family:monospace">.gitignore</code> — mas fique atento.</em>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title"><span class="icon">📝</span> Commite com frequência, não com raridade</div>
+      <div style="font-size:12px; color:#374151;">
+        Prefira muitos commits pequenos do que um commit gigante no final do dia. Commits pequenos são mais fáceis de revisar e de desfazer se algo der errado.
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title"><span class="icon">🔀</span> Uma tarefa = uma branch</div>
+      <div style="font-size:12px; color:#374151;">
+        Cada desenvolvedor deve ter uma branch por funcionalidade que está desenvolvendo. Não misture tarefas diferentes na mesma branch.
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title"><span class="icon">📣</span> Pull Request é obrigatório para unir ao main</div>
+      <div style="font-size:12px; color:#374151;">
+        Nenhum dev deve rodar <code style="background:#ede9fe;padding:1px 5px;border-radius:3px;font-family:monospace">git push origin main</code> diretamente. Sempre via PR revisado. Configure isso em: Settings → Branches → Add rule → require PR before merging.
+      </div>
+    </div>
+
+    <div class="alert success">
+      <div class="alert-icon"></div>
+      <div class="alert-text">
+        <strong>Dica: proteja a branch main no GitHub</strong>
+        Settings → Branches → Add branch protection rule → Branch name: main → marque "Require a pull request before merging". Isso impede que alguém empurre código direto sem revisão.
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    Orkestri — Guia de Uso do GitHub · Documento interno · Maio 2026<br>
+    Para dúvidas técnicas, abra uma issue em github.com/orkiestriadm/orkestri-clean/issues
+  </div>
+
+</div>
+</body>
+</html>

@@ -63,9 +63,13 @@ module.exports = {
         sm: "calc(var(--radius) - 4px)",
       },
       boxShadow: {
-        "neon-cyan": "0 0 10px rgba(34, 211, 238, 0.5), 0 0 20px rgba(34, 211, 238, 0.3)",
-        "neon-violet": "0 0 10px rgba(139, 92, 246, 0.5), 0 0 20px rgba(139, 92, 246, 0.3)",
-        "neon-primary": "0 0 15px hsl(var(--primary) / 0.5), 0 0 30px hsl(var(--primary) / 0.3)",
+        "premium-sm": "0 1px 2px rgba(0,0,0,0.04)",
+        "premium-md": "0 4px 12px rgba(0,0,0,0.05), 0 1px 2px rgba(0,0,0,0.03)",
+        "premium-lg": "0 12px 32px rgba(0,0,0,0.06), 0 4px 8px rgba(0,0,0,0.03)",
+        "premium-dark-sm": "0 1px 2px rgba(0,0,0,0.3)",
+        "premium-dark-md": "0 4px 12px rgba(0,0,0,0.4), 0 1px 2px rgba(0,0,0,0.2)",
+        "premium-dark-lg": "0 12px 32px rgba(0,0,0,0.6), 0 4px 8px rgba(0,0,0,0.3)",
+        "input-focus": "0 0 0 2px rgba(124,58,237,0.2)",
       },
       keyframes: {
         "accordion-down": {
@@ -76,25 +80,25 @@ module.exports = {
           from: { height: "var(--radix-accordion-content-height)" },
           to: { height: "0" },
         },
-        "grid-pan": {
-          "0%": { transform: "translateY(-50%)" },
-          "100%": { transform: "translateY(0)" }
+        "fade-in": {
+          "0%": { opacity: "0" },
+          "100%": { opacity: "1" },
         },
-        "pulse-glow": {
-          "0%, 100%": { opacity: 0.5, transform: "scale(1)" },
-          "50%": { opacity: 0.8, transform: "scale(1.05)" }
+        "fade-up": {
+          "0%": { opacity: "0", transform: "translateY(8px)" },
+          "100%": { opacity: "1", transform: "translateY(0)" },
         },
-        "scanline": {
-          "0%": { transform: "translateY(-100%)" },
-          "100%": { transform: "translateY(100vh)" }
-        }
+        "scale-in": {
+          "0%": { opacity: "0", transform: "scale(0.97)" },
+          "100%": { opacity: "1", transform: "scale(1)" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
-        "grid-pan": "grid-pan 10s linear infinite",
-        "pulse-glow": "pulse-glow 4s ease-in-out infinite",
-        "scanline": "scanline 8s linear infinite"
+        "fade-in": "fade-in 0.3s ease-out forwards",
+        "fade-up": "fade-up 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards",
+        "scale-in": "scale-in 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards",
       },
     },
   },

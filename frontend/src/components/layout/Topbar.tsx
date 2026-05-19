@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { usePathname } from "next/navigation";
-import { Menu, Search, Focus } from "lucide-react";
+import { Menu, Search, Focus, CalendarClock } from "lucide-react";
 import ThemeToggle from "@/components/ui/ThemeToggle";
 import PasswordRequests from "@/components/ui/PasswordRequests";
 import NotificationBell from "@/components/ui/NotificationBell";
@@ -53,48 +53,50 @@ export default function Topbar({ children }: { children?: React.ReactNode }) {
   return (
     <>
       {user?.impersonating && (
-        <div className="flex items-center justify-between px-5 py-1.5 text-[12px] font-mono border-b shrink-0"
-          style={{ background: "rgba(251,146,60,0.06)", borderColor: "rgba(251,146,60,0.18)", color: "#fb923c" }}>
-          <span>Administrando: <strong>{user.impersonatingOrgName}</strong></span>
+        <div className="flex items-center justify-between px-5 py-2 text-[12px] font-mono border-b shrink-0 bg-amber-500/[0.04] border-amber-500/20 text-amber-600 dark:text-amber-400">
+          <span>Administrando: <strong className="font-semibold">{user.impersonatingOrgName}</strong></span>
           <button onClick={exitImpersonation} disabled={exitingImpersonation}
-            className="text-[11px] px-3 py-1 rounded-md border transition-colors hover:bg-orange-500/10"
-            style={{ borderColor: "rgba(251,146,60,0.3)" }}>
+            className="text-[11px] px-3 py-1 rounded-md border border-amber-500/30 transition-colors hover:bg-amber-500/10">
             {exitingImpersonation ? "Saindo..." : "Sair da organização"}
           </button>
         </div>
       )}
 
-      <header className="h-14 min-h-[56px] flex items-center justify-between px-5 border-b border-[var(--border-subtle)] bg-[var(--bg-primary)] relative z-10 shrink-0">
-        <div className="flex items-center gap-3">
+      <header className="h-[60px] min-h-[60px] flex items-center justify-between px-6 border-b border-[var(--border-subtle)] bg-[var(--bg-primary)]/80 backdrop-blur-xl relative z-10 shrink-0 transition-colors duration-300">
+        <div className="flex items-center gap-4">
           <button className="mobile-menu-btn" onClick={() => document.getElementById("sidebar-toggle")?.click()} aria-label="Menu">
-            <Menu size={15} />
+            <Menu size={16} />
           </button>
           <div>
-            <h1 className="font-display text-[14px] font-bold text-[var(--text-primary)] leading-tight">{meta.label}</h1>
-            {meta.desc && <p className="text-[10px] text-[var(--text-muted)] font-mono leading-none mt-0.5 tracking-wide">{meta.desc}</p>}
+            <h1 className="font-display text-[16px] font-bold text-[var(--text-primary)] leading-tight tracking-tight">{meta.label}</h1>
+            {meta.desc && <p className="text-[11px] text-[var(--text-muted)] font-mono leading-none mt-1 tracking-wide">{meta.desc}</p>}
           </div>
         </div>
 
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-2">
           {children}
           <button
-            className="hidden sm:flex items-center gap-2 h-8 px-3 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-glass)] text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:border-[var(--border-medium)] transition-all text-[11px] font-mono"
+            className="hidden sm:flex items-center gap-2 h-[34px] px-3 rounded-[10px] border border-[var(--border-subtle)] bg-[var(--bg-secondary)] text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:border-[var(--border-medium)] shadow-premium-sm transition-all text-[12px] font-medium group"
             onClick={() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", ctrlKey: true, bubbles: true }))}>
-            <Search size={11} />
+            <Search size={13} className="text-[var(--text-faint)] group-hover:text-[var(--text-primary)] transition-colors" />
             <span>Buscar</span>
-            <kbd className="ml-1 text-[9px] opacity-50 hidden md:inline">Ctrl+K</kbd>
+            <kbd className="ml-2 text-[9px] px-1.5 py-0.5 rounded border border-[var(--border-subtle)] font-mono bg-[var(--bg-hover)] hidden md:inline">⌘K</kbd>
           </button>
+          
+          <div className="w-[1px] h-4 bg-[var(--border-subtle)] mx-1 hidden sm:block" />
+
           <button
-            className="flex items-center justify-center w-8 h-8 rounded-lg border border-[var(--border-subtle)] bg-transparent text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:border-[var(--border-medium)] transition-all"
+            className="btn-icon"
             title="Modo Foco" onClick={() => setFocusOpen(true)}>
-            <Focus size={14} />
+            <Focus size={15} />
           </button>
           <PasswordRequests />
           <NotificationBell />
           <ThemeToggle />
-          <div className="hidden sm:flex items-center gap-2 h-8 px-3 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-glass)] ml-0.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.5)]" />
-            <span className="text-[10px] font-mono text-[var(--text-muted)]">
+          
+          <div className="hidden sm:flex items-center gap-2 h-[34px] px-3 rounded-[10px] border border-[var(--border-subtle)] bg-[var(--bg-secondary)] ml-1 shadow-premium-sm">
+            <CalendarClock size={13} className="text-emerald-500" />
+            <span className="text-[11px] font-mono text-[var(--text-muted)]">
               {new Date().toLocaleDateString("pt-BR", { weekday: "short", day: "numeric", month: "short" })}
             </span>
           </div>

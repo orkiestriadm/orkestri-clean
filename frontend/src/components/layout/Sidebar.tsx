@@ -108,22 +108,23 @@ function NavItem({ item, path, isFav, onToggleFav }: {
     <Link
       href={item.href}
       className={cn(
-        "group flex items-center gap-2.5 px-3 py-[7px] rounded-[8px] text-[13px] font-medium transition-all duration-150 relative",
+        "group flex items-center gap-3 px-3 py-2 rounded-lg text-[13px] font-medium transition-all duration-200 ease-out relative",
         active
           ? "text-[var(--sidebar-active-text)] bg-[var(--sidebar-active-bg)]"
           : "text-[var(--sidebar-text)] hover:text-[var(--sidebar-text-hi)] hover:bg-[var(--sidebar-hover)]"
       )}
     >
       {active && (
-        <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-4 bg-[var(--sidebar-active-text)] rounded-r-full" />
+        <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-4 bg-[var(--sidebar-active-text)] rounded-r-full shadow-[0_0_8px_var(--sidebar-active-text)] opacity-80" />
       )}
       <Icon
-        size={14}
+        size={16}
+        strokeWidth={active ? 2.5 : 2}
         className={cn(
-          "shrink-0 transition-colors",
+          "shrink-0 transition-colors duration-200",
           active
             ? "text-[var(--sidebar-active-text)]"
-            : "text-[var(--sidebar-text)] group-hover:text-[var(--sidebar-text-hi)]"
+            : "text-[var(--text-muted)] group-hover:text-[var(--sidebar-text-hi)]"
         )}
       />
       <span className="truncate flex-1">{item.label}</span>
@@ -131,14 +132,14 @@ function NavItem({ item, path, isFav, onToggleFav }: {
         <button
           onClick={(e) => { e.preventDefault(); e.stopPropagation(); onToggleFav(item.href); }}
           className={cn(
-            "shrink-0 transition-all duration-150 rounded p-0.5 hover:scale-110",
+            "shrink-0 transition-all duration-200 rounded p-1 hover:scale-110",
             isFav
               ? "opacity-100 text-[var(--sidebar-active-text)]"
-              : "opacity-0 group-hover:opacity-50 text-[var(--sidebar-text)]"
+              : "opacity-0 group-hover:opacity-40 text-[var(--sidebar-text)]"
           )}
           title={isFav ? "Remover dos favoritos" : "Adicionar aos favoritos"}
         >
-          <Star size={10} fill={isFav ? "currentColor" : "none"} />
+          <Star size={12} fill={isFav ? "currentColor" : "none"} strokeWidth={isFav ? 0 : 2} />
         </button>
       )}
     </Link>
@@ -181,17 +182,18 @@ export default function Sidebar() {
   return (
     <aside className="sidebar">
       {/* ── Logo ── */}
-      <div className="flex items-center justify-center h-14 border-b border-[var(--sidebar-border)] shrink-0 px-4">
+      <div className="flex items-center justify-center h-16 border-b border-[var(--sidebar-border)] shrink-0 px-4">
         <BrandLogo size="sm" />
       </div>
 
       {/* ── Navigation ── */}
-      <nav className="flex-1 overflow-y-auto px-2.5 py-3 space-y-0.5">
+      <nav className="flex-1 overflow-y-auto px-4 py-6 space-y-1 scrollbar-thin">
 
         {/* Super admin item */}
         {user?.isMaster && (
-          <div className="mb-3 pb-3 border-b border-[var(--sidebar-border)]">
-            <div className="px-3 py-1 text-[10px] font-mono tracking-[0.12em] uppercase mb-0.5" style={{ color: "var(--sidebar-active-text)", opacity: 0.5 }}>
+          <div className="mb-6 pb-4 border-b border-[var(--sidebar-border)]">
+            <div className="px-3 py-1 text-[11px] font-semibold tracking-widest uppercase mb-1 flex items-center gap-2" style={{ color: "var(--sidebar-active-text)", opacity: 0.8 }}>
+              <Shield size={12} />
               Super Admin
             </div>
             <NavItem
@@ -204,13 +206,13 @@ export default function Sidebar() {
         )}
 
         {/* ── Favoritos ── */}
-        <div className="pb-3 mb-1 border-b border-[var(--sidebar-border)]">
-          <div className="px-3 py-1 text-[10px] font-mono tracking-[0.12em] uppercase text-[var(--sidebar-text)] mb-0.5 flex items-center gap-1.5">
-            <Star size={9} />
+        <div className="pb-4 mb-2 border-b border-[var(--sidebar-border)]">
+          <div className="px-3 py-1 text-[11px] font-semibold tracking-widest uppercase text-[var(--text-muted)] mb-1 flex items-center gap-1.5">
+            <Star size={12} />
             Favoritos
           </div>
           {favItems.length === 0 ? (
-            <div className="px-3 py-1.5 text-[11px] text-[var(--sidebar-text)] opacity-60 leading-relaxed">
+            <div className="px-3 py-2 text-[12px] text-[var(--sidebar-text)] opacity-60 leading-relaxed italic">
               Fixe módulos com ★ para acesso rápido
             </div>
           ) : (
@@ -234,7 +236,7 @@ export default function Sidebar() {
 
           if (!group.label) {
             return (
-              <div key={group.id} className="pb-3 mb-1 border-b border-[var(--sidebar-border)] space-y-0.5">
+              <div key={group.id} className="pb-4 mb-2 border-b border-[var(--sidebar-border)] space-y-0.5">
                 {visible.map(item => (
                   <NavItem
                     key={item.href}
@@ -252,28 +254,28 @@ export default function Sidebar() {
           const active = groupHasActive(group, path);
 
           return (
-            <div key={group.id} className="mb-0.5">
+            <div key={group.id} className="mb-1">
               <button
                 onClick={() => toggle(group.id)}
                 className={cn(
-                  "w-full flex items-center justify-between px-3 py-[7px] rounded-[8px] text-[10px] font-mono tracking-[0.1em] uppercase font-semibold transition-all duration-150",
+                  "w-full flex items-center justify-between px-3 py-2 rounded-lg text-[11px] font-semibold tracking-wider uppercase transition-all duration-200",
                   active
                     ? "text-[var(--sidebar-active-text)]"
-                    : "text-[var(--sidebar-text)] hover:text-[var(--sidebar-text-hi)] hover:bg-[var(--sidebar-hover)]"
+                    : "text-[var(--text-muted)] hover:text-[var(--sidebar-text-hi)] hover:bg-[var(--sidebar-hover)]"
                 )}
               >
                 {group.label}
                 <ChevronDown
-                  size={10}
+                  size={12}
                   className={cn("transition-transform duration-200 shrink-0", open && "rotate-180")}
                 />
               </button>
 
               <div className={cn(
-                "overflow-hidden transition-all duration-200 ease-in-out",
-                open ? "max-h-96 opacity-100 mt-0.5" : "max-h-0 opacity-0"
+                "overflow-hidden transition-all duration-300 ease-in-out",
+                open ? "max-h-96 opacity-100 mt-1" : "max-h-0 opacity-0"
               )}>
-                <div className="space-y-0.5 pb-1">
+                <div className="space-y-0.5 pb-2">
                   {visible.map(item => (
                     <NavItem
                       key={item.href}
@@ -291,28 +293,25 @@ export default function Sidebar() {
       </nav>
 
       {/* ── User footer ── */}
-      <div className="px-2.5 py-3 border-t border-[var(--sidebar-border)] shrink-0">
-        <div className="flex items-center gap-2.5 px-3 py-2.5 rounded-[10px] bg-[var(--sidebar-hover)] border border-[var(--sidebar-border)] mb-2 hover:opacity-80 transition-opacity">
+      <div className="px-4 py-4 border-t border-[var(--sidebar-border)] shrink-0 bg-[var(--sidebar-bg)]">
+        <div className="flex items-center gap-3 px-3 py-3 rounded-[12px] bg-[var(--bg-secondary)] border border-[var(--border-subtle)] mb-3 hover:border-[var(--border-medium)] transition-all cursor-pointer shadow-premium-sm">
           <Link href="/dashboard/perfil" className="relative shrink-0">
-            <div className="w-7 h-7 rounded-full bg-gradient-to-br from-violet-500/50 to-violet-700/50 border border-violet-500/30 flex items-center justify-center text-[11px] font-bold text-violet-300">
+            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-violet-500/20 to-cyan-500/20 border border-[var(--border-strong)] flex items-center justify-center text-[11px] font-bold text-[var(--sidebar-text-hi)]">
               {initials}
             </div>
-            <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-500 border-2 border-[var(--sidebar-bg)]" />
+            <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-500 border-2 border-[var(--bg-secondary)]" />
           </Link>
           <div className="flex-1 min-w-0">
-            <Link href="/dashboard/perfil" className="text-[12px] font-semibold text-[var(--sidebar-text-hi)] hover:opacity-80 transition-opacity block truncate">
+            <Link href="/dashboard/perfil" className="text-[13px] font-semibold text-[var(--sidebar-text-hi)] block truncate">
               {user?.nome?.split(" ")[0] || "Usuário"}
             </Link>
             <div className={cn(
-              "text-[9px] font-mono uppercase tracking-wider",
-              user?.isMaster ? "text-[var(--sidebar-active-text)] opacity-70" : "text-[var(--sidebar-text)]"
+              "text-[10px] uppercase tracking-wider font-medium",
+              user?.isMaster ? "text-[var(--sidebar-active-text)]" : "text-[var(--text-muted)]"
             )}>
               {user?.isMaster ? "Master" : "Membro"}
             </div>
           </div>
-          <Link href="/dashboard/perfil" className="text-[var(--sidebar-text)] hover:text-[var(--sidebar-text-hi)] transition-colors">
-            <UserCircle size={14} />
-          </Link>
         </div>
 
         <UserStatus />
@@ -320,9 +319,9 @@ export default function Sidebar() {
         <button
           onClick={handleLogout}
           disabled={loggingOut}
-          className="w-full flex items-center gap-2 px-3 py-2 rounded-[8px] text-[12px] font-medium text-[var(--sidebar-text)] hover:text-red-400 hover:bg-red-500/[0.06] transition-all disabled:opacity-40 mt-1"
+          className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg text-[13px] font-medium text-[var(--sidebar-text)] hover:text-red-500 hover:bg-red-500/[0.08] transition-all disabled:opacity-50 mt-2"
         >
-          <LogOut size={13} />
+          <LogOut size={14} />
           {loggingOut ? "Saindo..." : "Sair do sistema"}
         </button>
       </div>
