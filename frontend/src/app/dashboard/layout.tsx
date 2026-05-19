@@ -52,7 +52,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   );
 
   return (
-    <div style={{ display:"flex", height:"100vh", overflow:"hidden", background:"var(--bg-primary)" }}>
+    <div className="app-shell">
       <div style={{ position:"fixed", inset:0, pointerEvents:"none", zIndex:0, backgroundImage:"linear-gradient(rgba(124,58,237,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(124,58,237,0.03) 1px,transparent 1px)", backgroundSize:"48px 48px" }} />
       <NotificationInitializer />
       <AlertBanner />
@@ -72,7 +72,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </>
       )}
 
-      <main style={{ flex:1, display:"flex", flexDirection:"column", overflow:"hidden", position:"relative", zIndex:1 }}>
+      <main className="main-area" style={{ position:"relative", zIndex:1 }}>
         {/* Mobile menu button — injected as a global state setter */}
         <input type="hidden" id="sidebar-toggle" onClick={() => setSidebarOpen(true)} />
         {children}
