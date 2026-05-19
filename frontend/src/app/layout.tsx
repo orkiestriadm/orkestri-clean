@@ -9,7 +9,11 @@ export const metadata: Metadata = { title: "Orkiestri", description: "Sistema de
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="pt-BR" data-theme="dark">
+    <html lang="pt-BR">
+      <head>
+        {/* Anti-FOUC: set data-theme before React hydrates */}
+        <script dangerouslySetInnerHTML={{ __html: `(function(){try{var t=localStorage.getItem('orkestri-theme');if(!t){t=window.matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light';}document.documentElement.setAttribute('data-theme',t);}catch(e){}})();` }} />
+      </head>
       <body>
         <ThemeProvider>
           <div className="noise-overlay" />

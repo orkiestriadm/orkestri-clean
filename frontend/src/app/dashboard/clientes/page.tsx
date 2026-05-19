@@ -72,7 +72,7 @@ function ScoreRing({ score, size = 44 }: { score: number; size?: number }) {
   const color = scoreColor(score);
   return (
     <svg width={size} height={size} style={{ flexShrink: 0 }}>
-      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="5" />
+      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--border-subtle)" strokeWidth="5" />
       <circle
         cx={size / 2} cy={size / 2} r={r} fill="none"
         stroke={color} strokeWidth="5"
@@ -285,7 +285,7 @@ function ClienteCard({ c }: { c: Cliente }) {
             <span style={{
               fontSize: 10, fontFamily: "var(--font-mono)", letterSpacing: "0.06em",
               padding: "2px 8px", borderRadius: 20,
-              background: "rgba(255,255,255,0.04)", border: "1px solid var(--border-subtle)",
+              background: "var(--bg-glass)", border: "1px solid var(--border-subtle)",
               color: "var(--text-muted)",
             }}>
               {c.segmento}

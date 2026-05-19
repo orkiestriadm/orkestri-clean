@@ -64,37 +64,37 @@ export default function Topbar({ children }: { children?: React.ReactNode }) {
         </div>
       )}
 
-      <header className="h-14 min-h-[56px] flex items-center justify-between px-5 border-b border-white/[0.04] bg-transparent relative z-10 shrink-0">
+      <header className="h-14 min-h-[56px] flex items-center justify-between px-5 border-b border-[var(--border-subtle)] bg-[var(--bg-primary)] relative z-10 shrink-0">
         <div className="flex items-center gap-3">
           <button className="mobile-menu-btn" onClick={() => document.getElementById("sidebar-toggle")?.click()} aria-label="Menu">
             <Menu size={15} />
           </button>
           <div>
-            <h1 className="font-display text-[14px] font-bold text-white/85 leading-tight">{meta.label}</h1>
-            {meta.desc && <p className="text-[10px] text-white/25 font-mono leading-none mt-0.5 tracking-wide">{meta.desc}</p>}
+            <h1 className="font-display text-[14px] font-bold text-[var(--text-primary)] leading-tight">{meta.label}</h1>
+            {meta.desc && <p className="text-[10px] text-[var(--text-muted)] font-mono leading-none mt-0.5 tracking-wide">{meta.desc}</p>}
           </div>
         </div>
 
         <div className="flex items-center gap-1.5">
           {children}
           <button
-            className="hidden sm:flex items-center gap-2 h-8 px-3 rounded-lg border border-white/[0.06] bg-white/[0.02] text-white/30 hover:text-white/55 hover:bg-white/[0.04] hover:border-white/[0.09] transition-all text-[11px] font-mono"
+            className="hidden sm:flex items-center gap-2 h-8 px-3 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-glass)] text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:border-[var(--border-medium)] transition-all text-[11px] font-mono"
             onClick={() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", ctrlKey: true, bubbles: true }))}>
             <Search size={11} />
             <span>Buscar</span>
             <kbd className="ml-1 text-[9px] opacity-50 hidden md:inline">Ctrl+K</kbd>
           </button>
           <button
-            className="flex items-center justify-center w-8 h-8 rounded-lg border border-white/[0.06] bg-transparent text-white/30 hover:text-white/55 hover:bg-white/[0.04] hover:border-white/[0.09] transition-all"
+            className="flex items-center justify-center w-8 h-8 rounded-lg border border-[var(--border-subtle)] bg-transparent text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:border-[var(--border-medium)] transition-all"
             title="Modo Foco" onClick={() => setFocusOpen(true)}>
             <Focus size={14} />
           </button>
           <PasswordRequests />
           <NotificationBell />
           <ThemeToggle />
-          <div className="hidden sm:flex items-center gap-2 h-8 px-3 rounded-lg border border-white/[0.06] bg-white/[0.02] ml-0.5">
+          <div className="hidden sm:flex items-center gap-2 h-8 px-3 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-glass)] ml-0.5">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.5)]" />
-            <span className="text-[10px] font-mono text-white/25">
+            <span className="text-[10px] font-mono text-[var(--text-muted)]">
               {new Date().toLocaleDateString("pt-BR", { weekday: "short", day: "numeric", month: "short" })}
             </span>
           </div>
