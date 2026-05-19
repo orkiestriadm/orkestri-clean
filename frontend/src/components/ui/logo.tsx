@@ -1,6 +1,5 @@
 import React from "react";
 
-/** Ícone isolado — use quando precisar só do símbolo */
 export function OrkestriIcon({ size = 32, className = "" }: { size?: number; className?: string }) {
   return (
     <svg
@@ -28,6 +27,9 @@ export function OrkestriIcon({ size = 32, className = "" }: { size?: number; cla
   );
 }
 
+/** Alias mantido para compatibilidade com imports existentes */
+export const OrkestriLogo = OrkestriIcon;
+
 type BrandSize = "sm" | "md" | "lg";
 
 const SIZE: Record<BrandSize, { icon: number; text: string; gap: string }> = {
@@ -36,7 +38,6 @@ const SIZE: Record<BrandSize, { icon: number; text: string; gap: string }> = {
   lg: { icon: 36, text: "text-[20px]", gap: "gap-3" },
 };
 
-/** Logo completa — ícone + nome. Use em header, sidebar, login, footer. */
 export function BrandLogo({
   size = "md",
   className = "",
