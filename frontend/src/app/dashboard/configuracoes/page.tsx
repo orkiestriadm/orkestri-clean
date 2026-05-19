@@ -313,7 +313,7 @@ export default function ConfiguracoesPage() {
               </div>
               {qrData && !waStatus?.connected && (
                 <div style={{ textAlign:"center", paddingTop:12 }}>
-                  <p style={{ fontSize:12, color:"var(--text-muted)", marginBottom:10 }}>WhatsApp > Dispositivos vinculados > Vincular dispositivo:</p>
+                  <p style={{ fontSize:12, color:"var(--text-muted)", marginBottom:10 }}>WhatsApp &gt; Dispositivos vinculados &gt; Vincular dispositivo:</p>
                   <div style={{ display:"inline-block", padding:10, background:"white", borderRadius:10, marginBottom:8 }}>{renderQR()}</div>
                   <p style={{ fontSize:11, color:"var(--accent-violet)", fontFamily:"var(--font-mono)" }}>Aguardando escaneamento...</p>
                 </div>

@@ -242,7 +242,7 @@ export default function SolicitarAcessoPage() {
                     <select
                       value={form.organizationId}
                       onChange={e => set("organizationId", e.target.value)}
-                      className="input-o py-3.5 cursor-pointer appearance-none bg-[image:url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E\")] bg-no-repeat bg-[right_14px_center] pr-10"
+                      className={`input-o py-3.5 cursor-pointer appearance-none bg-[image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")] bg-no-repeat bg-[right_14px_center] pr-10`}
                       required
                     >
                       <option value="">Selecione sua empresa...</option>
