@@ -102,8 +102,9 @@ export default function LeadForm() {
     <section id="contato" ref={ref} className="relative py-24 lg:py-32 overflow-hidden">
       {/* Background */}
       <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[rgba(167,139,250,0.2)] to-transparent" />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[400px] bg-violet-600/5 blur-[120px] rounded-full" />
+        <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[rgba(167,139,250,0.25)] to-transparent" />
+        <div className="absolute top-1/2 left-1/3 -translate-y-1/2 w-[700px] h-[600px] bg-violet-600/10 blur-[140px] rounded-full" />
+        <div className="absolute top-1/2 right-1/4 -translate-y-1/2 w-[500px] h-[500px] bg-cyan-500/6 blur-[120px] rounded-full" />
       </div>
 
       <div className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -154,7 +155,7 @@ export default function LeadForm() {
             animate={inView ? { opacity: 1, x: 0 } : {}}
             transition={{ duration: 0.7, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
           >
-            <div className="lp-card relative rounded-2xl border border-[rgba(162,130,255,0.15)] backdrop-blur-xl p-8 shadow-[0_24px_60px_rgba(0,0,0,0.4)]">
+            <div className="lp-card relative rounded-2xl border border-[rgba(255,255,255,0.08)] backdrop-blur-xl p-8 shadow-[inset_0_1px_0_rgba(255,255,255,0.1),0_24px_60px_rgba(0,0,0,0.35)]">
               {/* Glow */}
               <div className="absolute -inset-px rounded-2xl bg-gradient-to-br from-violet-600/10 via-transparent to-cyan-500/5 pointer-events-none" />
 

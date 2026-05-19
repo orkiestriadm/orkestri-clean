@@ -90,8 +90,9 @@ export default function FaqSection() {
   return (
     <section ref={ref} className="relative py-24 lg:py-32 overflow-hidden">
       <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[rgba(167,139,250,0.15)] to-transparent" />
-        <div className="absolute bottom-1/3 right-0 w-[500px] h-[500px] bg-violet-600/4 blur-[120px] rounded-full" />
+        <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[rgba(167,139,250,0.22)] to-transparent" />
+        <div className="absolute top-1/2 left-0 w-[600px] h-[600px] bg-violet-600/8 blur-[140px] rounded-full -translate-y-1/2" />
+        <div className="absolute bottom-1/3 right-0 w-[500px] h-[500px] bg-cyan-500/6 blur-[120px] rounded-full" />
       </div>
 
       <div className="relative z-10 max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -113,7 +114,7 @@ export default function FaqSection() {
         </motion.div>
 
         {inView && (
-          <div className="lp-card rounded-2xl border border-[rgba(162,130,255,0.1)] backdrop-blur-sm px-7 sm:px-10">
+          <div className="lp-card rounded-2xl border border-[rgba(255,255,255,0.07)] backdrop-blur-md px-7 sm:px-10 shadow-[inset_0_1px_0_rgba(255,255,255,0.09),0_4px_40px_rgba(0,0,0,0.24)]">
             {FAQS.map((faq, i) => (
               <FaqItem key={faq.q} q={faq.q} a={faq.a} i={i} inView={inView} />
             ))}

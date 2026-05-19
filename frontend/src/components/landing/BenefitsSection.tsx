@@ -98,7 +98,7 @@ function SmallCard({ benefit, index, wide }: { benefit: Benefit; index: number; 
   return (
     <motion.div
       variants={itemAnim}
-      className={`lp-card group relative rounded-2xl border border-[rgba(162,130,255,0.1)] backdrop-blur-sm p-6 overflow-hidden cursor-default transition-all duration-300 hover:-translate-y-1.5 hover:border-[rgba(162,130,255,0.28)]${wide ? ' lg:col-span-2' : ''}`}
+      className={`lp-card group relative rounded-2xl border border-[rgba(255,255,255,0.07)] backdrop-blur-md p-6 overflow-hidden cursor-default transition-all duration-300 hover:-translate-y-1.5 hover:border-[rgba(167,139,250,0.28)] hover:shadow-[0_0_40px_rgba(124,58,237,0.07)]${wide ? ' lg:col-span-2' : ''}`}
     >
       {/* Linha de acento no topo — cor do card */}
       <div
@@ -157,7 +157,7 @@ function LargeCard({ benefit }: { benefit: Benefit }) {
   return (
     <motion.div
       variants={itemAnim}
-      className="lp-card group relative lg:col-span-2 rounded-2xl border border-[rgba(162,130,255,0.1)] backdrop-blur-sm p-7 overflow-hidden cursor-default transition-all duration-300 hover:-translate-y-1.5 hover:border-[rgba(162,130,255,0.28)]"
+      className="lp-card group relative lg:col-span-2 rounded-2xl border border-[rgba(255,255,255,0.07)] backdrop-blur-md p-7 overflow-hidden cursor-default transition-all duration-300 hover:-translate-y-1.5 hover:border-[rgba(167,139,250,0.28)] hover:shadow-[0_0_40px_rgba(124,58,237,0.07)]"
     >
       {/* Linha de acento no topo — cor do card */}
       <div
@@ -250,8 +250,8 @@ export default function BenefitsSection() {
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[rgba(167,139,250,0.3)] to-transparent" />
         <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[rgba(167,139,250,0.15)] to-transparent" />
-        <div className="absolute top-1/2 right-0 w-[600px] h-[600px] bg-violet-600/5 blur-[130px] rounded-full -translate-y-1/2" />
-        <div className="absolute top-1/2 left-0 w-[400px] h-[400px] bg-cyan-500/[0.04] blur-[100px] rounded-full -translate-y-1/2" />
+        <div className="absolute top-1/2 right-0 w-[700px] h-[700px] bg-violet-600/10 blur-[150px] rounded-full -translate-y-1/2" />
+        <div className="absolute top-1/2 left-0 w-[500px] h-[500px] bg-cyan-500/7 blur-[120px] rounded-full -translate-y-1/2" />
       </div>
 
       <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

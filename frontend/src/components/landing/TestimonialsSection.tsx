@@ -42,9 +42,10 @@ export default function TestimonialsSection() {
     <section ref={ref} className="relative py-24 lg:py-32 overflow-hidden">
       {/* Background */}
       <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute inset-0 bg-[var(--bg-secondary)]/30" />
-        <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[rgba(167,139,250,0.2)] to-transparent" />
-        <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[rgba(167,139,250,0.1)] to-transparent" />
+        <div className="absolute inset-0 bg-[var(--bg-secondary)]/50" />
+        <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[rgba(167,139,250,0.25)] to-transparent" />
+        <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[rgba(167,139,250,0.12)] to-transparent" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[500px] bg-violet-600/8 blur-[150px] rounded-full" />
       </div>
 
       <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -75,8 +76,11 @@ export default function TestimonialsSection() {
               initial={{ opacity: 0, y: 30 }}
               animate={inView ? { opacity: 1, y: 0 } : {}}
               transition={{ delay: 0.1 + i * 0.12, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-              className="lp-card group relative rounded-2xl border border-[rgba(162,130,255,0.12)] backdrop-blur-sm p-7 hover:border-[rgba(162,130,255,0.25)] transition-all duration-300 hover:-translate-y-1 flex flex-col"
+              className="lp-card group relative rounded-2xl border border-[rgba(255,255,255,0.07)] backdrop-blur-md p-7 hover:border-[rgba(167,139,250,0.28)] transition-all duration-300 hover:-translate-y-1.5 hover:shadow-[0_0_40px_rgba(124,58,237,0.08)] flex flex-col overflow-hidden"
             >
+              {/* Top edge highlight */}
+              <div className="absolute top-0 left-0 right-0 h-px opacity-20 group-hover:opacity-80 transition-opacity duration-300 bg-gradient-to-r from-transparent via-[rgba(167,139,250,0.8)] to-transparent" />
+
               {/* Quote icon */}
               <Quote size={28} className="text-[rgba(167,139,250,0.2)] mb-4 shrink-0" />
 
@@ -113,7 +117,7 @@ export default function TestimonialsSection() {
           transition={{ delay: 0.5, duration: 0.5 }}
           className="mt-12 text-center"
         >
-          <div className="lp-card-sm inline-flex items-center gap-6 px-8 py-4 rounded-2xl border border-[rgba(162,130,255,0.1)]">
+          <div className="lp-card-sm inline-flex items-center gap-6 px-8 py-4 rounded-2xl border border-[rgba(255,255,255,0.07)] shadow-[inset_0_1px_0_rgba(255,255,255,0.07)]">
             <div className="text-center">
               <div className="font-display font-bold text-2xl text-[var(--accent-violet)]">4,9</div>
               <div className="text-xs text-[var(--text-muted)] mt-0.5">Nota média</div>

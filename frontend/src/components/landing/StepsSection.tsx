@@ -47,10 +47,10 @@ export default function StepsSection() {
   return (
     <section ref={ref} id="plataforma" className="relative py-24 lg:py-32 overflow-hidden">
       <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute inset-0 bg-[rgba(13,13,28,0.4)]" />
-        <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[rgba(167,139,250,0.2)] to-transparent" />
-        <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[rgba(167,139,250,0.1)] to-transparent" />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[400px] bg-violet-600/4 blur-[140px] rounded-full" />
+        <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[rgba(167,139,250,0.25)] to-transparent" />
+        <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[rgba(167,139,250,0.12)] to-transparent" />
+        <div className="absolute top-1/2 left-1/3 -translate-y-1/2 w-[700px] h-[500px] bg-violet-600/9 blur-[140px] rounded-full" />
+        <div className="absolute top-1/2 right-1/4 -translate-y-1/2 w-[400px] h-[400px] bg-cyan-500/6 blur-[110px] rounded-full" />
       </div>
 
       <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -88,9 +88,13 @@ export default function StepsSection() {
                 initial={{ opacity: 0, y: 36 }}
                 animate={inView ? { opacity: 1, y: 0 } : {}}
                 transition={{ delay: 0.12 + i * 0.15, duration: 0.65, ease: [0.22, 1, 0.36, 1] }}
-                className="lp-card group relative rounded-2xl border backdrop-blur-sm p-8 transition-all duration-300 hover:-translate-y-1.5 cursor-default"
-                style={{ borderColor: `${step.color}22` }}
+                className="lp-card group relative rounded-2xl border backdrop-blur-md p-8 transition-all duration-300 hover:-translate-y-1.5 cursor-default overflow-hidden"
+                style={{ borderColor: `${step.color}20` }}
               >
+                {/* Top edge highlight — dim always, bright on hover */}
+                <div className="absolute top-0 left-0 right-0 h-px opacity-25 group-hover:opacity-100 transition-opacity duration-300"
+                  style={{ background: `linear-gradient(90deg, transparent, ${step.color}80, transparent)` }} />
+
                 {/* Hover glow */}
                 <div className="absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"
                   style={{ background: `radial-gradient(ellipse at 50% 0%, ${step.glow}, transparent 65%)` }} />

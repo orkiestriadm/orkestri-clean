@@ -417,18 +417,24 @@
 }
 @media (max-width: 768px) { .mobile-menu-btn { display: flex; } }
 
-/* ── Landing cards — gradiente roxo profundo (padrão Hero) ─── */
-.lp-card    { background: linear-gradient(145deg, rgba(76,29,149,0.18) 0%, rgba(8,8,22,0.93) 55%); }
-.lp-card-sm { background: linear-gradient(145deg, rgba(76,29,149,0.11) 0%, rgba(8,8,22,0.82) 55%); }
+/* ── Landing cards — premium glass ─────────────────────────── */
+.lp-card {
+  background: linear-gradient(145deg, rgba(124,58,237,0.12) 0%, rgba(18,12,42,0.56) 50%, rgba(8,6,18,0.48) 100%);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.09), 0 4px 32px rgba(0,0,0,0.24);
+}
+.lp-card-sm {
+  background: linear-gradient(145deg, rgba(124,58,237,0.07) 0%, rgba(8,6,18,0.44) 100%);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.06);
+}
 
 /* ── Landing page (always dark, isolated from theme) ───────── */
 .landing-dark {
-  --bg-primary: #06060f;
-  --bg-secondary: #0a0a1e;
-  --bg-card: rgba(10,10,30,0.95);
+  --bg-primary: #080818;
+  --bg-secondary: #0d0b26;
+  --bg-card: rgba(14,10,38,0.9);
   --text-primary: #edecea;
-  --text-secondary: rgba(255,255,255,0.45);
-  --text-muted: rgba(255,255,255,0.22);
-  --border-subtle: rgba(162,130,255,0.12);
+  --text-secondary: rgba(255,255,255,0.48);
+  --text-muted: rgba(255,255,255,0.25);
+  --border-subtle: rgba(162,130,255,0.11);
   --accent-violet: #a78bfa;
 }

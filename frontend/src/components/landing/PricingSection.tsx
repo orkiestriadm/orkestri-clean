@@ -81,9 +81,9 @@ export default function PricingSection() {
   return (
     <section ref={ref} id="planos" className="relative py-24 lg:py-32 overflow-hidden">
       <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[rgba(167,139,250,0.2)] to-transparent" />
-        <div className="absolute top-1/2 left-0 w-[700px] h-[700px] bg-violet-600/5 blur-[140px] rounded-full -translate-y-1/2" />
-        <div className="absolute top-1/2 right-0 w-[500px] h-[500px] bg-cyan-500/5 blur-[120px] rounded-full -translate-y-1/2" />
+        <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[rgba(167,139,250,0.25)] to-transparent" />
+        <div className="absolute top-1/2 left-0 w-[700px] h-[700px] bg-violet-600/10 blur-[140px] rounded-full -translate-y-1/2" />
+        <div className="absolute top-1/2 right-0 w-[500px] h-[500px] bg-cyan-500/7 blur-[120px] rounded-full -translate-y-1/2" />
       </div>
 
       <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -115,12 +115,17 @@ export default function PricingSection() {
               initial={{ opacity: 0, y: 36 }}
               animate={inView ? { opacity: 1, y: 0 } : {}}
               transition={{ delay: 0.1 + i * 0.12, duration: 0.65, ease: [0.22, 1, 0.36, 1] }}
-              className={`relative rounded-2xl border flex flex-col transition-all duration-300 ${
+              className={`group relative rounded-2xl border flex flex-col transition-all duration-300 ${
                 plan.highlight
-                  ? 'bg-gradient-to-b from-[rgba(124,58,237,0.14)] to-[rgba(10,10,28,0.9)] border-[rgba(124,58,237,0.45)] shadow-[0_0_60px_rgba(124,58,237,0.12),0_0_0_1px_rgba(124,58,237,0.15)] scale-[1.02] lg:scale-105'
-                  : 'lp-card border-[rgba(162,130,255,0.1)] backdrop-blur-sm hover:border-[rgba(162,130,255,0.25)] hover:-translate-y-1'
+                  ? 'bg-gradient-to-b from-[rgba(124,58,237,0.18)] to-[rgba(14,8,36,0.88)] border-[rgba(124,58,237,0.45)] shadow-[0_0_60px_rgba(124,58,237,0.15),inset_0_1px_0_rgba(255,255,255,0.12)] scale-[1.02] lg:scale-105'
+                  : 'lp-card border-[rgba(255,255,255,0.07)] backdrop-blur-md hover:border-[rgba(167,139,250,0.28)] hover:-translate-y-1.5 hover:shadow-[0_0_40px_rgba(124,58,237,0.08)] overflow-hidden'
               }`}
             >
+              {/* Top edge highlight for non-highlighted cards */}
+              {!plan.highlight && (
+                <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[rgba(167,139,250,0.4)] to-transparent opacity-20 group-hover:opacity-80 transition-opacity duration-300" />
+              )}
+
               {plan.badge && (
                 <div className="absolute -top-4 left-1/2 -translate-x-1/2 z-10">
                   <span className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-gradient-to-r from-violet-600 to-violet-500 text-white text-[11px] font-semibold shadow-[0_0_20px_rgba(124,58,237,0.5)] whitespace-nowrap">

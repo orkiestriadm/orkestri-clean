@@ -30,9 +30,9 @@ export default function DifferentialsSection() {
     <section ref={ref} className="relative py-24 lg:py-32 overflow-hidden">
       {/* Background */}
       <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[rgba(167,139,250,0.2)] to-transparent" />
-        <div className="absolute top-1/4 left-0 w-[600px] h-[600px] bg-violet-600/5 blur-[140px] rounded-full" />
-        <div className="absolute bottom-1/4 right-0 w-[400px] h-[400px] bg-cyan-500/5 blur-[100px] rounded-full" />
+        <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[rgba(167,139,250,0.25)] to-transparent" />
+        <div className="absolute top-1/4 left-0 w-[700px] h-[700px] bg-violet-600/10 blur-[150px] rounded-full" />
+        <div className="absolute bottom-1/4 right-0 w-[500px] h-[500px] bg-cyan-500/7 blur-[120px] rounded-full" />
       </div>
 
       <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -50,7 +50,7 @@ export default function DifferentialsSection() {
               initial={{ opacity: 0, y: 20 }}
               animate={inView ? { opacity: 1, y: 0 } : {}}
               transition={{ delay: 0.1 + i * 0.1, duration: 0.5 }}
-              className="lp-card rounded-2xl border border-[rgba(162,130,255,0.12)] backdrop-blur-sm p-6 text-center"
+              className="lp-card rounded-2xl border border-[rgba(255,255,255,0.07)] backdrop-blur-md p-6 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
             >
               <div className="font-display font-bold text-3xl sm:text-4xl mb-1" style={{ color: stat.color }}>
                 {stat.value}
@@ -86,7 +86,7 @@ export default function DifferentialsSection() {
             </p>
 
             {/* Compare table */}
-            <div className="lp-card-sm rounded-2xl border border-[rgba(162,130,255,0.12)] overflow-hidden">
+            <div className="lp-card-sm rounded-2xl border border-[rgba(255,255,255,0.07)] overflow-hidden shadow-[inset_0_1px_0_rgba(255,255,255,0.07)]">
               <div className="grid grid-cols-3 px-4 py-2.5 border-b border-[rgba(162,130,255,0.08)] text-[11px] text-[var(--text-muted)] font-medium">
                 <span>Característica</span>
                 <span className="text-center text-[var(--accent-violet)]">Orkiestri</span>
@@ -122,7 +122,7 @@ export default function DifferentialsSection() {
                   initial={{ opacity: 0, x: 20 }}
                   animate={inView ? { opacity: 1, x: 0 } : {}}
                   transition={{ delay: 0.35 + i * 0.06, duration: 0.4 }}
-                  className="lp-card-sm flex items-start gap-3 p-4 rounded-xl border border-[rgba(162,130,255,0.08)] hover:border-[rgba(162,130,255,0.2)] transition-all duration-200"
+                  className="lp-card-sm flex items-start gap-3 p-4 rounded-xl border border-[rgba(255,255,255,0.05)] hover:border-[rgba(167,139,250,0.22)] transition-all duration-200 hover:-translate-x-0 hover:shadow-[0_0_20px_rgba(124,58,237,0.06)]"
                 >
                   <div className="w-5 h-5 rounded-full bg-[rgba(52,211,153,0.15)] border border-[rgba(52,211,153,0.3)] flex items-center justify-center shrink-0 mt-0.5">
                     <Check size={11} className="text-[#34d399]" />

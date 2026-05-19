@@ -91,10 +91,11 @@ export default function ModulesSection() {
     <section id="modulos" ref={ref} className="relative py-24 lg:py-32 overflow-hidden">
       {/* Background */}
       <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute inset-0 bg-[var(--bg-secondary)]/40" />
-        <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[rgba(167,139,250,0.2)] to-transparent" />
-        <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[rgba(167,139,250,0.1)] to-transparent" />
-        <div className="absolute bottom-0 left-1/4 w-[500px] h-[500px] bg-violet-600/5 blur-[120px] rounded-full" />
+        <div className="absolute inset-0 bg-[var(--bg-secondary)]/50" />
+        <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[rgba(167,139,250,0.25)] to-transparent" />
+        <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[rgba(167,139,250,0.12)] to-transparent" />
+        <div className="absolute top-1/4 left-1/4 w-[700px] h-[600px] bg-violet-600/10 blur-[140px] rounded-full" />
+        <div className="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] bg-cyan-500/7 blur-[120px] rounded-full" />
       </div>
 
       <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -129,14 +130,14 @@ export default function ModulesSection() {
               <motion.div
                 key={mod.name}
                 variants={item}
-                className="lp-card group relative rounded-2xl border border-[rgba(162,130,255,0.1)] backdrop-blur-sm p-6 hover:-translate-y-1.5 hover:border-[rgba(162,130,255,0.35)] transition-all duration-300 cursor-default overflow-hidden"
+                className="lp-card group relative rounded-2xl border border-[rgba(255,255,255,0.07)] backdrop-blur-md p-6 hover:-translate-y-1.5 hover:border-[rgba(167,139,250,0.3)] transition-all duration-300 cursor-default overflow-hidden hover:shadow-[0_0_40px_rgba(124,58,237,0.09)]"
               >
                 {/* Gradient overlay on hover */}
                 <div className={`absolute inset-0 rounded-2xl bg-gradient-to-b ${mod.gradient} opacity-0 group-hover:opacity-100 transition-opacity duration-300`} />
 
-                {/* Glow top edge */}
-                <div className="absolute top-0 left-0 right-0 h-px opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-                  style={{ background: `linear-gradient(90deg, transparent, ${mod.color}60, transparent)` }} />
+                {/* Top edge glow — subtle always, bright on hover */}
+                <div className="absolute top-0 left-0 right-0 h-px opacity-20 group-hover:opacity-100 transition-opacity duration-300"
+                  style={{ background: `linear-gradient(90deg, transparent, ${mod.color}70, transparent)` }} />
 
                 <div className="relative">
                   {/* Icon */}
