@@ -5,12 +5,18 @@ import Link from "next/link";
 import { useAuthStore } from "@/lib/store";
 import { authApi } from "@/lib/api";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowRight, Shield, Zap, BarChart3, Eye, EyeOff } from "lucide-react";
+import { ArrowRight, Shield, Zap, BarChart3, Eye, EyeOff, CheckCircle2 } from "lucide-react";
 
 const FEATURES = [
   { icon: Shield, label: "Segurança enterprise", desc: "Multi-tenant, JWT HttpOnly, OWASP nativo" },
   { icon: Zap, label: "Automações inteligentes", desc: "Fluxos e notificações via WhatsApp" },
   { icon: BarChart3, label: "Analytics em tempo real", desc: "KPIs, CSAT, SLA e dashboards executivos" },
+];
+
+const STATS = [
+  { value: "+120", label: "empresas ativas" },
+  { value: "4.9★", label: "satisfação" },
+  { value: "99,9%", label: "disponibilidade" },
 ];
 
 export default function LoginPage() {
@@ -45,79 +51,107 @@ export default function LoginPage() {
   if (!mounted) return null;
 
   return (
-    <div className="min-h-screen flex bg-[#070711] overflow-hidden">
-      {/* ── Background decorations ── */}
+    <div className="min-h-screen flex bg-[#06060f] overflow-hidden">
+
+      {/* ── Background ── */}
       <div className="fixed inset-0 pointer-events-none select-none">
-        <div className="absolute top-[-20%] left-[-10%] w-[700px] h-[700px] rounded-full bg-violet-600/8 blur-[140px]" />
-        <div className="absolute bottom-[-20%] right-[-10%] w-[600px] h-[600px] rounded-full bg-cyan-500/6 blur-[120px]" />
-        <div className="absolute inset-0 opacity-[0.025]"
+        {/* Primary orb */}
+        <div className="absolute top-[-15%] left-[-8%] w-[800px] h-[800px] rounded-full bg-violet-700/8 blur-[150px]" />
+        {/* Cyan orb */}
+        <div className="absolute bottom-[-15%] right-[-8%] w-[700px] h-[700px] rounded-full bg-cyan-500/6 blur-[130px]" />
+        {/* Small accent */}
+        <div className="absolute top-1/2 right-1/3 w-[300px] h-[300px] rounded-full bg-violet-500/5 blur-[80px] -translate-y-1/2" />
+        {/* Dot grid */}
+        <div className="absolute inset-0 opacity-[0.022]"
           style={{ backgroundImage: 'radial-gradient(circle, rgba(167,139,250,1) 1px, transparent 1px)', backgroundSize: '32px 32px' }} />
+        {/* Vertical gradient separator */}
+        <div className="hidden lg:block absolute top-0 bottom-0 left-[480px] w-px bg-gradient-to-b from-transparent via-[rgba(162,130,255,0.12)] to-transparent" />
       </div>
 
-      {/* ── Left panel — Brand (desktop only) ── */}
+      {/* ── Left panel ── */}
       <motion.div
-        initial={{ opacity: 0, x: -24 }}
+        initial={{ opacity: 0, x: -28 }}
         animate={{ opacity: 1, x: 0 }}
-        transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
-        className="hidden lg:flex flex-col justify-between w-[480px] shrink-0 relative z-10 p-12 border-r border-white/[0.04]"
+        transition={{ duration: 0.75, ease: [0.22, 1, 0.36, 1] }}
+        className="hidden lg:flex flex-col justify-between w-[480px] shrink-0 relative z-10 p-14"
       >
         {/* Logo */}
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-[11px] bg-gradient-to-br from-violet-500 to-violet-700 flex items-center justify-center shadow-[0_0_20px_rgba(124,58,237,0.4)]">
-            <span className="font-display font-bold text-white text-base">O</span>
+        <Link href="/" className="flex items-center gap-3 group">
+          <div className="w-10 h-10 rounded-[12px] bg-gradient-to-br from-violet-500 to-violet-700 flex items-center justify-center shadow-[0_0_24px_rgba(124,58,237,0.45)] group-hover:shadow-[0_0_36px_rgba(124,58,237,0.6)] transition-shadow">
+            <span className="font-display font-bold text-white text-[17px]">O</span>
           </div>
           <div>
-            <div className="font-display font-bold text-white text-[17px] leading-tight">Orkiestri</div>
-            <div className="text-[10px] font-mono text-white/30 tracking-[0.12em] uppercase">Enterprise v2.0</div>
+            <div className="font-display font-bold text-white text-[18px] leading-tight">Orkiestri</div>
+            <div className="text-[10px] font-mono text-white/25 tracking-[0.14em] uppercase">Enterprise v2.0</div>
           </div>
-        </div>
+        </Link>
 
         {/* Main statement */}
-        <div className="space-y-8">
+        <div className="space-y-10">
           <div>
-            <h1 className="font-display text-[42px] font-bold leading-[1.1] tracking-tight text-white mb-4">
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-[rgba(167,139,250,0.25)] bg-[rgba(167,139,250,0.08)] text-[#a78bfa] text-[11px] font-medium mb-6">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#34d399] animate-pulse" />
+              Sistema disponível · 99,9% uptime
+            </div>
+            <h1 className="font-display text-[44px] font-bold leading-[1.08] tracking-tight text-white mb-5">
               Profundidade
               <br />
-              <span className="bg-gradient-to-r from-violet-400 via-violet-300 to-cyan-400 bg-clip-text text-transparent">
+              <span className="bg-gradient-to-r from-violet-400 via-fuchsia-300 to-violet-400 bg-clip-text text-transparent">
                 corporativa.
               </span>
               <br />
               Experiência
               <br />
-              <span className="text-white/50">moderna.</span>
+              <span className="text-white/40">moderna.</span>
             </h1>
             <p className="text-[15px] text-white/40 leading-relaxed max-w-[340px]">
               Centralize CRM, projetos, chamados, financeiro e operações em uma única plataforma enterprise.
             </p>
           </div>
 
-          {/* Features */}
+          {/* Feature list */}
           <div className="space-y-4">
             {FEATURES.map(({ icon: Icon, label, desc }, i) => (
               <motion.div
                 key={label}
-                initial={{ opacity: 0, x: -16 }}
+                initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.3 + i * 0.1, duration: 0.5 }}
-                className="flex items-start gap-3.5"
+                transition={{ delay: 0.35 + i * 0.1, duration: 0.5 }}
+                className="flex items-start gap-3.5 group"
               >
-                <div className="w-8 h-8 rounded-lg bg-white/[0.04] border border-white/[0.06] flex items-center justify-center shrink-0 mt-0.5">
-                  <Icon size={15} className="text-violet-400" />
+                <div className="w-9 h-9 rounded-[10px] bg-white/[0.04] border border-white/[0.07] flex items-center justify-center shrink-0 mt-0.5 group-hover:bg-white/[0.07] group-hover:border-white/[0.12] transition-all">
+                  <Icon size={16} className="text-violet-400" />
                 </div>
                 <div>
                   <div className="text-[13px] font-semibold text-white/80">{label}</div>
-                  <div className="text-[12px] text-white/30">{desc}</div>
+                  <div className="text-[12px] text-white/30 mt-0.5">{desc}</div>
                 </div>
+              </motion.div>
+            ))}
+          </div>
+
+          {/* Stats strip */}
+          <div className="grid grid-cols-3 gap-3">
+            {STATS.map((stat, i) => (
+              <motion.div
+                key={stat.label}
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.6 + i * 0.08, duration: 0.4 }}
+                className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-3 text-center"
+              >
+                <div className="font-display font-bold text-lg text-violet-400 leading-none">{stat.value}</div>
+                <div className="text-[10px] text-white/25 mt-1 font-mono">{stat.label}</div>
               </motion.div>
             ))}
           </div>
         </div>
 
-        {/* Bottom */}
+        {/* Social proof footer */}
         <div className="flex items-center gap-3">
           <div className="flex -space-x-1.5">
-            {['G','T','R','M','A'].map((l, i) => (
-              <div key={i} className="w-6 h-6 rounded-full border border-[#070711] bg-gradient-to-br from-violet-500/60 to-violet-700/60 flex items-center justify-center text-[9px] font-bold text-white/70">
+            {['G', 'T', 'R', 'M', 'A'].map((l, i) => (
+              <div key={i} className="w-7 h-7 rounded-full border-2 border-[#06060f] bg-gradient-to-br from-violet-500/60 to-violet-700/60 flex items-center justify-center text-[9px] font-bold text-white/70">
                 {l}
               </div>
             ))}
@@ -129,47 +163,52 @@ export default function LoginPage() {
       {/* ── Right panel — Form ── */}
       <div className="flex-1 flex items-center justify-center p-6 relative z-10">
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 24 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-          className="w-full max-w-[400px]"
+          transition={{ duration: 0.65, ease: [0.22, 1, 0.36, 1] }}
+          className="w-full max-w-[420px]"
         >
           {/* Mobile logo */}
           <div className="flex items-center gap-3 mb-10 lg:hidden justify-center">
-            <div className="w-9 h-9 rounded-[11px] bg-gradient-to-br from-violet-500 to-violet-700 flex items-center justify-center">
-              <span className="font-display font-bold text-white text-base">O</span>
+            <div className="w-10 h-10 rounded-[12px] bg-gradient-to-br from-violet-500 to-violet-700 flex items-center justify-center shadow-[0_0_20px_rgba(124,58,237,0.4)]">
+              <span className="font-display font-bold text-white text-[17px]">O</span>
             </div>
-            <span className="font-display font-bold text-white text-[17px]">Orkiestri</span>
+            <span className="font-display font-bold text-white text-[18px]">Orkiestri</span>
           </div>
 
           {/* Header */}
           <div className="mb-8">
-            <h2 className="font-display text-[28px] font-bold text-white mb-2 leading-tight">Bem-vindo de volta</h2>
+            <h2 className="font-display text-[30px] font-bold text-white mb-2 leading-tight tracking-tight">
+              Bem-vindo de volta
+            </h2>
             <p className="text-[14px] text-white/35">Acesse seu workspace enterprise.</p>
           </div>
 
           {/* Form card */}
-          <div className="rounded-2xl border border-white/[0.06] bg-white/[0.03] backdrop-blur-xl p-8 shadow-[0_32px_80px_rgba(0,0,0,0.5)]">
+          <div className="relative rounded-2xl border border-white/[0.07] bg-white/[0.025] backdrop-blur-2xl p-8 shadow-[0_40px_100px_rgba(0,0,0,0.6),0_0_0_1px_rgba(255,255,255,0.04)]">
+            {/* Top glow line */}
+            <div className="absolute top-0 left-8 right-8 h-px bg-gradient-to-r from-transparent via-[rgba(167,139,250,0.4)] to-transparent" />
+
             <form onSubmit={handleLogin} className="flex flex-col gap-5">
 
               {/* Email */}
               <div className="flex flex-col gap-1.5">
-                <label className="text-[12px] font-medium text-white/40 tracking-wide uppercase">E-mail</label>
+                <label className="text-[11px] font-semibold text-white/35 tracking-widest uppercase">E-mail</label>
                 <input
                   type="email"
                   value={email}
                   onChange={e => setEmail(e.target.value)}
                   placeholder="nome@empresa.com"
                   autoComplete="email"
-                  className="w-full bg-white/[0.04] border border-white/[0.07] rounded-xl px-4 py-3.5 text-[14px] text-white placeholder-white/20 outline-none focus:border-violet-500/50 focus:bg-violet-500/[0.06] focus:shadow-[0_0_0_3px_rgba(124,58,237,0.1)] transition-all"
+                  className="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-4 py-3.5 text-[14px] text-white placeholder-white/20 outline-none focus:border-violet-500/60 focus:bg-violet-500/[0.07] focus:shadow-[0_0_0_3px_rgba(124,58,237,0.12)] transition-all duration-200"
                 />
               </div>
 
               {/* Password */}
               <div className="flex flex-col gap-1.5">
                 <div className="flex items-center justify-between">
-                  <label className="text-[12px] font-medium text-white/40 tracking-wide uppercase">Senha</label>
-                  <Link href="/recuperar-senha" className="text-[12px] text-violet-400/70 hover:text-violet-400 transition-colors">
+                  <label className="text-[11px] font-semibold text-white/35 tracking-widest uppercase">Senha</label>
+                  <Link href="/recuperar-senha" className="text-[12px] text-violet-400/60 hover:text-violet-400 transition-colors">
                     Esqueci a senha
                   </Link>
                 </div>
@@ -180,12 +219,13 @@ export default function LoginPage() {
                     onChange={e => setSenha(e.target.value)}
                     placeholder="••••••••••"
                     autoComplete="current-password"
-                    className="w-full bg-white/[0.04] border border-white/[0.07] rounded-xl px-4 py-3.5 pr-11 text-[14px] text-white placeholder-white/20 outline-none focus:border-violet-500/50 focus:bg-violet-500/[0.06] focus:shadow-[0_0_0_3px_rgba(124,58,237,0.1)] transition-all"
+                    className="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-4 py-3.5 pr-11 text-[14px] text-white placeholder-white/20 outline-none focus:border-violet-500/60 focus:bg-violet-500/[0.07] focus:shadow-[0_0_0_3px_rgba(124,58,237,0.12)] transition-all duration-200"
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(s => !s)}
-                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-white/25 hover:text-white/50 transition-colors"
+                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-white/20 hover:text-white/50 transition-colors"
+                    aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
                   >
                     {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                   </button>
@@ -199,6 +239,7 @@ export default function LoginPage() {
                     initial={{ opacity: 0, y: -8, height: 0 }}
                     animate={{ opacity: 1, y: 0, height: 'auto' }}
                     exit={{ opacity: 0, y: -8, height: 0 }}
+                    transition={{ duration: 0.22 }}
                     className="text-[13px] text-red-400 bg-red-500/[0.08] border border-red-500/20 rounded-xl px-4 py-3 text-center"
                   >
                     {localError}
@@ -210,7 +251,7 @@ export default function LoginPage() {
               <button
                 type="submit"
                 disabled={localLoading || !email || !senha}
-                className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl bg-gradient-to-r from-violet-600 to-violet-500 text-white font-semibold text-[14px] hover:from-violet-500 hover:to-violet-400 transition-all shadow-[0_4px_16px_rgba(124,58,237,0.3)] hover:shadow-[0_6px_24px_rgba(124,58,237,0.45)] disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none"
+                className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl bg-gradient-to-r from-violet-600 to-violet-500 text-white font-semibold text-[14px] hover:from-violet-500 hover:to-violet-400 transition-all shadow-[0_4px_20px_rgba(124,58,237,0.35)] hover:shadow-[0_6px_28px_rgba(124,58,237,0.55)] hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none disabled:translate-y-0"
               >
                 {localLoading ? (
                   <>
@@ -224,15 +265,26 @@ export default function LoginPage() {
                   <>Entrar no workspace <ArrowRight size={16} /></>
                 )}
               </button>
+
+              {/* Trust signals */}
+              <div className="flex items-center justify-center gap-4 pt-1">
+                {['Dados criptografados', 'LGPD compliant', 'Multi-tenant'].map((t, i) => (
+                  <div key={t} className="flex items-center gap-1">
+                    <CheckCircle2 size={10} className="text-[#34d399] shrink-0" />
+                    <span className="text-[10px] text-white/20">{t}</span>
+                  </div>
+                ))}
+              </div>
             </form>
           </div>
 
           {/* Footer links */}
           <div className="mt-6 text-center space-y-3">
-            <Link href="/solicitar-acesso" className="text-[13px] text-white/30 hover:text-white/60 transition-colors">
-              Não tem acesso? <span className="text-violet-400/70 hover:text-violet-400">Solicitar usuário →</span>
+            <Link href="/solicitar-acesso" className="text-[13px] text-white/25 hover:text-white/55 transition-colors">
+              Não tem acesso?{' '}
+              <span className="text-violet-400/60 hover:text-violet-400">Solicitar usuário →</span>
             </Link>
-            <p className="text-[11px] text-white/15 font-mono">Orkiestri Enterprise · v2.0.4</p>
+            <p className="text-[11px] text-white/12 font-mono">Orkiestri Enterprise · v2.0.4</p>
           </div>
         </motion.div>
       </div>

@@ -9,6 +9,7 @@ const NAV_LINKS = [
   { label: 'Plataforma', href: '#plataforma' },
   { label: 'Módulos', href: '#modulos' },
   { label: 'Benefícios', href: '#beneficios' },
+  { label: 'Preços', href: '#planos' },
   { label: 'Contato', href: '#contato' },
 ]
 

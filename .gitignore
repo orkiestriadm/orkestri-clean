@@ -38,8 +38,10 @@ Thumbs.db
 # Prisma generated (rebuilt on deploy)
 backend/node_modules/.prisma/
 
-# Claude AI internal files
+# Claude AI internal files (settings pessoais ignorados, skills versionadas)
 .claude/
+!.claude/skills/
+!.claude/skills/**
 
 # Misc
 fm2.js
