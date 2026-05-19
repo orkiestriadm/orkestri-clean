@@ -133,14 +133,8 @@ export default function Sidebar() {
   return (
     <aside className="sidebar">
       {/* ── Logo ── */}
-      <div className="flex items-center gap-2.5 px-5 h-14 border-b border-white/[0.04] shrink-0">
-        <div className="w-7 h-7 rounded-[9px] bg-gradient-to-br from-violet-500 to-violet-700 flex items-center justify-center shadow-[0_0_14px_rgba(124,58,237,0.35)] shrink-0">
-          <span className="font-display font-bold text-white text-[13px]">O</span>
-        </div>
-        <div className="min-w-0">
-          <div className="font-display font-bold text-white text-[14px] leading-tight tracking-tight">Orkiestri</div>
-          <div className="text-[9px] font-mono text-white/20 tracking-[0.12em] uppercase leading-none mt-0.5">Enterprise v2.0</div>
-        </div>
+      <div className="flex items-center px-5 h-14 border-b border-white/[0.04] shrink-0">
+        <img src="/logo-orkiestri-dark.png" alt="Logo Orkiestri" className="h-7 w-auto object-contain" />
       </div>
 
       {/* ── Navigation ── */}

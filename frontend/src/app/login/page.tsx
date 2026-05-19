@@ -76,14 +76,8 @@ export default function LoginPage() {
         className="hidden lg:flex flex-col justify-between w-[480px] shrink-0 relative z-10 p-14"
       >
         {/* Logo */}
-        <Link href="/" className="flex items-center gap-3 group">
-          <div className="w-10 h-10 rounded-[12px] bg-gradient-to-br from-violet-500 to-violet-700 flex items-center justify-center shadow-[0_0_24px_rgba(124,58,237,0.45)] group-hover:shadow-[0_0_36px_rgba(124,58,237,0.6)] transition-shadow">
-            <span className="font-display font-bold text-white text-[17px]">O</span>
-          </div>
-          <div>
-            <div className="font-display font-bold text-white text-[18px] leading-tight">Orkiestri</div>
-            <div className="text-[10px] font-mono text-white/25 tracking-[0.14em] uppercase">Enterprise v2.0</div>
-          </div>
+        <Link href="/">
+          <img src="/logo-orkiestri-dark.png" alt="Logo Orkiestri" className="h-9 w-auto object-contain" />
         </Link>
 
         {/* Main statement */}
@@ -169,11 +163,8 @@ export default function LoginPage() {
           className="w-full max-w-[420px]"
         >
           {/* Mobile logo */}
-          <div className="flex items-center gap-3 mb-10 lg:hidden justify-center">
-            <div className="w-10 h-10 rounded-[12px] bg-gradient-to-br from-violet-500 to-violet-700 flex items-center justify-center shadow-[0_0_20px_rgba(124,58,237,0.4)]">
-              <span className="font-display font-bold text-white text-[17px]">O</span>
-            </div>
-            <span className="font-display font-bold text-white text-[18px]">Orkiestri</span>
+          <div className="mb-10 lg:hidden flex justify-center">
+            <img src="/logo-orkiestri-dark.png" alt="Logo Orkiestri" className="h-9 w-auto object-contain" />
           </div>
 
           {/* Header */}

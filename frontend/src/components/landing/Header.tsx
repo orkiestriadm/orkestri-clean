@@ -51,13 +51,8 @@ export default function Header() {
           <div className="flex items-center justify-between h-16 lg:h-20">
 
             {/* Logo */}
-            <Link href="/" className="flex items-center gap-2.5 group shrink-0">
-              <div className="w-8 h-8 rounded-[10px] bg-gradient-to-br from-violet-500 to-violet-700 flex items-center justify-center shadow-[0_0_20px_rgba(167,139,250,0.45)] group-hover:shadow-[0_0_28px_rgba(167,139,250,0.65)] transition-shadow">
-                <span className="font-display font-bold text-white text-sm leading-none">O</span>
-              </div>
-              <span className="font-display font-bold text-[17px] text-[var(--text-primary)] group-hover:text-[var(--accent-violet)] transition-colors">
-                Orkiestri
-              </span>
+            <Link href="/" className="flex items-center shrink-0">
+              <img src="/logo-orkiestri-dark.png" alt="Logo Orkiestri" className="h-7 w-auto object-contain" />
             </Link>
 
             {/* Desktop nav */}
