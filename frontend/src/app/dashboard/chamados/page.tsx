@@ -387,6 +387,9 @@ function ChamadoDrawer({ chamado, isMaster, userId, onClose, onUpdated }: {
   const [sending, setSending] = useState(false);
   const [changingStatus, setChangingStatus] = useState(false);
   const [atribuindo, setAtribuindo] = useState(false);
+  const [showSuggest, setShowSuggest] = useState(false);
+  const [suggestions, setSuggestions] = useState<any[]>([]);
+  const [loadingSuggest, setLoadingSuggest] = useState(false);
   const [rating, setRating] = useState(0);
   const [ratingNota, setRatingNota] = useState("");
   const [savingRating, setSavingRating] = useState(false);
@@ -439,6 +442,19 @@ function ChamadoDrawer({ chamado, isMaster, userId, onClose, onUpdated }: {
     } finally {
       setAtribuindo(false);
     }
+  }
+
+  async function loadSuggestions() {
+    setShowSuggest(true);
+    setLoadingSuggest(true);
+    try {
+      const params: any = { limit: 5 };
+      if ((detail as any)?.skillRequeridaId) params.skillId = (detail as any).skillRequeridaId;
+      if ((detail as any)?.nivelMinimo)      params.nivelMinimo = (detail as any).nivelMinimo;
+      const r = await api.get("/skills/suggest", { params });
+      setSuggestions(r.data);
+    } catch { setSuggestions([]); }
+    finally { setLoadingSuggest(false); }
   }
 
   async function avaliar() {
@@ -503,15 +519,26 @@ function ChamadoDrawer({ chamado, isMaster, userId, onClose, onUpdated }: {
               <div>
                 <span className="text-[11px] font-mono text-[var(--text-muted)] tracking-wider uppercase mb-1.5 block">Atendente</span>
                 {isMaster ? (
-                  <select
-                    className="input-o text-xs py-1.5"
-                    value={detail.atendenteId || ""}
-                    onChange={e => atribuir(e.target.value)}
-                    disabled={atribuindo}
-                  >
-                    <option value="">Não atribuído</option>
-                    {users.map(u => <option key={u.id} value={u.id}>{u.nome}</option>)}
-                  </select>
+                  <div className="flex items-center gap-2">
+                    <select
+                      className="input-o text-xs py-1.5 flex-1"
+                      value={detail.atendenteId || ""}
+                      onChange={e => atribuir(e.target.value)}
+                      disabled={atribuindo}
+                    >
+                      <option value="">Não atribuído</option>
+                      {users.map(u => <option key={u.id} value={u.id}>{u.nome}</option>)}
+                    </select>
+                    <button
+                      onClick={loadSuggestions}
+                      className="btn btn-ghost text-xs py-1.5 px-3"
+                      title="Sugerir atendente com base em skill + carga + senioridade"
+                      style={{ whiteSpace:"nowrap" }}
+                    >
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ display:"inline-block", verticalAlign:"middle", marginRight:4 }}><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+                      Sugerir
+                    </button>
+                  </div>
                 ) : (
                   <div className="flex items-center gap-2">
                     {detail.atendente
@@ -626,6 +653,80 @@ function ChamadoDrawer({ chamado, isMaster, userId, onClose, onUpdated }: {
           </div>
         )}
       </div>
+
+      {/* Smart Suggest Drawer */}
+      {showSuggest && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={()=>setShowSuggest(false)}>
+          <div className="bg-[var(--bg-card)] border border-[var(--border-medium)] rounded-2xl w-full max-w-xl mx-4 max-h-[80vh] overflow-y-auto" onClick={e=>e.stopPropagation()}>
+            <div className="px-6 py-4 border-b border-[var(--border-subtle)] flex items-center justify-between">
+              <div>
+                <h3 className="text-base font-bold font-display">Sugestão de atendente</h3>
+                <p className="text-xs text-[var(--text-muted)] mt-1">Top 5 colaboradores ordenados por: skill + carga + senioridade</p>
+              </div>
+              <button onClick={()=>setShowSuggest(false)} className="btn-icon">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+              </button>
+            </div>
+            <div className="p-6">
+              {loadingSuggest ? (
+                <div className="flex justify-center py-12"><Loader2 size={20} className="animate-spin text-[var(--text-muted)]" /></div>
+              ) : suggestions.length === 0 ? (
+                <div className="text-center py-12 text-sm text-[var(--text-muted)]">
+                  Nenhum colaborador qualificado encontrado.<br/>
+                  <span className="text-xs">Verifique se há colaboradores ativos cadastrados{(detail as any)?.skillRequeridaId ? " com a skill requerida" : ""}.</span>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-3">
+                  {suggestions.map((s,i)=>{
+                    const utilColor = s.carga.utilizacao > 90 ? "var(--accent-red)" : s.carga.utilizacao > 70 ? "#fbbf24" : "var(--accent-green)";
+                    return (
+                      <div key={s.collaborator.id} className="card-premium p-4" style={{ borderLeft: i===0 ? "3px solid var(--accent-violet)" : "3px solid var(--border-subtle)" }}>
+                        <div className="flex items-start gap-3">
+                          <div className="flex-shrink-0">
+                            <Avatar nome={s.collaborator.nome} size={10} />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between gap-2">
+                              <div>
+                                <div className="text-[13px] font-semibold text-[var(--text-primary)]">{s.collaborator.nome}</div>
+                                <div className="text-[11px] text-[var(--text-muted)]">{s.collaborator.cargo || "—"} {s.collaborator.setor?.nome ? `• ${s.collaborator.setor.nome}` : ""}</div>
+                              </div>
+                              <div className="text-right">
+                                <div className="text-[10px] font-mono text-[var(--text-muted)] tracking-wider">SCORE</div>
+                                <div className="text-base font-bold" style={{ color: i===0 ? "var(--accent-violet)" : "var(--text-secondary)" }}>{s.score}</div>
+                              </div>
+                            </div>
+                            <div className="mt-2 flex flex-wrap gap-1.5 items-center text-[10px]">
+                              {s.skillMatch && (
+                                <span className="px-2 py-0.5 rounded-full" style={{ background: "rgba(124,58,237,0.12)", color: "var(--accent-violet)", border: "1px solid rgba(124,58,237,0.2)" }}>
+                                  Skill {s.skillMatch.nivel}
+                                </span>
+                              )}
+                              <span className="px-2 py-0.5 rounded-full font-mono" style={{ background: utilColor + "20", color: utilColor, border: `1px solid ${utilColor}40` }}>
+                                {s.carga.utilizacao}% util
+                              </span>
+                              <span className="text-[var(--text-muted)] font-mono">
+                                {s.carga.ticketsAbertos} chamados • {s.carga.horasAlocadas}h / {s.carga.jornadaMes}h
+                              </span>
+                            </div>
+                            <div className="mt-1 text-[11px] text-[var(--text-secondary)] italic">{s.motivo}</div>
+                          </div>
+                        </div>
+                        <button
+                          className="btn btn-violet w-full mt-3 text-xs"
+                          onClick={()=>{ atribuir(s.collaborator.userId); setShowSuggest(false); }}
+                        >
+                          Atribuir a {s.collaborator.nome.split(" ")[0]}
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

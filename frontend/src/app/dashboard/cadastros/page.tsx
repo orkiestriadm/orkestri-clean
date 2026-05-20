@@ -1249,6 +1249,108 @@ function OrgEditForm({ org, onClose, onSave }: { org: OrgItem; onClose:()=>void;
 const SKILL_COLORS = ["#a78bfa","#22d3ee","#34d399","#fbbf24","#f87171","#60a5fa","#f472b6","#94a3b8"];
 const SKILL_CATEGORIAS_SUGGESTIONS = ["Tecnologia","Soft Skill","Certificação","Idioma","Ferramenta","Metodologia","Domínio de Negócio"];
 
+const NIVEL_OPTS = ["junior","pleno","senior","especialista"];
+const NIVEL_COLORS: Record<string,string> = { junior:"#94a3b8", pleno:"#60a5fa", senior:"#a78bfa", especialista:"#fbbf24" };
+
+function CollabSkillsManager({ collab, allSkills, onClose }: { collab: Collaborator; allSkills: Skill[]; onClose:()=>void }) {
+  const [assignments, setAssignments] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [adding, setAdding] = useState(false);
+  const [newSkillId, setNewSkillId] = useState("");
+  const [newNivel, setNewNivel] = useState("pleno");
+  const [err, setErr] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const reload = async () => {
+    setLoading(true);
+    try { const r = await api.get(`/collaborators/${collab.id}/skills`); setAssignments(r.data); }
+    catch {} finally { setLoading(false); }
+  };
+  useEffect(() => { reload(); }, [collab.id]);
+
+  const availableSkills = allSkills.filter(s => !assignments.find(a => a.skillId === s.id));
+
+  const add = async () => {
+    if (!newSkillId) { setErr("Selecione uma skill"); return; }
+    setSaving(true); setErr("");
+    try {
+      await api.post(`/collaborators/${collab.id}/skills`, { skillId: newSkillId, nivel: newNivel });
+      setNewSkillId(""); setNewNivel("pleno"); setAdding(false);
+      await reload();
+    } catch(e:any) { setErr(e?.response?.data?.message||"Erro ao atribuir"); }
+    finally { setSaving(false); }
+  };
+
+  const updateNivel = async (assignmentId: string, nivel: string) => {
+    try { await api.put(`/collaborators/${collab.id}/skills/${assignmentId}`, { nivel }); await reload(); } catch {}
+  };
+
+  const remove = async (assignmentId: string) => {
+    try { await api.delete(`/collaborators/${collab.id}/skills/${assignmentId}`); await reload(); } catch {}
+  };
+
+  return (
+    <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
+      {/* Lista atual */}
+      {loading ? (
+        <div style={{ display:"flex", justifyContent:"center", padding:30 }}><Spin/></div>
+      ) : assignments.length === 0 ? (
+        <div style={{ textAlign:"center", padding:30, color:"var(--text-muted)", fontSize:13 }}>Nenhuma skill atribuída ainda</div>
+      ) : (
+        <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+          {assignments.map(a => (
+            <div key={a.id} style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 12px", borderRadius:8, border:"1px solid var(--border-subtle)", background:"var(--bg-secondary)" }}>
+              <div style={{ width:28, height:28, borderRadius:7, background:(a.skill.cor||"#a78bfa")+"20", border:`1px solid ${(a.skill.cor||"#a78bfa")}40`, display:"flex", alignItems:"center", justifyContent:"center" }}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={a.skill.cor||"#a78bfa"} strokeWidth="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+              </div>
+              <div style={{ flex:1, minWidth:0 }}>
+                <div style={{ fontSize:13, fontWeight:500 }}>{a.skill.nome}</div>
+                {a.skill.categoria && <div style={{ fontSize:10, color:"var(--text-muted)" }}>{a.skill.categoria}</div>}
+              </div>
+              <select className="input-o" value={a.nivel} onChange={e=>updateNivel(a.id, e.target.value)} style={{ width:140, fontSize:12, padding:"5px 8px" }}>
+                {NIVEL_OPTS.map(n=><option key={n} value={n}>{n.charAt(0).toUpperCase()+n.slice(1)}</option>)}
+              </select>
+              <span style={{ width:8, height:8, borderRadius:"50%", background:NIVEL_COLORS[a.nivel] }} />
+              <button className="btn-icon" title="Remover" style={{ color:"var(--accent-red)" }} onClick={()=>remove(a.id)}>
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Adicionar nova */}
+      {!adding ? (
+        <button className="btn btn-ghost" onClick={()=>setAdding(true)} disabled={availableSkills.length === 0}>
+          {availableSkills.length === 0 ? "Todas as skills do catálogo já atribuídas" : "+ Atribuir nova skill"}
+        </button>
+      ) : (
+        <div style={{ display:"flex", flexDirection:"column", gap:10, padding:14, borderRadius:10, background:"var(--accent-violet-dim)", border:"1px solid rgba(124,58,237,0.2)" }}>
+          <div style={{ fontSize:11, fontFamily:"var(--font-mono)", letterSpacing:"0.08em", color:"var(--accent-violet)" }}>NOVA ATRIBUIÇÃO</div>
+          <div style={{ display:"flex", gap:8 }}>
+            <select className="input-o" value={newSkillId} onChange={e=>setNewSkillId(e.target.value)} style={{ flex:1 }}>
+              <option value="">— Selecionar skill —</option>
+              {availableSkills.map(s=><option key={s.id} value={s.id}>{s.nome}{s.categoria?` (${s.categoria})`:""}</option>)}
+            </select>
+            <select className="input-o" value={newNivel} onChange={e=>setNewNivel(e.target.value)} style={{ width:140 }}>
+              {NIVEL_OPTS.map(n=><option key={n} value={n}>{n.charAt(0).toUpperCase()+n.slice(1)}</option>)}
+            </select>
+          </div>
+          {err && <div style={{ color:"var(--accent-red)", fontSize:12 }}>{err}</div>}
+          <div style={{ display:"flex", gap:8 }}>
+            <button className="btn btn-ghost" style={{ flex:1 }} onClick={()=>{ setAdding(false); setErr(""); setNewSkillId(""); }}>Cancelar</button>
+            <button className="btn btn-violet" style={{ flex:2 }} onClick={add} disabled={saving || !newSkillId}>{saving?<Spin/>:"Atribuir"}</button>
+          </div>
+        </div>
+      )}
+
+      <div style={{ display:"flex", gap:10, marginTop:4 }}>
+        <button className="btn btn-ghost" style={{ flex:1 }} onClick={onClose}>Fechar</button>
+      </div>
+    </div>
+  );
+}
+
 function SkillForm({ skill, onClose, onSave }: { skill?: Skill; onClose:()=>void; onSave:()=>void }) {
   const [f, setF] = useState({
     nome: skill?.nome || "",
@@ -1360,6 +1462,7 @@ export default function CadastrosPage() {
   const [modalNewSkill,    setModalNewSkill]    = useState(false);
   const [modalEditSkill,   setModalEditSkill]   = useState<Skill|null>(null);
   const [modalDelSkill,    setModalDelSkill]    = useState<Skill|null>(null);
+  const [modalSkillsCollab,setModalSkillsCollab]= useState<Collaborator|null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -1876,6 +1979,9 @@ export default function CadastrosPage() {
                     <span className={`badge ${c.ativo?"badge-green":"badge-red"}`} style={{ fontSize:10 }}>{c.ativo?"ATIVO":"INATIVO"}</span>
                   </div>
                   <div style={{ display:"flex", gap:4 }}>
+                    <button className="btn-icon" title="Gerenciar skills" onClick={()=>setModalSkillsCollab(c)}>
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+                    </button>
                     <button className="btn-icon" title="Editar" onClick={()=>setModalEditCollab(c)}>
                       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4z"/></svg>
                     </button>
@@ -2106,6 +2212,11 @@ export default function CadastrosPage() {
       {modalDelSkill && (
         <ConfirmModal title="Remover skill" message={`Remover "${modalDelSkill.nome}"? Todas as atribuições a colaboradores serão também removidas.`} confirmLabel="Remover" danger
           onConfirm={async()=>{ await api.delete("/skills/"+modalDelSkill.id); await load(); }} onClose={()=>setModalDelSkill(null)} />
+      )}
+      {modalSkillsCollab && (
+        <Modal title={`Skills de ${modalSkillsCollab.user?.nome || ""}`} onClose={()=>setModalSkillsCollab(null)} maxWidth={560}>
+          <CollabSkillsManager collab={modalSkillsCollab} allSkills={skills.filter(s=>s.ativo)} onClose={()=>setModalSkillsCollab(null)} />
+        </Modal>
       )}
 
       {/* Modais colaborador */}
