@@ -445,6 +445,45 @@ function RequestsPanel({ onRefresh }: { onRefresh: () => void }) {
   );
 }
 
+function NewOrgModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
+  const [form, setForm] = useState({ nome: "", slug: "", plano: "starter" });
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState("");
+
+  const submit = async () => {
+    if (!form.nome || !form.slug) { setErr("Nome e slug são obrigatórios"); return; }
+    setLoading(true); setErr("");
+    try {
+      await api.post("/superadmin/organizations", form);
+      onCreated();
+    } catch (e: any) { setErr(e?.response?.data?.message || "Erro ao criar"); }
+    finally { setLoading(false); }
+  };
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100 }}>
+      <div className="surface-elevated" style={{ width: 420, padding: 24, display: "flex", flexDirection: "column", gap: 16 }}>
+        <div style={{ fontFamily: "var(--font-display)", fontSize: 16, fontWeight: 700 }}>Nova Organização</div>
+        {err && <div style={{ fontSize: 12, color: "var(--accent-red)" }}>{err}</div>}
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          <input className="input-o" placeholder="Nome da organização" value={form.nome}
+            onChange={e => setForm(f => ({ ...f, nome: e.target.value, slug: e.target.value.toLowerCase().replace(/[^a-z0-9]/g, "-").replace(/-+/g, "-") }))} />
+          <input className="input-o" placeholder="Slug (ex: empresa-abc)" value={form.slug}
+            onChange={e => setForm(f => ({ ...f, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "") }))} />
+          <select className="input-o" value={form.plano} onChange={e => setForm(f => ({ ...f, plano: e.target.value }))}>
+            <option value="starter">Starter</option>
+            <option value="professional">Professional</option>
+            <option value="enterprise">Enterprise</option>
+          </select>
+        </div>
+        <div style={{ display: "flex", gap: 10 }}>
+          <button className="btn btn-violet" style={{ flex: 1 }} onClick={submit} disabled={loading}>{loading ? <Spin /> : "Criar"}</button>
+          <button className="btn btn-ghost" style={{ flex: 1 }} onClick={onClose}>Cancelar</button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function SuperAdminPage() {
   const { user } = useAuthStore();
@@ -452,6 +491,7 @@ export default function SuperAdminPage() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"orgs" | "requests">("orgs");
   const [novaReqOpen, setNovaReqOpen] = useState(false);
+  const [newOrgOpen, setNewOrgOpen] = useState(false);
   const [pendingCount, setPendingCount] = useState(0);
 
   const load = useCallback(async () => {
@@ -480,11 +520,15 @@ export default function SuperAdminPage() {
     );
   }
 
-  const topbarActions = activeTab === "requests" ? (
+  const topbarActions = activeTab === "orgs" ? (
+    <button className="btn btn-violet" style={{ fontSize: 12 }} onClick={() => setNewOrgOpen(true)}>
+      + Nova Organização
+    </button>
+  ) : (
     <button className="btn btn-violet" style={{ fontSize: 12 }} onClick={() => setNovaReqOpen(true)}>
       + Nova Solicitação
     </button>
-  ) : null;
+  );
 
   return (
     <div className="flex flex-col h-full bg-background">
@@ -533,6 +577,7 @@ export default function SuperAdminPage() {
         </div>
       </div>
       {novaReqOpen && <NovaReqModal onClose={() => setNovaReqOpen(false)} onCreated={() => { setNovaReqOpen(false); loadPendingCount(); setActiveTab("requests"); }} />}
+      {newOrgOpen && <NewOrgModal onClose={() => setNewOrgOpen(false)} onCreated={() => { setNewOrgOpen(false); load(); }} />}
       <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
     </div>
   );

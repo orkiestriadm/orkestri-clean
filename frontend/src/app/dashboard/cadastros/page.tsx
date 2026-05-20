@@ -11,6 +11,7 @@ type Permission = { id: string; recurso: string; acao: string; descricao?: strin
 type Role    = { id: string; nome: string; descricao?: string; isMaster: boolean; nivel: number; _count?: { userRoles: number }; rolePermissions?: { permission: Permission }[]; };
 type Solicitacao = { id: string; nome: string; email: string; whatsapp?: string; cargo?: string; departamento?: string; empresa?: string; motivacao?: string; status: string; criado_em: string; };
 type Cliente = { id: string; nome: string; empresa?: string; email?: string; telefone?: string; cargo?: string; segmento?: string; statusLead: string; ativo: boolean; criadoEm: string; };
+type OrgItem = { id: string; nome: string; slug: string; plano: string; ativo: boolean; statusOperacional?: string | null; statusComercial?: string | null; usuarios: number; criadoEm: string; };
 
 // ── Constantes ────────────────────────────────────────────────────────────────
 const CORES_SETOR  = ["#a78bfa","#22d3ee","#34d399","#fbbf24","#f87171","#60a5fa","#f472b6","#94a3b8"];
@@ -966,9 +967,106 @@ function ClienteCreateForm({ onClose, onSave }: { onClose:()=>void; onSave:()=>v
   );
 }
 
+function OrgCreateForm({ onClose, onSave }: { onClose:()=>void; onSave:()=>void }) {
+  const [f, setF] = useState({ nome:"", slug:"", plano:"starter" });
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState("");
+  const save = async () => {
+    if (!f.nome.trim()||!f.slug.trim()) { setErr("Nome e slug são obrigatórios"); return; }
+    setLoading(true); setErr("");
+    try {
+      await api.post("/superadmin/organizations", { nome:f.nome, slug:f.slug, plano:f.plano });
+      onSave(); onClose();
+    } catch(e:any) { setErr(e?.response?.data?.message||"Erro ao criar"); }
+    finally { setLoading(false); }
+  };
+  return (
+    <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
+      <Field label="NOME DA ORGANIZAÇÃO">
+        <input className="input-o" value={f.nome} autoFocus
+          onChange={e=>setF(p=>({...p,nome:e.target.value, slug:p.slug || e.target.value.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^a-z0-9]/g,"-").replace(/-+/g,"-").replace(/^-|-$/g,"")}))} />
+      </Field>
+      <Field label="SLUG (URL)">
+        <input className="input-o" value={f.slug} placeholder="empresa-abc"
+          onChange={e=>setF(p=>({...p,slug:e.target.value.toLowerCase().replace(/[^a-z0-9-]/g,"")}))} />
+      </Field>
+      <Field label="PLANO">
+        <select className="input-o" value={f.plano} onChange={e=>setF(p=>({...p,plano:e.target.value}))}>
+          <option value="starter">Starter</option>
+          <option value="professional">Professional</option>
+          <option value="enterprise">Enterprise</option>
+        </select>
+      </Field>
+      {err && <div style={{ background:"rgba(220,38,38,0.08)", border:"1px solid rgba(220,38,38,0.2)", borderRadius:8, padding:"10px 14px", color:"var(--accent-red)", fontSize:12 }}>{err}</div>}
+      <div style={{ display:"flex", gap:10, marginTop:4 }}>
+        <button className="btn btn-ghost" style={{ flex:1 }} onClick={onClose}>Cancelar</button>
+        <button className="btn btn-violet" style={{ flex:2 }} onClick={save} disabled={loading}>{loading?<Spin/>:"Criar organização"}</button>
+      </div>
+    </div>
+  );
+}
+
+function OrgEditForm({ org, onClose, onSave }: { org: OrgItem; onClose:()=>void; onSave:()=>void }) {
+  const [f, setF] = useState({ nome:org.nome, plano:org.plano, statusOperacional:org.statusOperacional||"", statusComercial:org.statusComercial||"", ativo:org.ativo });
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState("");
+  const save = async () => {
+    if (!f.nome.trim()) { setErr("Nome obrigatório"); return; }
+    setLoading(true); setErr("");
+    try {
+      await api.patch("/superadmin/organizations/"+org.id, { nome:f.nome, plano:f.plano, statusOperacional:f.statusOperacional||undefined, statusComercial:f.statusComercial||undefined, ativo:f.ativo });
+      onSave(); onClose();
+    } catch(e:any) { setErr(e?.response?.data?.message||"Erro ao salvar"); }
+    finally { setLoading(false); }
+  };
+  return (
+    <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
+      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
+        <div style={{ gridColumn:"1/-1" }}>
+          <Field label="NOME DA ORGANIZAÇÃO"><input className="input-o" value={f.nome} onChange={e=>setF(p=>({...p,nome:e.target.value}))} /></Field>
+        </div>
+        <Field label="PLANO">
+          <select className="input-o" value={f.plano} onChange={e=>setF(p=>({...p,plano:e.target.value}))}>
+            <option value="starter">Starter</option>
+            <option value="professional">Professional</option>
+            <option value="enterprise">Enterprise</option>
+          </select>
+        </Field>
+        <Field label="SITUAÇÃO">
+          <select className="input-o" value={f.ativo?"ativo":"inativo"} onChange={e=>setF(p=>({...p,ativo:e.target.value==="ativo"}))}>
+            <option value="ativo">Ativa</option>
+            <option value="inativo">Inativa</option>
+          </select>
+        </Field>
+        <Field label="STATUS OPERACIONAL">
+          <select className="input-o" value={f.statusOperacional} onChange={e=>setF(p=>({...p,statusOperacional:e.target.value}))}>
+            <option value="">—</option>
+            <option value="ativo">Ativo</option>
+            <option value="suspenso">Suspenso</option>
+            <option value="cancelado">Cancelado</option>
+          </select>
+        </Field>
+        <Field label="STATUS COMERCIAL">
+          <select className="input-o" value={f.statusComercial} onChange={e=>setF(p=>({...p,statusComercial:e.target.value}))}>
+            <option value="">—</option>
+            <option value="ativo">Ativo</option>
+            <option value="inadimplente">Inadimplente</option>
+            <option value="cancelado">Cancelado</option>
+          </select>
+        </Field>
+      </div>
+      {err && <div style={{ background:"rgba(220,38,38,0.08)", border:"1px solid rgba(220,38,38,0.2)", borderRadius:8, padding:"10px 14px", color:"var(--accent-red)", fontSize:12 }}>{err}</div>}
+      <div style={{ display:"flex", gap:10, marginTop:4 }}>
+        <button className="btn btn-ghost" style={{ flex:1 }} onClick={onClose}>Cancelar</button>
+        <button className="btn btn-violet" style={{ flex:2 }} onClick={save} disabled={loading}>{loading?<Spin/>:"Salvar alterações"}</button>
+      </div>
+    </div>
+  );
+}
+
 export default function CadastrosPage() {
   const { user: me } = useAuthStore();
-  const [tab,           setTab]          = useState<"usuarios"|"setores"|"papeis"|"solicitacoes"|"matriz"|"organograma"|"clientes">("usuarios");
+  const [tab,           setTab]          = useState<"usuarios"|"setores"|"papeis"|"solicitacoes"|"matriz"|"organograma"|"clientes"|"organizacoes">("usuarios");
   const [roles,         setRoles]        = useState<Role[]>([]);
   const [allPerms,      setAllPerms]     = useState<Permission[]>([]);
   const [modalRole,     setModalRole]    = useState<Role|"novo"|null>(null);
@@ -1002,6 +1100,12 @@ export default function CadastrosPage() {
   const [modalEditCliente, setModalEditCliente] = useState<Cliente|null>(null);
   const [modalDelCliente,  setModalDelCliente]  = useState<Cliente|null>(null);
   const [filterCliente,    setFilterCliente]    = useState<"todos"|"ativos"|"inativos">("ativos");
+  // organizações
+  const [orgs,             setOrgs]             = useState<OrgItem[]>([]);
+  const [modalNewOrg,      setModalNewOrg]      = useState(false);
+  const [modalEditOrg,     setModalEditOrg]     = useState<OrgItem|null>(null);
+  const [modalDelOrg,      setModalDelOrg]      = useState<OrgItem|null>(null);
+  const [filterOrg,        setFilterOrg]        = useState<"todos"|"ativos"|"inativos">("ativos");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -1021,6 +1125,9 @@ export default function CadastrosPage() {
         try { const sRes2 = await api.get("/auth/solicitacoes"); setSolicitacoes(sRes2.data); } catch {}
       }
       try { const cRes = await api.get("/clientes"); setClientes(cRes.data); } catch {}
+      if (me?.isMaster) {
+        try { const oRes = await api.get("/superadmin/organizations"); setOrgs(oRes.data); } catch {}
+      }
     } catch {} finally { setLoading(false); }
   }, []);
 
@@ -1045,13 +1152,19 @@ export default function CadastrosPage() {
     </div>
   );
 
-  const btnLabel = tab==="usuarios" ? "Novo usuario" : tab==="setores" ? "Novo setor" : tab==="papeis" ? "Novo papel" : tab==="clientes" ? "Novo cliente" : null;
+  const btnLabel = tab==="usuarios" ? "Novo usuario" : tab==="setores" ? "Novo setor" : tab==="papeis" ? "Novo papel" : tab==="clientes" ? "Novo cliente" : tab==="organizacoes" ? "Nova organização" : null;
   const btnAction = () => {
-    if (tab==="usuarios")  setModalNewUser(true);
-    if (tab==="setores")   setModalSetor("novo");
-    if (tab==="papeis")    setModalRole("novo");
-    if (tab==="clientes")  setModalNewCliente(true);
+    if (tab==="usuarios")     setModalNewUser(true);
+    if (tab==="setores")      setModalSetor("novo");
+    if (tab==="papeis")       setModalRole("novo");
+    if (tab==="clientes")     setModalNewCliente(true);
+    if (tab==="organizacoes") setModalNewOrg(true);
   };
+  const filteredOrgs = orgs.filter(o => {
+    const ms = !search || o.nome.toLowerCase().includes(search.toLowerCase()) || o.slug.toLowerCase().includes(search.toLowerCase());
+    const mf = filterOrg==="todos" ? true : filterOrg==="ativos" ? o.ativo : !o.ativo;
+    return ms && mf;
+  });
   const filteredClientes = clientes.filter(c => {
     const ms = !search || c.nome.toLowerCase().includes(search.toLowerCase()) || (c.email||"").toLowerCase().includes(search.toLowerCase()) || (c.empresa||"").toLowerCase().includes(search.toLowerCase());
     const mf = filterCliente==="todos" ? true : filterCliente==="ativos" ? c.ativo : !c.ativo;
@@ -1079,6 +1192,7 @@ export default function CadastrosPage() {
           { key:"matriz",         label:"Matriz",        count:0 },
           ...((me?.isMaster || me?.permissions?.includes("*") || me?.permissions?.includes("usuarios:criar")) ? [{ key:"solicitacoes", label:"Solicitacoes", count:solicitacoes.filter(s=>s.status==="PENDENTE").length }] : []),
           { key:"clientes",      label:"Clientes",      count:clientes.length },
+          ...(me?.isMaster ? [{ key:"organizacoes", label:"Organizacoes", count:orgs.length }] : []),
         ].map(t=>(
           <button key={t.key} onClick={()=>{ setTab(t.key as any); setSearch(""); }}
             style={{ padding:"12px 18px", background:"none", border:"none", borderBottom:tab===t.key?"2px solid var(--accent-violet)":"2px solid transparent", color:tab===t.key?"var(--accent-violet)":"var(--text-muted)", cursor:"pointer", fontFamily:"var(--font-display)", fontSize:13, fontWeight:tab===t.key?600:400, marginBottom:-1 }}>
@@ -1099,12 +1213,22 @@ export default function CadastrosPage() {
           <input className="input-o" placeholder={
             tab==="usuarios"?"Buscar por nome ou e-mail...":
             tab==="clientes"?"Buscar por nome, empresa ou e-mail...":
+            tab==="organizacoes"?"Buscar por nome ou slug...":
             "Buscar setor..."}
             value={search} onChange={e=>setSearch(e.target.value)} style={{ flex:1, maxWidth:360 }} />
           {tab==="clientes" && (
             <div style={{ display:"flex", gap:4 }}>
               {(["todos","ativos","inativos"] as const).map(f=>(
                 <button key={f} onClick={()=>setFilterCliente(f)} className={`btn ${filterCliente===f?"btn-violet":"btn-ghost"}`} style={{ padding:"6px 14px", fontSize:12 }}>
+                  {f.charAt(0).toUpperCase()+f.slice(1)}
+                </button>
+              ))}
+            </div>
+          )}
+          {tab==="organizacoes" && (
+            <div style={{ display:"flex", gap:4 }}>
+              {(["todos","ativos","inativos"] as const).map(f=>(
+                <button key={f} onClick={()=>setFilterOrg(f)} className={`btn ${filterOrg===f?"btn-violet":"btn-ghost"}`} style={{ padding:"6px 14px", fontSize:12 }}>
                   {f.charAt(0).toUpperCase()+f.slice(1)}
                 </button>
               ))}
@@ -1422,6 +1546,75 @@ export default function CadastrosPage() {
           </>
         )}
 
+        {/* ── ABA ORGANIZAÇÕES ── */}
+        {tab==="organizacoes" && (
+          <>
+            <div className="animate-up" style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:12 }}>
+              {[
+                { label:"TOTAL",   value:orgs.length,                       color:"var(--accent-violet)" },
+                { label:"ATIVAS",  value:orgs.filter(o=>o.ativo).length,    color:"var(--accent-green)"  },
+                { label:"PLANOS",  value:new Set(orgs.map(o=>o.plano)).size, color:"var(--accent-cyan)"   },
+              ].map(s=>(
+                <div key={s.label} className="card" style={{ padding:"16px 20px", display:"flex", alignItems:"center", gap:16 }}>
+                  <div style={{ fontFamily:"var(--font-display)", fontSize:28, fontWeight:700, color:s.color }}>{s.value}</div>
+                  <div style={{ fontSize:11, fontFamily:"var(--font-mono)", letterSpacing:"0.08em", color:"var(--text-muted)" }}>{s.label}</div>
+                </div>
+              ))}
+            </div>
+            <div className="animate-up card">
+              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr auto auto", gap:16, padding:"10px 20px", borderBottom:"1px solid var(--border-subtle)" }}>
+                {["ORGANIZAÇÃO","DETALHES","STATUS","AÇÕES"].map(h=><span key={h} style={{ fontSize:10, fontFamily:"var(--font-mono)", letterSpacing:"0.08em", color:"var(--text-muted)" }}>{h}</span>)}
+              </div>
+              {loading ? (
+                <div style={{ display:"flex", alignItems:"center", justifyContent:"center", padding:48, gap:12 }}><Spin/><span style={{ color:"var(--text-muted)", fontSize:13 }}>Carregando...</span></div>
+              ) : filteredOrgs.length===0 ? (
+                <div className="empty-state"><p style={{ color:"var(--text-secondary)", fontWeight:500 }}>{search?"Nenhuma organização encontrada":"Nenhuma organização cadastrada"}</p></div>
+              ) : filteredOrgs.map((o,i)=>{
+                const planoColor = o.plano==="enterprise"?"var(--accent-violet)":o.plano==="professional"?"var(--accent-cyan)":"var(--text-muted)";
+                return (
+                  <div key={o.id} style={{ display:"grid", gridTemplateColumns:"1fr 1fr auto auto", gap:16, padding:"14px 20px", borderBottom:i<filteredOrgs.length-1?"1px solid var(--border-subtle)":"none", alignItems:"center", opacity:o.ativo?1:0.55, transition:"background 0.15s" }}
+                    onMouseEnter={e=>(e.currentTarget as HTMLElement).style.background="var(--bg-hover)"}
+                    onMouseLeave={e=>(e.currentTarget as HTMLElement).style.background="transparent"}
+                  >
+                    <div style={{ display:"flex", alignItems:"center", gap:12, minWidth:0 }}>
+                      <Avatar nome={o.nome} />
+                      <div style={{ minWidth:0 }}>
+                        <div style={{ fontSize:13, fontWeight:500, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{o.nome}</div>
+                        <code style={{ fontSize:11, color:"var(--text-muted)", fontFamily:"var(--font-mono)" }}>/{o.slug}</code>
+                      </div>
+                    </div>
+                    <div style={{ minWidth:0 }}>
+                      <span style={{ fontSize:11, fontFamily:"var(--font-mono)", padding:"2px 8px", borderRadius:20, background:planoColor+"18", border:`1px solid ${planoColor}40`, color:planoColor, marginRight:8 }}>{o.plano}</span>
+                      <span style={{ fontSize:11, color:"var(--text-muted)" }}>{o.usuarios} usuário{o.usuarios!==1?"s":""}</span>
+                      {o.statusOperacional && <div style={{ fontSize:10, color:"var(--text-muted)", fontFamily:"var(--font-mono)", marginTop:2 }}>op: {o.statusOperacional}</div>}
+                    </div>
+                    <div style={{ display:"flex", flexDirection:"column", gap:5 }}>
+                      <span className={`badge ${o.ativo?"badge-green":"badge-red"}`} style={{ fontSize:10 }}>{o.ativo?"ATIVA":"INATIVA"}</span>
+                      {o.statusComercial && <span style={{ fontSize:10, color:"var(--text-muted)", fontFamily:"var(--font-mono)" }}>{o.statusComercial}</span>}
+                    </div>
+                    <div style={{ display:"flex", gap:4 }}>
+                      <button className="btn-icon" title="Entrar como" onClick={async()=>{
+                        try { await api.post(`/superadmin/organizations/${o.id}/impersonate`); window.location.href="/dashboard"; } catch {}
+                      }}>
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                      </button>
+                      <button className="btn-icon" title="Editar" onClick={()=>setModalEditOrg(o)}>
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4z"/></svg>
+                      </button>
+                      <button className="btn-icon" title={o.ativo?"Desativar":"Ativar"} onClick={async()=>{ await api.patch("/superadmin/organizations/"+o.id, { ativo:!o.ativo }); load(); }}>
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18.36 6.64a9 9 0 11-12.73 0M12 2v10" strokeLinecap="round"/></svg>
+                      </button>
+                      <button className="btn-icon" title="Remover" style={{ color:"var(--accent-red)", borderColor:"rgba(220,38,38,0.2)" }} onClick={()=>setModalDelOrg(o)}>
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/></svg>
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </>
+        )}
+
         {/* ── ABA SOLICITACOES ── */}
         {tab==="solicitacoes" && (
           <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
@@ -1486,6 +1679,22 @@ export default function CadastrosPage() {
         <Modal title="Novo cliente" onClose={()=>setModalNewCliente(false)} maxWidth={500}>
           <ClienteCreateForm onClose={()=>setModalNewCliente(false)} onSave={load} />
         </Modal>
+      )}
+
+      {/* Modais organização */}
+      {modalNewOrg && (
+        <Modal title="Nova organização" onClose={()=>setModalNewOrg(false)} maxWidth={480}>
+          <OrgCreateForm onClose={()=>setModalNewOrg(false)} onSave={load} />
+        </Modal>
+      )}
+      {modalEditOrg && (
+        <Modal title="Editar organização" onClose={()=>setModalEditOrg(null)} maxWidth={480}>
+          <OrgEditForm org={modalEditOrg} onClose={()=>setModalEditOrg(null)} onSave={load} />
+        </Modal>
+      )}
+      {modalDelOrg && (
+        <ConfirmModal title="Remover organização" message={`Tem certeza que deseja remover ${modalDelOrg.nome}? Esta ação não pode ser desfeita.`} confirmLabel="Remover permanentemente" danger
+          onConfirm={async()=>{ await api.delete("/superadmin/organizations/"+modalDelOrg.id); await load(); }} onClose={()=>setModalDelOrg(null)} />
       )}
 
       {/* Modal aprovar solicitacao */}
