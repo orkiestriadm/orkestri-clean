@@ -11,8 +11,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="pt-BR">
       <head>
-        {/* Anti-FOUC: read localStorage before React hydrates; default light */}
-        <script dangerouslySetInnerHTML={{ __html: `(function(){try{var t=localStorage.getItem('orkestri-theme-v2');document.documentElement.setAttribute('data-theme',(t==='dark'||t==='light')?t:'light');}catch(e){document.documentElement.setAttribute('data-theme','light');}})();` }} />
+        {/* Anti-FOUC: landing page sempre dark; restante respeita localStorage */}
+        <script dangerouslySetInnerHTML={{ __html: `(function(){try{var t=localStorage.getItem('orkestri-theme-v2');var p=window.location.pathname;if(p==='/'||p===''){document.documentElement.setAttribute('data-theme','dark');}else{document.documentElement.setAttribute('data-theme',(t==='dark'||t==='light')?t:'light');}}catch(e){document.documentElement.setAttribute('data-theme','light');}})();` }} />
       </head>
       <body>
         <ThemeProvider>
