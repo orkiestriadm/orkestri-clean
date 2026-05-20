@@ -62,13 +62,18 @@ enum ProjectTipo {
 // ── Multi-tenancy ──────────────────────────────────────────────────────────────
 
 model Organization {
-  id           String   @id @default(uuid())
-  nome         String
-  slug         String   @unique
-  plano        String   @default("starter")
-  ativo        Boolean  @default(true)
-  criadoEm     DateTime @default(now()) @map("criado_em")
-  atualizadoEm DateTime @updatedAt @map("atualizado_em")
+  id                String   @id @default(uuid())
+  nome              String
+  slug              String   @unique
+  plano             String   @default("starter")
+  ativo             Boolean  @default(true)
+  // CRM ↔ Tenant link
+  crmClienteId      String?  @unique @map("crm_cliente_id")
+  statusComercial   String?  @map("status_comercial")
+  statusOperacional String?  @map("status_operacional")
+  modulosAtivos     String[] @default([]) @map("modulos_ativos")
+  criadoEm          DateTime @default(now()) @map("criado_em")
+  atualizadoEm      DateTime @updatedAt @map("atualizado_em")
 
   users              User[]
   chamados           Chamado[]
@@ -96,6 +101,7 @@ model Organization {
   sistemaConfigs     SistemaConfig[]
   apontamentosHoras  ApontamentoHoras[]
   whatsappConfig     OrgWhatsappConfig?
+  cadastroRequests   CadastroRequest[]  @relation("CadReqOrg")
 
   @@map("organizations")
 }
@@ -183,8 +189,10 @@ model User {
   transferenciasRecebidas  TransferenciaAtivo[] @relation("TransfPara")
   transferenciasEnviadas   TransferenciaAtivo[] @relation("TransfDe")
   apontamentosHoras        ApontamentoHoras[]
-  contratosResponsavel     Contrato[]           @relation("ContratoResponsavel")
-  faturas                  Fatura[]             @relation("FaturaCriador")
+  contratosResponsavel      Contrato[]           @relation("ContratoResponsavel")
+  faturas                   Fatura[]             @relation("FaturaCriador")
+  cadastroRequestsAprovados CadastroRequest[]    @relation("CadReqAprovador")
+  cadastroRequestsCriados   CadastroRequest[]    @relation("CadReqCriador")
 
   @@unique([organizationId, email])
   @@index([organizationId])
@@ -521,6 +529,11 @@ model Cliente {
   responsavelId  String?   @map("responsavel_id")
   saudeScore     Int       @default(100) @map("saude_score")
   portalToken    String?   @unique @map("portal_token")
+  // Pipeline / Oportunidade
+  tenantOrgId    String?   @unique @map("tenant_org_id")
+  valorEstimado  Float?    @map("valor_estimado")
+  probabilidade  Int?
+  dataFechamento DateTime? @map("data_fechamento")
   criadoEm      DateTime  @default(now()) @map("criado_em")
   atualizadoEm  DateTime  @updatedAt @map("atualizado_em")
   organization   Organization @relation(fields: [organizationId], references: [id])
@@ -529,7 +542,8 @@ model Cliente {
   chamados       Chamado[]
   contratos      Contrato[]
   faturas        Fatura[]
-  timeline       ClienteTimeline[]
+  timeline         ClienteTimeline[]
+  cadastroRequests CadastroRequest[]
   @@index([organizationId])
   @@map("clientes")
 }
@@ -556,6 +570,7 @@ model Contrato {
   cliente        Cliente      @relation(fields: [clienteId], references: [id], onDelete: Cascade)
   responsavel    User?        @relation("ContratoResponsavel", fields: [responsavelId], references: [id], onDelete: SetNull)
   faturas        Fatura[]
+  anexos         ContratoAnexo[]
   @@index([organizationId])
   @@index([clienteId])
   @@index([status])
@@ -1202,4 +1217,51 @@ model Fatura {
   @@index([contratoId])
   @@index([dataVencimento(sort: Desc)])
   @@map("faturas")
+}
+
+// ── Contrato Anexos ────────────────────────────────────────────────────────────
+
+model ContratoAnexo {
+  id          String   @id @default(uuid())
+  contratoId  String   @map("contrato_id")
+  nome        String
+  url         String
+  tamanho     Int?
+  tipo        String?
+  criadoPorId String?  @map("criado_por_id")
+  criadoEm    DateTime @default(now()) @map("criado_em")
+  contrato    Contrato @relation(fields: [contratoId], references: [id], onDelete: Cascade)
+  @@index([contratoId])
+  @@map("contrato_anexos")
+}
+
+// ── CadastroRequest (provisionamento de tenants) ───────────────────────────────
+
+model CadastroRequest {
+  id                String    @id @default(uuid())
+  organizationId    String    @map("organization_id")
+  clienteId         String?   @map("cliente_id")
+  nomeOrg           String    @map("nome_org")
+  slugOrg           String?   @map("slug_org")
+  planoSolicitado   String    @default("starter") @map("plano_solicitado")
+  contatoNome       String?   @map("contato_nome")
+  contatoEmail      String    @map("contato_email")
+  contatoWhatsapp   String?   @map("contato_whatsapp")
+  status            String    @default("PENDENTE")
+  aprovadoPorId     String?   @map("aprovado_por_id")
+  aprovadoEm        DateTime? @map("aprovado_em")
+  provisionadoEm    DateTime? @map("provisionado_em")
+  orgProvisionadaId String?   @map("org_provisionada_id")
+  rejectionReason   String?   @map("rejection_reason")
+  observacoes       String?   @db.Text
+  criadoPorId       String?   @map("criado_por_id")
+  criadoEm          DateTime  @default(now()) @map("criado_em")
+  atualizadoEm      DateTime  @updatedAt @map("atualizado_em")
+  organization  Organization  @relation("CadReqOrg", fields: [organizationId], references: [id])
+  cliente       Cliente?      @relation(fields: [clienteId], references: [id], onDelete: SetNull)
+  aprovadoPor   User?         @relation("CadReqAprovador", fields: [aprovadoPorId], references: [id], onDelete: SetNull)
+  criadoPor     User?         @relation("CadReqCriador", fields: [criadoPorId], references: [id], onDelete: SetNull)
+  @@index([organizationId])
+  @@index([status])
+  @@map("cadastro_requests")
 }

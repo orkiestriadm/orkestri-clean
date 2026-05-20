@@ -1,9 +1,14 @@
 import {
-  Module, Controller, Get, Post, Put, Delete,
+  Module, Controller, Get, Post, Put, Delete, Patch,
   Body, Param, Query, UseGuards, Req,
   Injectable, NotFoundException, BadRequestException, ForbiddenException,
+  UseInterceptors, UploadedFile,
 } from "@nestjs/common";
 import { AuthGuard } from "@nestjs/passport";
+import { FileInterceptor } from "@nestjs/platform-express";
+import { diskStorage } from "multer";
+import * as path from "path";
+import * as fs from "fs";
 import { PrismaService } from "../../prisma/prisma.service";
 import { Permissions } from "../auth/permissions.decorator";
 import { PermissionsGuard } from "../auth/permissions.guard";
@@ -245,6 +250,78 @@ class ContratosController {
     if (!existing) throw new NotFoundException("Contrato nao encontrado");
     await this.db.contrato.delete({ where: { id } });
     return { message: "Contrato removido" };
+  }
+
+  // ── Anexos ─────────────────────────────────────────────────────────────────
+
+  @Get(":id/anexos")
+  @Permissions("crm:ver")
+  async getAnexos(@Param("id") id: string, @Req() req: any) {
+    const orgId = req.user?.organizationId;
+    const c = await this.db.contrato.findFirst({ where: { id, ...(orgId ? { organizationId: orgId } : {}) } });
+    if (!c) throw new NotFoundException("Contrato não encontrado");
+    return this.db.contratoAnexo.findMany({
+      where: { contratoId: id },
+      orderBy: { criadoEm: "desc" },
+    });
+  }
+
+  @Post(":id/anexos")
+  @Permissions("crm:editar")
+  @UseInterceptors(FileInterceptor("arquivo", {
+    storage: diskStorage({
+      destination: (req: any, _file: any, cb: any) => {
+        const dir = `/app/uploads/contratos/${req.params.id}`;
+        fs.mkdirSync(dir, { recursive: true });
+        cb(null, dir);
+      },
+      filename: (_req: any, file: any, cb: any) => {
+        const unique = Date.now() + "-" + Math.round(Math.random() * 1e9);
+        cb(null, unique + path.extname(file.originalname));
+      },
+    }),
+    limits: { fileSize: 20 * 1024 * 1024 }, // 20MB
+  }))
+  async uploadAnexo(
+    @Req() req: any,
+    @Param("id") id: string,
+    @UploadedFile() file: any,
+  ) {
+    const orgId = req.user?.organizationId;
+    const c = await this.db.contrato.findFirst({ where: { id, ...(orgId ? { organizationId: orgId } : {}) } });
+    if (!c) throw new NotFoundException("Contrato não encontrado");
+    if (!file) throw new BadRequestException("Nenhum arquivo enviado");
+    const url = `/uploads/contratos/${id}/${file.filename}`;
+    return this.db.contratoAnexo.create({
+      data: {
+        contratoId: id,
+        nome: file.originalname,
+        url,
+        tamanho: file.size,
+        tipo: file.mimetype,
+        criadoPorId: req.user?.sub || null,
+      },
+    });
+  }
+
+  @Delete(":id/anexos/:anexoId")
+  @Permissions("crm:editar")
+  async deleteAnexo(
+    @Req() req: any,
+    @Param("id") id: string,
+    @Param("anexoId") anexoId: string,
+  ) {
+    const orgId = req.user?.organizationId;
+    const c = await this.db.contrato.findFirst({ where: { id, ...(orgId ? { organizationId: orgId } : {}) } });
+    if (!c) throw new NotFoundException("Contrato não encontrado");
+    const anexo = await this.db.contratoAnexo.findFirst({ where: { id: anexoId, contratoId: id } });
+    if (!anexo) throw new NotFoundException("Anexo não encontrado");
+    try {
+      const filePath = `/app${anexo.url}`;
+      if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+    } catch {}
+    await this.db.contratoAnexo.delete({ where: { id: anexoId } });
+    return { message: "Anexo removido" };
   }
 }
 

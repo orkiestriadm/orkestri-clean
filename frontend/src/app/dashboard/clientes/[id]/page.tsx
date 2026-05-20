@@ -11,6 +11,7 @@ type Cliente = {
   cnpj?: string; site?: string; cidade?: string; estado?: string;
   segmento?: string; origem?: string; statusLead: string;
   ativo: boolean; saudeScore: number; notas?: string; portalToken?: string;
+  tenantOrgId?: string | null;
   responsavel?: { id: string; nome: string } | null;
   criadoEm: string; atualizadoEm?: string;
 };
@@ -699,6 +700,167 @@ function TabContratos({ clienteId, onAddContrato }: { clienteId: string; onAddCo
   );
 }
 
+// ── Tab: Organização ──────────────────────────────────────────────────────────
+function SolicitarProvisionamentoModal({ cliente, onClose, onSaved }: { cliente: Cliente; onClose: () => void; onSaved: () => void }) {
+  const [form, setForm] = useState({
+    nomeOrg: cliente.empresa || cliente.nome,
+    contatoEmail: cliente.email || "",
+    contatoNome: cliente.nome,
+    contatoWhatsapp: cliente.telefone || "",
+    planoSolicitado: "starter",
+    observacoes: "",
+  });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const save = async () => {
+    if (!form.nomeOrg || !form.contatoEmail) { setError("Nome e e-mail são obrigatórios"); return; }
+    setLoading(true); setError("");
+    try {
+      await api.post("/cadastro-requests", { ...form, clienteId: cliente.id });
+      onSaved(); onClose();
+    } catch (e: any) { setError(e?.response?.data?.message || "Erro ao criar solicitação"); }
+    finally { setLoading(false); }
+  };
+
+  return (
+    <div className="modal-overlay" onClick={e => { if ((e.target as HTMLElement).classList.contains("modal-overlay")) onClose(); }}>
+      <div className="modal-box" onClick={e => e.stopPropagation()} style={{ maxWidth: 480 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
+          <h3 style={{ fontFamily: "var(--font-display)", fontSize: 15, fontWeight: 700 }}>Solicitar Provisionamento</h3>
+          <button className="btn-icon" onClick={onClose}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12" /></svg></button>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+          <div style={{ gridColumn: "1/-1" }}>
+            <label style={{ fontSize: 11, color: "var(--text-muted)", fontFamily: "var(--font-mono)", letterSpacing: "0.08em", display: "block", marginBottom: 6 }}>NOME DA ORGANIZAÇÃO *</label>
+            <input className="input-o" value={form.nomeOrg} onChange={e => setForm(f => ({ ...f, nomeOrg: e.target.value }))} />
+          </div>
+          <div>
+            <label style={{ fontSize: 11, color: "var(--text-muted)", fontFamily: "var(--font-mono)", letterSpacing: "0.08em", display: "block", marginBottom: 6 }}>E-MAIL DO CONTATO *</label>
+            <input className="input-o" type="email" value={form.contatoEmail} onChange={e => setForm(f => ({ ...f, contatoEmail: e.target.value }))} />
+          </div>
+          <div>
+            <label style={{ fontSize: 11, color: "var(--text-muted)", fontFamily: "var(--font-mono)", letterSpacing: "0.08em", display: "block", marginBottom: 6 }}>NOME DO CONTATO</label>
+            <input className="input-o" value={form.contatoNome} onChange={e => setForm(f => ({ ...f, contatoNome: e.target.value }))} />
+          </div>
+          <div>
+            <label style={{ fontSize: 11, color: "var(--text-muted)", fontFamily: "var(--font-mono)", letterSpacing: "0.08em", display: "block", marginBottom: 6 }}>WHATSAPP</label>
+            <input className="input-o" value={form.contatoWhatsapp} onChange={e => setForm(f => ({ ...f, contatoWhatsapp: e.target.value }))} />
+          </div>
+          <div>
+            <label style={{ fontSize: 11, color: "var(--text-muted)", fontFamily: "var(--font-mono)", letterSpacing: "0.08em", display: "block", marginBottom: 6 }}>PLANO</label>
+            <select className="input-o" value={form.planoSolicitado} onChange={e => setForm(f => ({ ...f, planoSolicitado: e.target.value }))}>
+              <option value="starter">Starter</option>
+              <option value="professional">Professional</option>
+              <option value="enterprise">Enterprise</option>
+            </select>
+          </div>
+          <div style={{ gridColumn: "1/-1" }}>
+            <label style={{ fontSize: 11, color: "var(--text-muted)", fontFamily: "var(--font-mono)", letterSpacing: "0.08em", display: "block", marginBottom: 6 }}>OBSERVAÇÕES</label>
+            <textarea className="input-o" rows={2} value={form.observacoes} onChange={e => setForm(f => ({ ...f, observacoes: e.target.value }))} style={{ resize: "vertical" }} />
+          </div>
+        </div>
+        {error && <div style={{ background: "rgba(220,38,38,0.08)", border: "1px solid rgba(220,38,38,0.2)", borderRadius: 8, padding: "10px 14px", color: "var(--accent-red)", fontSize: 12, marginTop: 12 }}>{error}</div>}
+        <div style={{ display: "flex", gap: 10, marginTop: 20 }}>
+          <button className="btn btn-ghost" style={{ flex: 1 }} onClick={onClose}>Cancelar</button>
+          <button className="btn btn-violet" style={{ flex: 2 }} onClick={save} disabled={loading}>{loading ? <Spin /> : "Enviar Solicitação"}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function TabOrganizacao({ cliente, isMaster }: { cliente: Cliente; isMaster: boolean }) {
+  const [orgData, setOrgData] = useState<any>(null);
+  const [loadingOrg, setLoadingOrg] = useState(false);
+  const [solicitarOpen, setSolicitarOpen] = useState(false);
+  const [solicitacaoEnviada, setSolicitacaoEnviada] = useState(false);
+
+  useEffect(() => {
+    if (cliente.tenantOrgId && isMaster) {
+      setLoadingOrg(true);
+      api.get(`/superadmin/organizations/${cliente.tenantOrgId}`)
+        .then(r => setOrgData(r.data))
+        .catch(() => {})
+        .finally(() => setLoadingOrg(false));
+    }
+  }, [cliente.tenantOrgId, isMaster]);
+
+  if (cliente.tenantOrgId) {
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+        <div className="card" style={{ padding: "20px 24px" }}>
+          <div style={{ fontSize: 11, fontFamily: "var(--font-mono)", letterSpacing: "0.08em", color: "var(--text-muted)", marginBottom: 14 }}>ORGANIZAÇÃO PROVISIONADA</div>
+          {loadingOrg ? (
+            <div style={{ display: "flex", gap: 8, alignItems: "center", color: "var(--text-muted)", fontSize: 12 }}><Spin /> Carregando...</div>
+          ) : orgData ? (
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <div style={{ width: 10, height: 10, borderRadius: "50%", background: orgData.ativo ? "var(--accent-green)" : "var(--text-muted)", flexShrink: 0 }} />
+                <span style={{ fontWeight: 600, fontSize: 16, color: "var(--text-primary)" }}>{orgData.nome}</span>
+                <code style={{ fontSize: 11, color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>/{orgData.slug}</code>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
+                {[
+                  { label: "PLANO", value: orgData.plano || "—" },
+                  { label: "STATUS COMERCIAL", value: orgData.statusComercial || "—" },
+                  { label: "STATUS OPERACIONAL", value: orgData.statusOperacional || "—" },
+                ].map(item => (
+                  <div key={item.label} className="card" style={{ padding: "12px 14px" }}>
+                    <div style={{ fontSize: 9, fontFamily: "var(--font-mono)", letterSpacing: "0.08em", color: "var(--text-muted)", marginBottom: 6 }}>{item.label}</div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)", textTransform: "capitalize" }}>{item.value}</div>
+                  </div>
+                ))}
+              </div>
+              <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
+                <span style={{ fontSize: 11, color: "var(--text-muted)" }}>{orgData.usuarios} usuário{orgData.usuarios !== 1 ? "s" : ""}</span>
+                <span style={{ fontSize: 11, color: "var(--text-muted)" }}>·</span>
+                <span style={{ fontSize: 11, color: "var(--text-muted)" }}>{orgData.chamados} chamado{orgData.chamados !== 1 ? "s" : ""}</span>
+              </div>
+            </div>
+          ) : (
+            <div style={{ fontSize: 13, color: "var(--text-muted)" }}>
+              Organização vinculada: <code style={{ fontFamily: "var(--font-mono)", fontSize: 11 }}>{cliente.tenantOrgId}</code>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="card" style={{ padding: "40px 24px", textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", gap: 16 }}>
+      <div style={{ width: 48, height: 48, borderRadius: 14, background: "rgba(124,58,237,0.08)", border: "1px solid rgba(124,58,237,0.2)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent-violet)" strokeWidth="1.5"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>
+      </div>
+      <div>
+        <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)", marginBottom: 6 }}>Sem organização provisionada</div>
+        <div style={{ fontSize: 12, color: "var(--text-muted)", maxWidth: 320, lineHeight: 1.6 }}>
+          Este cliente ainda não possui um tenant operacional no Orkiestri.
+          {isMaster ? " Crie uma solicitação de provisionamento para iniciar o onboarding." : ""}
+        </div>
+      </div>
+      {isMaster && !solicitacaoEnviada && (
+        <button className="btn btn-violet" style={{ fontSize: 13 }} onClick={() => setSolicitarOpen(true)}>
+          Solicitar Provisionamento
+        </button>
+      )}
+      {solicitacaoEnviada && (
+        <div style={{ fontSize: 12, color: "var(--accent-green)", background: "rgba(52,211,153,0.08)", border: "1px solid rgba(52,211,153,0.25)", borderRadius: 8, padding: "10px 16px" }}>
+          Solicitação enviada com sucesso. Aguardando aprovação no painel SA.
+        </div>
+      )}
+      {solicitarOpen && (
+        <SolicitarProvisionamentoModal
+          cliente={cliente}
+          onClose={() => setSolicitarOpen(false)}
+          onSaved={() => setSolicitacaoEnviada(true)}
+        />
+      )}
+    </div>
+  );
+}
+
 // ── Tab: Timeline ─────────────────────────────────────────────────────────────
 function TabTimeline({ clienteId, onAddNota }: { clienteId: string; onAddNota: () => void }) {
   const [items, setItems] = useState<TimelineEvento[]>([]);
@@ -788,16 +950,18 @@ function TabTimeline({ clienteId, onAddNota }: { clienteId: string; onAddNota: (
 
 // ── Página Principal ──────────────────────────────────────────────────────────
 const TABS = [
-  { key: "overview", label: "Visão Geral" },
-  { key: "projetos", label: "Projetos" },
-  { key: "chamados", label: "Chamados" },
-  { key: "contratos", label: "Contratos" },
-  { key: "timeline", label: "Timeline" },
+  { key: "overview",     label: "Visão Geral" },
+  { key: "projetos",     label: "Projetos" },
+  { key: "chamados",     label: "Chamados" },
+  { key: "contratos",    label: "Contratos" },
+  { key: "organizacao",  label: "Organização" },
+  { key: "timeline",     label: "Timeline" },
 ];
 
 export default function ClienteWorkspacePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const router = useRouter();
+  const { user } = useAuthStore();
   const [tab, setTab] = useState("overview");
   const [ws, setWs] = useState<Workspace | null>(null);
   const [loading, setLoading] = useState(true);
@@ -944,11 +1108,12 @@ export default function ClienteWorkspacePage({ params }: { params: Promise<{ id:
 
         {/* ── Tab Content ── */}
         <div style={{ padding: 24 }} className="animate-up">
-          {tab === "overview" && <TabVisaoGeral ws={ws} onAddNota={() => setNotaOpen(true)} onReload={load} />}
-          {tab === "projetos" && <TabProjetos projetos={ws.projetos} />}
-          {tab === "chamados" && <TabChamados chamados={ws.chamadosRecentes} />}
-          {tab === "contratos" && <TabContratos clienteId={id} onAddContrato={() => setContratoOpen(true)} />}
-          {tab === "timeline" && <TabTimeline clienteId={id} onAddNota={() => setNotaOpen(true)} />}
+          {tab === "overview"    && <TabVisaoGeral ws={ws} onAddNota={() => setNotaOpen(true)} onReload={load} />}
+          {tab === "projetos"    && <TabProjetos projetos={ws.projetos} />}
+          {tab === "chamados"    && <TabChamados chamados={ws.chamadosRecentes} />}
+          {tab === "contratos"   && <TabContratos clienteId={id} onAddContrato={() => setContratoOpen(true)} />}
+          {tab === "organizacao" && <TabOrganizacao cliente={cliente} isMaster={!!user?.isMaster} />}
+          {tab === "timeline"    && <TabTimeline clienteId={id} onAddNota={() => setNotaOpen(true)} />}
         </div>
       </div>
 

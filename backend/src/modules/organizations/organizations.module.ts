@@ -24,6 +24,9 @@ class UpdateOrgDto {
   @IsOptional() @IsString() plano?: string;
   @IsOptional() @IsBoolean() ativo?: boolean;
 }
+class VincularClienteDto {
+  @IsString() clienteId: string;
+}
 class InviteMasterDto {
   @IsString() nome: string;
   @IsEmail() email: string;
@@ -58,6 +61,9 @@ class SuperAdminOrgsController {
     return orgs.map((o: any) => ({
       id: o.id, nome: o.nome, slug: o.slug, plano: o.plano, ativo: o.ativo,
       criadoEm: o.criadoEm,
+      crmClienteId: o.crmClienteId ?? null,
+      statusComercial: o.statusComercial ?? null,
+      statusOperacional: o.statusOperacional ?? null,
       usuarios: o._count.users,
       chamados: o._count.chamados,
       whatsapp: o.whatsappConfig ? {
@@ -113,6 +119,30 @@ class SuperAdminOrgsController {
     if (!org) throw new NotFoundException("Organização não encontrada");
     if (org.slug === "default") throw new ForbiddenException("Não é possível excluir a organização padrão");
     await (this.prisma as any).organization.delete({ where: { id } });
+    return { ok: true };
+  }
+
+  @Get(":id/crm-cliente")
+  async getCrmCliente(@Req() req: any, @Param("id") id: string) {
+    this.guard(req);
+    const org = await (this.prisma as any).organization.findUnique({ where: { id } });
+    if (!org) throw new NotFoundException("Organização não encontrada");
+    if (!org.crmClienteId) return null;
+    const cliente = await (this.prisma as any).cliente.findUnique({ where: { id: org.crmClienteId } });
+    return cliente ?? null;
+  }
+
+  @Post(":id/vincular-cliente")
+  async vincularCliente(@Req() req: any, @Param("id") id: string, @Body() dto: VincularClienteDto) {
+    this.guard(req);
+    const org = await (this.prisma as any).organization.findUnique({ where: { id } });
+    if (!org) throw new NotFoundException("Organização não encontrada");
+    const cliente = await (this.prisma as any).cliente.findUnique({ where: { id: dto.clienteId } });
+    if (!cliente) throw new NotFoundException("Cliente não encontrado");
+    await Promise.all([
+      (this.prisma as any).organization.update({ where: { id }, data: { crmClienteId: dto.clienteId } }),
+      (this.prisma as any).cliente.update({ where: { id: dto.clienteId }, data: { tenantOrgId: id } }),
+    ]);
     return { ok: true };
   }
 

@@ -44,7 +44,7 @@ export default function Header() {
         transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
         className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
           scrolled
-            ? 'bg-[#06060f]/90 backdrop-blur-2xl border-b border-[rgba(162,130,255,0.12)] shadow-[0_8px_32px_rgba(0,0,0,0.5)]'
+            ? 'bg-[var(--bg-primary)]/80 backdrop-blur-2xl border-b border-[var(--border-subtle)] shadow-sm'
             : 'bg-transparent'
         }`}
       >
@@ -62,7 +62,7 @@ export default function Header() {
                 <button
                   key={link.href}
                   onClick={() => scrollTo(link.href)}
-                  className="px-4 py-2 text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors rounded-lg hover:bg-[rgba(167,139,250,0.06)] cursor-pointer"
+                  className="px-4 py-2 text-sm font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all duration-200 rounded-lg hover:bg-[var(--bg-hover)] cursor-pointer"
                 >
                   {link.label}
                 </button>
@@ -76,9 +76,9 @@ export default function Header() {
                 onClick={() => {
                   /* Analytics: dispare evento "login_intent" aqui */
                 }}
-                className="hidden sm:inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-gradient-to-r from-violet-600 to-violet-500 text-white text-sm font-medium hover:from-violet-500 hover:to-violet-400 transition-all shadow-[0_0_20px_rgba(124,58,237,0.35)] hover:shadow-[0_0_32px_rgba(124,58,237,0.55)] hover:-translate-y-px active:translate-y-0 active:shadow-none"
+                className="hidden sm:inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-gradient-to-r from-violet-600 to-violet-500 text-white text-sm font-semibold hover:from-violet-500 hover:to-violet-400 transition-all shadow-[0_0_20px_rgba(124,58,237,0.35)] hover:shadow-[0_0_32px_rgba(124,58,237,0.55)] hover:-translate-y-px active:translate-y-0 active:shadow-none"
               >
-                Entrar <ArrowRight size={14} />
+                Login <ArrowRight size={14} />
               </Link>
 
               <button
@@ -110,9 +110,9 @@ export default function Header() {
               animate={{ x: 0 }}
               exit={{ x: '100%' }}
               transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
-              className="fixed top-0 right-0 bottom-0 z-50 w-72 bg-[#0c0c22] border-l border-[rgba(162,130,255,0.12)] flex flex-col md:hidden"
+              className="fixed top-0 right-0 bottom-0 z-50 w-72 bg-[var(--bg-primary)] border-l border-[var(--border-subtle)] flex flex-col md:hidden"
             >
-              <div className="flex items-center justify-between px-5 h-16 border-b border-[rgba(162,130,255,0.08)]">
+              <div className="flex items-center justify-between px-5 h-16 border-b border-[var(--border-subtle)]">
                 <span className="font-display font-bold text-[var(--text-primary)]">Menu</span>
                 <button onClick={() => setOpen(false)} className="p-1.5 text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
                   <X size={20} />
@@ -131,13 +131,13 @@ export default function Header() {
                 ))}
               </div>
 
-              <div className="p-4 border-t border-[rgba(162,130,255,0.08)]">
+              <div className="p-4 border-t border-[var(--border-subtle)]">
                 <Link
                   href="/login"
                   onClick={() => setOpen(false)}
-                  className="flex items-center justify-center gap-2 w-full py-3.5 rounded-xl bg-gradient-to-r from-violet-600 to-violet-500 text-white font-medium text-sm shadow-[0_0_20px_rgba(124,58,237,0.35)]"
+                  className="flex items-center justify-center gap-2 w-full py-3.5 rounded-xl bg-gradient-to-r from-violet-600 to-violet-500 text-white font-semibold text-sm shadow-[0_0_20px_rgba(124,58,237,0.35)]"
                 >
-                  Entrar no sistema <ArrowRight size={15} />
+                  Login no sistema <ArrowRight size={15} />
                 </Link>
               </div>
             </motion.nav>

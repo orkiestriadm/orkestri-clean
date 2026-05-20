@@ -96,6 +96,11 @@ function mapCliente(c: any, includeStats = false) {
     saudeScore: c.saudeScore ?? 100,
     responsavelId: c.responsavelId,
     responsavel: c.responsavel ? { id: c.responsavel.id, nome: c.responsavel.nome, avatar: c.responsavel.avatar } : null,
+    // Pipeline / Oportunidade
+    tenantOrgId: c.tenantOrgId ?? null,
+    valorEstimado: c.valorEstimado ?? null,
+    probabilidade: c.probabilidade ?? null,
+    dataFechamento: c.dataFechamento ?? null,
     criadoEm: c.criadoEm,
     atualizadoEm: c.atualizadoEm,
     ...(includeStats && {
@@ -315,6 +320,66 @@ class ClientesController {
     }
 
     return { total: rows.length, criados: criados.length, erros };
+  }
+
+  // ── Pipeline ───────────────────────────────────────────────────────────────
+
+  @Get("pipeline")
+  @Permissions("crm:ver")
+  async getPipeline(@Req() req: any) {
+    const orgId = req.user?.organizationId;
+    const clientes = await this.prisma.cliente.findMany({
+      where: { ...(orgId ? { organizationId: orgId } as any : {}), ativo: true },
+      select: {
+        id: true, nome: true, empresa: true, email: true, telefone: true,
+        statusLead: true, valorEstimado: true, probabilidade: true,
+        dataFechamento: true, saudeScore: true, tenantOrgId: true,
+        responsavel: { select: { id: true, nome: true, avatar: true } },
+        criadoEm: true,
+      },
+      orderBy: { criadoEm: "desc" },
+    });
+    const stages = ["lead", "prospect", "oportunidade", "negociacao", "ativo", "inativo"];
+    const pipeline: Record<string, any[]> = {};
+    for (const s of stages) pipeline[s] = [];
+    for (const c of clientes) {
+      const stage = (c.statusLead || "lead").toLowerCase();
+      if (!pipeline[stage]) pipeline[stage] = [];
+      pipeline[stage].push(c);
+    }
+    return pipeline;
+  }
+
+  @Patch(":id/status")
+  @Permissions("crm:editar")
+  async updateStatus(
+    @Req() req: any,
+    @Param("id") id: string,
+    @Body() body: { statusLead: string; valorEstimado?: number; probabilidade?: number; dataFechamento?: string },
+  ) {
+    const orgId = req.user?.organizationId;
+    const validos = ["lead", "prospect", "oportunidade", "negociacao", "ativo", "inativo"];
+    if (!validos.includes(body.statusLead))
+      throw new BadRequestException(`statusLead inválido. Use: ${validos.join(", ")}`);
+    const exists = await this.prisma.cliente.findFirst({ where: { id, ...(orgId ? { organizationId: orgId } as any : {}) } });
+    if (!exists) throw new NotFoundException("Cliente não encontrado");
+    const updated = await this.prisma.cliente.update({
+      where: { id },
+      data: {
+        statusLead: body.statusLead,
+        ...(body.valorEstimado !== undefined ? { valorEstimado: body.valorEstimado } : {}),
+        ...(body.probabilidade !== undefined ? { probabilidade: body.probabilidade } : {}),
+        ...(body.dataFechamento ? { dataFechamento: new Date(body.dataFechamento) } : {}),
+      } as any,
+    });
+    if (body.statusLead !== exists.statusLead) {
+      await addTimelineEvent(this.prisma, {
+        clienteId: id, tipo: "status_change",
+        titulo: `Movido para "${body.statusLead}" no pipeline`,
+        userId: req.user?.id,
+      });
+    }
+    return updated;
   }
 
   @Delete(":id")

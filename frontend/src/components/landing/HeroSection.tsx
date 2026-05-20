@@ -212,7 +212,7 @@ export default function HeroSection() {
         {/* Cyan orb */}
         <div className="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] rounded-full bg-cyan-500/7 blur-[110px]" style={{ animation: 'pulse 10s ease-in-out infinite', animationDelay: '3s' }} />
         {/* Bottom fade */}
-        <div className="absolute bottom-0 left-0 right-0 h-40 bg-gradient-to-t from-[#070711] to-transparent" />
+        <div className="absolute bottom-0 left-0 right-0 h-40 bg-gradient-to-t from-[var(--bg-primary)] to-transparent" />
         {/* Top corner accent */}
         <div className="absolute top-0 right-0 w-96 h-96 bg-violet-600/5 blur-[80px] rounded-full" />
       </div>
@@ -277,9 +277,9 @@ export default function HeroSection() {
 
               <Link
                 href="/login"
-                className="inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-xl border border-[rgba(162,130,255,0.22)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[rgba(162,130,255,0.45)] hover:bg-[rgba(167,139,250,0.05)] transition-all text-sm"
+                className="inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-xl border border-[var(--border-strong)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-all font-medium text-sm"
               >
-                Entrar no sistema <ChevronRight size={15} />
+                Login no sistema <ChevronRight size={15} />
               </Link>
             </motion.div>
 
@@ -293,7 +293,7 @@ export default function HeroSection() {
               <div className="flex items-center gap-3">
                 <div className="flex -space-x-2">
                   {['G', 'T', 'R', 'M', 'A'].map((l, i) => (
-                    <div key={i} className="w-7 h-7 rounded-full border-2 border-[#07071a] bg-gradient-to-br from-violet-500 to-violet-700 flex items-center justify-center text-white text-[9px] font-bold">
+                    <div key={i} className="w-7 h-7 rounded-full border-2 border-[var(--bg-primary)] bg-gradient-to-br from-violet-500 to-violet-700 flex items-center justify-center text-white text-[9px] font-bold">
                       {l}
                     </div>
                   ))}

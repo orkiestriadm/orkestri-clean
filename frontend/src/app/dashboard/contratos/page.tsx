@@ -17,6 +17,7 @@ type Contrato = {
 };
 
 type Stats = { total: number; vigentes: number; vencendo: number; vencidos: number; suspensos: number; valorTotal: number };
+type Anexo = { id: string; nome: string; url: string; tamanho: number | null; tipo: string | null; criadoEm: string };
 
 const TIPOS    = ["servico","manutencao","suporte","licenca","consultoria","outro"];
 const STATUSES = ["vigente","vencendo","vencido","suspenso","rescindido"];
@@ -202,6 +203,105 @@ function ContratoForm({
   );
 }
 
+// ── AnexosModal ───────────────────────────────────────────────────────────────
+function AnexosModal({ contrato, onClose }: { contrato: Contrato; onClose: () => void }) {
+  const [anexos, setAnexos] = useState<Anexo[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [uploading, setUploading] = useState(false);
+  const [err, setErr] = useState("");
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try { const r = await api.get(`/contratos/${contrato.id}/anexos`); setAnexos(r.data); }
+    catch {} finally { setLoading(false); }
+  }, [contrato.id]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const upload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true); setErr("");
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      await api.post(`/contratos/${contrato.id}/anexos`, fd, { headers: { "Content-Type": "multipart/form-data" } });
+      await load();
+    } catch (ex: any) { setErr(ex?.response?.data?.message || "Erro ao enviar arquivo"); }
+    finally { setUploading(false); e.target.value = ""; }
+  };
+
+  const remove = async (anexoId: string) => {
+    if (!confirm("Remover este anexo?")) return;
+    try { await api.delete(`/contratos/${contrato.id}/anexos/${anexoId}`); load(); }
+    catch {}
+  };
+
+  const fmtSize = (b: number | null) => {
+    if (!b) return "";
+    if (b < 1024) return `${b} B`;
+    if (b < 1024 * 1024) return `${(b / 1024).toFixed(1)} KB`;
+    return `${(b / 1024 / 1024).toFixed(1)} MB`;
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+      <div className="bg-card border border-border rounded-xl w-full max-w-lg shadow-2xl">
+        <div className="flex items-center justify-between p-5 border-b border-border">
+          <div>
+            <h2 className="font-semibold text-foreground">Anexos do Contrato</h2>
+            <p className="text-xs text-muted-foreground mt-0.5">{contrato.titulo || `CT-${String(contrato.numero).padStart(4, "0")}`}</p>
+          </div>
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground"><X size={18} /></button>
+        </div>
+        <div className="p-5 flex flex-col gap-4">
+          {err && <div className="text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{err}</div>}
+
+          {/* Upload area */}
+          <label className="flex flex-col items-center justify-center gap-2 border-2 border-dashed border-border rounded-xl p-6 cursor-pointer hover:border-primary/50 hover:bg-accent/20 transition-colors">
+            {uploading ? (
+              <RefreshCw size={20} className="animate-spin text-muted-foreground" />
+            ) : (
+              <Plus size={20} className="text-muted-foreground" />
+            )}
+            <span className="text-sm text-muted-foreground">{uploading ? "Enviando..." : "Clique para anexar um arquivo"}</span>
+            <input type="file" className="hidden" onChange={upload} disabled={uploading} />
+          </label>
+
+          {/* List */}
+          {loading ? (
+            <div className="flex justify-center py-4 text-muted-foreground text-sm">Carregando...</div>
+          ) : anexos.length === 0 ? (
+            <div className="text-center py-4 text-sm text-muted-foreground">Nenhum anexo ainda</div>
+          ) : (
+            <div className="flex flex-col divide-y divide-border">
+              {anexos.map(a => (
+                <div key={a.id} className="flex items-center gap-3 py-3">
+                  <FileText size={16} className="text-muted-foreground flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm text-foreground truncate">{a.nome}</div>
+                    <div className="text-[10px] text-muted-foreground font-mono">{fmtSize(a.tamanho)} · {new Date(a.criadoEm).toLocaleDateString("pt-BR")}</div>
+                  </div>
+                  <div className="flex gap-1 flex-shrink-0">
+                    <a href={`${process.env.NEXT_PUBLIC_API_URL || ""}${a.url}`} target="_blank" rel="noreferrer"
+                      className="p-1.5 rounded text-muted-foreground hover:text-foreground hover:bg-accent" title="Download">
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                    </a>
+                    <button onClick={() => remove(a.id)}
+                      className="p-1.5 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10" title="Remover">
+                      <Trash2 size={13} />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── RenovarModal ─────────────────────────────────────────────────────────────
 function RenovarModal({ contrato, onClose, onRenovado }: { contrato: Contrato; onClose: () => void; onRenovado: () => void }) {
   const nextYear = (d: string | null) => {
@@ -281,6 +381,7 @@ export default function ContratosPage() {
   const [editing, setEditing] = useState<Contrato | null>(null);
   const [saving, setSaving] = useState(false);
   const [renovando, setRenovando] = useState<Contrato | null>(null);
+  const [verAnexos, setVerAnexos] = useState<Contrato | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -450,6 +551,10 @@ export default function ContratosPage() {
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-end gap-1">
+                        <button onClick={() => setVerAnexos(c)} title="Anexos"
+                          className="p-1.5 rounded text-muted-foreground hover:text-primary hover:bg-primary/10">
+                          <FileText size={13} />
+                        </button>
                         <button onClick={() => setRenovando(c)} title="Renovar contrato"
                           className="p-1.5 rounded text-muted-foreground hover:text-emerald-400 hover:bg-emerald-500/10">
                           <RefreshCw size={13} />
@@ -489,6 +594,12 @@ export default function ContratosPage() {
           contrato={renovando}
           onClose={() => setRenovando(null)}
           onRenovado={() => { setRenovando(null); load(); }}
+        />
+      )}
+      {verAnexos && (
+        <AnexosModal
+          contrato={verAnexos}
+          onClose={() => setVerAnexos(null)}
         />
       )}
       </div>

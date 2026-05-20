@@ -85,9 +85,9 @@ function formatDate(d: string) {
 // ── Sub-components ─────────────────────────────────────────────────────────────
 function StatCard({ label, value, color }: { label: string; value: number; color?: string }) {
   return (
-    <div className="bg-card border border-border rounded-xl p-4 flex flex-col gap-1">
-      <span className="text-xs text-muted-foreground">{label}</span>
-      <span className={`text-2xl font-bold ${color || "text-foreground"}`}>{value}</span>
+    <div className="card-premium rounded-xl p-4 flex flex-col gap-1.5 shadow-premium-sm transition-all hover:-translate-y-0.5 hover:shadow-premium-md">
+      <span className="text-xs text-[var(--text-muted)] font-medium tracking-wide uppercase">{label}</span>
+      <span className={`text-2xl font-bold font-display ${color || "text-[var(--text-primary)]"}`}>{value}</span>
     </div>
   );
 }
@@ -124,22 +124,22 @@ function ChamadoCard({ chamado, onClick, selected, onSelect }: {
   selected?: boolean; onSelect?: (e: React.MouseEvent) => void;
 }) {
   return (
-    <div className={`relative w-full text-left bg-card border rounded-lg p-3 transition-all ${selected ? "border-primary/60 ring-1 ring-primary/20" : "border-border hover:border-primary/40 hover:shadow-sm"}`}>
+    <div className={`relative w-full text-left card-premium p-3.5 transition-all hover:shadow-premium-md ${selected ? "ring-2 ring-[var(--accent-violet)] bg-[var(--accent-violet-dim)]" : "hover:border-[var(--border-medium)]"}`}>
       {onSelect && (
         <div className="absolute top-2 right-2 z-10" onClick={onSelect}>
-          <div className={`w-4 h-4 rounded border-2 flex items-center justify-center transition-colors cursor-pointer ${selected ? "bg-primary border-primary" : "border-border bg-background hover:border-primary/60"}`}>
+          <div className={`w-4 h-4 rounded border-2 flex items-center justify-center transition-colors cursor-pointer ${selected ? "bg-[var(--accent-violet)] border-[var(--accent-violet)]" : "border-[var(--border-strong)] bg-[var(--bg-primary)] hover:border-[var(--accent-violet)]"}`}>
             {selected && <svg width="9" height="9" viewBox="0 0 12 12" fill="none" stroke="white" strokeWidth="2.5"><path d="M2 6l3 3 5-5"/></svg>}
           </div>
         </div>
       )}
-      <button onClick={onClick} className="w-full text-left">
+      <button onClick={onClick} className="w-full text-left outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-violet)] rounded">
       <div className="flex items-start justify-between gap-2 mb-2">
-        <span className="text-[10px] text-muted-foreground font-mono">#{chamado.numero}</span>
+        <span className="text-[10px] text-[var(--text-muted)] font-mono">#{chamado.numero}</span>
         <PrioridadeBadge prioridade={chamado.prioridade} />
       </div>
-      <p className="text-xs font-medium text-foreground line-clamp-2 mb-2">{chamado.titulo}</p>
+      <p className="text-[13px] font-medium text-[var(--text-primary)] leading-snug line-clamp-2 mb-2.5 hover:text-[var(--accent-violet)] transition-colors">{chamado.titulo}</p>
       {chamado.categoria && (
-        <span className="inline-block text-[10px] text-muted-foreground bg-accent/60 rounded px-1.5 py-0.5 mb-2">
+        <span className="inline-block text-[10px] font-medium text-[var(--text-secondary)] bg-[var(--bg-hover)] border border-[var(--border-subtle)] rounded px-1.5 py-0.5 mb-2.5">
           {chamado.categoria}
         </span>
       )}
@@ -227,19 +227,19 @@ function NovoChamadoModal({ onClose, onCreated }: { onClose: () => void; onCreat
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-      <div className="bg-card border border-border rounded-2xl w-full max-w-lg shadow-2xl">
-        <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-border">
-          <h2 className="font-semibold text-foreground">Novo Chamado</h2>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+      <div className="card-premium rounded-2xl w-full max-w-lg shadow-premium-2xl">
+        <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-[var(--border-subtle)]">
+          <h2 className="font-semibold text-[var(--text-primary)] font-display text-lg">Novo Chamado</h2>
           <div className="flex items-center gap-2">
             {templates.length > 0 && (
               <select onChange={e => { if (e.target.value) applyTemplate(templates.find(t => t.nome === e.target.value)!); e.target.value = ""; }}
-                className="bg-background border border-border rounded-lg px-2 py-1 text-xs text-muted-foreground focus:outline-none">
+                className="input-o text-xs py-1.5 w-auto">
                 <option value="">Usar template...</option>
                 {templates.map(t => <option key={t.nome} value={t.nome}>{t.nome}</option>)}
               </select>
             )}
-            <button type="button" onClick={onClose} className="text-muted-foreground hover:text-foreground"><X size={18} /></button>
+            <button type="button" onClick={onClose} className="text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"><X size={18} /></button>
           </div>
         </div>
         <form onSubmit={submit} className="p-6 space-y-4">
@@ -264,46 +264,46 @@ function NovoChamadoModal({ onClose, onCreated }: { onClose: () => void; onCreat
           )}
 
           <div>
-            <label className="text-xs text-muted-foreground mb-1 block">Título *</label>
+            <label className="text-[11px] text-[var(--text-muted)] font-mono block mb-1.5 uppercase tracking-wider">Título *</label>
             <input
-              className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-primary/60"
+              className="input-o"
               placeholder="Descreva brevemente o problema..."
               value={form.titulo}
               onChange={e => setForm(f => ({ ...f, titulo: e.target.value }))}
             />
             {kbSugestoes.length > 0 && !kbArtigo && (
-              <div className="mt-1 rounded-lg border border-border bg-card shadow-md overflow-hidden">
-                <div className="px-3 py-1.5 border-b border-border flex items-center gap-1.5">
-                  <BookOpen size={11} className="text-muted-foreground" />
-                  <span className="text-[10px] text-muted-foreground">Artigos relacionados na base de conhecimento</span>
+              <div className="mt-1 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-card)] shadow-premium-sm overflow-hidden">
+                <div className="px-3 py-1.5 border-b border-[var(--border-subtle)] flex items-center gap-1.5 bg-[var(--bg-hover)]">
+                  <BookOpen size={11} className="text-[var(--text-muted)]" />
+                  <span className="text-[10px] text-[var(--text-muted)] font-medium">Artigos relacionados na base de conhecimento</span>
                 </div>
                 {kbSugestoes.map(a => (
                   <button
                     key={a.id}
                     type="button"
                     onClick={() => setKbArtigo(a)}
-                    className="w-full text-left px-3 py-2 hover:bg-accent/50 transition-colors border-b border-border last:border-0"
+                    className="w-full text-left px-3 py-2 hover:bg-[var(--bg-hover)] transition-colors border-b border-[var(--border-subtle)] last:border-0"
                   >
                     <div className="flex items-center gap-2">
                       {a.categoria && (
-                        <span className="text-[9px] px-1.5 py-0.5 rounded shrink-0"
+                        <span className="text-[9px] px-1.5 py-0.5 rounded font-medium shrink-0"
                           style={{ background: a.categoria.cor + "20", color: a.categoria.cor }}>
                           {a.categoria.nome}
                         </span>
                       )}
-                      <span className="text-[12px] text-foreground truncate">{a.titulo}</span>
+                      <span className="text-[12px] text-[var(--text-primary)] font-medium truncate">{a.titulo}</span>
                     </div>
-                    {a.resumo && <div className="text-[10px] text-muted-foreground truncate mt-0.5">{a.resumo}</div>}
+                    {a.resumo && <div className="text-[10px] text-[var(--text-secondary)] truncate mt-0.5">{a.resumo}</div>}
                   </button>
                 ))}
               </div>
             )}
           </div>
           <div>
-            <label className="text-xs text-muted-foreground mb-1 block">Descrição *</label>
+            <label className="text-[11px] text-[var(--text-muted)] font-mono block mb-1.5 uppercase tracking-wider">Descrição *</label>
             <textarea
               rows={4}
-              className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-primary/60 resize-none"
+              className="input-o resize-y min-h-[80px]"
               placeholder="Detalhe o problema ou solicitação..."
               value={form.descricao}
               onChange={e => setForm(f => ({ ...f, descricao: e.target.value }))}
@@ -311,9 +311,9 @@ function NovoChamadoModal({ onClose, onCreated }: { onClose: () => void; onCreat
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs text-muted-foreground mb-1 block">Prioridade</label>
+              <label className="text-[11px] text-[var(--text-muted)] font-mono block mb-1.5 uppercase tracking-wider">Prioridade</label>
               <select
-                className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-primary/60"
+                className="input-o"
                 value={form.prioridade}
                 onChange={e => setForm(f => ({ ...f, prioridade: e.target.value }))}
               >
@@ -321,9 +321,9 @@ function NovoChamadoModal({ onClose, onCreated }: { onClose: () => void; onCreat
               </select>
             </div>
             <div>
-              <label className="text-xs text-muted-foreground mb-1 block">Categoria</label>
+              <label className="text-[11px] text-[var(--text-muted)] font-mono block mb-1.5 uppercase tracking-wider">Categoria</label>
               <select
-                className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-primary/60"
+                className="input-o"
                 value={form.categoria}
                 onChange={e => setForm(f => ({ ...f, categoria: e.target.value }))}
               >
@@ -333,9 +333,9 @@ function NovoChamadoModal({ onClose, onCreated }: { onClose: () => void; onCreat
             </div>
           </div>
           <div>
-            <label className="text-xs text-muted-foreground mb-1 block">Cliente (opcional)</label>
+            <label className="text-[11px] text-[var(--text-muted)] font-mono block mb-1.5 uppercase tracking-wider">Cliente (opcional)</label>
             <select
-              className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-primary/60"
+              className="input-o"
               value={form.clienteId}
               onChange={e => setForm(f => ({ ...f, clienteId: e.target.value }))}
             >
@@ -346,26 +346,26 @@ function NovoChamadoModal({ onClose, onCreated }: { onClose: () => void; onCreat
             </select>
           </div>
           {showSaveTemplate ? (
-            <div className="flex gap-2 pt-1">
+            <div className="flex gap-2 pt-1 items-center">
               <input value={templateNome} onChange={e => setTemplateNome(e.target.value)}
                 placeholder="Nome do template..." autoFocus
-                className="flex-1 bg-background border border-border rounded-lg px-3 py-2 text-xs text-foreground focus:outline-none focus:border-primary/60" />
+                className="input-o flex-1" />
               <button type="button" onClick={saveAsTemplate}
-                className="px-3 py-2 bg-primary/10 text-primary border border-primary/30 rounded-lg text-xs hover:bg-primary/20 transition-colors">Salvar</button>
+                className="btn-ghost text-xs py-2 px-3 text-[var(--accent-violet)]">Salvar</button>
               <button type="button" onClick={() => setShowSaveTemplate(false)}
-                className="px-2 py-2 text-muted-foreground hover:text-foreground"><X size={14} /></button>
+                className="p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"><X size={14} /></button>
             </div>
           ) : (
             <button type="button" onClick={() => setShowSaveTemplate(true)}
-              className="text-xs text-muted-foreground hover:text-primary transition-colors self-start">
+              className="text-xs font-medium text-[var(--text-muted)] hover:text-[var(--accent-violet)] transition-colors self-start block">
               + Salvar como template
             </button>
           )}
-          <div className="flex gap-3 pt-1">
-            <button type="button" onClick={onClose} className="flex-1 py-2 rounded-lg border border-border text-sm text-muted-foreground hover:bg-accent transition-colors">
+          <div className="flex gap-3 pt-3">
+            <button type="button" onClick={onClose} className="btn-ghost flex-1">
               Cancelar
             </button>
-            <button type="submit" disabled={saving} className="flex-1 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors flex items-center justify-center gap-2">
+            <button type="submit" disabled={saving} className="btn-primary flex-1 flex items-center justify-center gap-2">
               {saving && <Loader2 size={14} className="animate-spin" />}
               Abrir Chamado
             </button>
@@ -460,30 +460,30 @@ function ChamadoDrawer({ chamado, isMaster, userId, onClose, onUpdated }: {
 
   return (
     <div className="fixed inset-0 z-50 flex">
-      <div className="flex-1 bg-black/40 backdrop-blur-sm" onClick={onClose} />
-      <div className="w-full max-w-2xl bg-card border-l border-border flex flex-col overflow-hidden">
+      <div className="flex-1 bg-black/40 backdrop-blur-sm animate-in fade-in duration-300" onClick={onClose} />
+      <div className="w-full max-w-2xl bg-[var(--bg-glass)] backdrop-blur-3xl border-l border-[var(--border-subtle)] flex flex-col overflow-hidden shadow-premium-2xl animate-in slide-in-from-right duration-300">
         {/* Header */}
-        <div className="flex items-start justify-between px-6 pt-5 pb-4 border-b border-border flex-shrink-0">
+        <div className="flex items-start justify-between px-6 pt-5 pb-4 border-b border-[var(--border-subtle)] bg-[var(--bg-card)]/50 flex-shrink-0">
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-1">
-              <span className="text-xs text-muted-foreground font-mono">#{detail.numero}</span>
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-xs text-[var(--text-muted)] font-mono">#{detail.numero}</span>
               <span
-                className="inline-flex items-center text-[11px] font-medium px-2 py-0.5 rounded-full"
-                style={{ background: col.color + "20", color: col.color }}
+                className="inline-flex items-center text-[11px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider"
+                style={{ background: col.color + "20", color: col.color, border: `1px solid ${col.color}40` }}
               >
                 {col.label}
               </span>
               <PrioridadeBadge prioridade={detail.prioridade} />
               <SlaBadge slaStatus={detail.slaStatus} />
             </div>
-            <h2 className="font-semibold text-foreground text-sm leading-snug">{detail.titulo}</h2>
+            <h2 className="font-display font-bold text-[var(--text-primary)] text-xl leading-snug">{detail.titulo}</h2>
           </div>
           <div className="flex items-center gap-2 ml-4 flex-shrink-0">
             <a href={`/dashboard/chamados/${detail.id}`} title="Abrir página completa"
-              className="text-muted-foreground hover:text-foreground">
+              className="w-8 h-8 flex items-center justify-center rounded-full bg-[var(--bg-hover)] text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors">
               <ExternalLink size={16} />
             </a>
-            <button onClick={onClose} className="text-muted-foreground hover:text-foreground">
+            <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full bg-[var(--bg-hover)] text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors">
               <X size={18} />
             </button>
           </div>
@@ -491,20 +491,20 @@ function ChamadoDrawer({ chamado, isMaster, userId, onClose, onUpdated }: {
 
         <div className="flex-1 overflow-y-auto">
           {/* Meta info */}
-          <div className="px-6 py-4 space-y-3 border-b border-border">
-            <div className="grid grid-cols-2 gap-3 text-xs">
+          <div className="px-6 py-5 space-y-4 border-b border-[var(--border-subtle)] bg-[var(--bg-primary)]/40">
+            <div className="grid grid-cols-2 gap-4 text-xs">
               <div>
-                <span className="text-muted-foreground">Solicitante</span>
-                <div className="flex items-center gap-1.5 mt-1">
-                  <Avatar nome={detail.solicitante.nome} />
-                  <span className="text-foreground font-medium">{detail.solicitante.nome}</span>
+                <span className="text-[11px] font-mono text-[var(--text-muted)] tracking-wider uppercase mb-1.5 block">Solicitante</span>
+                <div className="flex items-center gap-2">
+                  <Avatar nome={detail.solicitante.nome} size={6} />
+                  <span className="text-[var(--text-primary)] font-medium">{detail.solicitante.nome}</span>
                 </div>
               </div>
               <div>
-                <span className="text-muted-foreground">Atendente</span>
+                <span className="text-[11px] font-mono text-[var(--text-muted)] tracking-wider uppercase mb-1.5 block">Atendente</span>
                 {isMaster ? (
                   <select
-                    className="mt-1 w-full bg-background border border-border rounded px-2 py-1 text-xs text-foreground focus:outline-none"
+                    className="input-o text-xs py-1.5"
                     value={detail.atendenteId || ""}
                     onChange={e => atribuir(e.target.value)}
                     disabled={atribuindo}
@@ -513,47 +513,37 @@ function ChamadoDrawer({ chamado, isMaster, userId, onClose, onUpdated }: {
                     {users.map(u => <option key={u.id} value={u.id}>{u.nome}</option>)}
                   </select>
                 ) : (
-                  <div className="flex items-center gap-1.5 mt-1">
+                  <div className="flex items-center gap-2">
                     {detail.atendente
-                      ? <><Avatar nome={detail.atendente.nome} /><span className="text-foreground font-medium">{detail.atendente.nome}</span></>
-                      : <span className="text-muted-foreground italic">Não atribuído</span>}
+                      ? <><Avatar nome={detail.atendente.nome} size={6} /><span className="text-[var(--text-primary)] font-medium">{detail.atendente.nome}</span></>
+                      : <span className="text-[var(--text-muted)] italic">Não atribuído</span>}
                   </div>
                 )}
               </div>
               {detail.cliente && (
                 <div>
-                  <span className="text-muted-foreground">Cliente</span>
-                  <div className="flex items-center gap-1.5 mt-1">
-                    <Building2 size={14} className="text-muted-foreground" />
-                    <span className="text-foreground">{detail.cliente.nome}</span>
+                  <span className="text-[11px] font-mono text-[var(--text-muted)] tracking-wider uppercase mb-1.5 block">Cliente</span>
+                  <div className="flex items-center gap-1.5">
+                    <Building2 size={14} className="text-[var(--text-muted)]" />
+                    <span className="text-[var(--text-primary)] font-medium">{detail.cliente.nome}</span>
                   </div>
                 </div>
               )}
               {detail.categoria && (
                 <div>
-                  <span className="text-muted-foreground">Categoria</span>
-                  <div className="flex items-center gap-1.5 mt-1">
-                    <Tag size={14} className="text-muted-foreground" />
-                    <span className="text-foreground">{detail.categoria}</span>
+                  <span className="text-[11px] font-mono text-[var(--text-muted)] tracking-wider uppercase mb-1.5 block">Categoria</span>
+                  <div className="flex items-center gap-1.5">
+                    <Tag size={14} className="text-[var(--text-muted)]" />
+                    <span className="text-[var(--text-primary)] font-medium">{detail.categoria}</span>
                   </div>
-                </div>
-              )}
-              <div>
-                <span className="text-muted-foreground">Aberto em</span>
-                <div className="text-foreground mt-1">{formatDate(detail.criadoEm)}</div>
-              </div>
-              {detail.slaHoras && (
-                <div>
-                  <span className="text-muted-foreground">SLA</span>
-                  <div className="text-foreground mt-1">{detail.slaHoras}h</div>
                 </div>
               )}
             </div>
 
             {/* Status actions */}
             {nextStatuses.length > 0 && (isMaster || detail.atendenteId === userId || isSolicitante) && (
-              <div className="flex items-center gap-2 flex-wrap pt-1">
-                <span className="text-xs text-muted-foreground">Mover para:</span>
+              <div className="flex items-center gap-2 flex-wrap pt-2 mt-2 border-t border-[var(--border-subtle)]">
+                <span className="text-xs text-[var(--text-muted)] font-medium">Mover para:</span>
                 {nextStatuses.map(s => {
                   const c = STATUS_COLS.find(x => x.key === s)!;
                   return (
@@ -561,7 +551,7 @@ function ChamadoDrawer({ chamado, isMaster, userId, onClose, onUpdated }: {
                       key={s}
                       onClick={() => changeStatus(s)}
                       disabled={changingStatus}
-                      className="text-xs px-3 py-1.5 rounded-lg border font-medium transition-colors hover:opacity-90 disabled:opacity-50"
+                      className="text-[11px] font-bold px-3 py-1.5 rounded-full border transition-all hover:opacity-90 disabled:opacity-50 uppercase tracking-wider"
                       style={{ borderColor: c.color + "40", color: c.color, background: c.color + "15" }}
                     >
                       {changingStatus ? <Loader2 size={12} className="animate-spin inline mr-1" /> : null}
@@ -574,74 +564,34 @@ function ChamadoDrawer({ chamado, isMaster, userId, onClose, onUpdated }: {
           </div>
 
           {/* Description */}
-          <div className="px-6 py-4 border-b border-border">
-            <h3 className="text-xs font-medium text-muted-foreground mb-2">Descrição</h3>
-            <p className="text-sm text-foreground whitespace-pre-wrap">{detail.descricao}</p>
+          <div className="px-6 py-6 border-b border-[var(--border-subtle)]">
+            <h3 className="text-[11px] font-mono font-bold text-[var(--text-muted)] tracking-widest uppercase mb-3">Descrição</h3>
+            <p className="text-[14px] text-[var(--text-primary)] whitespace-pre-wrap leading-relaxed">{detail.descricao}</p>
           </div>
 
-          {/* CSAT rating */}
-          {canEvaluate && (
-            <div className="px-6 py-4 border-b border-border bg-emerald-500/5">
-              <h3 className="text-xs font-medium text-emerald-400 mb-3">Avaliar atendimento</h3>
-              <div className="flex gap-1 mb-2">
-                {[1, 2, 3, 4, 5].map(n => (
-                  <button key={n} onClick={() => setRating(n)} className={`transition-colors ${n <= rating ? "text-yellow-400" : "text-muted-foreground/40"}`}>
-                    <Star size={22} fill={n <= rating ? "currentColor" : "none"} />
-                  </button>
-                ))}
-              </div>
-              <textarea
-                rows={2}
-                className="w-full bg-background border border-border rounded-lg px-3 py-2 text-xs text-foreground focus:outline-none resize-none mb-2"
-                placeholder="Comentário (opcional)..."
-                value={ratingNota}
-                onChange={e => setRatingNota(e.target.value)}
-              />
-              <button
-                onClick={avaliar}
-                disabled={!rating || savingRating}
-                className="text-xs px-4 py-2 bg-emerald-600 text-white rounded-lg disabled:opacity-50 hover:bg-emerald-500 transition-colors flex items-center gap-2"
-              >
-                {savingRating && <Loader2 size={12} className="animate-spin" />}
-                Enviar avaliação
-              </button>
-            </div>
-          )}
-          {detail.avaliacao && (
-            <div className="px-6 py-3 border-b border-border bg-yellow-500/5">
-              <div className="flex items-center gap-1">
-                {[1, 2, 3, 4, 5].map(n => (
-                  <Star key={n} size={14} className={n <= detail.avaliacao! ? "text-yellow-400 fill-yellow-400" : "text-muted-foreground/30"} />
-                ))}
-                <span className="text-xs text-muted-foreground ml-2">Avaliação do solicitante</span>
-              </div>
-              {detail.avaliacaoNota && <p className="text-xs text-muted-foreground mt-1 italic">"{detail.avaliacaoNota}"</p>}
-            </div>
-          )}
-
           {/* Comments */}
-          <div className="px-6 py-4">
-            <h3 className="text-xs font-medium text-muted-foreground mb-4 flex items-center gap-1.5">
+          <div className="px-6 py-6 bg-[var(--bg-primary)]/20">
+            <h3 className="text-[11px] font-mono font-bold text-[var(--text-muted)] tracking-widest uppercase mb-4 flex items-center gap-2">
               <MessageSquare size={13} /> Comentários ({detail.comentarios?.length || 0})
             </h3>
-            <div className="space-y-3">
+            <div className="space-y-4">
               {(detail.comentarios || []).map(c => (
-                <div key={c.id} className={`flex gap-2.5 ${c.interno ? "opacity-70" : ""}`}>
-                  <Avatar nome={c.user.nome} />
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-0.5">
-                      <span className="text-xs font-medium text-foreground">{c.user.nome}</span>
+                <div key={c.id} className={`flex gap-3 ${c.interno ? "opacity-80" : ""}`}>
+                  <Avatar nome={c.user.nome} size={8} />
+                  <div className="flex-1 min-w-0 bg-[var(--bg-card)] border border-[var(--border-subtle)] p-3 rounded-xl shadow-premium-sm">
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <span className="text-[13px] font-bold text-[var(--text-primary)]">{c.user.nome}</span>
                       {c.interno && (
-                        <span className="text-[10px] text-orange-400 bg-orange-400/10 px-1.5 rounded">interno</span>
+                        <span className="text-[9px] font-bold uppercase tracking-wider text-[var(--accent-orange)] bg-[var(--accent-orange)]/10 px-1.5 py-0.5 rounded">interno</span>
                       )}
-                      <span className="text-[10px] text-muted-foreground">{relTime(c.criadoEm)}</span>
+                      <span className="text-[10px] text-[var(--text-muted)] ml-auto font-mono">{relTime(c.criadoEm)}</span>
                     </div>
-                    <p className="text-xs text-foreground/90 whitespace-pre-wrap">{c.texto}</p>
+                    <p className="text-[13px] text-[var(--text-secondary)] whitespace-pre-wrap leading-relaxed">{c.texto}</p>
                   </div>
                 </div>
               ))}
               {(!detail.comentarios || detail.comentarios.length === 0) && (
-                <p className="text-xs text-muted-foreground italic">Nenhum comentário ainda.</p>
+                <p className="text-[13px] text-[var(--text-muted)] italic text-center py-4 bg-[var(--bg-hover)] rounded-xl border border-dashed border-[var(--border-subtle)]">Nenhum comentário ainda.</p>
               )}
             </div>
           </div>
@@ -649,17 +599,17 @@ function ChamadoDrawer({ chamado, isMaster, userId, onClose, onUpdated }: {
 
         {/* Comment input */}
         {detail.status !== "fechado" && (
-          <div className="border-t border-border p-4 flex-shrink-0">
+          <div className="border-t border-[var(--border-subtle)] p-4 flex-shrink-0 bg-[var(--bg-card)]">
             {isMaster && (
-              <label className="flex items-center gap-2 text-xs text-muted-foreground mb-2 cursor-pointer select-none w-fit">
-                <input type="checkbox" checked={interno} onChange={e => setInterno(e.target.checked)} className="rounded" />
+              <label className="flex items-center gap-2 text-xs font-medium text-[var(--text-muted)] mb-3 cursor-pointer select-none w-fit hover:text-[var(--text-primary)] transition-colors">
+                <input type="checkbox" checked={interno} onChange={e => setInterno(e.target.checked)} className="rounded border-[var(--border-strong)] bg-transparent w-4 h-4 text-[var(--accent-violet)] focus:ring-[var(--accent-violet)]" />
                 Comentário interno (não visível ao solicitante)
               </label>
             )}
             <div className="flex gap-2">
               <textarea
                 rows={2}
-                className="flex-1 bg-background border border-border rounded-lg px-3 py-2 text-xs text-foreground focus:outline-none focus:border-primary/60 resize-none"
+                className="input-o flex-1 min-h-[50px] resize-none"
                 placeholder="Escreva um comentário..."
                 value={comment}
                 onChange={e => setComment(e.target.value)}
@@ -668,9 +618,9 @@ function ChamadoDrawer({ chamado, isMaster, userId, onClose, onUpdated }: {
               <button
                 onClick={sendComment}
                 disabled={!comment.trim() || sending}
-                className="px-4 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 disabled:opacity-50 transition-colors flex items-center"
+                className="btn-primary px-4 flex items-center justify-center disabled:opacity-50"
               >
-                {sending ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
+                {sending ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
               </button>
             </div>
           </div>
@@ -700,26 +650,29 @@ function BulkActionBar({ ids, users, onDone, onCancel }: {
   }
 
   return (
-    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 flex items-center gap-3 px-5 py-3 bg-card border border-primary/30 rounded-2xl shadow-2xl shadow-primary/10">
-      <span className="text-sm font-medium text-primary">{ids.length} selecionados</span>
-      <div className="w-px h-5 bg-border" />
+    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 flex items-center gap-3 px-6 py-3 card-premium rounded-full shadow-premium-xl border-[var(--accent-violet)]/30 backdrop-blur-xl animate-in slide-in-from-bottom-8">
+      <div className="flex items-center justify-center w-6 h-6 rounded-full bg-[var(--accent-violet)]/20 text-[var(--accent-violet)] font-bold text-xs">
+        {ids.length}
+      </div>
+      <span className="text-sm font-semibold text-[var(--text-primary)]">selecionados</span>
+      <div className="w-px h-5 bg-[var(--border-medium)] mx-1" />
       <select value={status} onChange={e => setStatus(e.target.value)}
-        className="bg-background border border-border rounded-lg px-3 py-1.5 text-xs text-foreground focus:outline-none">
+        className="input-o text-xs py-1.5 min-w-[140px] rounded-full px-4 border-transparent bg-[var(--bg-hover)]">
         <option value="">Alterar status...</option>
         {STATUS_COLS.map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
       </select>
       <select value={atendente} onChange={e => setAtendente(e.target.value)}
-        className="bg-background border border-border rounded-lg px-3 py-1.5 text-xs text-foreground focus:outline-none">
+        className="input-o text-xs py-1.5 min-w-[140px] rounded-full px-4 border-transparent bg-[var(--bg-hover)]">
         <option value="">Atribuir para...</option>
         <option value="__none__">Remover atribuição</option>
         {users.map(u => <option key={u.id} value={u.id}>{u.nome}</option>)}
       </select>
       <button onClick={apply} disabled={saving || (!status && !atendente)}
-        className="px-4 py-1.5 bg-primary text-primary-foreground rounded-lg text-xs font-medium disabled:opacity-40 hover:bg-primary/90 transition-colors">
-        {saving ? <Loader2 size={13} className="animate-spin" /> : "Aplicar"}
+        className="btn-primary text-xs py-1.5 px-5 rounded-full disabled:opacity-50 font-bold ml-2">
+        {saving ? <Loader2 size={14} className="animate-spin" /> : "Aplicar"}
       </button>
-      <button onClick={onCancel} className="p-1.5 text-muted-foreground hover:text-foreground transition-colors">
-        <X size={16} />
+      <button onClick={onCancel} className="w-8 h-8 flex items-center justify-center rounded-full bg-[var(--bg-hover)] text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors ml-1">
+        <X size={14} />
       </button>
     </div>
   );
@@ -819,18 +772,18 @@ export default function ChamadosPage() {
       )}
 
       {/* Filters */}
-      <div className="px-6 py-3 border-b border-border flex-shrink-0 flex items-center gap-3 flex-wrap">
+      <div className="px-6 py-4 border-b border-[var(--border-subtle)] flex-shrink-0 flex items-center gap-3 flex-wrap bg-[var(--bg-primary)]">
         <div className="relative flex-1 min-w-48">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
           <input
-            className="w-full bg-background border border-border rounded-lg pl-8 pr-3 py-2 text-xs text-foreground focus:outline-none focus:border-primary/60"
+            className="input-o pl-9 py-2"
             placeholder="Pesquisar chamados..."
             value={search}
             onChange={e => setSearch(e.target.value)}
           />
         </div>
         <select
-          className="bg-background border border-border rounded-lg px-3 py-2 text-xs text-foreground focus:outline-none"
+          className="input-o py-2 min-w-[160px]"
           value={filterStatus}
           onChange={e => setFilterStatus(e.target.value)}
         >
@@ -838,7 +791,7 @@ export default function ChamadosPage() {
           {STATUS_COLS.map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
         </select>
         <select
-          className="bg-background border border-border rounded-lg px-3 py-2 text-xs text-foreground focus:outline-none"
+          className="input-o py-2 min-w-[160px]"
           value={filterPrio}
           onChange={e => setFilterPrio(e.target.value)}
         >
@@ -846,7 +799,7 @@ export default function ChamadosPage() {
           {PRIORIDADES.map(p => <option key={p} value={p}>{PRIORIDADE_MAP[p].label}</option>)}
         </select>
         <select
-          className="bg-background border border-border rounded-lg px-3 py-2 text-xs text-foreground focus:outline-none"
+          className="input-o py-2 min-w-[160px]"
           value={filterCat}
           onChange={e => setFilterCat(e.target.value)}
         >
@@ -856,7 +809,7 @@ export default function ChamadosPage() {
         {(filterStatus || filterPrio || filterCat || search) && (
           <button
             onClick={() => { setFilterStatus(""); setFilterPrio(""); setFilterCat(""); setSearch(""); }}
-            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground px-2 py-2"
+            className="btn-ghost flex items-center gap-1 py-2 px-3 text-[var(--accent-red)] hover:text-[var(--accent-red)] hover:bg-red-500/10"
           >
             <X size={13} /> Limpar
           </button>
@@ -870,21 +823,23 @@ export default function ChamadosPage() {
             <Loader2 size={24} className="animate-spin text-muted-foreground" />
           </div>
         ) : (
-          <div className="flex gap-4 h-full min-w-max">
+          <div className="flex gap-5 h-full min-w-max pb-4">
             {byCols.map(col => (
-              <div key={col.key} className={`w-72 flex-shrink-0 flex flex-col rounded-xl border ${col.border} ${col.bg} overflow-hidden`}>
-                <div className="px-3 py-2.5 flex items-center justify-between border-b border-white/5">
+              <div key={col.key} className="w-[300px] flex-shrink-0 flex flex-col">
+                <div className="px-1 mb-3 flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full" style={{ background: col.color }} />
-                    <span className="text-xs font-semibold text-foreground">{col.label}</span>
+                    <span className="w-2.5 h-2.5 rounded-full" style={{ background: col.color, boxShadow: `0 0 10px ${col.color}80` }} />
+                    <span className="text-[13px] font-bold text-[var(--text-secondary)] font-display tracking-wide uppercase">{col.label}</span>
                   </div>
-                  <span className="text-xs text-muted-foreground bg-background/50 rounded px-1.5 py-0.5">
+                  <span className="text-[11px] font-mono text-[var(--text-muted)] bg-[var(--bg-hover)] border border-[var(--border-subtle)] rounded-full px-2 py-0.5">
                     {col.items.length}
                   </span>
                 </div>
-                <div className="flex-1 overflow-y-auto p-2 space-y-2">
+                <div className="flex-1 overflow-y-auto space-y-3 px-1 pb-4">
                   {col.items.length === 0 && (
-                    <p className="text-center text-xs text-muted-foreground/50 py-8">Nenhum chamado</p>
+                    <div className="border border-dashed border-[var(--border-subtle)] rounded-xl p-5 text-center bg-[var(--bg-card)]/50 mt-1">
+                      <p className="text-xs text-[var(--text-muted)]">Nenhum chamado</p>
+                    </div>
                   )}
                   {col.items.map(c => (
                     <ChamadoCard key={c.id} chamado={c} onClick={() => setSelected(c)}
