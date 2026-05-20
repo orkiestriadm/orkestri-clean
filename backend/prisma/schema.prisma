@@ -104,6 +104,7 @@ model Organization {
   cadastroRequests   CadastroRequest[]  @relation("CadReqOrg")
   collaborators      Collaborator[]     @relation("OrgCollaborators")
   skills             Skill[]            @relation("OrgSkills")
+  ausencias          Ausencia[]         @relation("OrgAusencias")
 
   @@map("organizations")
 }
@@ -196,6 +197,8 @@ model User {
   cadastroRequestsAprovados CadastroRequest[]    @relation("CadReqAprovador")
   cadastroRequestsCriados   CadastroRequest[]    @relation("CadReqCriador")
   collaborator              Collaborator?        @relation("UserCollaborator")
+  ausenciasSolicitadas      Ausencia[]           @relation("AusenciaSolicitante")
+  ausenciasAprovadas        Ausencia[]           @relation("AusenciaAprovador")
 
   @@unique([organizationId, email])
   @@index([organizationId])
@@ -374,6 +377,38 @@ model UserRequest {
   @@map("user_requests")
 }
 
+// ── Workforce: Ausências ───────────────────────────────────────────────────
+model Ausencia {
+  id              String   @id @default(uuid())
+  organizationId  String   @map("organization_id")
+  collaboratorId  String   @map("collaborator_id")
+  tipo            String   // ferias | atestado | folga | licenca | banco_horas | outro
+  dataInicio      DateTime @map("data_inicio")
+  dataFim         DateTime @map("data_fim")
+  diaInteiro      Boolean  @default(true) @map("dia_inteiro")
+  horasDia        Float?   @map("horas_dia") // se dia_inteiro=false, horas que serão deduzidas por dia
+  descricao       String?
+  documentoUrl    String?  @map("documento_url")
+  status          String   @default("PENDENTE") // PENDENTE | APROVADA | REJEITADA | CANCELADA
+  solicitadaPorId String?  @map("solicitada_por_id")
+  aprovadaPorId   String?  @map("aprovada_por_id")
+  aprovadaEm      DateTime? @map("aprovada_em")
+  motivoRejeicao  String?  @map("motivo_rejeicao")
+  criadoEm        DateTime @default(now()) @map("criado_em")
+  atualizadoEm    DateTime @updatedAt      @map("atualizado_em")
+
+  organization    Organization  @relation("OrgAusencias", fields: [organizationId], references: [id])
+  collaborator    Collaborator  @relation(fields: [collaboratorId], references: [id], onDelete: Cascade)
+  solicitadaPor   User?         @relation("AusenciaSolicitante", fields: [solicitadaPorId], references: [id], onDelete: SetNull)
+  aprovadaPor     User?         @relation("AusenciaAprovador",   fields: [aprovadaPorId],   references: [id], onDelete: SetNull)
+
+  @@index([organizationId])
+  @@index([collaboratorId])
+  @@index([dataInicio])
+  @@index([status])
+  @@map("ausencias")
+}
+
 // ── Workforce: Skills ──────────────────────────────────────────────────────
 model Skill {
   id             String   @id @default(uuid())
@@ -451,6 +486,7 @@ model Collaborator {
   gestor            Collaborator? @relation("CollabHierarchy", fields: [gestorId], references: [id], onDelete: SetNull)
   liderados         Collaborator[] @relation("CollabHierarchy")
   collabSkills      CollaboratorSkill[]
+  ausencias         Ausencia[]
 
   @@unique([organizationId, matricula])
   @@index([organizationId])

@@ -3,6 +3,7 @@ import {
 } from "@nestjs/common";
 import { AuthGuard } from "@nestjs/passport";
 import { PrismaService } from "../../prisma/prisma.service";
+import { AusenciasModule, AusenciasService } from "../ausencias/ausencias.module";
 
 // Defaults para casos sem estimativa
 const DEFAULT_CHAMADO_HORAS = 2;
@@ -38,7 +39,24 @@ function parsePeriod(from?: string, to?: string): { from: Date; to: Date } {
 
 @Injectable()
 export class CapacityService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService, private ausencias: AusenciasService) {}
+
+  /**
+   * Calcula nominal descontando dias de ausência aprovada.
+   * @returns { nominal, diasAusentes, horasAusentes }
+   */
+  private async computeNominal(user: any, from: Date, to: Date, userId: string, jornadaDia: number, businessDays: number) {
+    const absentMap = await this.ausencias.getAbsentDaysByUser(user, from, to, [userId]);
+    const entry = absentMap.get(userId);
+    const diasAusentes = entry?.days.size || 0;
+    let horasParciaisAusentes = 0;
+    if (entry?.horasDeduzidas) {
+      for (const [, h] of entry.horasDeduzidas) horasParciaisAusentes += h;
+    }
+    const bizDiasEfetivos = Math.max(0, businessDays - diasAusentes);
+    const nominal = Math.max(0, bizDiasEfetivos * jornadaDia - horasParciaisAusentes);
+    return { nominal, diasAusentes, horasAusentes: diasAusentes * jornadaDia + horasParciaisAusentes };
+  }
 
   private orgScope(user: any) {
     return user?.organizationId ? { organizationId: user.organizationId } : {};
@@ -137,7 +155,7 @@ export class CapacityService {
 
     const businessDays = businessDaysBetween(f, t);
     const jornadaDia = collab.jornadaHorasDia || 8;
-    const capacidadeTotal = businessDays * jornadaDia;
+    const { nominal: capacidadeTotal, diasAusentes, horasAusentes } = await this.computeNominal(user, f, t, collab.userId, jornadaDia, businessDays);
     const realizedHoras = realized.get(collab.userId) || 0;
     const plannedHoras  = planned.get(collab.userId) || 0;
 
@@ -168,6 +186,8 @@ export class CapacityService {
         planejado: Number(plannedHoras.toFixed(2)),
         utilizacaoRealizado: capacidadeTotal > 0 ? Number((realizedHoras / capacidadeTotal * 100).toFixed(1)) : 0,
         utilizacaoPlanejado: capacidadeTotal > 0 ? Number((plannedHoras / capacidadeTotal * 100).toFixed(1)) : 0,
+        diasAusentes,
+        horasAusentes: Number(horasAusentes.toFixed(2)),
       },
       days,
     };
@@ -190,6 +210,7 @@ export class CapacityService {
     const realized        = await this.getRealized(user, f, t, userIds);
     const realizedByDay   = await this.getRealizedByDay(user, f, t, userIds);
     const planned         = await this.getPlanned(user, f, t, userIds);
+    const absentMap       = await this.ausencias.getAbsentDaysByUser(user, f, t, userIds);
     const businessDays    = businessDaysBetween(f, t);
 
     const days: string[] = [];
@@ -198,7 +219,9 @@ export class CapacityService {
 
     const rows = collabs.map((c: any) => {
       const jornadaDia = c.jornadaHorasDia || 8;
-      const nominal = businessDays * jornadaDia;
+      const ausenteData = absentMap.get(c.userId);
+      const diasAusentes = ausenteData?.days.size || 0;
+      const nominal = Math.max(0, (businessDays - diasAusentes) * jornadaDia);
       const r = realized.get(c.userId) || 0;
       const p = planned.get(c.userId)  || 0;
       const inner = realizedByDay.get(c.userId);
@@ -206,11 +229,13 @@ export class CapacityService {
         const h = inner?.get(d) || 0;
         const dt = new Date(d + "T00:00:00");
         const isBiz = dt.getDay() !== 0 && dt.getDay() !== 6;
+        const isAusente = ausenteData?.days.has(d) || false;
         return {
           date: d,
           horas: Number(h.toFixed(2)),
           util: isBiz && jornadaDia > 0 ? Number((h / jornadaDia * 100).toFixed(1)) : 0,
           biz: isBiz,
+          ausente: isAusente,
         };
       });
       return {
@@ -218,6 +243,7 @@ export class CapacityService {
         nominal: Number(nominal.toFixed(2)),
         realizado: Number(r.toFixed(2)),
         planejado: Number(p.toFixed(2)),
+        diasAusentes,
         utilRealizado: nominal > 0 ? Number((r / nominal * 100).toFixed(1)) : 0,
         utilPlanejado: nominal > 0 ? Number((p / nominal * 100).toFixed(1)) : 0,
         cells,
@@ -249,14 +275,18 @@ export class CapacityService {
     const userIds = collabs.map((c: any) => c.userId);
     const realized = await this.getRealized(user, from, to, userIds);
     const planned  = await this.getPlanned(user, from, to, userIds);
+    const absentMap = await this.ausencias.getAbsentDaysByUser(user, from, to, userIds);
     const bd = businessDaysBetween(from, to);
 
     let totalNominal = 0, totalRealizado = 0, totalPlanejado = 0;
     const detalhes: any[] = [];
-    let sobrecarregados = 0, subutilizados = 0;
+    let sobrecarregados = 0, subutilizados = 0, ausentesHoje = 0;
+    const hojeISO = new Date().toISOString().slice(0, 10);
     for (const c of collabs) {
       const jornadaDia = c.jornadaHorasDia || 8;
-      const nominal = bd * jornadaDia;
+      const absent = absentMap.get(c.userId);
+      const diasAusentes = absent?.days.size || 0;
+      const nominal = Math.max(0, (bd - diasAusentes) * jornadaDia);
       const r = realized.get(c.userId) || 0;
       const p = planned.get(c.userId)  || 0;
       totalNominal += nominal; totalRealizado += r; totalPlanejado += p;
@@ -264,9 +294,11 @@ export class CapacityService {
       const utilP = nominal > 0 ? (p / nominal * 100) : 0;
       if (utilP > 90) sobrecarregados++;
       if (utilR < 50) subutilizados++;
+      if (absent?.days.has(hojeISO)) ausentesHoje++;
       detalhes.push({
         id: c.id, nome: c.user.nome, setor: c.setor?.nome,
-        nominal, realizado: r, planejado: p, utilR: Number(utilR.toFixed(1)), utilP: Number(utilP.toFixed(1)),
+        nominal, realizado: r, planejado: p, diasAusentes,
+        utilR: Number(utilR.toFixed(1)), utilP: Number(utilP.toFixed(1)),
       });
     }
     detalhes.sort((a, b) => b.utilP - a.utilP);
@@ -279,7 +311,7 @@ export class CapacityService {
         planejado: Number(totalPlanejado.toFixed(2)),
         utilRealizado: totalNominal > 0 ? Number((totalRealizado / totalNominal * 100).toFixed(1)) : 0,
         utilPlanejado: totalNominal > 0 ? Number((totalPlanejado / totalNominal * 100).toFixed(1)) : 0,
-        sobrecarregados, subutilizados,
+        sobrecarregados, subutilizados, ausentesHoje,
       },
       top5Carregados: detalhes.slice(0, 5),
       top5Disponiveis: [...detalhes].sort((a, b) => a.utilP - b.utilP).slice(0, 5),
@@ -309,6 +341,7 @@ export class CapacityController {
 }
 
 @Module({
+  imports: [AusenciasModule],
   controllers: [CapacityController],
   providers: [CapacityService],
   exports: [CapacityService],
