@@ -27,7 +27,7 @@ const TITLES: Record<string, { label: string; desc: string }> = {
   "/dashboard/faturas":                { label: "Faturas",        desc: "Cobranças e pagamentos" },
   "/dashboard/orcamento":              { label: "Orçamento",      desc: "CAPEX / OPEX" },
   "/dashboard/automacoes":             { label: "Automações",     desc: "Regras e integrações" },
-  "/dashboard/cadastros":              { label: "Usuários",       desc: "Gestão de acessos" },
+  "/dashboard/cadastros":              { label: "Cadastros",      desc: "Usuários, clientes e organizações" },
   "/dashboard/cadastros/fornecedores": { label: "Fornecedores",   desc: "Gestão de fornecedores" },
   "/dashboard/configuracoes":          { label: "Configurações",  desc: "Preferências do sistema" },
   "/dashboard/whatsapp-config":        { label: "WhatsApp",       desc: "Notificações via WhatsApp" },

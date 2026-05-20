@@ -56,7 +56,7 @@ const NAV: NavGroup[] = [
   {
     id: "admin", label: "Admin",
     items: [
-      { href: "/dashboard/cadastros",              label: "Usuários",      icon: Users,         permission: "usuarios:ver" },
+      { href: "/dashboard/cadastros",              label: "Cadastros",     icon: Users,         permission: "usuarios:ver" },
       { href: "/dashboard/cadastros/fornecedores", label: "Fornecedores",  icon: Truck,         permission: "fornecedores:ver" },
       { href: "/dashboard/automacoes",             label: "Automações",    icon: Zap,           permission: "automacoes:ver" },
       { href: "/dashboard/whatsapp-config",        label: "WhatsApp",      icon: MessageCircle, permission: "whatsapp:ver" },

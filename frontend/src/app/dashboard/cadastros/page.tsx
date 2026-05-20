@@ -10,6 +10,8 @@ type User    = { id: string; nome: string; email: string; ativo: boolean; roles:
 type Permission = { id: string; recurso: string; acao: string; descricao?: string; };
 type Role    = { id: string; nome: string; descricao?: string; isMaster: boolean; nivel: number; _count?: { userRoles: number }; rolePermissions?: { permission: Permission }[]; };
 type Solicitacao = { id: string; nome: string; email: string; whatsapp?: string; cargo?: string; departamento?: string; empresa?: string; motivacao?: string; status: string; criado_em: string; };
+type Cliente = { id: string; nome: string; empresa?: string; email?: string; telefone?: string; cargo?: string; segmento?: string; statusLead: string; ativo: boolean; criadoEm: string; };
+type OrgItem = { id: string; nome: string; slug: string; plano: string; ativo: boolean; statusOperacional?: string | null; statusComercial?: string | null; usuarios: number; criadoEm: string; };
 
 // ── Constantes ────────────────────────────────────────────────────────────────
 const CORES_SETOR  = ["#a78bfa","#22d3ee","#34d399","#fbbf24","#f87171","#60a5fa","#f472b6","#94a3b8"];
@@ -878,9 +880,115 @@ function RoleModal({ role, allPerms, onClose, onSave }: { role?: Role; allPerms:
   );
 }
 
+const STATUS_LEAD_OPTS = ["ativo","lead","prospecto","qualificado","proposta","negociacao","ganho","perdido","inativo"];
+
+function ClienteEditForm({ cliente, onClose, onSave }: { cliente: Cliente; onClose:()=>void; onSave:()=>void }) {
+  const [f, setF] = useState({ nome:cliente.nome, empresa:cliente.empresa||"", email:cliente.email||"", telefone:cliente.telefone||"", cargo:cliente.cargo||"", segmento:cliente.segmento||"", statusLead:cliente.statusLead, ativo:cliente.ativo });
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState("");
+  const save = async () => {
+    if (!f.nome.trim()) { setErr("Nome obrigatório"); return; }
+    setLoading(true); setErr("");
+    try {
+      await api.patch("/clientes/"+cliente.id, { nome:f.nome, empresa:f.empresa||undefined, email:f.email||undefined, telefone:f.telefone||undefined, cargo:f.cargo||undefined, segmento:f.segmento||undefined, statusLead:f.statusLead, ativo:f.ativo });
+      onSave(); onClose();
+    } catch(e:any) { setErr(e?.response?.data?.message||"Erro ao salvar"); }
+    finally { setLoading(false); }
+  };
+  const inp = (label:string, key:keyof typeof f, type="text") => (
+    <Field label={label}><input className="input-o" type={type} value={f[key] as string} onChange={e=>setF(p=>({...p,[key]:e.target.value}))} /></Field>
+  );
+  return (
+    <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
+      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
+        <div style={{ gridColumn:"1/-1" }}>{inp("NOME COMPLETO","nome")}</div>
+        {inp("EMPRESA","empresa")}
+        {inp("CARGO","cargo")}
+        {inp("E-MAIL","email","email")}
+        {inp("TELEFONE","telefone")}
+        {inp("SEGMENTO","segmento")}
+        <Field label="STATUS LEAD">
+          <select className="input-o" value={f.statusLead} onChange={e=>setF(p=>({...p,statusLead:e.target.value}))}>
+            {STATUS_LEAD_OPTS.map(s=><option key={s} value={s}>{s}</option>)}
+          </select>
+        </Field>
+        <Field label="SITUAÇÃO">
+          <select className="input-o" value={f.ativo?"ativo":"inativo"} onChange={e=>setF(p=>({...p,ativo:e.target.value==="ativo"}))}>
+            <option value="ativo">Ativo</option>
+            <option value="inativo">Inativo</option>
+          </select>
+        </Field>
+      </div>
+      {err && <div style={{ background:"rgba(220,38,38,0.08)", border:"1px solid rgba(220,38,38,0.2)", borderRadius:8, padding:"10px 14px", color:"var(--accent-red)", fontSize:12 }}>{err}</div>}
+      <div style={{ display:"flex", gap:10, marginTop:4 }}>
+        <button className="btn btn-ghost" style={{ flex:1 }} onClick={onClose}>Cancelar</button>
+        <button className="btn btn-violet" style={{ flex:2 }} onClick={save} disabled={loading}>{loading?<Spin/>:"Salvar alterações"}</button>
+      </div>
+    </div>
+  );
+}
+
+function OrgEditForm({ org, onClose, onSave }: { org: OrgItem; onClose:()=>void; onSave:()=>void }) {
+  const [f, setF] = useState({ nome:org.nome, plano:org.plano, statusOperacional:org.statusOperacional||"", statusComercial:org.statusComercial||"", ativo:org.ativo });
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState("");
+  const save = async () => {
+    if (!f.nome.trim()) { setErr("Nome obrigatório"); return; }
+    setLoading(true); setErr("");
+    try {
+      await api.patch("/superadmin/organizations/"+org.id, { nome:f.nome, plano:f.plano, statusOperacional:f.statusOperacional||undefined, statusComercial:f.statusComercial||undefined, ativo:f.ativo });
+      onSave(); onClose();
+    } catch(e:any) { setErr(e?.response?.data?.message||"Erro ao salvar"); }
+    finally { setLoading(false); }
+  };
+  return (
+    <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
+      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
+        <div style={{ gridColumn:"1/-1" }}>
+          <Field label="NOME DA ORGANIZAÇÃO"><input className="input-o" value={f.nome} onChange={e=>setF(p=>({...p,nome:e.target.value}))} /></Field>
+        </div>
+        <Field label="PLANO">
+          <select className="input-o" value={f.plano} onChange={e=>setF(p=>({...p,plano:e.target.value}))}>
+            <option value="starter">Starter</option>
+            <option value="professional">Professional</option>
+            <option value="enterprise">Enterprise</option>
+          </select>
+        </Field>
+        <Field label="SITUAÇÃO">
+          <select className="input-o" value={f.ativo?"ativo":"inativo"} onChange={e=>setF(p=>({...p,ativo:e.target.value==="ativo"}))}>
+            <option value="ativo">Ativa</option>
+            <option value="inativo">Inativa</option>
+          </select>
+        </Field>
+        <Field label="STATUS OPERACIONAL">
+          <select className="input-o" value={f.statusOperacional} onChange={e=>setF(p=>({...p,statusOperacional:e.target.value}))}>
+            <option value="">—</option>
+            <option value="ativo">Ativo</option>
+            <option value="suspenso">Suspenso</option>
+            <option value="cancelado">Cancelado</option>
+          </select>
+        </Field>
+        <Field label="STATUS COMERCIAL">
+          <select className="input-o" value={f.statusComercial} onChange={e=>setF(p=>({...p,statusComercial:e.target.value}))}>
+            <option value="">—</option>
+            <option value="ativo">Ativo</option>
+            <option value="inadimplente">Inadimplente</option>
+            <option value="cancelado">Cancelado</option>
+          </select>
+        </Field>
+      </div>
+      {err && <div style={{ background:"rgba(220,38,38,0.08)", border:"1px solid rgba(220,38,38,0.2)", borderRadius:8, padding:"10px 14px", color:"var(--accent-red)", fontSize:12 }}>{err}</div>}
+      <div style={{ display:"flex", gap:10, marginTop:4 }}>
+        <button className="btn btn-ghost" style={{ flex:1 }} onClick={onClose}>Cancelar</button>
+        <button className="btn btn-violet" style={{ flex:2 }} onClick={save} disabled={loading}>{loading?<Spin/>:"Salvar alterações"}</button>
+      </div>
+    </div>
+  );
+}
+
 export default function CadastrosPage() {
   const { user: me } = useAuthStore();
-  const [tab,           setTab]          = useState<"usuarios"|"setores"|"papeis"|"solicitacoes"|"matriz"|"organograma">("usuarios");
+  const [tab,           setTab]          = useState<"usuarios"|"setores"|"papeis"|"solicitacoes"|"matriz"|"organograma"|"clientes"|"organizacoes">("usuarios");
   const [roles,         setRoles]        = useState<Role[]>([]);
   const [allPerms,      setAllPerms]     = useState<Permission[]>([]);
   const [modalRole,     setModalRole]    = useState<Role|"novo"|null>(null);
@@ -908,6 +1016,14 @@ export default function CadastrosPage() {
   // modais setores
   const [modalSetor,    setModalSetor]    = useState<Setor|"novo"|null>(null);
   const [modalDelSetor, setModalDelSetor] = useState<string|null>(null);
+  // clientes
+  const [clientes,      setClientes]      = useState<Cliente[]>([]);
+  const [modalEditCliente, setModalEditCliente] = useState<Cliente|null>(null);
+  const [modalDelCliente,  setModalDelCliente]  = useState<Cliente|null>(null);
+  const [filterCliente, setFilterCliente] = useState<"todos"|"ativos"|"inativos">("ativos");
+  // organizações
+  const [orgs,          setOrgs]          = useState<OrgItem[]>([]);
+  const [modalEditOrg,  setModalEditOrg]  = useState<OrgItem|null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -925,6 +1041,10 @@ export default function CadastrosPage() {
       const podeVerSolicitacoes = me?.isMaster || me?.permissions?.includes("*") || me?.permissions?.includes("usuarios:criar");
       if (podeVerSolicitacoes) {
         try { const sRes2 = await api.get("/auth/solicitacoes"); setSolicitacoes(sRes2.data); } catch {}
+      }
+      try { const cRes = await api.get("/clientes"); setClientes(cRes.data); } catch {}
+      if (me?.isMaster) {
+        try { const oRes = await api.get("/superadmin/organizations"); setOrgs(oRes.data); } catch {}
       }
     } catch {} finally { setLoading(false); }
   }, []);
@@ -951,12 +1071,16 @@ export default function CadastrosPage() {
   );
 
   const btnLabel = tab==="usuarios" ? "Novo usuario" : tab==="setores" ? "Novo setor" : tab==="papeis" ? "Novo papel" : null;
-  // matriz e solicitacoes nao tem botao
   const btnAction = () => {
     if (tab==="usuarios")  setModalNewUser(true);
     if (tab==="setores")   setModalSetor("novo");
     if (tab==="papeis")    setModalRole("novo");
   };
+  const filteredClientes = clientes.filter(c => {
+    const ms = !search || c.nome.toLowerCase().includes(search.toLowerCase()) || (c.email||"").toLowerCase().includes(search.toLowerCase()) || (c.empresa||"").toLowerCase().includes(search.toLowerCase());
+    const mf = filterCliente==="todos" ? true : filterCliente==="ativos" ? c.ativo : !c.ativo;
+    return ms && mf;
+  });
 
   return (
     <div style={{ display:"flex", flexDirection:"column", height:"100%" }}>
@@ -978,6 +1102,8 @@ export default function CadastrosPage() {
           { key:"papeis",         label:"Papeis",        count:roles.length },
           { key:"matriz",         label:"Matriz",        count:0 },
           ...((me?.isMaster || me?.permissions?.includes("*") || me?.permissions?.includes("usuarios:criar")) ? [{ key:"solicitacoes", label:"Solicitacoes", count:solicitacoes.filter(s=>s.status==="PENDENTE").length }] : []),
+          { key:"clientes",      label:"Clientes",      count:clientes.length },
+          ...(me?.isMaster ? [{ key:"organizacoes", label:"Organizacoes", count:orgs.length }] : []),
         ].map(t=>(
           <button key={t.key} onClick={()=>{ setTab(t.key as any); setSearch(""); }}
             style={{ padding:"12px 18px", background:"none", border:"none", borderBottom:tab===t.key?"2px solid var(--accent-violet)":"2px solid transparent", color:tab===t.key?"var(--accent-violet)":"var(--text-muted)", cursor:"pointer", fontFamily:"var(--font-display)", fontSize:13, fontWeight:tab===t.key?600:400, marginBottom:-1 }}>
@@ -994,11 +1120,21 @@ export default function CadastrosPage() {
       <div style={{ flex:1, overflowY:"auto", padding:24, display:"flex", flexDirection:"column", gap:20 }}>
 
         {/* Busca + filtros */}
-        {tab !== "solicitacoes" && tab !== "matriz" && tab !== "organograma" && <div style={{ display:"flex", gap:10, alignItems:"center" }}>
+        {tab !== "solicitacoes" && tab !== "matriz" && tab !== "organograma" && tab !== "organizacoes" && <div style={{ display:"flex", gap:10, alignItems:"center" }}>
           <input className="input-o" placeholder={
             tab==="usuarios"?"Buscar por nome ou e-mail...":
+            tab==="clientes"?"Buscar por nome, empresa ou e-mail...":
             "Buscar setor..."}
             value={search} onChange={e=>setSearch(e.target.value)} style={{ flex:1, maxWidth:360 }} />
+          {tab==="clientes" && (
+            <div style={{ display:"flex", gap:4 }}>
+              {(["todos","ativos","inativos"] as const).map(f=>(
+                <button key={f} onClick={()=>setFilterCliente(f)} className={`btn ${filterCliente===f?"btn-violet":"btn-ghost"}`} style={{ padding:"6px 14px", fontSize:12 }}>
+                  {f.charAt(0).toUpperCase()+f.slice(1)}
+                </button>
+              ))}
+            </div>
+          )}
           {tab==="usuarios" && (
             <div style={{ display:"flex", gap:4 }}>
               {(["todos","ativos","inativos"] as const).map(f=>(
@@ -1242,6 +1378,134 @@ export default function CadastrosPage() {
           </div>
         )}
 
+        {/* ── ABA CLIENTES ── */}
+        {tab==="clientes" && (
+          <>
+            <div className="animate-up" style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:12 }}>
+              {[
+                { label:"TOTAL",  value:clientes.length,                           color:"var(--accent-violet)" },
+                { label:"ATIVOS", value:clientes.filter(c=>c.ativo).length,        color:"var(--accent-green)"  },
+                { label:"INATIVOS",value:clientes.filter(c=>!c.ativo).length,      color:"var(--text-muted)"    },
+              ].map(s=>(
+                <div key={s.label} className="card" style={{ padding:"16px 20px", display:"flex", alignItems:"center", gap:16 }}>
+                  <div style={{ fontFamily:"var(--font-display)", fontSize:28, fontWeight:700, color:s.color }}>{s.value}</div>
+                  <div style={{ fontSize:11, fontFamily:"var(--font-mono)", letterSpacing:"0.08em", color:"var(--text-muted)" }}>{s.label}</div>
+                </div>
+              ))}
+            </div>
+            <div className="animate-up card">
+              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr auto auto", gap:16, padding:"10px 20px", borderBottom:"1px solid var(--border-subtle)" }}>
+                {["CLIENTE","CONTATO","STATUS","AÇÕES"].map(h=><span key={h} style={{ fontSize:10, fontFamily:"var(--font-mono)", letterSpacing:"0.08em", color:"var(--text-muted)" }}>{h}</span>)}
+              </div>
+              {loading ? (
+                <div style={{ display:"flex", alignItems:"center", justifyContent:"center", padding:48, gap:12 }}><Spin/><span style={{ color:"var(--text-muted)", fontSize:13 }}>Carregando...</span></div>
+              ) : filteredClientes.length===0 ? (
+                <div className="empty-state"><p style={{ color:"var(--text-secondary)", fontWeight:500 }}>{search?"Nenhum cliente encontrado":"Nenhum cliente cadastrado"}</p></div>
+              ) : filteredClientes.map((c,i)=>{
+                const statusColor = c.statusLead==="ativo"?"#34d399":c.statusLead==="lead"?"#fbbf24":c.statusLead==="prospecto"?"#60a5fa":c.statusLead==="inativo"?"#f87171":"#94a3b8";
+                return (
+                  <div key={c.id} style={{ display:"grid", gridTemplateColumns:"1fr 1fr auto auto", gap:16, padding:"14px 20px", borderBottom:i<filteredClientes.length-1?"1px solid var(--border-subtle)":"none", alignItems:"center", opacity:c.ativo?1:0.55, transition:"background 0.15s" }}
+                    onMouseEnter={e=>(e.currentTarget as HTMLElement).style.background="var(--bg-hover)"}
+                    onMouseLeave={e=>(e.currentTarget as HTMLElement).style.background="transparent"}
+                  >
+                    <div style={{ display:"flex", alignItems:"center", gap:12, minWidth:0 }}>
+                      <Avatar nome={c.nome} />
+                      <div style={{ minWidth:0 }}>
+                        <div style={{ fontSize:13, fontWeight:500, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{c.nome}</div>
+                        {c.empresa && <span style={{ fontSize:11, color:"var(--text-muted)" }}>{c.empresa}</span>}
+                      </div>
+                    </div>
+                    <div style={{ minWidth:0 }}>
+                      {c.email && <div style={{ fontSize:12, color:"var(--text-secondary)", marginBottom:2, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{c.email}</div>}
+                      {c.telefone && <div style={{ fontSize:11, color:"var(--text-muted)" }}>{c.telefone}</div>}
+                      {c.segmento && <div style={{ fontSize:11, color:"var(--text-muted)" }}>{c.segmento}</div>}
+                    </div>
+                    <div style={{ display:"flex", flexDirection:"column", gap:5 }}>
+                      <span style={{ fontSize:10, fontFamily:"var(--font-mono)", padding:"2px 8px", borderRadius:20, background:statusColor+"18", border:`1px solid ${statusColor}40`, color:statusColor, whiteSpace:"nowrap" }}>
+                        {c.statusLead}
+                      </span>
+                      <span className={`badge ${c.ativo?"badge-green":"badge-red"}`} style={{ fontSize:10 }}>{c.ativo?"ATIVO":"INATIVO"}</span>
+                    </div>
+                    <div style={{ display:"flex", gap:4 }}>
+                      <a href={`/dashboard/clientes/${c.id}`} className="btn-icon" title="Ver detalhes">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                      </a>
+                      <button className="btn-icon" title="Editar" onClick={()=>setModalEditCliente(c)}>
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4z"/></svg>
+                      </button>
+                      <button className="btn-icon" title={c.ativo?"Desativar":"Ativar"} onClick={async()=>{ await api.patch("/clientes/"+c.id, { ativo:!c.ativo }); load(); }}>
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18.36 6.64a9 9 0 11-12.73 0M12 2v10" strokeLinecap="round"/></svg>
+                      </button>
+                      <button className="btn-icon" title="Remover" style={{ color:"var(--accent-red)", borderColor:"rgba(220,38,38,0.2)" }} onClick={()=>setModalDelCliente(c)}>
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/></svg>
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </>
+        )}
+
+        {/* ── ABA ORGANIZAÇÕES ── */}
+        {tab==="organizacoes" && (
+          <>
+            <div className="animate-up" style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:12 }}>
+              {[
+                { label:"TOTAL",  value:orgs.length,                       color:"var(--accent-violet)" },
+                { label:"ATIVAS", value:orgs.filter(o=>o.ativo).length,    color:"var(--accent-green)"  },
+                { label:"PLANOS", value:new Set(orgs.map(o=>o.plano)).size, color:"var(--accent-cyan)"   },
+              ].map(s=>(
+                <div key={s.label} className="card" style={{ padding:"16px 20px", display:"flex", alignItems:"center", gap:16 }}>
+                  <div style={{ fontFamily:"var(--font-display)", fontSize:28, fontWeight:700, color:s.color }}>{s.value}</div>
+                  <div style={{ fontSize:11, fontFamily:"var(--font-mono)", letterSpacing:"0.08em", color:"var(--text-muted)" }}>{s.label}</div>
+                </div>
+              ))}
+            </div>
+            <div className="animate-up card">
+              <div style={{ display:"grid", gridTemplateColumns:"1fr auto auto auto", gap:16, padding:"10px 20px", borderBottom:"1px solid var(--border-subtle)" }}>
+                {["ORGANIZAÇÃO","PLANO","STATUS","AÇÕES"].map(h=><span key={h} style={{ fontSize:10, fontFamily:"var(--font-mono)", letterSpacing:"0.08em", color:"var(--text-muted)" }}>{h}</span>)}
+              </div>
+              {loading ? (
+                <div style={{ display:"flex", alignItems:"center", justifyContent:"center", padding:48, gap:12 }}><Spin/><span style={{ color:"var(--text-muted)", fontSize:13 }}>Carregando...</span></div>
+              ) : orgs.length===0 ? (
+                <div className="empty-state"><p style={{ color:"var(--text-secondary)", fontWeight:500 }}>Nenhuma organização cadastrada</p></div>
+              ) : orgs.map((o,i)=>{
+                const planoColor = o.plano==="enterprise"?"var(--accent-violet)":o.plano==="professional"?"var(--accent-cyan)":"var(--text-muted)";
+                return (
+                  <div key={o.id} style={{ display:"grid", gridTemplateColumns:"1fr auto auto auto", gap:16, padding:"14px 20px", borderBottom:i<orgs.length-1?"1px solid var(--border-subtle)":"none", alignItems:"center", opacity:o.ativo?1:0.55, transition:"background 0.15s" }}
+                    onMouseEnter={e=>(e.currentTarget as HTMLElement).style.background="var(--bg-hover)"}
+                    onMouseLeave={e=>(e.currentTarget as HTMLElement).style.background="transparent"}
+                  >
+                    <div style={{ display:"flex", alignItems:"center", gap:12, minWidth:0 }}>
+                      <Avatar nome={o.nome} />
+                      <div style={{ minWidth:0 }}>
+                        <div style={{ fontSize:13, fontWeight:500 }}>{o.nome}</div>
+                        <div style={{ display:"flex", gap:10, alignItems:"center" }}>
+                          <code style={{ fontSize:11, color:"var(--text-muted)", fontFamily:"var(--font-mono)" }}>/{o.slug}</code>
+                          <span style={{ fontSize:11, color:"var(--text-muted)" }}>{o.usuarios} usuário{o.usuarios!==1?"s":""}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div>
+                      <span style={{ fontSize:11, fontFamily:"var(--font-mono)", padding:"2px 8px", borderRadius:20, background:planoColor+"18", border:`1px solid ${planoColor}40`, color:planoColor }}>{o.plano}</span>
+                    </div>
+                    <div style={{ display:"flex", flexDirection:"column", gap:5 }}>
+                      <span className={`badge ${o.ativo?"badge-green":"badge-red"}`} style={{ fontSize:10 }}>{o.ativo?"ATIVA":"INATIVA"}</span>
+                      {o.statusOperacional && <span style={{ fontSize:10, color:"var(--text-muted)", fontFamily:"var(--font-mono)" }}>{o.statusOperacional}</span>}
+                    </div>
+                    <div style={{ display:"flex", gap:4 }}>
+                      <button className="btn-icon" title="Editar" onClick={()=>setModalEditOrg(o)}>
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4z"/></svg>
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </>
+        )}
+
         {/* ── ABA SOLICITACOES ── */}
         {tab==="solicitacoes" && (
           <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
@@ -1289,6 +1553,24 @@ export default function CadastrosPage() {
           </div>
         )}
       </div>
+
+      {/* Modal editar cliente */}
+      {modalEditCliente && (
+        <Modal title="Editar cliente" onClose={()=>setModalEditCliente(null)} maxWidth={500}>
+          <ClienteEditForm cliente={modalEditCliente} onClose={()=>setModalEditCliente(null)} onSave={load} />
+        </Modal>
+      )}
+      {modalDelCliente && (
+        <ConfirmModal title="Remover cliente" message={`Tem certeza que deseja remover ${modalDelCliente.nome}? Esta ação não pode ser desfeita.`} confirmLabel="Remover permanentemente" danger
+          onConfirm={async()=>{ await api.delete("/clientes/"+modalDelCliente.id); await load(); }} onClose={()=>setModalDelCliente(null)} />
+      )}
+
+      {/* Modal editar organização */}
+      {modalEditOrg && (
+        <Modal title="Editar organização" onClose={()=>setModalEditOrg(null)} maxWidth={480}>
+          <OrgEditForm org={modalEditOrg} onClose={()=>setModalEditOrg(null)} onSave={load} />
+        </Modal>
+      )}
 
       {/* Modal aprovar solicitacao */}
       {modalAprovar && (
