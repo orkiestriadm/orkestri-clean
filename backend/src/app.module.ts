@@ -35,6 +35,7 @@ import { WebhooksModule } from "./modules/automacoes/webhooks.module";
 import { FaturasModule } from "./modules/faturas/faturas.module";
 import { OrganizationsModule } from "./modules/organizations/organizations.module";
 import { CadastroRequestModule } from './modules/cadastro-request/cadastro-request.module';
+import { CollaboratorsModule } from './modules/collaborators/collaborators.module';
 
 @Module({
   imports: [
@@ -60,6 +61,7 @@ import { CadastroRequestModule } from './modules/cadastro-request/cadastro-reque
     FaturasModule,
     OrganizationsModule,
     CadastroRequestModule,
+    CollaboratorsModule,
   ],
 })
 export class AppModule {}

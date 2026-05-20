@@ -12,6 +12,17 @@ type Role    = { id: string; nome: string; descricao?: string; isMaster: boolean
 type Solicitacao = { id: string; nome: string; email: string; whatsapp?: string; cargo?: string; departamento?: string; empresa?: string; motivacao?: string; status: string; criado_em: string; };
 type Cliente = { id: string; nome: string; empresa?: string; email?: string; telefone?: string; cargo?: string; segmento?: string; statusLead: string; ativo: boolean; criadoEm: string; };
 type OrgItem = { id: string; nome: string; slug: string; plano: string; ativo: boolean; statusOperacional?: string | null; statusComercial?: string | null; usuarios: number; criadoEm: string; };
+type Collaborator = {
+  id: string; organizationId: string; userId: string;
+  matricula?: string | null; fotoUrl?: string | null; emailCorporativo?: string | null; telefone?: string | null;
+  cargo?: string | null; departamento?: string | null; setorId?: string | null; squad?: string | null;
+  especialidade?: string | null; senioridade?: string | null; gestorId?: string | null;
+  jornadaHorasDia?: number | null; jornadaHorasMes?: number | null; turno?: string | null; escala?: string | null; tipoVinculo?: string | null;
+  ativo: boolean; criadoEm: string;
+  user?:   { id: string; nome: string; email: string; avatar?: string | null; ativo?: boolean };
+  setor?:  { id: string; nome: string; cor?: string | null } | null;
+  gestor?: { id: string; user?: { id: string; nome: string } } | null;
+};
 
 // ── Constantes ────────────────────────────────────────────────────────────────
 const CORES_SETOR  = ["#a78bfa","#22d3ee","#34d399","#fbbf24","#f87171","#60a5fa","#f472b6","#94a3b8"];
@@ -967,6 +978,176 @@ function ClienteCreateForm({ onClose, onSave }: { onClose:()=>void; onSave:()=>v
   );
 }
 
+const SENIORIDADES   = ["Júnior","Pleno","Sênior","Especialista","Líder"];
+const TIPOS_VINCULO  = ["CLT","PJ","Estagiário","Terceirizado","Sócio","Voluntário"];
+const TURNOS         = ["Manhã","Tarde","Noite","Integral","Flexível"];
+const ESCALAS        = ["5x2","6x1","12x36","Home Office","Híbrida"];
+
+function CollabForm({ collab, users, setores, roles, collabs, onClose, onSave }: {
+  collab?: Collaborator;
+  users: User[]; setores: Setor[]; roles: Role[]; collabs: Collaborator[];
+  onClose:()=>void; onSave:()=>void;
+}) {
+  const isEdit = !!collab;
+  const [step,    setStep]    = useState(1);
+  const [f, setF] = useState({
+    userId:           collab?.userId || "",
+    matricula:        collab?.matricula || "",
+    emailCorporativo: collab?.emailCorporativo || "",
+    telefone:         collab?.telefone || "",
+    cargo:            collab?.cargo || "",
+    departamento:     collab?.departamento || "",
+    setorId:          collab?.setorId || "",
+    squad:            collab?.squad || "",
+    especialidade:    collab?.especialidade || "",
+    senioridade:      collab?.senioridade || "",
+    gestorId:         collab?.gestorId || "",
+    jornadaHorasDia:  collab?.jornadaHorasDia ?? 8,
+    turno:            collab?.turno || "",
+    escala:           collab?.escala || "",
+    tipoVinculo:      collab?.tipoVinculo || "",
+    ativo:            collab?.ativo ?? true,
+  });
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState("");
+
+  const setField = (k: keyof typeof f, v: any) => setF(p => ({ ...p, [k]: v }));
+
+  const goNext = () => {
+    if (step === 1) {
+      if (!f.userId) { setErr("Selecione o usuário vinculado"); return; }
+    }
+    setErr(""); setStep(step + 1);
+  };
+
+  const save = async () => {
+    if (!f.userId) { setErr("Usuário obrigatório"); setStep(1); return; }
+    setLoading(true); setErr("");
+    const payload: any = {
+      ...f,
+      jornadaHorasMes: f.jornadaHorasDia ? f.jornadaHorasDia * 22 : undefined,
+      setorId: f.setorId || null,
+      gestorId: f.gestorId || null,
+    };
+    // remove campos vazios opcionais
+    Object.keys(payload).forEach(k => { if (payload[k] === "") payload[k] = undefined; });
+    try {
+      if (isEdit) {
+        delete payload.userId;
+        await api.put("/collaborators/"+collab!.id, payload);
+      } else {
+        await api.post("/collaborators", payload);
+      }
+      onSave(); onClose();
+    } catch(e:any) { setErr(e?.response?.data?.message||"Erro ao salvar"); }
+    finally { setLoading(false); }
+  };
+
+  const gestorOpts = collabs.filter(c => c.id !== collab?.id);
+
+  return (
+    <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
+      {/* Progress */}
+      <div style={{ display:"flex", gap:6, marginBottom:4 }}>
+        {[1,2,3].map(s=>(
+          <div key={s} style={{ flex:1, height:3, borderRadius:2, background:step>=s?"var(--accent-violet)":"var(--border-subtle)", transition:"background 0.2s" }} />
+        ))}
+      </div>
+      <div style={{ fontSize:10, color:"var(--text-muted)", fontFamily:"var(--font-mono)", letterSpacing:"0.1em", marginBottom:6 }}>
+        {step===1 ? "PASSO 1 DE 3 — IDENTIFICAÇÃO" : step===2 ? "PASSO 2 DE 3 — ESTRUTURA ORGANIZACIONAL" : "PASSO 3 DE 3 — DADOS OPERACIONAIS"}
+      </div>
+
+      {step===1 && (
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
+          <div style={{ gridColumn:"1/-1" }}>
+            <Field label="USUÁRIO VINCULADO *">
+              <select className="input-o" value={f.userId} onChange={e=>setField("userId", e.target.value)} disabled={isEdit}>
+                <option value="">{isEdit?collab!.user?.nome:"— selecione um usuário —"}</option>
+                {users.map(u=><option key={u.id} value={u.id}>{u.nome} ({u.email})</option>)}
+              </select>
+            </Field>
+          </div>
+          <Field label="MATRÍCULA"><input className="input-o" value={f.matricula} onChange={e=>setField("matricula",e.target.value)} placeholder="Ex: 00123" /></Field>
+          <Field label="EMAIL CORPORATIVO"><input className="input-o" type="email" value={f.emailCorporativo} onChange={e=>setField("emailCorporativo",e.target.value)} /></Field>
+          <Field label="TELEFONE"><input className="input-o" value={f.telefone} onChange={e=>setField("telefone",e.target.value)} placeholder="(11) 99999-9999" /></Field>
+          <Field label="SITUAÇÃO">
+            <select className="input-o" value={f.ativo?"ativo":"inativo"} onChange={e=>setField("ativo", e.target.value==="ativo")}>
+              <option value="ativo">Ativo</option>
+              <option value="inativo">Inativo</option>
+            </select>
+          </Field>
+        </div>
+      )}
+
+      {step===2 && (
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
+          <Field label="CARGO"><input className="input-o" value={f.cargo} onChange={e=>setField("cargo",e.target.value)} placeholder="Ex: Analista de Sistemas" /></Field>
+          <Field label="DEPARTAMENTO"><input className="input-o" value={f.departamento} onChange={e=>setField("departamento",e.target.value)} placeholder="Ex: Tecnologia" /></Field>
+          <Field label="SETOR">
+            <select className="input-o" value={f.setorId} onChange={e=>setField("setorId",e.target.value)}>
+              <option value="">— Sem setor —</option>
+              {setores.map(s=><option key={s.id} value={s.id}>{s.nome}</option>)}
+            </select>
+          </Field>
+          <Field label="SQUAD / EQUIPE"><input className="input-o" value={f.squad} onChange={e=>setField("squad",e.target.value)} placeholder="Ex: Squad Atlas" /></Field>
+          <Field label="ESPECIALIDADE"><input className="input-o" value={f.especialidade} onChange={e=>setField("especialidade",e.target.value)} placeholder="Ex: Backend Node" /></Field>
+          <Field label="SENIORIDADE">
+            <select className="input-o" value={f.senioridade} onChange={e=>setField("senioridade",e.target.value)}>
+              <option value="">—</option>
+              {SENIORIDADES.map(s=><option key={s} value={s}>{s}</option>)}
+            </select>
+          </Field>
+          <div style={{ gridColumn:"1/-1" }}>
+            <Field label="GESTOR DIRETO">
+              <select className="input-o" value={f.gestorId} onChange={e=>setField("gestorId",e.target.value)}>
+                <option value="">— Sem gestor —</option>
+                {gestorOpts.map(c=><option key={c.id} value={c.id}>{c.user?.nome} {c.cargo?`(${c.cargo})`:""}</option>)}
+              </select>
+            </Field>
+          </div>
+        </div>
+      )}
+
+      {step===3 && (
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
+          <Field label="JORNADA (HORAS/DIA)"><input className="input-o" type="number" step="0.5" min="0" max="24" value={f.jornadaHorasDia} onChange={e=>setField("jornadaHorasDia",parseFloat(e.target.value)||0)} /></Field>
+          <Field label="JORNADA (HORAS/MÊS)"><input className="input-o" type="number" value={f.jornadaHorasDia ? f.jornadaHorasDia*22 : 0} disabled /></Field>
+          <Field label="TURNO">
+            <select className="input-o" value={f.turno} onChange={e=>setField("turno",e.target.value)}>
+              <option value="">—</option>
+              {TURNOS.map(t=><option key={t} value={t}>{t}</option>)}
+            </select>
+          </Field>
+          <Field label="ESCALA">
+            <select className="input-o" value={f.escala} onChange={e=>setField("escala",e.target.value)}>
+              <option value="">—</option>
+              {ESCALAS.map(s=><option key={s} value={s}>{s}</option>)}
+            </select>
+          </Field>
+          <div style={{ gridColumn:"1/-1" }}>
+            <Field label="TIPO DE VÍNCULO">
+              <select className="input-o" value={f.tipoVinculo} onChange={e=>setField("tipoVinculo",e.target.value)}>
+                <option value="">—</option>
+                {TIPOS_VINCULO.map(t=><option key={t} value={t}>{t}</option>)}
+              </select>
+            </Field>
+          </div>
+        </div>
+      )}
+
+      {err && <div style={{ background:"rgba(220,38,38,0.08)", border:"1px solid rgba(220,38,38,0.2)", borderRadius:8, padding:"10px 14px", color:"var(--accent-red)", fontSize:12 }}>{err}</div>}
+      <div style={{ display:"flex", gap:10, marginTop:4 }}>
+        {step>1 && <button className="btn btn-ghost" style={{ flex:1 }} onClick={()=>setStep(step-1)}>← Voltar</button>}
+        {step===1 && <button className="btn btn-ghost" style={{ flex:1 }} onClick={onClose}>Cancelar</button>}
+        {step<3
+          ? <button className="btn btn-violet" style={{ flex:2 }} onClick={goNext}>Próximo →</button>
+          : <button className="btn btn-violet" style={{ flex:2 }} onClick={save} disabled={loading}>{loading?<Spin/>:isEdit?"Salvar alterações":"Criar colaborador"}</button>
+        }
+      </div>
+    </div>
+  );
+}
+
 function OrgCreateForm({ onClose, onSave }: { onClose:()=>void; onSave:()=>void }) {
   const [f, setF] = useState({ nome:"", slug:"", plano:"starter" });
   const [loading, setLoading] = useState(false);
@@ -1066,7 +1247,7 @@ function OrgEditForm({ org, onClose, onSave }: { org: OrgItem; onClose:()=>void;
 
 export default function CadastrosPage() {
   const { user: me } = useAuthStore();
-  const [tab,           setTab]          = useState<"usuarios"|"setores"|"papeis"|"solicitacoes"|"matriz"|"organograma"|"clientes"|"organizacoes">("usuarios");
+  const [tab,           setTab]          = useState<"usuarios"|"setores"|"papeis"|"solicitacoes"|"matriz"|"organograma"|"clientes"|"organizacoes"|"colaboradores">("usuarios");
   const [roles,         setRoles]        = useState<Role[]>([]);
   const [allPerms,      setAllPerms]     = useState<Permission[]>([]);
   const [modalRole,     setModalRole]    = useState<Role|"novo"|null>(null);
@@ -1106,6 +1287,12 @@ export default function CadastrosPage() {
   const [modalEditOrg,     setModalEditOrg]     = useState<OrgItem|null>(null);
   const [modalDelOrg,      setModalDelOrg]      = useState<OrgItem|null>(null);
   const [filterOrg,        setFilterOrg]        = useState<"todos"|"ativos"|"inativos">("ativos");
+  // colaboradores
+  const [collabs,          setCollabs]          = useState<Collaborator[]>([]);
+  const [modalNewCollab,   setModalNewCollab]   = useState(false);
+  const [modalEditCollab,  setModalEditCollab]  = useState<Collaborator|null>(null);
+  const [modalDelCollab,   setModalDelCollab]   = useState<Collaborator|null>(null);
+  const [filterCollab,     setFilterCollab]     = useState<"todos"|"ativos"|"inativos">("ativos");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -1125,6 +1312,7 @@ export default function CadastrosPage() {
         try { const sRes2 = await api.get("/auth/solicitacoes"); setSolicitacoes(sRes2.data); } catch {}
       }
       try { const cRes = await api.get("/clientes"); setClientes(cRes.data); } catch {}
+      try { const coRes = await api.get("/collaborators"); setCollabs(coRes.data); } catch {}
       if (me?.isMaster) {
         try { const oRes = await api.get("/superadmin/organizations"); setOrgs(oRes.data); } catch {}
       }
@@ -1152,17 +1340,28 @@ export default function CadastrosPage() {
     </div>
   );
 
-  const btnLabel = tab==="usuarios" ? "Novo usuario" : tab==="setores" ? "Novo setor" : tab==="papeis" ? "Novo papel" : tab==="clientes" ? "Novo cliente" : tab==="organizacoes" ? "Nova organização" : null;
+  const btnLabel = tab==="usuarios" ? "Novo usuario" : tab==="setores" ? "Novo setor" : tab==="papeis" ? "Novo papel" : tab==="clientes" ? "Novo cliente" : tab==="organizacoes" ? "Nova organização" : tab==="colaboradores" ? "Novo colaborador" : null;
   const btnAction = () => {
-    if (tab==="usuarios")     setModalNewUser(true);
-    if (tab==="setores")      setModalSetor("novo");
-    if (tab==="papeis")       setModalRole("novo");
-    if (tab==="clientes")     setModalNewCliente(true);
-    if (tab==="organizacoes") setModalNewOrg(true);
+    if (tab==="usuarios")       setModalNewUser(true);
+    if (tab==="setores")        setModalSetor("novo");
+    if (tab==="papeis")         setModalRole("novo");
+    if (tab==="clientes")       setModalNewCliente(true);
+    if (tab==="organizacoes")   setModalNewOrg(true);
+    if (tab==="colaboradores")  setModalNewCollab(true);
   };
   const filteredOrgs = orgs.filter(o => {
     const ms = !search || o.nome.toLowerCase().includes(search.toLowerCase()) || o.slug.toLowerCase().includes(search.toLowerCase());
     const mf = filterOrg==="todos" ? true : filterOrg==="ativos" ? o.ativo : !o.ativo;
+    return ms && mf;
+  });
+  const filteredCollabs = collabs.filter(c => {
+    const ms = !search ||
+      (c.user?.nome||"").toLowerCase().includes(search.toLowerCase()) ||
+      (c.user?.email||"").toLowerCase().includes(search.toLowerCase()) ||
+      (c.matricula||"").toLowerCase().includes(search.toLowerCase()) ||
+      (c.cargo||"").toLowerCase().includes(search.toLowerCase()) ||
+      (c.departamento||"").toLowerCase().includes(search.toLowerCase());
+    const mf = filterCollab==="todos" ? true : filterCollab==="ativos" ? c.ativo : !c.ativo;
     return ms && mf;
   });
   const filteredClientes = clientes.filter(c => {
@@ -1192,6 +1391,7 @@ export default function CadastrosPage() {
           { key:"matriz",         label:"Matriz",        count:0 },
           ...((me?.isMaster || me?.permissions?.includes("*") || me?.permissions?.includes("usuarios:criar")) ? [{ key:"solicitacoes", label:"Solicitacoes", count:solicitacoes.filter(s=>s.status==="PENDENTE").length }] : []),
           { key:"clientes",      label:"Clientes",      count:clientes.length },
+          { key:"colaboradores", label:"Colaboradores", count:collabs.length },
           ...(me?.isMaster ? [{ key:"organizacoes", label:"Organizacoes", count:orgs.length }] : []),
         ].map(t=>(
           <button key={t.key} onClick={()=>{ setTab(t.key as any); setSearch(""); }}
@@ -1214,6 +1414,7 @@ export default function CadastrosPage() {
             tab==="usuarios"?"Buscar por nome ou e-mail...":
             tab==="clientes"?"Buscar por nome, empresa ou e-mail...":
             tab==="organizacoes"?"Buscar por nome ou slug...":
+            tab==="colaboradores"?"Buscar por nome, matrícula, cargo ou departamento...":
             "Buscar setor..."}
             value={search} onChange={e=>setSearch(e.target.value)} style={{ flex:1, maxWidth:360 }} />
           {tab==="clientes" && (
@@ -1229,6 +1430,15 @@ export default function CadastrosPage() {
             <div style={{ display:"flex", gap:4 }}>
               {(["todos","ativos","inativos"] as const).map(f=>(
                 <button key={f} onClick={()=>setFilterOrg(f)} className={`btn ${filterOrg===f?"btn-violet":"btn-ghost"}`} style={{ padding:"6px 14px", fontSize:12 }}>
+                  {f.charAt(0).toUpperCase()+f.slice(1)}
+                </button>
+              ))}
+            </div>
+          )}
+          {tab==="colaboradores" && (
+            <div style={{ display:"flex", gap:4 }}>
+              {(["todos","ativos","inativos"] as const).map(f=>(
+                <button key={f} onClick={()=>setFilterCollab(f)} className={`btn ${filterCollab===f?"btn-violet":"btn-ghost"}`} style={{ padding:"6px 14px", fontSize:12 }}>
                   {f.charAt(0).toUpperCase()+f.slice(1)}
                 </button>
               ))}
@@ -1546,6 +1756,71 @@ export default function CadastrosPage() {
           </>
         )}
 
+        {/* ── ABA COLABORADORES ── */}
+        {tab==="colaboradores" && (
+          <>
+            <div className="animate-up" style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:12 }}>
+              {[
+                { label:"TOTAL",        value:collabs.length,                                 color:"var(--accent-violet)" },
+                { label:"ATIVOS",       value:collabs.filter(c=>c.ativo).length,              color:"var(--accent-green)"  },
+                { label:"DEPARTAMENTOS",value:new Set(collabs.map(c=>c.departamento).filter(Boolean)).size, color:"var(--accent-cyan)" },
+              ].map(s=>(
+                <div key={s.label} className="card" style={{ padding:"16px 20px", display:"flex", alignItems:"center", gap:16 }}>
+                  <div style={{ fontFamily:"var(--font-display)", fontSize:28, fontWeight:700, color:s.color }}>{s.value}</div>
+                  <div style={{ fontSize:11, fontFamily:"var(--font-mono)", letterSpacing:"0.08em", color:"var(--text-muted)" }}>{s.label}</div>
+                </div>
+              ))}
+            </div>
+            <div className="animate-up card">
+              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr auto auto", gap:16, padding:"10px 20px", borderBottom:"1px solid var(--border-subtle)" }}>
+                {["COLABORADOR","ESTRUTURA","OPERACIONAL","AÇÕES"].map(h=><span key={h} style={{ fontSize:10, fontFamily:"var(--font-mono)", letterSpacing:"0.08em", color:"var(--text-muted)" }}>{h}</span>)}
+              </div>
+              {loading ? (
+                <div style={{ display:"flex", alignItems:"center", justifyContent:"center", padding:48, gap:12 }}><Spin/><span style={{ color:"var(--text-muted)", fontSize:13 }}>Carregando...</span></div>
+              ) : filteredCollabs.length===0 ? (
+                <div className="empty-state"><p style={{ color:"var(--text-secondary)", fontWeight:500 }}>{search?"Nenhum colaborador encontrado":"Nenhum colaborador cadastrado"}</p></div>
+              ) : filteredCollabs.map((c,i)=>(
+                <div key={c.id} style={{ display:"grid", gridTemplateColumns:"1fr 1fr auto auto", gap:16, padding:"14px 20px", borderBottom:i<filteredCollabs.length-1?"1px solid var(--border-subtle)":"none", alignItems:"center", opacity:c.ativo?1:0.55, transition:"background 0.15s" }}
+                  onMouseEnter={e=>(e.currentTarget as HTMLElement).style.background="var(--bg-hover)"}
+                  onMouseLeave={e=>(e.currentTarget as HTMLElement).style.background="transparent"}
+                >
+                  <div style={{ display:"flex", alignItems:"center", gap:12, minWidth:0 }}>
+                    <Avatar nome={c.user?.nome||"?"} />
+                    <div style={{ minWidth:0 }}>
+                      <div style={{ fontSize:13, fontWeight:500, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{c.user?.nome||"—"}</div>
+                      <div style={{ fontSize:11, color:"var(--text-muted)" }}>
+                        {c.user?.email}{c.matricula?` · #${c.matricula}`:""}
+                      </div>
+                    </div>
+                  </div>
+                  <div style={{ minWidth:0 }}>
+                    {c.cargo && <div style={{ fontSize:12, color:"var(--text-secondary)" }}>{c.cargo}{c.senioridade?` · ${c.senioridade}`:""}</div>}
+                    {c.setor && <span className="badge" style={{ fontSize:10, background:(c.setor.cor||"#a78bfa")+"15", color:c.setor.cor||"#a78bfa", border:`1px solid ${(c.setor.cor||"#a78bfa")}30`, marginTop:4 }}>{c.setor.nome}</span>}
+                    {c.departamento && !c.setor && <div style={{ fontSize:11, color:"var(--text-muted)" }}>{c.departamento}</div>}
+                    {c.gestor?.user && <div style={{ fontSize:10, color:"var(--text-muted)", fontFamily:"var(--font-mono)", marginTop:2 }}>↑ {c.gestor.user.nome}</div>}
+                  </div>
+                  <div style={{ display:"flex", flexDirection:"column", gap:4, alignItems:"flex-end" }}>
+                    {c.jornadaHorasDia && <span style={{ fontSize:11, color:"var(--text-secondary)", fontFamily:"var(--font-mono)" }}>{c.jornadaHorasDia}h/dia</span>}
+                    {c.tipoVinculo && <span style={{ fontSize:10, color:"var(--text-muted)", fontFamily:"var(--font-mono)" }}>{c.tipoVinculo}</span>}
+                    <span className={`badge ${c.ativo?"badge-green":"badge-red"}`} style={{ fontSize:10 }}>{c.ativo?"ATIVO":"INATIVO"}</span>
+                  </div>
+                  <div style={{ display:"flex", gap:4 }}>
+                    <button className="btn-icon" title="Editar" onClick={()=>setModalEditCollab(c)}>
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4z"/></svg>
+                    </button>
+                    <button className="btn-icon" title={c.ativo?"Desativar":"Ativar"} onClick={async()=>{ await api.patch("/collaborators/"+c.id+"/toggle"); load(); }}>
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18.36 6.64a9 9 0 11-12.73 0M12 2v10" strokeLinecap="round"/></svg>
+                    </button>
+                    <button className="btn-icon" title="Remover" style={{ color:"var(--accent-red)", borderColor:"rgba(220,38,38,0.2)" }} onClick={()=>setModalDelCollab(c)}>
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/></svg>
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+
         {/* ── ABA ORGANIZAÇÕES ── */}
         {tab==="organizacoes" && (
           <>
@@ -1679,6 +1954,22 @@ export default function CadastrosPage() {
         <Modal title="Novo cliente" onClose={()=>setModalNewCliente(false)} maxWidth={500}>
           <ClienteCreateForm onClose={()=>setModalNewCliente(false)} onSave={load} />
         </Modal>
+      )}
+
+      {/* Modais colaborador */}
+      {modalNewCollab && (
+        <Modal title="Novo colaborador" onClose={()=>setModalNewCollab(false)} maxWidth={620}>
+          <CollabForm users={users.filter(u=>!collabs.some(c=>c.userId===u.id))} setores={setores} roles={roles} collabs={collabs} onClose={()=>setModalNewCollab(false)} onSave={load} />
+        </Modal>
+      )}
+      {modalEditCollab && (
+        <Modal title="Editar colaborador" onClose={()=>setModalEditCollab(null)} maxWidth={620}>
+          <CollabForm collab={modalEditCollab} users={users} setores={setores} roles={roles} collabs={collabs} onClose={()=>setModalEditCollab(null)} onSave={load} />
+        </Modal>
+      )}
+      {modalDelCollab && (
+        <ConfirmModal title="Remover colaborador" message={`Remover ${modalDelCollab.user?.nome||"colaborador"} do quadro? O usuário continuará existindo mas perderá o vínculo operacional.`} confirmLabel="Remover" danger
+          onConfirm={async()=>{ await api.delete("/collaborators/"+modalDelCollab.id); await load(); }} onClose={()=>setModalDelCollab(null)} />
       )}
 
       {/* Modais organização */}

@@ -71,6 +71,11 @@ const ALL_PERMISSIONS: { recurso: string; acao: string; descricao: string }[] = 
   { recurso: "solicitacoes",  acao: "criar",       descricao: "Abrir solicitações" },
   { recurso: "solicitacoes",  acao: "editar",      descricao: "Editar solicitações" },
   { recurso: "solicitacoes",  acao: "aprovar",     descricao: "Aprovar/rejeitar solicitações" },
+  // Colaboradores (Workforce)
+  { recurso: "colaboradores", acao: "ver",         descricao: "Ver colaboradores da organização" },
+  { recurso: "colaboradores", acao: "criar",       descricao: "Criar colaboradores" },
+  { recurso: "colaboradores", acao: "editar",      descricao: "Editar colaboradores" },
+  { recurso: "colaboradores", acao: "excluir",     descricao: "Remover colaboradores" },
   // Base de conhecimento
   { recurso: "conhecimento",  acao: "ver",         descricao: "Ver base de conhecimento" },
   { recurso: "conhecimento",  acao: "criar",       descricao: "Criar artigos" },
@@ -124,6 +129,7 @@ const ROLE_DEFAULTS: Record<string, { nivel: number; descricao: string; permisso
       "relatorios:exportar","relatorios:criar",
       "ativos:ver","ativos:criar","ativos:editar","ativos:mover",
       "solicitacoes:ver","solicitacoes:criar","solicitacoes:editar","solicitacoes:aprovar",
+      "colaboradores:ver","colaboradores:criar","colaboradores:editar","colaboradores:excluir",
       "conhecimento:ver","conhecimento:criar","conhecimento:editar","conhecimento:publicar",
       "sla:ver","sla:gerenciar",
       "automacoes:ver","automacoes:criar","automacoes:editar","automacoes:excluir",
@@ -183,6 +189,7 @@ const ROLE_DEFAULTS: Record<string, { nivel: number; descricao: string; permisso
       "orcamento:ver",
       "fornecedores:ver",
       "solicitacoes:ver","solicitacoes:criar","solicitacoes:editar","solicitacoes:aprovar",
+      "colaboradores:ver","colaboradores:criar","colaboradores:editar",
       "conhecimento:ver","conhecimento:criar","conhecimento:editar",
       "sla:ver",
       "ativos:ver","ativos:criar","ativos:editar",
@@ -612,6 +619,15 @@ export class AuthService implements OnModuleInit {
   async approveUserRequest(id: string, dto: {
     nome?: string; email?: string; whatsapp?: string;
     cargo?: string; departamento?: string; empresa?: string;
+    // Workforce: provisionamento estrutural do colaborador
+    setorId?: string | null;
+    gestorId?: string | null;
+    jornadaHorasDia?: number;
+    squad?: string;
+    senioridade?: string;
+    tipoVinculo?: string;
+    perfilRoleId?: string | null;
+    matricula?: string;
   }, requestUser: any) {
     if (!this.canManageRequests(requestUser)) throw new ForbiddenException("Acesso negado.");
     const req = await (this.prisma as any).userRequest.findUnique({ where: { id } });
@@ -622,11 +638,17 @@ export class AuthService implements OnModuleInit {
     const tempPassword = Array.from({ length: 12 }, () => chars[Math.floor(Math.random() * chars.length)]).join("") + "A1!";
     const senhaHash = await bcrypt.hash(tempPassword, 12);
 
-    // Determina role padrão
-    const defaultRole = await this.prisma.role.findFirst({
-      where: { nome: { in: ["tecnico", "analista"] }, isMaster: false },
-      orderBy: { nivel: "asc" },
-    });
+    // Role a aplicar: o que o admin escolheu, ou fallback para técnico/analista
+    let chosenRole: any = null;
+    if (dto.perfilRoleId) {
+      chosenRole = await this.prisma.role.findUnique({ where: { id: dto.perfilRoleId } });
+    }
+    if (!chosenRole) {
+      chosenRole = await this.prisma.role.findFirst({
+        where: { nome: { in: ["tecnico", "analista"] }, isMaster: false },
+        orderBy: { nivel: "asc" },
+      });
+    }
 
     // Usa dados editados pelo admin (fallback para os dados originais)
     const nome = dto.nome?.trim() || req.nome;
@@ -636,6 +658,7 @@ export class AuthService implements OnModuleInit {
     const departamento = dto.departamento?.trim() || req.departamento || null;
     const empresa = dto.empresa?.trim() || req.empresa || null;
 
+    const organizationId = req.organizationId || requestUser.organizationId || "00000000-0000-0000-0000-000000000001";
     const userId = require("crypto").randomUUID();
     await this.prisma.user.create({
       data: {
@@ -647,7 +670,7 @@ export class AuthService implements OnModuleInit {
         primeiroAcesso: true,
         bloqueado: false,
         tentativasFalhas: 0,
-        organizationId: req.organizationId || requestUser.organizationId || "00000000-0000-0000-0000-000000000001",
+        organizationId,
       } as any,
     });
     await this.prisma.userProfile.create({
@@ -656,12 +679,38 @@ export class AuthService implements OnModuleInit {
         userId,
         whatsapp,
         cargo,
-      },
+        setorId: dto.setorId || null,
+      } as any,
     });
-    if (defaultRole) {
+    if (chosenRole) {
       await this.prisma.userRole.create({
-        data: { userId, roleId: defaultRole.id, atribuidoPorId: requestUser.id, atribuidoEm: new Date() } as any,
+        data: { userId, roleId: chosenRole.id, atribuidoPorId: requestUser.id, atribuidoEm: new Date() } as any,
       });
+    }
+    // ── Workforce: cria Collaborator vinculado ao novo User ──────────
+    try {
+      await (this.prisma as any).collaborator.create({
+        data: {
+          organizationId,
+          userId,
+          matricula:        dto.matricula || null,
+          emailCorporativo: email,
+          telefone:         whatsapp,
+          cargo,
+          departamento,
+          setorId:          dto.setorId || null,
+          squad:            dto.squad || null,
+          senioridade:      dto.senioridade || req.senioridade || null,
+          gestorId:         dto.gestorId || null,
+          jornadaHorasDia:  dto.jornadaHorasDia ?? req.jornadaHorasDia ?? 8,
+          jornadaHorasMes:  (dto.jornadaHorasDia ?? req.jornadaHorasDia ?? 8) * 22,
+          tipoVinculo:      dto.tipoVinculo || req.tipoVinculo || null,
+          ativo:            true,
+        },
+      });
+    } catch (e) {
+      // Não bloqueia aprovação se Collaborator falhar (ex: matrícula duplicada)
+      console.error("[approveUserRequest] failed to create Collaborator:", e);
     }
     await (this.prisma as any).userRequest.update({
       where: { id },

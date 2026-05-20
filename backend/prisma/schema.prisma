@@ -102,6 +102,7 @@ model Organization {
   apontamentosHoras  ApontamentoHoras[]
   whatsappConfig     OrgWhatsappConfig?
   cadastroRequests   CadastroRequest[]  @relation("CadReqOrg")
+  collaborators      Collaborator[]     @relation("OrgCollaborators")
 
   @@map("organizations")
 }
@@ -193,6 +194,7 @@ model User {
   faturas                   Fatura[]             @relation("FaturaCriador")
   cadastroRequestsAprovados CadastroRequest[]    @relation("CadReqAprovador")
   cadastroRequestsCriados   CadastroRequest[]    @relation("CadReqCriador")
+  collaborator              Collaborator?        @relation("UserCollaborator")
 
   @@unique([organizationId, email])
   @@index([organizationId])
@@ -358,9 +360,60 @@ model UserRequest {
   approvedById    String?   @map("approved_by_id")
   approvedAt      DateTime? @map("approved_at")
   rejectionReason String?   @map("rejection_reason")
+  // ── Workforce (preenchidos na aprovação) ─────────────────
+  setorId            String?  @map("setor_id")
+  gestorId           String?  @map("gestor_id")
+  jornadaHorasDia    Float?   @map("jornada_horas_dia")
+  squad              String?
+  perfilRoleId       String?  @map("perfil_role_id")
+  senioridade        String?
+  tipoVinculo        String?  @map("tipo_vinculo")
   criadoEm       DateTime  @default(now()) @map("criado_em")
   atualizadoEm   DateTime  @updatedAt      @map("atualizado_em")
   @@map("user_requests")
+}
+
+// ── Workforce / Colaboradores ──────────────────────────────────────────────
+model Collaborator {
+  id                String   @id @default(uuid())
+  organizationId    String   @map("organization_id")
+  userId            String   @unique @map("user_id")
+  matricula         String?
+  fotoUrl           String?  @map("foto_url")
+  emailCorporativo  String?  @map("email_corporativo")
+  telefone          String?
+  // Estrutura organizacional
+  cargo             String?
+  departamento      String?
+  setorId           String?  @map("setor_id")
+  squad             String?
+  especialidade     String?
+  senioridade       String?
+  gestorId          String?  @map("gestor_id")
+  // Operacionais
+  jornadaHorasDia   Float?   @map("jornada_horas_dia")
+  jornadaHorasMes   Float?   @map("jornada_horas_mes")
+  turno             String?
+  escala            String?
+  tipoVinculo       String?  @map("tipo_vinculo")
+  // Futuro
+  skills            Json?
+  certificacoes     Json?
+  ativo             Boolean  @default(true)
+  criadoEm          DateTime @default(now()) @map("criado_em")
+  atualizadoEm      DateTime @updatedAt      @map("atualizado_em")
+
+  organization      Organization @relation("OrgCollaborators", fields: [organizationId], references: [id])
+  user              User         @relation("UserCollaborator", fields: [userId], references: [id], onDelete: Cascade)
+  setor             Setor?       @relation("SetorCollaborators", fields: [setorId], references: [id], onDelete: SetNull)
+  gestor            Collaborator? @relation("CollabHierarchy", fields: [gestorId], references: [id], onDelete: SetNull)
+  liderados         Collaborator[] @relation("CollabHierarchy")
+
+  @@unique([organizationId, matricula])
+  @@index([organizationId])
+  @@index([setorId])
+  @@index([gestorId])
+  @@map("collaborators")
 }
 
 model PasswordResetOtp {
@@ -1063,6 +1116,7 @@ model Setor {
   responsavel   User?    @relation("SetorResponsavel", fields: [responsavelId], references: [id], onDelete: SetNull)
   users         UserProfile[]
   ativos        Ativo[]
+  collaborators Collaborator[] @relation("SetorCollaborators")
   @@unique([organizationId, nome])
   @@map("setores")
 }
