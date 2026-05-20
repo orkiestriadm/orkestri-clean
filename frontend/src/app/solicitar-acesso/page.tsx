@@ -69,7 +69,7 @@ export default function SolicitarAcessoPage() {
   if (!mounted) return null;
 
   return (
-    <div className="min-h-screen flex bg-[var(--bg-primary)] overflow-hidden transition-colors duration-300">
+    <div className="flex bg-[var(--bg-primary)] overflow-hidden transition-colors duration-300" style={{height:'100dvh'}}>
       
       {/* ── Background ── */}
       <div className="fixed inset-0 pointer-events-none select-none">
@@ -91,13 +91,10 @@ export default function SolicitarAcessoPage() {
         initial={{ opacity: 0, x: -28 }}
         animate={{ opacity: 1, x: 0 }}
         transition={{ duration: 0.75, ease: [0.22, 1, 0.36, 1] }}
-        className="hidden lg:flex flex-col justify-between w-1/2 shrink-0 relative z-10 p-14 xl:p-20"
+        className="hidden lg:flex flex-col justify-between w-1/2 shrink-0 relative z-10 p-14 xl:p-20 h-full"
       >
-        {/* Logo */}
         <Link href="/">
-          <div className="scale-[1.35] origin-left">
-            <BrandLogo size="lg" />
-          </div>
+          <BrandLogo size="xxl" />
         </Link>
 
         {/* Main statement */}
@@ -175,7 +172,7 @@ export default function SolicitarAcessoPage() {
       </motion.div>
 
       {/* ── Right panel — Form ── */}
-      <div className="w-full lg:w-1/2 flex-shrink-0 flex items-center justify-center p-6 relative z-10">
+      <div className="w-full lg:w-1/2 shrink-0 flex h-full items-center justify-center p-6 relative z-10">
         <motion.div
           initial={{ opacity: 0, y: 24 }}
           animate={{ opacity: 1, y: 0 }}
