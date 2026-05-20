@@ -36,6 +36,7 @@ import { FaturasModule } from "./modules/faturas/faturas.module";
 import { OrganizationsModule } from "./modules/organizations/organizations.module";
 import { CadastroRequestModule } from './modules/cadastro-request/cadastro-request.module';
 import { CollaboratorsModule } from './modules/collaborators/collaborators.module';
+import { CapacityModule } from './modules/capacity/capacity.module';
 
 @Module({
   imports: [
@@ -62,6 +63,7 @@ import { CollaboratorsModule } from './modules/collaborators/collaborators.modul
     OrganizationsModule,
     CadastroRequestModule,
     CollaboratorsModule,
+    CapacityModule,
   ],
 })
 export class AppModule {}
