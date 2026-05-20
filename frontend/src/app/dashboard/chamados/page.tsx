@@ -351,7 +351,7 @@ function NovoChamadoModal({ onClose, onCreated }: { onClose: () => void; onCreat
                 placeholder="Nome do template..." autoFocus
                 className="input-o flex-1" />
               <button type="button" onClick={saveAsTemplate}
-                className="btn-ghost text-xs py-2 px-3 text-[var(--accent-violet)]">Salvar</button>
+                className="btn btn-ghost text-xs py-2 px-3 text-[var(--accent-violet)]">Salvar</button>
               <button type="button" onClick={() => setShowSaveTemplate(false)}
                 className="p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"><X size={14} /></button>
             </div>
@@ -362,10 +362,10 @@ function NovoChamadoModal({ onClose, onCreated }: { onClose: () => void; onCreat
             </button>
           )}
           <div className="flex gap-3 pt-3">
-            <button type="button" onClick={onClose} className="btn-ghost flex-1">
+            <button type="button" onClick={onClose} className="btn btn-ghost flex-1">
               Cancelar
             </button>
-            <button type="submit" disabled={saving} className="btn-primary flex-1 flex items-center justify-center gap-2">
+            <button type="submit" disabled={saving} className="btn btn-violet flex-1 flex items-center justify-center gap-2">
               {saving && <Loader2 size={14} className="animate-spin" />}
               Abrir Chamado
             </button>
@@ -618,7 +618,7 @@ function ChamadoDrawer({ chamado, isMaster, userId, onClose, onUpdated }: {
               <button
                 onClick={sendComment}
                 disabled={!comment.trim() || sending}
-                className="btn-primary px-4 flex items-center justify-center disabled:opacity-50"
+                className="btn btn-violet px-4 flex items-center justify-center disabled:opacity-50"
               >
                 {sending ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
               </button>
@@ -668,7 +668,7 @@ function BulkActionBar({ ids, users, onDone, onCancel }: {
         {users.map(u => <option key={u.id} value={u.id}>{u.nome}</option>)}
       </select>
       <button onClick={apply} disabled={saving || (!status && !atendente)}
-        className="btn-primary text-xs py-1.5 px-5 rounded-full disabled:opacity-50 font-bold ml-2">
+        className="btn btn-violet text-xs py-1.5 px-5 rounded-full disabled:opacity-50 font-bold ml-2">
         {saving ? <Loader2 size={14} className="animate-spin" /> : "Aplicar"}
       </button>
       <button onClick={onCancel} className="w-8 h-8 flex items-center justify-center rounded-full bg-[var(--bg-hover)] text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors ml-1">
@@ -809,7 +809,7 @@ export default function ChamadosPage() {
         {(filterStatus || filterPrio || filterCat || search) && (
           <button
             onClick={() => { setFilterStatus(""); setFilterPrio(""); setFilterCat(""); setSearch(""); }}
-            className="btn-ghost flex items-center gap-1 py-2 px-3 text-[var(--accent-red)] hover:text-[var(--accent-red)] hover:bg-red-500/10"
+            className="btn btn-ghost flex items-center gap-1 py-2 px-3 text-[var(--accent-red)] hover:text-[var(--accent-red)] hover:bg-red-500/10"
           >
             <X size={13} /> Limpar
           </button>

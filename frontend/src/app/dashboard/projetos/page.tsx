@@ -96,8 +96,8 @@ function ProjectModal({ project, users, onClose, onSave }: { project?:Project; u
         )}
         {error && <p className="text-xs text-[var(--accent-red)]">{error}</p>}
         <div className="flex gap-3 mt-2">
-          <button className="btn-ghost flex-1" onClick={onClose}>Cancelar</button>
-          <button className="btn-primary flex-[2]" onClick={save} disabled={loading}>{loading?<Spin/>:isEdit?"Salvar":"Criar projeto"}</button>
+          <button className="btn btn-ghost flex-1" onClick={onClose}>Cancelar</button>
+          <button className="btn btn-violet flex-[2]" onClick={save} disabled={loading}>{loading?<Spin/>:isEdit?"Salvar":"Criar projeto"}</button>
         </div>
       </div>
     </Modal>
@@ -150,8 +150,8 @@ function TaskModal({ projectId, task, members, onClose, onSave }: { projectId:st
         )}
         {error && <p className="text-xs text-[var(--accent-red)]">{error}</p>}
         <div className="flex gap-3 mt-2">
-          <button className="btn-ghost flex-1" onClick={onClose}>Cancelar</button>
-          <button className="btn-primary flex-[2]" onClick={save} disabled={loading}>{loading?<Spin/>:task?"Salvar":"Criar task"}</button>
+          <button className="btn btn-ghost flex-1" onClick={onClose}>Cancelar</button>
+          <button className="btn btn-violet flex-[2]" onClick={save} disabled={loading}>{loading?<Spin/>:task?"Salvar":"Criar task"}</button>
         </div>
       </div>
     </Modal>
@@ -287,7 +287,7 @@ export default function ProjetosPage() {
           {!loading && projects.length === 0 && (
             <div className="empty-state">
               <p className="text-[var(--text-muted)] text-xs text-center">Nenhum projeto ainda</p>
-              <button className="btn-primary text-xs" onClick={()=>setModalNew(true)}>Criar projeto</button>
+              <button className="btn btn-violet text-xs" onClick={()=>setModalNew(true)}>Criar projeto</button>
             </div>
           )}
           {projects.map(p => (
@@ -345,8 +345,8 @@ export default function ProjetosPage() {
                       <div key={m.user.id} className="relative ring-2 ring-[var(--bg-primary)] rounded-full" style={{ marginLeft:i>0?-8:0, zIndex:4-i }}><Avatar nome={m.user.nome} size={32} /></div>
                     ))}
                   </div>
-                  <button className="btn-ghost text-xs py-1.5 px-3" onClick={()=>setModalEdit(selected)}>Editar</button>
-                  <button className="btn-danger text-xs py-1.5 px-3" onClick={()=>setDeleteId(selected.id)}>Remover</button>
+                  <button className="btn btn-ghost text-xs py-1.5 px-3" onClick={()=>setModalEdit(selected)}>Editar</button>
+                  <button className="btn btn-danger text-xs py-1.5 px-3" onClick={()=>setDeleteId(selected.id)}>Remover</button>
                 </div>
               </div>
 
@@ -380,8 +380,8 @@ export default function ProjetosPage() {
         <Modal title="Remover projeto" onClose={()=>setDeleteId(null)}>
           <p className="text-[13px] text-[var(--text-secondary)] mb-6">Tem certeza? Todas as tasks serão removidas junto.</p>
           <div className="flex gap-3">
-            <button className="btn-ghost flex-1" onClick={()=>setDeleteId(null)}>Cancelar</button>
-            <button className="btn-danger flex-[2]" onClick={async()=>{ await api.delete("/projects/"+deleteId); setSelected(null); load(); setDeleteId(null); }}>Remover</button>
+            <button className="btn btn-ghost flex-1" onClick={()=>setDeleteId(null)}>Cancelar</button>
+            <button className="btn btn-danger flex-[2]" onClick={async()=>{ await api.delete("/projects/"+deleteId); setSelected(null); load(); setDeleteId(null); }}>Remover</button>
           </div>
         </Modal>
       )}
