@@ -12,6 +12,7 @@ type Role    = { id: string; nome: string; descricao?: string; isMaster: boolean
 type Solicitacao = { id: string; nome: string; email: string; whatsapp?: string; cargo?: string; departamento?: string; empresa?: string; motivacao?: string; status: string; criado_em: string; };
 type Cliente = { id: string; nome: string; empresa?: string; email?: string; telefone?: string; cargo?: string; segmento?: string; statusLead: string; ativo: boolean; criadoEm: string; };
 type OrgItem = { id: string; nome: string; slug: string; plano: string; ativo: boolean; statusOperacional?: string | null; statusComercial?: string | null; usuarios: number; criadoEm: string; };
+type Skill = { id: string; nome: string; categoria?: string | null; descricao?: string | null; cor?: string | null; ativo: boolean; _count?: { collaborators: number }; };
 type Collaborator = {
   id: string; organizationId: string; userId: string;
   matricula?: string | null; fotoUrl?: string | null; emailCorporativo?: string | null; telefone?: string | null;
@@ -1245,9 +1246,65 @@ function OrgEditForm({ org, onClose, onSave }: { org: OrgItem; onClose:()=>void;
   );
 }
 
+const SKILL_COLORS = ["#a78bfa","#22d3ee","#34d399","#fbbf24","#f87171","#60a5fa","#f472b6","#94a3b8"];
+const SKILL_CATEGORIAS_SUGGESTIONS = ["Tecnologia","Soft Skill","Certificação","Idioma","Ferramenta","Metodologia","Domínio de Negócio"];
+
+function SkillForm({ skill, onClose, onSave }: { skill?: Skill; onClose:()=>void; onSave:()=>void }) {
+  const [f, setF] = useState({
+    nome: skill?.nome || "",
+    categoria: skill?.categoria || "",
+    descricao: skill?.descricao || "",
+    cor: skill?.cor || SKILL_COLORS[0],
+    ativo: skill?.ativo ?? true,
+  });
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState("");
+  const save = async () => {
+    if (!f.nome.trim()) { setErr("Nome obrigatório"); return; }
+    setLoading(true); setErr("");
+    try {
+      if (skill) await api.put("/skills/"+skill.id, { nome:f.nome, categoria:f.categoria||null, descricao:f.descricao||null, cor:f.cor, ativo:f.ativo });
+      else       await api.post("/skills",            { nome:f.nome, categoria:f.categoria||undefined, descricao:f.descricao||undefined, cor:f.cor });
+      onSave(); onClose();
+    } catch(e:any) { setErr(e?.response?.data?.message||"Erro ao salvar"); }
+    finally { setLoading(false); }
+  };
+  return (
+    <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
+      <Field label="NOME *"><input className="input-o" value={f.nome} autoFocus onChange={e=>setF(p=>({...p,nome:e.target.value}))} placeholder="Ex: React, AWS, Inglês, Scrum Master..." /></Field>
+      <Field label="CATEGORIA">
+        <input className="input-o" value={f.categoria} list="skill-cats" onChange={e=>setF(p=>({...p,categoria:e.target.value}))} placeholder="Ex: Tecnologia, Soft Skill, Certificação..." />
+        <datalist id="skill-cats">{SKILL_CATEGORIAS_SUGGESTIONS.map(c=><option key={c} value={c} />)}</datalist>
+      </Field>
+      <Field label="DESCRIÇÃO"><textarea className="input-o" rows={2} value={f.descricao} onChange={e=>setF(p=>({...p,descricao:e.target.value}))} placeholder="Quando esta skill se aplica..." style={{ resize:"vertical" }} /></Field>
+      <Field label="COR">
+        <div style={{ display:"flex", gap:6 }}>
+          {SKILL_COLORS.map(c=>(
+            <button key={c} onClick={()=>setF(p=>({...p,cor:c}))} type="button"
+              style={{ width:30, height:30, borderRadius:8, background:c, border:f.cor===c?"3px solid var(--text-primary)":"1px solid var(--border-subtle)", cursor:"pointer" }} />
+          ))}
+        </div>
+      </Field>
+      {skill && (
+        <Field label="SITUAÇÃO">
+          <select className="input-o" value={f.ativo?"ativo":"inativo"} onChange={e=>setF(p=>({...p,ativo:e.target.value==="ativo"}))}>
+            <option value="ativo">Ativa</option>
+            <option value="inativo">Inativa</option>
+          </select>
+        </Field>
+      )}
+      {err && <div style={{ background:"rgba(220,38,38,0.08)", border:"1px solid rgba(220,38,38,0.2)", borderRadius:8, padding:"10px 14px", color:"var(--accent-red)", fontSize:12 }}>{err}</div>}
+      <div style={{ display:"flex", gap:10, marginTop:4 }}>
+        <button className="btn btn-ghost" style={{ flex:1 }} onClick={onClose}>Cancelar</button>
+        <button className="btn btn-violet" style={{ flex:2 }} onClick={save} disabled={loading}>{loading?<Spin/>:skill?"Salvar":"Criar skill"}</button>
+      </div>
+    </div>
+  );
+}
+
 export default function CadastrosPage() {
   const { user: me } = useAuthStore();
-  const [tab,           setTab]          = useState<"usuarios"|"setores"|"papeis"|"solicitacoes"|"matriz"|"organograma"|"clientes"|"organizacoes"|"colaboradores">("usuarios");
+  const [tab,           setTab]          = useState<"usuarios"|"setores"|"papeis"|"solicitacoes"|"matriz"|"organograma"|"clientes"|"organizacoes"|"colaboradores"|"skills">("usuarios");
   const [roles,         setRoles]        = useState<Role[]>([]);
   const [allPerms,      setAllPerms]     = useState<Permission[]>([]);
   const [modalRole,     setModalRole]    = useState<Role|"novo"|null>(null);
@@ -1298,6 +1355,11 @@ export default function CadastrosPage() {
   const [modalEditCollab,  setModalEditCollab]  = useState<Collaborator|null>(null);
   const [modalDelCollab,   setModalDelCollab]   = useState<Collaborator|null>(null);
   const [filterCollab,     setFilterCollab]     = useState<"todos"|"ativos"|"inativos">("ativos");
+  // skills
+  const [skills,           setSkills]           = useState<Skill[]>([]);
+  const [modalNewSkill,    setModalNewSkill]    = useState(false);
+  const [modalEditSkill,   setModalEditSkill]   = useState<Skill|null>(null);
+  const [modalDelSkill,    setModalDelSkill]    = useState<Skill|null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -1318,6 +1380,7 @@ export default function CadastrosPage() {
       }
       try { const cRes = await api.get("/clientes"); setClientes(cRes.data); } catch {}
       try { const coRes = await api.get("/collaborators"); setCollabs(coRes.data); } catch {}
+      try { const skRes = await api.get("/skills"); setSkills(skRes.data); } catch {}
       if (me?.isMaster) {
         try { const oRes = await api.get("/superadmin/organizations"); setOrgs(oRes.data); } catch {}
       }
@@ -1345,7 +1408,7 @@ export default function CadastrosPage() {
     </div>
   );
 
-  const btnLabel = tab==="usuarios" ? "Novo usuario" : tab==="setores" ? "Novo setor" : tab==="papeis" ? "Novo papel" : tab==="clientes" ? "Novo cliente" : tab==="organizacoes" ? "Nova organização" : tab==="colaboradores" ? "Novo colaborador" : null;
+  const btnLabel = tab==="usuarios" ? "Novo usuario" : tab==="setores" ? "Novo setor" : tab==="papeis" ? "Novo papel" : tab==="clientes" ? "Novo cliente" : tab==="organizacoes" ? "Nova organização" : tab==="colaboradores" ? "Novo colaborador" : tab==="skills" ? "Nova skill" : null;
   const btnAction = () => {
     if (tab==="usuarios")       setModalNewUser(true);
     if (tab==="setores")        setModalSetor("novo");
@@ -1353,6 +1416,7 @@ export default function CadastrosPage() {
     if (tab==="clientes")       setModalNewCliente(true);
     if (tab==="organizacoes")   setModalNewOrg(true);
     if (tab==="colaboradores")  setModalNewCollab(true);
+    if (tab==="skills")         setModalNewSkill(true);
   };
   const filteredOrgs = orgs.filter(o => {
     const ms = !search || o.nome.toLowerCase().includes(search.toLowerCase()) || o.slug.toLowerCase().includes(search.toLowerCase());
@@ -1397,6 +1461,7 @@ export default function CadastrosPage() {
           ...((me?.isMaster || me?.permissions?.includes("*") || me?.permissions?.includes("usuarios:criar")) ? [{ key:"solicitacoes", label:"Solicitacoes", count:solicitacoes.filter(s=>s.status==="PENDENTE").length }] : []),
           { key:"clientes",      label:"Clientes",      count:clientes.length },
           { key:"colaboradores", label:"Colaboradores", count:collabs.length },
+          { key:"skills",        label:"Skills",        count:skills.length },
           ...(me?.isMaster ? [{ key:"organizacoes", label:"Organizacoes", count:orgs.length }] : []),
         ].map(t=>(
           <button key={t.key} onClick={()=>{ setTab(t.key as any); setSearch(""); }}
@@ -1420,6 +1485,7 @@ export default function CadastrosPage() {
             tab==="clientes"?"Buscar por nome, empresa ou e-mail...":
             tab==="organizacoes"?"Buscar por nome ou slug...":
             tab==="colaboradores"?"Buscar por nome, matrícula, cargo ou departamento...":
+            tab==="skills"?"Buscar skill...":
             "Buscar setor..."}
             value={search} onChange={e=>setSearch(e.target.value)} style={{ flex:1, maxWidth:360 }} />
           {tab==="clientes" && (
@@ -1895,6 +1961,71 @@ export default function CadastrosPage() {
           </>
         )}
 
+        {/* ── ABA SKILLS ── */}
+        {tab==="skills" && (() => {
+          const filteredSkills = skills.filter(s => !search || s.nome.toLowerCase().includes(search.toLowerCase()) || (s.categoria||"").toLowerCase().includes(search.toLowerCase()));
+          const categorias = Array.from(new Set(skills.map(s=>s.categoria).filter(Boolean))).sort();
+          return (
+            <>
+              <div className="animate-up" style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:12 }}>
+                {[
+                  { label:"TOTAL",      value:skills.length,                              color:"var(--accent-violet)" },
+                  { label:"CATEGORIAS", value:categorias.length,                           color:"var(--accent-cyan)" },
+                  { label:"ATRIBUIÇÕES",value:skills.reduce((acc,s)=>acc+(s._count?.collaborators||0),0), color:"var(--accent-green)" },
+                ].map(s=>(
+                  <div key={s.label} className="card" style={{ padding:"16px 20px", display:"flex", alignItems:"center", gap:16 }}>
+                    <div style={{ fontFamily:"var(--font-display)", fontSize:28, fontWeight:700, color:s.color }}>{s.value}</div>
+                    <div style={{ fontSize:11, fontFamily:"var(--font-mono)", letterSpacing:"0.08em", color:"var(--text-muted)" }}>{s.label}</div>
+                  </div>
+                ))}
+              </div>
+              <div className="animate-up card">
+                <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr auto auto auto", gap:16, padding:"10px 20px", borderBottom:"1px solid var(--border-subtle)" }}>
+                  {["SKILL","CATEGORIA","COLABORADORES","STATUS","AÇÕES"].map(h=><span key={h} style={{ fontSize:10, fontFamily:"var(--font-mono)", letterSpacing:"0.08em", color:"var(--text-muted)" }}>{h}</span>)}
+                </div>
+                {loading ? (
+                  <div style={{ display:"flex", alignItems:"center", justifyContent:"center", padding:48, gap:12 }}><Spin/><span style={{ color:"var(--text-muted)", fontSize:13 }}>Carregando...</span></div>
+                ) : filteredSkills.length===0 ? (
+                  <div className="empty-state"><p style={{ color:"var(--text-secondary)", fontWeight:500 }}>{search?"Nenhuma skill encontrada":"Nenhuma skill cadastrada — cadastre habilidades técnicas, certificações ou competências"}</p></div>
+                ) : filteredSkills.map((s,i)=>{
+                  const color = s.cor || "#a78bfa";
+                  return (
+                    <div key={s.id} style={{ display:"grid", gridTemplateColumns:"1fr 1fr auto auto auto", gap:16, padding:"14px 20px", borderBottom:i<filteredSkills.length-1?"1px solid var(--border-subtle)":"none", alignItems:"center", opacity:s.ativo?1:0.55, transition:"background 0.15s" }}
+                      onMouseEnter={e=>(e.currentTarget as HTMLElement).style.background="var(--bg-hover)"}
+                      onMouseLeave={e=>(e.currentTarget as HTMLElement).style.background="transparent"}
+                    >
+                      <div style={{ display:"flex", alignItems:"center", gap:10, minWidth:0 }}>
+                        <div style={{ width:32, height:32, borderRadius:8, background:color+"20", border:`1px solid ${color}40`, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+                        </div>
+                        <div style={{ minWidth:0 }}>
+                          <div style={{ fontSize:13, fontWeight:500 }}>{s.nome}</div>
+                          {s.descricao && <div style={{ fontSize:11, color:"var(--text-muted)", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", maxWidth:300 }}>{s.descricao}</div>}
+                        </div>
+                      </div>
+                      <div>
+                        {s.categoria ? <span style={{ fontSize:11, fontFamily:"var(--font-mono)", padding:"2px 8px", borderRadius:20, background:"var(--bg-hover)", color:"var(--text-secondary)", border:"1px solid var(--border-subtle)" }}>{s.categoria}</span> : <span style={{ fontSize:11, color:"var(--text-muted)" }}>—</span>}
+                      </div>
+                      <div style={{ fontSize:12, color:"var(--text-secondary)", fontFamily:"var(--font-mono)", textAlign:"center", minWidth:80 }}>
+                        {s._count?.collaborators ?? 0}
+                      </div>
+                      <span className={`badge ${s.ativo?"badge-green":"badge-red"}`} style={{ fontSize:10 }}>{s.ativo?"ATIVA":"INATIVA"}</span>
+                      <div style={{ display:"flex", gap:4 }}>
+                        <button className="btn-icon" title="Editar" onClick={()=>setModalEditSkill(s)}>
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4z"/></svg>
+                        </button>
+                        <button className="btn-icon" title="Remover" style={{ color:"var(--accent-red)", borderColor:"rgba(220,38,38,0.2)" }} onClick={()=>setModalDelSkill(s)}>
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/></svg>
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </>
+          );
+        })()}
+
         {/* ── ABA SOLICITACOES ── */}
         {tab==="solicitacoes" && (
           <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
@@ -1959,6 +2090,22 @@ export default function CadastrosPage() {
         <Modal title="Novo cliente" onClose={()=>setModalNewCliente(false)} maxWidth={500}>
           <ClienteCreateForm onClose={()=>setModalNewCliente(false)} onSave={load} />
         </Modal>
+      )}
+
+      {/* Modais Skills */}
+      {modalNewSkill && (
+        <Modal title="Nova skill" onClose={()=>setModalNewSkill(false)} maxWidth={460}>
+          <SkillForm onClose={()=>setModalNewSkill(false)} onSave={load} />
+        </Modal>
+      )}
+      {modalEditSkill && (
+        <Modal title="Editar skill" onClose={()=>setModalEditSkill(null)} maxWidth={460}>
+          <SkillForm skill={modalEditSkill} onClose={()=>setModalEditSkill(null)} onSave={load} />
+        </Modal>
+      )}
+      {modalDelSkill && (
+        <ConfirmModal title="Remover skill" message={`Remover "${modalDelSkill.nome}"? Todas as atribuições a colaboradores serão também removidas.`} confirmLabel="Remover" danger
+          onConfirm={async()=>{ await api.delete("/skills/"+modalDelSkill.id); await load(); }} onClose={()=>setModalDelSkill(null)} />
       )}
 
       {/* Modais colaborador */}

@@ -103,6 +103,7 @@ model Organization {
   whatsappConfig     OrgWhatsappConfig?
   cadastroRequests   CadastroRequest[]  @relation("CadReqOrg")
   collaborators      Collaborator[]     @relation("OrgCollaborators")
+  skills             Skill[]            @relation("OrgSkills")
 
   @@map("organizations")
 }
@@ -373,6 +374,47 @@ model UserRequest {
   @@map("user_requests")
 }
 
+// ── Workforce: Skills ──────────────────────────────────────────────────────
+model Skill {
+  id             String   @id @default(uuid())
+  organizationId String   @map("organization_id")
+  nome           String
+  categoria      String?
+  descricao      String?
+  cor            String?
+  ativo          Boolean  @default(true)
+  criadoEm       DateTime @default(now()) @map("criado_em")
+  atualizadoEm   DateTime @updatedAt      @map("atualizado_em")
+
+  organization   Organization @relation("OrgSkills", fields: [organizationId], references: [id])
+  collaborators  CollaboratorSkill[]
+  chamados       Chamado[]  @relation("ChamadoSkill")
+
+  @@unique([organizationId, nome])
+  @@index([organizationId])
+  @@index([categoria])
+  @@map("skills")
+}
+
+model CollaboratorSkill {
+  id             String   @id @default(uuid())
+  collaboratorId String   @map("collaborator_id")
+  skillId        String   @map("skill_id")
+  nivel          String   @default("pleno") // junior | pleno | senior | especialista
+  certificadoEm  DateTime? @map("certificado_em")
+  validade       DateTime?
+  observacoes    String?
+  criadoEm       DateTime @default(now()) @map("criado_em")
+
+  collaborator   Collaborator @relation(fields: [collaboratorId], references: [id], onDelete: Cascade)
+  skill          Skill        @relation(fields: [skillId], references: [id], onDelete: Cascade)
+
+  @@unique([collaboratorId, skillId])
+  @@index([collaboratorId])
+  @@index([skillId])
+  @@map("collaborator_skills")
+}
+
 // ── Workforce / Colaboradores ──────────────────────────────────────────────
 model Collaborator {
   id                String   @id @default(uuid())
@@ -408,6 +450,7 @@ model Collaborator {
   setor             Setor?       @relation("SetorCollaborators", fields: [setorId], references: [id], onDelete: SetNull)
   gestor            Collaborator? @relation("CollabHierarchy", fields: [gestorId], references: [id], onDelete: SetNull)
   liderados         Collaborator[] @relation("CollabHierarchy")
+  collabSkills      CollaboratorSkill[]
 
   @@unique([organizationId, matricula])
   @@index([organizationId])
@@ -680,6 +723,8 @@ model Chamado {
   clienteId          String?   @map("cliente_id")
   slaHoras           Int?      @map("sla_horas")
   horasEstimadas     Float?    @map("horas_estimadas")
+  skillRequeridaId   String?   @map("skill_requerida_id")
+  nivelMinimo        String?   @map("nivel_minimo")
   slaRegraId         String?   @map("sla_regra_id")
   slaRespostaAt      DateTime? @map("sla_resposta_at")
   slaResolucaoAt     DateTime? @map("sla_resolucao_at")
@@ -697,7 +742,9 @@ model Chamado {
   slaRegra      SlaRegra?          @relation(fields: [slaRegraId], references: [id], onDelete: SetNull)
   comentarios   ChamadoComentario[]
   apontamentos  ApontamentoHoras[]
+  skillRequerida Skill?           @relation("ChamadoSkill", fields: [skillRequeridaId], references: [id], onDelete: SetNull)
   @@index([organizationId, status])
+  @@index([skillRequeridaId])
   @@index([organizationId, prioridade])
   @@index([solicitanteId])
   @@index([atendenteId])

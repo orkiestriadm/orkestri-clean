@@ -37,6 +37,7 @@ import { OrganizationsModule } from "./modules/organizations/organizations.modul
 import { CadastroRequestModule } from './modules/cadastro-request/cadastro-request.module';
 import { CollaboratorsModule } from './modules/collaborators/collaborators.module';
 import { CapacityModule } from './modules/capacity/capacity.module';
+import { SkillsModule } from './modules/skills/skills.module';
 
 @Module({
   imports: [
@@ -64,6 +65,7 @@ import { CapacityModule } from './modules/capacity/capacity.module';
     CadastroRequestModule,
     CollaboratorsModule,
     CapacityModule,
+    SkillsModule,
   ],
 })
 export class AppModule {}
