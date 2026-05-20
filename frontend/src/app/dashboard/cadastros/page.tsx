@@ -1257,7 +1257,12 @@ export default function CadastrosPage() {
   const [setores,       setSetores]      = useState<Setor[]>([]);
   const [solicitacoes,  setSolicitacoes] = useState<Solicitacao[]>([]);
   const [modalAprovar,  setModalAprovar] = useState<Solicitacao|null>(null);
-  const [aprovarForm,   setAprovarForm]  = useState<{nome:string;email:string;whatsapp:string;cargo:string;departamento:string;empresa:string}>({nome:"",email:"",whatsapp:"",cargo:"",departamento:"",empresa:""});
+  const [aprovarForm,   setAprovarForm]  = useState<{
+    nome:string;email:string;whatsapp:string;cargo:string;departamento:string;empresa:string;
+    setorId:string;gestorId:string;perfilRoleId:string;squad:string;matricula:string;
+    jornadaHorasDia:number;tipoVinculo:string;senioridade:string;
+  }>({nome:"",email:"",whatsapp:"",cargo:"",departamento:"",empresa:"",setorId:"",gestorId:"",perfilRoleId:"",squad:"",matricula:"",jornadaHorasDia:8,tipoVinculo:"",senioridade:""});
+  const [aprovarStep,   setAprovarStep]  = useState<1|2|3>(1);
   const [modalRejeitar, setModalRejeitar]= useState<Solicitacao|null>(null);
   const [motivoRejeitar,setMotivoRejeitar]=useState("");
   const [aprovadoInfo,  setAprovadoInfo] = useState<{nome:string;email:string}|null>(null);
@@ -1926,7 +1931,7 @@ export default function CadastrosPage() {
                     </div>
                     {s.status==="PENDENTE" && (
                       <div style={{ display:"flex", gap:8, flexShrink:0 }}>
-                        <button className="btn btn-violet" style={{ fontSize:12, padding:"6px 14px" }} onClick={()=>{ setModalAprovar(s); setAprovarForm({ nome:s.nome, email:s.email, whatsapp:s.whatsapp||"", cargo:s.cargo||"", departamento:s.departamento||"", empresa:s.empresa||"" }); }}>Aprovar</button>
+                        <button className="btn btn-violet" style={{ fontSize:12, padding:"6px 14px" }} onClick={()=>{ setModalAprovar(s); setAprovarStep(1); setAprovarForm({ nome:s.nome, email:s.email, whatsapp:s.whatsapp||"", cargo:s.cargo||"", departamento:s.departamento||"", empresa:s.empresa||"", setorId:"", gestorId:"", perfilRoleId:"", squad:"", matricula:"", jornadaHorasDia:8, tipoVinculo:"", senioridade:"" }); }}>Aprovar</button>
                         <button className="btn btn-danger" style={{ fontSize:12, padding:"6px 14px" }} onClick={()=>{ setModalRejeitar(s); setMotivoRejeitar(""); }}>Rejeitar</button>
                       </div>
                     )}
@@ -1988,50 +1993,171 @@ export default function CadastrosPage() {
           onConfirm={async()=>{ await api.delete("/superadmin/organizations/"+modalDelOrg.id); await load(); }} onClose={()=>setModalDelOrg(null)} />
       )}
 
-      {/* Modal aprovar solicitacao */}
+      {/* Modal aprovar solicitacao (3 steps) */}
       {modalAprovar && (
-        <Modal title="Aprovar solicitacao de acesso" onClose={()=>setModalAprovar(null)} maxWidth={500}>
-          <p style={{ color:"var(--text-secondary)", fontSize:12, marginBottom:16, lineHeight:1.6 }}>
-            Revise e corrija os dados antes de criar a conta. A senha padrão <strong>123@mudar</strong> será enviada via WhatsApp e o usuário deverá alterá-la no primeiro acesso.
-          </p>
-          <div style={{ display:"flex", flexDirection:"column", gap:12, marginBottom:20 }}>
-            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
-              <Field label="NOME COMPLETO">
-                <input className="input-o" value={aprovarForm.nome} onChange={e=>setAprovarForm(f=>({...f,nome:e.target.value}))} />
-              </Field>
-              <Field label="E-MAIL">
-                <input className="input-o" type="email" value={aprovarForm.email} onChange={e=>setAprovarForm(f=>({...f,email:e.target.value}))} />
-              </Field>
-              <Field label="WHATSAPP">
-                <input className="input-o" value={aprovarForm.whatsapp} onChange={e=>setAprovarForm(f=>({...f,whatsapp:e.target.value}))} placeholder="(11) 99999-9999" />
-              </Field>
-              <Field label="CARGO">
-                <input className="input-o" value={aprovarForm.cargo} onChange={e=>setAprovarForm(f=>({...f,cargo:e.target.value}))} />
-              </Field>
-              <Field label="DEPARTAMENTO">
-                <input className="input-o" value={aprovarForm.departamento} onChange={e=>setAprovarForm(f=>({...f,departamento:e.target.value}))} />
-              </Field>
-              <Field label="EMPRESA">
-                <input className="input-o" value={aprovarForm.empresa} onChange={e=>setAprovarForm(f=>({...f,empresa:e.target.value}))} />
-              </Field>
-            </div>
-            {modalAprovar.motivacao && (
-              <div style={{ background:"var(--bg-hover)", borderRadius:8, padding:"10px 14px", fontSize:12, color:"var(--text-secondary)" }}>
-                <span style={{ fontFamily:"var(--font-mono)", fontSize:10, color:"var(--text-muted)", display:"block", marginBottom:4 }}>MOTIVACAO</span>
-                {modalAprovar.motivacao}
-              </div>
-            )}
+        <Modal title="Aprovar solicitacao de acesso" onClose={()=>setModalAprovar(null)} maxWidth={560}>
+          {/* Stepper */}
+          <div style={{ display:"flex", gap:6, marginBottom:18 }}>
+            {[
+              { n:1, label:"Dados do solicitante" },
+              { n:2, label:"Estrutura organizacional" },
+              { n:3, label:"Operacional" },
+            ].map(s=>(
+              <button key={s.n} onClick={()=>setAprovarStep(s.n as 1|2|3)}
+                style={{
+                  flex:1, padding:"8px 6px", borderRadius:8, border:"1px solid", cursor:"pointer", textAlign:"center",
+                  borderColor: aprovarStep===s.n?"var(--accent-violet)":"var(--border-subtle)",
+                  background: aprovarStep===s.n?"var(--accent-violet-dim)":"transparent",
+                  color: aprovarStep===s.n?"var(--accent-violet)":"var(--text-muted)",
+                  fontSize:11, fontFamily:"var(--font-mono)", fontWeight:aprovarStep===s.n?600:400,
+                  transition:"all 0.15s",
+                }}>
+                {s.n}. {s.label}
+              </button>
+            ))}
           </div>
-          <div style={{ display:"flex", gap:10 }}>
+
+          {/* STEP 1: Dados do solicitante */}
+          {aprovarStep===1 && (
+            <div style={{ display:"flex", flexDirection:"column", gap:12, marginBottom:20 }}>
+              <p style={{ color:"var(--text-secondary)", fontSize:12, lineHeight:1.5 }}>
+                Revise os dados do solicitante. Uma senha temporária será enviada via WhatsApp/e-mail e o usuário deverá alterá-la no primeiro acesso.
+              </p>
+              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
+                <Field label="NOME COMPLETO *">
+                  <input className="input-o" value={aprovarForm.nome} onChange={e=>setAprovarForm(f=>({...f,nome:e.target.value}))} />
+                </Field>
+                <Field label="E-MAIL *">
+                  <input className="input-o" type="email" value={aprovarForm.email} onChange={e=>setAprovarForm(f=>({...f,email:e.target.value}))} />
+                </Field>
+                <Field label="WHATSAPP">
+                  <input className="input-o" value={aprovarForm.whatsapp} onChange={e=>setAprovarForm(f=>({...f,whatsapp:e.target.value}))} placeholder="(11) 99999-9999" />
+                </Field>
+                <Field label="CARGO">
+                  <input className="input-o" value={aprovarForm.cargo} onChange={e=>setAprovarForm(f=>({...f,cargo:e.target.value}))} />
+                </Field>
+                <Field label="DEPARTAMENTO">
+                  <input className="input-o" value={aprovarForm.departamento} onChange={e=>setAprovarForm(f=>({...f,departamento:e.target.value}))} />
+                </Field>
+                <Field label="EMPRESA">
+                  <input className="input-o" value={aprovarForm.empresa} onChange={e=>setAprovarForm(f=>({...f,empresa:e.target.value}))} />
+                </Field>
+              </div>
+              {modalAprovar.motivacao && (
+                <div style={{ background:"var(--bg-hover)", borderRadius:8, padding:"10px 14px", fontSize:12, color:"var(--text-secondary)" }}>
+                  <span style={{ fontFamily:"var(--font-mono)", fontSize:10, color:"var(--text-muted)", display:"block", marginBottom:4 }}>MOTIVAÇÃO INFORMADA</span>
+                  {modalAprovar.motivacao}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* STEP 2: Estrutura organizacional */}
+          {aprovarStep===2 && (
+            <div style={{ display:"flex", flexDirection:"column", gap:12, marginBottom:20 }}>
+              <p style={{ color:"var(--text-secondary)", fontSize:12, lineHeight:1.5 }}>
+                Defina onde o colaborador se encaixa na estrutura organizacional. Estes dados criam o vínculo operacional além do login.
+              </p>
+              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
+                <Field label="SETOR">
+                  <select className="input-o" value={aprovarForm.setorId} onChange={e=>setAprovarForm(f=>({...f,setorId:e.target.value}))}>
+                    <option value="">— Sem setor —</option>
+                    {setores.map(s=><option key={s.id} value={s.id}>{s.nome}</option>)}
+                  </select>
+                </Field>
+                <Field label="GESTOR DIRETO">
+                  <select className="input-o" value={aprovarForm.gestorId} onChange={e=>setAprovarForm(f=>({...f,gestorId:e.target.value}))}>
+                    <option value="">— Sem gestor —</option>
+                    {collabs.filter(c=>c.ativo).map(c=><option key={c.id} value={c.id}>{c.user?.nome||"(sem nome)"}{c.cargo?` — ${c.cargo}`:""}</option>)}
+                  </select>
+                </Field>
+                <Field label="PERFIL DE ACESSO (PAPEL)">
+                  <select className="input-o" value={aprovarForm.perfilRoleId} onChange={e=>setAprovarForm(f=>({...f,perfilRoleId:e.target.value}))}>
+                    <option value="">— Padrão (técnico/analista) —</option>
+                    {roles.filter(r=>!r.isMaster).map(r=><option key={r.id} value={r.id}>{r.nome}</option>)}
+                  </select>
+                </Field>
+                <Field label="SQUAD / EQUIPE">
+                  <input className="input-o" value={aprovarForm.squad} onChange={e=>setAprovarForm(f=>({...f,squad:e.target.value}))} placeholder="Ex: Squad Alpha" />
+                </Field>
+                <Field label="MATRÍCULA">
+                  <input className="input-o" value={aprovarForm.matricula} onChange={e=>setAprovarForm(f=>({...f,matricula:e.target.value}))} placeholder="Ex: COL-001" />
+                </Field>
+                <Field label="SENIORIDADE">
+                  <select className="input-o" value={aprovarForm.senioridade} onChange={e=>setAprovarForm(f=>({...f,senioridade:e.target.value}))}>
+                    <option value="">—</option>
+                    <option value="estagiario">Estagiário</option>
+                    <option value="junior">Júnior</option>
+                    <option value="pleno">Pleno</option>
+                    <option value="senior">Sênior</option>
+                    <option value="especialista">Especialista</option>
+                    <option value="lider">Líder</option>
+                    <option value="gerente">Gerente</option>
+                  </select>
+                </Field>
+              </div>
+            </div>
+          )}
+
+          {/* STEP 3: Operacional */}
+          {aprovarStep===3 && (
+            <div style={{ display:"flex", flexDirection:"column", gap:12, marginBottom:20 }}>
+              <p style={{ color:"var(--text-secondary)", fontSize:12, lineHeight:1.5 }}>
+                Define capacidade operacional do colaborador — utilizada para distribuição de tarefas, chamados e cálculo de capacity.
+              </p>
+              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
+                <Field label="JORNADA (HORAS/DIA)">
+                  <input className="input-o" type="number" step="0.5" min="0" max="24" value={aprovarForm.jornadaHorasDia} onChange={e=>setAprovarForm(f=>({...f,jornadaHorasDia:parseFloat(e.target.value)||0}))} />
+                </Field>
+                <Field label="JORNADA (HORAS/MÊS)">
+                  <input className="input-o" type="number" value={aprovarForm.jornadaHorasDia ? aprovarForm.jornadaHorasDia*22 : 0} disabled />
+                </Field>
+                <Field label="TIPO DE VÍNCULO">
+                  <select className="input-o" value={aprovarForm.tipoVinculo} onChange={e=>setAprovarForm(f=>({...f,tipoVinculo:e.target.value}))}>
+                    <option value="">—</option>
+                    <option value="clt">CLT</option>
+                    <option value="pj">PJ</option>
+                    <option value="estagio">Estágio</option>
+                    <option value="terceirizado">Terceirizado</option>
+                    <option value="freelancer">Freelancer</option>
+                    <option value="socio">Sócio</option>
+                  </select>
+                </Field>
+              </div>
+              <div style={{ background:"rgba(34,211,238,0.06)", border:"1px solid rgba(34,211,238,0.2)", borderRadius:8, padding:"10px 14px", fontSize:12, color:"var(--text-secondary)" }}>
+                <strong style={{ color:"var(--accent-cyan)" }}>Pronto para criar:</strong> ao confirmar, será criado o usuário <code style={{ fontFamily:"var(--font-mono)" }}>{aprovarForm.email}</code> + colaborador vinculado ao setor selecionado, com perfil de acesso e capacidade definidos.
+              </div>
+            </div>
+          )}
+
+          {/* Footer com navegação */}
+          <div style={{ display:"flex", gap:10, alignItems:"center" }}>
             <button className="btn btn-ghost" style={{ flex:1 }} onClick={()=>setModalAprovar(null)}>Cancelar</button>
-            <button className="btn btn-violet" style={{ flex:2 }} disabled={!aprovarForm.nome||!aprovarForm.email} onClick={async()=>{
-              try {
-                await api.patch(`/auth/solicitacoes/${modalAprovar.id}/aprovar`, aprovarForm);
-                setAprovadoInfo({ nome: aprovarForm.nome, email: aprovarForm.email });
-                setModalAprovar(null);
-                await load();
-              } catch {}
-            }}>Criar conta e enviar acesso</button>
+            {aprovarStep > 1 && (
+              <button className="btn btn-ghost" style={{ flex:1 }} onClick={()=>setAprovarStep((aprovarStep-1) as 1|2|3)}>← Voltar</button>
+            )}
+            {aprovarStep < 3 ? (
+              <button className="btn btn-violet" style={{ flex:2 }} disabled={aprovarStep===1 && (!aprovarForm.nome||!aprovarForm.email)} onClick={()=>setAprovarStep((aprovarStep+1) as 1|2|3)}>Próximo →</button>
+            ) : (
+              <button className="btn btn-violet" style={{ flex:2 }} disabled={!aprovarForm.nome||!aprovarForm.email} onClick={async()=>{
+                try {
+                  await api.patch(`/auth/solicitacoes/${modalAprovar.id}/aprovar`, {
+                    ...aprovarForm,
+                    setorId: aprovarForm.setorId||undefined,
+                    gestorId: aprovarForm.gestorId||undefined,
+                    perfilRoleId: aprovarForm.perfilRoleId||undefined,
+                    squad: aprovarForm.squad||undefined,
+                    matricula: aprovarForm.matricula||undefined,
+                    senioridade: aprovarForm.senioridade||undefined,
+                    tipoVinculo: aprovarForm.tipoVinculo||undefined,
+                    jornadaHorasDia: aprovarForm.jornadaHorasDia||undefined,
+                  });
+                  setAprovadoInfo({ nome: aprovarForm.nome, email: aprovarForm.email });
+                  setModalAprovar(null);
+                  await load();
+                } catch {}
+              }}>Criar conta e colaborador</button>
+            )}
           </div>
         </Modal>
       )}
