@@ -37,11 +37,12 @@ const NAV: NavGroup[] = [
   {
     id: "operacoes", label: "Operações",
     items: [
-      { href: "/dashboard/projetos", label: "Projetos",       icon: Layers,       permission: "projetos:ver" },
-      { href: "/dashboard/gantt",    label: "Linha do Tempo", icon: GanttChart,   permission: "gantt:ver" },
-      { href: "/dashboard/agenda",   label: "Agenda",         icon: CalendarDays, permission: "agenda:ver" },
-      { href: "/dashboard/ativos",   label: "Ativos",         icon: Package,      permission: "ativos:ver" },
-      { href: "/dashboard/keep",     label: "Keep",           icon: StickyNote,   permission: "keep:ver" },
+      { href: "/dashboard/projetos",  label: "Projetos",       icon: Layers,       permission: "projetos:ver" },
+      { href: "/dashboard/gantt",     label: "Linha do Tempo", icon: GanttChart,   permission: "gantt:ver" },
+      { href: "/dashboard/agenda",    label: "Agenda",         icon: CalendarDays, permission: "agenda:ver" },
+      { href: "/dashboard/ativos",    label: "Ativos",         icon: Package,      permission: "ativos:ver" },
+      { href: "/dashboard/orcamento", label: "Orçamento",      icon: PiggyBank,    permission: "orcamento:ver" },
+      { href: "/dashboard/keep",      label: "Keep",           icon: StickyNote,   permission: "keep:ver" },
     ],
   },
   {
@@ -50,7 +51,6 @@ const NAV: NavGroup[] = [
       { href: "/dashboard/clientes",  label: "Clientes",  icon: Building2, permission: "crm:ver" },
       { href: "/dashboard/contratos", label: "Contratos", icon: FileText,  permission: "crm:ver" },
       { href: "/dashboard/faturas",   label: "Faturas",   icon: Receipt,   permission: "crm:ver" },
-      { href: "/dashboard/orcamento", label: "Orçamento", icon: PiggyBank, permission: "orcamento:ver" },
     ],
   },
   {
