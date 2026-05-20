@@ -6,8 +6,7 @@ import {
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuthGuard } from '@nestjs/passport';
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const bcrypt = require('bcrypt');
+import * as bcrypt from 'bcryptjs';
 
 // ─── DTOs ────────────────────────────────────────────────────────────────────
 
