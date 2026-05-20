@@ -11,7 +11,6 @@ type Permission = { id: string; recurso: string; acao: string; descricao?: strin
 type Role    = { id: string; nome: string; descricao?: string; isMaster: boolean; nivel: number; _count?: { userRoles: number }; rolePermissions?: { permission: Permission }[]; };
 type Solicitacao = { id: string; nome: string; email: string; whatsapp?: string; cargo?: string; departamento?: string; empresa?: string; motivacao?: string; status: string; criado_em: string; };
 type Cliente = { id: string; nome: string; empresa?: string; email?: string; telefone?: string; cargo?: string; segmento?: string; statusLead: string; ativo: boolean; criadoEm: string; };
-type OrgItem = { id: string; nome: string; slug: string; plano: string; ativo: boolean; statusOperacional?: string | null; statusComercial?: string | null; usuarios: number; criadoEm: string; };
 
 // ── Constantes ────────────────────────────────────────────────────────────────
 const CORES_SETOR  = ["#a78bfa","#22d3ee","#34d399","#fbbf24","#f87171","#60a5fa","#f472b6","#94a3b8"];
@@ -890,7 +889,7 @@ function ClienteEditForm({ cliente, onClose, onSave }: { cliente: Cliente; onClo
     if (!f.nome.trim()) { setErr("Nome obrigatório"); return; }
     setLoading(true); setErr("");
     try {
-      await api.patch("/clientes/"+cliente.id, { nome:f.nome, empresa:f.empresa||undefined, email:f.email||undefined, telefone:f.telefone||undefined, cargo:f.cargo||undefined, segmento:f.segmento||undefined, statusLead:f.statusLead, ativo:f.ativo });
+      await api.put("/clientes/"+cliente.id, { nome:f.nome, empresa:f.empresa||undefined, email:f.email||undefined, telefone:f.telefone||undefined, cargo:f.cargo||undefined, segmento:f.segmento||undefined, statusLead:f.statusLead, ativo:f.ativo });
       onSave(); onClose();
     } catch(e:any) { setErr(e?.response?.data?.message||"Erro ao salvar"); }
     finally { setLoading(false); }
@@ -928,59 +927,40 @@ function ClienteEditForm({ cliente, onClose, onSave }: { cliente: Cliente; onClo
   );
 }
 
-function OrgEditForm({ org, onClose, onSave }: { org: OrgItem; onClose:()=>void; onSave:()=>void }) {
-  const [f, setF] = useState({ nome:org.nome, plano:org.plano, statusOperacional:org.statusOperacional||"", statusComercial:org.statusComercial||"", ativo:org.ativo });
+function ClienteCreateForm({ onClose, onSave }: { onClose:()=>void; onSave:()=>void }) {
+  const [f, setF] = useState({ nome:"", empresa:"", email:"", telefone:"", cargo:"", segmento:"", statusLead:"ativo", ativo:true });
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState("");
   const save = async () => {
     if (!f.nome.trim()) { setErr("Nome obrigatório"); return; }
     setLoading(true); setErr("");
     try {
-      await api.patch("/superadmin/organizations/"+org.id, { nome:f.nome, plano:f.plano, statusOperacional:f.statusOperacional||undefined, statusComercial:f.statusComercial||undefined, ativo:f.ativo });
+      await api.post("/clientes", { nome:f.nome, empresa:f.empresa||undefined, email:f.email||undefined, telefone:f.telefone||undefined, cargo:f.cargo||undefined, segmento:f.segmento||undefined, statusLead:f.statusLead, ativo:f.ativo });
       onSave(); onClose();
-    } catch(e:any) { setErr(e?.response?.data?.message||"Erro ao salvar"); }
+    } catch(e:any) { setErr(e?.response?.data?.message||"Erro ao criar"); }
     finally { setLoading(false); }
   };
   return (
     <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
       <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
         <div style={{ gridColumn:"1/-1" }}>
-          <Field label="NOME DA ORGANIZAÇÃO"><input className="input-o" value={f.nome} onChange={e=>setF(p=>({...p,nome:e.target.value}))} /></Field>
+          <Field label="NOME / RAZÃO SOCIAL"><input className="input-o" value={f.nome} onChange={e=>setF(p=>({...p,nome:e.target.value}))} autoFocus /></Field>
         </div>
-        <Field label="PLANO">
-          <select className="input-o" value={f.plano} onChange={e=>setF(p=>({...p,plano:e.target.value}))}>
-            <option value="starter">Starter</option>
-            <option value="professional">Professional</option>
-            <option value="enterprise">Enterprise</option>
-          </select>
-        </Field>
-        <Field label="SITUAÇÃO">
-          <select className="input-o" value={f.ativo?"ativo":"inativo"} onChange={e=>setF(p=>({...p,ativo:e.target.value==="ativo"}))}>
-            <option value="ativo">Ativa</option>
-            <option value="inativo">Inativa</option>
-          </select>
-        </Field>
-        <Field label="STATUS OPERACIONAL">
-          <select className="input-o" value={f.statusOperacional} onChange={e=>setF(p=>({...p,statusOperacional:e.target.value}))}>
-            <option value="">—</option>
-            <option value="ativo">Ativo</option>
-            <option value="suspenso">Suspenso</option>
-            <option value="cancelado">Cancelado</option>
-          </select>
-        </Field>
-        <Field label="STATUS COMERCIAL">
-          <select className="input-o" value={f.statusComercial} onChange={e=>setF(p=>({...p,statusComercial:e.target.value}))}>
-            <option value="">—</option>
-            <option value="ativo">Ativo</option>
-            <option value="inadimplente">Inadimplente</option>
-            <option value="cancelado">Cancelado</option>
+        <Field label="EMPRESA"><input className="input-o" value={f.empresa} onChange={e=>setF(p=>({...p,empresa:e.target.value}))} /></Field>
+        <Field label="CARGO"><input className="input-o" value={f.cargo} onChange={e=>setF(p=>({...p,cargo:e.target.value}))} /></Field>
+        <Field label="E-MAIL"><input className="input-o" type="email" value={f.email} onChange={e=>setF(p=>({...p,email:e.target.value}))} /></Field>
+        <Field label="TELEFONE"><input className="input-o" value={f.telefone} onChange={e=>setF(p=>({...p,telefone:e.target.value}))} placeholder="(11) 99999-9999" /></Field>
+        <Field label="SEGMENTO"><input className="input-o" value={f.segmento} onChange={e=>setF(p=>({...p,segmento:e.target.value}))} /></Field>
+        <Field label="STATUS LEAD">
+          <select className="input-o" value={f.statusLead} onChange={e=>setF(p=>({...p,statusLead:e.target.value}))}>
+            {STATUS_LEAD_OPTS.map(s=><option key={s} value={s}>{s}</option>)}
           </select>
         </Field>
       </div>
       {err && <div style={{ background:"rgba(220,38,38,0.08)", border:"1px solid rgba(220,38,38,0.2)", borderRadius:8, padding:"10px 14px", color:"var(--accent-red)", fontSize:12 }}>{err}</div>}
       <div style={{ display:"flex", gap:10, marginTop:4 }}>
         <button className="btn btn-ghost" style={{ flex:1 }} onClick={onClose}>Cancelar</button>
-        <button className="btn btn-violet" style={{ flex:2 }} onClick={save} disabled={loading}>{loading?<Spin/>:"Salvar alterações"}</button>
+        <button className="btn btn-violet" style={{ flex:2 }} onClick={save} disabled={loading}>{loading?<Spin/>:"Criar cliente"}</button>
       </div>
     </div>
   );
@@ -988,7 +968,7 @@ function OrgEditForm({ org, onClose, onSave }: { org: OrgItem; onClose:()=>void;
 
 export default function CadastrosPage() {
   const { user: me } = useAuthStore();
-  const [tab,           setTab]          = useState<"usuarios"|"setores"|"papeis"|"solicitacoes"|"matriz"|"organograma"|"clientes"|"organizacoes">("usuarios");
+  const [tab,           setTab]          = useState<"usuarios"|"setores"|"papeis"|"solicitacoes"|"matriz"|"organograma"|"clientes">("usuarios");
   const [roles,         setRoles]        = useState<Role[]>([]);
   const [allPerms,      setAllPerms]     = useState<Permission[]>([]);
   const [modalRole,     setModalRole]    = useState<Role|"novo"|null>(null);
@@ -1017,13 +997,11 @@ export default function CadastrosPage() {
   const [modalSetor,    setModalSetor]    = useState<Setor|"novo"|null>(null);
   const [modalDelSetor, setModalDelSetor] = useState<string|null>(null);
   // clientes
-  const [clientes,      setClientes]      = useState<Cliente[]>([]);
+  const [clientes,         setClientes]         = useState<Cliente[]>([]);
+  const [modalNewCliente,  setModalNewCliente]  = useState(false);
   const [modalEditCliente, setModalEditCliente] = useState<Cliente|null>(null);
   const [modalDelCliente,  setModalDelCliente]  = useState<Cliente|null>(null);
-  const [filterCliente, setFilterCliente] = useState<"todos"|"ativos"|"inativos">("ativos");
-  // organizações
-  const [orgs,          setOrgs]          = useState<OrgItem[]>([]);
-  const [modalEditOrg,  setModalEditOrg]  = useState<OrgItem|null>(null);
+  const [filterCliente,    setFilterCliente]    = useState<"todos"|"ativos"|"inativos">("ativos");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -1043,9 +1021,6 @@ export default function CadastrosPage() {
         try { const sRes2 = await api.get("/auth/solicitacoes"); setSolicitacoes(sRes2.data); } catch {}
       }
       try { const cRes = await api.get("/clientes"); setClientes(cRes.data); } catch {}
-      if (me?.isMaster) {
-        try { const oRes = await api.get("/superadmin/organizations"); setOrgs(oRes.data); } catch {}
-      }
     } catch {} finally { setLoading(false); }
   }, []);
 
@@ -1070,11 +1045,12 @@ export default function CadastrosPage() {
     </div>
   );
 
-  const btnLabel = tab==="usuarios" ? "Novo usuario" : tab==="setores" ? "Novo setor" : tab==="papeis" ? "Novo papel" : null;
+  const btnLabel = tab==="usuarios" ? "Novo usuario" : tab==="setores" ? "Novo setor" : tab==="papeis" ? "Novo papel" : tab==="clientes" ? "Novo cliente" : null;
   const btnAction = () => {
     if (tab==="usuarios")  setModalNewUser(true);
     if (tab==="setores")   setModalSetor("novo");
     if (tab==="papeis")    setModalRole("novo");
+    if (tab==="clientes")  setModalNewCliente(true);
   };
   const filteredClientes = clientes.filter(c => {
     const ms = !search || c.nome.toLowerCase().includes(search.toLowerCase()) || (c.email||"").toLowerCase().includes(search.toLowerCase()) || (c.empresa||"").toLowerCase().includes(search.toLowerCase());
@@ -1103,7 +1079,6 @@ export default function CadastrosPage() {
           { key:"matriz",         label:"Matriz",        count:0 },
           ...((me?.isMaster || me?.permissions?.includes("*") || me?.permissions?.includes("usuarios:criar")) ? [{ key:"solicitacoes", label:"Solicitacoes", count:solicitacoes.filter(s=>s.status==="PENDENTE").length }] : []),
           { key:"clientes",      label:"Clientes",      count:clientes.length },
-          ...(me?.isMaster ? [{ key:"organizacoes", label:"Organizacoes", count:orgs.length }] : []),
         ].map(t=>(
           <button key={t.key} onClick={()=>{ setTab(t.key as any); setSearch(""); }}
             style={{ padding:"12px 18px", background:"none", border:"none", borderBottom:tab===t.key?"2px solid var(--accent-violet)":"2px solid transparent", color:tab===t.key?"var(--accent-violet)":"var(--text-muted)", cursor:"pointer", fontFamily:"var(--font-display)", fontSize:13, fontWeight:tab===t.key?600:400, marginBottom:-1 }}>
@@ -1120,7 +1095,7 @@ export default function CadastrosPage() {
       <div style={{ flex:1, overflowY:"auto", padding:24, display:"flex", flexDirection:"column", gap:20 }}>
 
         {/* Busca + filtros */}
-        {tab !== "solicitacoes" && tab !== "matriz" && tab !== "organograma" && tab !== "organizacoes" && <div style={{ display:"flex", gap:10, alignItems:"center" }}>
+        {tab !== "solicitacoes" && tab !== "matriz" && tab !== "organograma" && <div style={{ display:"flex", gap:10, alignItems:"center" }}>
           <input className="input-o" placeholder={
             tab==="usuarios"?"Buscar por nome ou e-mail...":
             tab==="clientes"?"Buscar por nome, empresa ou e-mail...":
@@ -1433,70 +1408,11 @@ export default function CadastrosPage() {
                       <button className="btn-icon" title="Editar" onClick={()=>setModalEditCliente(c)}>
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4z"/></svg>
                       </button>
-                      <button className="btn-icon" title={c.ativo?"Desativar":"Ativar"} onClick={async()=>{ await api.patch("/clientes/"+c.id, { ativo:!c.ativo }); load(); }}>
+                      <button className="btn-icon" title={c.ativo?"Desativar":"Ativar"} onClick={async()=>{ await api.put("/clientes/"+c.id, { ativo:!c.ativo }); load(); }}>
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18.36 6.64a9 9 0 11-12.73 0M12 2v10" strokeLinecap="round"/></svg>
                       </button>
                       <button className="btn-icon" title="Remover" style={{ color:"var(--accent-red)", borderColor:"rgba(220,38,38,0.2)" }} onClick={()=>setModalDelCliente(c)}>
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/></svg>
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </>
-        )}
-
-        {/* ── ABA ORGANIZAÇÕES ── */}
-        {tab==="organizacoes" && (
-          <>
-            <div className="animate-up" style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:12 }}>
-              {[
-                { label:"TOTAL",  value:orgs.length,                       color:"var(--accent-violet)" },
-                { label:"ATIVAS", value:orgs.filter(o=>o.ativo).length,    color:"var(--accent-green)"  },
-                { label:"PLANOS", value:new Set(orgs.map(o=>o.plano)).size, color:"var(--accent-cyan)"   },
-              ].map(s=>(
-                <div key={s.label} className="card" style={{ padding:"16px 20px", display:"flex", alignItems:"center", gap:16 }}>
-                  <div style={{ fontFamily:"var(--font-display)", fontSize:28, fontWeight:700, color:s.color }}>{s.value}</div>
-                  <div style={{ fontSize:11, fontFamily:"var(--font-mono)", letterSpacing:"0.08em", color:"var(--text-muted)" }}>{s.label}</div>
-                </div>
-              ))}
-            </div>
-            <div className="animate-up card">
-              <div style={{ display:"grid", gridTemplateColumns:"1fr auto auto auto", gap:16, padding:"10px 20px", borderBottom:"1px solid var(--border-subtle)" }}>
-                {["ORGANIZAÇÃO","PLANO","STATUS","AÇÕES"].map(h=><span key={h} style={{ fontSize:10, fontFamily:"var(--font-mono)", letterSpacing:"0.08em", color:"var(--text-muted)" }}>{h}</span>)}
-              </div>
-              {loading ? (
-                <div style={{ display:"flex", alignItems:"center", justifyContent:"center", padding:48, gap:12 }}><Spin/><span style={{ color:"var(--text-muted)", fontSize:13 }}>Carregando...</span></div>
-              ) : orgs.length===0 ? (
-                <div className="empty-state"><p style={{ color:"var(--text-secondary)", fontWeight:500 }}>Nenhuma organização cadastrada</p></div>
-              ) : orgs.map((o,i)=>{
-                const planoColor = o.plano==="enterprise"?"var(--accent-violet)":o.plano==="professional"?"var(--accent-cyan)":"var(--text-muted)";
-                return (
-                  <div key={o.id} style={{ display:"grid", gridTemplateColumns:"1fr auto auto auto", gap:16, padding:"14px 20px", borderBottom:i<orgs.length-1?"1px solid var(--border-subtle)":"none", alignItems:"center", opacity:o.ativo?1:0.55, transition:"background 0.15s" }}
-                    onMouseEnter={e=>(e.currentTarget as HTMLElement).style.background="var(--bg-hover)"}
-                    onMouseLeave={e=>(e.currentTarget as HTMLElement).style.background="transparent"}
-                  >
-                    <div style={{ display:"flex", alignItems:"center", gap:12, minWidth:0 }}>
-                      <Avatar nome={o.nome} />
-                      <div style={{ minWidth:0 }}>
-                        <div style={{ fontSize:13, fontWeight:500 }}>{o.nome}</div>
-                        <div style={{ display:"flex", gap:10, alignItems:"center" }}>
-                          <code style={{ fontSize:11, color:"var(--text-muted)", fontFamily:"var(--font-mono)" }}>/{o.slug}</code>
-                          <span style={{ fontSize:11, color:"var(--text-muted)" }}>{o.usuarios} usuário{o.usuarios!==1?"s":""}</span>
-                        </div>
-                      </div>
-                    </div>
-                    <div>
-                      <span style={{ fontSize:11, fontFamily:"var(--font-mono)", padding:"2px 8px", borderRadius:20, background:planoColor+"18", border:`1px solid ${planoColor}40`, color:planoColor }}>{o.plano}</span>
-                    </div>
-                    <div style={{ display:"flex", flexDirection:"column", gap:5 }}>
-                      <span className={`badge ${o.ativo?"badge-green":"badge-red"}`} style={{ fontSize:10 }}>{o.ativo?"ATIVA":"INATIVA"}</span>
-                      {o.statusOperacional && <span style={{ fontSize:10, color:"var(--text-muted)", fontFamily:"var(--font-mono)" }}>{o.statusOperacional}</span>}
-                    </div>
-                    <div style={{ display:"flex", gap:4 }}>
-                      <button className="btn-icon" title="Editar" onClick={()=>setModalEditOrg(o)}>
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4z"/></svg>
                       </button>
                     </div>
                   </div>
@@ -1565,10 +1481,10 @@ export default function CadastrosPage() {
           onConfirm={async()=>{ await api.delete("/clientes/"+modalDelCliente.id); await load(); }} onClose={()=>setModalDelCliente(null)} />
       )}
 
-      {/* Modal editar organização */}
-      {modalEditOrg && (
-        <Modal title="Editar organização" onClose={()=>setModalEditOrg(null)} maxWidth={480}>
-          <OrgEditForm org={modalEditOrg} onClose={()=>setModalEditOrg(null)} onSave={load} />
+      {/* Modal novo cliente */}
+      {modalNewCliente && (
+        <Modal title="Novo cliente" onClose={()=>setModalNewCliente(false)} maxWidth={500}>
+          <ClienteCreateForm onClose={()=>setModalNewCliente(false)} onSave={load} />
         </Modal>
       )}
 
