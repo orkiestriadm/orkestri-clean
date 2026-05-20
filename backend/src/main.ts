@@ -10,6 +10,9 @@ async function bootstrap() {
 
   // Cookie parsing (required for HttpOnly JWT cookies)
   app.use(cookieParser());
+  
+  // Set global prefix so it expects /api
+  app.setGlobalPrefix('api');
 
   // Security headers
   app.use(helmet());
