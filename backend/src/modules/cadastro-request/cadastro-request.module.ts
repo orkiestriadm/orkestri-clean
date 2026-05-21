@@ -101,9 +101,12 @@ export class CadastroRequestService {
       },
     });
 
-    // 3. Gera senha temporária
-    const senhaTemp = `Orkiestri@${Math.floor(1000 + Math.random() * 9000)}`;
-    const senhaHash = await bcrypt.hash(senhaTemp, 10);
+    // 3. Gera senha temporária forte (alta entropia, não previsível)
+    const crypto = require("crypto");
+    const chars = "abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789";
+    const senhaTemp =
+      Array.from({ length: 14 }, () => chars[crypto.randomInt(chars.length)]).join("") + "@9X";
+    const senhaHash = await bcrypt.hash(senhaTemp, 12);
 
     // 4. Cria usuário master na nova org
     const user = await this.prisma.user.create({

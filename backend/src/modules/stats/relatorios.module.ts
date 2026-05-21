@@ -35,35 +35,44 @@ class RelatoriosController {
     const desde = new Date();
     desde.setDate(desde.getDate() - period);
 
+    // ── Multi-tenant scoping: task não tem organizationId direto (Task→Project→org) ──
+    const orgId = req.user?.organizationId;
+    const taskOrg: any = orgId ? { project: { organizationId: orgId } } : {};
+    const projOrg: any = orgId ? { organizationId: orgId } : {};
+    const ha14 = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
+
     const [
       totalTasks, tasksConcluidas, tasksVencidas,
       totalEventos, totalProjetos, projetosAtivos,
       tasksPorDia, tasksPorStatus, tasksPorMembro,
     ] = await Promise.all([
-      this.prisma.task.count(),
-      this.prisma.task.count({ where: { status: "CONCLUIDA" } }),
-      this.prisma.task.count({ where: { dataVencimento: { lt: new Date() }, status: { not: "CONCLUIDA" } } }),
+      this.prisma.task.count({ where: { ...taskOrg } }),
+      this.prisma.task.count({ where: { status: "CONCLUIDA", ...taskOrg } }),
+      this.prisma.task.count({ where: { dataVencimento: { lt: new Date() }, status: { not: "CONCLUIDA" }, ...taskOrg } }),
       this.prisma.event.count({ where: { userId: req.user.id, inicio: { gte: desde } } }),
-      this.prisma.project.count(),
-      this.prisma.project.count({ where: { status: "EM_ANDAMENTO" } }),
+      this.prisma.project.count({ where: { ...projOrg } }),
+      this.prisma.project.count({ where: { status: "EM_ANDAMENTO", ...projOrg } }),
       this.prisma.$queryRaw`
-        SELECT DATE(atualizado_em) as dia, COUNT(*) as total
-        FROM tasks
-        WHERE status = 'CONCLUIDA' AND atualizado_em >= ${new Date(Date.now() - 14*24*60*60*1000)}
-        GROUP BY DATE(atualizado_em)
+        SELECT DATE(t.atualizado_em) as dia, COUNT(*) as total
+        FROM tasks t
+        JOIN projects p ON p.id = t.project_id
+        WHERE t.status = 'CONCLUIDA'
+          AND t.atualizado_em >= ${ha14}
+          AND p.organization_id = ${orgId}
+        GROUP BY DATE(t.atualizado_em)
         ORDER BY dia ASC
       `,
-      this.prisma.task.groupBy({ by: ["status"], _count: { id: true } }),
+      this.prisma.task.groupBy({ by: ["status"], _count: { id: true }, where: { ...taskOrg } }),
       this.prisma.task.groupBy({
         by: ["assigneeId"],
         _count: { id: true },
-        where: { assigneeId: { not: null } },
+        where: { assigneeId: { not: null }, ...taskOrg },
       }),
     ]);
 
     const assigneeIds = (tasksPorMembro as any[]).map(t => t.assigneeId).filter(Boolean);
     const membros = await this.prisma.user.findMany({
-      where: { id: { in: assigneeIds } },
+      where: { id: { in: assigneeIds }, ...(orgId ? { organizationId: orgId } as any : {}) },
       select: { id: true, nome: true },
     });
 

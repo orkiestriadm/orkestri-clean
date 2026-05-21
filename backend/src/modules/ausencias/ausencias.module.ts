@@ -40,6 +40,12 @@ export class AusenciasService {
     return user?.organizationId ? { organizationId: user.organizationId } : {};
   }
 
+  /** Master ou quem tem colaboradores:ver enxerga ausências de toda a org. */
+  private isPrivileged(user: any) {
+    return !!user?.isMaster ||
+      (user?.permissions || []).some((p: string) => p === "*" || p === "colaboradores:ver");
+  }
+
   private async notify(userId: string | null | undefined, tipo: string, titulo: string, mensagem: string, refId?: string) {
     if (!userId) return;
     try {
@@ -65,6 +71,15 @@ export class AusenciasService {
     const where: any = { ...this.orgScope(user) };
     if (status) where.status = status;
     if (collaboratorId) where.collaboratorId = collaboratorId;
+    // Privacidade: não-privilegiados só veem as próprias ausências e as de quem gerenciam
+    if (!this.isPrivileged(user)) {
+      where.AND = [{
+        OR: [
+          { collaborator: { userId: user.id } },
+          { collaborator: { gestor: { userId: user.id } } },
+        ],
+      }];
+    }
     if (from || to) {
       where.OR = [];
       if (from && to) {

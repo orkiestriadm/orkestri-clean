@@ -32,6 +32,12 @@ export class WorkflowsService {
     return user?.organizationId ? { organizationId: user.organizationId } : {};
   }
 
+  /** Master ou quem tem colaboradores:ver enxerga workflows de toda a org. */
+  private isPrivileged(user: any) {
+    return !!user?.isMaster ||
+      (user?.permissions || []).some((p: string) => p === "*" || p === "colaboradores:ver");
+  }
+
   private async notify(userId: string | null | undefined, tipo: string, titulo: string, mensagem: string, refId?: string) {
     if (!userId) return;
     try {
@@ -69,6 +75,11 @@ export class WorkflowsService {
     if (filter?.aguardandoMinhaAprovacao) {
       where.aprovadorAtualId = user.id;
       where.status = "PENDENTE";
+    }
+    // Privacidade: na aba "Todas", não-privilegiados só veem o que solicitaram
+    // ou o que está sob sua aprovação. Master/colaboradores:ver veem tudo da org.
+    if (!filter?.minhas && !filter?.aguardandoMinhaAprovacao && !this.isPrivileged(user)) {
+      where.OR = [{ solicitanteId: user.id }, { aprovadorAtualId: user.id }];
     }
     return (this.prisma as any).workflowRequest.findMany({
       where,
