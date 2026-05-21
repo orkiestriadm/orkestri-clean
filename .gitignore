@@ -10,8 +10,15 @@ node_modules/
 
 # Build outputs
 backend/dist/
+frontend/dist/
 frontend/.next/
 frontend/out/
+frontend/tsconfig.tsbuildinfo
+**/tsconfig.tsbuildinfo
+
+# Deploy artifacts (tarballs gerados localmente)
+*.tar
+*.tar.gz
 
 # Logs
 logs/
