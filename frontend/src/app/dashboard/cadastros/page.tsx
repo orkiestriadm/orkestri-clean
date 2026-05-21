@@ -13,6 +13,16 @@ type Solicitacao = { id: string; nome: string; email: string; whatsapp?: string;
 type Cliente = { id: string; nome: string; empresa?: string; email?: string; telefone?: string; cargo?: string; segmento?: string; statusLead: string; ativo: boolean; criadoEm: string; };
 type OrgItem = { id: string; nome: string; slug: string; plano: string; ativo: boolean; statusOperacional?: string | null; statusComercial?: string | null; usuarios: number; criadoEm: string; };
 type Skill = { id: string; nome: string; categoria?: string | null; descricao?: string | null; cor?: string | null; ativo: boolean; _count?: { collaborators: number }; };
+type Ausencia = {
+  id: string; collaboratorId: string; tipo: string; dataInicio: string; dataFim: string;
+  diaInteiro: boolean; horasDia?: number | null; descricao?: string | null;
+  status: "PENDENTE"|"APROVADA"|"REJEITADA"|"CANCELADA";
+  motivoRejeicao?: string | null;
+  collaborator: { id: string; user: { id: string; nome: string }; setor?: { nome: string; cor?: string | null } | null };
+  solicitadaPor?: { id: string; nome: string } | null;
+  aprovadaPor?: { id: string; nome: string } | null;
+  criadoEm: string;
+};
 type Collaborator = {
   id: string; organizationId: string; userId: string;
   matricula?: string | null; fotoUrl?: string | null; emailCorporativo?: string | null; telefone?: string | null;
@@ -1249,6 +1259,78 @@ function OrgEditForm({ org, onClose, onSave }: { org: OrgItem; onClose:()=>void;
 const SKILL_COLORS = ["#a78bfa","#22d3ee","#34d399","#fbbf24","#f87171","#60a5fa","#f472b6","#94a3b8"];
 const SKILL_CATEGORIAS_SUGGESTIONS = ["Tecnologia","Soft Skill","Certificação","Idioma","Ferramenta","Metodologia","Domínio de Negócio"];
 
+function AusenciaCreateForm({ collabs, onClose, onSave }: { collabs: Collaborator[]; onClose:()=>void; onSave:()=>void }) {
+  const [f, setF] = useState({
+    collaboratorId: "", tipo: "ferias",
+    dataInicio: "", dataFim: "",
+    diaInteiro: true, horasDia: 4,
+    descricao: "",
+  });
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState("");
+  const save = async () => {
+    if (!f.collaboratorId) { setErr("Selecione o colaborador"); return; }
+    if (!f.dataInicio || !f.dataFim) { setErr("Datas obrigatórias"); return; }
+    if (new Date(f.dataFim) < new Date(f.dataInicio)) { setErr("Data fim deve ser após início"); return; }
+    setLoading(true); setErr("");
+    try {
+      await api.post("/ausencias", {
+        collaboratorId: f.collaboratorId,
+        tipo: f.tipo,
+        dataInicio: f.dataInicio,
+        dataFim: f.dataFim,
+        diaInteiro: f.diaInteiro,
+        horasDia: f.diaInteiro ? undefined : f.horasDia,
+        descricao: f.descricao || undefined,
+      });
+      onSave(); onClose();
+    } catch(e:any) { setErr(e?.response?.data?.message||"Erro ao registrar"); }
+    finally { setLoading(false); }
+  };
+  return (
+    <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
+      <Field label="COLABORADOR *">
+        <select className="input-o" value={f.collaboratorId} onChange={e=>setF(p=>({...p,collaboratorId:e.target.value}))}>
+          <option value="">— Selecione —</option>
+          {collabs.map(c=><option key={c.id} value={c.id}>{c.user?.nome}{c.cargo?` — ${c.cargo}`:""}</option>)}
+        </select>
+      </Field>
+      <Field label="TIPO *">
+        <select className="input-o" value={f.tipo} onChange={e=>setF(p=>({...p,tipo:e.target.value}))}>
+          <option value="ferias">Férias</option>
+          <option value="atestado">Atestado médico</option>
+          <option value="folga">Folga</option>
+          <option value="licenca">Licença</option>
+          <option value="banco_horas">Banco de horas</option>
+          <option value="outro">Outro</option>
+        </select>
+      </Field>
+      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
+        <Field label="DATA INÍCIO *"><input className="input-o" type="date" value={f.dataInicio} onChange={e=>setF(p=>({...p,dataInicio:e.target.value}))} /></Field>
+        <Field label="DATA FIM *"><input className="input-o" type="date" value={f.dataFim} onChange={e=>setF(p=>({...p,dataFim:e.target.value}))} /></Field>
+      </div>
+      <Field label="FORMATO">
+        <div style={{ display:"flex", gap:8 }}>
+          <button type="button" onClick={()=>setF(p=>({...p,diaInteiro:true}))} className={`btn ${f.diaInteiro?"btn-violet":"btn-ghost"}`} style={{ flex:1, fontSize:12 }}>Dia inteiro</button>
+          <button type="button" onClick={()=>setF(p=>({...p,diaInteiro:false}))} className={`btn ${!f.diaInteiro?"btn-violet":"btn-ghost"}`} style={{ flex:1, fontSize:12 }}>Parcial</button>
+        </div>
+      </Field>
+      {!f.diaInteiro && (
+        <Field label="HORAS POR DIA"><input className="input-o" type="number" step="0.5" min="0.5" max="24" value={f.horasDia} onChange={e=>setF(p=>({...p,horasDia:parseFloat(e.target.value)||0}))} /></Field>
+      )}
+      <Field label="DESCRIÇÃO / MOTIVO"><textarea className="input-o" rows={2} value={f.descricao} onChange={e=>setF(p=>({...p,descricao:e.target.value}))} style={{ resize:"vertical" }} placeholder="Ex: Férias programadas, consulta médica..." /></Field>
+      {err && <div style={{ background:"rgba(220,38,38,0.08)", border:"1px solid rgba(220,38,38,0.2)", borderRadius:8, padding:"10px 14px", color:"var(--accent-red)", fontSize:12 }}>{err}</div>}
+      <div style={{ background:"rgba(34,211,238,0.06)", border:"1px solid rgba(34,211,238,0.2)", borderRadius:8, padding:"10px 14px", fontSize:11, color:"var(--text-secondary)" }}>
+        A ausência ficará <strong>pendente</strong> até aprovação do gestor direto. Quando aprovada, será automaticamente descontada da capacidade nominal do colaborador.
+      </div>
+      <div style={{ display:"flex", gap:10, marginTop:4 }}>
+        <button className="btn btn-ghost" style={{ flex:1 }} onClick={onClose}>Cancelar</button>
+        <button className="btn btn-violet" style={{ flex:2 }} onClick={save} disabled={loading}>{loading?<Spin/>:"Registrar ausência"}</button>
+      </div>
+    </div>
+  );
+}
+
 const NIVEL_OPTS = ["junior","pleno","senior","especialista"];
 const NIVEL_COLORS: Record<string,string> = { junior:"#94a3b8", pleno:"#60a5fa", senior:"#a78bfa", especialista:"#fbbf24" };
 
@@ -1406,7 +1488,7 @@ function SkillForm({ skill, onClose, onSave }: { skill?: Skill; onClose:()=>void
 
 export default function CadastrosPage() {
   const { user: me } = useAuthStore();
-  const [tab,           setTab]          = useState<"usuarios"|"setores"|"papeis"|"solicitacoes"|"matriz"|"organograma"|"clientes"|"organizacoes"|"colaboradores"|"skills">("usuarios");
+  const [tab,           setTab]          = useState<"usuarios"|"setores"|"papeis"|"solicitacoes"|"matriz"|"organograma"|"clientes"|"organizacoes"|"colaboradores"|"skills"|"ausencias">("usuarios");
   const [roles,         setRoles]        = useState<Role[]>([]);
   const [allPerms,      setAllPerms]     = useState<Permission[]>([]);
   const [modalRole,     setModalRole]    = useState<Role|"novo"|null>(null);
@@ -1463,6 +1545,12 @@ export default function CadastrosPage() {
   const [modalEditSkill,   setModalEditSkill]   = useState<Skill|null>(null);
   const [modalDelSkill,    setModalDelSkill]    = useState<Skill|null>(null);
   const [modalSkillsCollab,setModalSkillsCollab]= useState<Collaborator|null>(null);
+  // ausências
+  const [ausencias,        setAusencias]        = useState<Ausencia[]>([]);
+  const [modalNewAusencia, setModalNewAusencia] = useState(false);
+  const [modalRejAusencia, setModalRejAusencia] = useState<Ausencia|null>(null);
+  const [motivoRejAus,     setMotivoRejAus]     = useState("");
+  const [filterAusenciaStatus, setFilterAusenciaStatus] = useState<"todos"|"PENDENTE"|"APROVADA"|"REJEITADA"|"CANCELADA">("PENDENTE");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -1484,6 +1572,7 @@ export default function CadastrosPage() {
       try { const cRes = await api.get("/clientes"); setClientes(cRes.data); } catch {}
       try { const coRes = await api.get("/collaborators"); setCollabs(coRes.data); } catch {}
       try { const skRes = await api.get("/skills"); setSkills(skRes.data); } catch {}
+      try { const auRes = await api.get("/ausencias"); setAusencias(auRes.data); } catch {}
       if (me?.isMaster) {
         try { const oRes = await api.get("/superadmin/organizations"); setOrgs(oRes.data); } catch {}
       }
@@ -1511,7 +1600,7 @@ export default function CadastrosPage() {
     </div>
   );
 
-  const btnLabel = tab==="usuarios" ? "Novo usuario" : tab==="setores" ? "Novo setor" : tab==="papeis" ? "Novo papel" : tab==="clientes" ? "Novo cliente" : tab==="organizacoes" ? "Nova organização" : tab==="colaboradores" ? "Novo colaborador" : tab==="skills" ? "Nova skill" : null;
+  const btnLabel = tab==="usuarios" ? "Novo usuario" : tab==="setores" ? "Novo setor" : tab==="papeis" ? "Novo papel" : tab==="clientes" ? "Novo cliente" : tab==="organizacoes" ? "Nova organização" : tab==="colaboradores" ? "Novo colaborador" : tab==="skills" ? "Nova skill" : tab==="ausencias" ? "Nova ausência" : null;
   const btnAction = () => {
     if (tab==="usuarios")       setModalNewUser(true);
     if (tab==="setores")        setModalSetor("novo");
@@ -1520,6 +1609,7 @@ export default function CadastrosPage() {
     if (tab==="organizacoes")   setModalNewOrg(true);
     if (tab==="colaboradores")  setModalNewCollab(true);
     if (tab==="skills")         setModalNewSkill(true);
+    if (tab==="ausencias")      setModalNewAusencia(true);
   };
   const filteredOrgs = orgs.filter(o => {
     const ms = !search || o.nome.toLowerCase().includes(search.toLowerCase()) || o.slug.toLowerCase().includes(search.toLowerCase());
@@ -1565,6 +1655,7 @@ export default function CadastrosPage() {
           { key:"clientes",      label:"Clientes",      count:clientes.length },
           { key:"colaboradores", label:"Colaboradores", count:collabs.length },
           { key:"skills",        label:"Skills",        count:skills.length },
+          { key:"ausencias",     label:"Ausencias",     count:ausencias.filter(a=>a.status==="PENDENTE").length },
           ...(me?.isMaster ? [{ key:"organizacoes", label:"Organizacoes", count:orgs.length }] : []),
         ].map(t=>(
           <button key={t.key} onClick={()=>{ setTab(t.key as any); setSearch(""); }}
@@ -2132,6 +2223,105 @@ export default function CadastrosPage() {
           );
         })()}
 
+        {/* ── ABA AUSÊNCIAS ── */}
+        {tab==="ausencias" && (() => {
+          const filteredAus = ausencias.filter(a => filterAusenciaStatus==="todos" ? true : a.status===filterAusenciaStatus);
+          const tipoLabels: Record<string, string> = { ferias:"Férias", atestado:"Atestado", folga:"Folga", licenca:"Licença", banco_horas:"Banco de horas", outro:"Outro" };
+          const tipoColors: Record<string, string> = { ferias:"#22d3ee", atestado:"#f87171", folga:"#a78bfa", licenca:"#fbbf24", banco_horas:"#34d399", outro:"#94a3b8" };
+          const statusColors: Record<string, string> = { PENDENTE:"#fbbf24", APROVADA:"#34d399", REJEITADA:"#f87171", CANCELADA:"#94a3b8" };
+          const aprovar = async (a: Ausencia) => { try { await api.patch(`/ausencias/${a.id}/aprovar`); load(); } catch {} };
+          const cancelar = async (a: Ausencia) => { if (!confirm(`Cancelar ausência de ${a.collaborator.user.nome}?`)) return; try { await api.patch(`/ausencias/${a.id}/cancelar`); load(); } catch {} };
+          const remover = async (a: Ausencia) => { if (!confirm("Remover esta solicitação?")) return; try { await api.delete(`/ausencias/${a.id}`); load(); } catch {} };
+          return (
+            <>
+              <div className="animate-up" style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:12 }}>
+                {[
+                  { label:"PENDENTES",  value:ausencias.filter(a=>a.status==="PENDENTE").length,  color:"#fbbf24" },
+                  { label:"APROVADAS",  value:ausencias.filter(a=>a.status==="APROVADA").length,  color:"var(--accent-green)" },
+                  { label:"REJEITADAS", value:ausencias.filter(a=>a.status==="REJEITADA").length, color:"var(--accent-red)" },
+                  { label:"TOTAL",      value:ausencias.length,                                   color:"var(--accent-violet)" },
+                ].map(s=>(
+                  <div key={s.label} className="card" style={{ padding:"16px 20px", display:"flex", alignItems:"center", gap:16 }}>
+                    <div style={{ fontFamily:"var(--font-display)", fontSize:28, fontWeight:700, color:s.color }}>{s.value}</div>
+                    <div style={{ fontSize:11, fontFamily:"var(--font-mono)", letterSpacing:"0.08em", color:"var(--text-muted)" }}>{s.label}</div>
+                  </div>
+                ))}
+              </div>
+              <div style={{ display:"flex", gap:6 }}>
+                {(["todos","PENDENTE","APROVADA","REJEITADA","CANCELADA"] as const).map(f=>(
+                  <button key={f} onClick={()=>setFilterAusenciaStatus(f)} className={`btn ${filterAusenciaStatus===f?"btn-violet":"btn-ghost"}`} style={{ padding:"6px 14px", fontSize:12 }}>
+                    {f==="todos"?"Todos":f.charAt(0)+f.slice(1).toLowerCase()}
+                  </button>
+                ))}
+              </div>
+              <div className="animate-up card">
+                <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr auto auto", gap:16, padding:"10px 20px", borderBottom:"1px solid var(--border-subtle)" }}>
+                  {["COLABORADOR","TIPO","PERÍODO","STATUS","AÇÕES"].map(h=><span key={h} style={{ fontSize:10, fontFamily:"var(--font-mono)", letterSpacing:"0.08em", color:"var(--text-muted)" }}>{h}</span>)}
+                </div>
+                {loading ? (
+                  <div style={{ display:"flex", alignItems:"center", justifyContent:"center", padding:48, gap:12 }}><Spin/><span style={{ color:"var(--text-muted)", fontSize:13 }}>Carregando...</span></div>
+                ) : filteredAus.length===0 ? (
+                  <div className="empty-state"><p style={{ color:"var(--text-secondary)", fontWeight:500 }}>Nenhuma ausência {filterAusenciaStatus==="todos"?"cadastrada":filterAusenciaStatus.toLowerCase()}</p></div>
+                ) : filteredAus.map((a,i)=>{
+                  const dStart = new Date(a.dataInicio); const dEnd = new Date(a.dataFim);
+                  const dias = Math.ceil((+dEnd - +dStart) / 86400000) + 1;
+                  return (
+                    <div key={a.id} style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr auto auto", gap:16, padding:"14px 20px", borderBottom:i<filteredAus.length-1?"1px solid var(--border-subtle)":"none", alignItems:"center", transition:"background 0.15s" }}
+                      onMouseEnter={e=>(e.currentTarget as HTMLElement).style.background="var(--bg-hover)"}
+                      onMouseLeave={e=>(e.currentTarget as HTMLElement).style.background="transparent"}
+                    >
+                      <div style={{ display:"flex", alignItems:"center", gap:10, minWidth:0 }}>
+                        <Avatar nome={a.collaborator.user.nome} />
+                        <div style={{ minWidth:0 }}>
+                          <div style={{ fontSize:13, fontWeight:500 }}>{a.collaborator.user.nome}</div>
+                          {a.collaborator.setor && <div style={{ fontSize:11, color:"var(--text-muted)" }}>{a.collaborator.setor.nome}</div>}
+                        </div>
+                      </div>
+                      <div>
+                        <span style={{ fontSize:11, fontFamily:"var(--font-mono)", padding:"2px 8px", borderRadius:20, background:tipoColors[a.tipo]+"20", color:tipoColors[a.tipo], border:`1px solid ${tipoColors[a.tipo]}40` }}>
+                          {tipoLabels[a.tipo] || a.tipo}
+                        </span>
+                        {!a.diaInteiro && <div style={{ fontSize:10, color:"var(--text-muted)", marginTop:3 }}>{a.horasDia}h/dia</div>}
+                      </div>
+                      <div>
+                        <div style={{ fontSize:12, fontFamily:"var(--font-mono)", color:"var(--text-secondary)" }}>
+                          {dStart.toLocaleDateString("pt-BR")} → {dEnd.toLocaleDateString("pt-BR")}
+                        </div>
+                        <div style={{ fontSize:10, color:"var(--text-muted)" }}>{dias} dia{dias>1?"s":""}</div>
+                      </div>
+                      <span style={{ fontSize:10, fontFamily:"var(--font-mono)", padding:"3px 10px", borderRadius:20, background:statusColors[a.status]+"18", color:statusColors[a.status], border:`1px solid ${statusColors[a.status]}40`, fontWeight:600 }}>
+                        {a.status}
+                      </span>
+                      <div style={{ display:"flex", gap:4 }}>
+                        {a.status==="PENDENTE" && (
+                          <>
+                            <button className="btn-icon" title="Aprovar" style={{ color:"var(--accent-green)" }} onClick={()=>aprovar(a)}>
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M20 6L9 17l-5-5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                            </button>
+                            <button className="btn-icon" title="Rejeitar" style={{ color:"var(--accent-red)" }} onClick={()=>{ setModalRejAusencia(a); setMotivoRejAus(""); }}>
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M18 6L6 18M6 6l12 12" strokeLinecap="round"/></svg>
+                            </button>
+                          </>
+                        )}
+                        {a.status==="APROVADA" && (
+                          <button className="btn-icon" title="Cancelar ausência" onClick={()=>cancelar(a)}>
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
+                          </button>
+                        )}
+                        {(a.status==="PENDENTE" || a.status==="REJEITADA" || a.status==="CANCELADA") && (
+                          <button className="btn-icon" title="Remover" style={{ color:"var(--accent-red)", borderColor:"rgba(220,38,38,0.2)" }} onClick={()=>remover(a)}>
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/></svg>
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </>
+          );
+        })()}
+
         {/* ── ABA SOLICITACOES ── */}
         {tab==="solicitacoes" && (
           <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
@@ -2216,6 +2406,35 @@ export default function CadastrosPage() {
       {modalSkillsCollab && (
         <Modal title={`Skills de ${modalSkillsCollab.user?.nome || ""}`} onClose={()=>setModalSkillsCollab(null)} maxWidth={560}>
           <CollabSkillsManager collab={modalSkillsCollab} allSkills={skills.filter(s=>s.ativo)} onClose={()=>setModalSkillsCollab(null)} />
+        </Modal>
+      )}
+
+      {/* Modal nova ausência */}
+      {modalNewAusencia && (
+        <Modal title="Nova ausência" onClose={()=>setModalNewAusencia(false)} maxWidth={500}>
+          <AusenciaCreateForm collabs={collabs.filter(c=>c.ativo)} onClose={()=>setModalNewAusencia(false)} onSave={load} />
+        </Modal>
+      )}
+      {modalRejAusencia && (
+        <Modal title="Rejeitar ausência" onClose={()=>setModalRejAusencia(null)} maxWidth={420}>
+          <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
+            <p style={{ fontSize:13, color:"var(--text-secondary)" }}>
+              Rejeitar ausência de <strong>{modalRejAusencia.collaborator.user.nome}</strong>?
+            </p>
+            <Field label="MOTIVO DA REJEIÇÃO">
+              <textarea className="input-o" rows={3} value={motivoRejAus} onChange={e=>setMotivoRejAus(e.target.value)} placeholder="Ex: Período conflita com entrega de projeto..." style={{ resize:"vertical" }} />
+            </Field>
+            <div style={{ display:"flex", gap:10 }}>
+              <button className="btn btn-ghost" style={{ flex:1 }} onClick={()=>setModalRejAusencia(null)}>Cancelar</button>
+              <button className="btn btn-danger" style={{ flex:2 }} onClick={async()=>{
+                try {
+                  await api.patch(`/ausencias/${modalRejAusencia.id}/rejeitar`, { motivo: motivoRejAus });
+                  setModalRejAusencia(null);
+                  load();
+                } catch {}
+              }}>Confirmar rejeição</button>
+            </div>
+          </div>
         </Modal>
       )}
 

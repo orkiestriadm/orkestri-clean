@@ -9,12 +9,13 @@ type Summary = {
   org: {
     colaboradoresAtivos: number; nominal: number; realizado: number; planejado: number;
     utilRealizado: number; utilPlanejado: number; sobrecarregados: number; subutilizados: number;
+    ausentesHoje?: number;
   };
   top5Carregados: any[];
   top5Disponiveis: any[];
 };
 
-type HeatmapCell = { date: string; horas: number; util: number; biz: boolean };
+type HeatmapCell = { date: string; horas: number; util: number; biz: boolean; ausente?: boolean };
 type HeatmapRow = {
   collaborator: { id: string; userId: string; nome: string; cargo: string | null; setor: { id: string; nome: string; cor: string | null } | null };
   nominal: number; realizado: number; planejado: number;
@@ -154,8 +155,8 @@ export default function CapacityPage() {
   const cards = summary ? [
     { label:"COLABORADORES ATIVOS", value:summary.org.colaboradoresAtivos, color:"var(--accent-violet)" },
     { label:"UTILIZAÇÃO MÉDIA",     value:`${summary.org.utilPlanejado}%`,  color: summary.org.utilPlanejado>90?"var(--accent-red)":summary.org.utilPlanejado>70?"#fbbf24":"var(--accent-green)" },
-    { label:"SOBRECARREGADOS (>90%)",value:summary.org.sobrecarregados,   color:"var(--accent-red)" },
-    { label:"SUBUTILIZADOS (<50%)",  value:summary.org.subutilizados,     color:"var(--accent-cyan)" },
+    { label:"AUSENTES HOJE",        value:summary.org.ausentesHoje ?? 0,    color:"#94a3b8" },
+    { label:"SOBRECARREGADOS (>90%)",value:summary.org.sobrecarregados,    color:"var(--accent-red)" },
   ] : [];
 
   return (
@@ -271,15 +272,18 @@ export default function CapacityPage() {
                   </div>
                   {row.cells.map(c=>(
                     <div key={row.collaborator.id+c.date}
-                      title={`${c.date}: ${c.horas}h (${c.util}%) — ${utilLabel(c.util)}`}
+                      title={c.ausente ? `${c.date}: AUSENTE` : `${c.date}: ${c.horas}h (${c.util}%) — ${utilLabel(c.util)}`}
                       style={{
                         aspectRatio:"1/1", minHeight:24, borderRadius:3,
-                        background: c.biz ? utilColor(c.util) : "transparent",
-                        border: c.biz ? "none" : "1px dashed var(--border-subtle)",
-                        cursor: c.biz ? "pointer" : "default",
+                        background: c.ausente ? "repeating-linear-gradient(45deg, rgba(148,163,184,0.2), rgba(148,163,184,0.2) 3px, rgba(148,163,184,0.4) 3px, rgba(148,163,184,0.4) 6px)" : c.biz ? utilColor(c.util) : "transparent",
+                        border: c.ausente ? "1px solid var(--text-muted)" : c.biz ? "none" : "1px dashed var(--border-subtle)",
+                        cursor: c.biz && !c.ausente ? "pointer" : "default",
+                        position: "relative",
                       }}
-                      onClick={()=>c.biz && setModal({ id: row.collaborator.id, from: periodParams.from, to: periodParams.to })}
-                    />
+                      onClick={()=>c.biz && !c.ausente && setModal({ id: row.collaborator.id, from: periodParams.from, to: periodParams.to })}
+                    >
+                      {c.ausente && <span style={{ position:"absolute", inset:0, display:"flex", alignItems:"center", justifyContent:"center", fontSize:9, color:"var(--text-muted)", fontWeight:700 }}>A</span>}
+                    </div>
                   ))}
                 </>
               ))}
