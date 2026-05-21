@@ -13,6 +13,15 @@ type Solicitacao = { id: string; nome: string; email: string; whatsapp?: string;
 type Cliente = { id: string; nome: string; empresa?: string; email?: string; telefone?: string; cargo?: string; segmento?: string; statusLead: string; ativo: boolean; criadoEm: string; };
 type OrgItem = { id: string; nome: string; slug: string; plano: string; ativo: boolean; statusOperacional?: string | null; statusComercial?: string | null; usuarios: number; criadoEm: string; };
 type Skill = { id: string; nome: string; categoria?: string | null; descricao?: string | null; cor?: string | null; ativo: boolean; _count?: { collaborators: number }; };
+type SquadMember = {
+  id: string; collaboratorId: string; alocacaoPercent: number; papel: string;
+  collaborator: { id: string; user: { id: string; nome: string }; setor?: { nome: string; cor?: string|null } | null; jornadaHorasDia?: number };
+};
+type Squad = {
+  id: string; nome: string; descricao?: string|null; cor?: string|null; ativo: boolean;
+  liderId?: string|null; lider?: { id: string; user: { nome: string } } | null;
+  members: SquadMember[]; capacidadeHorasMes: number; totalMembros: number;
+};
 type Ausencia = {
   id: string; collaboratorId: string; tipo: string; dataInicio: string; dataFim: string;
   diaInteiro: boolean; horasDia?: number | null; descricao?: string | null;
@@ -1259,6 +1268,157 @@ function OrgEditForm({ org, onClose, onSave }: { org: OrgItem; onClose:()=>void;
 const SKILL_COLORS = ["#a78bfa","#22d3ee","#34d399","#fbbf24","#f87171","#60a5fa","#f472b6","#94a3b8"];
 const SKILL_CATEGORIAS_SUGGESTIONS = ["Tecnologia","Soft Skill","Certificação","Idioma","Ferramenta","Metodologia","Domínio de Negócio"];
 
+const SQUAD_PAPEIS = ["membro","lider","product_owner","tech_lead","scrum_master"];
+const SQUAD_PAPEL_LABEL: Record<string,string> = { membro:"Membro", lider:"Líder", product_owner:"Product Owner", tech_lead:"Tech Lead", scrum_master:"Scrum Master" };
+
+function SquadForm({ squad, collabs, onClose, onSave }: { squad?: Squad; collabs: Collaborator[]; onClose:()=>void; onSave:()=>void }) {
+  const [f, setF] = useState({
+    nome: squad?.nome || "", descricao: squad?.descricao || "",
+    cor: squad?.cor || SKILL_COLORS[0], liderId: squad?.liderId || "",
+    ativo: squad?.ativo ?? true,
+  });
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState("");
+  const save = async () => {
+    if (!f.nome.trim()) { setErr("Nome obrigatório"); return; }
+    setLoading(true); setErr("");
+    try {
+      const payload = { nome:f.nome, descricao:f.descricao||null, cor:f.cor, liderId:f.liderId||null, ...(squad?{ativo:f.ativo}:{}) };
+      if (squad) await api.put("/squads/"+squad.id, payload);
+      else       await api.post("/squads", payload);
+      onSave(); onClose();
+    } catch(e:any) { setErr(e?.response?.data?.message||"Erro ao salvar"); }
+    finally { setLoading(false); }
+  };
+  return (
+    <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
+      <Field label="NOME DO SQUAD *"><input className="input-o" value={f.nome} autoFocus onChange={e=>setF(p=>({...p,nome:e.target.value}))} placeholder="Ex: Squad Alpha, Time Produto..." /></Field>
+      <Field label="DESCRIÇÃO"><textarea className="input-o" rows={2} value={f.descricao} onChange={e=>setF(p=>({...p,descricao:e.target.value}))} style={{ resize:"vertical" }} /></Field>
+      <Field label="LÍDER">
+        <select className="input-o" value={f.liderId} onChange={e=>setF(p=>({...p,liderId:e.target.value}))}>
+          <option value="">— Sem líder definido —</option>
+          {collabs.map(c=><option key={c.id} value={c.id}>{c.user?.nome}</option>)}
+        </select>
+      </Field>
+      <Field label="COR">
+        <div style={{ display:"flex", gap:6 }}>
+          {SKILL_COLORS.map(c=>(
+            <button key={c} type="button" onClick={()=>setF(p=>({...p,cor:c}))}
+              style={{ width:30, height:30, borderRadius:8, background:c, border:f.cor===c?"3px solid var(--text-primary)":"1px solid var(--border-subtle)", cursor:"pointer" }} />
+          ))}
+        </div>
+      </Field>
+      {squad && (
+        <Field label="SITUAÇÃO">
+          <select className="input-o" value={f.ativo?"ativo":"inativo"} onChange={e=>setF(p=>({...p,ativo:e.target.value==="ativo"}))}>
+            <option value="ativo">Ativo</option><option value="inativo">Inativo</option>
+          </select>
+        </Field>
+      )}
+      {err && <div style={{ background:"rgba(220,38,38,0.08)", border:"1px solid rgba(220,38,38,0.2)", borderRadius:8, padding:"10px 14px", color:"var(--accent-red)", fontSize:12 }}>{err}</div>}
+      <div style={{ display:"flex", gap:10, marginTop:4 }}>
+        <button className="btn btn-ghost" style={{ flex:1 }} onClick={onClose}>Cancelar</button>
+        <button className="btn btn-violet" style={{ flex:2 }} onClick={save} disabled={loading}>{loading?<Spin/>:squad?"Salvar":"Criar squad"}</button>
+      </div>
+    </div>
+  );
+}
+
+function SquadMembersManager({ squad, allCollabs, onClose, onSave }: { squad: Squad; allCollabs: Collaborator[]; onClose:()=>void; onSave:()=>void }) {
+  const [members, setMembers] = useState<SquadMember[]>(squad.members || []);
+  const [adding, setAdding] = useState(false);
+  const [newCollabId, setNewCollabId] = useState("");
+  const [newAloc, setNewAloc] = useState(100);
+  const [newPapel, setNewPapel] = useState("membro");
+  const [err, setErr] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const reload = async () => {
+    try { const r = await api.get("/squads/"+squad.id); setMembers(r.data.members); onSave(); } catch {}
+  };
+  const available = allCollabs.filter(c => !members.find(m => m.collaboratorId === c.id));
+
+  const add = async () => {
+    if (!newCollabId) { setErr("Selecione um colaborador"); return; }
+    setSaving(true); setErr("");
+    try {
+      await api.post(`/squads/${squad.id}/members`, { collaboratorId:newCollabId, alocacaoPercent:newAloc, papel:newPapel });
+      setNewCollabId(""); setNewAloc(100); setNewPapel("membro"); setAdding(false);
+      await reload();
+    } catch(e:any) { setErr(e?.response?.data?.message||"Erro"); }
+    finally { setSaving(false); }
+  };
+  const updateAloc = async (memberId: string, alocacaoPercent: number) => {
+    try { await api.put(`/squads/${squad.id}/members/${memberId}`, { alocacaoPercent }); await reload(); } catch {}
+  };
+  const remove = async (memberId: string) => {
+    try { await api.delete(`/squads/${squad.id}/members/${memberId}`); await reload(); } catch {}
+  };
+
+  const capacidadeTotal = members.reduce((acc,m)=>acc+((m.collaborator.jornadaHorasDia||8)*22*(m.alocacaoPercent/100)),0);
+
+  return (
+    <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
+      <div style={{ display:"flex", gap:16, padding:"10px 14px", borderRadius:8, background:"var(--bg-secondary)", border:"1px solid var(--border-subtle)" }}>
+        <div><div style={{ fontSize:18, fontWeight:700, color:"var(--accent-violet)" }}>{members.length}</div><div style={{ fontSize:9, fontFamily:"var(--font-mono)", color:"var(--text-muted)" }}>MEMBROS</div></div>
+        <div><div style={{ fontSize:18, fontWeight:700, color:"var(--accent-green)" }}>{capacidadeTotal.toFixed(0)}h</div><div style={{ fontSize:9, fontFamily:"var(--font-mono)", color:"var(--text-muted)" }}>CAPACIDADE/MÊS</div></div>
+      </div>
+      {members.length === 0 ? (
+        <div style={{ textAlign:"center", padding:24, color:"var(--text-muted)", fontSize:13 }}>Nenhum membro no squad</div>
+      ) : (
+        <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+          {members.map(m=>(
+            <div key={m.id} style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 12px", borderRadius:8, border:"1px solid var(--border-subtle)", background:"var(--bg-secondary)" }}>
+              <Avatar nome={m.collaborator.user.nome} size={30} />
+              <div style={{ flex:1, minWidth:0 }}>
+                <div style={{ fontSize:13, fontWeight:500 }}>{m.collaborator.user.nome}</div>
+                <div style={{ fontSize:10, color:"var(--text-muted)" }}>{SQUAD_PAPEL_LABEL[m.papel]||m.papel}{m.collaborator.setor?` • ${m.collaborator.setor.nome}`:""}</div>
+              </div>
+              <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+                <input className="input-o" type="number" min="0" max="100" value={m.alocacaoPercent}
+                  onChange={e=>{ const v=parseInt(e.target.value)||0; setMembers(ms=>ms.map(x=>x.id===m.id?{...x,alocacaoPercent:v}:x)); }}
+                  onBlur={e=>updateAloc(m.id, parseInt(e.target.value)||0)}
+                  style={{ width:64, fontSize:12, padding:"5px 8px", textAlign:"center" }} />
+                <span style={{ fontSize:12, color:"var(--text-muted)" }}>%</span>
+              </div>
+              <button className="btn-icon" title="Remover" style={{ color:"var(--accent-red)" }} onClick={()=>remove(m.id)}>
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+      {!adding ? (
+        <button className="btn btn-ghost" onClick={()=>setAdding(true)} disabled={available.length===0}>
+          {available.length===0?"Todos os colaboradores já no squad":"+ Adicionar membro"}
+        </button>
+      ) : (
+        <div style={{ display:"flex", flexDirection:"column", gap:10, padding:14, borderRadius:10, background:"var(--accent-violet-dim)", border:"1px solid rgba(124,58,237,0.2)" }}>
+          <select className="input-o" value={newCollabId} onChange={e=>setNewCollabId(e.target.value)}>
+            <option value="">— Colaborador —</option>
+            {available.map(c=><option key={c.id} value={c.id}>{c.user?.nome}</option>)}
+          </select>
+          <div style={{ display:"flex", gap:8 }}>
+            <select className="input-o" value={newPapel} onChange={e=>setNewPapel(e.target.value)} style={{ flex:1 }}>
+              {SQUAD_PAPEIS.map(p=><option key={p} value={p}>{SQUAD_PAPEL_LABEL[p]}</option>)}
+            </select>
+            <div style={{ display:"flex", alignItems:"center", gap:4 }}>
+              <input className="input-o" type="number" min="0" max="100" value={newAloc} onChange={e=>setNewAloc(parseInt(e.target.value)||0)} style={{ width:70 }} />
+              <span style={{ fontSize:12, color:"var(--text-muted)" }}>%</span>
+            </div>
+          </div>
+          {err && <div style={{ color:"var(--accent-red)", fontSize:12 }}>{err}</div>}
+          <div style={{ display:"flex", gap:8 }}>
+            <button className="btn btn-ghost" style={{ flex:1 }} onClick={()=>{ setAdding(false); setErr(""); }}>Cancelar</button>
+            <button className="btn btn-violet" style={{ flex:2 }} onClick={add} disabled={saving||!newCollabId}>{saving?<Spin/>:"Adicionar"}</button>
+          </div>
+        </div>
+      )}
+      <button className="btn btn-ghost" onClick={onClose}>Fechar</button>
+    </div>
+  );
+}
+
 function AusenciaCreateForm({ collabs, onClose, onSave }: { collabs: Collaborator[]; onClose:()=>void; onSave:()=>void }) {
   const [f, setF] = useState({
     collaboratorId: "", tipo: "ferias",
@@ -1488,7 +1648,7 @@ function SkillForm({ skill, onClose, onSave }: { skill?: Skill; onClose:()=>void
 
 export default function CadastrosPage() {
   const { user: me } = useAuthStore();
-  const [tab,           setTab]          = useState<"usuarios"|"setores"|"papeis"|"solicitacoes"|"matriz"|"organograma"|"clientes"|"organizacoes"|"colaboradores"|"skills"|"ausencias">("usuarios");
+  const [tab,           setTab]          = useState<"usuarios"|"setores"|"papeis"|"solicitacoes"|"matriz"|"organograma"|"clientes"|"organizacoes"|"colaboradores"|"skills"|"ausencias"|"squads">("usuarios");
   const [roles,         setRoles]        = useState<Role[]>([]);
   const [allPerms,      setAllPerms]     = useState<Permission[]>([]);
   const [modalRole,     setModalRole]    = useState<Role|"novo"|null>(null);
@@ -1551,6 +1711,12 @@ export default function CadastrosPage() {
   const [modalRejAusencia, setModalRejAusencia] = useState<Ausencia|null>(null);
   const [motivoRejAus,     setMotivoRejAus]     = useState("");
   const [filterAusenciaStatus, setFilterAusenciaStatus] = useState<"todos"|"PENDENTE"|"APROVADA"|"REJEITADA"|"CANCELADA">("PENDENTE");
+  // squads
+  const [squads,           setSquads]            = useState<Squad[]>([]);
+  const [modalNewSquad,    setModalNewSquad]     = useState(false);
+  const [modalEditSquad,   setModalEditSquad]    = useState<Squad|null>(null);
+  const [modalDelSquad,    setModalDelSquad]     = useState<Squad|null>(null);
+  const [modalMembersSquad,setModalMembersSquad] = useState<Squad|null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -1573,6 +1739,7 @@ export default function CadastrosPage() {
       try { const coRes = await api.get("/collaborators"); setCollabs(coRes.data); } catch {}
       try { const skRes = await api.get("/skills"); setSkills(skRes.data); } catch {}
       try { const auRes = await api.get("/ausencias"); setAusencias(auRes.data); } catch {}
+      try { const sqRes = await api.get("/squads"); setSquads(sqRes.data); } catch {}
       if (me?.isMaster) {
         try { const oRes = await api.get("/superadmin/organizations"); setOrgs(oRes.data); } catch {}
       }
@@ -1600,7 +1767,7 @@ export default function CadastrosPage() {
     </div>
   );
 
-  const btnLabel = tab==="usuarios" ? "Novo usuario" : tab==="setores" ? "Novo setor" : tab==="papeis" ? "Novo papel" : tab==="clientes" ? "Novo cliente" : tab==="organizacoes" ? "Nova organização" : tab==="colaboradores" ? "Novo colaborador" : tab==="skills" ? "Nova skill" : tab==="ausencias" ? "Nova ausência" : null;
+  const btnLabel = tab==="usuarios" ? "Novo usuario" : tab==="setores" ? "Novo setor" : tab==="papeis" ? "Novo papel" : tab==="clientes" ? "Novo cliente" : tab==="organizacoes" ? "Nova organização" : tab==="colaboradores" ? "Novo colaborador" : tab==="skills" ? "Nova skill" : tab==="ausencias" ? "Nova ausência" : tab==="squads" ? "Novo squad" : null;
   const btnAction = () => {
     if (tab==="usuarios")       setModalNewUser(true);
     if (tab==="setores")        setModalSetor("novo");
@@ -1610,6 +1777,7 @@ export default function CadastrosPage() {
     if (tab==="colaboradores")  setModalNewCollab(true);
     if (tab==="skills")         setModalNewSkill(true);
     if (tab==="ausencias")      setModalNewAusencia(true);
+    if (tab==="squads")         setModalNewSquad(true);
   };
   const filteredOrgs = orgs.filter(o => {
     const ms = !search || o.nome.toLowerCase().includes(search.toLowerCase()) || o.slug.toLowerCase().includes(search.toLowerCase());
@@ -1656,6 +1824,7 @@ export default function CadastrosPage() {
           { key:"colaboradores", label:"Colaboradores", count:collabs.length },
           { key:"skills",        label:"Skills",        count:skills.length },
           { key:"ausencias",     label:"Ausencias",     count:ausencias.filter(a=>a.status==="PENDENTE").length },
+          { key:"squads",        label:"Squads",        count:squads.length },
           ...(me?.isMaster ? [{ key:"organizacoes", label:"Organizacoes", count:orgs.length }] : []),
         ].map(t=>(
           <button key={t.key} onClick={()=>{ setTab(t.key as any); setSearch(""); }}
@@ -2322,6 +2491,77 @@ export default function CadastrosPage() {
           );
         })()}
 
+        {/* ── ABA SQUADS ── */}
+        {tab==="squads" && (() => {
+          const filteredSquads = squads.filter(s => !search || s.nome.toLowerCase().includes(search.toLowerCase()));
+          return (
+            <>
+              <div className="animate-up" style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:12 }}>
+                {[
+                  { label:"SQUADS",            value:squads.length,                                              color:"var(--accent-violet)" },
+                  { label:"MEMBROS TOTAIS",    value:squads.reduce((a,s)=>a+s.totalMembros,0),                   color:"var(--accent-cyan)" },
+                  { label:"CAPACIDADE TOTAL",  value:squads.reduce((a,s)=>a+s.capacidadeHorasMes,0).toFixed(0)+"h", color:"var(--accent-green)" },
+                ].map(s=>(
+                  <div key={s.label} className="card" style={{ padding:"16px 20px", display:"flex", alignItems:"center", gap:16 }}>
+                    <div style={{ fontFamily:"var(--font-display)", fontSize:28, fontWeight:700, color:s.color }}>{s.value}</div>
+                    <div style={{ fontSize:11, fontFamily:"var(--font-mono)", letterSpacing:"0.08em", color:"var(--text-muted)" }}>{s.label}</div>
+                  </div>
+                ))}
+              </div>
+              {loading ? (
+                <div style={{ display:"flex", alignItems:"center", justifyContent:"center", padding:48, gap:12 }}><Spin/><span style={{ color:"var(--text-muted)", fontSize:13 }}>Carregando...</span></div>
+              ) : filteredSquads.length===0 ? (
+                <div className="empty-state card" style={{ padding:40 }}><p style={{ color:"var(--text-secondary)", fontWeight:500 }}>{search?"Nenhum squad encontrado":"Nenhum squad criado — agrupe colaboradores em equipes com alocação % por projeto"}</p></div>
+              ) : (
+                <div className="animate-up" style={{ display:"grid", gridTemplateColumns:"repeat(2,1fr)", gap:12 }}>
+                  {filteredSquads.map(sq=>{
+                    const cor = sq.cor || "#a78bfa";
+                    return (
+                      <div key={sq.id} className="card" style={{ padding:0, overflow:"hidden", opacity:sq.ativo?1:0.6 }}>
+                        <div style={{ padding:"14px 18px", borderBottom:"1px solid var(--border-subtle)", display:"flex", alignItems:"center", gap:12 }}>
+                          <div style={{ width:38, height:38, borderRadius:9, background:cor+"20", border:`1px solid ${cor}40`, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke={cor} strokeWidth="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+                          </div>
+                          <div style={{ flex:1, minWidth:0 }}>
+                            <div style={{ fontSize:14, fontWeight:600 }}>{sq.nome}</div>
+                            {sq.descricao && <div style={{ fontSize:11, color:"var(--text-muted)", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{sq.descricao}</div>}
+                          </div>
+                          <div style={{ display:"flex", gap:4 }}>
+                            <button className="btn-icon" title="Membros" onClick={()=>setModalMembersSquad(sq)}>
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+                            </button>
+                            <button className="btn-icon" title="Editar" onClick={()=>setModalEditSquad(sq)}>
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4z"/></svg>
+                            </button>
+                            <button className="btn-icon" title="Remover" style={{ color:"var(--accent-red)" }} onClick={()=>setModalDelSquad(sq)}>
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/></svg>
+                            </button>
+                          </div>
+                        </div>
+                        <div style={{ padding:"12px 18px", display:"flex", gap:20 }}>
+                          <div><div style={{ fontSize:18, fontWeight:700, color:"var(--accent-violet)" }}>{sq.totalMembros}</div><div style={{ fontSize:9, fontFamily:"var(--font-mono)", color:"var(--text-muted)" }}>MEMBROS</div></div>
+                          <div><div style={{ fontSize:18, fontWeight:700, color:"var(--accent-green)" }}>{sq.capacidadeHorasMes}h</div><div style={{ fontSize:9, fontFamily:"var(--font-mono)", color:"var(--text-muted)" }}>CAPACIDADE/MÊS</div></div>
+                          {sq.lider && <div><div style={{ fontSize:13, fontWeight:500, marginTop:2 }}>{sq.lider.user.nome}</div><div style={{ fontSize:9, fontFamily:"var(--font-mono)", color:"var(--text-muted)" }}>LÍDER</div></div>}
+                        </div>
+                        {sq.members.length > 0 && (
+                          <div style={{ padding:"0 18px 14px", display:"flex", flexWrap:"wrap", gap:6 }}>
+                            {sq.members.slice(0,6).map(m=>(
+                              <span key={m.id} style={{ fontSize:11, padding:"3px 8px", borderRadius:20, background:"var(--bg-hover)", border:"1px solid var(--border-subtle)", color:"var(--text-secondary)" }}>
+                                {m.collaborator.user.nome.split(" ")[0]} <span style={{ color:cor, fontFamily:"var(--font-mono)" }}>{m.alocacaoPercent}%</span>
+                              </span>
+                            ))}
+                            {sq.members.length > 6 && <span style={{ fontSize:11, color:"var(--text-muted)" }}>+{sq.members.length-6}</span>}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </>
+          );
+        })()}
+
         {/* ── ABA SOLICITACOES ── */}
         {tab==="solicitacoes" && (
           <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
@@ -2406,6 +2646,27 @@ export default function CadastrosPage() {
       {modalSkillsCollab && (
         <Modal title={`Skills de ${modalSkillsCollab.user?.nome || ""}`} onClose={()=>setModalSkillsCollab(null)} maxWidth={560}>
           <CollabSkillsManager collab={modalSkillsCollab} allSkills={skills.filter(s=>s.ativo)} onClose={()=>setModalSkillsCollab(null)} />
+        </Modal>
+      )}
+
+      {/* Modais Squad */}
+      {modalNewSquad && (
+        <Modal title="Novo squad" onClose={()=>setModalNewSquad(false)} maxWidth={460}>
+          <SquadForm collabs={collabs.filter(c=>c.ativo)} onClose={()=>setModalNewSquad(false)} onSave={load} />
+        </Modal>
+      )}
+      {modalEditSquad && (
+        <Modal title="Editar squad" onClose={()=>setModalEditSquad(null)} maxWidth={460}>
+          <SquadForm squad={modalEditSquad} collabs={collabs.filter(c=>c.ativo)} onClose={()=>setModalEditSquad(null)} onSave={load} />
+        </Modal>
+      )}
+      {modalDelSquad && (
+        <ConfirmModal title="Remover squad" message={`Remover "${modalDelSquad.nome}"? Os membros não serão excluídos, apenas a equipe.`} confirmLabel="Remover" danger
+          onConfirm={async()=>{ await api.delete("/squads/"+modalDelSquad.id); await load(); }} onClose={()=>setModalDelSquad(null)} />
+      )}
+      {modalMembersSquad && (
+        <Modal title={`Membros — ${modalMembersSquad.nome}`} onClose={()=>setModalMembersSquad(null)} maxWidth={560}>
+          <SquadMembersManager squad={modalMembersSquad} allCollabs={collabs.filter(c=>c.ativo)} onClose={()=>setModalMembersSquad(null)} onSave={load} />
         </Modal>
       )}
 

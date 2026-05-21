@@ -106,6 +106,7 @@ model Organization {
   skills             Skill[]            @relation("OrgSkills")
   ausencias          Ausencia[]         @relation("OrgAusencias")
   workflowRequests   WorkflowRequest[]  @relation("OrgWorkflowRequests")
+  squads             Squad[]            @relation("OrgSquads")
 
   @@map("organizations")
 }
@@ -383,6 +384,44 @@ model UserRequest {
   @@map("user_requests")
 }
 
+// ── Workforce: Squads ──────────────────────────────────────────────────────
+model Squad {
+  id             String   @id @default(uuid())
+  organizationId String   @map("organization_id")
+  nome           String
+  descricao      String?
+  cor            String?
+  liderId        String?  @map("lider_id")
+  ativo          Boolean  @default(true)
+  criadoEm       DateTime @default(now()) @map("criado_em")
+  atualizadoEm   DateTime @updatedAt      @map("atualizado_em")
+
+  organization   Organization  @relation("OrgSquads", fields: [organizationId], references: [id])
+  lider          Collaborator? @relation("SquadLider", fields: [liderId], references: [id], onDelete: SetNull)
+  members        SquadMember[]
+
+  @@unique([organizationId, nome])
+  @@index([organizationId])
+  @@map("squads")
+}
+
+model SquadMember {
+  id              String   @id @default(uuid())
+  squadId         String   @map("squad_id")
+  collaboratorId  String   @map("collaborator_id")
+  alocacaoPercent Int      @default(100) @map("alocacao_percent")
+  papel           String   @default("membro")
+  criadoEm        DateTime @default(now()) @map("criado_em")
+
+  squad           Squad        @relation(fields: [squadId], references: [id], onDelete: Cascade)
+  collaborator    Collaborator @relation(fields: [collaboratorId], references: [id], onDelete: Cascade)
+
+  @@unique([squadId, collaboratorId])
+  @@index([squadId])
+  @@index([collaboratorId])
+  @@map("squad_members")
+}
+
 // ── Workforce: Workflows de Aprovação ──────────────────────────────────────
 model WorkflowRequest {
   id                String   @id @default(uuid())
@@ -545,6 +584,8 @@ model Collaborator {
   liderados         Collaborator[] @relation("CollabHierarchy")
   collabSkills      CollaboratorSkill[]
   ausencias         Ausencia[]
+  squadsLiderados   Squad[]            @relation("SquadLider")
+  squadMemberships  SquadMember[]
 
   @@unique([organizationId, matricula])
   @@index([organizationId])

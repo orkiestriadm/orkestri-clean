@@ -41,6 +41,7 @@ import { SkillsModule } from './modules/skills/skills.module';
 import { AusenciasModule } from './modules/ausencias/ausencias.module';
 import { WorkflowsModule } from './modules/workflows/workflows.module';
 import { WorkforceModule } from './modules/workforce/workforce.module';
+import { SquadsModule } from './modules/squads/squads.module';
 
 @Module({
   imports: [
@@ -72,6 +73,7 @@ import { WorkforceModule } from './modules/workforce/workforce.module';
     AusenciasModule,
     WorkflowsModule,
     WorkforceModule,
+    SquadsModule,
   ],
 })
 export class AppModule {}
