@@ -52,7 +52,7 @@ export function BrandLogo({
     <span className={`inline-flex items-center ${s.gap} ${className}`}>
       <OrkestriIcon size={s.icon} />
       <span
-        className={`font-display font-bold tracking-tight text-white leading-none ${s.text}`}
+        className={`font-display font-bold tracking-tight text-[var(--text-primary)] leading-none ${s.text}`}
         style={{ letterSpacing: "-0.02em" }}
       >
         Orkiestri

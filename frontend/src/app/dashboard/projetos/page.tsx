@@ -31,11 +31,11 @@ function Avatar({ nome, size=28 }: { nome:string; size?:number }) {
 function Spin() { return <svg className="animate-spin" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 12a9 9 0 11-6.219-8.56" strokeLinecap="round"/></svg>; }
 function Modal({ title, onClose, children, wide }: any) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={e=>{if(e.target===e.currentTarget)onClose();}}>
-      <div className="card-premium w-full max-h-[90vh] overflow-y-auto animate-in fade-in zoom-in-95 duration-200" style={{ maxWidth:wide?700:480 }}>
+    <div className="modal-overlay" onClick={e=>{if((e.target as HTMLElement).classList.contains("modal-overlay"))onClose();}}>
+      <div className="modal-box" style={{ maxWidth:wide?700:480 }}>
         <div className="flex items-center justify-between mb-6">
           <h3 className="font-display text-lg font-bold text-[var(--text-primary)]">{title}</h3>
-          <button className="text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors p-1" onClick={onClose}>
+          <button className="btn-icon" onClick={onClose}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
           </button>
         </div>

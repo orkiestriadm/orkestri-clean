@@ -186,7 +186,7 @@ export default function Sidebar() {
     <aside className="sidebar">
       {/* ── Logo ── */}
       <div className="flex items-center justify-center h-16 border-b border-[var(--sidebar-border)] shrink-0 px-4">
-        <BrandLogo size="sm" />
+        <BrandLogo size="md" />
       </div>
 
       {/* ── Navigation ── */}
