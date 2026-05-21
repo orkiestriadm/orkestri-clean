@@ -231,7 +231,7 @@ export default function HeroSection() {
               className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-[rgba(167,139,250,0.28)] bg-[rgba(167,139,250,0.08)] text-[#a78bfa] text-xs font-medium mb-6"
             >
               <span className="w-1.5 h-1.5 rounded-full bg-[#a78bfa] animate-pulse" />
-              Plataforma Enterprise · 2025
+              Plataforma de Gestão Operacional · 2026
             </motion.div>
 
             {/* H1 */}
@@ -243,7 +243,7 @@ export default function HeroSection() {
             >
               Profundidade{' '}
               <span className="bg-gradient-to-r from-violet-400 via-violet-300 to-fuchsia-400 bg-clip-text text-transparent">
-                corporativa
+                operacional
               </span>
               {' '}com experiência{' '}
               <span className="bg-gradient-to-r from-cyan-400 to-violet-400 bg-clip-text text-transparent">
@@ -258,7 +258,7 @@ export default function HeroSection() {
               transition={{ duration: 0.6, delay: 0.18, ease: [0.22, 1, 0.36, 1] }}
               className="text-[var(--text-secondary)] text-lg lg:text-xl leading-relaxed max-w-xl mx-auto lg:mx-0 mb-8"
             >
-              Centralize CRM, projetos, fornecedores, financeiro e operações em uma plataforma única — integrada, fluida e construída para escalar.
+              Centralize sua Operação organizando Agendas, Projetos, Ativos e Financeiro tudo em uma única plataforma — integrada, fluida e construída para escalar.
             </motion.p>
 
             {/* CTAs */}
