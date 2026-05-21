@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard, CalendarDays, Layers, StickyNote, MessageCircle,
   Building2, GanttChart, BarChart2, Users, History, Settings, LogOut,
-  Headphones, PiggyBank, Truck, BookOpen, Package, Zap, Clock, FileText, Activity,
+  Headphones, PiggyBank, Truck, BookOpen, Package, Zap, Clock, FileText, Activity, CheckSquare,
   SmilePlus, TrendingUp, UserCircle, Receipt, ChevronDown, Shield, Star,
 } from "lucide-react";
 import { useAuthStore } from "@/lib/store";
@@ -42,6 +42,7 @@ const NAV: NavGroup[] = [
       { href: "/dashboard/agenda",    label: "Agenda",         icon: CalendarDays, permission: "agenda:ver" },
       { href: "/dashboard/ativos",    label: "Ativos",         icon: Package,      permission: "ativos:ver" },
       { href: "/dashboard/capacity",  label: "Capacidade",     icon: Activity,     permission: null },
+      { href: "/dashboard/aprovacoes",label: "Aprovações",     icon: CheckSquare,  permission: null },
       { href: "/dashboard/orcamento", label: "Orçamento",      icon: PiggyBank,    permission: "orcamento:ver" },
       { href: "/dashboard/keep",      label: "Keep",           icon: StickyNote,   permission: "keep:ver" },
     ],

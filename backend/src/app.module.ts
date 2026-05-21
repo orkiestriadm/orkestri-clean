@@ -39,6 +39,7 @@ import { CollaboratorsModule } from './modules/collaborators/collaborators.modul
 import { CapacityModule } from './modules/capacity/capacity.module';
 import { SkillsModule } from './modules/skills/skills.module';
 import { AusenciasModule } from './modules/ausencias/ausencias.module';
+import { WorkflowsModule } from './modules/workflows/workflows.module';
 
 @Module({
   imports: [
@@ -68,6 +69,7 @@ import { AusenciasModule } from './modules/ausencias/ausencias.module';
     CapacityModule,
     SkillsModule,
     AusenciasModule,
+    WorkflowsModule,
   ],
 })
 export class AppModule {}

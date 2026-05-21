@@ -105,6 +105,7 @@ model Organization {
   collaborators      Collaborator[]     @relation("OrgCollaborators")
   skills             Skill[]            @relation("OrgSkills")
   ausencias          Ausencia[]         @relation("OrgAusencias")
+  workflowRequests   WorkflowRequest[]  @relation("OrgWorkflowRequests")
 
   @@map("organizations")
 }
@@ -199,6 +200,11 @@ model User {
   collaborator              Collaborator?        @relation("UserCollaborator")
   ausenciasSolicitadas      Ausencia[]           @relation("AusenciaSolicitante")
   ausenciasAprovadas        Ausencia[]           @relation("AusenciaAprovador")
+  wfRequestsSolicitadas     WorkflowRequest[]    @relation("WfReqSolicitante")
+  wfRequestsParaAprovar     WorkflowRequest[]    @relation("WfReqAprovadorAtual")
+  wfRequestsAprovadas       WorkflowRequest[]    @relation("WfReqAprovador")
+  wfRequestsRejeitadas      WorkflowRequest[]    @relation("WfReqRejeitador")
+  wfApprovals               WorkflowApproval[]   @relation("WfApprovalAprovador")
 
   @@unique([organizationId, email])
   @@index([organizationId])
@@ -375,6 +381,58 @@ model UserRequest {
   criadoEm       DateTime  @default(now()) @map("criado_em")
   atualizadoEm   DateTime  @updatedAt      @map("atualizado_em")
   @@map("user_requests")
+}
+
+// ── Workforce: Workflows de Aprovação ──────────────────────────────────────
+model WorkflowRequest {
+  id                String   @id @default(uuid())
+  organizationId    String   @map("organization_id")
+  solicitanteId     String   @map("solicitante_id")
+  tipo              String   // despesa | horas_extra | alteracao_cadastral | folga_compensatoria | outro
+  titulo            String
+  descricao         String?  @db.Text
+  payload           Json?
+  valor             Float?
+  status            String   @default("PENDENTE") // PENDENTE | APROVADA | REJEITADA | CANCELADA
+  aprovadorAtualId  String?  @map("aprovador_atual_id")
+  aprovadoPorId     String?  @map("aprovado_por_id")
+  aprovadoEm        DateTime? @map("aprovado_em")
+  rejeitadoPorId    String?  @map("rejeitado_por_id")
+  rejeitadoEm       DateTime? @map("rejeitado_em")
+  motivoRejeicao    String?  @map("motivo_rejeicao")
+  criadoEm          DateTime @default(now()) @map("criado_em")
+  atualizadoEm      DateTime @updatedAt      @map("atualizado_em")
+
+  organization      Organization @relation("OrgWorkflowRequests", fields: [organizationId], references: [id])
+  solicitante       User         @relation("WfReqSolicitante", fields: [solicitanteId], references: [id], onDelete: Cascade)
+  aprovadorAtual    User?        @relation("WfReqAprovadorAtual", fields: [aprovadorAtualId], references: [id], onDelete: SetNull)
+  aprovadoPor       User?        @relation("WfReqAprovador",     fields: [aprovadoPorId],     references: [id], onDelete: SetNull)
+  rejeitadoPor      User?        @relation("WfReqRejeitador",    fields: [rejeitadoPorId],    references: [id], onDelete: SetNull)
+  aprovacoes        WorkflowApproval[]
+
+  @@index([organizationId])
+  @@index([solicitanteId])
+  @@index([aprovadorAtualId])
+  @@index([status])
+  @@index([tipo])
+  @@map("workflow_requests")
+}
+
+model WorkflowApproval {
+  id           String   @id @default(uuid())
+  requestId    String   @map("request_id")
+  aprovadorId  String   @map("aprovador_id")
+  nivel        Int      @default(1)
+  decisao      String   // APROVADO | REJEITADO | ESCALADO
+  observacoes  String?
+  criadoEm     DateTime @default(now()) @map("criado_em")
+
+  request      WorkflowRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  aprovador    User            @relation("WfApprovalAprovador", fields: [aprovadorId], references: [id])
+
+  @@index([requestId])
+  @@index([aprovadorId])
+  @@map("workflow_approvals")
 }
 
 // ── Workforce: Ausências ───────────────────────────────────────────────────
