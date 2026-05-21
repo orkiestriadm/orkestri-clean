@@ -460,10 +460,9 @@ export default function AgendaPage() {
       if (view==="mes") { params.mes=cur.month; params.ano=cur.year; }
       else if (view==="semana") { params.inicio=weekStart.toISOString(); params.fim=addDays(weekStart,7).toISOString(); }
       else { const d=new Date(curDate); d.setHours(0,0,0,0); params.inicio=d.toISOString(); const e=new Date(curDate); e.setHours(23,59,59,999); params.fim=e.toISOString(); }
-      const canSeeUsers = me?.isMaster || (me?.permissions || []).some(p => p === "*" || p === "usuarios:ver");
       const [evRes, usRes] = await Promise.all([
         api.get("/agenda",{params}),
-        canSeeUsers ? api.get("/users") : Promise.resolve({ data: [] }),
+        api.get("/users/picklist").catch(() => ({ data: [] })),
       ]);
       setEvents(evRes.data); setUsers(usRes.data);
     } catch {} finally { setLoading(false); }

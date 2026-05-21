@@ -83,6 +83,19 @@ class UsersController {
   @Permissions("usuarios:ver")
   async getRoles() { return this.prisma.role.findMany({ orderBy: { nome: "asc" } }); }
 
+  // Lista leve para seletores (participantes de eventos, membros de tarefas, etc).
+  // Não exige usuarios:ver — qualquer usuário autenticado pode escolher colegas.
+  @Get("picklist")
+  async picklist(@Req() req: any) {
+    const orgId = req?.user?.organizationId;
+    const users = await this.prisma.user.findMany({
+      where: { ...(orgId ? { organizationId: orgId } : {}), ativo: true } as any,
+      orderBy: { nome: "asc" },
+      select: { id: true, nome: true, email: true, avatar: true },
+    });
+    return users;
+  }
+
   // ── Self-profile endpoints (no extra permission required) ──────────────────
   @Get("me")
   async getMe(@Req() req: any) {
