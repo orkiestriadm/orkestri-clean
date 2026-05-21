@@ -26,6 +26,7 @@ const TITLES: Record<string, { label: string; desc: string }> = {
   "/dashboard/contratos":              { label: "Contratos",      desc: "Gestão comercial" },
   "/dashboard/faturas":                { label: "Faturas",        desc: "Cobranças e pagamentos" },
   "/dashboard/orcamento":              { label: "Orçamento",      desc: "CAPEX / OPEX" },
+  "/dashboard/workforce":              { label: "Workforce",      desc: "Visão consolidada da gestão operacional de pessoas" },
   "/dashboard/capacity":               { label: "Capacidade",     desc: "Consumo operacional vs capacidade nominal" },
   "/dashboard/aprovacoes":             { label: "Aprovações",     desc: "Workflows de aprovação hierárquica" },
   "/dashboard/automacoes":             { label: "Automações",     desc: "Regras e integrações" },
