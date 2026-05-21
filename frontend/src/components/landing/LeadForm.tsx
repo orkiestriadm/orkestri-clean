@@ -134,7 +134,7 @@ export default function LeadForm() {
             <div className="flex flex-col gap-4">
               {[
                 { icon: Mail, label: 'E-mail', value: 'contato@orkiestri.com' },
-                { icon: Phone, label: 'WhatsApp', value: '+55 (11) 9 0000-0000' },
+                { icon: Phone, label: 'WhatsApp', value: '+55 (14) 9 9166-1688' },
               ].map(({ icon: Icon, label, value }) => (
                 <div key={label} className="flex items-center gap-3">
                   <div className="w-9 h-9 rounded-xl bg-[rgba(167,139,250,0.08)] border border-[rgba(167,139,250,0.15)] flex items-center justify-center">
@@ -173,7 +173,7 @@ export default function LeadForm() {
                     Recebemos sua solicitação. Nossa equipe entrará em contato em até 24 horas.
                   </p>
                   <button
-                    onClick={() => { setSuccess(false); setForm({ nome:'', empresa:'', telefone:'', email:'', mensagem:'' }) }}
+                    onClick={() => { setSuccess(false); setForm({ nome: '', empresa: '', telefone: '', email: '', mensagem: '' }) }}
                     className="mt-2 text-xs text-[var(--accent-violet)] hover:underline"
                   >
                     Enviar outra mensagem

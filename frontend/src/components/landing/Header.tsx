@@ -3,8 +3,9 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import Link from 'next/link'
-import { Menu, X, ArrowRight } from 'lucide-react'
+import { Menu, X, ArrowRight, Moon, Sun } from 'lucide-react'
 import { BrandLogo } from '@/components/ui/logo'
+import { useTheme } from '@/lib/theme'
 
 const NAV_LINKS = [
   { label: 'Plataforma', href: '#plataforma' },
@@ -24,6 +25,12 @@ function scrollTo(href: string) {
 export default function Header() {
   const [scrolled, setScrolled] = useState(false)
   const [open, setOpen] = useState(false)
+  const { theme, toggle } = useTheme()
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 24)
@@ -71,6 +78,16 @@ export default function Header() {
 
             {/* CTA + hamburger */}
             <div className="flex items-center gap-3">
+              {mounted && (
+                <button
+                  onClick={toggle}
+                  className="hidden sm:flex items-center justify-center p-2.5 rounded-xl border border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors"
+                  aria-label="Alternar tema"
+                >
+                  {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
+                </button>
+              )}
+
               <Link
                 href="/login"
                 onClick={() => {
@@ -131,7 +148,17 @@ export default function Header() {
                 ))}
               </div>
 
-              <div className="p-4 border-t border-[var(--border-subtle)]">
+              <div className="p-4 border-t border-[var(--border-subtle)] flex flex-col gap-3">
+                {mounted && (
+                  <button
+                    onClick={toggle}
+                    className="flex items-center justify-between w-full px-4 py-3 text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] rounded-xl transition-colors text-left"
+                  >
+                    <span>Modo {theme === 'dark' ? 'Claro' : 'Escuro'}</span>
+                    {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
+                  </button>
+                )}
+
                 <Link
                   href="/login"
                   onClick={() => setOpen(false)}
