@@ -13,41 +13,49 @@ function scrollTo(href: string) {
 
 const PLANS = [
   {
-    name: 'Starter',
-    desc: 'Para equipes que estão começando a centralizar sua operação.',
-    price: 'Sob consulta',
-    priceNote: 'Entre em contato para detalhes',
+    name: 'Business Cloud',
+    desc: 'Ideal para empresas de pequeno e médio porte.',
+    price: 'R$ 347,00/mês',
+    priceNote: 'Usuário operacional execedente R$ 19,00/mês',
     highlight: false,
     badge: null as string | null,
     color: '#a78bfa',
     features: [
       'Até 15 usuários',
-      'CRM e pipeline de clientes',
+      'Agenda c/ Whatssap integrado',
       'Gestão de chamados (Service Desk)',
       'Projetos e tarefas',
-      'Agenda integrada',
-      'Relatórios básicos',
+      'Workflows',
+      'Dashboards executivos',
+      'Gestão Operacional',
+      'Controle Orçamentário',
+      'Ambiente Cloud Monitorado',
       'Suporte por e-mail',
+
     ],
-    cta: 'Solicitar acesso',
+    cta: 'Solicitar demonstração',
   },
   {
-    name: 'Business',
-    desc: 'Para empresas que precisam de gestão completa e automações inteligentes.',
-    price: 'Sob consulta',
-    priceNote: 'Plano mais completo',
+    name: 'Business Plus',
+    desc: 'Para empresas com multiplus setores que precisam de gestão completa.',
+    price: 'R$ 997,00/mês',
+    priceNote: 'Plano mais completo com licenciamento de 3 Usuários Administradores',
     highlight: true,
     badge: 'Mais popular',
     color: '#7c3aed',
     features: [
-      'Usuários ilimitados',
-      'CRM avançado + contratos e faturas',
+      'Até 30 usuários',
+      'Todas as opções do Plano Business Cloud',
       'CAPEX / OPEX completo',
       'Gestão de fornecedores',
       'Automações e workflows',
       'Notificações via WhatsApp',
       'Dashboards executivos',
       'CSAT e métricas de SLA',
+      'Monitoramento de SLA',
+      'Gestão de Horas sobre atendimentos de chamado',
+      'Gestão de contratos',
+      'Gestão de Orçamentos de Serviços',
       'Suporte prioritário',
     ],
     cta: 'Solicitar demonstração',
@@ -55,8 +63,8 @@ const PLANS = [
   {
     name: 'Enterprise',
     desc: 'Para grandes operações com requisitos avançados de segurança e escala.',
-    price: 'Personalizado',
-    priceNote: 'Proposta sob medida',
+    price: 'R$ 2900,00/mês',
+    priceNote: 'Sistema 100% Customizado de acordo com a necessidade da sua empresa',
     highlight: false,
     badge: null as string | null,
     color: '#22d3ee',
@@ -115,11 +123,10 @@ export default function PricingSection() {
               initial={{ opacity: 0, y: 36 }}
               animate={inView ? { opacity: 1, y: 0 } : {}}
               transition={{ delay: 0.1 + i * 0.12, duration: 0.65, ease: [0.22, 1, 0.36, 1] }}
-              className={`group relative rounded-2xl border flex flex-col transition-all duration-300 ${
-                plan.highlight
+              className={`group relative rounded-2xl border flex flex-col transition-all duration-300 ${plan.highlight
                   ? 'bg-gradient-to-b from-[rgba(124,58,237,0.18)] to-[rgba(14,8,36,0.88)] border-[rgba(124,58,237,0.45)] shadow-[0_0_60px_rgba(124,58,237,0.15),inset_0_1px_0_rgba(255,255,255,0.12)] scale-[1.02] lg:scale-105'
                   : 'lp-card border-[rgba(255,255,255,0.07)] backdrop-blur-md hover:border-[rgba(167,139,250,0.28)] hover:-translate-y-1.5 hover:shadow-[0_0_40px_rgba(124,58,237,0.08)] overflow-hidden'
-              }`}
+                }`}
             >
               {/* Top edge highlight for non-highlighted cards */}
               {!plan.highlight && (
@@ -162,11 +169,10 @@ export default function PricingSection() {
               <div className="px-7 pb-7 mt-auto">
                 <button
                   onClick={() => scrollTo('#contato')}
-                  className={`w-full flex items-center justify-center gap-2 py-3.5 rounded-xl text-sm font-semibold transition-all duration-200 ${
-                    plan.highlight
+                  className={`w-full flex items-center justify-center gap-2 py-3.5 rounded-xl text-sm font-semibold transition-all duration-200 ${plan.highlight
                       ? 'bg-gradient-to-r from-violet-600 to-violet-500 text-white hover:from-violet-500 hover:to-violet-400 shadow-[0_0_20px_rgba(124,58,237,0.4)] hover:shadow-[0_0_32px_rgba(124,58,237,0.6)] hover:-translate-y-0.5 active:translate-y-0'
                       : 'border border-[rgba(162,130,255,0.22)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[rgba(162,130,255,0.4)] hover:bg-[rgba(167,139,250,0.06)]'
-                  }`}
+                    }`}
                 >
                   {plan.cta} <ArrowRight size={14} />
                 </button>
@@ -181,7 +187,7 @@ export default function PricingSection() {
           transition={{ delay: 0.65, duration: 0.5 }}
           className="text-center text-xs text-[var(--text-muted)] mt-10"
         >
-          Sem taxa de implantação · Onboarding incluído · Suporte durante todo o contrato
+          · Onboarding incluído · Suporte durante todo o contrato
         </motion.p>
       </div>
     </section>
