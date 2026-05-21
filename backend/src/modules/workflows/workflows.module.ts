@@ -32,6 +32,15 @@ export class WorkflowsService {
     return user?.organizationId ? { organizationId: user.organizationId } : {};
   }
 
+  private async notify(userId: string | null | undefined, tipo: string, titulo: string, mensagem: string, refId?: string) {
+    if (!userId) return;
+    try {
+      await (this.prisma as any).notification.create({
+        data: { userId, tipo, titulo, mensagem, referenciaTipo: "workflow", referenciaId: refId || null },
+      });
+    } catch {}
+  }
+
   /** Encontra o aprovador inicial: gestor direto do solicitante (via Collaborator) */
   private async findInitialApprover(userId: string, orgId: string): Promise<string | null> {
     const collab = await (this.prisma as any).collaborator.findFirst({
@@ -97,7 +106,7 @@ export class WorkflowsService {
     if (!dto.titulo?.trim()) throw new BadRequestException("Título obrigatório");
     const aprovador = await this.findInitialApprover(user.id, user.organizationId);
 
-    return (this.prisma as any).workflowRequest.create({
+    const created = await (this.prisma as any).workflowRequest.create({
       data: {
         organizationId: user.organizationId,
         solicitanteId: user.id,
@@ -114,6 +123,11 @@ export class WorkflowsService {
         aprovadorAtual: { select: { id: true, nome: true } },
       },
     });
+    await this.notify(aprovador, "workflow_pendente",
+      "Solicitação aguardando aprovação",
+      `${created.solicitante.nome} enviou: ${created.titulo}`,
+      created.id);
+    return created;
   }
 
   async approve(id: string, dto: DecisionDto, user: any) {
@@ -138,15 +152,21 @@ export class WorkflowsService {
     if (precisaSubir) {
       const proximo = await this.findNextApprover(user.id, user.organizationId);
       if (proximo) {
-        return (this.prisma as any).workflowRequest.update({
+        const escalada = await (this.prisma as any).workflowRequest.update({
           where: { id },
           data: { aprovadorAtualId: proximo, atualizadoEm: new Date() },
         });
+        await this.notify(proximo, "workflow_pendente",
+          "Solicitação escalada para aprovação",
+          `"${r.titulo}" (R$ ${(r.valor||0).toFixed(2)}) foi escalada para você`, id);
+        await this.notify(r.solicitanteId, "workflow_andamento",
+          "Solicitação em análise", `"${r.titulo}" foi aprovada no 1º nível e escalada.`, id);
+        return escalada;
       }
     }
 
     // Finaliza como APROVADA
-    return (this.prisma as any).workflowRequest.update({
+    const aprovada = await (this.prisma as any).workflowRequest.update({
       where: { id },
       data: {
         status: "APROVADA",
@@ -155,6 +175,9 @@ export class WorkflowsService {
         aprovadorAtualId: null,
       },
     });
+    await this.notify(r.solicitanteId, "workflow_aprovado",
+      "Solicitação aprovada", `Sua solicitação "${r.titulo}" foi aprovada.`, id);
+    return aprovada;
   }
 
   async reject(id: string, dto: RejectDto, user: any) {
@@ -173,7 +196,7 @@ export class WorkflowsService {
         observacoes: dto.observacoes?.trim() || null,
       },
     });
-    return (this.prisma as any).workflowRequest.update({
+    const rejeitada = await (this.prisma as any).workflowRequest.update({
       where: { id },
       data: {
         status: "REJEITADA",
@@ -183,6 +206,9 @@ export class WorkflowsService {
         aprovadorAtualId: null,
       },
     });
+    await this.notify(r.solicitanteId, "workflow_rejeitado",
+      "Solicitação rejeitada", `Sua solicitação "${r.titulo}" foi rejeitada. Motivo: ${dto.motivo.trim()}`, id);
+    return rejeitada;
   }
 
   async cancel(id: string, user: any) {

@@ -40,6 +40,15 @@ export class AusenciasService {
     return user?.organizationId ? { organizationId: user.organizationId } : {};
   }
 
+  private async notify(userId: string | null | undefined, tipo: string, titulo: string, mensagem: string, refId?: string) {
+    if (!userId) return;
+    try {
+      await (this.prisma as any).notification.create({
+        data: { userId, tipo, titulo, mensagem, referenciaTipo: "ausencia", referenciaId: refId || null },
+      });
+    } catch {}
+  }
+
   private async canManage(ausenciaId: string, user: any): Promise<{ ausencia: any; isOwn: boolean; isGestor: boolean; isMaster: boolean }> {
     const a = await (this.prisma as any).ausencia.findFirst({
       where: { id: ausenciaId, ...this.orgScope(user) },
@@ -88,10 +97,11 @@ export class AusenciasService {
 
     const collab = await (this.prisma as any).collaborator.findFirst({
       where: { id: dto.collaboratorId, ...this.orgScope(user) },
+      include: { user: { select: { nome: true } }, gestor: { select: { userId: true } } },
     });
     if (!collab) throw new NotFoundException("Colaborador não encontrado");
 
-    return (this.prisma as any).ausencia.create({
+    const ausencia = await (this.prisma as any).ausencia.create({
       data: {
         organizationId: user.organizationId,
         collaboratorId: dto.collaboratorId,
@@ -109,6 +119,12 @@ export class AusenciasService {
         collaborator: { include: { user: { select: { id: true, nome: true } } } },
       },
     });
+    // Notifica gestor direto
+    await this.notify(collab.gestor?.userId, "ausencia_solicitada",
+      "Nova solicitação de ausência",
+      `${collab.user.nome} solicitou ${dto.tipo} de ${dInicio.toLocaleDateString("pt-BR")} a ${dFim.toLocaleDateString("pt-BR")}`,
+      ausencia.id);
+    return ausencia;
   }
 
   async update(id: string, dto: UpdateAusenciaDto, user: any) {
@@ -144,20 +160,26 @@ export class AusenciasService {
     const { ausencia, isGestor, isMaster } = await this.canManage(id, user);
     if (ausencia.status !== "PENDENTE") throw new BadRequestException("Ausência não está pendente");
     if (!isGestor && !isMaster) throw new ForbiddenException("Apenas gestor direto ou master pode aprovar");
-    return (this.prisma as any).ausencia.update({
+    const updated = await (this.prisma as any).ausencia.update({
       where: { id },
       data: { status: "APROVADA", aprovadaPorId: user.id, aprovadaEm: new Date(), motivoRejeicao: null },
     });
+    await this.notify(ausencia.solicitadaPorId, "ausencia_aprovada",
+      "Ausência aprovada", `Sua solicitação de ${ausencia.tipo} foi aprovada.`, id);
+    return updated;
   }
 
   async reject(id: string, motivo: string, user: any) {
     const { ausencia, isGestor, isMaster } = await this.canManage(id, user);
     if (ausencia.status !== "PENDENTE") throw new BadRequestException("Ausência não está pendente");
     if (!isGestor && !isMaster) throw new ForbiddenException("Apenas gestor direto ou master pode rejeitar");
-    return (this.prisma as any).ausencia.update({
+    const updated = await (this.prisma as any).ausencia.update({
       where: { id },
       data: { status: "REJEITADA", aprovadaPorId: user.id, aprovadaEm: new Date(), motivoRejeicao: motivo?.trim() || null },
     });
+    await this.notify(ausencia.solicitadaPorId, "ausencia_rejeitada",
+      "Ausência rejeitada", `Sua solicitação de ${ausencia.tipo} foi rejeitada.${motivo ? " Motivo: " + motivo : ""}`, id);
+    return updated;
   }
 
   async cancel(id: string, user: any) {
