@@ -13,7 +13,7 @@ const STEPS = [
     border: 'rgba(167,139,250,0.25)',
     glow: 'rgba(167,139,250,0.18)',
     title: 'Centralize operações',
-    desc: 'Unifique CRM, chamados, projetos, fornecedores e financeiro em um único ambiente integrado e auditável. Elimine planilhas e sistemas fragmentados de uma vez.',
+    desc: 'Controle sua operação, chamados, projetos, fornecedores e financeiro em um único ambiente integrado e auditável. Elimine planilhas e sistemas fragmentados de uma vez.',
     tag: 'Setup em < 24h',
   },
   {

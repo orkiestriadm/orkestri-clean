@@ -10,8 +10,8 @@ import {
 const MODULES = [
   {
     icon: Users,
-    name: 'CRM',
-    description: 'Pipeline de clientes, contratos, histórico e comunicação centralizada.',
+    name: 'Chamados',
+    description: 'Organize demandas, controle desenvolvimento do time, tudo com histórico e comunicação centralizada.',
     color: '#a78bfa',
     gradient: 'from-violet-500/20 to-violet-600/5',
     border: 'rgba(167,139,250,0.2)',
@@ -35,7 +35,7 @@ const MODULES = [
   {
     icon: BarChart3,
     name: 'Financeiro',
-    description: 'Faturas, contratos, receitas, despesas e relatórios financeiros.',
+    description: 'Orçamento(Capex/Opex), contratos, receitas, despesas e relatórios financeiros.',
     color: '#22d3ee',
     gradient: 'from-cyan-500/20 to-cyan-600/5',
     border: 'rgba(34,211,238,0.2)',
@@ -158,7 +158,7 @@ export default function ModulesSection() {
                     style={{ color: mod.color }}>
                     Explorar módulo
                     <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-                      <path d="M2 6h8M7 3l3 3-3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                      <path d="M2 6h8M7 3l3 3-3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                     </svg>
                   </div>
                 </div>
