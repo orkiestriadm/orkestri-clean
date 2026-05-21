@@ -1,7 +1,7 @@
 import {
   Module, Controller, Get, Post, Put, Patch, Delete,
   Body, Param, UseGuards, Req, Res, HttpCode,
-  ForbiddenException, NotFoundException, ConflictException,
+  ForbiddenException, NotFoundException, ConflictException, BadRequestException,
 } from "@nestjs/common";
 import { AuthGuard } from "@nestjs/passport";
 import { IsString, IsOptional, IsBoolean, IsEmail, MinLength } from "class-validator";
@@ -118,8 +118,18 @@ class SuperAdminOrgsController {
     const org = await (this.prisma as any).organization.findUnique({ where: { id } });
     if (!org) throw new NotFoundException("Organização não encontrada");
     if (org.slug === "default") throw new ForbiddenException("Não é possível excluir a organização padrão");
-    await (this.prisma as any).organization.delete({ where: { id } });
-    return { ok: true };
+    try {
+      await (this.prisma as any).organization.delete({ where: { id } });
+      return { ok: true };
+    } catch (e: any) {
+      // Caso reste alguma FK sem cascade, retorna mensagem clara em vez de 500
+      if (e?.code === "P2003" || /foreign key/i.test(e?.message || "")) {
+        throw new BadRequestException(
+          "Não foi possível excluir: ainda há registros vinculados a esta organização que impedem a remoção. Contate o suporte técnico.",
+        );
+      }
+      throw e;
+    }
   }
 
   @Get(":id/crm-cliente")

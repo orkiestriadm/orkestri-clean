@@ -149,7 +149,7 @@ model User {
   criadoEm        DateTime  @default(now()) @map("criado_em")
   atualizadoEm    DateTime  @updatedAt @map("atualizado_em")
 
-  organization     Organization @relation(fields: [organizationId], references: [id])
+  organization     Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   superAdmin       SuperAdmin?
   userRoles        UserRole[]  @relation("UserToRoles")
   rolesAtrib       UserRole[]  @relation("AtribuidoPor")
@@ -222,7 +222,7 @@ model OrcamentoCiclo {
   status         String   @default("rascunho")
   aprovadoPorId  String?  @map("aprovado_por_id")
   aprovadoPor    User?    @relation("CicloAprovador", fields: [aprovadoPorId], references: [id], onDelete: SetNull)
-  organization   Organization @relation(fields: [organizationId], references: [id])
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   itens          ItemOrcamento[]
   criadoEm      DateTime @default(now()) @map("criado_em")
   atualizadoEm  DateTime @updatedAt @map("atualizado_em")
@@ -240,7 +240,7 @@ model CentroCusto {
   ativo          Boolean  @default(true)
   responsavelId  String?  @map("responsavel_id")
   responsavel    User?    @relation("CentroCustoResp", fields: [responsavelId], references: [id], onDelete: SetNull)
-  organization   Organization @relation(fields: [organizationId], references: [id])
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   itens          ItemOrcamento[]
   criadoEm      DateTime @default(now()) @map("criado_em")
   @@unique([organizationId, codigo])
@@ -258,7 +258,7 @@ model CategoriaOrcamento {
   paiId          String?  @map("pai_id")
   pai            CategoriaOrcamento?  @relation("CatPai", fields: [paiId], references: [id])
   filhas         CategoriaOrcamento[] @relation("CatPai")
-  organization   Organization @relation(fields: [organizationId], references: [id])
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   itens          ItemOrcamento[]
   criadoEm      DateTime @default(now()) @map("criado_em")
   @@index([organizationId])
@@ -274,7 +274,7 @@ model FornecedorOrcamento {
   telefone       String?
   segmento       String?
   ativo          Boolean  @default(true)
-  organization   Organization @relation(fields: [organizationId], references: [id])
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   itens          ItemOrcamento[]
   criadoEm      DateTime @default(now()) @map("criado_em")
   @@index([organizationId])
@@ -396,7 +396,7 @@ model Squad {
   criadoEm       DateTime @default(now()) @map("criado_em")
   atualizadoEm   DateTime @updatedAt      @map("atualizado_em")
 
-  organization   Organization  @relation("OrgSquads", fields: [organizationId], references: [id])
+  organization   Organization  @relation("OrgSquads", fields: [organizationId], references: [id], onDelete: Cascade)
   lider          Collaborator? @relation("SquadLider", fields: [liderId], references: [id], onDelete: SetNull)
   members        SquadMember[]
 
@@ -442,7 +442,7 @@ model WorkflowRequest {
   criadoEm          DateTime @default(now()) @map("criado_em")
   atualizadoEm      DateTime @updatedAt      @map("atualizado_em")
 
-  organization      Organization @relation("OrgWorkflowRequests", fields: [organizationId], references: [id])
+  organization      Organization @relation("OrgWorkflowRequests", fields: [organizationId], references: [id], onDelete: Cascade)
   solicitante       User         @relation("WfReqSolicitante", fields: [solicitanteId], references: [id], onDelete: Cascade)
   aprovadorAtual    User?        @relation("WfReqAprovadorAtual", fields: [aprovadorAtualId], references: [id], onDelete: SetNull)
   aprovadoPor       User?        @relation("WfReqAprovador",     fields: [aprovadoPorId],     references: [id], onDelete: SetNull)
@@ -494,7 +494,7 @@ model Ausencia {
   criadoEm        DateTime @default(now()) @map("criado_em")
   atualizadoEm    DateTime @updatedAt      @map("atualizado_em")
 
-  organization    Organization  @relation("OrgAusencias", fields: [organizationId], references: [id])
+  organization    Organization  @relation("OrgAusencias", fields: [organizationId], references: [id], onDelete: Cascade)
   collaborator    Collaborator  @relation(fields: [collaboratorId], references: [id], onDelete: Cascade)
   solicitadaPor   User?         @relation("AusenciaSolicitante", fields: [solicitadaPorId], references: [id], onDelete: SetNull)
   aprovadaPor     User?         @relation("AusenciaAprovador",   fields: [aprovadaPorId],   references: [id], onDelete: SetNull)
@@ -518,7 +518,7 @@ model Skill {
   criadoEm       DateTime @default(now()) @map("criado_em")
   atualizadoEm   DateTime @updatedAt      @map("atualizado_em")
 
-  organization   Organization @relation("OrgSkills", fields: [organizationId], references: [id])
+  organization   Organization @relation("OrgSkills", fields: [organizationId], references: [id], onDelete: Cascade)
   collaborators  CollaboratorSkill[]
   chamados       Chamado[]  @relation("ChamadoSkill")
 
@@ -577,7 +577,7 @@ model Collaborator {
   criadoEm          DateTime @default(now()) @map("criado_em")
   atualizadoEm      DateTime @updatedAt      @map("atualizado_em")
 
-  organization      Organization @relation("OrgCollaborators", fields: [organizationId], references: [id])
+  organization      Organization @relation("OrgCollaborators", fields: [organizationId], references: [id], onDelete: Cascade)
   user              User         @relation("UserCollaborator", fields: [userId], references: [id], onDelete: Cascade)
   setor             Setor?       @relation("SetorCollaborators", fields: [setorId], references: [id], onDelete: SetNull)
   gestor            Collaborator? @relation("CollabHierarchy", fields: [gestorId], references: [id], onDelete: SetNull)
@@ -717,7 +717,7 @@ model Event {
   ata            String?   @db.Text
   criadoEm      DateTime  @default(now()) @map("criado_em")
   atualizadoEm  DateTime  @updatedAt @map("atualizado_em")
-  organization   Organization @relation(fields: [organizationId], references: [id])
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   user           User         @relation("EventOwner", fields: [userId], references: [id])
   criadoPor      User         @relation("EventCreator", fields: [criadoPorId], references: [id])
   participants   EventParticipant[]
@@ -767,7 +767,7 @@ model Cliente {
   dataFechamento DateTime? @map("data_fechamento")
   criadoEm      DateTime  @default(now()) @map("criado_em")
   atualizadoEm  DateTime  @updatedAt @map("atualizado_em")
-  organization   Organization @relation(fields: [organizationId], references: [id])
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   responsavel    User?        @relation("ClienteResponsavel", fields: [responsavelId], references: [id])
   projetos       Project[]
   chamados       Chamado[]
@@ -797,7 +797,7 @@ model Contrato {
   observacoes    String?   @db.Text
   criadoEm      DateTime  @default(now()) @map("criado_em")
   atualizadoEm  DateTime  @updatedAt @map("atualizado_em")
-  organization   Organization @relation(fields: [organizationId], references: [id])
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   cliente        Cliente      @relation(fields: [clienteId], references: [id], onDelete: Cascade)
   responsavel    User?        @relation("ContratoResponsavel", fields: [responsavelId], references: [id], onDelete: SetNull)
   faturas        Fatura[]
@@ -837,7 +837,7 @@ model SlaRegra {
   ativo           Boolean  @default(true)
   criadoEm        DateTime @default(now()) @map("criado_em")
   atualizadoEm    DateTime @updatedAt @map("atualizado_em")
-  organization    Organization @relation(fields: [organizationId], references: [id])
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   chamados        Chamado[]
   @@unique([organizationId, prioridade, categoria])
   @@map("sla_regras")
@@ -870,7 +870,7 @@ model Chamado {
   avaliacaoNota      String?   @map("avaliacao_nota") @db.Text
   criadoEm           DateTime  @default(now()) @map("criado_em")
   atualizadoEm       DateTime  @updatedAt @map("atualizado_em")
-  organization  Organization       @relation(fields: [organizationId], references: [id])
+  organization  Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   solicitante   User               @relation("ChamadoSolicitante", fields: [solicitanteId], references: [id])
   atendente     User?              @relation("ChamadoAtendente", fields: [atendenteId], references: [id])
   cliente       Cliente?           @relation(fields: [clienteId], references: [id], onDelete: SetNull)
@@ -917,7 +917,7 @@ model Project {
   cor            String?
   criadoEm      DateTime @default(now()) @map("criado_em")
   atualizadoEm  DateTime @updatedAt @map("atualizado_em")
-  organization  Organization    @relation(fields: [organizationId], references: [id])
+  organization  Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   criadoPor     User            @relation("ProjectOwner", fields: [criadoPorId], references: [id])
   cliente       Cliente?        @relation(fields: [clienteId], references: [id])
   members       ProjectMember[]
@@ -1005,7 +1005,7 @@ model Note {
   ordem          Int      @default(0)
   criadoEm      DateTime @default(now()) @map("criado_em")
   atualizadoEm  DateTime @updatedAt @map("atualizado_em")
-  organization  Organization       @relation(fields: [organizationId], references: [id])
+  organization  Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   user          User               @relation(fields: [userId], references: [id])
   labels        NoteLabelMap[]
   collaborators NoteCollaborator[]
@@ -1020,7 +1020,7 @@ model NoteLabel {
   userId         String @map("user_id")
   nome           String
   cor            String?
-  organization   Organization @relation(fields: [organizationId], references: [id])
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   user           User         @relation(fields: [userId], references: [id])
   notes          NoteLabelMap[]
   @@unique([organizationId, userId, nome])
@@ -1118,7 +1118,7 @@ model AuditLog {
   dados          Json?
   ip             String?
   criadoEm      DateTime @default(now()) @map("criado_em")
-  organization  Organization @relation(fields: [organizationId], references: [id])
+  organization  Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   user          User?        @relation(fields: [userId], references: [id])
   @@index([organizationId, criadoEm(sort: Desc)])
   @@index([userId])
@@ -1141,7 +1141,7 @@ model Automacao {
   ultimaExecucao DateTime? @map("ultima_execucao")
   criadoEm       DateTime  @default(now()) @map("criado_em")
   atualizadoEm   DateTime  @updatedAt @map("atualizado_em")
-  organization   Organization @relation(fields: [organizationId], references: [id])
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   execucoes      AutomacaoExecucao[]
   @@index([organizationId])
   @@map("automacoes")
@@ -1172,7 +1172,7 @@ model CategoriaAtivo {
   cor            String   @default("#7c3aed")
   ativo          Boolean  @default(true)
   criadoEm      DateTime @default(now()) @map("criado_em")
-  organization  Organization @relation(fields: [organizationId], references: [id])
+  organization  Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   ativos        Ativo[]
   @@unique([organizationId, nome])
   @@map("categorias_ativo")
@@ -1198,7 +1198,7 @@ model Ativo {
   observacoes     String?   @db.Text
   criadoEm       DateTime  @default(now()) @map("criado_em")
   atualizadoEm   DateTime  @updatedAt @map("atualizado_em")
-  organization  Organization    @relation(fields: [organizationId], references: [id])
+  organization  Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   categoria     CategoriaAtivo? @relation(fields: [categoriaId], references: [id], onDelete: SetNull)
   responsavel   User?           @relation("AtivoResponsavel", fields: [responsavelId], references: [id], onDelete: SetNull)
   setor         Setor?          @relation(fields: [setorId], references: [id], onDelete: SetNull)
@@ -1239,7 +1239,7 @@ model CategoriaConhecimento {
   ordem          Int      @default(0)
   ativo          Boolean  @default(true)
   criadoEm      DateTime @default(now()) @map("criado_em")
-  organization  Organization @relation(fields: [organizationId], references: [id])
+  organization  Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   artigos       ArtigoConhecimento[]
   @@unique([organizationId, nome])
   @@map("categorias_conhecimento")
@@ -1260,7 +1260,7 @@ model ArtigoConhecimento {
   publicadoEm    DateTime? @map("publicado_em")
   criadoEm       DateTime @default(now()) @map("criado_em")
   atualizadoEm   DateTime @updatedAt @map("atualizado_em")
-  organization  Organization           @relation(fields: [organizationId], references: [id])
+  organization  Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   categoria     CategoriaConhecimento? @relation(fields: [categoriaId], references: [id], onDelete: SetNull)
   autor         User @relation("ArtigoAutor", fields: [autorId], references: [id])
   @@unique([organizationId, slug])
@@ -1280,7 +1280,7 @@ model AlertConfig {
   mensagem       String
   criadoEm      DateTime @default(now()) @map("criado_em")
   atualizadoEm  DateTime @updatedAt @map("atualizado_em")
-  organization  Organization @relation(fields: [organizationId], references: [id])
+  organization  Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   @@unique([organizationId, minutos])
   @@map("alert_configs")
 }
@@ -1295,7 +1295,7 @@ model Setor {
   parentId       String?  @map("parent_id")
   responsavelId  String?  @map("responsavel_id")
   criadoEm      DateTime @default(now()) @map("criado_em")
-  organization  Organization @relation(fields: [organizationId], references: [id])
+  organization  Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   parent        Setor?   @relation("SetorHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
   filhos        Setor[]  @relation("SetorHierarchy")
   responsavel   User?    @relation("SetorResponsavel", fields: [responsavelId], references: [id], onDelete: SetNull)
@@ -1313,7 +1313,7 @@ model SistemaConfig {
   valor          String
   criadoEm      DateTime @default(now()) @map("criado_em")
   atualizadoEm  DateTime @updatedAt @map("atualizado_em")
-  organization  Organization @relation(fields: [organizationId], references: [id])
+  organization  Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   @@unique([organizationId, chave])
   @@map("sistema_configs")
 }
@@ -1358,7 +1358,7 @@ model Supplier {
   observacoes            String?
   criadoPorId            String?  @map("criado_por_id")
   criadoPor              User?    @relation("SupplierCriador", fields: [criadoPorId], references: [id], onDelete: SetNull)
-  organization           Organization @relation(fields: [organizationId], references: [id])
+  organization           Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   contacts               SupplierContact[]
   documents              SupplierDocument[]
   history                SupplierHistory[]
@@ -1421,7 +1421,7 @@ model ApontamentoHoras {
   criadoEm       DateTime @default(now()) @map("criado_em")
   chamado        Chamado      @relation(fields: [chamadoId], references: [id], onDelete: Cascade)
   user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  organization   Organization? @relation(fields: [organizationId], references: [id])
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   @@index([chamadoId])
   @@index([userId])
   @@index([organizationId])
@@ -1447,7 +1447,7 @@ model Fatura {
   observacoes    String?   @db.Text
   criadoEm       DateTime  @default(now()) @map("criado_em")
   atualizadoEm   DateTime  @updatedAt @map("atualizado_em")
-  organization  Organization @relation(fields: [organizationId], references: [id])
+  organization  Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   contrato      Contrato?    @relation(fields: [contratoId], references: [id], onDelete: SetNull)
   cliente       Cliente      @relation(fields: [clienteId], references: [id], onDelete: Cascade)
   criadoPor     User?        @relation("FaturaCriador", fields: [criadoPorId], references: [id], onDelete: SetNull)
@@ -1496,7 +1496,7 @@ model CadastroRequest {
   criadoPorId       String?   @map("criado_por_id")
   criadoEm          DateTime  @default(now()) @map("criado_em")
   atualizadoEm      DateTime  @updatedAt @map("atualizado_em")
-  organization  Organization  @relation("CadReqOrg", fields: [organizationId], references: [id])
+  organization  Organization  @relation("CadReqOrg", fields: [organizationId], references: [id], onDelete: Cascade)
   cliente       Cliente?      @relation(fields: [clienteId], references: [id], onDelete: SetNull)
   aprovadoPor   User?         @relation("CadReqAprovador", fields: [aprovadoPorId], references: [id], onDelete: SetNull)
   criadoPor     User?         @relation("CadReqCriador", fields: [criadoPorId], references: [id], onDelete: SetNull)
