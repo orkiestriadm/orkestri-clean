@@ -116,6 +116,13 @@ export class AusenciasService {
     });
     if (!collab) throw new NotFoundException("Colaborador não encontrado");
 
+    // Privacidade: só pode registrar ausência para si mesmo ou para a própria equipe
+    const isOwn = collab.userId === user.id;
+    const isGestor = collab.gestor?.userId === user.id;
+    if (!this.isPrivileged(user) && !isOwn && !isGestor) {
+      throw new ForbiddenException("Você só pode registrar ausências para si mesmo ou para sua equipe.");
+    }
+
     const ausencia = await (this.prisma as any).ausencia.create({
       data: {
         organizationId: user.organizationId,

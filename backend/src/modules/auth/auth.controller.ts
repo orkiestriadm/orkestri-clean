@@ -73,6 +73,22 @@ class PrimeiroAcessoDto {
 export class AuthController {
   constructor(private auth: AuthService, private cache: CacheService) {}
 
+  /** Rate-limit por IP para endpoints públicos (anti-spam / anti-brute-force). */
+  private async enforceRate(req: any, scope: string, max: number, windowSec: number) {
+    const ip: string =
+      (req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() || req.ip || "unknown";
+    const key = `ratelimit:${scope}:${ip}`;
+    const count = await this.cache.rateLimitIncr(key, windowSec);
+    if (count > max) {
+      const remaining = await this.cache.ttl(key);
+      const mins = Math.max(1, Math.ceil(remaining / 60));
+      throw new HttpException(
+        `Muitas requisições. Aguarde ${mins} minuto(s).`,
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
+  }
+
   @Get("tenant-info")
   tenantInfo() { return this.auth.getTenantInfo(); }
 
@@ -141,7 +157,8 @@ export class AuthController {
 
   @Post("solicitar-acesso")
   @HttpCode(200)
-  solicitarAcesso(@Body() dto: SolicitarAcessoDtoFull) {
+  async solicitarAcesso(@Body() dto: SolicitarAcessoDtoFull, @Req() req: any) {
+    await this.enforceRate(req, "solicitar-acesso", 5, 3600);
     return this.auth.createUserRequest(dto);
   }
 
@@ -167,7 +184,8 @@ export class AuthController {
 
   @Post("esqueci-senha")
   @HttpCode(200)
-  esqueciSenha(@Body() dto: { email: string }) {
+  async esqueciSenha(@Body() dto: { email: string }, @Req() req: any) {
+    await this.enforceRate(req, "esqueci-senha", 5, 900);
     return this.auth.sendPasswordResetEmail(dto.email);
   }
 
@@ -175,13 +193,15 @@ export class AuthController {
 
   @Post("enviar-otp")
   @HttpCode(200)
-  enviarOtp(@Body() dto: EnviarOtpDto) {
+  async enviarOtp(@Body() dto: EnviarOtpDto, @Req() req: any) {
+    await this.enforceRate(req, "enviar-otp", 5, 900);
     return this.auth.sendPasswordOtp(dto.whatsapp);
   }
 
   @Post("verificar-otp")
   @HttpCode(200)
-  verificarOtp(@Body() dto: VerificarOtpDto) {
+  async verificarOtp(@Body() dto: VerificarOtpDto, @Req() req: any) {
+    await this.enforceRate(req, "verificar-otp", 10, 900);
     return this.auth.verifyPasswordOtp(dto.whatsapp, dto.codigo);
   }
 
