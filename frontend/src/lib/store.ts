@@ -4,6 +4,7 @@ import { authApi } from "./api";
 export interface User {
   id: string; nome: string; email: string;
   avatar?: string; roles: string[]; isMaster: boolean;
+  isSuperAdmin?: boolean;
   modulos: string[];
   permissions: string[];
   impersonating?: boolean;

@@ -447,16 +447,31 @@ export class AuthService implements OnModuleInit {
     this.logAudit(user.id, "auth", "users", user.id, "LOGIN", `Login bem-sucedido: ${user.email}`, (user as any).organizationId).catch(() => {});
     const roles = user.userRoles.map(ur => ur.role.nome);
     const isMaster = user.userRoles.some(ur => ur.role.isMaster);
+    const isSuperAdmin = await this.checkGlobalSuperAdmin(user.id, user.email);
     const permissions = await this.resolvePermissions(user.id);
     const primeiroAcesso = (user as any).primeiroAcesso ?? true;
     const organizationId = (user as any).organizationId;
-    const payload = { sub: user.id, email: user.email, organizationId, roles, isMaster, permissions };
+    const payload = { sub: user.id, email: user.email, organizationId, roles, isMaster, isSuperAdmin, permissions };
     const accessToken = this.jwt.sign(payload, { secret: this.config.get("JWT_SECRET"), expiresIn: "8h" });
     const refreshToken = this.jwt.sign({ sub: user.id }, { secret: this.config.get("JWT_REFRESH_SECRET"), expiresIn: "7d" });
     return {
       accessToken, refreshToken, primeiroAcesso,
-      user: { id: user.id, nome: user.nome, email: user.email, avatar: user.avatar, organizationId, roles, isMaster, permissions, primeiroAcesso },
+      user: { id: user.id, nome: user.nome, email: user.email, avatar: user.avatar, organizationId, roles, isMaster, isSuperAdmin, permissions, primeiroAcesso },
     };
+  }
+
+  /**
+   * Super Admin GLOBAL — único usuário com visão de todas as organizações.
+   * NÃO confundir com "master" (papel administrativo dentro de um tenant).
+   * Determinado por: e-mail do SA global OU registro em super_admins.
+   */
+  async checkGlobalSuperAdmin(userId: string, email: string): Promise<boolean> {
+    const saEmail = (this.config.get<string>("SUPER_ADMIN_EMAIL", "administrator@orkiestri.com") || "").toLowerCase();
+    if (email && email.toLowerCase() === saEmail) return true;
+    try {
+      const sa = await (this.prisma as any).superAdmin.findUnique({ where: { userId } });
+      return !!sa;
+    } catch { return false; }
   }
 
   async me(userId: string) {
@@ -466,6 +481,7 @@ export class AuthService implements OnModuleInit {
     });
     if (!user) throw new UnauthorizedException();
     const isMaster = user.userRoles.some(ur => ur.role.isMaster);
+    const isSuperAdmin = await this.checkGlobalSuperAdmin(user.id, user.email);
     let modulos: string[];
     try { modulos = JSON.parse((user.profile as any)?.modulos || "[]"); } catch { modulos = []; }
     const permissions = await this.resolvePermissions(userId);
@@ -474,6 +490,7 @@ export class AuthService implements OnModuleInit {
       organizationId: (user as any).organizationId,
       roles: user.userRoles.map(ur => ur.role.nome),
       isMaster,
+      isSuperAdmin,
       modulos,
       permissions,
     };
@@ -611,7 +628,13 @@ export class AuthService implements OnModuleInit {
 
   async listUserRequests(requestUser: any) {
     if (!this.canManageRequests(requestUser)) throw new ForbiddenException("Acesso negado.");
+    // Isolamento multi-tenant: master de tenant só vê solicitações da
+    // própria organização. Apenas o Super Admin global vê todas.
+    const where = requestUser.isSuperAdmin
+      ? {}
+      : { organizationId: requestUser.organizationId };
     return (this.prisma as any).userRequest.findMany({
+      where,
       orderBy: { criadoEm: "desc" },
     });
   }
@@ -633,6 +656,10 @@ export class AuthService implements OnModuleInit {
     const req = await (this.prisma as any).userRequest.findUnique({ where: { id } });
     if (!req) throw new NotFoundException("Solicitação não encontrada.");
     if (req.status !== "PENDENTE") throw new BadRequestException("Solicitação já processada.");
+    // Isolamento: master de tenant só aprova solicitações da própria org
+    if (!requestUser.isSuperAdmin && req.organizationId && req.organizationId !== requestUser.organizationId) {
+      throw new ForbiddenException("Solicitação pertence a outra organização.");
+    }
 
     const chars = "abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789!@#$";
     const tempPassword = Array.from({ length: 12 }, () => chars[Math.floor(Math.random() * chars.length)]).join("") + "A1!";
@@ -745,6 +772,9 @@ export class AuthService implements OnModuleInit {
     const req = await (this.prisma as any).userRequest.findUnique({ where: { id } });
     if (!req) throw new NotFoundException("Solicitação não encontrada.");
     if (req.status !== "PENDENTE") throw new BadRequestException("Solicitação já processada.");
+    if (!requestUser.isSuperAdmin && req.organizationId && req.organizationId !== requestUser.organizationId) {
+      throw new ForbiddenException("Solicitação pertence a outra organização.");
+    }
     await (this.prisma as any).userRequest.update({
       where: { id },
       data: { status: "REJEITADO", approvedById: requestUser.id, approvedAt: new Date(), rejectionReason: reason || null },

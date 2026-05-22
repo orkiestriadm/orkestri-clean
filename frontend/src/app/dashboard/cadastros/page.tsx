@@ -1792,7 +1792,7 @@ export default function CadastrosPage() {
       try { const skRes = await api.get("/skills"); setSkills(skRes.data); } catch {}
       try { const auRes = await api.get("/ausencias"); setAusencias(auRes.data); } catch {}
       try { const sqRes = await api.get("/squads"); setSquads(sqRes.data); } catch {}
-      if (me?.isMaster) {
+      if (me?.isSuperAdmin) {
         try { const oRes = await api.get("/superadmin/organizations"); setOrgs(oRes.data); } catch {}
       }
     } catch {} finally { setLoading(false); }
@@ -1897,7 +1897,7 @@ export default function CadastrosPage() {
           { key:"skills",        label:"Skills",        count:skills.length },
           { key:"ausencias",     label:"Ausencias",     count:ausencias.filter(a=>a.status==="PENDENTE").length },
           { key:"squads",        label:"Squads",        count:squads.length },
-          ...(me?.isMaster ? [{ key:"organizacoes", label:"Organizacoes", count:orgs.length }] : []),
+          ...(me?.isSuperAdmin ? [{ key:"organizacoes", label:"Organizacoes", count:orgs.length }] : []),
         ].map(t=>(
           <button key={t.key} onClick={()=>{ setTab(t.key as any); setSearch(""); }}
             style={{ padding:"12px 18px", background:"none", border:"none", borderBottom:tab===t.key?"2px solid var(--accent-violet)":"2px solid transparent", color:tab===t.key?"var(--accent-violet)":"var(--text-muted)", cursor:"pointer", fontFamily:"var(--font-display)", fontSize:13, fontWeight:tab===t.key?600:400, marginBottom:-1 }}>

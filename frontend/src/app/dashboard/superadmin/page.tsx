@@ -514,12 +514,12 @@ export default function SuperAdminPage() {
 
   useEffect(() => { load(); loadPendingCount(); }, []);
 
-  if (!user?.isMaster) {
+  if (!user?.isSuperAdmin) {
     return (
       <div className="flex flex-col h-full bg-background">
         <Topbar />
         <div className="flex-1 flex items-center justify-center">
-          <div style={{ textAlign: "center", color: "var(--text-muted)", fontSize: 14 }}>Acesso restrito a super-admins</div>
+          <div style={{ textAlign: "center", color: "var(--text-muted)", fontSize: 14 }}>Acesso restrito ao Super Admin global</div>
         </div>
       </div>
     );

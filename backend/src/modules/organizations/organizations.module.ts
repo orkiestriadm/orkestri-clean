@@ -61,7 +61,10 @@ class InviteMasterDto {
 }
 
 function isSuperAdmin(req: any) {
-  return req.user?.isMaster === true;
+  // SOMENTE o Super Admin GLOBAL (administrator@orkiestri.com) — nunca
+  // um master de tenant. Fecha o vazamento cross-tenant: masters de
+  // organização não enxergam/gerenciam outras organizações.
+  return req.user?.isSuperAdmin === true;
 }
 
 // ── Super-admin: Organization management ──────────────────────────────────────

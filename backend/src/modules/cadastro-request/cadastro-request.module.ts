@@ -203,19 +203,19 @@ export class CadastroRequestController {
 
   @Get()
   findAll(@Req() req: any) {
-    if (!req.user?.isMaster) throw new ForbiddenException('Apenas Super Admin pode acessar.');
+    if (!req.user?.isSuperAdmin) throw new ForbiddenException('Apenas Super Admin pode acessar.');
     return this.service.findAll();
   }
 
   @Get(':id')
   findOne(@Req() req: any, @Param('id') id: string) {
-    if (!req.user?.isMaster) throw new ForbiddenException('Apenas Super Admin pode acessar.');
+    if (!req.user?.isSuperAdmin) throw new ForbiddenException('Apenas Super Admin pode acessar.');
     return this.service.findOne(id);
   }
 
   @Post()
   create(@Req() req: any, @Body() dto: CreateCadastroRequestDto) {
-    if (!req.user?.isMaster)
+    if (!req.user?.isSuperAdmin)
       throw new ForbiddenException('Apenas Super Admin pode criar solicitações de provisionamento.');
     return this.service.create(dto, req.user.sub, req.user.organizationId);
   }
@@ -223,14 +223,14 @@ export class CadastroRequestController {
   @Patch(':id/aprovar')
   @HttpCode(HttpStatus.OK)
   aprovar(@Req() req: any, @Param('id') id: string) {
-    if (!req.user?.isMaster) throw new ForbiddenException('Apenas Super Admin pode aprovar.');
+    if (!req.user?.isSuperAdmin) throw new ForbiddenException('Apenas Super Admin pode aprovar.');
     return this.service.aprovar(id, req.user.sub);
   }
 
   @Patch(':id/rejeitar')
   @HttpCode(HttpStatus.OK)
   rejeitar(@Req() req: any, @Param('id') id: string, @Body() dto: RejectCadastroRequestDto) {
-    if (!req.user?.isMaster) throw new ForbiddenException('Apenas Super Admin pode rejeitar.');
+    if (!req.user?.isSuperAdmin) throw new ForbiddenException('Apenas Super Admin pode rejeitar.');
     return this.service.rejeitar(id, req.user.sub, dto.motivo);
   }
 }

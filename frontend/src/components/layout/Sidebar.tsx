@@ -192,8 +192,8 @@ export default function Sidebar() {
       {/* ── Navigation ── */}
       <nav className="flex-1 overflow-y-auto px-4 py-6 space-y-1 scrollbar-thin">
 
-        {/* Super admin item */}
-        {user?.isMaster && (
+        {/* Gestão Global — exclusivo do Super Admin global */}
+        {user?.isSuperAdmin && (
           <div className="mb-6 pb-4 border-b border-[var(--sidebar-border)]">
             <div className="px-3 py-1 text-[11px] font-semibold tracking-widest uppercase mb-1 flex items-center gap-2" style={{ color: "var(--sidebar-active-text)", opacity: 0.8 }}>
               <Shield size={12} />

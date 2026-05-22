@@ -29,13 +29,16 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     const user = await this.prisma.user.findUnique({ where: { id: payload.sub } });
     if (!user || !user.ativo) throw new UnauthorizedException();
 
-    // Impersonation: super-admin operating within another org's context
+    // Impersonation: super-admin operating within another org's context.
+    // Dentro da impersonação ele atua como master DAQUELE tenant —
+    // isSuperAdmin = false para não expor o módulo global no contexto do tenant.
     if (payload.impersonating && payload.targetOrgId) {
       return {
         id: payload.sub, email: payload.email,
         organizationId: payload.targetOrgId,
         roles: ["master"],
         isMaster: true,
+        isSuperAdmin: false,
         permissions: ["*"],
         impersonating: true,
         impersonatingOrgName: payload.targetOrgName,
@@ -45,11 +48,14 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     }
 
     const permissions = await this.authService.resolvePermissions(payload.sub);
+    // isSuperAdmin é resolvido server-side (não confia só no payload assinado)
+    const isSuperAdmin = await this.authService.checkGlobalSuperAdmin(payload.sub, payload.email || (user as any).email);
     return {
       id: payload.sub, email: payload.email,
       organizationId: (user as any).organizationId,
       roles: payload.roles,
       isMaster: permissions.includes("*"),
+      isSuperAdmin,
       permissions,
       _iat: payload.iat,
       _exp: payload.exp,
