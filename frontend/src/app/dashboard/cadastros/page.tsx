@@ -1758,6 +1758,17 @@ export default function CadastrosPage() {
 
   useEffect(() => { load(); }, [load]);
 
+  // Delete robusto: revalida a lista MESMO se a requisição falhar, e trata
+  // 404 (registro já removido) como sucesso. Evita lista desatualizada
+  // quando o delete funcionou no servidor mas a resposta falhou no cliente.
+  const confirmarDelete = async (url: string) => {
+    let delErr: any = null;
+    try { await api.delete(url); }
+    catch (e: any) { delErr = e; }
+    await load();
+    if (delErr && delErr?.response?.status !== 404) throw delErr;
+  };
+
   // Ao abrir aprovação de solicitação, gera matrícula automática (iniciais da org + sequencial)
   useEffect(() => {
     if (!modalAprovar) return;
@@ -2637,7 +2648,7 @@ export default function CadastrosPage() {
       )}
       {modalDelCliente && (
         <ConfirmModal title="Remover cliente" message={`Tem certeza que deseja remover ${modalDelCliente.nome}? Esta ação não pode ser desfeita.`} confirmLabel="Remover permanentemente" danger
-          onConfirm={async()=>{ await api.delete("/clientes/"+modalDelCliente.id); await load(); }} onClose={()=>setModalDelCliente(null)} />
+          onConfirm={()=>confirmarDelete("/clientes/"+modalDelCliente.id)} onClose={()=>setModalDelCliente(null)} />
       )}
 
       {/* Modal novo cliente */}
@@ -2660,7 +2671,7 @@ export default function CadastrosPage() {
       )}
       {modalDelSkill && (
         <ConfirmModal title="Remover skill" message={`Remover "${modalDelSkill.nome}"? Todas as atribuições a colaboradores serão também removidas.`} confirmLabel="Remover" danger
-          onConfirm={async()=>{ await api.delete("/skills/"+modalDelSkill.id); await load(); }} onClose={()=>setModalDelSkill(null)} />
+          onConfirm={()=>confirmarDelete("/skills/"+modalDelSkill.id)} onClose={()=>setModalDelSkill(null)} />
       )}
       {modalSkillsCollab && (
         <Modal title={`Skills de ${modalSkillsCollab.user?.nome || ""}`} onClose={()=>setModalSkillsCollab(null)} maxWidth={560}>
@@ -2681,7 +2692,7 @@ export default function CadastrosPage() {
       )}
       {modalDelSquad && (
         <ConfirmModal title="Remover squad" message={`Remover "${modalDelSquad.nome}"? Os membros não serão excluídos, apenas a equipe.`} confirmLabel="Remover" danger
-          onConfirm={async()=>{ await api.delete("/squads/"+modalDelSquad.id); await load(); }} onClose={()=>setModalDelSquad(null)} />
+          onConfirm={()=>confirmarDelete("/squads/"+modalDelSquad.id)} onClose={()=>setModalDelSquad(null)} />
       )}
       {modalMembersSquad && (
         <Modal title={`Membros — ${modalMembersSquad.nome}`} onClose={()=>setModalMembersSquad(null)} maxWidth={560}>
@@ -2731,7 +2742,7 @@ export default function CadastrosPage() {
       )}
       {modalDelCollab && (
         <ConfirmModal title="Remover colaborador" message={`Remover ${modalDelCollab.user?.nome||"colaborador"} do quadro? O usuário continuará existindo mas perderá o vínculo operacional.`} confirmLabel="Remover" danger
-          onConfirm={async()=>{ await api.delete("/collaborators/"+modalDelCollab.id); await load(); }} onClose={()=>setModalDelCollab(null)} />
+          onConfirm={()=>confirmarDelete("/collaborators/"+modalDelCollab.id)} onClose={()=>setModalDelCollab(null)} />
       )}
 
       {/* Modais organização */}
@@ -2747,7 +2758,7 @@ export default function CadastrosPage() {
       )}
       {modalDelOrg && (
         <ConfirmModal title="Remover organização" message={`Tem certeza que deseja remover ${modalDelOrg.nome}? Esta ação não pode ser desfeita.`} confirmLabel="Remover permanentemente" danger
-          onConfirm={async()=>{ await api.delete("/superadmin/organizations/"+modalDelOrg.id); await load(); }} onClose={()=>setModalDelOrg(null)} />
+          onConfirm={()=>confirmarDelete("/superadmin/organizations/"+modalDelOrg.id)} onClose={()=>setModalDelOrg(null)} />
       )}
 
       {/* Modal aprovar solicitacao (3 steps) */}
@@ -3000,13 +3011,13 @@ export default function CadastrosPage() {
       {modalEditUser && <UserModal user={modalEditUser} setores={setores} roles={roles} onClose={()=>setModalEditUser(null)} onSave={load} />}
       {modalPwd      && <ResetPwdModal user={modalPwd} onClose={()=>setModalPwd(null)} />}
       {modalToggle   && <ConfirmModal title={modalToggle.ativo?"Desativar usuario":"Ativar usuario"} message={modalToggle.ativo?`${modalToggle.nome} perdera acesso ao sistema.`:`${modalToggle.nome} voltara a ter acesso.`} confirmLabel={modalToggle.ativo?"Desativar":"Ativar"} danger={modalToggle.ativo} onConfirm={async()=>{ await api.patch("/users/"+modalToggle.id+"/toggle"); await load(); }} onClose={()=>setModalToggle(null)} />}
-      {modalDelUser  && <ConfirmModal title="Remover usuario" message={`Tem certeza que deseja remover ${modalDelUser.nome}? Todos os seus dados serao excluidos.`} confirmLabel="Remover permanentemente" danger onConfirm={async()=>{ await api.delete("/users/"+modalDelUser.id); await load(); }} onClose={()=>setModalDelUser(null)} />}
+      {modalDelUser  && <ConfirmModal title="Remover usuario" message={`Tem certeza que deseja remover ${modalDelUser.nome}? Todos os seus dados serao excluidos.`} confirmLabel="Remover permanentemente" danger onConfirm={()=>confirmarDelete("/users/"+modalDelUser.id)} onClose={()=>setModalDelUser(null)} />}
       {/* Modais setores */}
       {modalSetor    && <SetorModal setor={modalSetor==="novo"?undefined:modalSetor as Setor} setores={setores} users={users} onClose={()=>setModalSetor(null)} onSave={load} />}
-      {modalDelSetor && <ConfirmModal title="Remover setor" message="Os usuarios deste setor ficarao sem setor. Deseja continuar?" confirmLabel="Remover" danger onConfirm={async()=>{ await api.delete("/setores/"+modalDelSetor); await load(); }} onClose={()=>setModalDelSetor(null)} />}
+      {modalDelSetor && <ConfirmModal title="Remover setor" message="Os usuarios deste setor ficarao sem setor. Deseja continuar?" confirmLabel="Remover" danger onConfirm={()=>confirmarDelete("/setores/"+modalDelSetor)} onClose={()=>setModalDelSetor(null)} />}
       {/* Modais papeis */}
       {modalRole     && <RoleModal role={modalRole==="novo"?undefined:modalRole as Role} allPerms={allPerms} onClose={()=>setModalRole(null)} onSave={load} />}
-      {modalDelRole  && <ConfirmModal title="Remover papel" message={`Remover o papel "${modalDelRole.nome}"? Usuarios com este papel precisarao de novo papel.`} confirmLabel="Remover" danger onConfirm={async()=>{ await api.delete("/rbac/roles/"+modalDelRole.id); await load(); }} onClose={()=>setModalDelRole(null)} />}
+      {modalDelRole  && <ConfirmModal title="Remover papel" message={`Remover o papel "${modalDelRole.nome}"? Usuarios com este papel precisarao de novo papel.`} confirmLabel="Remover" danger onConfirm={()=>confirmarDelete("/rbac/roles/"+modalDelRole.id)} onClose={()=>setModalDelRole(null)} />}
       {/* Modal permissoes individuais */}
       {modalUserPerms && <UserPermissionsModal user={modalUserPerms} allPerms={allPerms} onClose={()=>setModalUserPerms(null)} />}
 
