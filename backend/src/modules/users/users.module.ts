@@ -258,6 +258,7 @@ class UsersController {
     const user = await this.prisma.user.findUnique({ where: { id } });
     if (!user) throw new NotFoundException("Usuario nao encontrado");
 
+    try {
     await this.prisma.$transaction(async (tx) => {
       // Nullify optional FK refs that have no CASCADE/SET NULL in DB
       await tx.userRole.updateMany({ where: { atribuidoPorId: id }, data: { atribuidoPorId: null } });
@@ -266,6 +267,10 @@ class UsersController {
       await tx.clienteTimeline.updateMany({ where: { userId: id }, data: { userId: null } });
       await tx.auditLog.updateMany({ where: { userId: id }, data: { userId: null } });
       await tx.checklistItem.updateMany({ where: { assigneeId: id }, data: { assigneeId: null } });
+
+      // Workforce: aprovações de workflow feitas pelo usuário.
+      // A FK era SET NULL numa coluna NOT NULL — quebrava o delete.
+      await (tx as any).workflowApproval.deleteMany({ where: { aprovadorId: id } });
 
       // Delete approval requests made by this user
       await tx.aprovacaoOrcamento.deleteMany({ where: { solicitadoPorId: id } });
@@ -292,6 +297,15 @@ class UsersController {
       // ChamadoComentario, ProjectMember, Notification, ApontamentoHoras, NoteCollaborator
       await tx.user.delete({ where: { id } });
     }, { timeout: 30000 });
+    } catch (e: any) {
+      if (e?.code === "P2003" || /foreign key|constraint/i.test(e?.message || "")) {
+        const alvo = e?.meta?.field_name || e?.meta?.constraint || "vínculo no sistema";
+        throw new BadRequestException(
+          `Não foi possível remover: o usuário ainda possui registros vinculados (${alvo}). Reatribua ou remova esses registros antes.`,
+        );
+      }
+      throw e;
+    }
 
     await this.cache.del(CACHE_USER(id), CACHE_USERS_LIST, `${CACHE_USERS_LIST}:true`, `${CACHE_USERS_LIST}:0`);
     return { message: "Usuario removido permanentemente" };
