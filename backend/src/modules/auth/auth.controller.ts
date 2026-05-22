@@ -3,7 +3,7 @@ import {
   UseGuards, HttpCode, HttpException, HttpStatus,
 } from "@nestjs/common";
 import { AuthGuard } from "@nestjs/passport";
-import { IsString, IsEmail, IsOptional, MinLength } from "class-validator";
+import { IsString, IsEmail, IsOptional, IsNumber, MinLength } from "class-validator";
 import { Response } from "express";
 import { AuthService } from "./auth.service";
 import { CacheService } from "../cache/cache.service";
@@ -32,6 +32,15 @@ class AprovarDto {
   @IsOptional() @IsString() cargo?: string;
   @IsOptional() @IsString() departamento?: string;
   @IsOptional() @IsString() empresa?: string;
+  // ── Workforce: provisionamento estrutural do colaborador ──
+  @IsOptional() @IsString() setorId?: string;
+  @IsOptional() @IsString() gestorId?: string;
+  @IsOptional() @IsString() perfilRoleId?: string;
+  @IsOptional() @IsString() squad?: string;
+  @IsOptional() @IsString() matricula?: string;
+  @IsOptional() @IsString() senioridade?: string;
+  @IsOptional() @IsString() tipoVinculo?: string;
+  @IsOptional() @IsNumber() jornadaHorasDia?: number;
 }
 
 class RejeitarDto {

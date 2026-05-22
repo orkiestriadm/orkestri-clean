@@ -1672,6 +1672,8 @@ export default function CadastrosPage() {
     jornadaHorasDia:number;tipoVinculo:string;senioridade:string;
   }>({nome:"",email:"",whatsapp:"",cargo:"",departamento:"",empresa:"",setorId:"",gestorId:"",perfilRoleId:"",squad:"",matricula:"",jornadaHorasDia:8,tipoVinculo:"",senioridade:""});
   const [aprovarStep,   setAprovarStep]  = useState<1|2|3>(1);
+  const [aprovarErr,    setAprovarErr]   = useState("");
+  const [aprovarLoading,setAprovarLoading]=useState(false);
   const [modalRejeitar, setModalRejeitar]= useState<Solicitacao|null>(null);
   const [motivoRejeitar,setMotivoRejeitar]=useState("");
   const [aprovadoInfo,  setAprovadoInfo] = useState<{nome:string;email:string}|null>(null);
@@ -1759,6 +1761,7 @@ export default function CadastrosPage() {
   // Ao abrir aprovação de solicitação, gera matrícula automática (iniciais da org + sequencial)
   useEffect(() => {
     if (!modalAprovar) return;
+    setAprovarErr("");
     api.get("/collaborators/next-matricula")
       .then(r => setAprovarForm(f => ({ ...f, matricula: r.data?.matricula || "" })))
       .catch(() => {});
@@ -2884,6 +2887,13 @@ export default function CadastrosPage() {
             </div>
           )}
 
+          {/* Erro */}
+          {aprovarErr && (
+            <div style={{ background:"rgba(220,38,38,0.08)", border:"1px solid rgba(220,38,38,0.25)", borderRadius:8, padding:"10px 14px", color:"var(--accent-red)", fontSize:12, marginBottom:12 }}>
+              {aprovarErr}
+            </div>
+          )}
+
           {/* Footer com navegação */}
           <div style={{ display:"flex", gap:10, alignItems:"center" }}>
             <button className="btn btn-ghost" style={{ flex:1 }} onClick={()=>setModalAprovar(null)}>Cancelar</button>
@@ -2893,10 +2903,16 @@ export default function CadastrosPage() {
             {aprovarStep < 3 ? (
               <button className="btn btn-violet" style={{ flex:2 }} disabled={aprovarStep===1 && (!aprovarForm.nome||!aprovarForm.email)} onClick={()=>setAprovarStep((aprovarStep+1) as 1|2|3)}>Próximo →</button>
             ) : (
-              <button className="btn btn-violet" style={{ flex:2 }} disabled={!aprovarForm.nome||!aprovarForm.email} onClick={async()=>{
+              <button className="btn btn-violet" style={{ flex:2 }} disabled={!aprovarForm.nome||!aprovarForm.email||aprovarLoading} onClick={async()=>{
+                setAprovarErr(""); setAprovarLoading(true);
                 try {
                   await api.patch(`/auth/solicitacoes/${modalAprovar.id}/aprovar`, {
-                    ...aprovarForm,
+                    nome: aprovarForm.nome,
+                    email: aprovarForm.email,
+                    whatsapp: aprovarForm.whatsapp||undefined,
+                    cargo: aprovarForm.cargo||undefined,
+                    departamento: aprovarForm.departamento||undefined,
+                    empresa: aprovarForm.empresa||undefined,
                     setorId: aprovarForm.setorId||undefined,
                     gestorId: aprovarForm.gestorId||undefined,
                     perfilRoleId: aprovarForm.perfilRoleId||undefined,
@@ -2909,8 +2925,11 @@ export default function CadastrosPage() {
                   setAprovadoInfo({ nome: aprovarForm.nome, email: aprovarForm.email });
                   setModalAprovar(null);
                   await load();
-                } catch {}
-              }}>Criar conta e colaborador</button>
+                } catch(e:any) {
+                  const m = e?.response?.data?.message;
+                  setAprovarErr(Array.isArray(m) ? m.join(" • ") : (m || "Erro ao criar conta. Tente novamente."));
+                } finally { setAprovarLoading(false); }
+              }}>{aprovarLoading?<Spin/>:"Criar conta e colaborador"}</button>
             )}
           </div>
         </Modal>
