@@ -67,6 +67,19 @@ model Organization {
   slug              String   @unique
   plano             String   @default("starter")
   ativo             Boolean  @default(true)
+  // Cadastro da empresa
+  cnpj              String?
+  nomeFantasia      String?  @map("nome_fantasia")
+  segmento          String?
+  site              String?
+  emailContato      String?  @map("email_contato")
+  telefone          String?
+  responsavelNome   String?  @map("responsavel_nome")
+  cep               String?
+  endereco          String?
+  cidade            String?
+  estado            String?
+  observacoes       String?
   // CRM ↔ Tenant link
   crmClienteId      String?  @unique @map("crm_cliente_id")
   statusComercial   String?  @map("status_comercial")

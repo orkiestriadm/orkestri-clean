@@ -18,12 +18,38 @@ class CreateOrgDto {
   @IsString() nome: string;
   @IsString() slug: string;
   @IsOptional() @IsString() plano?: string;
+  @IsOptional() @IsString() cnpj?: string;
+  @IsOptional() @IsString() nomeFantasia?: string;
+  @IsOptional() @IsString() segmento?: string;
+  @IsOptional() @IsString() site?: string;
+  @IsOptional() @IsString() emailContato?: string;
+  @IsOptional() @IsString() telefone?: string;
+  @IsOptional() @IsString() responsavelNome?: string;
+  @IsOptional() @IsString() cep?: string;
+  @IsOptional() @IsString() endereco?: string;
+  @IsOptional() @IsString() cidade?: string;
+  @IsOptional() @IsString() estado?: string;
+  @IsOptional() @IsString() observacoes?: string;
 }
 class UpdateOrgDto {
   @IsOptional() @IsString() nome?: string;
   @IsOptional() @IsString() slug?: string;
   @IsOptional() @IsString() plano?: string;
   @IsOptional() @IsBoolean() ativo?: boolean;
+  @IsOptional() @IsString() statusOperacional?: string;
+  @IsOptional() @IsString() statusComercial?: string;
+  @IsOptional() @IsString() cnpj?: string;
+  @IsOptional() @IsString() nomeFantasia?: string;
+  @IsOptional() @IsString() segmento?: string;
+  @IsOptional() @IsString() site?: string;
+  @IsOptional() @IsString() emailContato?: string;
+  @IsOptional() @IsString() telefone?: string;
+  @IsOptional() @IsString() responsavelNome?: string;
+  @IsOptional() @IsString() cep?: string;
+  @IsOptional() @IsString() endereco?: string;
+  @IsOptional() @IsString() cidade?: string;
+  @IsOptional() @IsString() estado?: string;
+  @IsOptional() @IsString() observacoes?: string;
 }
 class VincularClienteDto {
   @IsString() clienteId: string;
@@ -65,6 +91,18 @@ class SuperAdminOrgsController {
       crmClienteId: o.crmClienteId ?? null,
       statusComercial: o.statusComercial ?? null,
       statusOperacional: o.statusOperacional ?? null,
+      cnpj: o.cnpj ?? null,
+      nomeFantasia: o.nomeFantasia ?? null,
+      segmento: o.segmento ?? null,
+      site: o.site ?? null,
+      emailContato: o.emailContato ?? null,
+      telefone: o.telefone ?? null,
+      responsavelNome: o.responsavelNome ?? null,
+      cep: o.cep ?? null,
+      endereco: o.endereco ?? null,
+      cidade: o.cidade ?? null,
+      estado: o.estado ?? null,
+      observacoes: o.observacoes ?? null,
       usuarios: o._count.users,
       chamados: o._count.chamados,
       whatsapp: o.whatsappConfig ? {
@@ -92,13 +130,15 @@ class SuperAdminOrgsController {
     this.guard(req);
     const exists = await (this.prisma as any).organization.findUnique({ where: { slug: dto.slug } });
     if (exists) throw new ConflictException("Slug já em uso");
+    const { plano, ...rest } = dto;
     const org = await (this.prisma as any).organization.create({
-      data: { nome: dto.nome, slug: dto.slug, plano: dto.plano || "starter" },
+      data: { ...rest, plano: plano || "starter" },
     });
     return org;
   }
 
   @Put(":id")
+  @Patch(":id")
   async update(@Req() req: any, @Param("id") id: string, @Body() dto: UpdateOrgDto) {
     this.guard(req);
     const org = await (this.prisma as any).organization.findUnique({ where: { id } });

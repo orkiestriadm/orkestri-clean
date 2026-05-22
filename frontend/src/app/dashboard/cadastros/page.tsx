@@ -11,7 +11,15 @@ type Permission = { id: string; recurso: string; acao: string; descricao?: strin
 type Role    = { id: string; nome: string; descricao?: string; isMaster: boolean; nivel: number; _count?: { userRoles: number }; rolePermissions?: { permission: Permission }[]; };
 type Solicitacao = { id: string; nome: string; email: string; whatsapp?: string; cargo?: string; departamento?: string; empresa?: string; motivacao?: string; status: string; criado_em: string; };
 type Cliente = { id: string; nome: string; empresa?: string; email?: string; telefone?: string; cargo?: string; segmento?: string; statusLead: string; ativo: boolean; criadoEm: string; };
-type OrgItem = { id: string; nome: string; slug: string; plano: string; ativo: boolean; statusOperacional?: string | null; statusComercial?: string | null; usuarios: number; criadoEm: string; };
+type OrgItem = {
+  id: string; nome: string; slug: string; plano: string; ativo: boolean;
+  statusOperacional?: string | null; statusComercial?: string | null;
+  cnpj?: string | null; nomeFantasia?: string | null; segmento?: string | null; site?: string | null;
+  emailContato?: string | null; telefone?: string | null; responsavelNome?: string | null;
+  cep?: string | null; endereco?: string | null; cidade?: string | null; estado?: string | null;
+  observacoes?: string | null;
+  usuarios: number; criadoEm: string;
+};
 type Skill = { id: string; nome: string; categoria?: string | null; descricao?: string | null; cor?: string | null; ativo: boolean; _count?: { collaborators: number }; };
 type SquadMember = {
   id: string; collaboratorId: string; alocacaoPercent: number; papel: string;
@@ -1176,54 +1184,45 @@ function CollabForm({ collab, users, setores, roles, collabs, onClose, onSave }:
   );
 }
 
-function OrgCreateForm({ onClose, onSave }: { onClose:()=>void; onSave:()=>void }) {
-  const [f, setF] = useState({ nome:"", slug:"", plano:"starter" });
-  const [loading, setLoading] = useState(false);
-  const [err, setErr] = useState("");
-  const save = async () => {
-    if (!f.nome.trim()||!f.slug.trim()) { setErr("Nome e slug são obrigatórios"); return; }
-    setLoading(true); setErr("");
-    try {
-      await api.post("/superadmin/organizations", { nome:f.nome, slug:f.slug, plano:f.plano });
-      onSave(); onClose();
-    } catch(e:any) { setErr(e?.response?.data?.message||"Erro ao criar"); }
-    finally { setLoading(false); }
-  };
-  return (
-    <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
-      <Field label="NOME DA ORGANIZAÇÃO">
-        <input className="input-o" value={f.nome} autoFocus
-          onChange={e=>setF(p=>({...p,nome:e.target.value, slug:p.slug || e.target.value.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^a-z0-9]/g,"-").replace(/-+/g,"-").replace(/^-|-$/g,"")}))} />
-      </Field>
-      <Field label="SLUG (URL)">
-        <input className="input-o" value={f.slug} placeholder="empresa-abc"
-          onChange={e=>setF(p=>({...p,slug:e.target.value.toLowerCase().replace(/[^a-z0-9-]/g,"")}))} />
-      </Field>
-      <Field label="PLANO">
-        <select className="input-o" value={f.plano} onChange={e=>setF(p=>({...p,plano:e.target.value}))}>
-          <option value="starter">Starter</option>
-          <option value="professional">Professional</option>
-          <option value="enterprise">Enterprise</option>
-        </select>
-      </Field>
-      {err && <div style={{ background:"rgba(220,38,38,0.08)", border:"1px solid rgba(220,38,38,0.2)", borderRadius:8, padding:"10px 14px", color:"var(--accent-red)", fontSize:12 }}>{err}</div>}
-      <div style={{ display:"flex", gap:10, marginTop:4 }}>
-        <button className="btn btn-ghost" style={{ flex:1 }} onClick={onClose}>Cancelar</button>
-        <button className="btn btn-violet" style={{ flex:2 }} onClick={save} disabled={loading}>{loading?<Spin/>:"Criar organização"}</button>
-      </div>
-    </div>
-  );
+const ESTADOS_BR = ["AC","AL","AP","AM","BA","CE","DF","ES","GO","MA","MT","MS","MG","PA","PB","PR","PE","PI","RJ","RN","RS","RO","RR","SC","SP","SE","TO"];
+
+function OrgSection({ titulo }: { titulo: string }) {
+  return <div style={{ gridColumn:"1/-1", fontSize:10, fontFamily:"var(--font-mono)", letterSpacing:"0.1em", color:"var(--accent-violet)", marginTop:4, paddingBottom:4, borderBottom:"1px solid var(--border-subtle)" }}>{titulo}</div>;
 }
 
-function OrgEditForm({ org, onClose, onSave }: { org: OrgItem; onClose:()=>void; onSave:()=>void }) {
-  const [f, setF] = useState({ nome:org.nome, plano:org.plano, statusOperacional:org.statusOperacional||"", statusComercial:org.statusComercial||"", ativo:org.ativo });
+function OrgForm({ org, onClose, onSave }: { org?: OrgItem; onClose:()=>void; onSave:()=>void }) {
+  const isEdit = !!org;
+  const [f, setF] = useState({
+    nome: org?.nome || "", slug: org?.slug || "", plano: org?.plano || "starter",
+    cnpj: org?.cnpj || "", nomeFantasia: org?.nomeFantasia || "", segmento: org?.segmento || "", site: org?.site || "",
+    emailContato: org?.emailContato || "", telefone: org?.telefone || "", responsavelNome: org?.responsavelNome || "",
+    cep: org?.cep || "", endereco: org?.endereco || "", cidade: org?.cidade || "", estado: org?.estado || "",
+    observacoes: org?.observacoes || "",
+    statusOperacional: org?.statusOperacional || "", statusComercial: org?.statusComercial || "",
+    ativo: org?.ativo ?? true,
+  });
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState("");
+  const set = (k: keyof typeof f, v: any) => setF(p => ({ ...p, [k]: v }));
   const save = async () => {
-    if (!f.nome.trim()) { setErr("Nome obrigatório"); return; }
+    if (!f.nome.trim()) { setErr("Razão social é obrigatória"); return; }
+    if (!isEdit && !f.slug.trim()) { setErr("Slug é obrigatório"); return; }
     setLoading(true); setErr("");
+    const payload: any = {
+      nome:f.nome, plano:f.plano,
+      cnpj:f.cnpj||undefined, nomeFantasia:f.nomeFantasia||undefined, segmento:f.segmento||undefined, site:f.site||undefined,
+      emailContato:f.emailContato||undefined, telefone:f.telefone||undefined, responsavelNome:f.responsavelNome||undefined,
+      cep:f.cep||undefined, endereco:f.endereco||undefined, cidade:f.cidade||undefined, estado:f.estado||undefined,
+      observacoes:f.observacoes||undefined,
+    };
     try {
-      await api.patch("/superadmin/organizations/"+org.id, { nome:f.nome, plano:f.plano, statusOperacional:f.statusOperacional||undefined, statusComercial:f.statusComercial||undefined, ativo:f.ativo });
+      if (isEdit) {
+        await api.patch("/superadmin/organizations/"+org!.id, {
+          ...payload, statusOperacional:f.statusOperacional||undefined, statusComercial:f.statusComercial||undefined, ativo:f.ativo,
+        });
+      } else {
+        await api.post("/superadmin/organizations", { ...payload, slug:f.slug });
+      }
       onSave(); onClose();
     } catch(e:any) { setErr(e?.response?.data?.message||"Erro ao salvar"); }
     finally { setLoading(false); }
@@ -1231,43 +1230,86 @@ function OrgEditForm({ org, onClose, onSave }: { org: OrgItem; onClose:()=>void;
   return (
     <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
       <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
+        <OrgSection titulo="IDENTIFICAÇÃO" />
         <div style={{ gridColumn:"1/-1" }}>
-          <Field label="NOME DA ORGANIZAÇÃO"><input className="input-o" value={f.nome} onChange={e=>setF(p=>({...p,nome:e.target.value}))} /></Field>
+          <Field label="RAZÃO SOCIAL *">
+            <input className="input-o" value={f.nome} autoFocus
+              onChange={e=>setF(p=>({...p, nome:e.target.value, slug: isEdit ? p.slug : (p.slug || e.target.value.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^a-z0-9]/g,"-").replace(/-+/g,"-").replace(/^-|-$/g,"")) }))} />
+          </Field>
         </div>
+        <Field label="NOME FANTASIA"><input className="input-o" value={f.nomeFantasia} onChange={e=>set("nomeFantasia",e.target.value)} /></Field>
+        <Field label="CNPJ"><input className="input-o" value={f.cnpj} onChange={e=>set("cnpj",e.target.value)} placeholder="00.000.000/0000-00" /></Field>
+        {!isEdit && (
+          <Field label="SLUG (URL) *">
+            <input className="input-o" value={f.slug} placeholder="empresa-abc"
+              onChange={e=>set("slug", e.target.value.toLowerCase().replace(/[^a-z0-9-]/g,""))} />
+          </Field>
+        )}
+        <Field label="SEGMENTO"><input className="input-o" value={f.segmento} onChange={e=>set("segmento",e.target.value)} placeholder="Ex: Tecnologia, Saúde..." /></Field>
+        <Field label="SITE"><input className="input-o" value={f.site} onChange={e=>set("site",e.target.value)} placeholder="https://" /></Field>
+
+        <OrgSection titulo="CONTATO" />
+        <Field label="RESPONSÁVEL"><input className="input-o" value={f.responsavelNome} onChange={e=>set("responsavelNome",e.target.value)} /></Field>
+        <Field label="E-MAIL"><input className="input-o" type="email" value={f.emailContato} onChange={e=>set("emailContato",e.target.value)} /></Field>
+        <Field label="TELEFONE"><input className="input-o" value={f.telefone} onChange={e=>set("telefone",e.target.value)} placeholder="(11) 99999-9999" /></Field>
+
+        <OrgSection titulo="ENDEREÇO" />
+        <Field label="CEP"><input className="input-o" value={f.cep} onChange={e=>set("cep",e.target.value)} placeholder="00000-000" /></Field>
+        <Field label="CIDADE"><input className="input-o" value={f.cidade} onChange={e=>set("cidade",e.target.value)} /></Field>
+        <div style={{ gridColumn:"1/-1" }}>
+          <Field label="LOGRADOURO"><input className="input-o" value={f.endereco} onChange={e=>set("endereco",e.target.value)} placeholder="Rua, número, complemento" /></Field>
+        </div>
+        <Field label="ESTADO">
+          <select className="input-o" value={f.estado} onChange={e=>set("estado",e.target.value)}>
+            <option value="">—</option>
+            {ESTADOS_BR.map(uf=><option key={uf} value={uf}>{uf}</option>)}
+          </select>
+        </Field>
+
+        <OrgSection titulo="OPERACIONAL" />
         <Field label="PLANO">
-          <select className="input-o" value={f.plano} onChange={e=>setF(p=>({...p,plano:e.target.value}))}>
+          <select className="input-o" value={f.plano} onChange={e=>set("plano",e.target.value)}>
             <option value="starter">Starter</option>
             <option value="professional">Professional</option>
             <option value="enterprise">Enterprise</option>
           </select>
         </Field>
-        <Field label="SITUAÇÃO">
-          <select className="input-o" value={f.ativo?"ativo":"inativo"} onChange={e=>setF(p=>({...p,ativo:e.target.value==="ativo"}))}>
-            <option value="ativo">Ativa</option>
-            <option value="inativo">Inativa</option>
-          </select>
-        </Field>
-        <Field label="STATUS OPERACIONAL">
-          <select className="input-o" value={f.statusOperacional} onChange={e=>setF(p=>({...p,statusOperacional:e.target.value}))}>
-            <option value="">—</option>
-            <option value="ativo">Ativo</option>
-            <option value="suspenso">Suspenso</option>
-            <option value="cancelado">Cancelado</option>
-          </select>
-        </Field>
-        <Field label="STATUS COMERCIAL">
-          <select className="input-o" value={f.statusComercial} onChange={e=>setF(p=>({...p,statusComercial:e.target.value}))}>
-            <option value="">—</option>
-            <option value="ativo">Ativo</option>
-            <option value="inadimplente">Inadimplente</option>
-            <option value="cancelado">Cancelado</option>
-          </select>
-        </Field>
+        {isEdit && (
+          <Field label="SITUAÇÃO">
+            <select className="input-o" value={f.ativo?"ativo":"inativo"} onChange={e=>set("ativo", e.target.value==="ativo")}>
+              <option value="ativo">Ativa</option>
+              <option value="inativo">Inativa</option>
+            </select>
+          </Field>
+        )}
+        {isEdit && (
+          <>
+            <Field label="STATUS OPERACIONAL">
+              <select className="input-o" value={f.statusOperacional} onChange={e=>set("statusOperacional",e.target.value)}>
+                <option value="">—</option>
+                <option value="ativo">Ativo</option>
+                <option value="suspenso">Suspenso</option>
+                <option value="cancelado">Cancelado</option>
+              </select>
+            </Field>
+            <Field label="STATUS COMERCIAL">
+              <select className="input-o" value={f.statusComercial} onChange={e=>set("statusComercial",e.target.value)}>
+                <option value="">—</option>
+                <option value="ativo">Ativo</option>
+                <option value="inadimplente">Inadimplente</option>
+                <option value="cancelado">Cancelado</option>
+              </select>
+            </Field>
+          </>
+        )}
+        <div style={{ gridColumn:"1/-1" }}>
+          <Field label="OBSERVAÇÕES"><textarea className="input-o" rows={2} value={f.observacoes} onChange={e=>set("observacoes",e.target.value)} style={{ resize:"vertical" }} /></Field>
+        </div>
       </div>
       {err && <div style={{ background:"rgba(220,38,38,0.08)", border:"1px solid rgba(220,38,38,0.2)", borderRadius:8, padding:"10px 14px", color:"var(--accent-red)", fontSize:12 }}>{err}</div>}
       <div style={{ display:"flex", gap:10, marginTop:4 }}>
         <button className="btn btn-ghost" style={{ flex:1 }} onClick={onClose}>Cancelar</button>
-        <button className="btn btn-violet" style={{ flex:2 }} onClick={save} disabled={loading}>{loading?<Spin/>:"Salvar alterações"}</button>
+        <button className="btn btn-violet" style={{ flex:2 }} onClick={save} disabled={loading}>{loading?<Spin/>:isEdit?"Salvar alterações":"Criar organização"}</button>
       </div>
     </div>
   );
@@ -2747,13 +2789,13 @@ export default function CadastrosPage() {
 
       {/* Modais organização */}
       {modalNewOrg && (
-        <Modal title="Nova organização" onClose={()=>setModalNewOrg(false)} maxWidth={480}>
-          <OrgCreateForm onClose={()=>setModalNewOrg(false)} onSave={load} />
+        <Modal title="Nova organização" onClose={()=>setModalNewOrg(false)} maxWidth={580}>
+          <OrgForm onClose={()=>setModalNewOrg(false)} onSave={load} />
         </Modal>
       )}
       {modalEditOrg && (
-        <Modal title="Editar organização" onClose={()=>setModalEditOrg(null)} maxWidth={480}>
-          <OrgEditForm org={modalEditOrg} onClose={()=>setModalEditOrg(null)} onSave={load} />
+        <Modal title="Editar organização" onClose={()=>setModalEditOrg(null)} maxWidth={580}>
+          <OrgForm org={modalEditOrg} onClose={()=>setModalEditOrg(null)} onSave={load} />
         </Modal>
       )}
       {modalDelOrg && (
