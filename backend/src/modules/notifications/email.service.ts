@@ -22,13 +22,22 @@ export class EmailService {
     }
   }
 
-  private async send(to: string, subject: string, html: string): Promise<void> {
-    if (!to || !this.resend) return;
+  private async send(to: string, subject: string, html: string): Promise<boolean> {
+    if (!to || !this.resend) {
+      this.logger.warn(`Email não enviado para ${to || "(vazio)"} — serviço de e-mail indisponível.`);
+      return false;
+    }
     try {
-      await this.resend.emails.send({ from: this.from, to, subject, html });
+      const res: any = await this.resend.emails.send({ from: this.from, to, subject, html });
+      if (res?.error) {
+        this.logger.error(`Resend recusou e-mail para ${to}: ${JSON.stringify(res.error)}`);
+        return false;
+      }
       this.logger.log(`Email enviado para ${to}: ${subject}`);
+      return true;
     } catch (e: any) {
       this.logger.error(`Erro ao enviar email para ${to}: ${e.message}`);
+      return false;
     }
   }
 
@@ -145,17 +154,18 @@ export class EmailService {
     );
   }
 
-  async sendUserInvite(toEmail: string, nome: string, senhaTemp: string, orgNome: string): Promise<void> {
-    await this.send(
+  async sendUserInvite(toEmail: string, nome: string, senhaTemp: string, orgNome: string, papel = "Usuário"): Promise<boolean> {
+    return this.send(
       toEmail,
       `Você foi convidado para o Orkestri — ${orgNome}`,
       this.layout(`
         <p>Olá, <strong>${nome}</strong>!</p>
-        <p>Você foi adicionado à organização <strong>${orgNome}</strong> no Orkestri.</p>
+        <p>Você foi adicionado à organização <strong>${orgNome}</strong> no Orkestri como <strong>${papel}</strong>.</p>
         <div class="info-box">
           <div class="info-row"><span class="info-label">E-mail:</span><span class="info-value">${toEmail}</span></div>
           <div class="info-row"><span class="info-label">Senha temporária:</span><span class="info-value">${senhaTemp}</span></div>
           <div class="info-row"><span class="info-label">Organização:</span><span class="info-value">${orgNome}</span></div>
+          <div class="info-row"><span class="info-label">Perfil:</span><span class="info-value">${papel}</span></div>
         </div>
         <p style="font-size:13px;color:#6b7280">⚠️ Troque a senha no primeiro acesso.</p>
         <a href="${this.appUrl}/login" class="btn">Acessar o Sistema</a>

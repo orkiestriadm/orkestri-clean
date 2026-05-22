@@ -105,8 +105,13 @@ function OrgCard({ org, onRefresh }: { org: Org; onRefresh: () => void }) {
     if (!invite.nome || !invite.email || !invite.senha) return;
     setInviting(true);
     try {
-      await api.post(`/superadmin/organizations/${org.id}/invite-master`, invite);
-      setMsg({ text: "Master convidado com sucesso!", ok: true });
+      const r = await api.post(`/superadmin/organizations/${org.id}/invite-master`, invite);
+      setMsg({
+        text: r.data?.entregaEmail
+          ? `Master criado — credenciais enviadas para ${invite.email}`
+          : `Master criado, mas o e-mail NÃO foi entregue. Repasse manualmente — E-mail: ${invite.email} / Senha: ${invite.senha}`,
+        ok: !!r.data?.entregaEmail,
+      });
       setInvite({ nome: "", email: "", senha: "" });
       setInviteOpen(false);
       onRefresh();

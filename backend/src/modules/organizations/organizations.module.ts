@@ -11,6 +11,7 @@ import { JwtModule } from "@nestjs/jwt";
 import { Response } from "express";
 import { PrismaService } from "../../prisma/prisma.service";
 import { WhatsAppService } from "../notifications/whatsapp.service";
+import { EmailService } from "../notifications/email.service";
 import * as bcrypt from "bcryptjs";
 
 class CreateOrgDto {
@@ -42,7 +43,7 @@ function isSuperAdmin(req: any) {
 @Controller("superadmin/organizations")
 @UseGuards(AuthGuard("jwt"))
 class SuperAdminOrgsController {
-  constructor(private prisma: PrismaService, private wa: WhatsAppService, private config: ConfigService, private jwtService: JwtService) {}
+  constructor(private prisma: PrismaService, private wa: WhatsAppService, private config: ConfigService, private jwtService: JwtService, private email: EmailService) {}
 
   private guard(req: any) {
     if (!isSuperAdmin(req)) throw new ForbiddenException("Acesso restrito a super-admins");
@@ -170,11 +171,17 @@ class SuperAdminOrgsController {
     const user = await this.prisma.user.create({
       data: {
         nome: dto.nome, email: dto.email, senhaHash: hash, ativo: true,
+        primeiroAcesso: true,
         organizationId: orgId,
         userRoles: masterRole ? { create: { roleId: masterRole.id } } : undefined,
       } as any,
     });
-    return { id: user.id, nome: user.nome, email: user.email, organizationId: orgId };
+    // Envia as credenciais de acesso por e-mail ao convidado
+    let entregaEmail = false;
+    try {
+      entregaEmail = await this.email.sendUserInvite(dto.email, dto.nome, dto.senha, org.nome, "Master");
+    } catch { entregaEmail = false; }
+    return { id: user.id, nome: user.nome, email: user.email, organizationId: orgId, senha: dto.senha, entregaEmail };
   }
 
   // ── WhatsApp per-org ─────────────────────────────────────────────────────
@@ -308,6 +315,6 @@ class OrgWhatsAppController {
     }),
   ],
   controllers: [SuperAdminOrgsController, SuperAdminController, OrgWhatsAppController],
-  providers: [WhatsAppService],
+  providers: [WhatsAppService, EmailService],
 })
 export class OrganizationsModule {}
