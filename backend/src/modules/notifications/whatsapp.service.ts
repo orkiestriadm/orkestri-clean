@@ -234,8 +234,8 @@ export class WhatsAppService {
     return this.sendMessage(phone, msg, instanceName);
   }
 
-  async sendAccountApproved(phone: string, nome: string, email: string, appUrl: string, instanceName?: string): Promise<boolean> {
-    const msg = `Olá, *${nome}*!\n\nSeu cadastro no *Orkestri* foi concluído com sucesso.\n\nAcesse com suas credenciais:\n*E-mail:* ${email}\n*Senha:* 123@mudar\n\nAcesse: ${appUrl}/login\n\nVocê será solicitado a alterar sua senha no primeiro acesso.`;
+  async sendAccountApproved(phone: string, nome: string, email: string, senha: string, appUrl: string, instanceName?: string): Promise<boolean> {
+    const msg = `Olá, *${nome}*!\n\nSeu cadastro no *Orkestri* foi concluído com sucesso.\n\nAcesse com suas credenciais:\n*E-mail:* ${email}\n*Senha temporária:* ${senha}\n\nAcesse: ${appUrl}/login\n\nVocê deverá alterar sua senha no primeiro acesso.`;
     return this.sendMessage(phone, msg, instanceName);
   }
 

@@ -717,12 +717,27 @@ export class AuthService implements OnModuleInit {
       data: { status: "APROVADO", approvedById: requestUser.id, approvedAt: new Date() },
     });
     const appUrl = this.config.get("APP_URL", "http://localhost");
+    let entregaWhatsapp = false;
     if (whatsapp) {
-      this.wa.sendAccountApproved(whatsapp, nome, email, appUrl).catch(() => {});
+      try {
+        const inst = await this.wa.resolveInstance(organizationId);
+        entregaWhatsapp = await this.wa.sendAccountApproved(whatsapp, nome, email, tempPassword, appUrl, inst);
+      } catch { entregaWhatsapp = false; }
     }
-    this.email.sendAccountApproved(email, nome, tempPassword).catch(() => {});
+    let entregaEmail = false;
+    try {
+      await this.email.sendAccountApproved(email, nome, tempPassword);
+      entregaEmail = true;
+    } catch { entregaEmail = false; }
     this.logAudit(requestUser.id, "usuarios", "users", userId, "CREATE", `Conta aprovada via solicitação: ${email}`).catch(() => {});
-    return { message: "Usuário aprovado com sucesso.", userId };
+    return {
+      message: "Usuário aprovado com sucesso.",
+      userId,
+      email,
+      senhaTemporaria: tempPassword,
+      entregaWhatsapp,
+      entregaEmail,
+    };
   }
 
   async rejectUserRequest(id: string, reason: string | undefined, requestUser: any) {

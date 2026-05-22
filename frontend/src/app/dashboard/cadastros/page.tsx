@@ -1676,7 +1676,7 @@ export default function CadastrosPage() {
   const [aprovarLoading,setAprovarLoading]=useState(false);
   const [modalRejeitar, setModalRejeitar]= useState<Solicitacao|null>(null);
   const [motivoRejeitar,setMotivoRejeitar]=useState("");
-  const [aprovadoInfo,  setAprovadoInfo] = useState<{nome:string;email:string}|null>(null);
+  const [aprovadoInfo,  setAprovadoInfo] = useState<{nome:string;email:string;senha:string;entregaWhatsapp?:boolean;entregaEmail?:boolean}|null>(null);
   const [loading,       setLoading]      = useState(true);
   const [search,        setSearch]       = useState("");
   const [filterUser,    setFilterUser]   = useState<"todos"|"ativos"|"inativos">("ativos");
@@ -2906,7 +2906,7 @@ export default function CadastrosPage() {
               <button className="btn btn-violet" style={{ flex:2 }} disabled={!aprovarForm.nome||!aprovarForm.email||aprovarLoading} onClick={async()=>{
                 setAprovarErr(""); setAprovarLoading(true);
                 try {
-                  await api.patch(`/auth/solicitacoes/${modalAprovar.id}/aprovar`, {
+                  const r = await api.patch(`/auth/solicitacoes/${modalAprovar.id}/aprovar`, {
                     nome: aprovarForm.nome,
                     email: aprovarForm.email,
                     whatsapp: aprovarForm.whatsapp||undefined,
@@ -2922,7 +2922,13 @@ export default function CadastrosPage() {
                     tipoVinculo: aprovarForm.tipoVinculo||undefined,
                     jornadaHorasDia: aprovarForm.jornadaHorasDia||undefined,
                   });
-                  setAprovadoInfo({ nome: aprovarForm.nome, email: aprovarForm.email });
+                  setAprovadoInfo({
+                    nome: aprovarForm.nome,
+                    email: aprovarForm.email,
+                    senha: r.data?.senhaTemporaria || "",
+                    entregaWhatsapp: r.data?.entregaWhatsapp,
+                    entregaEmail: r.data?.entregaEmail,
+                  });
                   setModalAprovar(null);
                   await load();
                 } catch(e:any) {
@@ -2959,21 +2965,31 @@ export default function CadastrosPage() {
 
       {/* Modal senha temporaria */}
       {aprovadoInfo && (
-        <Modal title="Conta criada com sucesso" onClose={()=>setAprovadoInfo(null)} maxWidth={420}>
+        <Modal title="Conta criada com sucesso" onClose={()=>setAprovadoInfo(null)} maxWidth={440}>
           <div style={{ textAlign:"center", padding:"12px 0" }}>
             <div style={{ width:48, height:48, borderRadius:"50%", background:"var(--accent-green)20", border:"1px solid var(--accent-green)40", display:"flex", alignItems:"center", justifyContent:"center", margin:"0 auto 16px" }}>
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--accent-green)" strokeWidth="2"><path d="M20 6L9 17l-5-5" strokeLinecap="round" strokeLinejoin="round"/></svg>
             </div>
-            <p style={{ fontSize:13, color:"var(--text-secondary)", marginBottom:16, lineHeight:1.6 }}>
-              Conta criada para <strong>{aprovadoInfo.nome}</strong>.<br/>
-              As credenciais foram enviadas via WhatsApp.
+            <p style={{ fontSize:13, color:"var(--text-secondary)", marginBottom:14, lineHeight:1.6 }}>
+              Conta criada para <strong>{aprovadoInfo.nome}</strong>.
             </p>
-            <div style={{ background:"var(--bg-hover)", border:"1px solid var(--border-subtle)", borderRadius:10, padding:"12px 20px", marginBottom:12 }}>
-              <div style={{ fontSize:11, fontFamily:"var(--font-mono)", color:"var(--text-muted)", marginBottom:4 }}>CREDENCIAIS ENVIADAS</div>
+            <div style={{ background:"var(--bg-hover)", border:"1px solid var(--border-subtle)", borderRadius:10, padding:"14px 20px", marginBottom:12 }}>
+              <div style={{ fontSize:11, fontFamily:"var(--font-mono)", color:"var(--text-muted)", marginBottom:6 }}>CREDENCIAIS DE ACESSO — ANOTE AGORA</div>
               <div style={{ fontSize:13, color:"var(--text-primary)", marginBottom:4 }}>{aprovadoInfo.email}</div>
-              <div style={{ fontSize:15, fontFamily:"var(--font-mono)", fontWeight:700, color:"var(--accent-violet)" }}>123@mudar</div>
+              <div style={{ fontSize:18, fontFamily:"var(--font-mono)", fontWeight:700, color:"var(--accent-violet)", letterSpacing:"0.04em" }}>{aprovadoInfo.senha || "—"}</div>
             </div>
-            <p style={{ fontSize:11, color:"var(--text-muted)" }}>O usuario deverá alterar a senha no primeiro acesso.</p>
+            <button className="btn btn-ghost" style={{ fontSize:12, marginBottom:12 }} onClick={()=>{
+              navigator.clipboard.writeText(`E-mail: ${aprovadoInfo.email}\nSenha: ${aprovadoInfo.senha}`);
+            }}>Copiar credenciais</button>
+            <div style={{ fontSize:11, lineHeight:1.6, color:"var(--text-muted)" }}>
+              {aprovadoInfo.entregaWhatsapp
+                ? "✓ Enviado por WhatsApp. "
+                : "⚠ Não foi possível enviar por WhatsApp (sem número ou instância desconectada). "}
+              {aprovadoInfo.entregaEmail
+                ? "✓ Enviado por e-mail."
+                : "⚠ Não foi possível enviar por e-mail."}
+              <br/>Esta é a única vez que a senha é exibida. O usuário deverá alterá-la no primeiro acesso.
+            </div>
           </div>
           <button className="btn btn-violet" style={{ width:"100%", marginTop:16 }} onClick={()=>setAprovadoInfo(null)}>Fechar</button>
         </Modal>
