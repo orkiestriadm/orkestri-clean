@@ -65,6 +65,26 @@ export class CollaboratorsService {
     return user?.organizationId ? { organizationId: user.organizationId } : {};
   }
 
+  /** Gera a próxima matrícula: 3 letras da organização + sequencial 4 dígitos (ex: DEF0001). */
+  async nextMatricula(user: any) {
+    const orgId = user?.organizationId;
+    const org = orgId ? await this.prisma.organization.findUnique({ where: { id: orgId } }) : null;
+    const base = (org?.nome || "ORG")
+      .normalize("NFD").replace(/[̀-ͯ]/g, "")  // remove acentos
+      .replace(/[^A-Za-z]/g, "").toUpperCase();
+    const prefix = (base.slice(0, 3) || "ORG").padEnd(3, "X");
+    const existing = await (this.prisma as any).collaborator.findMany({
+      where: { organizationId: orgId, matricula: { startsWith: prefix } },
+      select: { matricula: true },
+    });
+    let max = 0;
+    for (const c of existing) {
+      const n = parseInt(String(c.matricula || "").slice(prefix.length).replace(/\D/g, ""), 10);
+      if (!isNaN(n) && n > max) max = n;
+    }
+    return { prefix, matricula: prefix + String(max + 1).padStart(4, "0") };
+  }
+
   async findAll(user: any, search?: string, ativo?: string) {
     const where: any = { ...this.scope(user) };
     if (ativo === "true") where.ativo = true;
@@ -168,6 +188,12 @@ export class CollaboratorsController {
   @Permissions("colaboradores:ver")
   findAll(@Req() req: any, @Query("search") search?: string, @Query("ativo") ativo?: string) {
     return this.svc.findAll(req.user, search, ativo);
+  }
+
+  @Get("next-matricula")
+  @Permissions("colaboradores:ver")
+  nextMatricula(@Req() req: any) {
+    return this.svc.nextMatricula(req.user);
   }
 
   @Get(":id")

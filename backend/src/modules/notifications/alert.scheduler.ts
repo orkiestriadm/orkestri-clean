@@ -89,8 +89,9 @@ export class AlertScheduler implements OnModuleInit {
             }).catch(() => {});
             if (phone && alertsOn) {
               const overMin = Math.round(-remainingMs / 60000);
-              await this.wa.sendSlaViolado(phone, c.numero, c.titulo, overMin, appUrl).catch(() => {});
-              this.logger.warn(`SLA VIOLADO #${c.numero} -> ${phone}`);
+              const inst = await this.wa.resolveInstance((c as any).organizationId);
+              await this.wa.sendSlaViolado(phone, c.numero, c.titulo, overMin, appUrl, inst).catch(() => {});
+              this.logger.warn(`SLA VIOLADO #${c.numero} [${inst}] -> ${phone}`);
             }
           }
         } else if (elapsedPct >= 0.8) {
@@ -110,8 +111,9 @@ export class AlertScheduler implements OnModuleInit {
             }
             if (phone && alertsOn) {
               const remMin = Math.round(remainingMs / 60000);
-              await this.wa.sendSlaRisco(phone, c.numero, c.titulo, remMin, appUrl).catch(() => {});
-              this.logger.log(`SLA risco #${c.numero} -> ${phone}`);
+              const inst = await this.wa.resolveInstance((c as any).organizationId);
+              await this.wa.sendSlaRisco(phone, c.numero, c.titulo, remMin, appUrl, inst).catch(() => {});
+              this.logger.log(`SLA risco #${c.numero} [${inst}] -> ${phone}`);
             }
           }
 
@@ -222,14 +224,15 @@ export class AlertScheduler implements OnModuleInit {
             });
           } catch (e: any) { this.logger.error("Notif erro: " + e.message); }
 
-          // WhatsApp
+          // WhatsApp — usa a instância da organização do evento (multi-tenant)
           const profile = (ev.user as any).profile;
           if (profile?.whatsapp && profile?.whatsappAlertas) {
             const body = this.fmt(cfg.mensagem, ev.titulo, horario, appUrl);
             const msg  = `${cfg.emoji} *Orkestri*\n\n${body}`;
             try {
-              const ok = await this.wa.sendMessage(profile.whatsapp, msg);
-              this.logger.log(`WA ${ok ? "OK" : "FALHOU"} -> ${profile.whatsapp}`);
+              const inst = await this.wa.resolveInstance((ev as any).organizationId);
+              const ok = await this.wa.sendMessage(profile.whatsapp, msg, inst);
+              this.logger.log(`WA ${ok ? "OK" : "FALHOU"} [${inst}] -> ${profile.whatsapp}`);
             } catch (e: any) { this.logger.error("WA erro: " + e.message); }
           }
         }

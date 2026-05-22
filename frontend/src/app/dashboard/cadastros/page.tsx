@@ -1031,6 +1031,14 @@ function CollabForm({ collab, users, setores, roles, collabs, onClose, onSave }:
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState("");
 
+  // Novo colaborador: gera matrícula automática (iniciais da org + sequencial)
+  useEffect(() => {
+    if (collab) return;
+    api.get("/collaborators/next-matricula")
+      .then(r => setF(p => (p.matricula ? p : { ...p, matricula: r.data?.matricula || "" })))
+      .catch(() => {});
+  }, [collab]);
+
   const setField = (k: keyof typeof f, v: any) => setF(p => ({ ...p, [k]: v }));
 
   const goNext = () => {
@@ -1747,6 +1755,14 @@ export default function CadastrosPage() {
   }, []);
 
   useEffect(() => { load(); }, [load]);
+
+  // Ao abrir aprovação de solicitação, gera matrícula automática (iniciais da org + sequencial)
+  useEffect(() => {
+    if (!modalAprovar) return;
+    api.get("/collaborators/next-matricula")
+      .then(r => setAprovarForm(f => ({ ...f, matricula: r.data?.matricula || "" })))
+      .catch(() => {});
+  }, [modalAprovar]);
 
   const filteredUsers = users.filter(u => {
     const ms = u.nome.toLowerCase().includes(search.toLowerCase()) || u.email.toLowerCase().includes(search.toLowerCase());

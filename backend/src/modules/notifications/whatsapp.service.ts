@@ -115,14 +115,19 @@ export class WhatsAppService {
     }
   }
 
-  async sendMessageForOrg(orgId: string, phone: string, message: string): Promise<boolean> {
-    let instanceName = this.defaultInstance;
+  /** Resolve a instância WhatsApp de uma organização (ou a default se não houver). */
+  async resolveInstance(orgId?: string): Promise<string> {
     if (this.prisma && orgId) {
       try {
         const cfg = await (this.prisma as any).orgWhatsappConfig.findUnique({ where: { organizationId: orgId } });
-        if (cfg?.instanceName && cfg?.conectado) instanceName = cfg.instanceName;
+        if (cfg?.instanceName && cfg?.conectado) return cfg.instanceName;
       } catch {}
     }
+    return this.defaultInstance;
+  }
+
+  async sendMessageForOrg(orgId: string, phone: string, message: string): Promise<boolean> {
+    const instanceName = await this.resolveInstance(orgId);
     return this.sendMessage(phone, message, instanceName);
   }
 
