@@ -241,7 +241,11 @@ function RequestDetailModal({ request, onClose }: { request: WfRequest; onClose:
 
 export default function AprovacoesPage() {
   const { user } = useAuthStore();
-  const [tab, setTab] = useState<"minhas"|"aguardando"|"todas">("aguardando");
+  // Default = "minhas" (foco do usuario comum). Aprovador (que tem coisa
+  // aguardando ele) e Master usam as outras abas para acoes.
+  const [tab, setTab] = useState<"minhas"|"aguardando"|"todas">("minhas");
+  const canConfigure = !!user?.isMaster
+    || (user?.permissions || []).some((p: string) => p === "*" || p === "aprovacoes:configurar");
   const [requests, setRequests] = useState<WfRequest[]>([]);
   const [stats, setStats] = useState<Stats|null>(null);
   const [loading, setLoading] = useState(true);
@@ -280,6 +284,12 @@ export default function AprovacoesPage() {
   return (
     <div style={{ display:"flex", flexDirection:"column", height:"100%" }}>
       <Topbar>
+        {canConfigure && (
+          <a href="/dashboard/aprovacoes/configuracao" className="btn btn-ghost" style={{ fontSize:12 }} title="Definir quem aprova cada setor">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+            Configurar aprovadores
+          </a>
+        )}
         <button className="btn btn-violet" style={{ fontSize:12 }} onClick={()=>setModalNova(true)}>
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 5v14M5 12h14" strokeLinecap="round"/></svg>
           Nova solicitação
@@ -304,9 +314,10 @@ export default function AprovacoesPage() {
 
         <div style={{ display:"flex", borderBottom:"1px solid var(--border-subtle)" }}>
           {[
-            { key:"aguardando", label:"Aguardando minha aprovação", count:stats?.aguardandoMinhaAprovacao || 0 },
-            { key:"minhas",     label:"Minhas solicitações",         count:stats?.minhasPendentes || 0 },
-            { key:"todas",      label:"Todas",                        count:0 },
+            { key:"minhas",     label:"Minhas Solicitações",   count:stats?.minhasPendentes || 0 },
+            { key:"aguardando", label:"Aprovações Pendentes",  count:stats?.aguardandoMinhaAprovacao || 0 },
+            // Historico so faz sentido para Master/admin (filtra "todas" do tenant)
+            ...(user?.isMaster ? [{ key:"todas", label:"Histórico", count:0 }] : []),
           ].map(t=>(
             <button key={t.key} onClick={()=>setTab(t.key as any)}
               style={{
