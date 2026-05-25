@@ -235,19 +235,20 @@ export default function ProjetosPage() {
   const [deleteId,  setDeleteId]  = useState<string|null>(null);
   const [detailTask, setDetailTask] = useState<Task|null>(null);
 
-  const canSeeUsers = me?.isMaster || (me?.permissions || []).some(p => p === "*" || p === "usuarios:ver");
-
+  // /users/picklist e uma lista enxuta (id, nome, email, avatar) que NAO exige
+  // 'usuarios:ver' — qualquer usuario autenticado pode escolher colegas pra
+  // adicionar como membro do projeto.
   const load = useCallback(async () => {
     setLoading(true);
     try {
       const [pRes, uRes] = await Promise.all([
         api.get("/projects"),
-        canSeeUsers ? api.get("/users") : Promise.resolve({ data: [] }),
+        api.get("/users/picklist"),
       ]);
       setProjects(pRes.data);
-      setUsers(uRes.data);
+      setUsers(Array.isArray(uRes.data) ? uRes.data : []);
     } catch {} finally { setLoading(false); }
-  }, [canSeeUsers]);
+  }, []);
 
   useEffect(() => { load(); }, []);
 
