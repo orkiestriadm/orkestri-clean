@@ -91,8 +91,17 @@ function ProjectModal({ project, users, onClose, onSave }: { project?:Project; u
             Um evento de prazo será criado na agenda de todos os membros
           </div>
         )}
-        {!isEdit && otherUsers.length > 0 && (
-          <MemberSelector users={otherUsers} selected={membros} onChange={setMembros} label="MEMBROS DO PROJETO" />
+        {!isEdit && (
+          otherUsers.length > 0 ? (
+            <MemberSelector users={otherUsers} selected={membros} onChange={setMembros} label="MEMBROS DO PROJETO" />
+          ) : (
+            <div>
+              <label className="text-[11px] text-[var(--text-muted)] font-mono block mb-1.5 uppercase tracking-wider">Membros do projeto</label>
+              <div className="text-[12px] text-[var(--text-muted)] italic bg-[var(--bg-hover)] border border-dashed border-[var(--border-subtle)] rounded-lg px-3 py-2.5">
+                Nenhum outro colaborador disponivel na sua organizacao. Voce sera o unico membro inicial — adicione outros depois pela tela do projeto.
+              </div>
+            </div>
+          )
         )}
         {error && <p className="text-xs text-[var(--accent-red)]">{error}</p>}
         <div className="flex gap-3 mt-2">
@@ -238,16 +247,19 @@ export default function ProjetosPage() {
   // /users/picklist e uma lista enxuta (id, nome, email, avatar) que NAO exige
   // 'usuarios:ver' — qualquer usuario autenticado pode escolher colegas pra
   // adicionar como membro do projeto.
+  // Chamadas SEPARADAS: falha numa nao deve impedir a outra (antes era
+  // Promise.all, all-or-nothing).
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [pRes, uRes] = await Promise.all([
-        api.get("/projects"),
-        api.get("/users/picklist"),
-      ]);
-      setProjects(pRes.data);
-      setUsers(Array.isArray(uRes.data) ? uRes.data : []);
-    } catch {} finally { setLoading(false); }
+      const { data } = await api.get("/projects");
+      setProjects(Array.isArray(data) ? data : []);
+    } catch { setProjects([]); }
+    try {
+      const { data } = await api.get("/users/picklist");
+      setUsers(Array.isArray(data) ? data : []);
+    } catch { setUsers([]); }
+    setLoading(false);
   }, []);
 
   useEffect(() => { load(); }, []);
