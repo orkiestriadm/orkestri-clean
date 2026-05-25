@@ -134,10 +134,15 @@ export class AuthController {
   async me(@Req() req: any) {
     const base = await this.auth.me(req.user.id);
     if (req.user.impersonating) {
+      // Durante impersonação o SA global atua DENTRO de um tenant.
+      // isSuperAdmin = false neste contexto (o módulo Gestão Global
+      // não deve estar acessível, e o frontend não deve disparar
+      // chamadas para /superadmin/* enquanto impersonando).
       return {
         ...base,
         organizationId: req.user.organizationId,
         isMaster: true,
+        isSuperAdmin: false,
         permissions: ["*"],
         impersonating: true,
         impersonatingOrgName: req.user.impersonatingOrgName,
