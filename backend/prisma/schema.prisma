@@ -120,6 +120,7 @@ model Organization {
   ausencias         Ausencia[]              @relation("OrgAusencias")
   workflowRequests  WorkflowRequest[]       @relation("OrgWorkflowRequests")
   squads            Squad[]                 @relation("OrgSquads")
+  aprovadoresSetor  AprovadorSetor[]
 
   @@map("organizations")
 }
@@ -222,6 +223,9 @@ model User {
   wfRequestsAprovadas       WorkflowRequest[]        @relation("WfReqAprovador")
   wfRequestsRejeitadas      WorkflowRequest[]        @relation("WfReqRejeitador")
   wfApprovals               WorkflowApproval[]       @relation("WfApprovalAprovador")
+  aprovadoresPrimarioDeSetor AprovadorSetor[]        @relation("AprovadorPrimario")
+  aprovadoresBackupDeSetor   AprovadorSetor[]        @relation("AprovadorBackup")
+  aprovadoresConfigurados    AprovadorSetor[]        @relation("AprovadorConfigurador")
 
   @@unique([organizationId, email])
   @@index([organizationId])
@@ -497,6 +501,34 @@ model WorkflowApproval {
   @@index([requestId])
   @@index([aprovadorId])
   @@map("workflow_approvals")
+}
+
+// Matriz de aprovadores por setor — 1 primário + 1 backup com vigência.
+// Quando a vigência do backup está ativa (hoje entre inicio e fim), todas as
+// solicitações novas (e os lembretes que escalam) vão para o backup. Fora da
+// vigência, voltam ao primário automaticamente.
+model AprovadorSetor {
+  id                String    @id @default(uuid())
+  organizationId    String    @map("organization_id")
+  setorId           String    @unique @map("setor_id")
+  aprovadorId       String    @map("aprovador_id")
+  backupAprovadorId String?   @map("backup_aprovador_id")
+  backupInicio      DateTime? @map("backup_inicio")
+  backupFim         DateTime? @map("backup_fim")
+  configuradoPorId  String?   @map("configurado_por_id")
+  criadoEm          DateTime  @default(now()) @map("criado_em")
+  atualizadoEm      DateTime  @updatedAt @map("atualizado_em")
+
+  organization     Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  setor            Setor        @relation(fields: [setorId], references: [id], onDelete: Cascade)
+  aprovador        User         @relation("AprovadorPrimario", fields: [aprovadorId], references: [id], onDelete: Cascade)
+  backupAprovador  User?        @relation("AprovadorBackup",   fields: [backupAprovadorId], references: [id], onDelete: SetNull)
+  configuradoPor   User?        @relation("AprovadorConfigurador", fields: [configuradoPorId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId])
+  @@index([aprovadorId])
+  @@index([backupAprovadorId])
+  @@map("aprovadores_setor")
 }
 
 // ── Workforce: Ausências ───────────────────────────────────────────────────
@@ -1387,6 +1419,7 @@ model Setor {
   users          UserProfile[]
   ativos         Ativo[]
   collaborators  Collaborator[] @relation("SetorCollaborators")
+  aprovadorConfig AprovadorSetor?
 
   @@unique([organizationId, nome])
   @@map("setores")
