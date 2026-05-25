@@ -629,8 +629,13 @@ class OrcamentoController {
   @Permissions("orcamento:aprovar")
   async listAprovacoes(@Req() req: any, @Query("status") status = "pendente") {
     const orgId = req.user?.organizationId;
+    // AprovacaoOrcamento não tem organizationId direto — isolamento de tenant
+    // é feito via a cadeia item → ciclo → organizationId.
     return (this.prisma as any).aprovacaoOrcamento.findMany({
-      where: { status, ...(orgId ? { organizationId: orgId } as any : {}) },
+      where: {
+        status,
+        ...(orgId ? { item: { is: { ciclo: { is: { organizationId: orgId } } } } } : {}),
+      },
       include: {
         item: { select: { id: true, nome: true, tipo: true, categoria: { select: { nome: true } } } },
         solicitadoPor: { select: { id: true, nome: true } },
@@ -643,8 +648,17 @@ class OrcamentoController {
   @Patch("aprovacoes/:id")
   @Permissions("orcamento:aprovar")
   async resolverAprovacao(@Param("id") id: string, @Body() dto: ResolverAprovacaoDto, @Req() req: any) {
-    const aprov = await (this.prisma as any).aprovacaoOrcamento.findUnique({ where: { id } });
+    const aprov = await (this.prisma as any).aprovacaoOrcamento.findUnique({
+      where: { id },
+      include: { item: { select: { ciclo: { select: { organizationId: true } } } } },
+    });
     if (!aprov) throw new NotFoundException("Aprovação não encontrada");
+    // Isolamento multi-tenant: aprovação de outro tenant responde como inexistente
+    const orgId = req.user?.organizationId;
+    const aprovOrg = aprov?.item?.ciclo?.organizationId;
+    if (orgId && aprovOrg && aprovOrg !== orgId) {
+      throw new NotFoundException("Aprovação não encontrada");
+    }
     if (aprov.status !== "pendente") throw new BadRequestException("Aprovação já resolvida");
 
     const updated = await (this.prisma as any).aprovacaoOrcamento.update({
