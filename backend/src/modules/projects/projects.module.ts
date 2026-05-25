@@ -54,6 +54,8 @@ async function recalcProgress(prisma: PrismaService, projectId: string) {
 
 async function createDeadlineEvent(prisma: PrismaService, project: any, userIds: string[], criadoPorId: string) {
   if (!project.dataFim) return;
+  // Multi-tenant: Event exige organizationId. Pega do proprio projeto.
+  const orgId = project.organizationId;
   const deadline = new Date(project.dataFim);
   deadline.setHours(9, 0, 0, 0);
   for (const uid of userIds) {
@@ -70,6 +72,7 @@ async function createDeadlineEvent(prisma: PrismaService, project: any, userIds:
         origemTipo: "projeto",
         origemId: project.id,
         confirmado: uid === criadoPorId,
+        ...(orgId ? { organizationId: orgId } : {}),
       } as any,
     });
     // Notifica membro
@@ -251,6 +254,7 @@ class ProjectsController {
           origemTipo: "task",
           origemId: task.id,
           confirmado: dto.assigneeId === req.user.id,
+          ...((proj as any)?.organizationId ? { organizationId: (proj as any).organizationId } : {}),
         } as any,
       });
       await this.prisma.notification.create({
@@ -359,6 +363,7 @@ class ProjectsController {
             origemTipo: "projeto",
             origemId: project.id,
             confirmado: false,
+            ...((project as any).organizationId ? { organizationId: (project as any).organizationId } : {}),
           } as any,
         });
         await this.prisma.notification.create({
