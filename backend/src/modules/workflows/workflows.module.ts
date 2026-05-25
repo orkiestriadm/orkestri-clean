@@ -1,6 +1,7 @@
 import {
   Module, Controller, Get, Post, Put, Patch, Delete, Body, Param, Query,
-  UseGuards, Req, Injectable, BadRequestException, NotFoundException, ForbiddenException,
+  UseGuards, Req, Injectable, OnModuleInit, Logger,
+  BadRequestException, NotFoundException, ForbiddenException,
 } from "@nestjs/common";
 import { AuthGuard } from "@nestjs/passport";
 import { ConfigService } from "@nestjs/config";
@@ -325,6 +326,127 @@ export class WorkflowsService {
     return { minhasPendentes, aguardandoMinhaAprovacao: aguardando, aprovadas, rejeitadas };
   }
 
+  // ── Lembrete + escalonamento automatico (usado pelo scheduler) ─────────────
+
+  /** Reenviar notificacao ao aprovador atual (chamado pelo cron 24h apos criacao). */
+  async relembrarAprovador(r: any) {
+    if (!r.aprovadorAtualId) return;
+    const horas = Math.round((Date.now() - new Date(r.criadoEm).getTime()) / 3600000);
+    await this.notify(r.aprovadorAtualId, "workflow_lembrete",
+      "Lembrete: solicitacao aguardando ha mais de " + horas + "h",
+      `${r.solicitante?.nome || "Usuario"} -> ${r.titulo}`,
+      r.id);
+    const phone = await this.getUserPhone(r.aprovadorAtualId);
+    if (phone) {
+      const valorTxt = r.valor && r.valor > 0 ? `\n*Valor:* R$ ${r.valor.toFixed(2).replace(".", ",")}` : "";
+      const msg =
+        `*Lembrete:* solicitacao aguardando sua aprovacao ha mais de ${horas}h\n\n` +
+        `*De:* ${r.solicitante?.nome || "Usuario"}\n` +
+        `*Assunto:* ${r.titulo}${valorTxt}\n\n` +
+        `${this.appUrl}/dashboard/aprovacoes`;
+      this.wa.sendMessageForOrg(r.organizationId, phone, msg).catch(() => {});
+    }
+    await (this.prisma as any).workflowRequest.update({
+      where: { id: r.id },
+      data: { ultimoLembreteEm: new Date() },
+    });
+  }
+
+  /**
+   * Escalonamento automatico apos 48h sem decisao:
+   *  - Se o aprovador atual e o primario e existe backup configurado -> backup
+   *  - Senao, se existe Master da org -> Master
+   *  - Senao, mantem como esta (so loga)
+   */
+  async escalarPorTimeout(r: any) {
+    if (!r.aprovadorAtualId) return;
+    const orgId = r.organizationId;
+    let novoAprovadorId: string | null = null;
+    let motivoEscala = "timeout 48h";
+
+    // Procura config do setor do solicitante
+    const collab = await (this.prisma as any).collaborator.findFirst({
+      where: { userId: r.solicitanteId, organizationId: orgId },
+      select: { setorId: true },
+    });
+    const setorId = collab?.setorId
+      || (await (this.prisma as any).userProfile.findUnique({ where: { userId: r.solicitanteId }, select: { setorId: true } }))?.setorId;
+
+    if (setorId) {
+      const cfg = await (this.prisma as any).aprovadorSetor.findUnique({ where: { setorId } });
+      if (cfg && cfg.backupAprovadorId && cfg.backupAprovadorId !== r.aprovadorAtualId) {
+        novoAprovadorId = cfg.backupAprovadorId;
+        motivoEscala = "timeout 48h - escalado ao backup do setor";
+      }
+    }
+
+    // Sem backup -> tenta Master da org
+    if (!novoAprovadorId) {
+      const master = await this.findMasterDaOrg(orgId, [r.aprovadorAtualId]);
+      if (master) {
+        novoAprovadorId = master;
+        motivoEscala = "timeout 48h - escalado ao Master";
+      }
+    }
+
+    if (!novoAprovadorId) {
+      // Nao ha pra quem escalar — so registra que tentou (evita re-tentar todo tick)
+      await (this.prisma as any).workflowRequest.update({
+        where: { id: r.id }, data: { escaladoEm: new Date() },
+      });
+      return;
+    }
+
+    // Atualiza request + auditoria via WorkflowApproval (tipo ESCALADO)
+    await (this.prisma as any).workflowApproval.create({
+      data: {
+        requestId: r.id,
+        aprovadorId: r.aprovadorAtualId,
+        nivel: (await (this.prisma as any).workflowApproval.count({ where: { requestId: r.id } })) + 1,
+        decisao: "ESCALADO",
+        observacoes: motivoEscala,
+      },
+    });
+    await (this.prisma as any).workflowRequest.update({
+      where: { id: r.id },
+      data: { aprovadorAtualId: novoAprovadorId, escaladoEm: new Date(), ultimoLembreteEm: new Date() },
+    });
+
+    // Notifica o novo aprovador + solicitante
+    await this.notify(novoAprovadorId, "workflow_escalado",
+      "Solicitacao escalada para sua aprovacao",
+      `"${r.titulo}" (sem decisao ha 48h)`, r.id);
+    const phone = await this.getUserPhone(novoAprovadorId);
+    if (phone) {
+      const valorTxt = r.valor && r.valor > 0 ? `\n*Valor:* R$ ${r.valor.toFixed(2).replace(".", ",")}` : "";
+      const msg =
+        `*ESCALONAMENTO automatico*\n\n` +
+        `Solicitacao sem decisao ha 48h foi escalada para voce:\n\n` +
+        `*De:* ${r.solicitante?.nome || "Usuario"}\n` +
+        `*Assunto:* ${r.titulo}${valorTxt}\n\n` +
+        `${this.appUrl}/dashboard/aprovacoes`;
+      this.wa.sendMessageForOrg(orgId, phone, msg).catch(() => {});
+    }
+    await this.notify(r.solicitanteId, "workflow_escalado",
+      "Sua solicitacao foi escalada",
+      `"${r.titulo}" passou para outro aprovador apos 48h sem decisao`, r.id);
+  }
+
+  /** Acha um Master/`*` ativo da org (excluindo IDs ja envolvidos). */
+  private async findMasterDaOrg(orgId: string, excluir: string[] = []): Promise<string | null> {
+    try {
+      const masters = await (this.prisma as any).user.findMany({
+        where: {
+          organizationId: orgId, ativo: true,
+          id: { notIn: excluir },
+          userRoles: { some: { role: { permissions: { has: "*" } } } },
+        },
+        select: { id: true }, take: 1,
+      });
+      return masters[0]?.id || null;
+    } catch { return null; }
+  }
+
   // ── Matriz de aprovadores por setor ────────────────────────────────────────
   /** Apenas Master ou quem tem permissao 'aprovacoes:configurar' gerencia a matriz. */
   private canConfigureMatrix(user: any): boolean {
@@ -514,6 +636,55 @@ export class WorkflowsController {
   }
 }
 
+// ── Scheduler: lembrete 24h + escalonamento automatico 48h ──────────────────
+@Injectable()
+export class WorkflowReminderScheduler implements OnModuleInit {
+  private readonly logger = new Logger(WorkflowReminderScheduler.name);
+
+  constructor(private svc: WorkflowsService, private prisma: PrismaService) {}
+
+  onModuleInit() {
+    // Primeiro tick depois de 60s; depois a cada 30 min
+    setTimeout(() => this.tick().catch(() => {}), 60_000);
+    setInterval(() => this.tick().catch(() => {}), 30 * 60 * 1000);
+    this.logger.log("WorkflowReminderScheduler iniciado (30min interval)");
+  }
+
+  async tick() {
+    const now = Date.now();
+    const H24 = 24 * 3600 * 1000;
+    const H48 = 48 * 3600 * 1000;
+
+    // Pega TODAS as PENDENTES com mais de 24h
+    const pendentes = await (this.prisma as any).workflowRequest.findMany({
+      where: { status: "PENDENTE", criadoEm: { lt: new Date(now - H24) } },
+      include: {
+        solicitante:    { select: { id: true, nome: true } },
+        aprovadorAtual: { select: { id: true, nome: true } },
+      },
+    });
+
+    for (const r of pendentes) {
+      const idadeMs = now - new Date(r.criadoEm).getTime();
+      const semLembrete = !r.ultimoLembreteEm;
+      const lembreteHaMais24h = r.ultimoLembreteEm && (now - new Date(r.ultimoLembreteEm).getTime()) > H24;
+      const elegivelLembrete = semLembrete && idadeMs >= H24 && idadeMs < H48;
+      const elegivelEscalada = !r.escaladoEm && idadeMs >= H48;
+      const elegivelRelembre = r.escaladoEm && lembreteHaMais24h; // depois de escalado, lembra a cada 24h
+
+      try {
+        if (elegivelEscalada) {
+          await this.svc.escalarPorTimeout(r);
+        } else if (elegivelLembrete || elegivelRelembre) {
+          await this.svc.relembrarAprovador(r);
+        }
+      } catch (e: any) {
+        this.logger.warn(`tick: request ${r.id} -> ${e?.message || e}`);
+      }
+    }
+  }
+}
+
 // ── Controller separado: matriz de aprovadores por setor ────────────────────
 @Controller("workflows/aprovadores-setor")
 @UseGuards(AuthGuard("jwt"))
@@ -539,7 +710,7 @@ export class AprovadoresSetorController {
 @Module({
   imports: [NotificationsModule],
   controllers: [WorkflowsController, AprovadoresSetorController],
-  providers: [WorkflowsService, WhatsAppService],
+  providers: [WorkflowsService, WhatsAppService, WorkflowReminderScheduler],
   exports: [WorkflowsService],
 })
 export class WorkflowsModule {}

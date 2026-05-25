@@ -468,6 +468,8 @@ model WorkflowRequest {
   rejeitadoPorId   String?   @map("rejeitado_por_id")
   rejeitadoEm      DateTime? @map("rejeitado_em")
   motivoRejeicao   String?   @map("motivo_rejeicao")
+  ultimoLembreteEm DateTime? @map("ultimo_lembrete_em")
+  escaladoEm       DateTime? @map("escalado_em")
   criadoEm         DateTime  @default(now()) @map("criado_em")
   atualizadoEm     DateTime  @updatedAt @map("atualizado_em")
 
