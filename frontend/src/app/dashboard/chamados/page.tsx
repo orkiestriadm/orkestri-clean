@@ -4,7 +4,8 @@ import { useAuthStore } from "@/lib/store";
 import { api } from "@/lib/api";
 import {
   Plus, Search, X, Send, Tag, Building2, Star, Loader2, RefreshCw,
-  MessageSquare, ExternalLink, BookOpen
+  MessageSquare, ExternalLink, BookOpen, Hand, Inbox, User as UserIcon,
+  Globe2, History, AlertCircle, CheckCircle2
 } from "lucide-react";
 import Topbar from "@/components/layout/Topbar";
 
@@ -31,7 +32,14 @@ type Stats = {
   total: number; aberto: number; em_atendimento: number;
   aguardando: number; resolvido: number; fechado: number;
   slaViolados: number; slaEmRisco: number;
+  fila?: number; meus?: number;
 };
+type AuditoriaEntry = {
+  id: string; acao: string; de?: string | null; para?: string | null;
+  metadata?: any; criadoEm: string;
+  user: { id: string; nome: string; avatar?: string } | null;
+};
+type Scope = "fila" | "meus" | "todos";
 type Usuario = { id: string; nome: string; email: string };
 type Cliente = { id: string; nome: string; empresa?: string };
 
@@ -119,12 +127,26 @@ function Avatar({ nome, size = 6 }: { nome: string; size?: number }) {
 }
 
 // ── Kanban Card ────────────────────────────────────────────────────────────────
-function ChamadoCard({ chamado, onClick, selected, onSelect }: {
+function ChamadoCard({ chamado, onClick, selected, onSelect, onAssumir, canAssumir }: {
   chamado: Chamado; onClick: () => void;
   selected?: boolean; onSelect?: (e: React.MouseEvent) => void;
+  onAssumir?: (id: string) => void; canAssumir?: boolean;
 }) {
+  // Chamado é "fila pública" quando status=aberto e ninguém o assumiu ainda.
+  const isPublicQueue = chamado.status === "aberto" && !chamado.atendenteId;
+  const showAssumir = canAssumir && isPublicQueue;
+  const [assumindo, setAssumindo] = useState(false);
+
+  async function handleAssumir(e: React.MouseEvent) {
+    e.stopPropagation();
+    if (!onAssumir || assumindo) return;
+    setAssumindo(true);
+    try { await onAssumir(chamado.id); }
+    finally { setAssumindo(false); }
+  }
+
   return (
-    <div className={`relative w-full text-left card-premium p-3.5 transition-all hover:shadow-premium-md ${selected ? "ring-2 ring-[var(--accent-violet)] bg-[var(--accent-violet-dim)]" : "hover:border-[var(--border-medium)]"}`}>
+    <div className={`relative w-full text-left card-premium p-3.5 transition-all hover:shadow-premium-md ${selected ? "ring-2 ring-[var(--accent-violet)] bg-[var(--accent-violet-dim)]" : "hover:border-[var(--border-medium)]"} ${isPublicQueue ? "border-l-2 border-l-[var(--accent-violet)]" : ""}`}>
       {onSelect && (
         <div className="absolute top-2 right-2 z-10" onClick={onSelect}>
           <div className={`w-4 h-4 rounded border-2 flex items-center justify-center transition-colors cursor-pointer ${selected ? "bg-[var(--accent-violet)] border-[var(--accent-violet)]" : "border-[var(--border-strong)] bg-[var(--bg-primary)] hover:border-[var(--accent-violet)]"}`}>
@@ -152,6 +174,11 @@ function ChamadoCard({ chamado, onClick, selected, onSelect }: {
               <Avatar nome={chamado.atendente.nome} size={5} />
             </>
           )}
+          {isPublicQueue && (
+            <span className="ml-1 inline-flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider text-[var(--accent-violet)] bg-[var(--accent-violet)]/10 border border-[var(--accent-violet)]/20 px-1.5 py-0.5 rounded">
+              <Globe2 size={9} /> Fila
+            </span>
+          )}
         </div>
         <div className="flex items-center gap-2">
           <SlaBadge slaStatus={chamado.slaStatus} />
@@ -159,6 +186,17 @@ function ChamadoCard({ chamado, onClick, selected, onSelect }: {
         </div>
       </div>
       </button>
+      {showAssumir && (
+        <button
+          onClick={handleAssumir}
+          disabled={assumindo}
+          className="mt-3 w-full flex items-center justify-center gap-1.5 text-[11px] font-semibold py-1.5 px-2 rounded-md border border-[var(--accent-violet)]/40 text-[var(--accent-violet)] bg-[var(--accent-violet)]/10 hover:bg-[var(--accent-violet)]/20 transition-colors disabled:opacity-50"
+          title="Assumir este chamado da fila pública"
+        >
+          {assumindo ? <Loader2 size={12} className="animate-spin" /> : <Hand size={12} />}
+          Assumir Chamado
+        </button>
+      )}
     </div>
   );
 }
@@ -377,8 +415,8 @@ function NovoChamadoModal({ onClose, onCreated }: { onClose: () => void; onCreat
 }
 
 // ── Detail Drawer ──────────────────────────────────────────────────────────────
-function ChamadoDrawer({ chamado, isMaster, userId, onClose, onUpdated }: {
-  chamado: Chamado; isMaster: boolean; userId: string;
+function ChamadoDrawer({ chamado, isMaster, userId, canEditar, onClose, onUpdated }: {
+  chamado: Chamado; isMaster: boolean; userId: string; canEditar: boolean;
   onClose: () => void; onUpdated: () => void;
 }) {
   const [detail, setDetail] = useState<Chamado>(chamado);
@@ -387,6 +425,8 @@ function ChamadoDrawer({ chamado, isMaster, userId, onClose, onUpdated }: {
   const [sending, setSending] = useState(false);
   const [changingStatus, setChangingStatus] = useState(false);
   const [atribuindo, setAtribuindo] = useState(false);
+  const [assumindo, setAssumindo] = useState(false);
+  const [assumirErro, setAssumirErro] = useState("");
   const [showSuggest, setShowSuggest] = useState(false);
   const [suggestions, setSuggestions] = useState<any[]>([]);
   const [loadingSuggest, setLoadingSuggest] = useState(false);
@@ -394,6 +434,8 @@ function ChamadoDrawer({ chamado, isMaster, userId, onClose, onUpdated }: {
   const [ratingNota, setRatingNota] = useState("");
   const [savingRating, setSavingRating] = useState(false);
   const [users, setUsers] = useState<Usuario[]>([]);
+  const [auditoria, setAuditoria] = useState<AuditoriaEntry[]>([]);
+  const [showAuditoria, setShowAuditoria] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -402,7 +444,15 @@ function ChamadoDrawer({ chamado, isMaster, userId, onClose, onUpdated }: {
     } catch {}
   }, [chamado.id]);
 
+  const loadAuditoria = useCallback(async () => {
+    try {
+      const { data } = await api.get(`/chamados/${chamado.id}/auditoria`);
+      setAuditoria(Array.isArray(data) ? data : []);
+    } catch { setAuditoria([]); }
+  }, [chamado.id]);
+
   useEffect(() => { load(); }, [load]);
+  useEffect(() => { if (showAuditoria) loadAuditoria(); }, [showAuditoria, loadAuditoria]);
 
   useEffect(() => {
     if (!isMaster) return;
@@ -444,6 +494,22 @@ function ChamadoDrawer({ chamado, isMaster, userId, onClose, onUpdated }: {
     }
   }
 
+  async function assumir() {
+    setAssumindo(true); setAssumirErro("");
+    try {
+      await api.patch(`/chamados/${chamado.id}/assumir`);
+      await load();
+      onUpdated();
+    } catch (err: any) {
+      // 409 = outro usuário assumiu primeiro. Recarrega pra UI mostrar o atendente atual.
+      setAssumirErro(err?.response?.data?.message || "Nao foi possivel assumir o chamado");
+      await load();
+      onUpdated();
+    } finally {
+      setAssumindo(false);
+    }
+  }
+
   async function loadSuggestions() {
     setShowSuggest(true);
     setLoadingSuggest(true);
@@ -473,6 +539,12 @@ function ChamadoDrawer({ chamado, isMaster, userId, onClose, onUpdated }: {
   const nextStatuses = NEXT_STATUS[detail.status] || [];
   const isSolicitante = detail.solicitanteId === userId;
   const canEvaluate = isSolicitante && detail.status === "resolvido" && !detail.avaliacao;
+  // Pode assumir: status=aberto, sem atendente, usuário tem permissão de editar,
+  // e não é o solicitante (evita auto-atribuição passiva — mas mantemos como
+  // possibilidade já que a regra de negócio permite). Para Jira-likeness: o
+  // solicitante também pode assumir o próprio (útil em times pequenos).
+  const inPublicQueue = detail.status === "aberto" && !detail.atendenteId;
+  const showAssumirBtn = inPublicQueue && canEditar;
 
   return (
     <div className="fixed inset-0 z-50 flex">
@@ -495,6 +567,13 @@ function ChamadoDrawer({ chamado, isMaster, userId, onClose, onUpdated }: {
             <h2 className="font-display font-bold text-[var(--text-primary)] text-xl leading-snug">{detail.titulo}</h2>
           </div>
           <div className="flex items-center gap-2 ml-4 flex-shrink-0">
+            <button
+              onClick={() => setShowAuditoria(s => !s)}
+              title="Histórico do chamado"
+              className={`w-8 h-8 flex items-center justify-center rounded-full transition-colors ${showAuditoria ? "bg-[var(--accent-violet)]/15 text-[var(--accent-violet)]" : "bg-[var(--bg-hover)] text-[var(--text-muted)] hover:text-[var(--text-primary)]"}`}
+            >
+              <History size={16} />
+            </button>
             <a href={`/dashboard/chamados/${detail.id}`} title="Abrir página completa"
               className="w-8 h-8 flex items-center justify-center rounded-full bg-[var(--bg-hover)] text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors">
               <ExternalLink size={16} />
@@ -504,6 +583,30 @@ function ChamadoDrawer({ chamado, isMaster, userId, onClose, onUpdated }: {
             </button>
           </div>
         </div>
+
+        {/* Banner "Assumir chamado" — só na fila pública */}
+        {showAssumirBtn && (
+          <div className="px-6 py-3 border-b border-[var(--border-subtle)] bg-[var(--accent-violet)]/8 flex items-center gap-3 flex-shrink-0">
+            <Globe2 size={16} className="text-[var(--accent-violet)] shrink-0" />
+            <div className="flex-1 min-w-0">
+              <div className="text-[12px] font-semibold text-[var(--text-primary)]">Este chamado está na fila pública</div>
+              <div className="text-[11px] text-[var(--text-muted)]">Assuma para que ele apareça apenas no seu painel.</div>
+              {assumirErro && (
+                <div className="mt-1 text-[11px] text-[var(--accent-red)] flex items-center gap-1">
+                  <AlertCircle size={11} /> {assumirErro}
+                </div>
+              )}
+            </div>
+            <button
+              onClick={assumir}
+              disabled={assumindo}
+              className="btn btn-violet text-xs px-4 py-1.5 flex items-center gap-1.5 disabled:opacity-50"
+            >
+              {assumindo ? <Loader2 size={13} className="animate-spin" /> : <Hand size={13} />}
+              Assumir Chamado
+            </button>
+          </div>
+        )}
 
         <div className="flex-1 overflow-y-auto">
           {/* Meta info */}
@@ -595,6 +698,54 @@ function ChamadoDrawer({ chamado, isMaster, userId, onClose, onUpdated }: {
             <h3 className="text-[11px] font-mono font-bold text-[var(--text-muted)] tracking-widest uppercase mb-3">Descrição</h3>
             <p className="text-[14px] text-[var(--text-primary)] whitespace-pre-wrap leading-relaxed">{detail.descricao}</p>
           </div>
+
+          {/* Auditoria / Histórico */}
+          {showAuditoria && (
+            <div className="px-6 py-6 border-b border-[var(--border-subtle)] bg-[var(--bg-primary)]/30">
+              <h3 className="text-[11px] font-mono font-bold text-[var(--text-muted)] tracking-widest uppercase mb-4 flex items-center gap-2">
+                <History size={13} /> Histórico ({auditoria.length})
+              </h3>
+              {auditoria.length === 0 ? (
+                <p className="text-[12px] text-[var(--text-muted)] italic text-center py-3 bg-[var(--bg-hover)] rounded-lg border border-dashed border-[var(--border-subtle)]">Nenhuma ação registrada ainda.</p>
+              ) : (
+                <ol className="space-y-3">
+                  {auditoria.map(e => {
+                    const labelMap: Record<string, { txt: string; icon: any; color: string }> = {
+                      criado:               { txt: "Chamado criado",                icon: Plus,        color: "var(--text-secondary)" },
+                      assumido:             { txt: "Assumiu o chamado",             icon: Hand,        color: "var(--accent-violet)" },
+                      atribuicao:           { txt: "Atribuído",                     icon: UserIcon,    color: "#60a5fa" },
+                      atribuicao_removida:  { txt: "Atribuição removida",           icon: X,           color: "#94a3b8" },
+                      transferencia:        { txt: "Transferido",                   icon: UserIcon,    color: "#fbbf24" },
+                      status:               { txt: "Status alterado",               icon: CheckCircle2,color: "#34d399" },
+                      prioridade:           { txt: "Prioridade alterada",           icon: AlertCircle, color: "#fbbf24" },
+                    };
+                    const meta = labelMap[e.acao] || { txt: e.acao, icon: History, color: "var(--text-muted)" };
+                    const Icon = meta.icon;
+                    return (
+                      <li key={e.id} className="flex gap-3">
+                        <div className="flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center" style={{ background: meta.color + "20", color: meta.color, border: `1px solid ${meta.color}40` }}>
+                          <Icon size={12} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-[12px] font-semibold text-[var(--text-primary)]">{meta.txt}</span>
+                            {(e.de || e.para) && (e.acao === "status" || e.acao === "prioridade") && (
+                              <span className="text-[11px] text-[var(--text-muted)] font-mono">
+                                {e.de || "—"} <span className="opacity-50">→</span> {e.para || "—"}
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-[10px] text-[var(--text-muted)] mt-0.5">
+                            {e.user?.nome || "Sistema"} • {formatDate(e.criadoEm)}
+                          </div>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ol>
+              )}
+            </div>
+          )}
 
           {/* Comments */}
           <div className="px-6 py-6 bg-[var(--bg-primary)]/20">
@@ -793,6 +944,19 @@ export default function ChamadosPage() {
   const [filterCat, setFilterCat] = useState("");
   const [bulkIds, setBulkIds] = useState<Set<string>>(new Set());
   const [bulkUsers, setBulkUsers] = useState<Usuario[]>([]);
+  // Escopo do board: fila / meus / todos. Padrão = meus (Jira-like).
+  const [scope, setScope] = useState<Scope>("meus");
+  const [toast, setToast] = useState<{ type: "ok" | "err"; msg: string } | null>(null);
+
+  // Quem pode editar/assumir chamado: master OU permissão chamados:editar/*
+  const canEditar = !!(user?.isMaster
+    || user?.permissions?.includes("*")
+    || user?.permissions?.includes("chamados:editar"));
+
+  // Master pode ver "Todos" (sem filtro de propriedade). Demais: fila ∪ meus.
+  useEffect(() => {
+    if (!user?.isMaster && scope === "todos") setScope("meus");
+  }, [user?.isMaster, scope]);
 
   function toggleBulk(id: string) {
     setBulkIds(prev => {
@@ -810,9 +974,12 @@ export default function ChamadosPage() {
       if (filterPrio) params.set("prioridade", filterPrio);
       if (filterCat) params.set("categoria", filterCat);
       if (search) params.set("q", search);
+      if (scope) params.set("scope", scope);
+      const sParams = new URLSearchParams();
+      sParams.set("scope", scope);
       const [cRes, sRes] = await Promise.all([
         api.get(`/chamados?${params}`),
-        api.get("/chamados/stats"),
+        api.get(`/chamados/stats?${sParams}`),
       ]);
       setChamados(Array.isArray(cRes.data) ? cRes.data : []);
       setStats(sRes.data);
@@ -821,7 +988,27 @@ export default function ChamadosPage() {
     } finally {
       setLoading(false);
     }
-  }, [filterStatus, filterPrio, filterCat, search]);
+  }, [filterStatus, filterPrio, filterCat, search, scope]);
+
+  // Toast auto-dismiss
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast(null), 3500);
+    return () => clearTimeout(t);
+  }, [toast]);
+
+  // Handler: assumir chamado da fila pública (atômico no backend; trata 409).
+  const handleAssumir = useCallback(async (id: string) => {
+    try {
+      await api.patch(`/chamados/${id}/assumir`);
+      setToast({ type: "ok", msg: "Chamado assumido com sucesso." });
+      load();
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || "Nao foi possivel assumir o chamado.";
+      setToast({ type: "err", msg });
+      load(); // revalida pra remover da fila se outra pessoa pegou
+    }
+  }, [load]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -871,6 +1058,41 @@ export default function ChamadosPage() {
           </div>
         </div>
       )}
+
+      {/* Scope tabs: Fila Pública / Meus Chamados / Todos (master) */}
+      <div className="px-6 pt-3 pb-0 border-b border-[var(--border-subtle)] flex-shrink-0 bg-[var(--bg-primary)]">
+        <div className="flex items-center gap-1">
+          {([
+            { k: "meus",  label: "Meus Chamados", icon: UserIcon, count: stats?.meus },
+            { k: "fila",  label: "Fila Pública",  icon: Globe2,   count: stats?.fila },
+            ...(user?.isMaster ? [{ k: "todos" as const, label: "Todos", icon: Inbox, count: stats?.total }] : []),
+          ] as Array<{ k: Scope; label: string; icon: any; count?: number }>).map(tab => {
+            const active = scope === tab.k;
+            const Icon = tab.icon;
+            return (
+              <button
+                key={tab.k}
+                onClick={() => setScope(tab.k)}
+                className={`relative flex items-center gap-2 px-4 py-2.5 text-[13px] font-semibold transition-colors border-b-2 -mb-px
+                  ${active
+                    ? "text-[var(--accent-violet)] border-[var(--accent-violet)]"
+                    : "text-[var(--text-muted)] border-transparent hover:text-[var(--text-primary)]"}`}
+              >
+                <Icon size={14} />
+                {tab.label}
+                {typeof tab.count === "number" && (
+                  <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded-full
+                    ${active
+                      ? "bg-[var(--accent-violet)]/15 text-[var(--accent-violet)] border border-[var(--accent-violet)]/30"
+                      : "bg-[var(--bg-hover)] text-[var(--text-muted)] border border-[var(--border-subtle)]"}`}>
+                    {tab.count}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </div>
 
       {/* Filters */}
       <div className="px-6 py-4 border-b border-[var(--border-subtle)] flex-shrink-0 flex items-center gap-3 flex-wrap bg-[var(--bg-primary)]">
@@ -945,7 +1167,10 @@ export default function ChamadosPage() {
                   {col.items.map(c => (
                     <ChamadoCard key={c.id} chamado={c} onClick={() => setSelected(c)}
                       selected={bulkIds.has(c.id)}
-                      onSelect={user?.isMaster ? e => { e.stopPropagation(); toggleBulk(c.id); } : undefined} />
+                      onSelect={user?.isMaster ? e => { e.stopPropagation(); toggleBulk(c.id); } : undefined}
+                      onAssumir={handleAssumir}
+                      canAssumir={canEditar}
+                    />
                   ))}
                 </div>
               </div>
@@ -971,9 +1196,22 @@ export default function ChamadosPage() {
           chamado={selected}
           isMaster={!!user.isMaster}
           userId={user.id}
+          canEditar={canEditar}
           onClose={() => setSelected(null)}
           onUpdated={load}
         />
+      )}
+
+      {/* Toast (assumir chamado / conflitos) */}
+      {toast && (
+        <div className={`fixed bottom-6 right-6 z-[80] flex items-center gap-2 px-4 py-3 rounded-xl shadow-premium-lg border backdrop-blur-xl animate-in slide-in-from-bottom-4
+          ${toast.type === "ok"
+            ? "bg-emerald-500/15 border-emerald-500/30 text-emerald-300"
+            : "bg-red-500/15 border-red-500/30 text-red-300"}`}>
+          {toast.type === "ok" ? <CheckCircle2 size={16} /> : <AlertCircle size={16} />}
+          <span className="text-sm font-medium">{toast.msg}</span>
+          <button onClick={() => setToast(null)} className="ml-1 opacity-60 hover:opacity-100"><X size={14} /></button>
+        </div>
       )}
     </div>
   );

@@ -1,4 +1,4 @@
-import { Module, Controller, Get, Post, Put, Patch, Delete, Body, Param, Query, UseGuards, Req, NotFoundException, BadRequestException, ForbiddenException } from "@nestjs/common";
+import { Module, Controller, Get, Post, Put, Patch, Delete, Body, Param, Query, UseGuards, Req, NotFoundException, BadRequestException, ForbiddenException, ConflictException } from "@nestjs/common";
 import { AuthGuard } from "@nestjs/passport";
 import { IsString, IsOptional, IsInt, Min, Max } from "class-validator";
 import { Type } from "class-transformer";
@@ -138,19 +138,52 @@ class ChamadosController {
     return new Date(criadoEm.getTime() + slaHoras * 3600000);
   }
 
+  // ── Helpers de escopo & visibilidade ───────────────────────────────────────
+  //
+  // Modelo híbrido (fila pública + atribuição individual):
+  //  • "fila"   → status=aberto E atendenteId=null  (qualquer um com chamados:ver)
+  //  • "meus"   → solicitante=eu OU atendente=eu
+  //  • "todos"  → master vê tudo do tenant; não-master cai automaticamente em meus∪fila
+  //  • default  → "meus" + "fila" combinados (compatível com a tela antiga)
+  //
+  // Sempre escopado por organizationId — multi-tenant intransponível.
+  private buildWhere(req: any, scope: string | undefined): any {
+    const userId   = req.user.id;
+    const isMaster = !!req.user.isMaster;
+    const orgId    = req.user?.organizationId;
+    const base: any = { ...(orgId ? { organizationId: orgId } : {}) };
+
+    const filaCond  = { status: "aberto", atendenteId: null };
+    const meusCond  = { OR: [{ solicitanteId: userId }, { atendenteId: userId }] };
+
+    if (scope === "fila") return { ...base, ...filaCond };
+    if (scope === "meus") return { ...base, ...meusCond };
+    if (scope === "todos" && isMaster) return base;
+    // default: o que o usuário pode ver = seus + fila pública
+    if (isMaster) return base;
+    return { ...base, OR: [...meusCond.OR, filaCond] };
+  }
+
   @Get("stats")
   @Permissions("chamados:ver")
-  async getStats(@Req() req: any) {
-    const userId = req.user.id;
-    const isMaster = req.user.isMaster;
-    const orgId = req.user?.organizationId;
-    const where: any = { ...(orgId ? { organizationId: orgId } : {}) };
-    if (!isMaster) where.OR = [{ solicitanteId: userId }, { atendenteId: userId }];
-    const [total, porStatus, porPrioridade, todos] = await Promise.all([
+  async getStats(@Req() req: any, @Query("scope") scope?: string) {
+    const where = this.buildWhere(req, scope);
+    const userId   = req.user.id;
+    const isMaster = !!req.user.isMaster;
+    const orgId    = req.user?.organizationId;
+    const orgBase  = orgId ? { organizationId: orgId } : {};
+
+    const [total, porStatus, porPrioridade, todos, filaCount, meusCount] = await Promise.all([
       this.prisma.chamado.count({ where }),
       this.prisma.chamado.groupBy({ by: ["status"], where, _count: true }),
       this.prisma.chamado.groupBy({ by: ["prioridade"], where, _count: true }),
       this.prisma.chamado.findMany({ where, select: { status: true, prioridade: true, slaHoras: true, criadoEm: true } }),
+      // Contagem da fila pública (sempre visível com chamados:ver)
+      this.prisma.chamado.count({ where: { ...orgBase, status: "aberto", atendenteId: null } }),
+      // "Meus" = só os que o usuário criou ou atende (não vale para master sem tenant)
+      this.prisma.chamado.count({
+        where: { ...orgBase, OR: [{ solicitanteId: userId }, { atendenteId: userId }] },
+      }),
     ]);
     const now = new Date();
     let slaViolados = 0, slaEmRisco = 0;
@@ -170,6 +203,9 @@ class ChamadosController {
       resolvido:      byStatus["resolvido"]      ?? 0,
       fechado:        byStatus["fechado"]        ?? 0,
       slaViolados, slaEmRisco,
+      // contadores extras de escopo (UI usa pra pintar os badges das abas)
+      fila:           filaCount,
+      meus:           meusCount,
       porPrioridade: Object.fromEntries(porPrioridade.map(p => [p.prioridade, p._count])),
     };
   }
@@ -184,22 +220,25 @@ class ChamadosController {
     @Query("atendenteId") atendenteId?: string,
     @Query("clienteId") clienteId?: string,
     @Query("q") q?: string,
+    @Query("scope") scope?: string,
   ) {
-    const userId = req.user.id;
-    const isMaster = req.user.isMaster;
-    const orgId = req.user?.organizationId;
-    const where: any = { ...(orgId ? { organizationId: orgId } as any : {}) };
-    if (!isMaster) where.OR = [{ solicitanteId: userId }, { atendenteId: userId }];
-    if (status) where.status = status;
+    // Base scope (fila / meus / todos) já aplica organizationId e regras de visibilidade
+    const where: any = this.buildWhere(req, scope);
+    if (status)     where.status = status;
     if (prioridade) where.prioridade = prioridade;
-    if (categoria) where.categoria = categoria;
+    if (categoria)  where.categoria = categoria;
     if (atendenteId) where.atendenteId = atendenteId;
-    if (clienteId) where.clienteId = clienteId;
-    if (q) where.OR = [
-      ...(where.OR || []),
-      { titulo: { contains: q, mode: "insensitive" } },
-      { descricao: { contains: q, mode: "insensitive" } },
-    ];
+    if (clienteId)   where.clienteId = clienteId;
+    // Busca textual: usamos AND para preservar o OR de visibilidade já no `where`
+    if (q) {
+      where.AND = [
+        ...(where.AND || []),
+        { OR: [
+          { titulo:    { contains: q, mode: "insensitive" } },
+          { descricao: { contains: q, mode: "insensitive" } },
+        ] },
+      ];
+    }
     const chamados = await this.prisma.chamado.findMany({
       where, include: INCLUDE_LIST, orderBy: [{ prioridade: "asc" }, { criadoEm: "desc" }],
     });
@@ -236,11 +275,64 @@ class ChamadosController {
   async findOne(@Param("id") id: string, @Req() req: any) {
     const c = await this.prisma.chamado.findUnique({ where: { id }, include: INCLUDE_DETAIL });
     if (!c) throw new NotFoundException("Chamado nao encontrado");
-    const userId = req.user.id;
-    if (!req.user.isMaster && c.solicitanteId !== userId && c.atendenteId !== userId) {
-      throw new ForbiddenException("Acesso negado");
+    // Isolamento multi-tenant: chamado de outro tenant é como se não existisse
+    const orgId = req.user?.organizationId;
+    if (orgId && (c as any).organizationId && (c as any).organizationId !== orgId) {
+      throw new NotFoundException("Chamado nao encontrado");
     }
+    const userId = req.user.id;
+    const inPublicQueue = c.status === "aberto" && !c.atendenteId;
+    const canView =
+      req.user.isMaster ||
+      c.solicitanteId === userId ||
+      c.atendenteId   === userId ||
+      inPublicQueue; // fila pública: qualquer um com chamados:ver enxerga
+    if (!canView) throw new ForbiddenException("Acesso negado");
     return mapChamado(c);
+  }
+
+  // ── Histórico/auditoria ────────────────────────────────────────────────────
+  @Get(":id/auditoria")
+  @Permissions("chamados:ver")
+  async listAuditoria(@Param("id") id: string, @Req() req: any) {
+    const c: any = await (this.prisma as any).chamado.findUnique({
+      where: { id },
+      select: { id: true, organizationId: true, status: true, atendenteId: true, solicitanteId: true },
+    });
+    if (!c) throw new NotFoundException("Chamado nao encontrado");
+    const orgId = req.user?.organizationId;
+    if (orgId && c.organizationId && c.organizationId !== orgId) {
+      throw new NotFoundException("Chamado nao encontrado");
+    }
+    const userId = req.user.id;
+    const inPublicQueue = c.status === "aberto" && !c.atendenteId;
+    const canView =
+      req.user.isMaster ||
+      c.solicitanteId === userId ||
+      c.atendenteId   === userId ||
+      inPublicQueue;
+    if (!canView) throw new ForbiddenException("Acesso negado");
+
+    const rows = await (this.prisma as any).chamadoAuditoria.findMany({
+      where: { chamadoId: id },
+      include: { user: { select: { id: true, nome: true, avatar: true } } },
+      orderBy: { criadoEm: "desc" },
+      take: 200,
+    });
+    return rows.map((r: any) => ({
+      id: r.id, acao: r.acao, de: r.de, para: r.para,
+      metadata: r.metadata, criadoEm: r.criadoEm,
+      user: r.user ? { id: r.user.id, nome: r.user.nome, avatar: r.user.avatar } : null,
+    }));
+  }
+
+  /** Registra uma entrada de auditoria. Tolerante a falhas: nunca quebra o fluxo. */
+  private async recordAudit(chamadoId: string, userId: string | null, acao: string, de?: string | null, para?: string | null, metadata?: any) {
+    try {
+      await (this.prisma as any).chamadoAuditoria.create({
+        data: { chamadoId, userId: userId || null, acao, de: de ?? null, para: para ?? null, metadata: metadata ?? null },
+      });
+    } catch {}
   }
 
   @Post()
@@ -297,6 +389,12 @@ class ChamadosController {
     // Fire automations async (non-blocking)
     this.automacao.executar("chamado_criado", { id: chamado.id, numero: chamado.numero, titulo: chamado.titulo, prioridade, status: chamado.status, categoria: dto.categoria || null, solicitanteId: chamado.solicitanteId, atendenteId: chamado.atendenteId || null, clienteId: chamado.clienteId || null }).catch(() => {});
     this.webhook.fire("chamado.criado", { id: chamado.id, numero: chamado.numero, titulo: chamado.titulo, prioridade, status: chamado.status, clienteId: chamado.clienteId || null, criadoEm: chamado.criadoEm }).catch(() => {});
+
+    // Auditoria — criação (+ atribuição inicial se houver)
+    await this.recordAudit(chamado.id, req.user.id, "criado", null, chamado.status, { numero: chamado.numero, prioridade });
+    if (chamado.atendenteId) {
+      await this.recordAudit(chamado.id, req.user.id, "atribuicao", null, chamado.atendenteId);
+    }
 
     return mapChamado(chamado);
   }
@@ -369,6 +467,19 @@ class ChamadosController {
     if (dto.status && ["resolvido", "fechado"].includes(dto.status) && dto.status !== existing.status) {
       this.webhook.fire("chamado.resolvido", { id: updated.id, numero: updated.numero, titulo: updated.titulo, status: updated.status, clienteId: updated.clienteId || null, resolvidoEm: (updated as any).resolvidoEm || new Date() }).catch(() => {});
     }
+    // Auditoria — registra mudanças relevantes
+    if (dto.status && dto.status !== existing.status) {
+      await this.recordAudit(id, req.user.id, "status", existing.status, dto.status);
+    }
+    if (dto.atendenteId !== undefined && (dto.atendenteId || null) !== (existing.atendenteId || null)) {
+      let acao = "atribuicao";
+      if (existing.atendenteId && dto.atendenteId && existing.atendenteId !== dto.atendenteId) acao = "transferencia";
+      else if (existing.atendenteId && !dto.atendenteId) acao = "atribuicao_removida";
+      await this.recordAudit(id, req.user.id, acao, existing.atendenteId || null, dto.atendenteId || null);
+    }
+    if (dto.prioridade && dto.prioridade !== existing.prioridade) {
+      await this.recordAudit(id, req.user.id, "prioridade", existing.prioridade, dto.prioridade);
+    }
     return mapChamado(updated);
   }
 
@@ -411,6 +522,10 @@ class ChamadosController {
     if (["resolvido", "fechado"].includes(body.status) && body.status !== existing.status) {
       this.webhook.fire("chamado.resolvido", { id: updated.id, numero: updated.numero, titulo: updated.titulo, status: updated.status, clienteId: updated.clienteId || null, resolvidoEm: (updated as any).resolvidoEm || new Date() }).catch(() => {});
     }
+    // Auditoria
+    if (body.status !== existing.status) {
+      await this.recordAudit(id, req.user.id, "status", existing.status, body.status);
+    }
     return mapChamado(updated);
   }
 
@@ -420,6 +535,10 @@ class ChamadosController {
     const existing = await this.prisma.chamado.findUnique({ where: { id } });
     if (!existing) throw new NotFoundException("Chamado nao encontrado");
     if (!req.user.isMaster && existing.solicitanteId !== req.user.id) throw new ForbiddenException("Sem permissao");
+    const orgId = req.user?.organizationId;
+    if (orgId && (existing as any).organizationId && (existing as any).organizationId !== orgId) {
+      throw new NotFoundException("Chamado nao encontrado");
+    }
     const updated = await this.prisma.chamado.update({
       where: { id },
       data: {
@@ -433,6 +552,83 @@ class ChamadosController {
       const phone = await this.getUserPhone(body.atendenteId);
       if (phone) this.wa.sendChamadoAtribuido(phone, updated.numero, updated.titulo, updated.prioridade, this.deadlineFor(updated.criadoEm, updated.slaHoras), this.appUrl).catch(() => {});
     }
+    // Auditoria — diferencia atribuição inicial / transferência / remoção
+    let acao = "atribuicao";
+    if (existing.atendenteId && body.atendenteId && existing.atendenteId !== body.atendenteId) acao = "transferencia";
+    else if (existing.atendenteId && !body.atendenteId) acao = "atribuicao_removida";
+    await this.recordAudit(id, req.user.id, acao, existing.atendenteId || null, body.atendenteId || null);
+    return mapChamado(updated);
+  }
+
+  // ── ASSUMIR CHAMADO (fila pública → atribuição individual) ─────────────────
+  //
+  // Operação ATÔMICA: usa updateMany com condição (atendenteId IS NULL AND
+  // status='aberto'). Se outro usuário já assumiu, updateMany retorna count=0
+  // e devolvemos 409 Conflict. Sem race condition mesmo com 2 cliques
+  // simultâneos.
+  @Patch(":id/assumir")
+  @Permissions("chamados:editar")
+  async assumir(@Param("id") id: string, @Req() req: any) {
+    const userId = req.user.id;
+    const orgId  = req.user?.organizationId;
+
+    const existing = await this.prisma.chamado.findUnique({ where: { id } });
+    if (!existing) throw new NotFoundException("Chamado nao encontrado");
+    // Isolamento multi-tenant
+    if (orgId && (existing as any).organizationId && (existing as any).organizationId !== orgId) {
+      throw new NotFoundException("Chamado nao encontrado");
+    }
+
+    // UPDATE atômico — apenas se ainda estiver na fila pública
+    const result = await (this.prisma as any).chamado.updateMany({
+      where: {
+        id,
+        atendenteId: null,
+        status: "aberto",
+        ...(orgId ? { organizationId: orgId } : {}),
+      },
+      data: {
+        atendenteId: userId,
+        status: "em_atendimento",
+      },
+    });
+
+    if (result.count === 0) {
+      // Conflito: outro usuário assumiu primeiro, ou chamado mudou de estado
+      const fresh = await this.prisma.chamado.findUnique({
+        where: { id },
+        include: { atendente: { select: { nome: true } } } as any,
+      });
+      const quem = (fresh as any)?.atendente?.nome;
+      throw new ConflictException(
+        quem ? `Chamado ja foi assumido por ${quem}.` : "Chamado nao esta mais disponivel na fila.",
+      );
+    }
+
+    const updated = await this.prisma.chamado.findUnique({ where: { id }, include: INCLUDE_DETAIL });
+
+    // Auditoria
+    await this.recordAudit(id, userId, "assumido", null, userId, { numero: existing.numero });
+
+    // Notificações ao solicitante (alguém assumiu o chamado dele)
+    if (existing.solicitanteId !== userId && updated) {
+      await this.notificarSolicitante(existing.solicitanteId, updated, "em_atendimento");
+      const sol = await this.prisma.user.findUnique({ where: { id: existing.solicitanteId }, select: { email: true, nome: true } });
+      const phone = await this.getUserPhone(existing.solicitanteId);
+      if (phone) this.wa.sendChamadoStatus(phone, updated.numero, updated.titulo, "em_atendimento", this.appUrl).catch(() => {});
+      if (sol?.email) this.email.sendChamadoStatus(sol.email, sol.nome, updated.numero, updated.titulo, "em_atendimento").catch(() => {});
+    }
+
+    // Automações & webhooks (não bloqueantes)
+    if (updated) {
+      this.automacao.executar("chamado_atualizado", {
+        id: updated.id, numero: updated.numero, titulo: updated.titulo,
+        prioridade: updated.prioridade, status: "em_atendimento",
+        categoria: updated.categoria || null,
+        solicitanteId: updated.solicitanteId, atendenteId: userId,
+      }).catch(() => {});
+    }
+
     return mapChamado(updated);
   }
 

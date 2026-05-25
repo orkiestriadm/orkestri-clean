@@ -222,6 +222,12 @@ export default function ChamadoDetailPage({ params }: { params: Promise<{ id: st
   const isAtendente = chamado?.atendenteId === user?.id;
   const isSolicitante = chamado?.solicitanteId === user?.id;
   const canEdit = isMaster || isAtendente || isSolicitante;
+  // Pode assumir = chamado na fila pública + usuário tem chamados:editar
+  const canEditarPerm = !!(isMaster
+    || user?.permissions?.includes("*")
+    || user?.permissions?.includes("chamados:editar"));
+  const inPublicQueue = chamado?.status === "aberto" && !chamado?.atendenteId;
+  const showAssumir = inPublicQueue && canEditarPerm;
 
   async function load(silent = false) {
     silent ? setRefreshing(true) : setLoading(true);
@@ -255,6 +261,16 @@ export default function ChamadoDetailPage({ params }: { params: Promise<{ id: st
   async function handleStatus(status: string) {
     const { data } = await api.patch(`/chamados/${id}/status`, { status });
     setChamado(data);
+  }
+
+  async function handleAssumir() {
+    try {
+      await api.patch(`/chamados/${id}/assumir`);
+      await load(true);
+    } catch (err: any) {
+      alert(err?.response?.data?.message || "Nao foi possivel assumir o chamado.");
+      await load(true);
+    }
   }
 
   async function handleComentario() {
@@ -385,6 +401,22 @@ export default function ChamadoDetailPage({ params }: { params: Promise<{ id: st
                 <div className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">{chamado.descricao}</div>
               )}
             </div>
+
+            {/* Banner fila pública (qualquer um com chamados:editar) */}
+            {showAssumir && !editando && (
+              <div className="rounded-xl border border-violet-500/30 bg-violet-500/5 p-4 flex items-center gap-3">
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-semibold text-foreground">Chamado na fila pública</div>
+                  <div className="text-xs text-muted-foreground mt-0.5">Ninguém assumiu ainda. Clique em "Assumir" para que ele apareça no seu painel.</div>
+                </div>
+                <button
+                  onClick={handleAssumir}
+                  className="px-4 py-2 rounded-lg text-xs font-semibold bg-violet-500/15 text-violet-300 border border-violet-500/30 hover:bg-violet-500/25 transition-colors shrink-0"
+                >
+                  Assumir Chamado
+                </button>
+              </div>
+            )}
 
             {/* Status actions */}
             {canEdit && !editando && (
