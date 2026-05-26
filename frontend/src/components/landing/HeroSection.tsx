@@ -241,13 +241,13 @@ export default function HeroSection() {
               transition={{ duration: 0.75, delay: 0.08, ease: [0.22, 1, 0.36, 1] }}
               className="font-display text-4xl sm:text-5xl lg:text-6xl xl:text-[66px] font-bold leading-[1.07] tracking-tight text-[var(--text-primary)] mb-6"
             >
-              Profundidade{' '}
+              Centralize{' '}
               <span className="bg-gradient-to-r from-violet-400 via-violet-300 to-fuchsia-400 bg-clip-text text-transparent">
-                operacional
+                toda sua
               </span>
-              {' '}com experiência{' '}
+              {' '}operação{' '}
               <span className="bg-gradient-to-r from-cyan-400 to-violet-400 bg-clip-text text-transparent">
-                moderna.
+                em um único Sistema!
               </span>
             </motion.h1>
 
@@ -258,7 +258,7 @@ export default function HeroSection() {
               transition={{ duration: 0.6, delay: 0.18, ease: [0.22, 1, 0.36, 1] }}
               className="text-[var(--text-secondary)] text-lg lg:text-xl leading-relaxed max-w-xl mx-auto lg:mx-0 mb-8"
             >
-              Centralize sua Operação organizando Agendas, Projetos, Ativos e Financeiro tudo em uma única plataforma — integrada, fluida e construída para escalar.
+              Criado por profissionais com experiência real em operações corporativas críticas.
             </motion.p>
 
             {/* CTAs */}
@@ -272,7 +272,7 @@ export default function HeroSection() {
                 onClick={() => scrollTo('#contato')}
                 className="inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-xl bg-gradient-to-r from-violet-600 to-violet-500 text-white font-semibold hover:from-violet-500 hover:to-violet-400 transition-all shadow-[0_0_28px_rgba(124,58,237,0.5)] hover:shadow-[0_0_40px_rgba(124,58,237,0.7)] hover:-translate-y-0.5 active:translate-y-0 text-sm"
               >
-                Solicitar demonstração <ArrowRight size={15} />
+                Teste Grátis <ArrowRight size={15} />
               </button>
 
               <Link

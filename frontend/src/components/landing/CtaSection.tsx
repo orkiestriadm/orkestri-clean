@@ -71,7 +71,7 @@ export default function CtaSection() {
               transition={{ delay: 0.25, duration: 0.6 }}
               className="text-white/60 text-lg lg:text-xl max-w-2xl mx-auto mb-10"
             >
-              Centralize CRM, projetos, fornecedores e financeiro em uma plataforma enterprise moderna. Implantação em dias, não em meses.
+              Centralize sua Operação, Projetos, Demandas e Financeiro em uma plataforma enterprise moderna.
             </motion.p>
 
             {/* CTAs */}
