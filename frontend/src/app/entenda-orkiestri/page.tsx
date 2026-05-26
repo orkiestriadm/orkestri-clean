@@ -558,7 +558,27 @@ export default function UnderstandOrkiestriPage() {
                       <div className="bg-[#12121e]/90 border border-white/5 p-6 rounded-xl hover:border-cyan-500/30 transition-all max-w-md w-full backdrop-blur-md">
                         <span className="text-cyan-400 font-bold text-xs tracking-widest uppercase">Fase 01</span>
                         <h4 className="text-base font-bold text-white mt-1.5 mb-2">Core Operacional</h4>
-                        <p className="text-xs text-slate-400 leading-relaxed">Instalação de chamados (Service Desk), gestão de tarefas, projetos com cronogramas e dashboards operacionais iniciais.</p>
+                        <p className="text-xs text-slate-400 leading-relaxed mb-4">
+                          Centralize o dia a dia da sua operação eliminando a fragmentação de ferramentas (Jira + Planner + Movidesk).
+                        </p>
+                        <div className="grid grid-cols-2 gap-2 border-t border-white/5 pt-3">
+                          <span className="flex items-center gap-1.5 text-xs text-slate-300">
+                            <span className="w-1.5 h-1.5 rounded-full bg-cyan-400" />
+                            Chamados
+                          </span>
+                          <span className="flex items-center gap-1.5 text-xs text-slate-300">
+                            <span className="w-1.5 h-1.5 rounded-full bg-cyan-400" />
+                            Tarefas
+                          </span>
+                          <span className="flex items-center gap-1.5 text-xs text-slate-300">
+                            <span className="w-1.5 h-1.5 rounded-full bg-cyan-400" />
+                            Projetos
+                          </span>
+                          <span className="flex items-center gap-1.5 text-xs text-slate-300">
+                            <span className="w-1.5 h-1.5 rounded-full bg-cyan-400" />
+                            Dashboard Operacional
+                          </span>
+                        </div>
                       </div>
                     </div>
                     <div className="absolute left-2.5 sm:left-1/2 -translate-x-1/2 w-3.5 h-3.5 rounded-full border-2 border-cyan-400 bg-slate-900" />
@@ -572,8 +592,28 @@ export default function UnderstandOrkiestriPage() {
                     <div className="flex sm:w-1/2 pl-12">
                       <div className="bg-[#12121e]/90 border border-white/5 p-6 rounded-xl hover:border-violet-500/30 transition-all max-w-md w-full backdrop-blur-md">
                         <span className="text-violet-400 font-bold text-xs tracking-widest uppercase">Fase 02</span>
-                        <h4 className="text-base font-bold text-white mt-1.5 mb-2">Conectividade & Automação</h4>
-                        <p className="text-xs text-slate-400 leading-relaxed">Engine visual de workflows, gatilhos de automação e conexões nativas com canais externos (Outlook, Teams, WhatsApp, etc.).</p>
+                        <h4 className="text-base font-bold text-white mt-1.5 mb-2">Core Conectividade</h4>
+                        <p className="text-xs text-slate-400 leading-relaxed mb-4">
+                          Automatize fluxos e sincronize as agendas das equipes em tempo real, sem necessidade de integrações de terceiros.
+                        </p>
+                        <div className="grid grid-cols-2 gap-2 border-t border-white/5 pt-3">
+                          <span className="flex items-center gap-1.5 text-xs text-slate-300">
+                            <span className="w-1.5 h-1.5 rounded-full bg-violet-400" />
+                            Agenda
+                          </span>
+                          <span className="flex items-center gap-1.5 text-xs text-slate-300">
+                            <span className="w-1.5 h-1.5 rounded-full bg-violet-400" />
+                            Workflows
+                          </span>
+                          <span className="flex items-center gap-1.5 text-xs text-slate-300">
+                            <span className="w-1.5 h-1.5 rounded-full bg-violet-400" />
+                            Automação
+                          </span>
+                          <span className="flex items-center gap-1.5 text-xs text-slate-300">
+                            <span className="w-1.5 h-1.5 rounded-full bg-violet-400" />
+                            Integrações
+                          </span>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -583,8 +623,32 @@ export default function UnderstandOrkiestriPage() {
                     <div className="flex sm:w-1/2 sm:justify-end sm:pr-12 pl-12 sm:pl-0">
                       <div className="bg-[#12121e]/90 border border-white/5 p-6 rounded-xl hover:border-fuchsia-500/30 transition-all max-w-md w-full backdrop-blur-md">
                         <span className="text-fuchsia-400 font-bold text-xs tracking-widest uppercase">Fase 03</span>
-                        <h4 className="text-base font-bold text-white mt-1.5 mb-2">Escala SaaS Enterprise</h4>
-                        <p className="text-xs text-slate-400 leading-relaxed">Faturamento automático e por consumo (Billing), auditoria completa para compliance, onboarding simplificado e relatórios preditivos.</p>
+                        <h4 className="text-base font-bold text-white mt-1.5 mb-2">Core Financeiro & Governança</h4>
+                        <p className="text-xs text-slate-400 leading-relaxed mb-4">
+                          Controle custos de CAPEX/OPEX, tenha relatórios preditivos para tomada de decisão e audite cada detalhe da sua empresa.
+                        </p>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 border-t border-white/5 pt-3">
+                          <span className="flex items-center gap-1.5 text-xs text-slate-300">
+                            <span className="w-1.5 h-1.5 rounded-full bg-fuchsia-400" />
+                            Onboarding simplificado
+                          </span>
+                          <span className="flex items-center gap-1.5 text-xs text-slate-300">
+                            <span className="w-1.5 h-1.5 rounded-full bg-fuchsia-400" />
+                            Relatórios preditivos
+                          </span>
+                          <span className="flex items-center gap-1.5 text-xs text-slate-300 col-span-1 sm:col-span-2">
+                            <span className="w-1.5 h-1.5 rounded-full bg-fuchsia-400" />
+                            Gestão de Orçamento (CAPEX/OPEX)
+                          </span>
+                          <span className="flex items-center gap-1.5 text-xs text-slate-300">
+                            <span className="w-1.5 h-1.5 rounded-full bg-fuchsia-400" />
+                            Controle de demandas
+                          </span>
+                          <span className="flex items-center gap-1.5 text-xs text-slate-300">
+                            <span className="w-1.5 h-1.5 rounded-full bg-fuchsia-400" />
+                            Auditorias
+                          </span>
+                        </div>
                       </div>
                     </div>
                     <div className="absolute left-2.5 sm:left-1/2 -translate-x-1/2 w-3.5 h-3.5 rounded-full border-2 border-fuchsia-400 bg-slate-900" />
