@@ -236,12 +236,20 @@ export default function PricingSection() {
                     <div className="p-6 pt-5 flex-grow flex flex-col justify-between">
                       {/* Price Section */}
                       <div className="pb-4 mb-4 border-b border-[var(--border-subtle)]">
-                        <div className="flex items-baseline">
-                          <span className={`text-3xl md:text-4xl font-extrabold tracking-tight font-display ${isHighlight ? 'text-white' : 'text-[var(--text-primary)]'
-                            }`}>{plan.price}</span>
-                          <span className={`ml-1.5 text-xs font-medium ${isHighlight ? 'text-slate-400' : 'text-[var(--text-secondary)]'
-                            }`}>{plan.pricePeriod}</span>
-                        </div>
+                        {plan.isEnterprise ? (
+                          <div className="flex items-center gap-2">
+                            <span className="text-xl font-bold font-display" style={{ color: plan.color }}>
+                              à consultar
+                            </span>
+                          </div>
+                        ) : (
+                          <div className="flex items-baseline">
+                            <span className={`text-3xl md:text-4xl font-extrabold tracking-tight font-display ${isHighlight ? 'text-white' : 'text-[var(--text-primary)]'
+                              }`}>{plan.price}</span>
+                            <span className={`ml-1.5 text-xs font-medium ${isHighlight ? 'text-slate-400' : 'text-[var(--text-secondary)]'
+                              }`}>{plan.pricePeriod}</span>
+                          </div>
+                        )}
                       </div>
 
                       {/* Features list */}
