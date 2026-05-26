@@ -100,7 +100,7 @@ export default function PricingSection() {
   const router = useRouter()
 
   return (
-    <section ref={ref} id="planos" className="relative py-24 lg:py-32 overflow-hidden">
+    <section ref={ref} id="planos" className="relative py-16 lg:py-24 overflow-hidden">
       {/* Background radial highlights */}
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[rgba(167,139,250,0.25)] to-transparent" />
@@ -114,7 +114,7 @@ export default function PricingSection() {
           initial={{ opacity: 0, y: 30 }}
           animate={inView ? { opacity: 1, y: 0 } : {}}
           transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-          className="text-center mb-16"
+          className="text-center mb-10"
         >
           <span className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-[rgba(167,139,250,0.2)] bg-[rgba(167,139,250,0.07)] text-[var(--accent-violet)] text-xs font-semibold mb-4">
             <Zap size={12} className="text-violet-400" /> Planos e preços
@@ -132,7 +132,7 @@ export default function PricingSection() {
         </motion.div>
 
         {/* Pricing Cards Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8 items-stretch pt-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5 lg:gap-6 items-stretch pt-4">
           {PLANS.map((plan, i) => {
             const isHighlight = plan.highlight
             return (
@@ -146,8 +146,8 @@ export default function PricingSection() {
                 {/* Wrapper que lida com o tamanho e efeitos de hover de forma independente do Framer Motion */}
                 <div
                   className={`group/card relative flex flex-col h-full w-full transition-all duration-300 ease-out ${isHighlight
-                      ? 'scale-[1.06] lg:scale-109 hover:scale-[1.09] lg:hover:scale-[1.13] hover:-translate-y-3 z-10'
-                      : 'hover:scale-[1.02] hover:-translate-y-1.5 z-0'
+                      ? 'scale-[1.04] hover:scale-[1.06] hover:-translate-y-2 z-10'
+                      : 'hover:scale-[1.01] hover:-translate-y-1 z-0'
                     }`}
                 >
                   {/* Efeito Glow Pulsante do Botão para o card Mais Popular */}
@@ -183,13 +183,13 @@ export default function PricingSection() {
                     )}
 
                     {/* Card Header (Title & Description) */}
-                    <div className="p-8 pb-0">
-                      <div className="pt-2">
-                        <h3 className={`font-display font-bold text-2xl mb-2 transition-colors ${isHighlight ? 'text-white' : 'text-[var(--text-primary)] group-hover/card:text-[var(--accent-violet)]'
+                    <div className="p-6 pb-0">
+                      <div className="pt-1">
+                        <h3 className={`font-display font-bold text-xl mb-1.5 transition-colors ${isHighlight ? 'text-white' : 'text-[var(--text-primary)] group-hover/card:text-[var(--accent-violet)]'
                           }`}>
                           {plan.name}
                         </h3>
-                        <p className={`text-sm leading-relaxed min-h-[64px] ${isHighlight ? 'text-slate-300' : 'text-[var(--text-secondary)]'
+                        <p className={`text-xs leading-relaxed min-h-[48px] ${isHighlight ? 'text-slate-300' : 'text-[var(--text-secondary)]'
                           }`}>
                           {plan.desc}
                         </p>
@@ -197,7 +197,7 @@ export default function PricingSection() {
 
                       {/* Users Limits block - Standardized Height */}
                       {plan.isEnterprise ? (
-                        <div className={`mt-5 px-4 py-3 rounded-2xl border flex flex-col justify-center min-h-[82px] relative overflow-hidden transition-colors ${isHighlight
+                        <div className={`mt-4 px-4 py-3 rounded-xl border flex flex-col justify-center min-h-[70px] relative overflow-hidden transition-colors ${isHighlight
                             ? 'bg-white/[0.02] border-white/5 group-hover/card:border-cyan-500/20'
                             : 'bg-[var(--bg-primary)] border-[var(--border-subtle)] group-hover/card:border-[var(--accent-violet)]/20'
                           }`}>
@@ -212,7 +212,7 @@ export default function PricingSection() {
                           </div>
                         </div>
                       ) : (
-                        <div className={`mt-5 px-4 py-3 rounded-2xl border flex flex-col gap-1.5 min-h-[82px] transition-colors ${isHighlight
+                        <div className={`mt-4 px-4 py-2.5 rounded-xl border flex flex-col gap-1 min-h-[70px] transition-colors ${isHighlight
                             ? 'bg-white/[0.02] border-white/5 group-hover/card:border-violet-500/20'
                             : 'bg-[var(--bg-primary)] border-[var(--border-subtle)] group-hover/card:border-[var(--accent-violet)]/20'
                           }`}>
@@ -233,24 +233,24 @@ export default function PricingSection() {
                     </div>
 
                     {/* Card Body (Price & Feature Checklist) */}
-                    <div className="p-8 pt-6 flex-grow flex flex-col justify-between">
+                    <div className="p-6 pt-5 flex-grow flex flex-col justify-between">
                       {/* Price Section */}
-                      <div className="pb-6 mb-6 border-b border-[var(--border-subtle)]">
+                      <div className="pb-4 mb-4 border-b border-[var(--border-subtle)]">
                         <div className="flex items-baseline">
-                          <span className={`text-4xl md:text-5xl font-extrabold tracking-tight font-display ${isHighlight ? 'text-white' : 'text-[var(--text-primary)]'
+                          <span className={`text-3xl md:text-4xl font-extrabold tracking-tight font-display ${isHighlight ? 'text-white' : 'text-[var(--text-primary)]'
                             }`}>{plan.price}</span>
-                          <span className={`ml-1.5 text-sm font-medium ${isHighlight ? 'text-slate-400' : 'text-[var(--text-secondary)]'
+                          <span className={`ml-1.5 text-xs font-medium ${isHighlight ? 'text-slate-400' : 'text-[var(--text-secondary)]'
                             }`}>{plan.pricePeriod}</span>
                         </div>
                       </div>
 
                       {/* Features list */}
-                      <ul className="flex flex-col gap-3.5 mb-8 flex-grow">
+                      <ul className="flex flex-col gap-2 mb-5 flex-grow">
                         {plan.features.map(feat => (
-                          <li key={feat} className={`flex items-start gap-3 text-sm ${isHighlight ? 'text-slate-300' : 'text-[var(--text-secondary)]'
+                          <li key={feat} className={`flex items-start gap-2.5 text-xs ${isHighlight ? 'text-slate-300' : 'text-[var(--text-secondary)]'
                             }`}>
                             <div
-                              className="w-4 h-4 rounded-full flex items-center justify-center shrink-0 mt-0.5 transition-colors"
+                              className="w-3.5 h-3.5 rounded-full flex items-center justify-center shrink-0 mt-0.5 transition-colors"
                               style={{
                                 background: `rgba(${plan.colorRgb}, 0.08)`,
                                 border: `1px solid rgba(${plan.colorRgb}, 0.25)`
@@ -265,7 +265,7 @@ export default function PricingSection() {
                     </div>
 
                     {/* Card Footer (CTA Button) */}
-                    <div className="px-8 pb-8 mt-auto">
+                    <div className="px-6 pb-6 mt-auto">
                       <button
                         onClick={() => {
                           if (plan.isEnterprise) {
@@ -274,7 +274,7 @@ export default function PricingSection() {
                             router.push(`/signup?plano=${plan.planKey}`)
                           }
                         }}
-                        className={`w-full flex items-center justify-center gap-2 py-4 rounded-xl text-sm font-semibold transition-all duration-300 ${isHighlight
+                        className={`w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold transition-all duration-300 ${isHighlight
                             ? 'bg-gradient-to-r from-violet-600 to-violet-500 text-white hover:from-violet-500 hover:to-violet-400 shadow-[0_4px_20px_rgba(124,58,237,0.35)] hover:shadow-[0_8px_30px_rgba(124,58,237,0.55)] hover:-translate-y-0.5 active:translate-y-0'
                             : 'border border-[rgba(162,130,255,0.35)] text-[var(--text-primary)] hover:text-white hover:border-[var(--accent-violet)] hover:bg-[var(--accent-violet)] hover:-translate-y-0.5 active:translate-y-0 shadow-premium-sm'
                           }`}
