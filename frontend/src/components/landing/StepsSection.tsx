@@ -71,7 +71,7 @@ export default function StepsSection() {
             </span>
           </h2>
           <p className="text-[var(--text-secondary)] text-lg max-w-2xl mx-auto leading-relaxed">
-            Sem integração complexa, sem meses de implantação. Do onboarding ao primeiro insight executivo em menos de uma semana.
+            Substitua ferramentas desconectadas por uma operação centralizada, automatizada e orientada por dados.
           </p>
         </motion.div>
 
