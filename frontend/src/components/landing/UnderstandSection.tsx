@@ -56,7 +56,7 @@ export default function UnderstandSection() {
               <div className="absolute -inset-1 rounded-2xl bg-gradient-to-r from-cyan-500 via-violet-600 to-fuchsia-500 opacity-75 blur-lg group-hover:opacity-100 transition duration-1000 group-hover:duration-200 animate-pulse" />
               
               <a
-                href="/entenda-orkiestri.html"
+                href="/entenda-orkiestri"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="relative inline-flex items-center justify-center gap-3 px-10 py-5 rounded-xl bg-[#090918] text-white font-bold text-base border border-violet-500/30 hover:border-cyan-400/50 hover:text-cyan-200 transition-all duration-300 overflow-hidden"
