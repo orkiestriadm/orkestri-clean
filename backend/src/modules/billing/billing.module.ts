@@ -256,19 +256,24 @@ export class BillingService {
     let checkoutUrl: string | null = null;
 
     try {
+      // Quando usa plan_id (recomendado): não enviar auto_recurring — o plano já o define.
+      // Sem plan_id (fallback): enviar auto_recurring inline.
       const body: Record<string, unknown> = {
         reason: `Orkiestri ${plan.nome}`,
         payer_email: masterEmail,
         back_url: `${appUrl}/dashboard/billing/me`,
-        auto_recurring: {
+        status: 'pending',
+      };
+      if (mpPlanId) {
+        body.preapproval_plan_id = mpPlanId;
+      } else {
+        body.auto_recurring = {
           frequency: 1,
           frequency_type: 'months',
           transaction_amount: plan.valor,
           currency_id: 'BRL',
-        },
-        status: 'pending',
-      };
-      if (mpPlanId) body.preapproval_plan_id = mpPlanId;
+        };
+      }
 
       const response = await fetch('https://api.mercadopago.com/preapproval', {
         method: 'POST',
@@ -465,19 +470,24 @@ export class BillingService {
           ? this.config.get<string>('MP_PLAN_BUSINESS_PLUS')
           : this.config.get<string>('MP_PLAN_BUSINESS_CLOUD');
 
+        // Quando usa plan_id: não enviar auto_recurring — o plano já o define.
+        // Sem plan_id (fallback): enviar auto_recurring inline.
         const body: Record<string, unknown> = {
           reason: `Orkiestri ${plan.nome}`,
           payer_email: dto.adminEmail,
           back_url: `${appUrl}/signup/success?token=${session.token}`,
-          auto_recurring: {
+          status: 'pending',
+        };
+        if (mpPlanId) {
+          body.preapproval_plan_id = mpPlanId;
+        } else {
+          body.auto_recurring = {
             frequency: 1,
             frequency_type: 'months',
             transaction_amount: plan.valor,
             currency_id: 'BRL',
-          },
-          status: 'pending',
-        };
-        if (mpPlanId) body.preapproval_plan_id = mpPlanId;
+          };
+        }
 
         const res = await fetch('https://api.mercadopago.com/preapproval', {
           method: 'POST',
