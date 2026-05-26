@@ -42,6 +42,7 @@ import { AusenciasModule } from './modules/ausencias/ausencias.module';
 import { WorkflowsModule } from './modules/workflows/workflows.module';
 import { WorkforceModule } from './modules/workforce/workforce.module';
 import { SquadsModule } from './modules/squads/squads.module';
+import { BillingModule } from './modules/billing/billing.module';
 
 @Module({
   imports: [
@@ -74,6 +75,7 @@ import { SquadsModule } from './modules/squads/squads.module';
     WorkflowsModule,
     WorkforceModule,
     SquadsModule,
+    BillingModule,
   ],
 })
 export class AppModule {}

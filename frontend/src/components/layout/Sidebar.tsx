@@ -6,7 +6,7 @@ import {
   LayoutDashboard, CalendarDays, Layers, StickyNote, MessageCircle,
   Building2, GanttChart, BarChart2, Users, History, Settings, LogOut,
   Headphones, PiggyBank, Truck, BookOpen, Package, Zap, Clock, FileText, Activity, CheckSquare,
-  SmilePlus, TrendingUp, UserCircle, Receipt, ChevronDown, Shield, Star, LayoutGrid,
+  SmilePlus, TrendingUp, UserCircle, Receipt, ChevronDown, Shield, Star, LayoutGrid, CreditCard,
 } from "lucide-react";
 import { useAuthStore } from "@/lib/store";
 import UserStatus from "@/components/ui/UserStatus";
@@ -65,6 +65,7 @@ const NAV: NavGroup[] = [
       { href: "/dashboard/whatsapp-config",        label: "WhatsApp",      icon: MessageCircle, permission: "whatsapp:ver" },
       { href: "/dashboard/historico",              label: "Histórico",     icon: History,       permission: "historico:ver" },
       { href: "/dashboard/configuracoes",          label: "Configurações", icon: Settings,      permission: "configuracoes:ver" },
+      { href: "/dashboard/billing/me",             label: "Assinatura",    icon: CreditCard,    permission: "configuracoes:ver" },
     ],
   },
 ];

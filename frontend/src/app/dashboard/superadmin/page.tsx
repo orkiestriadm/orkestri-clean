@@ -24,6 +24,22 @@ type ProvisaoResult = { email: string; senhaTemporaria: string; organizationId: 
 
 type WaStatus = { connected: boolean; status: string };
 
+// ── Billing types ─────────────────────────────────────────────────────────────
+type OrgBilling = {
+  id: string; organizationId: string; plano: string; status: string;
+  trialEndsAt: string | null; currentPeriodEnd: string | null; nextBillingDate: string | null;
+  valorMensal: number | null; mpCheckoutUrl: string | null; mpPayerEmail: string | null; overrideNota: string | null;
+  organization: { id: string; nome: string; slug: string };
+  payments: BillingPayment[];
+};
+type BillingPayment = {
+  id: string; valor: number; status: string; metodo: string | null;
+  dataPagamento: string | null; dataVencimento: string | null; referencia: string | null; criadoEm: string;
+};
+type BillingStats = {
+  total: number; trial: number; active: number; overdue: number; suspended: number; cancelled: number; mrr: number;
+};
+
 function Badge({ label, color }: { label: string; color: string }) {
   return <span style={{ fontSize: 10, fontFamily: "var(--font-mono)", padding: "2px 8px", borderRadius: 20, background: color + "18", border: `1px solid ${color}40`, color }}>{label}</span>;
 }
@@ -490,11 +506,315 @@ function NewOrgModal({ onClose, onCreated }: { onClose: () => void; onCreated: (
   );
 }
 
+// ── Billing helpers ────────────────────────────────────────────────────────────
+const PLAN_LABELS: Record<string, string> = {
+  business_cloud: "Business Cloud",
+  business_plus: "Business Plus",
+  enterprise: "Enterprise",
+};
+const STATUS_COLOR: Record<string, string> = {
+  trial: "#f59e0b",
+  active: "#22c55e",
+  overdue: "#eab308",
+  suspended: "#ef4444",
+  cancelled: "#6b7280",
+  enterprise_manual: "#7c3aed",
+};
+const STATUS_LABEL: Record<string, string> = {
+  trial: "Trial",
+  active: "Ativo",
+  overdue: "Inadimplente",
+  suspended: "Suspenso",
+  cancelled: "Cancelado",
+  enterprise_manual: "Enterprise",
+};
+
+function BillingBadge({ status }: { status: string }) {
+  const color = STATUS_COLOR[status] || "#9090b0";
+  return <Badge label={STATUS_LABEL[status] || status} color={color} />;
+}
+
+// ── Modais de billing ──────────────────────────────────────────────────────────
+
+function AssignPlanModal({ billing, onClose, onSave }: { billing: OrgBilling; onClose: () => void; onSave: () => void }) {
+  const [plano, setPlano] = useState(billing.plano);
+  const [masterEmail, setMasterEmail] = useState(billing.mpPayerEmail || "");
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState<{ checkoutUrl: string | null; message: string } | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+
+  const submit = async () => {
+    setLoading(true); setErr(null);
+    try {
+      const r = await api.post(`/billing/${billing.organizationId}/assign-plan`, { plano, masterEmail: masterEmail || undefined });
+      setResult(r.data);
+      onSave();
+    } catch (e: any) { setErr(e?.response?.data?.message || "Erro ao atribuir plano"); }
+    finally { setLoading(false); }
+  };
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100 }}>
+      <div style={{ background: "var(--bg-card)", border: "1px solid var(--border-medium)", borderRadius: 16, padding: 24, width: 420, maxWidth: "95vw" }}>
+        <div style={{ fontWeight: 700, fontSize: 15, color: "var(--text-primary)", marginBottom: 16 }}>Atribuir Plano — {billing.organization.nome}</div>
+        {result ? (
+          <div>
+            <div style={{ color: "#22c55e", fontSize: 13, marginBottom: 12 }}>{result.message}</div>
+            {result.checkoutUrl && (
+              <div style={{ marginBottom: 12 }}>
+                <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 4 }}>Link de pagamento (envie ao master):</div>
+                <div style={{ background: "var(--bg-secondary)", borderRadius: 8, padding: 8, fontSize: 11, wordBreak: "break-all", color: "var(--accent-violet)", cursor: "pointer" }}
+                  onClick={() => { navigator.clipboard.writeText(result.checkoutUrl!); }}>
+                  {result.checkoutUrl} <span style={{ fontSize: 10, opacity: 0.6 }}>(clique para copiar)</span>
+                </div>
+              </div>
+            )}
+            <button className="btn btn-violet" style={{ width: "100%", marginTop: 8 }} onClick={onClose}>Fechar</button>
+          </div>
+        ) : (
+          <>
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              <div>
+                <label style={{ fontSize: 11, color: "var(--text-muted)", display: "block", marginBottom: 4 }}>Plano</label>
+                <select className="input-o" value={plano} onChange={e => setPlano(e.target.value)} style={{ width: "100%" }}>
+                  <option value="business_cloud">Business Cloud — R$99,90/mês</option>
+                  <option value="business_plus">Business Plus — R$199,90/mês</option>
+                  <option value="enterprise">Enterprise — Sob consulta</option>
+                </select>
+              </div>
+              {plano !== "enterprise" && (
+                <div>
+                  <label style={{ fontSize: 11, color: "var(--text-muted)", display: "block", marginBottom: 4 }}>E-mail do master (para link MP)</label>
+                  <input className="input-o" style={{ width: "100%" }} placeholder="master@empresa.com"
+                    value={masterEmail} onChange={e => setMasterEmail(e.target.value)} />
+                </div>
+              )}
+            </div>
+            {err && <div style={{ color: "#ef4444", fontSize: 12, marginTop: 8 }}>{err}</div>}
+            <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
+              <button className="btn btn-violet" style={{ flex: 1 }} onClick={submit} disabled={loading}>{loading ? <Spin /> : "Atribuir"}</button>
+              <button className="btn btn-ghost" style={{ flex: 1 }} onClick={onClose}>Cancelar</button>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ExtendTrialModal({ billing, onClose, onSave }: { billing: OrgBilling; onClose: () => void; onSave: () => void }) {
+  const [dias, setDias] = useState(7);
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  const submit = async () => {
+    setLoading(true); setErr(null);
+    try {
+      await api.post(`/billing/${billing.organizationId}/extend-trial`, { dias });
+      onSave(); onClose();
+    } catch (e: any) { setErr(e?.response?.data?.message || "Erro"); setLoading(false); }
+  };
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100 }}>
+      <div style={{ background: "var(--bg-card)", border: "1px solid var(--border-medium)", borderRadius: 16, padding: 24, width: 360 }}>
+        <div style={{ fontWeight: 700, fontSize: 15, color: "var(--text-primary)", marginBottom: 16 }}>Estender Trial — {billing.organization.nome}</div>
+        <label style={{ fontSize: 11, color: "var(--text-muted)", display: "block", marginBottom: 4 }}>Quantidade de dias</label>
+        <input className="input-o" type="number" min={1} max={365} style={{ width: "100%" }} value={dias} onChange={e => setDias(Number(e.target.value))} />
+        {err && <div style={{ color: "#ef4444", fontSize: 12, marginTop: 8 }}>{err}</div>}
+        <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
+          <button className="btn btn-violet" style={{ flex: 1 }} onClick={submit} disabled={loading}>{loading ? <Spin /> : `+${dias} dias`}</button>
+          <button className="btn btn-ghost" style={{ flex: 1 }} onClick={onClose}>Cancelar</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function OverrideStatusModal({ billing, onClose, onSave }: { billing: OrgBilling; onClose: () => void; onSave: () => void }) {
+  const [status, setStatus] = useState(billing.status);
+  const [nota, setNota] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  const submit = async () => {
+    setLoading(true); setErr(null);
+    try {
+      await api.post(`/billing/${billing.organizationId}/override-status`, { status, nota: nota || undefined });
+      onSave(); onClose();
+    } catch (e: any) { setErr(e?.response?.data?.message || "Erro"); setLoading(false); }
+  };
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100 }}>
+      <div style={{ background: "var(--bg-card)", border: "1px solid var(--border-medium)", borderRadius: 16, padding: 24, width: 380 }}>
+        <div style={{ fontWeight: 700, fontSize: 15, color: "var(--text-primary)", marginBottom: 16 }}>Override Status — {billing.organization.nome}</div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <div>
+            <label style={{ fontSize: 11, color: "var(--text-muted)", display: "block", marginBottom: 4 }}>Novo Status</label>
+            <select className="input-o" value={status} onChange={e => setStatus(e.target.value)} style={{ width: "100%" }}>
+              {Object.entries(STATUS_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+            </select>
+          </div>
+          <div>
+            <label style={{ fontSize: 11, color: "var(--text-muted)", display: "block", marginBottom: 4 }}>Nota (opcional)</label>
+            <input className="input-o" style={{ width: "100%" }} placeholder="Motivo do override..."
+              value={nota} onChange={e => setNota(e.target.value)} />
+          </div>
+        </div>
+        {err && <div style={{ color: "#ef4444", fontSize: 12, marginTop: 8 }}>{err}</div>}
+        <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
+          <button className="btn btn-violet" style={{ flex: 1 }} onClick={submit} disabled={loading}>{loading ? <Spin /> : "Salvar"}</button>
+          <button className="btn btn-ghost" style={{ flex: 1 }} onClick={onClose}>Cancelar</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PaymentHistoryModal({ billing, onClose }: { billing: OrgBilling; onClose: () => void }) {
+  const PAY_STATUS: Record<string, string> = { approved: "#22c55e", rejected: "#ef4444", pending: "#f59e0b", refunded: "#a78bfa", cancelled: "#6b7280" };
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100 }}>
+      <div style={{ background: "var(--bg-card)", border: "1px solid var(--border-medium)", borderRadius: 16, padding: 24, width: 500, maxHeight: "80vh", overflowY: "auto" }}>
+        <div style={{ fontWeight: 700, fontSize: 15, color: "var(--text-primary)", marginBottom: 16 }}>
+          Histórico — {billing.organization.nome}
+        </div>
+        {billing.payments.length === 0 ? (
+          <div style={{ color: "var(--text-muted)", fontSize: 13, textAlign: "center", padding: 24 }}>Nenhum pagamento registrado</div>
+        ) : (
+          <table style={{ width: "100%", fontSize: 12, borderCollapse: "collapse" }}>
+            <thead>
+              <tr style={{ color: "var(--text-muted)", borderBottom: "1px solid var(--border-subtle)" }}>
+                <th style={{ textAlign: "left", padding: "4px 8px" }}>Data</th>
+                <th style={{ textAlign: "left", padding: "4px 8px" }}>Valor</th>
+                <th style={{ textAlign: "left", padding: "4px 8px" }}>Método</th>
+                <th style={{ textAlign: "left", padding: "4px 8px" }}>Status</th>
+                <th style={{ textAlign: "left", padding: "4px 8px" }}>Ref.</th>
+              </tr>
+            </thead>
+            <tbody>
+              {billing.payments.map(p => (
+                <tr key={p.id} style={{ borderBottom: "1px solid var(--border-subtle)" }}>
+                  <td style={{ padding: "6px 8px", color: "var(--text-secondary)" }}>{p.dataPagamento ? new Date(p.dataPagamento).toLocaleDateString("pt-BR") : new Date(p.criadoEm).toLocaleDateString("pt-BR")}</td>
+                  <td style={{ padding: "6px 8px", color: "var(--text-primary)", fontWeight: 600 }}>R$ {p.valor.toFixed(2)}</td>
+                  <td style={{ padding: "6px 8px", color: "var(--text-secondary)" }}>{p.metodo || "—"}</td>
+                  <td style={{ padding: "6px 8px" }}><Badge label={p.status} color={PAY_STATUS[p.status] || "#9090b0"} /></td>
+                  <td style={{ padding: "6px 8px", color: "var(--text-muted)" }}>{p.referencia || "—"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+        <button className="btn btn-ghost" style={{ width: "100%", marginTop: 16 }} onClick={onClose}>Fechar</button>
+      </div>
+    </div>
+  );
+}
+
+// ── BillingPanel ───────────────────────────────────────────────────────────────
+
+function BillingPanel() {
+  const [data, setData] = useState<{ stats: BillingStats; billings: OrgBilling[] } | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [assignModal, setAssignModal] = useState<OrgBilling | null>(null);
+  const [extendModal, setExtendModal] = useState<OrgBilling | null>(null);
+  const [overrideModal, setOverrideModal] = useState<OrgBilling | null>(null);
+  const [historyModal, setHistoryModal] = useState<OrgBilling | null>(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try { const r = await api.get("/billing"); setData(r.data); }
+    catch {} finally { setLoading(false); }
+  }, []);
+
+  useEffect(() => { load(); }, []);
+
+  if (loading) return <div style={{ display: "flex", justifyContent: "center", padding: 48 }}><Spin /></div>;
+  if (!data) return <div style={{ color: "var(--text-muted)", fontSize: 13, textAlign: "center", padding: 32 }}>Erro ao carregar dados de billing</div>;
+
+  const { stats, billings } = data;
+  const statCards = [
+    { label: "MRR", value: `R$ ${stats.mrr.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`, color: "#7c3aed" },
+    { label: "Ativos", value: stats.active, color: "#22c55e" },
+    { label: "Trial", value: stats.trial, color: "#f59e0b" },
+    { label: "Inadimplentes", value: stats.overdue, color: "#eab308" },
+    { label: "Suspensos", value: stats.suspended, color: "#ef4444" },
+  ];
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      {/* Stats */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 10 }}>
+        {statCards.map(s => (
+          <div key={s.label} style={{ background: "var(--bg-card)", border: "1px solid var(--border-subtle)", borderRadius: 12, padding: "12px 14px" }}>
+            <div style={{ fontSize: 10, color: "var(--text-muted)", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>{s.label}</div>
+            <div style={{ fontSize: 20, fontWeight: 700, color: s.color, fontFamily: "var(--font-display)" }}>{s.value}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Tabela */}
+      <div style={{ background: "var(--bg-card)", border: "1px solid var(--border-subtle)", borderRadius: 12, overflow: "hidden" }}>
+        <table style={{ width: "100%", fontSize: 12, borderCollapse: "collapse" }}>
+          <thead>
+            <tr style={{ background: "var(--bg-secondary)", color: "var(--text-muted)", fontSize: 10, textTransform: "uppercase" }}>
+              <th style={{ textAlign: "left", padding: "10px 14px" }}>Organização</th>
+              <th style={{ textAlign: "left", padding: "10px 8px" }}>Plano</th>
+              <th style={{ textAlign: "left", padding: "10px 8px" }}>Status</th>
+              <th style={{ textAlign: "left", padding: "10px 8px" }}>Trial / Próx. Pgto</th>
+              <th style={{ textAlign: "right", padding: "10px 8px" }}>Valor/mês</th>
+              <th style={{ textAlign: "right", padding: "10px 14px" }}>Ações</th>
+            </tr>
+          </thead>
+          <tbody>
+            {billings.map(b => {
+              const dateLabel = b.status === "trial" && b.trialEndsAt
+                ? `Trial até ${new Date(b.trialEndsAt).toLocaleDateString("pt-BR")}`
+                : b.nextBillingDate
+                ? `Próx. ${new Date(b.nextBillingDate).toLocaleDateString("pt-BR")}`
+                : "—";
+              const isExpired = b.status === "trial" && b.trialEndsAt && new Date(b.trialEndsAt) < new Date();
+              return (
+                <tr key={b.id} style={{ borderTop: "1px solid var(--border-subtle)" }}>
+                  <td style={{ padding: "10px 14px", color: "var(--text-primary)", fontWeight: 500 }}>{b.organization.nome}</td>
+                  <td style={{ padding: "10px 8px", color: "var(--text-secondary)" }}>{PLAN_LABELS[b.plano] || b.plano}</td>
+                  <td style={{ padding: "10px 8px" }}><BillingBadge status={b.status} /></td>
+                  <td style={{ padding: "10px 8px", color: isExpired ? "#ef4444" : "var(--text-muted)", fontSize: 11 }}>{dateLabel}</td>
+                  <td style={{ padding: "10px 8px", textAlign: "right", color: "var(--text-secondary)" }}>
+                    {b.valorMensal ? `R$ ${b.valorMensal.toFixed(2)}` : "—"}
+                  </td>
+                  <td style={{ padding: "10px 14px", textAlign: "right" }}>
+                    <div style={{ display: "flex", gap: 4, justifyContent: "flex-end" }}>
+                      <button className="btn btn-ghost" style={{ fontSize: 10, padding: "3px 8px" }} onClick={() => setAssignModal(b)}>Plano</button>
+                      <button className="btn btn-ghost" style={{ fontSize: 10, padding: "3px 8px" }} onClick={() => setExtendModal(b)}>Trial</button>
+                      <button className="btn btn-ghost" style={{ fontSize: 10, padding: "3px 8px" }} onClick={() => setOverrideModal(b)}>Override</button>
+                      <button className="btn btn-ghost" style={{ fontSize: 10, padding: "3px 8px" }} onClick={() => setHistoryModal(b)}>Hist.</button>
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+        {billings.length === 0 && (
+          <div style={{ textAlign: "center", padding: 32, color: "var(--text-muted)", fontSize: 13 }}>Nenhuma organização com billing</div>
+        )}
+      </div>
+
+      {assignModal && <AssignPlanModal billing={assignModal} onClose={() => setAssignModal(null)} onSave={load} />}
+      {extendModal && <ExtendTrialModal billing={extendModal} onClose={() => setExtendModal(null)} onSave={load} />}
+      {overrideModal && <OverrideStatusModal billing={overrideModal} onClose={() => setOverrideModal(null)} onSave={load} />}
+      {historyModal && <PaymentHistoryModal billing={historyModal} onClose={() => setHistoryModal(null)} />}
+    </div>
+  );
+}
+
 export default function SuperAdminPage() {
   const { user } = useAuthStore();
   const [orgs, setOrgs] = useState<Org[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"orgs" | "requests">("orgs");
+  const [activeTab, setActiveTab] = useState<"orgs" | "requests" | "billing">("orgs");
   const [novaReqOpen, setNovaReqOpen] = useState(false);
   const [newOrgOpen, setNewOrgOpen] = useState(false);
   const [pendingCount, setPendingCount] = useState(0);
@@ -529,11 +849,11 @@ export default function SuperAdminPage() {
     <button className="btn btn-violet" style={{ fontSize: 12 }} onClick={() => setNewOrgOpen(true)}>
       + Nova Organização
     </button>
-  ) : (
+  ) : activeTab === "requests" ? (
     <button className="btn btn-violet" style={{ fontSize: 12 }} onClick={() => setNovaReqOpen(true)}>
       + Nova Solicitação
     </button>
-  );
+  ) : null;
 
   return (
     <div className="flex flex-col h-full bg-background">
@@ -552,7 +872,8 @@ export default function SuperAdminPage() {
             {([
               { key: "orgs", label: "Organizações" },
               { key: "requests", label: `Solicitações${pendingCount > 0 ? ` (${pendingCount})` : ""}` },
-            ] as const).map(t => (
+              { key: "billing", label: "💳 Billing" },
+            ] as { key: "orgs" | "requests" | "billing"; label: string }[]).map(t => (
               <button key={t.key} onClick={() => setActiveTab(t.key)}
                 style={{
                   padding: "9px 18px", background: "none", border: "none", cursor: "pointer",
@@ -579,6 +900,8 @@ export default function SuperAdminPage() {
           {activeTab === "requests" && (
             <RequestsPanel onRefresh={() => { load(); loadPendingCount(); }} />
           )}
+
+          {activeTab === "billing" && <BillingPanel />}
         </div>
       </div>
       {novaReqOpen && <NovaReqModal onClose={() => setNovaReqOpen(false)} onCreated={() => { setNovaReqOpen(false); loadPendingCount(); setActiveTab("requests"); }} />}

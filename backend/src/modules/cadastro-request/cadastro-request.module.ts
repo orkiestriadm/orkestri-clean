@@ -158,7 +158,24 @@ export class CadastroRequestService {
         .catch(() => {});
     }
 
-    // 9. Audit log
+    // 9. Cria OrgBilling com trial de 14 dias
+    const trialEndsAt = new Date();
+    trialEndsAt.setDate(trialEndsAt.getDate() + 14);
+    const planoNormalizado = (req.planoSolicitado || 'business_cloud')
+      .replace('starter', 'business_cloud'); // normaliza planos legados
+    await this.prisma.orgBilling
+      .create({
+        data: {
+          organizationId: org.id,
+          plano: planoNormalizado,
+          status: 'trial',
+          trialEndsAt,
+          valorMensal: planoNormalizado === 'business_plus' ? 199.90 : planoNormalizado === 'enterprise' ? null : 99.90,
+        },
+      })
+      .catch(() => {}); // Não falha o provisionamento se billing falhar
+
+    // 10. Audit log
     await this.prisma.auditLog
       .create({
         data: {

@@ -177,6 +177,33 @@ class UsersController {
     const exists = await this.prisma.user.findFirst({ where: { email: dto.email, ...(orgId ? { organizationId: orgId } : {}) } as any });
     if (exists) throw new ConflictException("E-mail ja cadastrado");
 
+    // Verificar limite de usuários do plano
+    if (orgId) {
+      try {
+        const billing = await (this.prisma as any).orgBilling.findUnique({
+          where: { organizationId: orgId },
+          select: { plano: true, status: true },
+        });
+        const PLAN_LIMITS: Record<string, number | null> = {
+          business_cloud: 5, business_plus: 10, enterprise: null,
+        };
+        const maxUsers = billing ? (PLAN_LIMITS[billing.plano] ?? null) : null;
+        if (maxUsers !== null) {
+          const currentCount = await (this.prisma as any).user.count({
+            where: { organizationId: orgId, ativo: true },
+          });
+          if (currentCount >= maxUsers) {
+            throw new BadRequestException(
+              `Limite de ${maxUsers} usuários atingido para o plano atual. Faça upgrade para adicionar mais usuários.`
+            );
+          }
+        }
+      } catch (e: any) {
+        if (e instanceof BadRequestException) throw e;
+        // Ignora erros de infraestrutura (tabela billing ainda não existe)
+      }
+    }
+
     const hash = await bcrypt.hash(dto.senha, 12);
     const modulosJson = JSON.stringify(dto.modulos ?? ALL_MODULOS);
 

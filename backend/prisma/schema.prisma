@@ -121,6 +121,7 @@ model Organization {
   workflowRequests  WorkflowRequest[]       @relation("OrgWorkflowRequests")
   squads            Squad[]                 @relation("OrgSquads")
   aprovadoresSetor  AprovadorSetor[]
+  billing           OrgBilling?
 
   @@map("organizations")
 }
@@ -1633,4 +1634,60 @@ model CadastroRequest {
   @@index([organizationId])
   @@index([status])
   @@map("cadastro_requests")
+}
+
+// ── Billing SaaS ───────────────────────────────────────────────────────────────
+
+model OrgBilling {
+  id             String       @id @default(uuid())
+  organizationId String       @unique @map("organization_id")
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  plano          String       @default("business_cloud")
+  /// trial | active | overdue | suspended | cancelled | enterprise_manual
+  status         String       @default("trial")
+
+  trialEndsAt        DateTime? @map("trial_ends_at")
+  currentPeriodStart DateTime? @map("current_period_start")
+  currentPeriodEnd   DateTime? @map("current_period_end")
+  nextBillingDate    DateTime? @map("next_billing_date")
+  valorMensal        Float?    @map("valor_mensal")
+
+  // Mercado Pago
+  mpPreapprovalId  String? @map("mp_preapproval_id")
+  mpPayerEmail     String? @map("mp_payer_email")
+  mpCheckoutUrl    String? @map("mp_checkout_url")
+
+  // Override manual pelo SA
+  overrideStatusBySaId String? @map("override_status_by_sa_id")
+  overrideNota         String? @map("override_nota")
+
+  criadoEm     DateTime @default(now()) @map("criado_em")
+  atualizadoEm DateTime @updatedAt @map("atualizado_em")
+
+  payments BillingPayment[]
+
+  @@index([status])
+  @@map("org_billing")
+}
+
+model BillingPayment {
+  id           String     @id @default(uuid())
+  orgBillingId String     @map("org_billing_id")
+  orgBilling   OrgBilling @relation(fields: [orgBillingId], references: [id], onDelete: Cascade)
+
+  mpPaymentId    String?  @map("mp_payment_id")
+  valor          Float
+  /// pending | approved | rejected | refunded | cancelled
+  status         String
+  metodo         String?
+  dataVencimento DateTime? @map("data_vencimento")
+  dataPagamento  DateTime? @map("data_pagamento")
+  referencia     String?   // período (ex: "2026-06")
+
+  criadoEm DateTime @default(now()) @map("criado_em")
+
+  @@index([orgBillingId])
+  @@index([status])
+  @@map("billing_payments")
 }

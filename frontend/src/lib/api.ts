@@ -17,6 +17,19 @@ api.interceptors.response.use(
     const status = err.response?.status;
     const message = err.response?.data?.message;
 
+    // 401 — billing suspenso (hard block)
+    if (status === 401) {
+      const errData = err.response?.data as { code?: string; checkoutUrl?: string; message?: string } | undefined;
+      if (errData?.code === 'BILLING_SUSPENDED') {
+        const checkout = errData.checkoutUrl ? encodeURIComponent(errData.checkoutUrl) : '';
+        const msg = encodeURIComponent(errData.message || 'Assinatura suspensa');
+        if (!window.location.pathname.startsWith('/suspended')) {
+          window.location.href = `/suspended?reason=${msg}${checkout ? `&checkout=${checkout}` : ''}`;
+        }
+        return Promise.reject(err);
+      }
+    }
+
     // 401 — sessão expirada
     if (status === 401) {
       if (!window.location.pathname.includes("/login")) {
