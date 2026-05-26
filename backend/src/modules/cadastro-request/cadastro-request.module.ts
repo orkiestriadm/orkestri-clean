@@ -158,9 +158,9 @@ export class CadastroRequestService {
         .catch(() => {});
     }
 
-    // 9. Cria OrgBilling com trial de 14 dias
+    // 9. Cria OrgBilling com trial de 7 dias
     const trialEndsAt = new Date();
-    trialEndsAt.setDate(trialEndsAt.getDate() + 14);
+    trialEndsAt.setDate(trialEndsAt.getDate() + 7);
     const planoNormalizado = (req.planoSolicitado || 'business_cloud')
       .replace('starter', 'business_cloud'); // normaliza planos legados
     await this.prisma.orgBilling

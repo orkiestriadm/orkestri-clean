@@ -2,7 +2,7 @@ import {
   Module, Controller, Get, Post, Body, Param,
   UseGuards, Req, ForbiddenException, NotFoundException,
   BadRequestException, HttpCode, HttpStatus, Logger,
-  ConflictException,
+  ConflictException, UsePipes, ValidationPipe,
 } from '@nestjs/common';
 import { Injectable } from '@nestjs/common';
 import { ScheduleModule, Cron } from '@nestjs/schedule';
@@ -11,6 +11,7 @@ import { ConfigService } from '@nestjs/config';
 import { AuthGuard } from '@nestjs/passport';
 import { Resend } from 'resend';
 import * as bcrypt from 'bcryptjs';
+import { IsString, IsEmail, IsOptional, MinLength, IsIn } from 'class-validator';
 
 // ─── Planos ──────────────────────────────────────────────────────────────────
 
@@ -61,11 +62,24 @@ class ExtendTrialDto {
 }
 
 class PublicSignupDto {
+  @IsIn(['business_cloud', 'business_plus'])
   plano: string;
+
+  @IsString()
   orgNome: string;
+
+  @IsOptional()
+  @IsString()
   orgSlug?: string;
+
+  @IsString()
   adminNome: string;
+
+  @IsEmail()
   adminEmail: string;
+
+  @IsString()
+  @MinLength(8)
   adminSenha: string;
 }
 
@@ -179,7 +193,7 @@ export class BillingService {
     if (existing) return existing;
 
     const trialEndsAt = new Date();
-    trialEndsAt.setDate(trialEndsAt.getDate() + 14);
+    trialEndsAt.setDate(trialEndsAt.getDate() + 7);
 
     return this.prisma.orgBilling.create({
       data: {
@@ -291,7 +305,7 @@ export class BillingService {
         mpPreapprovalId: preapprovalId,
         mpPayerEmail: masterEmail,
         mpCheckoutUrl: checkoutUrl,
-        trialEndsAt: org.billing?.trialEndsAt || new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000),
+        trialEndsAt: org.billing?.trialEndsAt || new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000),
       },
       update: {
         plano: dto.plano,
@@ -596,7 +610,7 @@ export class BillingService {
         organizationId: org.id,
         plano: session.plano,
         status: hasMpPayment ? 'active' : 'trial',
-        trialEndsAt: hasMpPayment ? null : new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
+        trialEndsAt: hasMpPayment ? null : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
         valorMensal: PLANS[session.plano]?.valor || null,
         mpPreapprovalId: session.mpPreapprovalId || null,
         mpPayerEmail: session.payerEmail,

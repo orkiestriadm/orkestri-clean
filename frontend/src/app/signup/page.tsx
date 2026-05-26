@@ -215,7 +215,7 @@ function SignupContent() {
                 Escolha seu plano
               </h1>
               <p className="text-sm text-center mb-8" style={{ color: "var(--text-muted)" }}>
-                Comece com 14 dias de trial gratuito. Cancele quando quiser.
+                Comece com 7 dias de trial gratuito. Cancele quando quiser.
               </p>
 
               <div className="grid md:grid-cols-2 gap-4 mb-8">
@@ -404,7 +404,7 @@ function SignupContent() {
                   </div>
 
                   <div className="mt-5 rounded-xl p-3 text-xs" style={{ background: "rgba(124,58,237,0.08)", border: "1px solid rgba(124,58,237,0.2)", color: "#a78bfa" }}>
-                    🎁 <strong>14 dias grátis</strong> — sem cobrança até o fim do trial. Cancele quando quiser.
+                    🎁 <strong>7 dias grátis</strong> — sem cobrança até o fim do trial. Cancele quando quiser.
                   </div>
 
                   <button
