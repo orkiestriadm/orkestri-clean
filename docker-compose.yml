@@ -74,6 +74,10 @@ services:
       EMAIL_FROM: ${EMAIL_FROM:-onboarding@resend.dev}
       EMAIL_FROM_NAME: ${EMAIL_FROM_NAME:-Orkestri}
       TZ: America/Sao_Paulo
+      MP_ACCESS_TOKEN: ${MP_ACCESS_TOKEN}
+      MP_WEBHOOK_SECRET: ${MP_WEBHOOK_SECRET}
+      MP_PLAN_BUSINESS_CLOUD: ${MP_PLAN_BUSINESS_CLOUD}
+      MP_PLAN_BUSINESS_PLUS: ${MP_PLAN_BUSINESS_PLUS}
     volumes:
       - uploads_data:/app/uploads
     networks:
