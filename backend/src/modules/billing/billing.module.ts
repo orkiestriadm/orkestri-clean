@@ -143,7 +143,12 @@ export class BillingService {
     });
     if (!billing) {
       // Cria automaticamente se não existir (orgs antigas)
-      billing = await this.ensureBilling(organizationId);
+      await this.ensureBilling(organizationId);
+      billing = await this.prisma.orgBilling.findUnique({
+        where: { organizationId },
+        include: { payments: { orderBy: { criadoEm: 'desc' }, take: 10 } },
+      });
+      if (!billing) throw new NotFoundException('Erro ao inicializar billing.');
     }
     const plan = PLANS[billing.plano] || PLANS.business_cloud;
     return { ...billing, planInfo: plan };
