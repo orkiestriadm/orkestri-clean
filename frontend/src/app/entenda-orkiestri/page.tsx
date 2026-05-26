@@ -543,116 +543,103 @@ export default function UnderstandOrkiestriPage() {
                 Evolução guiada por valor.
               </h2>
               
-              <p className="text-base md:text-lg text-slate-400 mb-10 max-w-3xl">
+              <p className="text-base md:text-lg text-slate-400 mb-8 max-w-3xl">
                 Nossa estratégia de desenvolvimento está dividida em marcos estruturados para acelerar a transformação digital das empresas.
               </p>
 
-              <div className="relative mt-8">
-                {/* Connector line */}
-                <div className="absolute left-4 sm:left-1/2 top-0 bottom-0 w-0.5 bg-gradient-to-b from-cyan-500 via-violet-500 to-fuchsia-500 z-0" />
-
-                <div className="space-y-12 relative z-10">
-                  {/* Phase 1 */}
-                  <div className="relative flex flex-col sm:flex-row items-start sm:items-center justify-between">
-                    <div className="flex sm:w-1/2 sm:justify-end sm:pr-12 pl-12 sm:pl-0">
-                      <div className="bg-[#12121e]/90 border border-white/5 p-6 rounded-xl hover:border-cyan-500/30 transition-all max-w-md w-full backdrop-blur-md">
-                        <span className="text-cyan-400 font-bold text-xs tracking-widest uppercase">Fase 01</span>
-                        <h4 className="text-base font-bold text-white mt-1.5 mb-2">Core Operacional</h4>
-                        <p className="text-xs text-slate-400 leading-relaxed mb-4">
-                          Centralize o dia a dia da sua operação eliminando a fragmentação de ferramentas (Jira + Planner + Movidesk).
-                        </p>
-                        <div className="grid grid-cols-2 gap-2 border-t border-white/5 pt-3">
-                          <span className="flex items-center gap-1.5 text-xs text-slate-300">
-                            <span className="w-1.5 h-1.5 rounded-full bg-cyan-400" />
-                            Chamados
-                          </span>
-                          <span className="flex items-center gap-1.5 text-xs text-slate-300">
-                            <span className="w-1.5 h-1.5 rounded-full bg-cyan-400" />
-                            Tarefas
-                          </span>
-                          <span className="flex items-center gap-1.5 text-xs text-slate-300">
-                            <span className="w-1.5 h-1.5 rounded-full bg-cyan-400" />
-                            Projetos
-                          </span>
-                          <span className="flex items-center gap-1.5 text-xs text-slate-300">
-                            <span className="w-1.5 h-1.5 rounded-full bg-cyan-400" />
-                            Dashboard Operacional
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="absolute left-2.5 sm:left-1/2 -translate-x-1/2 w-3.5 h-3.5 rounded-full border-2 border-cyan-400 bg-slate-900" />
-                    <div className="hidden sm:block w-1/2 pl-12" />
+              <div className="grid md:grid-cols-3 gap-6 mt-4">
+                {/* Phase 1 */}
+                <div className="bg-[#12121e]/90 border border-white/5 p-6 rounded-xl hover:border-cyan-500/30 transition-all flex flex-col justify-between backdrop-blur-md">
+                  <div>
+                    <span className="text-cyan-400 font-bold text-xs tracking-widest uppercase">Fase 01</span>
+                    <h4 className="text-lg font-bold text-white mt-1.5 mb-2">Core Operacional</h4>
+                    <p className="text-xs text-slate-400 leading-relaxed mb-4">
+                      Centralize o dia a dia da sua operação eliminando a fragmentação de ferramentas (Jira + Planner + Movidesk).
+                    </p>
                   </div>
-
-                  {/* Phase 2 */}
-                  <div className="relative flex flex-col sm:flex-row items-start sm:items-center justify-between">
-                    <div className="hidden sm:block w-1/2 pr-12 text-right" />
-                    <div className="absolute left-2.5 sm:left-1/2 -translate-x-1/2 w-3.5 h-3.5 rounded-full border-2 border-violet-400 bg-slate-900" />
-                    <div className="flex sm:w-1/2 pl-12">
-                      <div className="bg-[#12121e]/90 border border-white/5 p-6 rounded-xl hover:border-violet-500/30 transition-all max-w-md w-full backdrop-blur-md">
-                        <span className="text-violet-400 font-bold text-xs tracking-widest uppercase">Fase 02</span>
-                        <h4 className="text-base font-bold text-white mt-1.5 mb-2">Core Conectividade</h4>
-                        <p className="text-xs text-slate-400 leading-relaxed mb-4">
-                          Automatize fluxos e sincronize as agendas das equipes em tempo real, sem necessidade de integrações de terceiros.
-                        </p>
-                        <div className="grid grid-cols-2 gap-2 border-t border-white/5 pt-3">
-                          <span className="flex items-center gap-1.5 text-xs text-slate-300">
-                            <span className="w-1.5 h-1.5 rounded-full bg-violet-400" />
-                            Agenda
-                          </span>
-                          <span className="flex items-center gap-1.5 text-xs text-slate-300">
-                            <span className="w-1.5 h-1.5 rounded-full bg-violet-400" />
-                            Workflows
-                          </span>
-                          <span className="flex items-center gap-1.5 text-xs text-slate-300">
-                            <span className="w-1.5 h-1.5 rounded-full bg-violet-400" />
-                            Automação
-                          </span>
-                          <span className="flex items-center gap-1.5 text-xs text-slate-300">
-                            <span className="w-1.5 h-1.5 rounded-full bg-violet-400" />
-                            Integrações
-                          </span>
-                        </div>
-                      </div>
-                    </div>
+                  <div className="grid grid-cols-2 gap-2 border-t border-white/5 pt-4 mt-auto">
+                    <span className="flex items-center gap-1.5 text-xs text-slate-300">
+                      <span className="w-1.5 h-1.5 rounded-full bg-cyan-400" />
+                      Chamados
+                    </span>
+                    <span className="flex items-center gap-1.5 text-xs text-slate-300">
+                      <span className="w-1.5 h-1.5 rounded-full bg-cyan-400" />
+                      Tarefas
+                    </span>
+                    <span className="flex items-center gap-1.5 text-xs text-slate-300">
+                      <span className="w-1.5 h-1.5 rounded-full bg-cyan-400" />
+                      Projetos
+                    </span>
+                    <span className="flex items-center gap-1.5 text-xs text-slate-300">
+                      <span className="w-1.5 h-1.5 rounded-full bg-cyan-400" />
+                      Dashboard
+                    </span>
                   </div>
+                </div>
 
-                  {/* Phase 3 */}
-                  <div className="relative flex flex-col sm:flex-row items-start sm:items-center justify-between">
-                    <div className="flex sm:w-1/2 sm:justify-end sm:pr-12 pl-12 sm:pl-0">
-                      <div className="bg-[#12121e]/90 border border-white/5 p-6 rounded-xl hover:border-fuchsia-500/30 transition-all max-w-md w-full backdrop-blur-md">
-                        <span className="text-fuchsia-400 font-bold text-xs tracking-widest uppercase">Fase 03</span>
-                        <h4 className="text-base font-bold text-white mt-1.5 mb-2">Core Financeiro & Governança</h4>
-                        <p className="text-xs text-slate-400 leading-relaxed mb-4">
-                          Controle custos de CAPEX/OPEX, tenha relatórios preditivos para tomada de decisão e audite cada detalhe da sua empresa.
-                        </p>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 border-t border-white/5 pt-3">
-                          <span className="flex items-center gap-1.5 text-xs text-slate-300">
-                            <span className="w-1.5 h-1.5 rounded-full bg-fuchsia-400" />
-                            Onboarding simplificado
-                          </span>
-                          <span className="flex items-center gap-1.5 text-xs text-slate-300">
-                            <span className="w-1.5 h-1.5 rounded-full bg-fuchsia-400" />
-                            Relatórios preditivos
-                          </span>
-                          <span className="flex items-center gap-1.5 text-xs text-slate-300 col-span-1 sm:col-span-2">
-                            <span className="w-1.5 h-1.5 rounded-full bg-fuchsia-400" />
-                            Gestão de Orçamento (CAPEX/OPEX)
-                          </span>
-                          <span className="flex items-center gap-1.5 text-xs text-slate-300">
-                            <span className="w-1.5 h-1.5 rounded-full bg-fuchsia-400" />
-                            Controle de demandas
-                          </span>
-                          <span className="flex items-center gap-1.5 text-xs text-slate-300">
-                            <span className="w-1.5 h-1.5 rounded-full bg-fuchsia-400" />
-                            Auditorias
-                          </span>
-                        </div>
-                      </div>
+                {/* Phase 2 */}
+                <div className="bg-[#12121e]/90 border border-white/5 p-6 rounded-xl hover:border-violet-500/30 transition-all flex flex-col justify-between backdrop-blur-md">
+                  <div>
+                    <span className="text-violet-400 font-bold text-xs tracking-widest uppercase">Fase 02</span>
+                    <h4 className="text-lg font-bold text-white mt-1.5 mb-2">Core Conectividade</h4>
+                    <p className="text-xs text-slate-400 leading-relaxed mb-4">
+                      Automatize fluxos e sincronize as agendas das equipes em tempo real, sem necessidade de integrações de terceiros.
+                    </p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 border-t border-white/5 pt-4 mt-auto">
+                    <span className="flex items-center gap-1.5 text-xs text-slate-300">
+                      <span className="w-1.5 h-1.5 rounded-full bg-violet-400" />
+                      Agenda
+                    </span>
+                    <span className="flex items-center gap-1.5 text-xs text-slate-300">
+                      <span className="w-1.5 h-1.5 rounded-full bg-violet-400" />
+                      Workflows
+                    </span>
+                    <span className="flex items-center gap-1.5 text-xs text-slate-300">
+                      <span className="w-1.5 h-1.5 rounded-full bg-violet-400" />
+                      Automação
+                    </span>
+                    <span className="flex items-center gap-1.5 text-xs text-slate-300">
+                      <span className="w-1.5 h-1.5 rounded-full bg-violet-400" />
+                      Integrações
+                    </span>
+                  </div>
+                </div>
+
+                {/* Phase 3 */}
+                <div className="bg-[#12121e]/90 border border-white/5 p-6 rounded-xl hover:border-fuchsia-500/30 transition-all flex flex-col justify-between backdrop-blur-md">
+                  <div>
+                    <span className="text-fuchsia-400 font-bold text-xs tracking-widest uppercase">Fase 03</span>
+                    <h4 className="text-lg font-bold text-white mt-1.5 mb-2">Core Financeiro</h4>
+                    <p className="text-xs text-slate-400 leading-relaxed mb-4">
+                      Controle custos de CAPEX/OPEX, tenha relatórios preditivos para tomada de decisão e audite cada detalhe da sua empresa.
+                    </p>
+                  </div>
+                  <div className="grid grid-cols-1 gap-1.5 border-t border-white/5 pt-4 mt-auto">
+                    <div className="grid grid-cols-2 gap-2">
+                      <span className="flex items-center gap-1.5 text-xs text-slate-300">
+                        <span className="w-1.5 h-1.5 rounded-full bg-fuchsia-400" />
+                        Onboarding
+                      </span>
+                      <span className="flex items-center gap-1.5 text-xs text-slate-300">
+                        <span className="w-1.5 h-1.5 rounded-full bg-fuchsia-400" />
+                        Preditivos
+                      </span>
                     </div>
-                    <div className="absolute left-2.5 sm:left-1/2 -translate-x-1/2 w-3.5 h-3.5 rounded-full border-2 border-fuchsia-400 bg-slate-900" />
-                    <div className="hidden sm:block w-1/2 pl-12" />
+                    <span className="flex items-center gap-1.5 text-xs text-slate-300">
+                      <span className="w-1.5 h-1.5 rounded-full bg-fuchsia-400" />
+                      Gestão de Orçamento (CAPEX/OPEX)
+                    </span>
+                    <div className="grid grid-cols-2 gap-2">
+                      <span className="flex items-center gap-1.5 text-xs text-slate-300">
+                        <span className="w-1.5 h-1.5 rounded-full bg-fuchsia-400" />
+                        Demandas
+                      </span>
+                      <span className="flex items-center gap-1.5 text-xs text-slate-300">
+                        <span className="w-1.5 h-1.5 rounded-full bg-fuchsia-400" />
+                        Auditorias
+                      </span>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -688,17 +675,17 @@ export default function UnderstandOrkiestriPage() {
 
               <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
                 <a 
-                  href="/#contato" 
+                  href="/#planos" 
                   className="relative group inline-flex items-center gap-2.5 px-8 py-4 rounded-xl bg-gradient-to-r from-violet-600 to-violet-500 text-white font-bold text-base hover:from-violet-500 hover:to-violet-400 transition-all shadow-[0_0_30px_rgba(124,58,237,0.4)]"
                 >
                   <div className="absolute -inset-1 rounded-xl bg-gradient-to-r from-cyan-400 to-violet-500 opacity-30 blur-md group-hover:opacity-60 transition duration-500" />
                   <span className="relative z-10 flex items-center gap-2.5">
-                    Solicitar Demonstração Dedicada
+                    Contrate
                     <ArrowRight size={16} />
                   </span>
                 </a>
                 <a 
-                  href="https://wa.me/5511999999999" 
+                  href="https://wa.me/5514991661688" 
                   target="_blank" 
                   rel="noopener noreferrer" 
                   className="inline-flex items-center gap-2.5 px-8 py-4 rounded-xl border border-white/10 hover:border-white/20 hover:bg-white/5 text-slate-300 hover:text-white transition-all text-base font-semibold"
