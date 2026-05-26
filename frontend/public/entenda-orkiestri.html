@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Orkiestri — Plataforma de Orquestração Operacional</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: #050816;
+      color: #ffffff;
+      overflow-x: hidden;
+    }
+
+    .bg-grid {
+      background-image:
+        linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
+      background-size: 40px 40px;
+    }
+
+    .glass {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+      backdrop-filter: blur(14px);
+    }
+
+    .gradient-text {
+      background: linear-gradient(90deg, #6EE7F9, #8B5CF6, #60A5FA);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .hero-glow {
+      position: absolute;
+      width: 700px;
+      height: 700px;
+      background: radial-gradient(circle, rgba(99,102,241,0.35) 0%, rgba(0,0,0,0) 70%);
+      top: -200px;
+      right: -200px;
+      filter: blur(40px);
+      z-index: 0;
+    }
+
+    .card-hover {
+      transition: all .3s ease;
+    }
+
+    .card-hover:hover {
+      transform: translateY(-8px);
+      border-color: rgba(139,92,246,.4);
+    }
+
+    .section-title {
+      font-size: 3rem;
+      font-weight: 900;
+      line-height: 1.1;
+      margin-bottom: 1rem;
+    }
+
+    .section-subtitle {
+      color: #94a3b8;
+      font-size: 1.15rem;
+      line-height: 1.8;
+      max-width: 850px;
+    }
+
+    .pill {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.08);
+      padding: 14px 22px;
+      border-radius: 999px;
+      color: #dbeafe;
+      font-weight: 600;
+    }
+
+    .line-gradient {
+      width: 120px;
+      height: 4px;
+      border-radius: 999px;
+      background: linear-gradient(90deg,#60a5fa,#8b5cf6);
+      margin-top: 18px;
+      margin-bottom: 28px;
+    }
+  </style>
+</head>
+<body>
+
+  <section class="relative min-h-screen flex items-center justify-center px-8 bg-grid overflow-hidden">
+    <div class="hero-glow"></div>
+
+    <div class="max-w-7xl relative z-10 text-center">
+      <div class="inline-flex items-center gap-3 px-5 py-2 rounded-full glass mb-8">
+        <span class="w-3 h-3 rounded-full bg-cyan-400"></span>
+        <span class="text-sm text-slate-300 font-medium">Plataforma SaaS de Orquestração Operacional</span>
+      </div>
+
+      <h1 class="text-7xl md:text-8xl font-black leading-none mb-8 tracking-tight">
+        <span class="gradient-text">ORKIESTRI</span>
+      </h1>
+
+      <p class="text-2xl md:text-3xl font-semibold text-slate-200 max-w-5xl mx-auto leading-relaxed mb-10">
+        Centralize tarefas, chamados, projetos, indicadores, workflows e operação corporativa em um único ecossistema inteligente.
+      </p>
+
+      <p class="text-lg text-slate-400 max-w-4xl mx-auto leading-relaxed mb-14">
+        O Orkiestri nasce como um hub operacional corporativo capaz de substituir múltiplas ferramentas desconectadas por uma plataforma integrada, automatizada e orientada à gestão em tempo real.
+      </p>
+
+      <div class="flex flex-wrap justify-center gap-4">
+        <div class="pill">Projetos</div>
+        <div class="pill">Chamados</div>
+        <div class="pill">Agenda</div>
+        <div class="pill">Indicadores</div>
+        <div class="pill">Workflows</div>
+        <div class="pill">Governança</div>
+        <div class="pill">Automação</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="py-32 px-8">
+    <div class="max-w-7xl mx-auto">
+
+      <h2 class="section-title">
+        O problema não é falta de software.
+      </h2>
+
+      <div class="line-gradient"></div>
+
+      <p class="section-subtitle">
+        Empresas modernas utilizam dezenas de ferramentas diferentes para controlar operações. O resultado é fragmentação, retrabalho, baixa produtividade e perda de contexto operacional.
+      </p>
+
+      <div class="grid lg:grid-cols-2 gap-8 mt-20">
+
+        <div class="glass rounded-[32px] p-10 card-hover">
+          <h3 class="text-3xl font-bold mb-10">Cenário Atual</h3>
+
+          <div class="space-y-6 text-lg">
+            <div class="flex items-center justify-between border-b border-white/5 pb-4">
+              <span class="text-slate-300">Projetos</span>
+              <span class="text-cyan-300 font-semibold">Jira</span>
+            </div>
+
+            <div class="flex items-center justify-between border-b border-white/5 pb-4">
+              <span class="text-slate-300">Tarefas</span>
+              <span class="text-cyan-300 font-semibold">Planner</span>
+            </div>
+
+            <div class="flex items-center justify-between border-b border-white/5 pb-4">
+              <span class="text-slate-300">Chamados</span>
+              <span class="text-cyan-300 font-semibold">Movidesk</span>
+            </div>
+
+            <div class="flex items-center justify-between border-b border-white/5 pb-4">
+              <span class="text-slate-300">Indicadores</span>
+              <span class="text-cyan-300 font-semibold">Power BI</span>
+            </div>
+
+            <div class="flex items-center justify-between border-b border-white/5 pb-4">
+              <span class="text-slate-300">Agenda</span>
+              <span class="text-cyan-300 font-semibold">Outlook / Google</span>
+            </div>
+
+            <div class="flex items-center justify-between">
+              <span class="text-slate-300">Orçamentos</span>
+              <span class="text-cyan-300 font-semibold">Excel</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="glass rounded-[32px] p-10 card-hover">
+          <h3 class="text-3xl font-bold mb-10">Consequências</h3>
+
+          <div class="space-y-5 text-lg text-slate-300">
+            <div class="flex gap-4">
+              <span class="text-violet-400">●</span>
+              <span>Informações descentralizadas</span>
+            </div>
+
+            <div class="flex gap-4">
+              <span class="text-violet-400">●</span>
+              <span>Baixa visibilidade operacional</span>
+            </div>
+
+            <div class="flex gap-4">
+              <span class="text-violet-400">●</span>
+              <span>Custos elevados de licenciamento</span>
+            </div>
+
+            <div class="flex gap-4">
+              <span class="text-violet-400">●</span>
+              <span>Retrabalho constante entre equipes</span>
+            </div>
+
+            <div class="flex gap-4">
+              <span class="text-violet-400">●</span>
+              <span>Ausência de contexto unificado</span>
+            </div>
+
+            <div class="flex gap-4">
+              <span class="text-violet-400">●</span>
+              <span>Gestão pulverizada e pouco estratégica</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="py-32 px-8 bg-[#070B1D]">
+    <div class="max-w-7xl mx-auto">
+
+      <h2 class="section-title">
+        A proposta do Orkiestri
+      </h2>
+
+      <div class="line-gradient"></div>
+
+      <div class="glass rounded-[36px] p-14 mt-16 relative overflow-hidden">
+
+        <div class="absolute top-0 right-0 w-96 h-96 bg-violet-600/10 blur-3xl rounded-full"></div>
+
+        <div class="relative z-10">
+          <h3 class="text-5xl font-black leading-tight gradient-text max-w-5xl mb-10">
+            “Toda sua operação corporativa em um único ecossistema.”
+          </h3>
+
+          <p class="text-xl text-slate-300 leading-relaxed max-w-5xl mb-16">
+            O Orkiestri conecta projetos, tarefas, chamados, dashboards, workflows, agendas e governança em uma plataforma única orientada à produtividade operacional.
+          </p>
+
+          <div class="grid md:grid-cols-3 gap-6">
+
+            <div class="bg-white/5 border border-white/5 rounded-3xl p-8 card-hover">
+              <h4 class="text-2xl font-bold mb-4">Gestão de Projetos</h4>
+              <p class="text-slate-400 leading-relaxed">Controle completo de entregas, tarefas, cronogramas e produtividade operacional.</p>
+            </div>
+
+            <div class="bg-white/5 border border-white/5 rounded-3xl p-8 card-hover">
+              <h4 class="text-2xl font-bold mb-4">Service Desk</h4>
+              <p class="text-slate-400 leading-relaxed">Central operacional de chamados, SLA, atendimento e suporte corporativo.</p>
+            </div>
+
+            <div class="bg-white/5 border border-white/5 rounded-3xl p-8 card-hover">
+              <h4 class="text-2xl font-bold mb-4">Dashboards</h4>
+              <p class="text-slate-400 leading-relaxed">Indicadores em tempo real e visão consolidada da operação corporativa.</p>
+            </div>
+
+            <div class="bg-white/5 border border-white/5 rounded-3xl p-8 card-hover">
+              <h4 class="text-2xl font-bold mb-4">Agenda Corporativa</h4>
+              <p class="text-slate-400 leading-relaxed">Integração de compromissos, reuniões e fluxos organizacionais.</p>
+            </div>
+
+            <div class="bg-white/5 border border-white/5 rounded-3xl p-8 card-hover">
+              <h4 class="text-2xl font-bold mb-4">Workflow Engine</h4>
+              <p class="text-slate-400 leading-relaxed">Automação inteligente de processos e eventos operacionais.</p>
+            </div>
+
+            <div class="bg-white/5 border border-white/5 rounded-3xl p-8 card-hover">
+              <h4 class="text-2xl font-bold mb-4">Governança</h4>
+              <p class="text-slate-400 leading-relaxed">Controle de acessos, auditoria, permissões e gestão centralizada.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="py-32 px-8">
+    <div class="max-w-7xl mx-auto">
+
+      <h2 class="section-title">
+        O diferencial competitivo
+      </h2>
+
+      <div class="line-gradient"></div>
+
+      <div class="grid lg:grid-cols-2 gap-10 mt-20">
+
+        <div class="glass rounded-[32px] p-12 card-hover">
+          <h3 class="text-4xl font-black mb-8 gradient-text">
+            CONTEXTO UNIFICADO
+          </h3>
+
+          <p class="text-xl text-slate-300 leading-relaxed">
+            O diferencial do Orkiestri não é possuir módulos isolados. O verdadeiro valor está em conectar toda a operação empresarial em tempo real.
+          </p>
+        </div>
+
+        <div class="glass rounded-[32px] p-12 card-hover">
+          <h3 class="text-3xl font-bold mb-8">Fluxo Operacional Inteligente</h3>
+
+          <div class="space-y-6 text-lg text-slate-300">
+            <div>Chamado aberto → gera tarefa automaticamente</div>
+            <div>Tarefa impacta projeto em execução</div>
+            <div>Projeto atualiza dashboard operacional</div>
+            <div>Workflow dispara notificações</div>
+            <div>Indicadores mostram gargalos em tempo real</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="py-32 px-8 bg-[#070B1D]">
+    <div class="max-w-7xl mx-auto">
+
+      <h2 class="section-title">
+        Estrutura SaaS necessária
+      </h2>
+
+      <div class="line-gradient"></div>
+
+      <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-8 mt-20">
+
+        <div class="glass rounded-[28px] p-8 card-hover">
+          <h3 class="text-2xl font-bold mb-5">Multi-Tenant</h3>
+          <p class="text-slate-400 leading-relaxed">Isolamento completo de organizações, dados, usuários e ambientes.</p>
+        </div>
+
+        <div class="glass rounded-[28px] p-8 card-hover">
+          <h3 class="text-2xl font-bold mb-5">RBAC</h3>
+          <p class="text-slate-400 leading-relaxed">Controle granular de permissões e governança organizacional.</p>
+        </div>
+
+        <div class="glass rounded-[28px] p-8 card-hover">
+          <h3 class="text-2xl font-bold mb-5">Billing</h3>
+          <p class="text-slate-400 leading-relaxed">Cobrança recorrente, planos, trial e gestão financeira SaaS.</p>
+        </div>
+
+        <div class="glass rounded-[28px] p-8 card-hover">
+          <h3 class="text-2xl font-bold mb-5">Workflow Engine</h3>
+          <p class="text-slate-400 leading-relaxed">Automação de tarefas e integração inteligente entre módulos.</p>
+        </div>
+
+        <div class="glass rounded-[28px] p-8 card-hover">
+          <h3 class="text-2xl font-bold mb-5">Observabilidade</h3>
+          <p class="text-slate-400 leading-relaxed">Logs, métricas, monitoramento e rastreabilidade operacional.</p>
+        </div>
+
+        <div class="glass rounded-[28px] p-8 card-hover">
+          <h3 class="text-2xl font-bold mb-5">Escalabilidade</h3>
+          <p class="text-slate-400 leading-relaxed">Infraestrutura preparada para crescimento massivo e alta disponibilidade.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="py-32 px-8">
+    <div class="max-w-7xl mx-auto">
+
+      <h2 class="section-title">
+        Roadmap estratégico
+      </h2>
+
+      <div class="line-gradient"></div>
+
+      <div class="space-y-8 mt-20">
+
+        <div class="glass rounded-[32px] p-10 card-hover">
+          <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-8">
+            <div>
+              <span class="text-cyan-300 font-bold text-sm tracking-widest">FASE 01</span>
+              <h3 class="text-3xl font-black mt-3">Core Operacional</h3>
+            </div>
+
+            <p class="text-slate-300 text-lg max-w-4xl leading-relaxed">
+              Chamados, tarefas, projetos, dashboards operacionais e agenda corporativa integrada.
+            </p>
+          </div>
+        </div>
+
+        <div class="glass rounded-[32px] p-10 card-hover">
+          <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-8">
+            <div>
+              <span class="text-violet-300 font-bold text-sm tracking-widest">FASE 02</span>
+              <h3 class="text-3xl font-black mt-3">Integração & Automação</h3>
+            </div>
+
+            <p class="text-slate-300 text-lg max-w-4xl leading-relaxed">
+              Workflow engine, automações inteligentes e integrações corporativas com Outlook, Teams, Google e APIs externas.
+            </p>
+          </div>
+        </div>
+
+        <div class="glass rounded-[32px] p-10 card-hover">
+          <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-8">
+            <div>
+              <span class="text-emerald-300 font-bold text-sm tracking-widest">FASE 03</span>
+              <h3 class="text-3xl font-black mt-3">Escala SaaS</h3>
+            </div>
+
+            <p class="text-slate-300 text-lg max-w-4xl leading-relaxed">
+              Billing, onboarding automático, métricas SaaS, observabilidade e expansão comercial.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="py-40 px-8 relative overflow-hidden">
+
+    <div class="absolute inset-0 bg-gradient-to-br from-violet-700/10 via-cyan-500/5 to-transparent"></div>
+
+    <div class="max-w-6xl mx-auto text-center relative z-10">
+
+      <h2 class="text-6xl font-black leading-tight max-w-5xl mx-auto gradient-text mb-10">
+        O Orkiestri não é apenas mais um software.
+      </h2>
+
+      <p class="text-3xl text-slate-200 leading-relaxed font-semibold max-w-5xl mx-auto mb-10">
+        É uma plataforma criada para orquestrar toda a operação corporativa em um único ecossistema inteligente.
+      </p>
+
+      <p class="text-xl text-slate-400 leading-relaxed max-w-4xl mx-auto">
+        Menos sistemas. Mais controle. Mais contexto. Mais produtividade.
+      </p>
+    </div>
+  </section>
+
+</body>
+</html>

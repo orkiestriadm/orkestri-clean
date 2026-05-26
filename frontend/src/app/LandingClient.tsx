@@ -8,7 +8,7 @@ import StepsSection from '@/components/landing/StepsSection'
 import ModulesSection from '@/components/landing/ModulesSection'
 import DifferentialsSection from '@/components/landing/DifferentialsSection'
 import VideoSection from '@/components/landing/VideoSection'
-import TestimonialsSection from '@/components/landing/TestimonialsSection'
+import UnderstandSection from '@/components/landing/UnderstandSection'
 import PricingSection from '@/components/landing/PricingSection'
 import FaqSection from '@/components/landing/FaqSection'
 import LeadForm from '@/components/landing/LeadForm'
@@ -50,7 +50,7 @@ export default function LandingClient() {
         {/* 4. Como funciona — 3 etapas */}
         <StepsSection />
 
-        {/* 5. Módulos — funcionalidades principais */}
+        {/* 5. Módulos — functionalities principais */}
         <ModulesSection />
 
         {/* 6. Diferenciais — Orkiestri vs legado */}
@@ -59,8 +59,8 @@ export default function LandingClient() {
         {/* 7. Vídeo institucional */}
         <VideoSection />
 
-        {/* 8. Depoimentos — prova social */}
-        <TestimonialsSection />
+        {/* 8. Entenda o Orkiestri */}
+        <UnderstandSection />
 
         {/* 9. Preços */}
         <PricingSection />

@@ -110,7 +110,7 @@ export default function ModulesSection() {
             Módulos do sistema
           </span>
           <h2 className="font-display text-3xl sm:text-4xl lg:text-5xl font-bold text-[var(--text-primary)] mb-4">
-            8 módulos enterprise,<br className="hidden sm:block" /> um único ecossistema
+            HUB Operacional Corporativo,<br className="hidden sm:block" /> em um único ecossistema!
           </h2>
           <p className="text-[var(--text-secondary)] text-lg max-w-2xl mx-auto">
             Cada módulo é profundo, completo e integrado nativamente com os demais — sem plug-ins, sem fricção.

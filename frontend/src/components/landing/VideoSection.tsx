@@ -45,36 +45,17 @@ export default function VideoSection() {
         >
           {/* Thumbnail */}
           <div className="relative aspect-video bg-[#0a0a1e] flex items-center justify-center">
-            {/* Abstract gradient background simulating a screen */}
-            <div className="absolute inset-0">
-              <div className="absolute inset-0 bg-gradient-to-br from-[#0c0c22] via-[#0e0820] to-[#06060f]" />
-              {/* Grid */}
-              <div className="absolute inset-0 opacity-[0.04]"
-                style={{ backgroundImage: 'radial-gradient(circle, rgba(162,130,255,1) 1px, transparent 1px)', backgroundSize: '28px 28px' }} />
-              {/* Orbs */}
-              <div className="absolute top-1/4 left-1/3 w-64 h-64 rounded-full bg-violet-600/20 blur-[80px]" />
-              <div className="absolute bottom-1/4 right-1/3 w-48 h-48 rounded-full bg-cyan-500/15 blur-[60px]" />
-
-              {/* Simulated interface elements */}
-              <div className="absolute inset-8 sm:inset-16">
-                {/* Header bar */}
-                <div className="w-full h-8 rounded-lg bg-[rgba(12,12,34,0.8)] border border-[rgba(162,130,255,0.12)] mb-3 flex items-center px-3 gap-2">
-                  <div className="w-3 h-3 rounded-full bg-violet-500/60" />
-                  <div className="flex-1 h-1.5 rounded-full bg-[rgba(162,130,255,0.1)]" />
-                  <div className="w-8 h-4 rounded bg-violet-600/40" />
-                </div>
-                {/* Cards row */}
-                <div className="grid grid-cols-3 gap-2 mb-3">
-                  {[1,2,3].map(i=>(
-                    <div key={i} className="h-12 rounded-lg bg-[rgba(12,12,34,0.7)] border border-[rgba(162,130,255,0.1)]" />
-                  ))}
-                </div>
-                {/* Content area */}
-                <div className="h-20 rounded-lg bg-[rgba(12,12,34,0.5)] border border-[rgba(162,130,255,0.08)]" />
-              </div>
-
-              {/* Overlay gradient */}
-              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
+            {/* Background Video */}
+            <div className="absolute inset-0 overflow-hidden">
+              <video 
+                src="/videos/apresentacaoOrkiestri.mp4" 
+                className="w-full h-full object-cover opacity-60" 
+                autoPlay 
+                loop 
+                muted 
+                playsInline 
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-black/40" />
             </div>
 
             {/* Play button */}
@@ -109,8 +90,7 @@ export default function VideoSection() {
           transition={{ duration: 0.5, delay: 0.4 }}
           className="text-center text-sm text-[var(--text-muted)] mt-4"
         >
-          {/* Substitua pelo ID do vídeo real quando disponível — YouTube, Vimeo ou arquivo próprio */}
-          Apresentação institucional · 2 min 34 s
+          Apresentação institucional
         </motion.p>
       </div>
 
@@ -128,26 +108,13 @@ export default function VideoSection() {
           >
             <X size={20} />
           </button>
-          <div className="w-full max-w-4xl aspect-video rounded-2xl bg-[#0c0c22] border border-[rgba(162,130,255,0.2)] flex items-center justify-center" onClick={e => e.stopPropagation()}>
-            {/*
-              INTEGRAÇÃO DE VÍDEO:
-              Substitua este bloco pelo iframe do seu player:
-
-              YouTube:
-              <iframe src="https://www.youtube.com/embed/SEU_VIDEO_ID?autoplay=1"
-                className="w-full h-full rounded-2xl" allowFullScreen />
-
-              Vimeo:
-              <iframe src="https://player.vimeo.com/video/SEU_VIDEO_ID?autoplay=1"
-                className="w-full h-full rounded-2xl" allowFullScreen />
-            */}
-            <div className="text-center">
-              <div className="w-16 h-16 rounded-full bg-violet-600/20 flex items-center justify-center mx-auto mb-4">
-                <Play size={24} className="text-[var(--accent-violet)]" fill="currentColor" />
-              </div>
-              <p className="text-[var(--text-secondary)] text-sm">Vídeo institucional em breve</p>
-              <p className="text-[var(--text-muted)] text-xs mt-1">Substitua pelo iframe do player real</p>
-            </div>
+          <div className="w-full max-w-4xl aspect-video rounded-2xl bg-[#0c0c22] border border-[rgba(162,130,255,0.2)] flex items-center justify-center overflow-hidden" onClick={e => e.stopPropagation()}>
+            <video 
+              src="/videos/apresentacaoOrkiestri.mp4" 
+              className="w-full h-full object-cover rounded-2xl outline-none" 
+              controls 
+              autoPlay 
+            />
           </div>
         </motion.div>
       )}
