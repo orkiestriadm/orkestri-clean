@@ -127,120 +127,162 @@ export default function PricingSection() {
         </motion.div>
 
         {/* Pricing Cards Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8 items-stretch">
-          {PLANS.map((plan, i) => (
-            <motion.div
-              key={plan.name}
-              initial={{ opacity: 0, y: 36 }}
-              animate={inView ? { opacity: 1, y: 0 } : {}}
-              transition={{ delay: 0.1 + i * 0.12, duration: 0.65, ease: [0.22, 1, 0.36, 1] }}
-              className={`group relative rounded-3xl border flex flex-col h-full overflow-hidden transition-all duration-300 ease-out ${
-                plan.highlight
-                  ? 'bg-gradient-to-b from-[rgba(124,58,237,0.14)] to-[rgba(10,5,28,0.92)] border-[rgba(124,58,237,0.45)] shadow-[0_4px_30px_rgba(124,58,237,0.1),inset_0_1px_0_rgba(255,255,255,0.08)] scale-[1.03] lg:scale-105 hover:scale-[1.05] lg:hover:scale-[1.07] hover:border-[rgba(124,58,237,0.8)] hover:shadow-[0_20px_50px_rgba(124,58,237,0.25)] hover:-translate-y-2'
-                  : 'lp-card border-[rgba(255,255,255,0.07)] backdrop-blur-md hover:border-[rgba(167,139,250,0.45)] hover:scale-[1.02] hover:shadow-[0_20px_50px_rgba(167,139,250,0.15)] hover:-translate-y-2'
-              }`}
-            >
-              {/* Top border shine effect for non-highlighted cards */}
-              {!plan.highlight && (
-                <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[rgba(167,139,250,0.4)] to-transparent opacity-20 group-hover:opacity-80 transition-opacity duration-300" />
-              )}
-
-              {/* Popular badge */}
-              {plan.badge && (
-                <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-10">
-                  <span className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-gradient-to-r from-violet-600 to-violet-500 text-white text-[11px] font-bold shadow-[0_0_20px_rgba(124,58,237,0.5)] whitespace-nowrap uppercase tracking-wider">
-                    <Sparkles size={10} className="animate-spin" style={{ animationDuration: '3s' }} />
-                    {plan.badge}
-                  </span>
-                </div>
-              )}
-
-              {/* Card Header (Title & Description) */}
-              <div className="p-8 pb-0">
-                <div className="pt-2">
-                  <h3 className="font-display font-bold text-2xl text-[var(--text-primary)] mb-2 group-hover:text-white transition-colors">
-                    {plan.name}
-                  </h3>
-                  <p className="text-sm text-[var(--text-secondary)] leading-relaxed min-h-[64px]">
-                    {plan.desc}
-                  </p>
-                </div>
-
-                {/* Users Limits block - Standardized Height */}
-                {plan.isEnterprise ? (
-                  <div className="mt-5 px-4 py-3 rounded-2xl bg-white/[0.02] border border-white/5 flex flex-col justify-center min-h-[82px] relative overflow-hidden group-hover:border-cyan-500/20 transition-colors">
-                    <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                    <div className="text-xs font-bold text-cyan-400 mb-0.5 flex items-center gap-1.5">
-                      <Shield size={12} />
-                      Usuários Configuráveis
-                    </div>
-                    <div className="text-[11px] text-[var(--text-muted)] leading-relaxed">
-                      Estrutura customizada sob medida de acordo com a necessidade.
-                    </div>
-                  </div>
-                ) : (
-                  <div className="mt-5 px-4 py-3 rounded-2xl bg-white/[0.02] border border-white/5 flex flex-col gap-1.5 min-h-[82px] group-hover:border-violet-500/20 transition-colors">
-                    <div className="flex items-center justify-between text-xs text-[var(--text-muted)]">
-                      <span>Administradores</span>
-                      <span className="font-semibold text-[var(--text-secondary)]">{plan.adminUsers}</span>
-                    </div>
-                    <div className="flex items-center justify-between text-xs text-[var(--text-muted)]">
-                      <span>Usuários Operacionais</span>
-                      <span className="font-semibold text-[var(--text-secondary)]">{plan.operationalUsers}</span>
-                    </div>
-                    <div className="flex items-center justify-between text-xs border-t border-white/5 pt-1.5 mt-0.5 text-[var(--text-secondary)] font-medium">
-                      <span>Total de Usuários</span>
-                      <span className="font-bold text-cyan-400 group-hover:text-cyan-300 transition-colors">{plan.totalUsers}</span>
-                    </div>
-                  </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8 items-stretch pt-4">
+          {PLANS.map((plan, i) => {
+            const isHighlight = plan.highlight
+            return (
+              <motion.div
+                key={plan.name}
+                initial={{ opacity: 0, y: 36 }}
+                animate={inView ? { opacity: 1, y: 0 } : {}}
+                transition={{ delay: 0.1 + i * 0.12, duration: 0.65, ease: [0.22, 1, 0.36, 1] }}
+                className={`group relative flex flex-col h-full transition-all duration-300 ease-out ${
+                  isHighlight
+                    ? 'scale-[1.06] lg:scale-108 hover:scale-[1.08] lg:hover:scale-[1.12] hover:-translate-y-2.5 z-10'
+                    : 'hover:scale-[1.02] hover:-translate-y-2 z-0'
+                }`}
+              >
+                {/* Efeito Glow Pulsante (igual ao do botão "Ver Apresentação Operacional") para o card Mais Popular */}
+                {isHighlight && (
+                  <div className="absolute -inset-1.5 rounded-[32px] bg-gradient-to-r from-cyan-500 via-violet-600 to-fuchsia-500 opacity-75 blur-xl group-hover:opacity-100 transition duration-1000 group-hover:duration-200 animate-pulse z-0" />
                 )}
-              </div>
 
-              {/* Card Body (Price & Feature Checklist) */}
-              <div className="p-8 pt-6 flex-grow flex flex-col justify-between">
-                {/* Price Section */}
-                <div className="pb-6 mb-6 border-b border-white/5">
-                  <div className="flex items-baseline text-white">
-                    <span className="text-4xl md:text-5xl font-extrabold tracking-tight font-display">{plan.price}</span>
-                    <span className="ml-1.5 text-sm font-medium text-slate-400">{plan.pricePeriod}</span>
-                  </div>
-                </div>
-
-                {/* Features list */}
-                <ul className="flex flex-col gap-3.5 mb-8 flex-grow">
-                  {plan.features.map(feat => (
-                    <li key={feat} className="flex items-start gap-3 text-sm text-[var(--text-secondary)]">
-                      <div
-                        className="w-4 h-4 rounded-full flex items-center justify-center shrink-0 mt-0.5 transition-colors"
-                        style={{ 
-                          background: `rgba(${plan.colorRgb}, 0.08)`, 
-                          border: `1px solid rgba(${plan.colorRgb}, 0.25)` 
-                        }}
-                      >
-                        <Check size={10} style={{ color: plan.color }} strokeWidth={3} />
-                      </div>
-                      <span className="leading-snug">{feat}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-
-              {/* Card Footer (CTA Button) */}
-              <div className="px-8 pb-8 mt-auto">
-                <button
-                  onClick={() => scrollTo('#contato')}
-                  className={`w-full flex items-center justify-center gap-2 py-4 rounded-xl text-sm font-semibold transition-all duration-300 ${
-                    plan.highlight
-                      ? 'bg-gradient-to-r from-violet-600 to-violet-500 text-white hover:from-violet-500 hover:to-violet-400 shadow-[0_4px_20px_rgba(124,58,237,0.35)] hover:shadow-[0_8px_30px_rgba(124,58,237,0.55)] hover:-translate-y-0.5 active:translate-y-0'
-                      : 'border border-[rgba(162,130,255,0.22)] text-[var(--text-secondary)] hover:text-white hover:border-[rgba(162,130,255,0.45)] hover:bg-[rgba(167,139,250,0.08)] hover:-translate-y-0.5 active:translate-y-0'
+                {/* Card Container principal */}
+                <div
+                  className={`relative z-10 rounded-3xl border flex flex-col h-full w-full overflow-hidden transition-all duration-300 ease-out ${
+                    isHighlight
+                      ? 'bg-[#090918] text-white border-violet-500/40 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]'
+                      : 'border-[var(--border-subtle)] bg-[var(--bg-card)] text-[var(--text-primary)] hover:border-[var(--accent-violet)] shadow-premium-sm hover:shadow-[0_20px_50px_rgba(167,139,250,0.15)]'
                   }`}
                 >
-                  <span>{plan.cta}</span>
-                  <ArrowRight size={14} className="transition-transform duration-200 group-hover:translate-x-0.5" />
-                </button>
-              </div>
-            </motion.div>
-          ))}
+                  {/* Shiny layer inside card on hover */}
+                  {isHighlight && (
+                    <div className="absolute inset-0 bg-gradient-to-r from-violet-600/10 via-cyan-500/10 to-violet-600/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
+                  )}
+
+                  {/* Top border shine effect for non-highlighted cards */}
+                  {!isHighlight && (
+                    <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[rgba(167,139,250,0.4)] to-transparent opacity-20 group-hover:opacity-80 transition-opacity duration-300" />
+                  )}
+
+                  {/* Popular badge */}
+                  {plan.badge && (
+                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-10">
+                      <span className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-gradient-to-r from-violet-600 to-violet-500 text-white text-[11px] font-bold shadow-[0_0_20px_rgba(124,58,237,0.5)] whitespace-nowrap uppercase tracking-wider">
+                        <Sparkles size={10} className="animate-spin" style={{ animationDuration: '3s' }} />
+                        {plan.badge}
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Card Header (Title & Description) */}
+                  <div className="p-8 pb-0">
+                    <div className="pt-2">
+                      <h3 className={`font-display font-bold text-2xl mb-2 transition-colors ${
+                        isHighlight ? 'text-white' : 'text-[var(--text-primary)] group-hover:text-[var(--accent-violet)]'
+                      }`}>
+                        {plan.name}
+                      </h3>
+                      <p className={`text-sm leading-relaxed min-h-[64px] ${
+                        isHighlight ? 'text-slate-300' : 'text-[var(--text-secondary)]'
+                      }`}>
+                        {plan.desc}
+                      </p>
+                    </div>
+
+                    {/* Users Limits block - Standardized Height */}
+                    {plan.isEnterprise ? (
+                      <div className={`mt-5 px-4 py-3 rounded-2xl border flex flex-col justify-center min-h-[82px] relative overflow-hidden transition-colors ${
+                        isHighlight 
+                          ? 'bg-white/[0.02] border-white/5 group-hover:border-cyan-500/20' 
+                          : 'bg-[var(--bg-primary)] border-[var(--border-subtle)] group-hover:border-[var(--accent-violet)]/20'
+                      }`}>
+                        <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                        <div className="text-xs font-bold text-cyan-400 mb-0.5 flex items-center gap-1.5">
+                          <Shield size={12} />
+                          Usuários Configuráveis
+                        </div>
+                        <div className={`text-[11px] leading-relaxed ${
+                          isHighlight ? 'text-slate-400' : 'text-[var(--text-secondary)]'
+                        }`}>
+                          Estrutura customizada sob medida de acordo com a necessidade.
+                        </div>
+                      </div>
+                    ) : (
+                      <div className={`mt-5 px-4 py-3 rounded-2xl border flex flex-col gap-1.5 min-h-[82px] transition-colors ${
+                        isHighlight 
+                          ? 'bg-white/[0.02] border-white/5 group-hover:border-violet-500/20' 
+                          : 'bg-[var(--bg-primary)] border-[var(--border-subtle)] group-hover:border-[var(--accent-violet)]/20'
+                      }`}>
+                        <div className="flex items-center justify-between text-xs text-[var(--text-secondary)]">
+                          <span>Administradores</span>
+                          <span className={`font-semibold ${isHighlight ? 'text-white' : 'text-[var(--text-primary)]'}`}>{plan.adminUsers}</span>
+                        </div>
+                        <div className="flex items-center justify-between text-xs text-[var(--text-secondary)]">
+                          <span>Usuários Operacionais</span>
+                          <span className={`font-semibold ${isHighlight ? 'text-white' : 'text-[var(--text-primary)]'}`}>{plan.operationalUsers}</span>
+                        </div>
+                        <div className="flex items-center justify-between text-xs border-t border-[var(--border-subtle)] pt-1.5 mt-0.5 text-[var(--text-secondary)] font-medium">
+                          <span>Total de Usuários</span>
+                          <span className="font-bold text-cyan-400 group-hover:text-cyan-300 transition-colors">{plan.totalUsers}</span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Card Body (Price & Feature Checklist) */}
+                  <div className="p-8 pt-6 flex-grow flex flex-col justify-between">
+                    {/* Price Section */}
+                    <div className="pb-6 mb-6 border-b border-[var(--border-subtle)]">
+                      <div className="flex items-baseline">
+                        <span className={`text-4xl md:text-5xl font-extrabold tracking-tight font-display ${
+                          isHighlight ? 'text-white' : 'text-[var(--text-primary)]'
+                        }`}>{plan.price}</span>
+                        <span className={`ml-1.5 text-sm font-medium ${
+                          isHighlight ? 'text-slate-400' : 'text-[var(--text-secondary)]'
+                        }`}>{plan.pricePeriod}</span>
+                      </div>
+                    </div>
+
+                    {/* Features list */}
+                    <ul className="flex flex-col gap-3.5 mb-8 flex-grow">
+                      {plan.features.map(feat => (
+                        <li key={feat} className={`flex items-start gap-3 text-sm ${
+                          isHighlight ? 'text-slate-300' : 'text-[var(--text-secondary)]'
+                        }`}>
+                          <div
+                            className="w-4 h-4 rounded-full flex items-center justify-center shrink-0 mt-0.5 transition-colors"
+                            style={{ 
+                              background: `rgba(${plan.colorRgb}, 0.08)`, 
+                              border: `1px solid rgba(${plan.colorRgb}, 0.25)` 
+                            }}
+                          >
+                            <Check size={10} style={{ color: plan.color }} strokeWidth={3} />
+                          </div>
+                          <span className="leading-snug">{feat}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+
+                  {/* Card Footer (CTA Button) */}
+                  <div className="px-8 pb-8 mt-auto">
+                    <button
+                      onClick={() => scrollTo('#contato')}
+                      className={`w-full flex items-center justify-center gap-2 py-4 rounded-xl text-sm font-semibold transition-all duration-300 ${
+                        isHighlight
+                          ? 'bg-gradient-to-r from-violet-600 to-violet-500 text-white hover:from-violet-500 hover:to-violet-400 shadow-[0_4px_20px_rgba(124,58,237,0.35)] hover:shadow-[0_8px_30px_rgba(124,58,237,0.55)] hover:-translate-y-0.5 active:translate-y-0'
+                          : 'border border-[rgba(162,130,255,0.35)] text-[var(--text-primary)] hover:text-white hover:border-[var(--accent-violet)] hover:bg-[var(--accent-violet)] hover:-translate-y-0.5 active:translate-y-0 shadow-premium-sm'
+                      }`}
+                    >
+                      <span>{plan.cta}</span>
+                      <ArrowRight size={14} className="transition-transform duration-200 group-hover:translate-x-0.5" />
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            )
+          })}
         </div>
 
         {/* Support disclaimer */}
