@@ -667,6 +667,34 @@ model PasswordResetOtp {
   @@map("password_reset_otps")
 }
 
+// ── Auto-signup (landing page → MP → provisionamento) ─────────────────────────
+model BillingSignupSession {
+  id             String   @id @default(uuid())
+  // Token enviado no back_url do MP; usado para polling de status
+  token          String   @unique @default(uuid())
+
+  plano          String
+  payerEmail     String   @map("payer_email")
+  orgNome        String   @map("org_nome")
+  orgSlug        String   @map("org_slug")
+  adminNome      String   @map("admin_nome")
+  adminSenhaHash String   @map("admin_senha_hash")
+
+  mpPreapprovalId String? @map("mp_preapproval_id")
+  mpCheckoutUrl   String? @map("mp_checkout_url")
+
+  // pending | redirected | paid | completed | failed | expired
+  status         String   @default("pending")
+
+  organizationId String?  @map("organization_id")
+  criadoEm       DateTime @default(now()) @map("criado_em")
+  expiresAt      DateTime @map("expires_at")
+
+  @@index([token])
+  @@index([mpPreapprovalId])
+  @@map("billing_signup_sessions")
+}
+
 model UserProfile {
   id              String   @id @default(uuid())
   userId          String   @unique @map("user_id")

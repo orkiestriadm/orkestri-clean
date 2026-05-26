@@ -1,6 +1,7 @@
 'use client'
 
 import { useRef } from 'react'
+import { useRouter } from 'next/navigation'
 import { motion, useInView } from 'framer-motion'
 import { Check, ArrowRight, Zap, Shield, Sparkles } from 'lucide-react'
 
@@ -14,6 +15,7 @@ function scrollTo(href: string) {
 const PLANS = [
   {
     name: 'Business Cloud',
+    planKey: 'business_cloud',
     desc: 'Ideal para pequenas operações que precisam centralizar tarefas, chamados, projetos e gestão operacional em um único sistema.',
     price: 'R$ 99,90',
     pricePeriod: '/mês',
@@ -39,6 +41,7 @@ const PLANS = [
   },
   {
     name: 'Business Plus',
+    planKey: 'business_plus',
     desc: 'Ideal para empresas em crescimento que precisam de automações, governança operacional e maior controle corporativo.',
     price: 'R$ 199,90',
     pricePeriod: '/mês',
@@ -64,6 +67,7 @@ const PLANS = [
   },
   {
     name: 'Enterprise',
+    planKey: 'enterprise',
     desc: 'Ideal para grandes operações que exigem escalabilidade, segurança avançada e ambiente corporativo personalizado.',
     price: 'à consultar',
     pricePeriod: '/mês',
@@ -86,13 +90,14 @@ const PLANS = [
       'Gerente de conta exclusivo',
       'Contrato personalizado',
     ],
-    cta: 'Contrate Aqui!',
+    cta: 'Falar com especialista',
   },
 ]
 
 export default function PricingSection() {
   const ref = useRef<HTMLElement>(null)
   const inView = useInView(ref, { once: true, margin: '-8%' })
+  const router = useRouter()
 
   return (
     <section ref={ref} id="planos" className="relative py-24 lg:py-32 overflow-hidden">
@@ -262,7 +267,13 @@ export default function PricingSection() {
                     {/* Card Footer (CTA Button) */}
                     <div className="px-8 pb-8 mt-auto">
                       <button
-                        onClick={() => scrollTo('#contato')}
+                        onClick={() => {
+                          if (plan.isEnterprise) {
+                            scrollTo('#contato')
+                          } else {
+                            router.push(`/signup?plano=${plan.planKey}`)
+                          }
+                        }}
                         className={`w-full flex items-center justify-center gap-2 py-4 rounded-xl text-sm font-semibold transition-all duration-300 ${isHighlight
                             ? 'bg-gradient-to-r from-violet-600 to-violet-500 text-white hover:from-violet-500 hover:to-violet-400 shadow-[0_4px_20px_rgba(124,58,237,0.35)] hover:shadow-[0_8px_30px_rgba(124,58,237,0.55)] hover:-translate-y-0.5 active:translate-y-0'
                             : 'border border-[rgba(162,130,255,0.35)] text-[var(--text-primary)] hover:text-white hover:border-[var(--accent-violet)] hover:bg-[var(--accent-violet)] hover:-translate-y-0.5 active:translate-y-0 shadow-premium-sm'

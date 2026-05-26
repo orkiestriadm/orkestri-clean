@@ -2,6 +2,7 @@ import {
   Module, Controller, Get, Post, Body, Param,
   UseGuards, Req, ForbiddenException, NotFoundException,
   BadRequestException, HttpCode, HttpStatus, Logger,
+  ConflictException,
 } from '@nestjs/common';
 import { Injectable } from '@nestjs/common';
 import { ScheduleModule, Cron } from '@nestjs/schedule';
@@ -9,6 +10,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { ConfigService } from '@nestjs/config';
 import { AuthGuard } from '@nestjs/passport';
 import { Resend } from 'resend';
+import * as bcrypt from 'bcryptjs';
 
 // ─── Planos ──────────────────────────────────────────────────────────────────
 
@@ -56,6 +58,15 @@ class OverrideStatusDto {
 
 class ExtendTrialDto {
   dias: number;
+}
+
+class PublicSignupDto {
+  plano: string;
+  orgNome: string;
+  orgSlug?: string;
+  adminNome: string;
+  adminEmail: string;
+  adminSenha: string;
 }
 
 // ─── Service ─────────────────────────────────────────────────────────────────
@@ -378,6 +389,252 @@ export class BillingService {
     });
   }
 
+  // ── Auto-signup público (landing page → MP → provisionamento) ─────────────
+
+  async initiateSignup(dto: PublicSignupDto) {
+    const ALLOWED_PLANS = ['business_cloud', 'business_plus'];
+    if (!ALLOWED_PLANS.includes(dto.plano)) {
+      throw new BadRequestException('Plano inválido. Para Enterprise, entre em contato.');
+    }
+
+    // Normaliza slug
+    const slug = (dto.orgSlug || dto.orgNome)
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[̀-ͯ]/g, '')
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '')
+      .slice(0, 50);
+
+    // Verifica duplicidade de e-mail em sessões pendentes (anti-spam)
+    const existing = await (this.prisma as any).billingSignupSession.findFirst({
+      where: { payerEmail: dto.adminEmail, status: { in: ['pending', 'redirected'] } },
+    });
+    if (existing) {
+      throw new ConflictException('Já existe uma sessão de cadastro em andamento para este e-mail. Verifique sua caixa de entrada ou aguarde alguns minutos.');
+    }
+
+    // Verifica se e-mail já está em uso em alguma org
+    const emailInUse = await this.prisma.user.findFirst({ where: { email: dto.adminEmail } });
+    if (emailInUse) {
+      throw new ConflictException('Este e-mail já está associado a uma conta. Faça login ou use outro e-mail.');
+    }
+
+    const plan = PLANS[dto.plano];
+    const adminSenhaHash = await bcrypt.hash(dto.adminSenha, 12);
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24h
+
+    // Tenta criar preapproval no MP (se configurado)
+    let mpPreapprovalId: string | null = null;
+    let mpCheckoutUrl: string | null = null;
+
+    const accessToken = this.config.get<string>('MP_ACCESS_TOKEN');
+    const appUrl = this.config.get<string>('APP_URL') || 'https://www.orkiestri.com';
+
+    // Criamos a sessão primeiro para obter o token
+    const session = await (this.prisma as any).billingSignupSession.create({
+      data: {
+        plano: dto.plano,
+        payerEmail: dto.adminEmail,
+        orgNome: dto.orgNome,
+        orgSlug: slug,
+        adminNome: dto.adminNome,
+        adminSenhaHash,
+        status: 'pending',
+        expiresAt,
+      },
+    });
+
+    if (accessToken) {
+      try {
+        const mpPlanId = dto.plano === 'business_plus'
+          ? this.config.get<string>('MP_PLAN_BUSINESS_PLUS')
+          : this.config.get<string>('MP_PLAN_BUSINESS_CLOUD');
+
+        const body: Record<string, unknown> = {
+          reason: `Orkiestri ${plan.nome}`,
+          payer_email: dto.adminEmail,
+          back_url: `${appUrl}/signup/success?token=${session.token}`,
+          auto_recurring: {
+            frequency: 1,
+            frequency_type: 'months',
+            transaction_amount: plan.valor,
+            currency_id: 'BRL',
+          },
+          status: 'pending',
+        };
+        if (mpPlanId) body.preapproval_plan_id = mpPlanId;
+
+        const res = await fetch('https://api.mercadopago.com/preapproval', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(body),
+        });
+
+        if (res.ok) {
+          const data = await res.json() as { id: string; init_point: string };
+          mpPreapprovalId = data.id;
+          mpCheckoutUrl = data.init_point;
+        } else {
+          const err = await res.text();
+          this.logger.warn(`MP preapproval signup falhou: ${err}`);
+        }
+      } catch (e: any) {
+        this.logger.warn(`Erro ao criar preapproval signup: ${e.message}`);
+      }
+    }
+
+    // Atualiza sessão com dados do MP
+    await (this.prisma as any).billingSignupSession.update({
+      where: { id: session.id },
+      data: {
+        mpPreapprovalId,
+        mpCheckoutUrl,
+        status: mpCheckoutUrl ? 'redirected' : 'pending',
+      },
+    });
+
+    if (!mpCheckoutUrl) {
+      // MP não configurado: provisiona direto em trial
+      this.logger.warn(`MP não configurado — provisionando signup em trial para ${dto.adminEmail}`);
+      await this.provisionSignupSession({ ...session, mpPreapprovalId, mpCheckoutUrl });
+      return {
+        token: session.token,
+        checkoutUrl: null,
+        status: 'completed',
+        message: 'Conta criada em modo trial. Verifique seu e-mail.',
+      };
+    }
+
+    return {
+      token: session.token,
+      checkoutUrl: mpCheckoutUrl,
+      status: 'redirected',
+    };
+  }
+
+  async getSignupStatus(token: string) {
+    const session = await (this.prisma as any).billingSignupSession.findUnique({
+      where: { token },
+      select: { status: true, plano: true, orgSlug: true, organizationId: true, expiresAt: true },
+    });
+    if (!session) throw new NotFoundException('Sessão não encontrada.');
+
+    if (session.status !== 'completed' && session.status !== 'failed' && new Date() > new Date(session.expiresAt)) {
+      await (this.prisma as any).billingSignupSession.update({ where: { token }, data: { status: 'expired' } });
+      return { status: 'expired', plano: session.plano };
+    }
+
+    return {
+      status: session.status,
+      plano: session.plano,
+      orgSlug: session.status === 'completed' ? session.orgSlug : undefined,
+    };
+  }
+
+  private async provisionSignupSession(session: {
+    id: string; token: string; plano: string; payerEmail: string;
+    orgNome: string; orgSlug: string; adminNome: string; adminSenhaHash: string;
+    mpPreapprovalId: string | null; mpCheckoutUrl: string | null;
+  }) {
+    // Garante slug único
+    let slug = session.orgSlug;
+    const slugExiste = await this.prisma.organization.findUnique({ where: { slug } });
+    if (slugExiste) slug = `${slug}-${Date.now()}`;
+
+    // Cria organização
+    const org = await this.prisma.organization.create({
+      data: {
+        nome: session.orgNome,
+        slug,
+        plano: session.plano,
+        ativo: true,
+        statusOperacional: 'ativo',
+        statusComercial: 'ativo',
+        modulosAtivos: [],
+      },
+    });
+
+    // Cria usuário master com a senha que o usuário escolheu
+    const user = await this.prisma.user.create({
+      data: {
+        organizationId: org.id,
+        nome: session.adminNome,
+        email: session.payerEmail,
+        senhaHash: session.adminSenhaHash,
+        ativo: true,
+        primeiroAcesso: false, // usuário já definiu a senha
+      },
+    });
+
+    // Atribui role master
+    const masterRole = await this.prisma.role.findFirst({ where: { isMaster: true } });
+    if (masterRole) {
+      await this.prisma.userRole.create({
+        data: { userId: user.id, roleId: masterRole.id, atribuidoPorId: user.id },
+      });
+    }
+
+    // Cria UserProfile
+    await this.prisma.userProfile.create({
+      data: {
+        userId: user.id,
+        modulos: JSON.stringify(['projetos', 'keep', 'gantt', 'relatorios', 'chamados', 'clientes', 'contratos']),
+      },
+    });
+
+    // Cria OrgBilling — já ativo se veio do MP, trial se não veio
+    const hasMpPayment = !!session.mpPreapprovalId;
+    const nextBillingDate = new Date();
+    nextBillingDate.setMonth(nextBillingDate.getMonth() + 1);
+
+    await this.prisma.orgBilling.create({
+      data: {
+        organizationId: org.id,
+        plano: session.plano,
+        status: hasMpPayment ? 'active' : 'trial',
+        trialEndsAt: hasMpPayment ? null : new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
+        valorMensal: PLANS[session.plano]?.valor || null,
+        mpPreapprovalId: session.mpPreapprovalId || null,
+        mpPayerEmail: session.payerEmail,
+        mpCheckoutUrl: session.mpCheckoutUrl || null,
+        currentPeriodStart: hasMpPayment ? new Date() : null,
+        currentPeriodEnd: hasMpPayment ? nextBillingDate : null,
+        nextBillingDate: hasMpPayment ? nextBillingDate : null,
+      },
+    });
+
+    // Atualiza sessão como concluída
+    await (this.prisma as any).billingSignupSession.update({
+      where: { id: session.id },
+      data: { status: 'completed', organizationId: org.id },
+    });
+
+    // E-mail de boas-vindas
+    await this.sendEmail(
+      session.payerEmail,
+      `🎉 Bem-vindo ao Orkiestri, ${session.adminNome.split(' ')[0]}!`,
+      `
+      <h2>Sua conta está pronta!</h2>
+      <p>Olá, <strong>${session.adminNome}</strong>! Sua organização <strong>${org.nome}</strong> foi criada com sucesso no plano <strong>${PLANS[session.plano]?.nome || session.plano}</strong>.</p>
+      <p>Acesse agora com suas credenciais:</p>
+      <ul>
+        <li><strong>URL:</strong> <a href="${this.config.get('APP_URL') || 'https://app.orkiestri.com'}/login">app.orkiestri.com/login</a></li>
+        <li><strong>E-mail:</strong> ${session.payerEmail}</li>
+        <li><strong>Senha:</strong> a que você escolheu no cadastro</li>
+      </ul>
+      <p><a href="${this.config.get('APP_URL') || 'https://app.orkiestri.com'}/login" style="background:#7c3aed;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;display:inline-block;font-weight:600">Acessar o Sistema</a></p>
+      <p style="color:#888;font-size:12px">Dúvidas? Responda este e-mail ou acesse nossa central de ajuda.</p>
+      `,
+    ).catch(() => {});
+
+    this.logger.log(`Signup provisionado: org=${org.id} user=${user.email} plano=${session.plano}`);
+    return { org, user };
+  }
+
   // ── Webhook Mercado Pago ──────────────────────────────────────────────────
 
   async processWebhook(body: Record<string, unknown>, xSignature?: string) {
@@ -414,6 +671,24 @@ export class BillingService {
     if (!res.ok) return;
     const data = await res.json() as { status: string; next_payment_date?: string; last_charged_date?: string };
 
+    // ── Verifica se é uma sessão de signup (novo cliente) ──────────────────
+    const signupSession = await (this.prisma as any).billingSignupSession.findFirst({
+      where: { mpPreapprovalId: preapprovalId, status: { in: ['pending', 'redirected', 'paid'] } },
+    });
+    if (signupSession && data.status === 'authorized') {
+      try {
+        await this.provisionSignupSession(signupSession);
+      } catch (e: any) {
+        this.logger.error(`Erro ao provisionar signup session ${signupSession.id}: ${e.message}`);
+        await (this.prisma as any).billingSignupSession.update({
+          where: { id: signupSession.id },
+          data: { status: 'failed' },
+        }).catch(() => {});
+      }
+      return;
+    }
+
+    // ── Org existente: atualiza billing normalmente ────────────────────────
     const billing = await this.prisma.orgBilling.findFirst({
       where: { mpPreapprovalId: preapprovalId },
     });
@@ -650,11 +925,30 @@ export class BillingWebhookController {
   }
 }
 
+// Endpoints públicos de auto-signup (sem JWT)
+@Controller('billing/public')
+export class BillingPublicController {
+  constructor(private billing: BillingService) {}
+
+  /** Inicia o fluxo: recebe dados do formulário, cria sessão + preapproval no MP */
+  @Post('signup')
+  @HttpCode(HttpStatus.CREATED)
+  async signup(@Body() dto: PublicSignupDto) {
+    return this.billing.initiateSignup(dto);
+  }
+
+  /** Polling de status — frontend chama após redirect do MP */
+  @Get('status/:token')
+  async status(@Param('token') token: string) {
+    return this.billing.getSignupStatus(token);
+  }
+}
+
 // ─── Module ──────────────────────────────────────────────────────────────────
 
 @Module({
   imports: [ScheduleModule.forRoot()],
-  controllers: [BillingController, BillingWebhookController],
+  controllers: [BillingController, BillingWebhookController, BillingPublicController],
   providers: [BillingService],
   exports: [BillingService],
 })
