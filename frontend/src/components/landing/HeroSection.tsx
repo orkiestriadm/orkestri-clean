@@ -239,7 +239,7 @@ export default function HeroSection() {
               initial={{ opacity: 0, y: 28 }}
               animate={inView ? { opacity: 1, y: 0 } : {}}
               transition={{ duration: 0.75, delay: 0.08, ease: [0.22, 1, 0.36, 1] }}
-              className="font-display text-4xl sm:text-5xl lg:text-6xl xl:text-[66px] font-bold leading-[1.07] tracking-tight text-[var(--text-primary)] mb-6"
+              className="font-display text-3xl sm:text-4xl lg:text-5xl xl:text-[52px] font-bold leading-[1.07] tracking-tight text-[var(--text-primary)] mb-6"
             >
               Centralize{' '}
               <span className="bg-gradient-to-r from-violet-400 via-violet-300 to-fuchsia-400 bg-clip-text text-transparent">
@@ -258,7 +258,7 @@ export default function HeroSection() {
               transition={{ duration: 0.6, delay: 0.18, ease: [0.22, 1, 0.36, 1] }}
               className="text-[var(--text-secondary)] text-lg lg:text-xl leading-relaxed max-w-xl mx-auto lg:mx-0 mb-8"
             >
-              Criado por profissionais com experiência real em operações corporativas críticas.
+              O Orkiestri elimina o caos de múltiplos sistemas e oferece governança operacional completa para empresas que precisam de controle, produtividade e rastreabilidade.
             </motion.p>
 
             {/* CTAs */}
@@ -299,7 +299,7 @@ export default function HeroSection() {
                   ))}
                 </div>
                 <div className="text-sm text-[var(--text-muted)]">
-                  <span className="text-[var(--text-secondary)] font-medium">+120 empresas</span> já centralizam sua operação
+                  Criado por profissionais com experiência real em operações corporativas críticas.
                 </div>
               </div>
               <div className="hidden sm:block w-px h-6 bg-[rgba(162,130,255,0.1)]" />
