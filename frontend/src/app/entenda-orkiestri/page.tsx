@@ -12,6 +12,7 @@ import {
   AlertTriangle,
   XCircle,
   TrendingDown,
+  TrendingUp,
   CheckCircle2,
   Layers,
   MessageSquare,
@@ -31,12 +32,15 @@ import {
   Map,
   Check,
   PhoneCall,
-  Keyboard
+  Keyboard,
+  DollarSign,
+  Sparkles,
+  CircleDollarSign
 } from 'lucide-react'
 
 export default function UnderstandOrkiestriPage() {
   const [currentSlide, setCurrentSlide] = useState(1)
-  const totalSlides = 7
+  const totalSlides = 8
 
   const nextSlide = () => {
     if (currentSlide < totalSlides) {
@@ -649,6 +653,114 @@ export default function UnderstandOrkiestriPage() {
           {currentSlide === 7 && (
             <motion.div
               key="slide7"
+              variants={slideVariants}
+              initial="initial"
+              animate="animate"
+              exit="exit"
+              transition={{ duration: 0.4 }}
+              className="w-full max-w-6xl"
+            >
+              <span className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-emerald-500/20 bg-emerald-500/5 text-emerald-300 text-xs font-semibold tracking-wider uppercase mb-4">
+                <CircleDollarSign size={14} />
+                Análise Financeira
+              </span>
+
+              <h2 className="font-display text-3xl md:text-5xl font-bold text-white mb-4">
+                Quanto custa manter sistemas separados?
+              </h2>
+
+              <p className="text-base md:text-lg text-slate-400 mb-8 max-w-3xl">
+                Um gestor com equipe de 5 pessoas paga múltiplas licenças todo mês. Veja o que isso representa ao ano.
+              </p>
+
+              <div className="grid md:grid-cols-2 gap-6 mb-6">
+
+                {/* Card Legado */}
+                <div className="bg-white/[0.02] border border-red-500/20 rounded-2xl p-6 relative overflow-hidden">
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-red-500/5 blur-3xl rounded-full" />
+                  <h3 className="text-base font-bold text-red-400 mb-5 flex items-center gap-2">
+                    <XCircle size={18} />
+                    Stack Legada — 5 usuários/mês
+                  </h3>
+                  <div className="space-y-3 mb-5">
+                    {[
+                      { tool: 'Jira Standard', uso: 'Gestão de Projetos', valor: 'R$ 250' },
+                      { tool: 'Movidesk', uso: 'Atendimento / Chamados', valor: 'R$ 395' },
+                      { tool: 'Microsoft 365', uso: 'Agenda, Tarefas, E-mail', valor: 'R$ 325' },
+                      { tool: 'Power BI Pro', uso: 'Indicadores e Métricas', valor: 'R$ 275' },
+                    ].map((item) => (
+                      <div key={item.tool} className="flex items-center justify-between border-b border-white/5 pb-3">
+                        <div>
+                          <span className="text-slate-200 text-sm font-medium">{item.tool}</span>
+                          <p className="text-slate-500 text-xs">{item.uso}</p>
+                        </div>
+                        <span className="text-red-400 font-bold text-sm font-mono">{item.valor}<span className="text-slate-500 font-normal text-xs">/mês</span></span>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="flex items-center justify-between bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-3">
+                    <span className="text-slate-300 text-sm font-semibold">Total mensal</span>
+                    <span className="text-red-300 font-extrabold text-lg font-mono">R$ 1.245<span className="text-slate-400 font-normal text-xs">/mês</span></span>
+                  </div>
+                  <p className="text-right text-slate-500 text-xs mt-2 font-mono">= R$ 14.940 por ano</p>
+                </div>
+
+                {/* Card Orkiestri */}
+                <div className="bg-white/[0.02] border border-emerald-500/20 rounded-2xl p-6 relative overflow-hidden">
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/5 blur-3xl rounded-full" />
+                  <h3 className="text-base font-bold text-emerald-400 mb-5 flex items-center gap-2">
+                    <CheckCircle2 size={18} />
+                    Orkiestri Business Cloud — 5 usuários
+                  </h3>
+                  <div className="flex flex-col items-center justify-center py-4 mb-5">
+                    <span className="text-5xl font-extrabold text-white font-mono">R$ 99<span className="text-2xl">,90</span></span>
+                    <span className="text-slate-400 text-sm mt-1">por mês · tudo incluso</span>
+                  </div>
+                  <div className="space-y-2.5 mb-5">
+                    {[
+                      'Service Desk com controle de SLA',
+                      'Gestão de Projetos e Sprints',
+                      'Agenda Corporativa Integrada',
+                      'CRM e Gestão de Clientes',
+                      'Dashboards e Relatórios em tempo real',
+                    ].map((f) => (
+                      <div key={f} className="flex items-center gap-2 text-xs text-slate-300">
+                        <Check size={13} className="text-emerald-400 shrink-0" />
+                        {f}
+                      </div>
+                    ))}
+                  </div>
+                  <div className="flex items-center justify-between bg-emerald-500/10 border border-emerald-500/20 rounded-xl px-4 py-3">
+                    <span className="text-slate-300 text-sm font-semibold">Total mensal</span>
+                    <span className="text-emerald-300 font-extrabold text-lg font-mono">R$ 99<span className="text-sm">,90</span><span className="text-slate-400 font-normal text-xs">/mês</span></span>
+                  </div>
+                  <p className="text-right text-slate-500 text-xs mt-2 font-mono">= R$ 1.198,80 por ano</p>
+                </div>
+              </div>
+
+              {/* Banner de economia */}
+              <div className="relative rounded-2xl bg-gradient-to-r from-emerald-900/40 via-emerald-800/20 to-emerald-900/40 border border-emerald-500/30 px-8 py-5 flex flex-col md:flex-row items-center justify-between gap-4 overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-r from-emerald-600/5 via-emerald-400/10 to-emerald-600/5 pointer-events-none" />
+                <div className="flex items-center gap-3 relative z-10">
+                  <div className="w-10 h-10 rounded-full bg-emerald-500/20 flex items-center justify-center">
+                    <TrendingDown size={20} className="text-emerald-400" />
+                  </div>
+                  <div>
+                    <p className="text-slate-300 text-sm font-semibold">Economia anual estimada com Orkiestri</p>
+                    <p className="text-slate-500 text-xs">Baseado em equipe de 5 usuários com stack legada equivalente</p>
+                  </div>
+                </div>
+                <div className="text-center md:text-right relative z-10 shrink-0">
+                  <p className="text-4xl font-extrabold text-emerald-400 font-mono">R$ 13.741</p>
+                  <p className="text-emerald-300 text-sm font-bold">92% de redução de custos ao ano</p>
+                </div>
+              </div>
+            </motion.div>
+          )}
+
+          {currentSlide === 8 && (
+            <motion.div
+              key="slide8"
               variants={slideVariants}
               initial="initial"
               animate="animate"
