@@ -231,7 +231,7 @@ export default function HeroSection() {
               className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-[rgba(167,139,250,0.28)] bg-[rgba(167,139,250,0.08)] text-[#a78bfa] text-xs font-medium mb-6"
             >
               <span className="w-1.5 h-1.5 rounded-full bg-[#a78bfa] animate-pulse" />
-              Plataforma de Gestão Operacional · 2026
+              Plataforma Operacional Integrada · 2026
             </motion.div>
 
             {/* H1 */}
