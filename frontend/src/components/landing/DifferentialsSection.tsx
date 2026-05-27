@@ -2,7 +2,7 @@
 
 import { useRef } from 'react'
 import { motion, useInView } from 'framer-motion'
-import { Check, Sparkles } from 'lucide-react'
+import { Check, Sparkles, TrendingDown, XCircle, CheckCircle2 } from 'lucide-react'
 
 const STATS = [
   { value: '< 1 dia', label: 'de curva de aprendizado', color: '#a78bfa' },
@@ -133,6 +133,111 @@ export default function DifferentialsSection() {
             </div>
           </motion.div>
         </div>
+
+        {/* ── ROI Block ── */}
+        <motion.div
+          initial={{ opacity: 0, y: 40 }}
+          animate={inView ? { opacity: 1, y: 0 } : {}}
+          transition={{ duration: 0.7, delay: 0.5, ease: [0.22, 1, 0.36, 1] }}
+          className="mt-24"
+        >
+          {/* Header */}
+          <div className="text-center mb-10">
+            <span className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-[rgba(52,211,153,0.2)] bg-[rgba(52,211,153,0.06)] text-[#34d399] text-xs font-medium mb-5">
+              <TrendingDown size={12} /> Análise de Economia
+            </span>
+            <h3 className="font-display text-2xl sm:text-3xl lg:text-4xl font-bold text-[var(--text-primary)] mb-3">
+              Quanto você gasta hoje com sistemas separados?
+            </h3>
+            <p className="text-[var(--text-secondary)] text-base max-w-2xl mx-auto">
+              Uma equipe de 5 pessoas utilizando as ferramentas tradicionais de mercado paga, em média, isso por mês:
+            </p>
+          </div>
+
+          {/* Comparison cards */}
+          <div className="grid lg:grid-cols-2 gap-6 mb-6">
+
+            {/* Legacy stack */}
+            <div className="lp-card rounded-2xl border border-[rgba(239,68,68,0.15)] p-6 relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-40 h-40 bg-red-500/5 blur-3xl rounded-full pointer-events-none" />
+              <h4 className="text-sm font-bold text-red-400 mb-5 flex items-center gap-2">
+                <XCircle size={16} />
+                Custo da Stack Fragmentada — 5 usuários
+              </h4>
+              <div className="space-y-3 mb-5">
+                {[
+                  { nome: 'Sistema de Gestão de Projetos', valor: 'R$ 300' },
+                  { nome: 'Sistema de Gestão de Chamados', valor: 'R$ 700' },
+                  { nome: 'Suite de Produtividade (E-mail, Agenda, Tarefas)', valor: 'R$ 850' },
+                  { nome: 'Plataforma de Analytics e BI', valor: 'R$ 350' },
+                ].map((item) => (
+                  <div key={item.nome} className="flex items-center justify-between border-b border-[rgba(255,255,255,0.05)] pb-3">
+                    <span className="text-[var(--text-secondary)] text-xs pr-4">{item.nome}</span>
+                    <span className="text-red-400 font-bold text-sm font-mono shrink-0">{item.valor}<span className="text-[var(--text-muted)] font-normal text-xs">/mês</span></span>
+                  </div>
+                ))}
+              </div>
+              <div className="flex items-center justify-between bg-[rgba(239,68,68,0.08)] border border-[rgba(239,68,68,0.15)] rounded-xl px-4 py-3">
+                <span className="text-[var(--text-primary)] text-sm font-semibold">Total mensal</span>
+                <span className="text-red-400 font-extrabold text-xl font-mono">R$ 2.200<span className="text-[var(--text-muted)] font-normal text-xs">/mês</span></span>
+              </div>
+              <p className="text-right text-[var(--text-muted)] text-xs mt-2 font-mono">= R$ 26.400 por ano</p>
+            </div>
+
+            {/* Orkiestri */}
+            <div className="lp-card rounded-2xl border border-[rgba(52,211,153,0.15)] p-6 relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-40 h-40 bg-emerald-500/5 blur-3xl rounded-full pointer-events-none" />
+              <h4 className="text-sm font-bold text-[#34d399] mb-5 flex items-center gap-2">
+                <CheckCircle2 size={16} />
+                Orkiestri Business Cloud — 5 usuários, tudo incluso
+              </h4>
+              <div className="flex flex-col items-center justify-center py-5 mb-5">
+                <span className="font-display text-5xl font-extrabold text-[var(--text-primary)]">
+                  R$ 99<span className="text-2xl">,90</span>
+                </span>
+                <span className="text-[var(--text-muted)] text-sm mt-1">por mês · todos os módulos</span>
+              </div>
+              <div className="grid grid-cols-2 gap-2 mb-5">
+                {[
+                  'Service Desk com SLA',
+                  'Gestão de Projetos',
+                  'Agenda Corporativa',
+                  'CRM integrado',
+                  'Dashboards em tempo real',
+                  'WhatsApp integrado',
+                ].map((f) => (
+                  <div key={f} className="flex items-center gap-1.5 text-xs text-[var(--text-secondary)]">
+                    <Check size={11} className="text-[#34d399] shrink-0" />
+                    {f}
+                  </div>
+                ))}
+              </div>
+              <div className="flex items-center justify-between bg-[rgba(52,211,153,0.08)] border border-[rgba(52,211,153,0.15)] rounded-xl px-4 py-3">
+                <span className="text-[var(--text-primary)] text-sm font-semibold">Total mensal</span>
+                <span className="text-[#34d399] font-extrabold text-xl font-mono">R$ 99<span className="text-sm">,90</span><span className="text-[var(--text-muted)] font-normal text-xs">/mês</span></span>
+              </div>
+              <p className="text-right text-[var(--text-muted)] text-xs mt-2 font-mono">= R$ 1.198,80 por ano</p>
+            </div>
+          </div>
+
+          {/* Savings banner */}
+          <div className="relative rounded-2xl overflow-hidden border border-[rgba(52,211,153,0.2)] bg-gradient-to-r from-[rgba(52,211,153,0.05)] via-[rgba(52,211,153,0.08)] to-[rgba(52,211,153,0.05)] px-8 py-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-full bg-[rgba(52,211,153,0.12)] border border-[rgba(52,211,153,0.2)] flex items-center justify-center shrink-0">
+                <TrendingDown size={22} className="text-[#34d399]" />
+              </div>
+              <div>
+                <p className="text-[var(--text-primary)] font-semibold text-base">Economia anual estimada contratando o Orkiestri</p>
+                <p className="text-[var(--text-muted)] text-xs mt-0.5">Comparado à manutenção de 4 sistemas separados para uma equipe de 5 pessoas</p>
+              </div>
+            </div>
+            <div className="text-center sm:text-right shrink-0">
+              <p className="font-display text-4xl font-extrabold text-[#34d399]">R$ 25.201</p>
+              <p className="text-[#34d399] text-sm font-semibold opacity-80">~95% de redução de custos ao ano</p>
+            </div>
+          </div>
+        </motion.div>
+
       </div>
     </section>
   )
