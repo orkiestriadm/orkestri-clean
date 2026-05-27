@@ -17,7 +17,7 @@ export default function CtaSection() {
   const inView = useInView(ref, { once: true, margin: '-10%' })
 
   return (
-    <section ref={ref} className="relative py-24 lg:py-32 overflow-hidden">
+    <section ref={ref} className="relative py-12 lg:py-16 overflow-hidden">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <motion.div
           initial={{ opacity: 0, scale: 0.97 }}

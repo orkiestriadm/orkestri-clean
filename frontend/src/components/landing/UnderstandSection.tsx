@@ -9,7 +9,7 @@ export default function UnderstandSection() {
   const inView = useInView(ref, { once: true, margin: '-10%' })
 
   return (
-    <section ref={ref} className="relative py-24 lg:py-32 overflow-hidden">
+    <section ref={ref} className="relative py-12 lg:py-16 overflow-hidden">
       {/* Background layers */}
       <div className="absolute inset-0 pointer-events-none select-none">
         {/* Subtle top/bottom borders */}

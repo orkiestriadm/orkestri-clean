@@ -88,7 +88,7 @@ export default function ModulesSection() {
   const inView = useInView(ref, { once: true, margin: '-8%' })
 
   return (
-    <section id="modulos" ref={ref} className="relative py-24 lg:py-32 overflow-hidden">
+    <section id="modulos" ref={ref} className="relative py-12 lg:py-16 overflow-hidden">
       {/* Background */}
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute inset-0 bg-[var(--bg-secondary)]/50" />

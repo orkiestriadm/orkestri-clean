@@ -45,7 +45,7 @@ export default function StepsSection() {
   const inView = useInView(ref, { once: true, margin: '-8%' })
 
   return (
-    <section ref={ref} id="plataforma" className="relative py-24 lg:py-32 overflow-hidden">
+    <section ref={ref} id="plataforma" className="relative py-12 lg:py-16 overflow-hidden">
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[rgba(167,139,250,0.25)] to-transparent" />
         <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[rgba(167,139,250,0.12)] to-transparent" />

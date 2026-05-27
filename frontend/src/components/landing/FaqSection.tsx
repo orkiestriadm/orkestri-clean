@@ -88,7 +88,7 @@ export default function FaqSection() {
   const inView = useInView(ref, { once: true, margin: '-8%' })
 
   return (
-    <section ref={ref} className="relative py-24 lg:py-32 overflow-hidden">
+    <section ref={ref} className="relative py-12 lg:py-16 overflow-hidden">
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[rgba(167,139,250,0.22)] to-transparent" />
         <div className="absolute top-1/2 left-0 w-[600px] h-[600px] bg-violet-600/8 blur-[140px] rounded-full -translate-y-1/2" />

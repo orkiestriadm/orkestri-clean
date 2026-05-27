@@ -10,7 +10,7 @@ export default function VideoSection() {
   const inView = useInView(ref, { once: true, margin: '-10%' })
 
   return (
-    <section ref={ref} className="relative py-24 lg:py-32 overflow-hidden">
+    <section ref={ref} className="relative py-12 lg:py-16 overflow-hidden">
       {/* Background orb */}
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[300px] bg-cyan-500/5 blur-[100px] rounded-full" />

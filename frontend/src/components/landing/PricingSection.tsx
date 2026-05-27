@@ -100,7 +100,7 @@ export default function PricingSection() {
   const router = useRouter()
 
   return (
-    <section ref={ref} id="planos" className="relative py-16 lg:py-24 overflow-hidden">
+    <section ref={ref} id="planos" className="relative py-10 lg:py-14 overflow-hidden">
       {/* Background radial highlights */}
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[rgba(167,139,250,0.25)] to-transparent" />
