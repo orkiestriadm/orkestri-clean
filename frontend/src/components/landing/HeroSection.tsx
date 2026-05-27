@@ -243,11 +243,11 @@ export default function HeroSection() {
             >
               Centralize{' '}
               <span className="bg-gradient-to-r from-violet-400 via-violet-300 to-fuchsia-400 bg-clip-text text-transparent">
-                toda sua
+                gestão de equipe, chamados,
               </span>
-              {' '}operação{' '}
+              {' '}projetos, financeiro e operações{' '}
               <span className="bg-gradient-to-r from-cyan-400 to-violet-400 bg-clip-text text-transparent">
-                em um único Sistema!
+                em uma única plataforma.
               </span>
             </motion.h1>
 
