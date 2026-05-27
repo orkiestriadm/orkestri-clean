@@ -9,6 +9,7 @@ import { Shield, Zap, BarChart3, ArrowRight, CheckCircle2 } from "lucide-react";
 interface Organization {
   id: string;
   nome: string;
+  slug: string;
 }
 
 const FEATURES = [
@@ -24,8 +25,6 @@ const STATS = [
 ];
 
 export default function SolicitarAcessoPage() {
-  const [organizations, setOrganizations] = useState<Organization[]>([]);
-  const [loadingOrgs, setLoadingOrgs] = useState(true);
   const [form, setForm] = useState({
     nome: "", email: "", whatsapp: "", motivacao: "", organizationId: "",
   });
@@ -36,15 +35,20 @@ export default function SolicitarAcessoPage() {
 
   useEffect(() => { setMounted(true); }, []);
 
+  // Busca orgs e auto-seleciona a org "Default" (ambiente de trial)
   useEffect(() => {
     api.get("/auth/organizations")
       .then(r => {
         const orgs: Organization[] = r.data || [];
-        setOrganizations(orgs);
-        if (orgs.length === 1) setForm(f => ({ ...f, organizationId: orgs[0].id }));
+        // Procura org Default (slug ou nome)
+        const defaultOrg = orgs.find(o =>
+          o.slug?.toLowerCase() === "default" || o.nome?.toLowerCase() === "default"
+        ) || orgs[0];
+        if (defaultOrg) {
+          setForm(f => ({ ...f, organizationId: defaultOrg.id }));
+        }
       })
-      .catch(() => { })
-      .finally(() => setLoadingOrgs(false));
+      .catch(() => { });
   }, []);
 
   const set = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }));
@@ -52,7 +56,7 @@ export default function SolicitarAcessoPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.nome || !form.email) { setError("Nome e e-mail são obrigatórios."); return; }
-    if (!form.organizationId) { setError("Selecione a empresa à qual pertence."); return; }
+    if (!form.organizationId) { setError("Erro ao carregar o ambiente de teste. Tente novamente."); return; }
     setLoading(true); setError("");
     try {
       await api.post("/auth/solicitar-acesso", form);
@@ -64,8 +68,6 @@ export default function SolicitarAcessoPage() {
     }
   };
 
-  const selectedOrg = organizations.find(o => o.id === form.organizationId);
-
   if (!mounted) return null;
 
   return (
@@ -73,16 +75,11 @@ export default function SolicitarAcessoPage() {
 
       {/* ── Background ── */}
       <div className="fixed inset-0 pointer-events-none select-none">
-        {/* Primary orb */}
         <div className="absolute top-[-15%] left-[-8%] w-[800px] h-[800px] rounded-full bg-violet-600/10 dark:bg-violet-700/8 blur-[150px]" />
-        {/* Cyan orb */}
         <div className="absolute bottom-[-15%] right-[-8%] w-[700px] h-[700px] rounded-full bg-cyan-500/10 dark:bg-cyan-500/6 blur-[130px]" />
-        {/* Small accent */}
         <div className="absolute top-1/2 right-1/3 w-[300px] h-[300px] rounded-full bg-violet-500/10 dark:bg-violet-500/5 blur-[80px] -translate-y-1/2" />
-        {/* Dot grid */}
         <div className="absolute inset-0 opacity-[0.05] dark:opacity-[0.022]"
           style={{ backgroundImage: 'radial-gradient(circle, var(--accent-violet) 1px, transparent 1px)', backgroundSize: '32px 32px' }} />
-        {/* Vertical gradient separator */}
         <div className="hidden lg:block absolute top-0 bottom-0 left-1/2 w-px bg-gradient-to-b from-transparent via-[var(--border-strong)] to-transparent" />
       </div>
 
@@ -97,12 +94,11 @@ export default function SolicitarAcessoPage() {
           <BrandLogo size="xxl" />
         </Link>
 
-        {/* Main statement */}
         <div className="space-y-10">
           <div>
             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-[var(--accent-violet)]/20 bg-[var(--accent-violet-dim)] text-[var(--accent-violet)] text-[11px] font-medium mb-6">
               <span className="w-1.5 h-1.5 rounded-full bg-[var(--accent-green)] animate-pulse" />
-              Sistema disponível · 99,9% uptime
+              7 dias grátis · Sem cartão de crédito
             </div>
             <h1 className="font-display text-[44px] font-bold leading-[1.08] tracking-tight text-[var(--text-primary)] mb-5">
               Profundidade
@@ -120,7 +116,6 @@ export default function SolicitarAcessoPage() {
             </p>
           </div>
 
-          {/* Feature list */}
           <div className="space-y-4">
             {FEATURES.map(({ icon: Icon, label, desc }, i) => (
               <motion.div
@@ -141,7 +136,6 @@ export default function SolicitarAcessoPage() {
             ))}
           </div>
 
-          {/* Stats strip */}
           <div className="grid grid-cols-3 gap-3">
             {STATS.map((stat, i) => (
               <motion.div
@@ -158,7 +152,6 @@ export default function SolicitarAcessoPage() {
           </div>
         </div>
 
-        {/* Social proof footer */}
         <div className="flex items-center gap-3">
           <div className="flex -space-x-1.5">
             {['G', 'T', 'R', 'M', 'A'].map((l, i) => (
@@ -187,14 +180,13 @@ export default function SolicitarAcessoPage() {
           {/* Header */}
           <div className="mb-8">
             <h2 className="font-display text-[30px] font-bold text-[var(--text-primary)] mb-2 leading-tight tracking-tight">
-              Solicitar Acesso
+              Comece seu Teste Grátis
             </h2>
-            <p className="text-[14px] text-[var(--text-secondary)]">O administrador revisará sua solicitação.</p>
+            <p className="text-[14px] text-[var(--text-secondary)]">7 dias grátis · Sem cartão · Acesso liberado em minutos.</p>
           </div>
 
           {/* Form card */}
           <div className="relative rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-glass)] backdrop-blur-2xl p-8 shadow-premium-lg">
-            {/* Top glow line */}
             <div className="absolute top-0 left-8 right-8 h-px bg-gradient-to-r from-transparent via-[var(--accent-violet)]/40 to-transparent" />
 
             {done ? (
@@ -206,10 +198,10 @@ export default function SolicitarAcessoPage() {
                 </div>
                 <h2 className="text-xl font-semibold text-[var(--text-primary)] mb-2">Solicitação enviada!</h2>
                 <p className="text-[14px] text-[var(--text-secondary)] mb-2">
-                  Seu pedido foi registrado para <strong className="text-[var(--text-primary)]">{selectedOrg?.nome}</strong>.
+                  Sua solicitação de teste foi registrada com sucesso.
                 </p>
                 <p className="text-[13px] text-[var(--text-muted)] mb-8">
-                  Você será notificado quando o administrador aprovar sua solicitação.
+                  Você receberá as credenciais de acesso assim que o administrador aprovar — geralmente em poucos minutos.
                 </p>
                 <Link
                   href="/login"
@@ -220,35 +212,6 @@ export default function SolicitarAcessoPage() {
               </div>
             ) : (
               <form onSubmit={handleSubmit} className="flex flex-col gap-5">
-
-                {/* Seletor de empresa */}
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-[11px] font-semibold text-[var(--text-muted)] tracking-widest uppercase">Empresa *</label>
-                  {loadingOrgs ? (
-                    <div className="input-o py-3.5 flex items-center gap-2 text-[var(--text-muted)]">
-                      <svg className="animate-spin" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M21 12a9 9 0 11-6.219-8.56" />
-                      </svg>
-                      Carregando empresas...
-                    </div>
-                  ) : organizations.length === 0 ? (
-                    <div className="input-o py-3.5 text-[var(--text-muted)] italic">
-                      Nenhuma empresa disponível no momento.
-                    </div>
-                  ) : (
-                    <select
-                      value={form.organizationId}
-                      onChange={e => set("organizationId", e.target.value)}
-                      className={`input-o py-3.5 cursor-pointer appearance-none bg-[image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")] bg-no-repeat bg-[right_14px_center] pr-10`}
-                      required
-                    >
-                      <option value="">Selecione sua empresa...</option>
-                      {organizations.map(org => (
-                        <option key={org.id} value={org.id}>{org.nome}</option>
-                      ))}
-                    </select>
-                  )}
-                </div>
 
                 <div className="flex flex-col gap-1.5">
                   <label className="text-[11px] font-semibold text-[var(--text-muted)] tracking-widest uppercase">Nome completo *</label>
@@ -284,17 +247,6 @@ export default function SolicitarAcessoPage() {
                   />
                 </div>
 
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-[11px] font-semibold text-[var(--text-muted)] tracking-widest uppercase">Motivo do acesso</label>
-                  <textarea
-                    value={form.motivacao}
-                    onChange={e => set("motivacao", e.target.value)}
-                    placeholder="Por que você precisa de acesso ao sistema?"
-                    rows={2}
-                    className="input-o py-3.5 resize-none"
-                  />
-                </div>
-
                 <AnimatePresence>
                   {error && (
                     <motion.div
@@ -311,7 +263,7 @@ export default function SolicitarAcessoPage() {
 
                 <button
                   type="submit"
-                  disabled={loading || loadingOrgs || organizations.length === 0}
+                  disabled={loading}
                   className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl btn-primary text-white font-semibold text-[14px] disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {loading ? (
@@ -320,12 +272,16 @@ export default function SolicitarAcessoPage() {
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                       </svg>
-                      Verificando...
+                      Enviando...
                     </>
                   ) : (
-                    <>Enviar solicitação <ArrowRight size={16} /></>
+                    <>Solicitar acesso gratuito <ArrowRight size={16} /></>
                   )}
                 </button>
+
+                <p className="text-center text-[11px] text-[var(--text-muted)]">
+                  Sem cartão de crédito · Acesso por 7 dias · Cancele quando quiser
+                </p>
               </form>
             )}
           </div>

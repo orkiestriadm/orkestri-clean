@@ -268,12 +268,12 @@ export default function HeroSection() {
               transition={{ duration: 0.6, delay: 0.28 }}
               className="flex flex-col sm:flex-row gap-3 justify-center lg:justify-start"
             >
-              <button
-                onClick={() => scrollTo('#contato')}
+              <Link
+                href="/solicitar-acesso"
                 className="inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-xl bg-gradient-to-r from-violet-600 to-violet-500 text-white font-semibold hover:from-violet-500 hover:to-violet-400 transition-all shadow-[0_0_28px_rgba(124,58,237,0.5)] hover:shadow-[0_0_40px_rgba(124,58,237,0.7)] hover:-translate-y-0.5 active:translate-y-0 text-sm"
               >
                 Teste Grátis <ArrowRight size={15} />
-              </button>
+              </Link>
 
               <Link
                 href="/login"
