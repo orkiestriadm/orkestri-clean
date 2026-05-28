@@ -329,6 +329,21 @@
 }
 .btn-icon:hover { color: var(--text-primary); border-color: var(--border-subtle); background: var(--bg-hover); }
 
+/* ── Mobile menu button (hambúrguer) ─── */
+.mobile-menu-btn {
+  display: none; /* oculto em desktop */
+}
+@media (max-width: 768px) {
+  .mobile-menu-btn {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 36px; height: 36px; border-radius: 8px;
+    border: 1px solid var(--border-subtle); background: var(--bg-secondary);
+    color: var(--text-secondary); cursor: pointer;
+    transition: all 0.15s ease; flex-shrink: 0;
+  }
+  .mobile-menu-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
+}
+
 /* ── Badges ────────────────────────────────────────────────── */
 .badge { 
   display: inline-flex; align-items: center; padding: 4px 10px; border-radius: 24px; 
@@ -379,8 +394,12 @@
   :root { --sidebar-w: 0px; }
   .sidebar-desktop { display: none !important; }
   .sidebar-mobile-overlay { position: fixed; inset: 0; z-index: 100; background: rgba(0,0,0,0.6); backdrop-filter: blur(6px); animation: fadeIn 0.2s ease; }
-  .sidebar-mobile { position: fixed; left: 0; top: 0; bottom: 0; width: 280px; z-index: 101; background: var(--bg-card); border-right: 1px solid var(--border-subtle); }
+  .sidebar-mobile { position: fixed; left: 0; top: 0; bottom: 0; width: 280px; z-index: 101; background: var(--bg-card); border-right: 1px solid var(--border-subtle); box-shadow: 4px 0 24px rgba(0,0,0,0.4); }
   .modal-box { padding: 20px; }
+
+  /* Tabelas — scroll horizontal em vez de comprimir colunas */
+  .page-content { overflow-x: auto; }
+  .table-scroll-wrapper { overflow-x: auto; -webkit-overflow-scrolling: touch; }
 }
 @media (min-width: 769px) and (max-width: 1024px) {
   :root { --sidebar-w: 220px; }

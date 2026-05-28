@@ -67,7 +67,7 @@ export default function Topbar({ children }: { children?: React.ReactNode }) {
 
       <header className="h-[60px] min-h-[60px] flex items-center justify-between px-6 border-b border-[var(--border-subtle)] bg-[var(--bg-primary)]/80 backdrop-blur-xl relative z-40 shrink-0 transition-colors duration-300">
         <div className="flex items-center gap-4">
-          <button className="mobile-menu-btn" onClick={() => document.getElementById("sidebar-toggle")?.click()} aria-label="Menu">
+          <button className="mobile-menu-btn" onClick={() => window.dispatchEvent(new Event('toggle-sidebar'))} aria-label="Menu">
             <Menu size={16} />
           </button>
           <div>

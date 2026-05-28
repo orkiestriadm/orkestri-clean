@@ -44,6 +44,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   // Fecha sidebar ao navegar (mobile)
   useEffect(() => { setSidebarOpen(false); }, [children]);
 
+  // Escuta evento global disparado pelo Topbar
+  useEffect(() => {
+    const handler = () => setSidebarOpen(o => !o);
+    window.addEventListener('toggle-sidebar', handler);
+    return () => window.removeEventListener('toggle-sidebar', handler);
+  }, []);
+
   if (!ready) return (
     <div style={{ minHeight:"100vh", display:"flex", alignItems:"center", justifyContent:"center", background:"var(--bg-primary)" }}>
       <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" strokeWidth="2" style={{ animation:"spin 1s linear infinite" }}><path d="M21 12a9 9 0 11-6.219-8.56" strokeLinecap="round"/></svg>
@@ -73,8 +80,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       )}
 
       <main className="main-area" style={{ position:"relative", zIndex:1 }}>
-        {/* Mobile menu button — injected as a global state setter */}
-        <input type="hidden" id="sidebar-toggle" onClick={() => setSidebarOpen(true)} />
         {children}
       </main>
 
