@@ -3,7 +3,7 @@ import { useEffect } from 'react';
 import Header from '@/components/landing/Header'
 import HeroSection from '@/components/landing/HeroSection'
 import DemoSection from '@/components/landing/DemoSection'
-import BenefitsSection from '@/components/landing/BenefitsSection'
+import SecuritySection from '@/components/landing/SecuritySection'
 import StepsSection from '@/components/landing/StepsSection'
 import ModulesSection from '@/components/landing/ModulesSection'
 import DifferentialsSection from '@/components/landing/DifferentialsSection'
@@ -44,8 +44,8 @@ export default function LandingClient() {
         {/* 2. Demo interativa — mostra o produto */}
         <DemoSection />
 
-        {/* 3. Benefícios — por que Orkiestri */}
-        <BenefitsSection />
+        {/* 3. Segurança & Governança */}
+        <SecuritySection />
 
         {/* 4. Como funciona — 3 etapas */}
         <StepsSection />
