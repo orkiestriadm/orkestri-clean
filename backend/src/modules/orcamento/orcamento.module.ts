@@ -521,7 +521,6 @@ class OrcamentoController {
 
     const { valoresMensais, centroCustoId, fornecedorId, ...rest } = dto;
 
-    const orgId2 = req.user?.organizationId;
     const item = await (this.prisma as any).itemOrcamento.create({
       data: {
         id: uuid(),
@@ -530,7 +529,6 @@ class OrcamentoController {
         centroCustoId: centroCustoId || null,
         fornecedorId: fornecedorId || null,
         criadoPorId: req.user.id,
-        ...(orgId2 ? { organizationId: orgId2 } : {}),
         meses: {
           create: MESES.map(mes => ({
             id: uuid(), mes,
