@@ -6,7 +6,7 @@ import Link from 'next/link'
 import {
   ArrowRight, ChevronRight, TrendingUp, AlertTriangle,
   Headphones, BarChart3, FolderKanban, LayoutDashboard,
-  ChevronLeft, ChevronRight as ChevronRightIcon,
+  ChevronLeft, ChevronRight as ChevronRightIcon, X, Maximize2,
 } from 'lucide-react'
 
 /* ══════════════════════════════════════════════════════════════
@@ -372,120 +372,225 @@ const SLIDES = [
   { id: 'projetos', label: 'Gestão de Projetos', icon: FolderKanban, component: SlideProjetos, route: 'dashboard/projetos' },
 ]
 
+// ── Constantes do zoom ───────────────────────────────────────
+const BASE_W = 620   // largura original do card
+const BASE_H = 430   // titlebar (~45) + conteúdo (340) + bottomnav (~45)
+const MAX_SCALE = 1.45
+
 function HeroCarousel() {
   const [current, setCurrent] = useState(0)
-  const [paused, setPaused] = useState(false)
+  const [paused, setPaused]   = useState(false)
+  const [frozen, setFrozen]   = useState(false)  // para de avançar após fechar zoom
+  const [zoomed, setZoomed]   = useState(false)
+  const [modalScale, setModalScale] = useState(MAX_SCALE)
 
+  // Auto-avanço — para quando pausado OU frozen
   useEffect(() => {
-    if (paused) return
+    if (paused || frozen) return
     const t = setInterval(() => setCurrent(c => (c + 1) % SLIDES.length), 4000)
     return () => clearInterval(t)
-  }, [paused])
+  }, [paused, frozen])
+
+  // Calcula escala responsiva quando o modal abre
+  useEffect(() => {
+    if (!zoomed) return
+    const compute = () => {
+      const avail = Math.min(window.innerWidth - 40, BASE_W * MAX_SCALE)
+      setModalScale(Math.min(MAX_SCALE, avail / BASE_W))
+    }
+    compute()
+    window.addEventListener('resize', compute)
+    return () => window.removeEventListener('resize', compute)
+  }, [zoomed])
+
+  // ESC fecha o zoom
+  useEffect(() => {
+    if (!zoomed) return
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') closeZoom() }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [zoomed])
 
   const go = useCallback((i: number) => {
     setCurrent(i)
     setPaused(true)
-    setTimeout(() => setPaused(false), 8000)
-  }, [])
+    if (!frozen) setTimeout(() => setPaused(false), 8000)
+  }, [frozen])
 
-  const prev = () => go((current - 1 + SLIDES.length) % SLIDES.length)
-  const next = () => go((current + 1) % SLIDES.length)
+  const openZoom  = useCallback(() => setZoomed(true), [])
+  const closeZoom = useCallback(() => { setZoomed(false); setFrozen(true) }, [])
 
-  const slide = SLIDES[current]
+  const slide    = SLIDES[current]
   const SlideComp = slide.component
 
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 44, scale: 0.97 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      transition={{ duration: 0.9, delay: 0.35, ease: [0.22, 1, 0.36, 1] }}
-      className="relative w-full max-w-[620px] mx-auto lg:mx-0"
-    >
-      {/* Ambient glow */}
-      <div className="absolute -inset-8 bg-gradient-to-br from-violet-600/18 via-violet-500/4 to-cyan-500/10 rounded-3xl blur-3xl pointer-events-none" />
+  // ── Conteúdo do app window (renderizado em dois lugares) ──
+  const renderWindow = () => (
+    <div className="rounded-2xl border border-[rgba(162,130,255,0.2)] bg-white overflow-hidden shadow-[0_28px_90px_rgba(0,0,0,0.55),0_0_0_1px_rgba(162,130,255,0.08)]">
 
-      {/* Floating badge top-right */}
-      <motion.div
-        initial={{ opacity: 0, x: 20, y: -10 }}
-        animate={{ opacity: 1, x: 0, y: 0 }}
-        transition={{ delay: 1.1, duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-        className="absolute -top-5 right-2 sm:right-6 z-20 flex items-center gap-2 px-3 py-2 rounded-xl bg-[#080820]/95 border border-[rgba(52,211,153,0.35)] backdrop-blur-xl shadow-[0_4px_24px_rgba(0,0,0,0.5)]"
-      >
-        <TrendingUp size={13} className="text-[#34d399]" />
-        <span className="text-[11px] font-semibold text-[#34d399]">↑ 24% eficiência operacional</span>
-      </motion.div>
-
-      {/* App window */}
-      <div className="relative rounded-2xl border border-[rgba(162,130,255,0.2)] bg-white overflow-hidden shadow-[0_28px_90px_rgba(0,0,0,0.55),0_0_0_1px_rgba(162,130,255,0.08)]">
-
-        {/* Title bar */}
-        <div className="flex items-center gap-2 px-4 py-2.5 border-b border-gray-100 bg-gray-50">
-          <div className="flex gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-[#ff5f57]" />
-            <span className="w-2.5 h-2.5 rounded-full bg-[#febc2e]" />
-            <span className="w-2.5 h-2.5 rounded-full bg-[#28c840]" />
-          </div>
-          <div className="flex-1 mx-3">
-            <div className="max-w-[220px] mx-auto flex items-center gap-2 bg-white border border-gray-200 rounded px-2.5 py-0.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-[#34d399]" />
-              <span className="text-[9px] text-gray-400 font-mono">orkiestri.com/{slide.route}</span>
-            </div>
-          </div>
-          {/* Slide tab labels */}
-          <div className="flex items-center gap-1">
-            {SLIDES.map((s, i) => {
-              const Icon = s.icon
-              return (
-                <button
-                  key={s.id}
-                  onClick={() => go(i)}
-                  className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[9px] font-medium transition-all ${i === current ? 'bg-violet-100 text-violet-700' : 'text-gray-400 hover:text-gray-600'}`}
-                >
-                  <Icon size={9} />
-                  <span className="hidden sm:inline">{s.label.split(' ')[0]}</span>
-                </button>
-              )
-            })}
+      {/* Title bar */}
+      <div className="flex items-center gap-2 px-4 py-2.5 border-b border-gray-100 bg-gray-50">
+        <div className="flex gap-1.5">
+          <span className="w-2.5 h-2.5 rounded-full bg-[#ff5f57]" />
+          <span className="w-2.5 h-2.5 rounded-full bg-[#febc2e]" />
+          <span className="w-2.5 h-2.5 rounded-full bg-[#28c840]" />
+        </div>
+        <div className="flex-1 mx-3">
+          <div className="max-w-[220px] mx-auto flex items-center gap-2 bg-white border border-gray-200 rounded px-2.5 py-0.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#34d399]" />
+            <span className="text-[9px] text-gray-400 font-mono">orkiestri.com/{slide.route}</span>
           </div>
         </div>
-
-        {/* Slide content */}
-        <div className="relative overflow-hidden" style={{ height: 340 }}>
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={slide.id}
-              initial={{ opacity: 0, x: 30 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -30 }}
-              transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
-              className="absolute inset-0 overflow-hidden"
-            >
-              <SlideComp />
-            </motion.div>
-          </AnimatePresence>
-        </div>
-
-        {/* Bottom nav */}
-        <div className="flex items-center justify-between px-4 py-2 border-t border-gray-100 bg-gray-50">
-          <button onClick={prev} className="w-6 h-6 rounded-full border border-gray-200 flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-white transition-all">
-            <ChevronLeft size={12} />
-          </button>
-
-          <div className="flex items-center gap-1.5">
-            {SLIDES.map((s, i) => (
-              <button key={s.id} onClick={() => go(i)} className="flex items-center gap-1 group">
-                <span className={`block rounded-full transition-all duration-300 ${i === current ? 'w-4 h-1.5 bg-violet-500' : 'w-1.5 h-1.5 bg-gray-300 group-hover:bg-violet-300'}`} />
+        <div className="flex items-center gap-1">
+          {SLIDES.map((s, i) => {
+            const Icon = s.icon
+            return (
+              <button
+                key={s.id}
+                onClick={(e) => { e.stopPropagation(); go(i) }}
+                className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[9px] font-medium transition-all ${i === current ? 'bg-violet-100 text-violet-700' : 'text-gray-400 hover:text-gray-600'}`}
+              >
+                <Icon size={9} />
+                <span className="hidden sm:inline">{s.label.split(' ')[0]}</span>
               </button>
-            ))}
-            <span className="ml-2 text-[9px] text-gray-400 font-medium">{slide.label}</span>
-          </div>
-
-          <button onClick={next} className="w-6 h-6 rounded-full border border-gray-200 flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-white transition-all">
-            <ChevronRightIcon size={12} />
-          </button>
+            )
+          })}
         </div>
       </div>
-    </motion.div>
+
+      {/* Slide content */}
+      <div className="relative overflow-hidden" style={{ height: 340 }}>
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={slide.id}
+            initial={{ opacity: 0, x: 30 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -30 }}
+            transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+            className="absolute inset-0 overflow-hidden"
+          >
+            <SlideComp />
+          </motion.div>
+        </AnimatePresence>
+      </div>
+
+      {/* Bottom nav */}
+      <div className="flex items-center justify-between px-4 py-2 border-t border-gray-100 bg-gray-50">
+        <button
+          onClick={(e) => { e.stopPropagation(); go((current - 1 + SLIDES.length) % SLIDES.length) }}
+          className="w-6 h-6 rounded-full border border-gray-200 flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-white transition-all"
+        >
+          <ChevronLeft size={12} />
+        </button>
+
+        <div className="flex items-center gap-1.5">
+          {SLIDES.map((s, i) => (
+            <button key={s.id} onClick={(e) => { e.stopPropagation(); go(i) }} className="flex items-center gap-1 group">
+              <span className={`block rounded-full transition-all duration-300 ${i === current ? 'w-4 h-1.5 bg-violet-500' : 'w-1.5 h-1.5 bg-gray-300 group-hover:bg-violet-300'}`} />
+            </button>
+          ))}
+          <span className="ml-2 text-[9px] text-gray-400 font-medium">{slide.label}</span>
+        </div>
+
+        <button
+          onClick={(e) => { e.stopPropagation(); go((current + 1) % SLIDES.length) }}
+          className="w-6 h-6 rounded-full border border-gray-200 flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-white transition-all"
+        >
+          <ChevronRightIcon size={12} />
+        </button>
+      </div>
+    </div>
+  )
+
+  return (
+    <>
+      {/* ─── Card do carrossel ─── */}
+      <motion.div
+        initial={{ opacity: 0, y: 44, scale: 0.97 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ duration: 0.9, delay: 0.35, ease: [0.22, 1, 0.36, 1] }}
+        className="relative w-full max-w-[620px] mx-auto lg:mx-0 cursor-pointer group"
+        onClick={openZoom}
+        title="Clique para ampliar"
+      >
+        {/* Ambient glow */}
+        <div className="absolute -inset-8 bg-gradient-to-br from-violet-600/18 via-violet-500/4 to-cyan-500/10 rounded-3xl blur-3xl pointer-events-none" />
+
+        {/* Floating badge top-right */}
+        <motion.div
+          initial={{ opacity: 0, x: 20, y: -10 }}
+          animate={{ opacity: 1, x: 0, y: 0 }}
+          transition={{ delay: 1.1, duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+          className="absolute -top-5 right-2 sm:right-6 z-20 flex items-center gap-2 px-3 py-2 rounded-xl bg-[#080820]/95 border border-[rgba(52,211,153,0.35)] backdrop-blur-xl shadow-[0_4px_24px_rgba(0,0,0,0.5)]"
+        >
+          <TrendingUp size={13} className="text-[#34d399]" />
+          <span className="text-[11px] font-semibold text-[#34d399]">↑ 24% eficiência operacional</span>
+        </motion.div>
+
+        {/* Hover overlay — "Ampliar" hint */}
+        <div className="absolute inset-0 z-10 rounded-2xl flex items-center justify-center bg-black/0 group-hover:bg-black/20 transition-colors duration-200 pointer-events-none">
+          <div className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white/90 shadow-lg border border-gray-200 opacity-0 group-hover:opacity-100 transition-opacity duration-200 text-gray-700 text-[11px] font-semibold">
+            <Maximize2 size={13} className="text-violet-600" />
+            Ampliar visualização
+          </div>
+        </div>
+
+        {renderWindow()}
+      </motion.div>
+
+      {/* ─── Modal de zoom ─── */}
+      <AnimatePresence>
+        {zoomed && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.22 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/88 backdrop-blur-sm px-4"
+            onClick={closeZoom}
+          >
+            {/* Botão fechar */}
+            <button
+              onClick={closeZoom}
+              className="absolute top-4 right-4 flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/10 border border-white/20 text-white/80 hover:text-white hover:bg-white/20 transition-all z-10 text-sm font-medium"
+            >
+              <X size={16} />
+              <span className="hidden sm:inline text-xs">Fechar</span>
+            </button>
+
+            {/* Container escalado */}
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+              className="relative overflow-hidden rounded-2xl shadow-[0_40px_120px_rgba(0,0,0,0.8)] border border-[rgba(162,130,255,0.25)]"
+              style={{
+                width:  `${BASE_W * modalScale}px`,
+                height: `${BASE_H * modalScale}px`,
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* App window escalado para caber no modal */}
+              <div style={{
+                width: `${BASE_W}px`,
+                transform: `scale(${modalScale})`,
+                transformOrigin: 'top left',
+                position: 'absolute',
+                top: 0,
+                left: 0,
+              }}>
+                {renderWindow()}
+              </div>
+            </motion.div>
+
+            {/* Legenda */}
+            <p className="absolute bottom-6 text-white/40 text-xs">
+              Clique fora ou pressione ESC para fechar
+            </p>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </>
   )
 }
 
