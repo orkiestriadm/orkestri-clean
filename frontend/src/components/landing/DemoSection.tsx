@@ -1,247 +1,192 @@
 'use client'
 
 import { useState, useRef } from 'react'
-import type { ReactNode } from 'react'
 import { motion, useInView, AnimatePresence } from 'framer-motion'
-import { LayoutDashboard, CalendarDays, Headphones, FolderKanban, DollarSign, Truck } from 'lucide-react'
+import { TrendingUp, BarChart3, Headphones, FolderKanban, AlertTriangle, CheckCircle } from 'lucide-react'
 
 const TABS = [
-  { id: 'overview', label: 'Visão Geral', icon: LayoutDashboard },
-  { id: 'agenda', label: 'Agenda', icon: CalendarDays },
-  { id: 'chamados', label: 'Chamados', icon: Headphones },
-  { id: 'projects', label: 'Projetos', icon: FolderKanban },
-  { id: 'finance', label: 'Financeiro', icon: DollarSign },
-  { id: 'suppliers', label: 'Fornecedores', icon: Truck },
+  { id: 'executivo',  label: 'Executivo',   icon: TrendingUp  },
+  { id: 'relatorios', label: 'Relatórios',  icon: BarChart3   },
+  { id: 'chamados',   label: 'Chamados',    icon: Headphones  },
+  { id: 'projetos',   label: 'Projetos',    icon: FolderKanban },
 ]
 
-/* ── WhatsApp SVG icon ── */
-function WaIcon({ size = 12 }: { size?: number }) {
+/* ══════════════════════════════════════════════════════════════
+   EXECUTIVO — fiel ao screenshot real
+══════════════════════════════════════════════════════════════ */
+function ExecutivoScreen() {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor">
-      <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
-    </svg>
-  )
-}
-
-/* ── Screen mockups ── */
-
-function OverviewScreen() {
-  const cols = [
-    { label: 'Ticket médio', value: 'R$ 8.420', change: '+12%', color: '#a78bfa' },
-    { label: 'SLA cumprido', value: '94,3%', change: '+2,1%', color: '#34d399' },
-    { label: 'Projetos ativos', value: '18', change: '3 críticos', color: '#22d3ee' },
-    { label: 'Fornec. ativos', value: '94', change: '+8 este mês', color: '#fbbf24' },
-  ]
-  return (
-    <div className="p-4 h-full flex flex-col gap-3">
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-        {cols.map(c => (
-          <div key={c.label} className="rounded-xl border border-[rgba(162,130,255,0.12)] lp-card-sm bg-transparent p-3">
-            <div className="text-[10px] text-[var(--text-muted)] mb-1">{c.label}</div>
-            <div className="text-lg font-display font-bold" style={{ color: c.color }}>{c.value}</div>
-            <div className="text-[9px] mt-0.5 text-[var(--text-muted)]">{c.change}</div>
-          </div>
+    <div className="h-full bg-[#f8f9fb] overflow-y-auto text-gray-800">
+      {/* Alert banner */}
+      <div className="mx-3 mt-2.5 mb-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-1.5 flex items-center gap-2 flex-wrap">
+        <AlertTriangle size={11} className="text-amber-500 shrink-0" />
+        <span className="text-[9px] font-semibold text-amber-700">Atenção necessária</span>
+        {['4 chamados urgentes', '1 SLAs violados', '2 garantias vencidas'].map(t => (
+          <span key={t} className="inline-flex items-center gap-0.5 rounded-full border border-amber-300 bg-white px-1.5 py-0.5 text-[8px] text-amber-700">
+            <AlertTriangle size={7} /> {t}
+          </span>
         ))}
       </div>
-      <div className="flex-1 rounded-xl border border-[rgba(162,130,255,0.1)] lp-card-sm bg-transparent p-3 overflow-hidden">
-        <div className="text-[10px] font-medium text-[var(--text-secondary)] mb-3">Atividade dos últimos 30 dias</div>
-        <div className="flex items-end gap-1 h-20">
-          {[40, 65, 45, 80, 55, 90, 70, 85, 60, 75, 50, 88, 72, 95, 68, 82, 58, 77, 63, 90, 45, 70, 55, 85, 60, 78, 92, 65, 80, 88].map((h, i) => (
-            <div key={i} className="flex-1 rounded-sm transition-all" style={{ height: `${h}%`, background: `rgba(167,139,250,${0.2 + h / 200})` }} />
-          ))}
-        </div>
-      </div>
-    </div>
-  )
-}
 
-function AgendaScreen() {
-  const events = [
-    { time: '09:00', title: 'Reunião — TechCorp Brasil', type: 'Reunião', via: 'whatsapp', confirmed: true },
-    { time: '10:30', title: 'Demo Produto — Grupo Meridian', type: 'Demo', via: 'portal', confirmed: true },
-    { time: '14:00', title: 'Visita Técnica — Indústrias Forte', type: 'Visita', via: 'whatsapp', confirmed: false },
-    { time: '16:00', title: 'Follow-up contrato — Retail Solutions', type: 'Follow-up', via: 'whatsapp', confirmed: true },
-  ]
-  const typeColor: Record<string, string> = { Reunião: '#a78bfa', Demo: '#22d3ee', Visita: '#fbbf24', 'Follow-up': '#34d399' }
-  return (
-    <div className="p-4 h-full flex flex-col gap-3">
-      {/* Header strip */}
-      <div className="flex items-center justify-between">
-        <div className="flex gap-1">
-          {['Seg', 'Ter', 'Qua', 'Qui', 'Sex'].map((d, i) => (
-            <div key={d} className={`w-8 h-8 rounded-lg flex flex-col items-center justify-center text-[8px] font-medium transition-colors ${i === 2 ? 'bg-[rgba(167,139,250,0.2)] text-[var(--accent-violet)] border border-[rgba(167,139,250,0.3)]' : 'text-[var(--text-muted)]'}`}>
-              <span>{d}</span>
-              <span className="font-bold text-[9px]">{19 + i}</span>
+      {/* Chamados */}
+      <div className="mx-3 mb-2">
+        <div className="flex items-center gap-1 mb-1.5">
+          <Headphones size={10} className="text-violet-500" />
+          <span className="text-[9px] font-bold text-gray-700">Chamados</span>
+        </div>
+        <div className="grid grid-cols-5 gap-1.5 mb-1.5">
+          {[
+            { l: 'ABERTOS',        v: '17', s: 'em atendimento ou aguardando', c: 'text-gray-800' },
+            { l: 'URGENTES',       v: '4',  s: 'prioridade urgente',           c: 'text-orange-600' },
+            { l: 'RESOLVIDOS/MÊS', v: '8',  s: 'mês atual',                    c: 'text-green-600' },
+            { l: 'SLA VIOLADOS',   v: '1',  s: 'fora do prazo',                c: 'text-red-500' },
+            { l: 'SLA COMPLIANCE', v: '88%',s: 'dentro do SLA',                c: 'text-yellow-600' },
+          ].map(c => (
+            <div key={c.l} className="rounded-lg border border-gray-100 bg-white shadow-sm p-2">
+              <div className="text-[7px] text-gray-400 uppercase tracking-wide leading-tight mb-0.5">{c.l}</div>
+              <div className={`text-base font-bold leading-none ${c.c}`}>{c.v}</div>
+              <div className="text-[6px] text-gray-400 mt-0.5 leading-tight">{c.s}</div>
             </div>
           ))}
         </div>
-        <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-[rgba(37,211,102,0.1)] border border-[rgba(37,211,102,0.25)]">
-          <WaIcon size={10} />
-          <span className="text-[9px] text-[#25D366] font-medium">Notif. WhatsApp ativo</span>
+        {/* CSAT */}
+        <div className="rounded-lg border border-gray-100 bg-white shadow-sm px-3 py-1.5 flex items-center gap-3">
+          <span className="text-yellow-400 text-sm">☆</span>
+          <span className="text-[8px] text-gray-500 font-medium uppercase tracking-wide">CSAT Médio</span>
+          <span className="text-sm font-bold text-gray-800">5</span>
+          <span className="text-[8px] text-gray-400">/ 5</span>
+          <span className="text-[7px] text-gray-400">(2 aval.)</span>
+          <div className="flex gap-0.5 ml-auto">{Array(5).fill(0).map((_, i) => <span key={i} className="text-yellow-400 text-[8px]">★</span>)}</div>
         </div>
       </div>
 
-      {/* Events list */}
-      <div className="flex-1 flex flex-col gap-2">
-        {events.map((ev, i) => (
-          <div key={i} className="flex items-center gap-3 rounded-xl border border-[rgba(162,130,255,0.1)] lp-card-sm bg-transparent px-3 py-2.5 hover:border-[rgba(162,130,255,0.22)] transition-colors">
-            <div className="text-[9px] font-mono text-[var(--text-muted)] w-8 shrink-0">{ev.time}</div>
-            <div className="w-0.5 self-stretch rounded-full shrink-0" style={{ background: typeColor[ev.type] }} />
-            <div className="flex-1 min-w-0">
-              <div className="text-[10px] font-medium text-[var(--text-primary)] truncate">{ev.title}</div>
-              <span className="text-[8px] px-1.5 py-0.5 rounded border" style={{ color: typeColor[ev.type], borderColor: `${typeColor[ev.type]}40`, background: `${typeColor[ev.type]}12` }}>{ev.type}</span>
-            </div>
-            {ev.via === 'whatsapp' ? (
-              <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-[rgba(37,211,102,0.1)] border border-[rgba(37,211,102,0.25)] shrink-0">
-                <WaIcon size={9} />
-                <span className="text-[8px] text-[#25D366] hidden sm:inline">
-                  {ev.confirmed ? 'Confirmado' : 'Aguardando'}
-                </span>
-              </div>
-            ) : (
-              <span className="text-[8px] text-[var(--text-muted)] shrink-0">Portal</span>
-            )}
+      {/* Projetos / Ativos / Horas */}
+      <div className="mx-3 grid grid-cols-3 gap-2">
+        {/* Projetos */}
+        <div className="rounded-lg border border-gray-100 bg-white shadow-sm p-2">
+          <div className="text-[7px] text-violet-500 font-bold mb-1.5 flex items-center gap-0.5">
+            <FolderKanban size={8} /> Projetos
           </div>
-        ))}
-      </div>
-
-      {/* Bottom stat */}
-      <div className="flex items-center gap-2 px-3 py-2 rounded-xl border border-[rgba(37,211,102,0.15)] bg-[rgba(37,211,102,0.05)]">
-        <WaIcon size={11} />
-        <span className="text-[9px] text-[#25D366]">3 de 4 eventos confirmados automaticamente via WhatsApp</span>
-      </div>
-    </div>
-  )
-}
-
-function ChamadosScreen() {
-  const tickets = [
-    { id: '#1.034', title: 'Erro no módulo financeiro — acesso negado', client: 'TechCorp Brasil', priority: 'Alta', status: 'Em andamento', via: 'whatsapp', ago: '12 min' },
-    { id: '#1.033', title: 'Dúvida sobre exportação de relatório', client: 'Grupo Meridian', priority: 'Baixa', status: 'Resolvido', via: 'portal', ago: '1h' },
-    { id: '#1.032', title: 'Integração API retornando 401', client: 'Indústrias Forte', priority: 'Alta', status: 'Aberto', via: 'whatsapp', ago: '2h' },
-    { id: '#1.031', title: 'Usuário sem permissão de aprovação', client: 'Retail Solutions', priority: 'Média', status: 'Aguardando', via: 'whatsapp', ago: '3h' },
-  ]
-  const priorityColor: Record<string, string> = { Alta: '#f87171', Média: '#fbbf24', Baixa: '#34d399' }
-  const statusColor: Record<string, string> = { 'Em andamento': '#a78bfa', Resolvido: '#34d399', Aberto: '#f87171', Aguardando: '#fbbf24' }
-  return (
-    <div className="p-4 h-full flex flex-col gap-3">
-      {/* Stats strip */}
-      <div className="grid grid-cols-4 gap-2">
-        {[
-          { label: 'Abertos', value: '12', color: '#f87171' },
-          { label: 'Em andamento', value: '5', color: '#a78bfa' },
-          { label: 'Via WhatsApp', value: '9', color: '#25D366' },
-          { label: 'Resolvidos hoje', value: '23', color: '#34d399' },
-        ].map(s => (
-          <div key={s.label} className="rounded-xl border border-[rgba(162,130,255,0.1)] lp-card-sm bg-transparent p-2">
-            <div className="text-[8px] text-[var(--text-muted)] mb-0.5 truncate">{s.label}</div>
-            <div className="text-sm font-display font-bold" style={{ color: s.color }}>{s.value}</div>
-          </div>
-        ))}
-      </div>
-
-      {/* Tickets list */}
-      <div className="flex-1 rounded-xl border border-[rgba(162,130,255,0.1)] lp-card-sm bg-transparent overflow-hidden">
-        {tickets.map((t, i) => (
-          <div key={i} className="flex items-center gap-2.5 px-3 py-2.5 border-b border-[rgba(162,130,255,0.05)] last:border-0 hover:bg-[rgba(167,139,250,0.04)] transition-colors">
-            <div className="shrink-0">
-              <div className="text-[8px] font-mono text-[var(--text-muted)]">{t.id}</div>
-              <div className="w-1.5 h-1.5 rounded-full mt-1 mx-auto" style={{ background: priorityColor[t.priority] }} />
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="text-[9px] font-medium text-[var(--text-primary)] truncate">{t.title}</div>
-              <div className="text-[8px] text-[var(--text-muted)] truncate">{t.client}</div>
-            </div>
-            {t.via === 'whatsapp' && (
-              <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-[rgba(37,211,102,0.1)] border border-[rgba(37,211,102,0.25)] shrink-0">
-                <WaIcon size={8} />
-                <span className="text-[7px] text-[#25D366] hidden sm:inline">WhatsApp</span>
-              </div>
-            )}
-            <div className="shrink-0 text-right">
-              <span className="text-[8px] px-1.5 py-0.5 rounded-full border" style={{ color: statusColor[t.status], borderColor: `${statusColor[t.status]}40`, background: `${statusColor[t.status]}12` }}>{t.status}</span>
-              <div className="text-[7px] text-[var(--text-muted)] mt-0.5">{t.ago}</div>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* WhatsApp highlight */}
-      <div className="flex items-center gap-2 px-3 py-2 rounded-xl border border-[rgba(37,211,102,0.2)] bg-[rgba(37,211,102,0.06)]">
-        <WaIcon size={12} />
-        <span className="text-[9px] text-[#25D366] font-medium">75% dos chamados abertos e respondidos diretamente via WhatsApp</span>
-      </div>
-    </div>
-  )
-}
-
-function ProjectsScreen() {
-  const cols = [
-    { title: 'Backlog', color: '#8888aa', cards: [{ text: 'Redesign do portal', pct: 45 }, { text: 'API v3 — auth', pct: 20 }] },
-    { title: 'Em andamento', color: '#a78bfa', cards: [{ text: 'Projeto Expansão Alpha', pct: 65 }, { text: 'Módulo Financeiro', pct: 40 }, { text: 'Integ. WhatsApp', pct: 80 }] },
-    { title: 'Revisão', color: '#fbbf24', cards: [{ text: 'Dashboard v2', pct: 88 }, { text: 'Onboarding flow', pct: 72 }] },
-    { title: 'Concluído', color: '#34d399', cards: [{ text: 'Setup DevOps', pct: 100 }, { text: 'SSO Enterprise', pct: 100 }] },
-  ]
-  return (
-    <div className="p-4 h-full">
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 h-full">
-        {cols.map(col => (
-          <div key={col.title} className="flex flex-col gap-2">
-            <div className="flex items-center gap-1.5 mb-1">
-              <div className="w-1.5 h-1.5 rounded-full" style={{ background: col.color }} />
-              <span className="text-[9px] font-medium text-[var(--text-secondary)]">{col.title}</span>
-              <span className="ml-auto text-[8px] text-[var(--text-muted)]">{col.cards.length}</span>
-            </div>
-            {col.cards.map(card => (
-              <div key={card.text} className="rounded-lg border border-[rgba(162,130,255,0.1)] lp-card-sm bg-transparent p-2.5 hover:border-[rgba(162,130,255,0.25)] transition-colors cursor-pointer">
-                <div className="text-[9px] text-[var(--text-primary)] font-medium leading-tight mb-1">{card.text}</div>
-                <div className="flex items-center gap-1 mt-2">
-                  <div className="w-3.5 h-3.5 rounded-full bg-gradient-to-br from-violet-500 to-violet-700 text-[6px] text-white flex items-center justify-center">G</div>
-                  <div className="flex-1 h-0.5 rounded-full bg-[rgba(162,130,255,0.1)]">
-                    <div className="h-full rounded-full" style={{ width: `${card.pct}%`, background: col.color }} />
-                  </div>
-                </div>
-              </div>
+          <div className="grid grid-cols-2 gap-1">
+            {[{ l:'ATIVOS',v:'7'},{l:'CONCL./MÊS',v:'1'}].map(x=>(
+              <div key={x.l}><div className="text-[6px] text-gray-400 uppercase">{x.l}</div><div className="text-sm font-bold text-gray-800">{x.v}</div></div>
             ))}
           </div>
-        ))}
+        </div>
+        {/* Ativos */}
+        <div className="rounded-lg border border-gray-100 bg-white shadow-sm p-2">
+          <div className="text-[7px] text-cyan-500 font-bold mb-1.5">🖥️ Ativos</div>
+          <div className="grid grid-cols-2 gap-1">
+            {[{l:'TOTAL',v:'23'},{l:'MANUTENÇÃO',v:'1'}].map(x=>(
+              <div key={x.l}><div className="text-[6px] text-gray-400 uppercase">{x.l}</div><div className="text-sm font-bold text-gray-800">{x.v}</div></div>
+            ))}
+          </div>
+          <div className="grid grid-cols-2 gap-1 mt-1">
+            {[{l:'GAR. A VENCER',v:'0',c:'text-yellow-600'},{l:'GAR. VENCIDA',v:'2',c:'text-red-500'}].map(x=>(
+              <div key={x.l}><div className="text-[6px] text-gray-400 uppercase">{x.l}</div><div className={`text-sm font-bold ${x.c}`}>{x.v}</div></div>
+            ))}
+          </div>
+        </div>
+        {/* Horas */}
+        <div className="rounded-lg border border-gray-100 bg-white shadow-sm p-2">
+          <div className="text-[7px] text-emerald-500 font-bold mb-1.5">⏱️ Horas (mês)</div>
+          <div className="grid grid-cols-2 gap-1">
+            {[{l:'TOTAL HORAS',v:'1h 30m'},{l:'APONTAMENTOS',v:'3'}].map(x=>(
+              <div key={x.l}><div className="text-[6px] text-gray-400 uppercase">{x.l}</div><div className="text-xs font-bold text-gray-800">{x.v}</div></div>
+            ))}
+          </div>
+        </div>
       </div>
     </div>
   )
 }
 
-function FinanceScreen() {
-  const months = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun']
-  const capex = [62, 48, 75, 55, 88, 70]
-  const opex = [35, 42, 38, 51, 44, 58]
+/* ══════════════════════════════════════════════════════════════
+   RELATÓRIOS — aba Projetos ativa
+══════════════════════════════════════════════════════════════ */
+function RelatoriosScreen() {
+  const BARS = [
+    { nome: 'Administrator',       val: 17, color: '#ef4444' },
+    { nome: 'Diego Pereira',       val: 14, color: '#3b82f6' },
+    { nome: 'Guilherme Rodrigues', val: 11, color: '#22c55e' },
+    { nome: 'Carlos Souza',        val: 5,  color: '#f59e0b' },
+    { nome: 'Ana Costa',           val: 5,  color: '#f59e0b' },
+    { nome: 'Fernanda Alves',      val: 4,  color: '#06b6d4' },
+    { nome: 'Beatriz Lima',        val: 4,  color: '#ec4899' },
+  ]
   return (
-    <div className="p-4 h-full flex flex-col gap-3">
-      <div className="grid grid-cols-3 gap-2">
+    <div className="h-full bg-white overflow-y-auto text-gray-800 flex flex-col">
+      {/* Tabs */}
+      <div className="flex gap-0 border-b border-gray-200 mx-3 mt-2 shrink-0">
+        {['Chamados','SLA & CSAT','Horas','Projetos','Atendentes','Comparativo'].map(t => (
+          <div key={t} className={`px-2 py-1.5 text-[8px] font-medium cursor-pointer border-b-2 -mb-px ${t==='Projetos'?'border-violet-500 text-violet-600':'border-transparent text-gray-400'}`}>{t}</div>
+        ))}
+      </div>
+
+      {/* KPI strip */}
+      <div className="mx-3 mt-2 grid grid-cols-4 gap-1.5 mb-2 shrink-0">
         {[
-          { label: 'Receita total', value: 'R$ 2,4M', color: '#34d399' },
-          { label: 'CAPEX', value: 'R$ 480K', color: '#a78bfa' },
-          { label: 'OPEX', value: 'R$ 268K', color: '#22d3ee' },
-        ].map(m => (
-          <div key={m.label} className="rounded-xl border border-[rgba(162,130,255,0.1)] lp-card-sm bg-transparent p-2.5">
-            <div className="text-[9px] text-[var(--text-muted)] mb-1">{m.label}</div>
-            <div className="text-sm font-display font-bold" style={{ color: m.color }}>{m.value}</div>
+          { l:'TOTAL TASKS',      v:'63', s:'14% concluídas',  c:'text-gray-800' },
+          { l:'CONCLUÍDAS',       v:'9',  s:'',                c:'text-green-600' },
+          { l:'VENCIDAS',         v:'2',  s:'',                c:'text-red-500' },
+          { l:'PROJETOS ATIVOS',  v:'2',  s:'de 8 total',      c:'text-violet-600' },
+        ].map(c => (
+          <div key={c.l} className="rounded-lg border border-gray-100 bg-gray-50 p-2">
+            <div className="text-[6px] text-gray-400 uppercase tracking-wide mb-0.5">{c.l}</div>
+            <div className={`text-sm font-bold ${c.c}`}>{c.v}</div>
+            {c.s && <div className="text-[6px] text-gray-400">{c.s}</div>}
           </div>
         ))}
       </div>
-      <div className="flex-1 rounded-xl border border-[rgba(162,130,255,0.1)] lp-card-sm bg-transparent p-3">
-        <div className="text-[10px] font-medium text-[var(--text-secondary)] mb-3 flex items-center gap-3">
-          CAPEX vs OPEX — 2025
-          <span className="flex items-center gap-1 text-[9px] text-[var(--text-muted)]"><span className="w-2 h-1 rounded-full bg-[#a78bfa] inline-block" />CAPEX</span>
-          <span className="flex items-center gap-1 text-[9px] text-[var(--text-muted)]"><span className="w-2 h-1 rounded-full bg-[#22d3ee] inline-block" />OPEX</span>
+
+      {/* Charts row */}
+      <div className="mx-3 flex gap-2 mb-2 shrink-0">
+        {/* Bar chart — tasks por dia */}
+        <div className="rounded-lg border border-gray-100 bg-gray-50 p-2 flex-1">
+          <div className="text-[8px] font-semibold text-gray-600 mb-1">Tasks concluídas por dia</div>
+          <div className="text-[7px] text-gray-400 mb-1.5">Últimos 14 dias</div>
+          <div className="flex items-end gap-1" style={{ height: 42 }}>
+            {[0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,8,0,0,0,0,0,0,0,0,9,0].map((v,i) => (
+              <div key={i} className="flex-1 rounded-sm" style={{ height: v===0?'2px':`${(v/9)*100}%`, background: v>0?'#22c55e':'#e5e7eb', minHeight: '2px' }} />
+            ))}
+          </div>
         </div>
-        <div className="flex items-end gap-2" style={{ height: 88 }}>
-          {months.map((m, i) => (
-            <div key={m} className="flex-1 flex flex-col items-center gap-0.5 justify-end">
-              <div className="flex gap-0.5 items-end w-full">
-                <div className="flex-1 rounded-t-sm bg-[#a78bfa]/60" style={{ height: Math.round(capex[i] * 0.76) }} />
-                <div className="flex-1 rounded-t-sm bg-[#22d3ee]/50" style={{ height: Math.round(opex[i] * 0.76) }} />
+        {/* Donut */}
+        <div className="rounded-lg border border-gray-100 bg-gray-50 p-2 flex-1">
+          <div className="text-[8px] font-semibold text-gray-600 mb-1.5">Tasks por status</div>
+          <div className="flex items-center gap-2">
+            <svg width="44" height="44" viewBox="0 0 44 44" className="shrink-0">
+              <circle cx="22" cy="22" r="16" fill="none" stroke="#e5e7eb" strokeWidth="7" />
+              <circle cx="22" cy="22" r="16" fill="none" stroke="#9ca3af" strokeWidth="7" strokeDasharray="45 56" strokeDashoffset="14" />
+              <circle cx="22" cy="22" r="16" fill="none" stroke="#3b82f6" strokeWidth="7" strokeDasharray="27 74" strokeDashoffset="-31" />
+              <circle cx="22" cy="22" r="16" fill="none" stroke="#f59e0b" strokeWidth="7" strokeDasharray="14 87" strokeDashoffset="-58" />
+              <circle cx="22" cy="22" r="16" fill="none" stroke="#22c55e" strokeWidth="7" strokeDasharray="14 87" strokeDashoffset="-72" />
+              <text x="22" y="25" textAnchor="middle" fill="#374151" fontSize="9" fontWeight="bold">63</text>
+            </svg>
+            <div className="flex flex-col gap-0.5 flex-1">
+              {[{l:'EM_REVISAO',v:9,c:'#3b82f6'},{l:'Concluída',v:9,c:'#22c55e'},{l:'A Fazer',v:28,c:'#9ca3af'},{l:'Em Andamento',v:17,c:'#f59e0b'}].map(d=>(
+                <div key={d.l} className="flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{background:d.c}} />
+                  <span className="text-[7px] text-gray-500 flex-1">{d.l}</span>
+                  <span className="text-[7px] font-semibold text-gray-700">{d.v}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Tasks por membro */}
+      <div className="mx-3 rounded-lg border border-gray-100 bg-gray-50 p-2 flex-1">
+        <div className="text-[8px] font-semibold text-gray-600 mb-1.5">Tasks por membro</div>
+        <div className="flex flex-col gap-1">
+          {BARS.map(b => (
+            <div key={b.nome} className="flex items-center gap-1">
+              <div className="text-[6px] text-gray-500 w-20 truncate shrink-0">{b.nome.split(' ')[0]}</div>
+              <div className="flex-1 h-1.5 rounded-full bg-gray-200 overflow-hidden">
+                <div className="h-full rounded-full" style={{width:`${(b.val/17)*100}%`,background:b.color}} />
               </div>
-              <span className="text-[7px] text-[var(--text-muted)]">{m}</span>
+              <div className="text-[6px] font-semibold text-gray-600 w-3 text-right">{b.val}</div>
             </div>
           ))}
         </div>
@@ -250,40 +195,94 @@ function FinanceScreen() {
   )
 }
 
-function SuppliersScreen() {
-  const suppliers = [
-    { name: 'Fornecedor Alpha', category: 'TI', rating: 4.8, status: 'Aprovado', spend: 'R$ 148K' },
-    { name: 'Logística Prime', category: 'Logística', rating: 4.2, status: 'Aprovado', spend: 'R$ 92K' },
-    { name: 'Tech Distribuidora', category: 'Hardware', rating: 3.9, status: 'Em avaliação', spend: 'R$ 56K' },
-    { name: 'Serviços Gerais SA', category: 'Facilities', rating: 4.5, status: 'Aprovado', spend: 'R$ 34K' },
+/* ══════════════════════════════════════════════════════════════
+   CHAMADOS — Kanban fiel ao screenshot
+══════════════════════════════════════════════════════════════ */
+function ChamadosScreen() {
+  const COLS = [
+    {
+      label:'ABERTO', dot:'#6b7280', count:1,
+      cards:[{num:'#15',prio:'MÉD',titulo:'Tela de login retornando erro 500 intermitente',cat:'Sistema',sla:'SLA Violado 10d',users:['A'],fila:true}],
+    },
+    {
+      label:'EM ATENDIMENTO', dot:'#3b82f6', count:2,
+      cards:[
+        {num:'#21',prio:'BAI',titulo:'Configurar assinatura de e-mail padrão',cat:'Comunicação',sla:'SLA Violado 15d',users:['FA','A'],fila:false},
+        {num:'#3', prio:'MÉD',titulo:'Criação de Usuário',cat:'Suporte Técnico',sla:'SLA Violado 2d',users:['A'],fila:false},
+      ],
+    },
+    { label:'AGUARDANDO', dot:'#f59e0b', count:0, cards:[] },
+    {
+      label:'RESOLVIDO', dot:'#22c55e', count:3,
+      cards:[
+        {num:'#6', prio:'CRT',titulo:'Teste',cat:'TI',sla:'2d',users:['A'],fila:false},
+        {num:'#4', prio:'MÉD',titulo:'Desbloquear Usuário',cat:'Suporte Técnico',sla:'2d',users:['A','GR'],fila:false},
+        {num:'#22',prio:'MÉD',titulo:'Sistema de ponto eletrônico offline',cat:'Hardware',sla:'8d',users:['A','GR'],fila:false},
+      ],
+    },
+    {
+      label:'FECHADO', dot:'#7c3aed', count:2,
+      cards:[
+        {num:'#1',prio:'CRT',titulo:'Criar Plano Orçamentário 2027',cat:'Financeiro',sla:'8d',users:['A'],fila:false},
+        {num:'#5',prio:'MÉD',titulo:'Testar Ferramenta Orkiestri',cat:'Suporte Técnico',sla:'2d',users:['A','GR'],fila:false},
+      ],
+    },
   ]
-  const statusColor: Record<string, string> = { 'Aprovado': '#34d399', 'Em avaliação': '#fbbf24' }
+  const pc: Record<string,string> = {MÉD:'#fef3c7',BAI:'#f3f4f6',CRT:'#fee2e2'}
+  const tc: Record<string,string> = {MÉD:'#d97706',BAI:'#6b7280',CRT:'#dc2626'}
   return (
-    <div className="p-4 h-full flex flex-col gap-3">
-      <div className="grid grid-cols-3 gap-2">
-        {[{ l: 'Total', v: '94' }, { l: 'Aprovados', v: '78' }, { l: 'Em avaliação', v: '16' }].map(m => (
-          <div key={m.l} className="rounded-xl border border-[rgba(162,130,255,0.1)] lp-card-sm bg-transparent p-2.5">
-            <div className="text-[9px] text-[var(--text-muted)]">{m.l}</div>
-            <div className="text-base font-display font-bold text-[var(--accent-violet)]">{m.v}</div>
+    <div className="flex flex-col h-full bg-[#f8f9fb]">
+      {/* Counter strip */}
+      <div className="flex gap-1.5 mx-3 mt-2 mb-2 flex-wrap shrink-0">
+        {[{l:'TOTAL',v:'8',c:'text-gray-700'},{l:'ABERTOS',v:'1',c:'text-gray-500'},{l:'EM ATEND.',v:'2',c:'text-blue-600'},{l:'AGUARDANDO',v:'0',c:'text-yellow-500'},{l:'RESOLVIDOS',v:'3',c:'text-green-600'},{l:'FECHADOS',v:'2',c:'text-violet-600'},{l:'SLA VIOLADO',v:'3',c:'text-red-500'},{l:'SLA EM RISCO',v:'0',c:'text-gray-400'}].map(x=>(
+          <div key={x.l} className="rounded-lg border border-gray-200 bg-white shadow-sm px-2 py-1 text-center">
+            <div className="text-[6px] text-gray-400 uppercase tracking-wide">{x.l}</div>
+            <div className={`text-sm font-bold leading-tight ${x.c}`}>{x.v}</div>
           </div>
         ))}
       </div>
-      <div className="flex-1 rounded-xl border border-[rgba(162,130,255,0.1)] lp-card-sm bg-transparent overflow-hidden">
-        {suppliers.map((s, i) => (
-          <div key={i} className="flex items-center gap-3 px-3 py-2.5 border-b border-[rgba(162,130,255,0.05)] last:border-0 hover:bg-[rgba(167,139,250,0.04)] transition-colors">
-            <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-violet-500/30 to-cyan-500/20 border border-[rgba(162,130,255,0.2)] flex items-center justify-center text-[9px] font-bold text-[var(--accent-violet)] shrink-0">
-              {s.name[0]}
+      {/* Tabs */}
+      <div className="flex gap-0 border-b border-gray-200 mx-3 mb-2 shrink-0">
+        {[{l:'Meus Chamados',n:8,active:true},{l:'Fila Pública',n:9,active:false},{l:'Todos',n:8,active:false}].map(t=>(
+          <div key={t.l} className={`flex items-center gap-1 px-3 py-1.5 text-[8px] font-medium border-b-2 -mb-px cursor-pointer ${t.active?'border-violet-500 text-violet-600':'border-transparent text-gray-400'}`}>
+            {t.l} <span className={`text-[7px] rounded-full px-1 ${t.active?'bg-violet-100 text-violet-600':'bg-gray-100 text-gray-400'}`}>{t.n}</span>
+          </div>
+        ))}
+      </div>
+      {/* Kanban */}
+      <div className="mx-3 flex gap-1.5 flex-1 overflow-hidden">
+        {COLS.map(col=>(
+          <div key={col.label} className="flex flex-col flex-1 min-w-0">
+            <div className="flex items-center gap-1 mb-1">
+              <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{background:col.dot}} />
+              <span className="text-[6px] font-semibold text-gray-600 truncate">{col.label}</span>
+              <span className="text-[6px] text-gray-400 ml-auto shrink-0 border border-gray-200 rounded-full px-1">{col.count}</span>
             </div>
-            <div className="flex-1 min-w-0">
-              <div className="text-[10px] font-medium text-[var(--text-primary)] truncate">{s.name}</div>
-              <div className="text-[8px] text-[var(--text-muted)]">{s.category}</div>
+            <div className="flex flex-col gap-1 flex-1">
+              {col.cards.slice(0,2).map(card=>(
+                <div key={card.num} className="rounded-lg border border-gray-200 bg-white p-1.5 shadow-sm">
+                  <div className="flex items-center justify-between mb-0.5">
+                    <span className="text-[6px] text-gray-400">{card.num}</span>
+                    <span className="text-[5px] font-bold px-1 py-0.5 rounded" style={{background:pc[card.prio],color:tc[card.prio]}}>{card.prio}</span>
+                  </div>
+                  <div className="text-[7px] font-medium text-gray-700 leading-tight mb-1 line-clamp-2">{card.titulo}</div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[6px] px-1 py-0.5 rounded bg-gray-100 text-gray-500">{card.cat}</span>
+                    <span className="text-[6px] text-red-400">{card.sla.startsWith('SLA')&&<span className="text-red-400">●</span>} {card.sla}</span>
+                  </div>
+                  <div className="flex items-center gap-0.5 mt-1">
+                    {card.users.map(u=>(
+                      <span key={u} className="w-3.5 h-3.5 rounded-full bg-violet-200 flex items-center justify-center text-[6px] font-bold text-violet-700">{u[0]}</span>
+                    ))}
+                  </div>
+                </div>
+              ))}
+              {col.cards.length===0 && (
+                <div className="rounded-lg border border-dashed border-gray-200 p-2 text-center flex-1">
+                  <span className="text-[6px] text-gray-300">Nenhum chamado</span>
+                </div>
+              )}
             </div>
-            <div className="text-[9px] text-[#fbbf24] shrink-0">★ {s.rating}</div>
-            <div className="text-[9px] font-medium text-[var(--text-secondary)] hidden sm:block shrink-0">{s.spend}</div>
-            <span className="text-[8px] px-1.5 py-0.5 rounded-full border shrink-0"
-              style={{ color: statusColor[s.status], borderColor: `${statusColor[s.status]}40`, background: `${statusColor[s.status]}12` }}>
-              {s.status}
-            </span>
           </div>
         ))}
       </div>
@@ -291,22 +290,110 @@ function SuppliersScreen() {
   )
 }
 
-const SCREENS: Record<string, ReactNode> = {
-  overview: <OverviewScreen />,
-  agenda: <AgendaScreen />,
-  chamados: <ChamadosScreen />,
-  projects: <ProjectsScreen />,
-  finance: <FinanceScreen />,
-  suppliers: <SuppliersScreen />,
+/* ══════════════════════════════════════════════════════════════
+   PROJETOS — sidebar + kanban
+══════════════════════════════════════════════════════════════ */
+function ProjetosScreen() {
+  const PROJ = [
+    {nome:'Plataforma de BI e Analytics',  status:'Planejamento',  prio:'ALTA',    color:'#f59e0b', pct:5,   active:false},
+    {nome:'Automação de Processos RH',     status:'Concluído',     prio:'MEDIA',   color:'#22c55e', pct:100, active:false},
+    {nome:'Redesign Portal do Cliente',    status:'Em andamento',  prio:'MEDIA',   color:'#06b6d4', pct:72,  active:false},
+    {nome:'Migração para Cloud AWS',       status:'Planejamento',  prio:'ALTA',    color:'#3b82f6', pct:10,  active:true },
+    {nome:'Implantação ERP Financeiro',    status:'Em andamento',  prio:'ALTA',    color:'#7c3aed', pct:45,  active:false},
+    {nome:'Teste Operacional de Projetos', status:'Planejamento',  prio:'URGENTE', color:'#ec4899', pct:33,  active:false},
+  ]
+  const KANBAN = [
+    {col:'A Fazer',     count:6, color:'#9ca3af', tasks:['Reunião de kick-off com stakeholders','Validar arquitetura técnica','Testes de integração e homologação','Deploy em produção e monitoramento','Documentar decisões de arquitetura (ADR)','Atualizar README e documentação técnica']},
+    {col:'Em Andamento',count:4, color:'#3b82f6', tasks:['Documentar requisitos funcionais','Configurar ambiente de desenvolvimento','Desenvolvimento módulo core','Configurar pipeline de CI/CD']},
+    {col:'Em Revisão',  count:1, color:'#f59e0b', tasks:['Code review do módulo principal']},
+    {col:'Cancelada',   count:0, color:'#ef4444', tasks:[]},
+    {col:'Concluída',   count:0, color:'#22c55e', tasks:[]},
+  ]
+  return (
+    <div className="flex h-full bg-[#f8f9fb]">
+      {/* Sidebar */}
+      <div className="w-[130px] shrink-0 border-r border-gray-200 flex flex-col pt-2 px-2 bg-white">
+        <div className="text-[7px] font-semibold text-gray-400 uppercase tracking-wide mb-1.5 px-1">6 Projetos</div>
+        {PROJ.map(p=>(
+          <div key={p.nome} className={`rounded-lg px-1.5 py-1.5 mb-0.5 cursor-pointer ${p.active?'bg-violet-50 border border-violet-200':'hover:bg-gray-50 border border-transparent'}`}>
+            <div className="flex items-center gap-1 mb-0.5">
+              <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{background:p.color}} />
+              <span className="text-[7px] font-medium text-gray-700 truncate leading-tight">{p.nome}</span>
+            </div>
+            <div className="flex items-center gap-1 pl-2.5">
+              <span className="text-[6px] text-gray-400">{p.status}</span>
+              <span className="text-[5px] font-bold ml-auto" style={{color:p.prio==='ALTA'?'#f59e0b':p.prio==='URGENTE'?'#ef4444':'#6b7280'}}>{p.prio}</span>
+            </div>
+            <div className="pl-2.5 mt-0.5">
+              <div className="h-0.5 rounded-full bg-gray-200"><div className="h-full rounded-full" style={{width:`${p.pct}%`,background:p.color}} /></div>
+              <div className="text-[5px] text-gray-400 mt-0.5">{p.pct}%</div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Main kanban */}
+      <div className="flex-1 flex flex-col pt-2 px-2 min-w-0">
+        <div className="mb-2 shrink-0">
+          <div className="text-[10px] font-bold text-gray-800 leading-tight">Migração para Cloud AWS</div>
+          <div className="text-[7px] text-gray-400 mt-0.5">3 membros · Prazo: 23/11/2026</div>
+          <div className="flex items-center gap-2 mt-1">
+            <div className="h-1 flex-1 rounded-full bg-gray-200"><div className="h-full w-[10%] rounded-full bg-blue-500" /></div>
+            <span className="text-[6px] text-blue-500 font-semibold">10%</span>
+          </div>
+        </div>
+        <div className="flex gap-1.5 flex-1 overflow-hidden">
+          {KANBAN.map(col=>(
+            <div key={col.col} className="flex flex-col flex-1 min-w-0">
+              <div className="flex items-center gap-0.5 mb-1 shrink-0">
+                <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{background:col.color}} />
+                <span className="text-[6px] font-semibold text-gray-500 truncate">{col.col}</span>
+                <span className="text-[6px] text-gray-400 ml-auto border border-gray-200 rounded-full px-1">{col.count}</span>
+              </div>
+              <div className="flex flex-col gap-1">
+                {col.tasks.slice(0,3).map(t=>(
+                  <div key={t} className="rounded border border-gray-200 bg-white p-1 shadow-sm">
+                    <div className="text-[6px] font-medium text-gray-700 leading-tight">{t}</div>
+                  </div>
+                ))}
+                {col.tasks.length===0 && (
+                  <div className="rounded border border-dashed border-gray-200 p-2 text-center">
+                    <span className="text-[6px] text-gray-300">Solte tarefas aqui</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/* ══════════════════════════════════════════════════════════════
+   DEMO SECTION
+══════════════════════════════════════════════════════════════ */
+const SCREENS: Record<string, React.ReactNode> = {
+  executivo:  <ExecutivoScreen  />,
+  relatorios: <RelatoriosScreen />,
+  chamados:   <ChamadosScreen   />,
+  projetos:   <ProjetosScreen   />,
+}
+
+const ROUTES: Record<string, string> = {
+  executivo:  'dashboard/executivo',
+  relatorios: 'dashboard/relatorios',
+  chamados:   'dashboard/chamados',
+  projetos:   'dashboard/projetos',
 }
 
 export default function DemoSection() {
-  const [active, setActive] = useState('overview')
+  const [active, setActive] = useState('executivo')
   const ref = useRef<HTMLElement>(null)
   const inView = useInView(ref, { once: true, margin: '-8%' })
 
   return (
-    <section id="plataforma" ref={ref} className="relative py-24 lg:py-32 overflow-hidden">
+    <section id="plataforma" ref={ref} className="relative py-12 lg:py-16 overflow-hidden">
       {/* Background */}
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[rgba(167,139,250,0.22)] to-transparent" />
@@ -315,12 +402,13 @@ export default function DemoSection() {
       </div>
 
       <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+
         {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           animate={inView ? { opacity: 1, y: 0 } : {}}
           transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-          className="text-center mb-12"
+          className="text-center mb-10"
         >
           <span className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-[rgba(167,139,250,0.2)] bg-[rgba(167,139,250,0.07)] text-[var(--accent-violet)] text-xs font-medium mb-4">
             Plataforma integrada
@@ -339,7 +427,7 @@ export default function DemoSection() {
           initial={{ opacity: 0, y: 20 }}
           animate={inView ? { opacity: 1, y: 0 } : {}}
           transition={{ duration: 0.5, delay: 0.15 }}
-          className="lp-card flex items-center gap-1 p-1 rounded-2xl border border-[rgba(162,130,255,0.12)] backdrop-blur-xl mb-4 overflow-x-auto scrollbar-none"
+          className="lp-card flex items-center gap-1 p-1 rounded-2xl border border-[rgba(162,130,255,0.12)] backdrop-blur-xl mb-4 overflow-x-auto scrollbar-none w-fit mx-auto"
         >
           {TABS.map(tab => {
             const Icon = tab.icon
@@ -348,10 +436,11 @@ export default function DemoSection() {
               <button
                 key={tab.id}
                 onClick={() => setActive(tab.id)}
-                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all shrink-0 ${isActive
+                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all shrink-0 ${
+                  isActive
                     ? 'bg-gradient-to-r from-violet-600 to-violet-500 text-white shadow-[0_0_16px_rgba(124,58,237,0.4)]'
                     : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-[rgba(167,139,250,0.06)]'
-                  }`}
+                }`}
               >
                 <Icon size={15} />
                 {tab.label}
@@ -360,38 +449,62 @@ export default function DemoSection() {
           })}
         </motion.div>
 
-        {/* Screen */}
+        {/* Window */}
         <motion.div
           initial={{ opacity: 0, scale: 0.98 }}
           animate={inView ? { opacity: 1, scale: 1 } : {}}
           transition={{ duration: 0.6, delay: 0.25 }}
-          className="rounded-2xl border border-[rgba(162,130,255,0.15)] bg-[#080818] overflow-hidden shadow-[0_32px_80px_rgba(0,0,0,0.6)] min-h-[320px] sm:min-h-[360px]"
+          className="rounded-2xl border border-[rgba(162,130,255,0.18)] overflow-hidden shadow-[0_32px_80px_rgba(0,0,0,0.55)]"
+          style={{ height: 420 }}
         >
-          {/* Window chrome */}
-          <div className="flex items-center gap-2 px-4 py-2.5 border-b border-[rgba(162,130,255,0.1)] bg-[#06060f]">
+          {/* Window chrome — dark */}
+          <div className="flex items-center gap-2 px-4 py-2.5 border-b border-[rgba(162,130,255,0.12)] bg-[#07071a] shrink-0">
             <div className="flex gap-1.5">
               <span className="w-2.5 h-2.5 rounded-full bg-[#ff5f57]" />
               <span className="w-2.5 h-2.5 rounded-full bg-[#febc2e]" />
               <span className="w-2.5 h-2.5 rounded-full bg-[#28c840]" />
             </div>
-            <span className="flex-1 text-center text-[10px] text-[var(--text-muted)] font-mono">
-              orkiestri.com — {TABS.find(t => t.id === active)?.label}
-            </span>
+            <div className="flex-1 mx-3">
+              <div className="max-w-[260px] mx-auto flex items-center gap-2 bg-[#0f0f2a] border border-[rgba(162,130,255,0.15)] rounded px-2.5 py-0.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#34d399]" />
+                <span className="text-[9px] text-gray-400 font-mono">orkiestri.com/{ROUTES[active]}</span>
+              </div>
+            </div>
+            {/* Tab buttons in chrome */}
+            <div className="flex items-center gap-1">
+              {TABS.map(t => {
+                const Icon = t.icon
+                return (
+                  <button
+                    key={t.id}
+                    onClick={() => setActive(t.id)}
+                    className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[9px] font-medium transition-all ${active === t.id ? 'bg-violet-900/60 text-violet-300' : 'text-gray-500 hover:text-gray-300'}`}
+                  >
+                    <Icon size={9} />
+                    <span className="hidden sm:inline">{t.label}</span>
+                  </button>
+                )
+              })}
+            </div>
           </div>
 
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={active}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              transition={{ duration: 0.25, ease: 'easeInOut' }}
-              className="h-full"
-            >
-              {SCREENS[active]}
-            </motion.div>
-          </AnimatePresence>
+          {/* Screen area — light */}
+          <div className="relative overflow-hidden flex-1" style={{ height: 'calc(420px - 45px)' }}>
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={active}
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+                className="absolute inset-0 overflow-hidden"
+              >
+                {SCREENS[active]}
+              </motion.div>
+            </AnimatePresence>
+          </div>
         </motion.div>
+
       </div>
     </section>
   )
