@@ -162,14 +162,15 @@ export default function DifferentialsSection() {
               <div className="absolute top-0 right-0 w-40 h-40 bg-red-500/5 blur-3xl rounded-full pointer-events-none" />
               <h4 className="text-sm font-bold text-red-400 mb-5 flex items-center gap-2">
                 <XCircle size={16} />
-                Custo da Stack Fragmentada — 5 usuários
+                Custo da Stack Fragmentada — 5 agentes
               </h4>
               <div className="space-y-3 mb-5">
                 {[
-                  { nome: 'Sistema de Gestão de Projetos', valor: 'R$ 300' },
+                  { nome: 'Sistema de Gestão de Projetos', valor: 'R$ 1.300' },
                   { nome: 'Sistema de Gestão de Chamados', valor: 'R$ 700' },
                   { nome: 'Suite de Produtividade (E-mail, Agenda, Tarefas)', valor: 'R$ 850' },
                   { nome: 'Plataforma de Analytics e BI', valor: 'R$ 350' },
+                  { nome: 'Sistema de Gestão de Inventário', valor: 'R$ 700' },
                 ].map((item) => (
                   <div key={item.nome} className="flex items-center justify-between border-b border-[rgba(255,255,255,0.05)] pb-3">
                     <span className="text-[var(--text-secondary)] text-xs pr-4">{item.nome}</span>
@@ -179,9 +180,9 @@ export default function DifferentialsSection() {
               </div>
               <div className="flex items-center justify-between bg-[rgba(239,68,68,0.08)] border border-[rgba(239,68,68,0.15)] rounded-xl px-4 py-3">
                 <span className="text-[var(--text-primary)] text-sm font-semibold">Total mensal</span>
-                <span className="text-red-400 font-extrabold text-xl font-mono">R$ 2.200<span className="text-[var(--text-muted)] font-normal text-xs">/mês</span></span>
+                <span className="text-red-400 font-extrabold text-xl font-mono">R$ 3.900<span className="text-[var(--text-muted)] font-normal text-xs">/mês</span></span>
               </div>
-              <p className="text-right text-[var(--text-muted)] text-xs mt-2 font-mono">= R$ 26.400 por ano</p>
+              <p className="text-right text-[var(--text-muted)] text-xs mt-2 font-mono">= R$ 46.800 por ano</p>
             </div>
 
             {/* Orkiestri */}
@@ -228,12 +229,12 @@ export default function DifferentialsSection() {
               </div>
               <div>
                 <p className="text-[var(--text-primary)] font-semibold text-base">Economia anual estimada contratando o Orkiestri</p>
-                <p className="text-[var(--text-muted)] text-xs mt-0.5">Comparado à manutenção de 4 sistemas separados para uma equipe de 5 pessoas</p>
+                <p className="text-[var(--text-muted)] text-xs mt-0.5">Comparado à manutenção de 5 sistemas separados para uma equipe de 5 agentes</p>
               </div>
             </div>
             <div className="text-center sm:text-right shrink-0">
-              <p className="font-display text-4xl font-extrabold text-[#34d399]">R$ 25.201</p>
-              <p className="text-[#34d399] text-sm font-semibold opacity-80">~95% de redução de custos ao ano</p>
+              <p className="font-display text-4xl font-extrabold text-[#34d399]">R$ 45.601</p>
+              <p className="text-[#34d399] text-sm font-semibold opacity-80">~97% de redução de custos ao ano</p>
             </div>
           </div>
         </motion.div>
