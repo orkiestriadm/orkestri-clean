@@ -136,6 +136,7 @@ export default function DifferentialsSection() {
 
         {/* ── ROI Block ── */}
         <motion.div
+          id="analise-economica"
           initial={{ opacity: 0, y: 40 }}
           animate={inView ? { opacity: 1, y: 0 } : {}}
           transition={{ duration: 0.7, delay: 0.5, ease: [0.22, 1, 0.36, 1] }}
