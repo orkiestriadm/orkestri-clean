@@ -16,7 +16,7 @@ const EMAIL_BLUR: {
 } = {
   // Adicione quantos intervalos precisar: [{ start: X, end: Y }, ...]
   intervals: [
-    { start: 0, end: 9999 }, // blur permanente — ajuste quando souber o timestamp
+    { start: 0, end: 2 },
   ],
   top: '36%',
   left: '50%',
@@ -129,7 +129,7 @@ export default function VideoSection() {
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-black/45" />
 
-              {/* Blur estático sobre e-mail no thumbnail (decorativo) */}
+              {/* Blur sobre e-mail nos primeiros 2s — cobre início do loop */}
               <div
                 className="absolute rounded-lg backdrop-blur-md bg-black/30"
                 style={{
