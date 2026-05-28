@@ -680,14 +680,15 @@ export default function UnderstandOrkiestriPage() {
                   <div className="absolute top-0 right-0 w-32 h-32 bg-red-500/5 blur-3xl rounded-full" />
                   <h3 className="text-base font-bold text-red-400 mb-5 flex items-center gap-2">
                     <XCircle size={18} />
-                    Stack Legada — 5 usuários/mês
+                    Stack Legada — 5 agentes/mês
                   </h3>
                   <div className="space-y-3 mb-5">
                     {[
-                      { tool: 'Jira Software Cloud Standard', uso: 'Gestão de Projetos', valor: 'R$ 300' },
+                      { tool: 'Jira Software Cloud Standard', uso: 'Gestão de Projetos', valor: 'R$ 1.300' },
                       { tool: 'Movidesk', uso: 'Atendimento / Chamados', valor: 'R$ 700' },
                       { tool: 'Microsoft 365 Business Premium', uso: 'Agenda, Tarefas, E-mail', valor: 'R$ 850' },
                       { tool: 'Power BI Pro', uso: 'Indicadores e Métricas', valor: 'R$ 350' },
+                      { tool: 'GLPI', uso: 'Inventário e Service Desk', valor: 'R$ 700' },
                     ].map((item) => (
                       <div key={item.tool} className="flex items-center justify-between border-b border-white/5 pb-3">
                         <div>
@@ -700,9 +701,9 @@ export default function UnderstandOrkiestriPage() {
                   </div>
                   <div className="flex items-center justify-between bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-3">
                     <span className="text-slate-300 text-sm font-semibold">Total mensal</span>
-                    <span className="text-red-300 font-extrabold text-lg font-mono">R$ 2.200<span className="text-slate-400 font-normal text-xs">/mês</span></span>
+                    <span className="text-red-300 font-extrabold text-lg font-mono">R$ 3.900<span className="text-slate-400 font-normal text-xs">/mês</span></span>
                   </div>
-                  <p className="text-right text-slate-500 text-xs mt-2 font-mono">= R$ 26.400 por ano</p>
+                  <p className="text-right text-slate-500 text-xs mt-2 font-mono">= R$ 46.800 por ano</p>
                 </div>
 
                 {/* Card Orkiestri */}
@@ -747,12 +748,12 @@ export default function UnderstandOrkiestriPage() {
                   </div>
                   <div>
                     <p className="text-slate-300 text-sm font-semibold">Economia anual estimada com Orkiestri</p>
-                    <p className="text-slate-500 text-xs">Baseado em equipe de 5 usuários com stack legada equivalente</p>
+                    <p className="text-slate-500 text-xs">Baseado em equipe de 5 agentes com stack legada equivalente</p>
                   </div>
                 </div>
                 <div className="text-center md:text-right relative z-10 shrink-0">
-                  <p className="text-4xl font-extrabold text-emerald-400 font-mono">R$ 25.201</p>
-                  <p className="text-emerald-300 text-sm font-bold">~95% de redução de custos ao ano</p>
+                  <p className="text-4xl font-extrabold text-emerald-400 font-mono">R$ 45.601</p>
+                  <p className="text-emerald-300 text-sm font-bold">~97% de redução de custos ao ano</p>
                 </div>
               </div>
             </motion.div>
