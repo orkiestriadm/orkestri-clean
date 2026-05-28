@@ -1,51 +1,398 @@
 'use client'
 
-import { useRef } from 'react'
-import { motion, useInView } from 'framer-motion'
+import { useRef, useState, useEffect, useCallback } from 'react'
+import { motion, useInView, AnimatePresence } from 'framer-motion'
 import Link from 'next/link'
-import { ArrowRight, ChevronRight, TrendingUp, Bell, CheckCircle2, Zap, BarChart3 } from 'lucide-react'
+import {
+  ArrowRight, ChevronRight, TrendingUp, AlertTriangle,
+  Headphones, BarChart3, FolderKanban, LayoutDashboard,
+  ChevronLeft, ChevronRight as ChevronRightIcon,
+} from 'lucide-react'
 
-function scrollTo(href: string) {
-  const el = document.querySelector(href)
-  if (!el) return
-  const top = el.getBoundingClientRect().top + window.scrollY - 80
-  window.scrollTo({ top, behavior: 'smooth' })
-}
-
-/* ── Mini sparkline SVG ── */
-function Sparkline({ color, data }: { color: string; data: number[] }) {
-  const w = 64, h = 24, pad = 2
-  const min = Math.min(...data), max = Math.max(...data)
-  const range = max - min || 1
-  const points = data
-    .map((v, i) => {
-      const x = pad + (i / (data.length - 1)) * (w - pad * 2)
-      const y = h - pad - ((v - min) / range) * (h - pad * 2)
-      return `${x},${y}`
-    })
-    .join(' ')
+/* ══════════════════════════════════════════════════════════════
+   SLIDE 1 — Dashboard Executivo
+══════════════════════════════════════════════════════════════ */
+function SlideExecutivo() {
   return (
-    <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} fill="none">
-      <polyline points={points} stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
+    <div className="flex flex-col h-full text-[var(--app-text,#111)] bg-white">
+      {/* Alert banner */}
+      <div className="mx-3 mt-2 mb-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-1.5 flex items-center gap-2 flex-wrap">
+        <AlertTriangle size={11} className="text-amber-500 shrink-0" />
+        <span className="text-[9px] font-semibold text-amber-700">Atenção necessária</span>
+        <div className="flex gap-1.5 flex-wrap">
+          {['4 chamados urgentes', '1 SLA violado', '2 garantias vencidas'].map(t => (
+            <span key={t} className="inline-flex items-center gap-0.5 rounded-full border border-amber-300 bg-white px-1.5 py-0.5 text-[8px] text-amber-700">
+              <AlertTriangle size={7} /> {t}
+            </span>
+          ))}
+        </div>
+      </div>
+
+      {/* Chamados section */}
+      <div className="mx-3 mb-2">
+        <div className="flex items-center gap-1 mb-1.5">
+          <Headphones size={10} className="text-violet-500" />
+          <span className="text-[9px] font-bold text-gray-700">Chamados</span>
+        </div>
+        <div className="grid grid-cols-5 gap-1.5">
+          {[
+            { label: 'ABERTOS', val: '17', sub: 'em atendimento ou aguardando', color: 'text-gray-800' },
+            { label: 'URGENTES', val: '4', sub: 'prioridade urgente', color: 'text-orange-600' },
+            { label: 'RESOLVIDOS/MÊS', val: '8', sub: 'mês atual', color: 'text-green-600' },
+            { label: 'SLA VIOLADOS', val: '1', sub: 'fora do prazo', color: 'text-red-500' },
+            { label: 'SLA COMPLIANCE', val: '88%', sub: 'dentro do SLA', color: 'text-yellow-600' },
+          ].map(c => (
+            <div key={c.label} className="rounded-lg border border-gray-100 bg-gray-50 p-2">
+              <div className="text-[7px] text-gray-400 font-medium mb-0.5 uppercase tracking-wide leading-tight">{c.label}</div>
+              <div className={`text-base font-bold leading-none ${c.color}`}>{c.val}</div>
+              <div className="text-[6px] text-gray-400 mt-0.5 leading-tight">{c.sub}</div>
+            </div>
+          ))}
+        </div>
+        {/* CSAT */}
+        <div className="mt-1.5 rounded-lg border border-gray-100 bg-gray-50 px-3 py-1.5 flex items-center gap-2">
+          <span className="text-[8px] text-gray-500 font-medium uppercase tracking-wide">CSAT Médio</span>
+          <span className="text-sm font-bold text-gray-800">5</span>
+          <span className="text-[8px] text-gray-400">/ 5</span>
+          <span className="text-[7px] text-gray-400">(2 aval.)</span>
+          <div className="flex gap-0.5 ml-auto">
+            {Array(5).fill(0).map((_, i) => <span key={i} className="text-yellow-400 text-[8px]">★</span>)}
+          </div>
+        </div>
+      </div>
+
+      {/* Projetos / Ativos / Horas row */}
+      <div className="mx-3 grid grid-cols-3 gap-2">
+        <div className="rounded-lg border border-gray-100 bg-gray-50 p-2">
+          <div className="text-[7px] text-violet-500 font-bold mb-1.5 flex items-center gap-0.5"><FolderKanban size={8} /> Projetos</div>
+          <div className="grid grid-cols-2 gap-1">
+            {[{ l: 'ATIVOS', v: '7' }, { l: 'CONCL./MÊS', v: '1' }].map(x => (
+              <div key={x.l}>
+                <div className="text-[6px] text-gray-400 uppercase tracking-wide">{x.l}</div>
+                <div className="text-sm font-bold text-gray-800">{x.v}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="rounded-lg border border-gray-100 bg-gray-50 p-2">
+          <div className="text-[7px] text-cyan-500 font-bold mb-1.5">🖥️ Ativos</div>
+          <div className="grid grid-cols-2 gap-1">
+            {[{ l: 'TOTAL', v: '23' }, { l: 'MANUTENÇÃO', v: '1' }].map(x => (
+              <div key={x.l}>
+                <div className="text-[6px] text-gray-400 uppercase tracking-wide">{x.l}</div>
+                <div className="text-sm font-bold text-gray-800">{x.v}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="rounded-lg border border-gray-100 bg-gray-50 p-2">
+          <div className="text-[7px] text-emerald-500 font-bold mb-1.5">⏱️ Horas (mês)</div>
+          <div className="grid grid-cols-2 gap-1">
+            {[{ l: 'TOTAL', v: '1h 30m' }, { l: 'APONTAMENTOS', v: '3' }].map(x => (
+              <div key={x.l}>
+                <div className="text-[6px] text-gray-400 uppercase tracking-wide">{x.l}</div>
+                <div className="text-xs font-bold text-gray-800">{x.v}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
   )
 }
 
-/* ── Dashboard Mockup ── */
-function DashboardMockup() {
-  const metrics = [
-    { label: 'Chamados', value: '248', trend: '↓ 12%', color: '#a78bfa', sparkData: [30, 45, 38, 52, 41, 35, 28] },
-    { label: 'Projetos', value: '18', trend: '↑ 4', color: '#22d3ee', sparkData: [10, 12, 11, 14, 15, 16, 18] },
-    { label: 'Fornecedores', value: '94', trend: '↑ 8%', color: '#34d399', sparkData: [75, 78, 80, 85, 88, 90, 94] },
-    { label: 'CSAT Score', value: '4.9', trend: '↑ 0.2', color: '#fbbf24', sparkData: [4.5, 4.6, 4.7, 4.7, 4.8, 4.8, 4.9] },
+/* ══════════════════════════════════════════════════════════════
+   SLIDE 2 — Relatórios & Analytics (aba Projetos)
+══════════════════════════════════════════════════════════════ */
+function SlideRelatorios() {
+  const BARS = [
+    { nome: 'Administrator', val: 17, color: '#ef4444' },
+    { nome: 'Diego Pereira', val: 14, color: '#3b82f6' },
+    { nome: 'Guilherme Rodrigues', val: 11, color: '#22c55e' },
+    { nome: 'Carlos Souza', val: 5, color: '#f59e0b' },
+    { nome: 'Ana Costa', val: 5, color: '#f59e0b' },
+    { nome: 'Fernanda Alves', val: 4, color: '#06b6d4' },
+    { nome: 'Beatriz Lima', val: 4, color: '#ec4899' },
   ]
+  const DONUTS = [
+    { label: 'A Fazer', val: 28, color: '#9ca3af' },
+    { label: 'Em Andamento', val: 17, color: '#3b82f6' },
+    { label: 'Em Revisão', val: 9, color: '#f59e0b' },
+    { label: 'Concluída', val: 9, color: '#22c55e' },
+  ]
+  return (
+    <div className="flex flex-col h-full bg-white">
+      {/* Tabs */}
+      <div className="flex gap-0 border-b border-gray-200 mx-3 mt-2">
+        {['Chamados', 'SLA & CSAT', 'Horas', 'Projetos', 'Atendentes', 'Comparativo'].map(t => (
+          <div key={t} className={`px-2 py-1.5 text-[8px] font-medium cursor-pointer border-b-2 -mb-px ${t === 'Projetos' ? 'border-violet-500 text-violet-600' : 'border-transparent text-gray-400'}`}>{t}</div>
+        ))}
+      </div>
+      {/* KPI strip */}
+      <div className="mx-3 mt-2 grid grid-cols-4 gap-1.5 mb-2">
+        {[
+          { l: 'TOTAL TASKS', v: '63', s: '14% concluídas', color: 'text-gray-800' },
+          { l: 'CONCLUÍDAS', v: '9', s: '', color: 'text-green-600' },
+          { l: 'VENCIDAS', v: '2', s: '', color: 'text-red-500' },
+          { l: 'PROJETOS ATIVOS', v: '2', s: 'de 8 total', color: 'text-violet-600' },
+        ].map(c => (
+          <div key={c.l} className="rounded-lg border border-gray-100 bg-gray-50 p-2">
+            <div className="text-[6px] text-gray-400 uppercase tracking-wide mb-0.5">{c.l}</div>
+            <div className={`text-sm font-bold ${c.color}`}>{c.v}</div>
+            {c.s && <div className="text-[6px] text-gray-400">{c.s}</div>}
+          </div>
+        ))}
+      </div>
+      {/* Charts row */}
+      <div className="mx-3 flex gap-2 flex-1">
+        {/* Donut */}
+        <div className="rounded-lg border border-gray-100 bg-gray-50 p-2 flex-1">
+          <div className="text-[8px] font-semibold text-gray-600 mb-1.5">Tasks por status</div>
+          <div className="flex items-center gap-2">
+            {/* SVG donut approximation */}
+            <svg width="44" height="44" viewBox="0 0 44 44" className="shrink-0">
+              {/* segments approximation */}
+              <circle cx="22" cy="22" r="16" fill="none" stroke="#e5e7eb" strokeWidth="7" />
+              <circle cx="22" cy="22" r="16" fill="none" stroke="#9ca3af" strokeWidth="7" strokeDasharray="45 56" strokeDashoffset="14" />
+              <circle cx="22" cy="22" r="16" fill="none" stroke="#3b82f6" strokeWidth="7" strokeDasharray="27 74" strokeDashoffset="-31" />
+              <circle cx="22" cy="22" r="16" fill="none" stroke="#f59e0b" strokeWidth="7" strokeDasharray="14 87" strokeDashoffset="-58" />
+              <circle cx="22" cy="22" r="16" fill="none" stroke="#22c55e" strokeWidth="7" strokeDasharray="14 87" strokeDashoffset="-72" />
+              <text x="22" y="25" textAnchor="middle" className="text-[8px] font-bold" fill="#374151" fontSize="9">63</text>
+            </svg>
+            <div className="flex flex-col gap-0.5">
+              {DONUTS.map(d => (
+                <div key={d.label} className="flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: d.color }} />
+                  <span className="text-[7px] text-gray-500">{d.label}</span>
+                  <span className="text-[7px] font-semibold text-gray-700 ml-auto pl-1">{d.val}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+        {/* Bars */}
+        <div className="rounded-lg border border-gray-100 bg-gray-50 p-2 flex-1">
+          <div className="text-[8px] font-semibold text-gray-600 mb-1.5">Tasks por membro</div>
+          <div className="flex flex-col gap-1">
+            {BARS.map(b => (
+              <div key={b.nome} className="flex items-center gap-1">
+                <div className="text-[6px] text-gray-500 w-16 truncate shrink-0">{b.nome.split(' ')[0]}</div>
+                <div className="flex-1 h-1.5 rounded-full bg-gray-200 overflow-hidden">
+                  <div className="h-full rounded-full" style={{ width: `${(b.val / 17) * 100}%`, background: b.color }} />
+                </div>
+                <div className="text-[6px] font-semibold text-gray-600 w-3 text-right">{b.val}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
 
-  const activities = [
-    { label: 'Projeto Expansão Alpha', tag: 'Projetos', status: 'Em andamento', color: '#a78bfa' },
-    { label: 'Chamado #1.034 — TI', tag: 'Suporte', status: 'Aguardando', color: '#fbbf24' },
-    { label: 'Fornecedor Delta avaliado', tag: 'Fornecedores', status: 'Concluído', color: '#34d399' },
-    { label: 'Orçamento Q2 aprovado', tag: 'Financeiro', status: 'Aprovado', color: '#22d3ee' },
+/* ══════════════════════════════════════════════════════════════
+   SLIDE 3 — Chamados / Service Desk
+══════════════════════════════════════════════════════════════ */
+function SlideChamados() {
+  const COLS = [
+    {
+      label: 'ABERTO', count: 1, color: '#6b7280',
+      cards: [{ num: '#15', prio: 'MÉD', titulo: 'Tela de login erro 500 intermitente', cat: 'Sistema', sla: 'SLA Violado 10d', user: 'A' }],
+    },
+    {
+      label: 'EM ATENDIMENTO', count: 2, color: '#3b82f6',
+      cards: [
+        { num: '#21', prio: 'BAI', titulo: 'Configurar assinatura de e-mail padrão', cat: 'Comunicação', sla: 'SLA Violado 15d', user: 'FA' },
+        { num: '#3', prio: 'MÉD', titulo: 'Criação de Usuário', cat: 'Suporte Técnico', sla: 'SLA Violado 2d', user: 'A' },
+      ],
+    },
+    { label: 'AGUARDANDO', count: 0, color: '#f59e0b', cards: [] },
+    {
+      label: 'RESOLVIDO', count: 3, color: '#22c55e',
+      cards: [
+        { num: '#6', prio: 'CRÍT', titulo: 'Teste', cat: 'TI', sla: '2d', user: 'A' },
+        { num: '#22', prio: 'MÉD', titulo: 'Sistema de ponto eletrônico offline', cat: 'Hardware', sla: '8d', user: 'A' },
+      ],
+    },
+    {
+      label: 'FECHADO', count: 2, color: '#7c3aed',
+      cards: [
+        { num: '#1', prio: 'CRÍT', titulo: 'Criar Plano Orçamentário 2027', cat: 'Financeiro', sla: '8d', user: 'A' },
+      ],
+    },
   ]
+  return (
+    <div className="flex flex-col h-full bg-white">
+      {/* Counter strip */}
+      <div className="flex gap-2 mx-3 mt-2 mb-2 flex-wrap">
+        {[
+          { l: 'TOTAL', v: '8', c: 'text-gray-700' },
+          { l: 'ABERTOS', v: '1', c: 'text-gray-500' },
+          { l: 'EM ATEND.', v: '2', c: 'text-blue-600' },
+          { l: 'AGUARDANDO', v: '0', c: 'text-yellow-500' },
+          { l: 'RESOLVIDOS', v: '3', c: 'text-green-600' },
+          { l: 'SLA VIOLADO', v: '3', c: 'text-red-500' },
+        ].map(x => (
+          <div key={x.l} className="rounded-lg border border-gray-100 bg-gray-50 px-2 py-1 text-center">
+            <div className="text-[6px] text-gray-400 uppercase tracking-wide">{x.l}</div>
+            <div className={`text-sm font-bold ${x.c}`}>{x.v}</div>
+          </div>
+        ))}
+      </div>
+      {/* Kanban */}
+      <div className="mx-3 flex gap-1.5 flex-1 overflow-hidden">
+        {COLS.map(col => (
+          <div key={col.label} className="flex flex-col flex-1 min-w-0">
+            <div className="flex items-center gap-1 mb-1">
+              <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: col.color }} />
+              <span className="text-[6px] font-semibold text-gray-600 truncate">{col.label}</span>
+              <span className="text-[6px] text-gray-400 ml-auto shrink-0">{col.count}</span>
+            </div>
+            <div className="flex flex-col gap-1">
+              {col.cards.map(card => (
+                <div key={card.num} className="rounded-lg border border-gray-200 bg-white p-1.5 shadow-sm">
+                  <div className="flex items-center justify-between mb-0.5">
+                    <span className="text-[6px] text-gray-400">{card.num}</span>
+                    <span className="text-[5px] font-bold px-1 rounded" style={{ background: card.prio === 'CRÍT' ? '#fee2e2' : card.prio === 'BAI' ? '#f3f4f6' : '#fef3c7', color: card.prio === 'CRÍT' ? '#dc2626' : card.prio === 'BAI' ? '#6b7280' : '#d97706' }}>
+                      {card.prio}
+                    </span>
+                  </div>
+                  <div className="text-[7px] font-medium text-gray-700 leading-tight mb-1 line-clamp-2">{card.titulo}</div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[6px] px-1 py-0.5 rounded bg-gray-100 text-gray-500">{card.cat}</span>
+                    <span className="text-[6px] text-red-400">{card.sla}</span>
+                  </div>
+                </div>
+              ))}
+              {col.cards.length === 0 && (
+                <div className="rounded-lg border border-dashed border-gray-200 p-2 text-center">
+                  <span className="text-[6px] text-gray-300">Nenhum chamado</span>
+                </div>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+/* ══════════════════════════════════════════════════════════════
+   SLIDE 4 — Projetos / Kanban
+══════════════════════════════════════════════════════════════ */
+function SlideProjetos() {
+  const PROJETOS = [
+    { nome: 'Plataforma de BI e Analytics', status: 'Planejamento', prio: 'ALTA', color: '#f59e0b', pct: 5 },
+    { nome: 'Automação de Processos RH', status: 'Concluído', prio: 'MEDIA', color: '#22c55e', pct: 100 },
+    { nome: 'Redesign Portal do Cliente', status: 'Em andamento', prio: 'MEDIA', color: '#06b6d4', pct: 72 },
+    { nome: 'Migração para Cloud AWS', status: 'Planejamento', prio: 'ALTA', color: '#3b82f6', pct: 10, active: true },
+    { nome: 'Implantação ERP Financeiro', status: 'Em andamento', prio: 'ALTA', color: '#7c3aed', pct: 45 },
+  ]
+  const TASKS_KANBAN = [
+    { col: 'A Fazer', count: 6, color: '#9ca3af', tasks: ['Reunião de kick-off', 'Validar arquitetura técnica', 'Testes de integração', 'Deploy em produção', 'Documentar ADR', 'Atualizar README'] },
+    { col: 'Em Andamento', count: 4, color: '#3b82f6', tasks: ['Documentar requisitos', 'Config. ambiente dev', 'Desenvolvimento core', 'Configurar CI/CD'] },
+    { col: 'Em Revisão', count: 1, color: '#f59e0b', tasks: ['Code review módulo'] },
+    { col: 'Concluída', count: 0, color: '#22c55e', tasks: [] },
+  ]
+  return (
+    <div className="flex h-full bg-white">
+      {/* Left sidebar — project list */}
+      <div className="w-[140px] shrink-0 border-r border-gray-100 flex flex-col pt-2 px-2">
+        <div className="text-[7px] font-semibold text-gray-400 uppercase tracking-wide mb-1.5 px-1">6 Projetos</div>
+        {PROJETOS.map(p => (
+          <div key={p.nome} className={`rounded-lg px-2 py-1.5 mb-1 cursor-pointer ${p.active ? 'bg-violet-50 border border-violet-200' : 'hover:bg-gray-50'}`}>
+            <div className="flex items-center gap-1 mb-0.5">
+              <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: p.color }} />
+              <span className="text-[7px] font-medium text-gray-700 truncate leading-tight">{p.nome}</span>
+            </div>
+            <div className="flex items-center gap-1 pl-2.5">
+              <span className="text-[6px] text-gray-400">{p.status}</span>
+              <span className="text-[5px] font-bold ml-auto" style={{ color: p.prio === 'ALTA' ? '#f59e0b' : '#6b7280' }}>{p.prio}</span>
+            </div>
+            <div className="pl-2.5 mt-0.5">
+              <div className="h-0.5 rounded-full bg-gray-200">
+                <div className="h-full rounded-full" style={{ width: `${p.pct}%`, background: p.color }} />
+              </div>
+              <div className="text-[5px] text-gray-400 mt-0.5">{p.pct}%</div>
+            </div>
+          </div>
+        ))}
+      </div>
+      {/* Right — kanban */}
+      <div className="flex-1 flex flex-col pt-2 px-2 min-w-0">
+        <div className="mb-1.5">
+          <div className="text-[10px] font-bold text-gray-800 leading-tight">Migração para Cloud AWS</div>
+          <div className="flex items-center gap-2 mt-0.5">
+            <div className="h-1 flex-1 rounded-full bg-gray-200">
+              <div className="h-full w-[10%] rounded-full bg-blue-500" />
+            </div>
+            <span className="text-[6px] text-blue-500 font-semibold">10%</span>
+          </div>
+        </div>
+        <div className="flex gap-1.5 flex-1 overflow-hidden">
+          {TASKS_KANBAN.map(col => (
+            <div key={col.col} className="flex flex-col flex-1 min-w-0">
+              <div className="flex items-center gap-0.5 mb-1">
+                <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: col.color }} />
+                <span className="text-[6px] font-semibold text-gray-500 truncate">{col.col}</span>
+                <span className="text-[6px] text-gray-400 ml-auto">{col.count}</span>
+              </div>
+              <div className="flex flex-col gap-1">
+                {col.tasks.slice(0, 3).map(t => (
+                  <div key={t} className="rounded border border-gray-200 bg-white p-1 shadow-sm">
+                    <div className="text-[6px] font-medium text-gray-700 leading-tight">{t}</div>
+                    <div className="mt-0.5 flex items-center gap-0.5">
+                      <span className="w-3 h-3 rounded-full bg-violet-200 flex items-center justify-center text-[5px] font-bold text-violet-700">
+                        {['A','DP','GR','CS','BL'][col.tasks.indexOf(t) % 5]}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+                {col.tasks.length === 0 && (
+                  <div className="rounded border border-dashed border-gray-200 p-2 text-center">
+                    <span className="text-[6px] text-gray-300">Solte aqui</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/* ══════════════════════════════════════════════════════════════
+   CARROSSEL
+══════════════════════════════════════════════════════════════ */
+const SLIDES = [
+  { id: 'executivo', label: 'Dashboard Executivo', icon: LayoutDashboard, component: SlideExecutivo, route: 'dashboard/executivo' },
+  { id: 'relatorios', label: 'Relatórios & Analytics', icon: BarChart3, component: SlideRelatorios, route: 'dashboard/relatorios' },
+  { id: 'chamados', label: 'Service Desk', icon: () => <span className="text-[10px]">🎧</span>, component: SlideChamados, route: 'dashboard/chamados' },
+  { id: 'projetos', label: 'Gestão de Projetos', icon: FolderKanban, component: SlideProjetos, route: 'dashboard/projetos' },
+]
+
+function HeroCarousel() {
+  const [current, setCurrent] = useState(0)
+  const [paused, setPaused] = useState(false)
+
+  useEffect(() => {
+    if (paused) return
+    const t = setInterval(() => setCurrent(c => (c + 1) % SLIDES.length), 4000)
+    return () => clearInterval(t)
+  }, [paused])
+
+  const go = useCallback((i: number) => {
+    setCurrent(i)
+    setPaused(true)
+    setTimeout(() => setPaused(false), 8000)
+  }, [])
+
+  const prev = () => go((current - 1 + SLIDES.length) % SLIDES.length)
+  const next = () => go((current + 1) % SLIDES.length)
+
+  const slide = SLIDES[current]
+  const SlideComp = slide.component
 
   return (
     <motion.div
@@ -68,133 +415,83 @@ function DashboardMockup() {
         <span className="text-[11px] font-semibold text-[#34d399]">↑ 24% eficiência operacional</span>
       </motion.div>
 
-      {/* Floating notification bottom-left */}
-      <motion.div
-        initial={{ opacity: 0, x: -20, y: 10 }}
-        animate={{ opacity: 1, x: 0, y: 0 }}
-        transition={{ delay: 1.3, duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-        className="absolute -bottom-5 left-2 sm:left-6 z-20 flex items-center gap-2.5 px-3 py-2 rounded-xl bg-[#080820]/95 border border-[rgba(167,139,250,0.28)] backdrop-blur-xl shadow-[0_4px_24px_rgba(0,0,0,0.5)]"
-      >
-        <div className="w-5 h-5 rounded-lg bg-violet-600/20 flex items-center justify-center shrink-0">
-          <Bell size={10} className="text-[#a78bfa]" />
-        </div>
-        <div>
-          <div className="text-[10px] text-[rgba(167,139,250,0.9)] font-medium leading-none">Novo chamado criado via WhatsApp</div>
-          <div className="text-[9px] text-[rgba(255,255,255,0.3)] mt-0.5">agora mesmo</div>
-        </div>
-        <span className="w-1.5 h-1.5 rounded-full bg-[#a78bfa] animate-pulse shrink-0" />
-      </motion.div>
-
       {/* App window */}
-      <div className="relative rounded-2xl border border-[rgba(162,130,255,0.2)] bg-[#08081e] overflow-hidden shadow-[0_28px_90px_rgba(0,0,0,0.75),0_0_0_1px_rgba(162,130,255,0.08)]">
+      <div className="relative rounded-2xl border border-[rgba(162,130,255,0.2)] bg-white overflow-hidden shadow-[0_28px_90px_rgba(0,0,0,0.55),0_0_0_1px_rgba(162,130,255,0.08)]">
 
         {/* Title bar */}
-        <div className="flex items-center gap-2 px-4 py-2.5 border-b border-[rgba(162,130,255,0.1)] bg-[#05051a]">
+        <div className="flex items-center gap-2 px-4 py-2.5 border-b border-gray-100 bg-gray-50">
           <div className="flex gap-1.5">
             <span className="w-2.5 h-2.5 rounded-full bg-[#ff5f57]" />
             <span className="w-2.5 h-2.5 rounded-full bg-[#febc2e]" />
             <span className="w-2.5 h-2.5 rounded-full bg-[#28c840]" />
           </div>
           <div className="flex-1 mx-3">
-            <div className="max-w-[180px] mx-auto flex items-center gap-2 bg-[rgba(255,255,255,0.04)] rounded px-2.5 py-0.5">
+            <div className="max-w-[220px] mx-auto flex items-center gap-2 bg-white border border-gray-200 rounded px-2.5 py-0.5">
               <span className="w-1.5 h-1.5 rounded-full bg-[#34d399]" />
-              <span className="text-[9px] text-[rgba(255,255,255,0.25)] font-mono">orkiestri.com/dashboard</span>
+              <span className="text-[9px] text-gray-400 font-mono">orkiestri.com/{slide.route}</span>
             </div>
           </div>
+          {/* Slide tab labels */}
           <div className="flex items-center gap-1">
-            <div className="w-5 h-5 rounded bg-[rgba(255,255,255,0.04)] flex items-center justify-center">
-              <BarChart3 size={9} className="text-[rgba(255,255,255,0.2)]" />
-            </div>
-            <div className="w-5 h-5 rounded bg-[rgba(255,255,255,0.04)] flex items-center justify-center">
-              <Zap size={9} className="text-[rgba(255,255,255,0.2)]" />
-            </div>
+            {SLIDES.map((s, i) => {
+              const Icon = s.icon
+              return (
+                <button
+                  key={s.id}
+                  onClick={() => go(i)}
+                  className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[9px] font-medium transition-all ${i === current ? 'bg-violet-100 text-violet-700' : 'text-gray-400 hover:text-gray-600'}`}
+                >
+                  <Icon size={9} />
+                  <span className="hidden sm:inline">{s.label.split(' ')[0]}</span>
+                </button>
+              )
+            })}
           </div>
         </div>
 
-        {/* App layout */}
-        <div className="flex" style={{ minHeight: 360 }}>
+        {/* Slide content */}
+        <div className="relative overflow-hidden" style={{ height: 340 }}>
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={slide.id}
+              initial={{ opacity: 0, x: 30 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -30 }}
+              transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+              className="absolute inset-0 overflow-hidden"
+            >
+              <SlideComp />
+            </motion.div>
+          </AnimatePresence>
+        </div>
 
-          {/* Mini sidebar */}
-          <div className="w-11 sm:w-14 border-r border-[rgba(162,130,255,0.07)] flex flex-col items-center py-3 gap-2.5 bg-[#06061a] shrink-0">
-            <div className="w-6 h-6 rounded-[7px] bg-gradient-to-br from-violet-500 to-violet-700 flex items-center justify-center mb-1 shadow-[0_0_10px_rgba(124,58,237,0.4)]">
-              <span className="text-white text-[8px] font-bold">O</span>
-            </div>
-            {['⌂', '◫', '◉', '⬡', '▤', '◈', '⊞'].map((icon, i) => (
-              <div key={i} className={`w-7 h-7 rounded-lg flex items-center justify-center text-[10px] transition-colors ${i === 0 ? 'bg-[rgba(167,139,250,0.15)] text-[#a78bfa]' : 'text-[rgba(255,255,255,0.2)]'}`}>
-                {icon}
-              </div>
+        {/* Bottom nav */}
+        <div className="flex items-center justify-between px-4 py-2 border-t border-gray-100 bg-gray-50">
+          <button onClick={prev} className="w-6 h-6 rounded-full border border-gray-200 flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-white transition-all">
+            <ChevronLeft size={12} />
+          </button>
+
+          <div className="flex items-center gap-1.5">
+            {SLIDES.map((s, i) => (
+              <button key={s.id} onClick={() => go(i)} className="flex items-center gap-1 group">
+                <span className={`block rounded-full transition-all duration-300 ${i === current ? 'w-4 h-1.5 bg-violet-500' : 'w-1.5 h-1.5 bg-gray-300 group-hover:bg-violet-300'}`} />
+              </button>
             ))}
+            <span className="ml-2 text-[9px] text-gray-400 font-medium">{slide.label}</span>
           </div>
 
-          {/* Main content */}
-          <div className="flex-1 p-3 sm:p-4 overflow-hidden min-w-0">
-
-            {/* Topbar */}
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <div className="text-[9px] text-[rgba(255,255,255,0.2)] font-mono uppercase tracking-wider">Painel Geral</div>
-                <div className="text-xs sm:text-sm font-display font-semibold text-[rgba(255,255,255,0.85)]">Bom dia, Guilherme</div>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <div className="hidden sm:flex items-center gap-1 px-2 py-1 rounded-lg bg-[rgba(52,211,153,0.1)] border border-[rgba(52,211,153,0.2)]">
-                  <span className="w-1 h-1 rounded-full bg-[#34d399] animate-pulse" />
-                  <span className="text-[9px] text-[#34d399] font-mono">Ao vivo</span>
-                </div>
-                <div className="w-6 h-6 rounded-full bg-gradient-to-br from-violet-500 to-violet-700 flex items-center justify-center text-white text-[9px] font-bold shadow-[0_0_8px_rgba(124,58,237,0.4)]">G</div>
-              </div>
-            </div>
-
-            {/* Metric cards */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3">
-              {metrics.map((m, i) => (
-                <motion.div
-                  key={m.label}
-                  initial={{ opacity: 0, y: 12 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.65 + i * 0.1, duration: 0.4 }}
-                  className="rounded-xl border border-[rgba(162,130,255,0.1)] bg-[rgba(12,12,36,0.7)] p-2.5"
-                >
-                  <div className="flex items-start justify-between mb-1.5">
-                    <div className="text-[8px] sm:text-[9px] text-[rgba(255,255,255,0.3)] truncate pr-1">{m.label}</div>
-                    <Sparkline color={m.color} data={m.sparkData} />
-                  </div>
-                  <div className="text-sm sm:text-base font-display font-bold" style={{ color: m.color }}>{m.value}</div>
-                  <div className="text-[8px] mt-0.5 font-mono" style={{ color: m.color, opacity: 0.7 }}>{m.trend}</div>
-                </motion.div>
-              ))}
-            </div>
-
-            {/* Activity list */}
-            <div className="rounded-xl border border-[rgba(162,130,255,0.1)] bg-[rgba(10,10,30,0.5)] overflow-hidden">
-              <div className="flex items-center justify-between px-3 py-2 border-b border-[rgba(162,130,255,0.07)]">
-                <span className="text-[9px] sm:text-[10px] font-display font-semibold text-[rgba(255,255,255,0.5)]">Atividades Recentes</span>
-                <span className="text-[8px] text-[rgba(167,139,250,0.6)] font-mono">ver todas →</span>
-              </div>
-              {activities.map((a, i) => (
-                <motion.div
-                  key={a.label}
-                  initial={{ opacity: 0, x: -12 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.85 + i * 0.09, duration: 0.3 }}
-                  className="flex items-center gap-2 px-3 py-2 border-b border-[rgba(162,130,255,0.05)] last:border-0 hover:bg-[rgba(167,139,250,0.03)] transition-colors"
-                >
-                  <CheckCircle2 size={9} style={{ color: a.color, flexShrink: 0 }} />
-                  <span className="flex-1 text-[9px] sm:text-[10px] text-[rgba(255,255,255,0.45)] truncate">{a.label}</span>
-                  <span className="text-[7px] sm:text-[8px] px-1.5 py-0.5 rounded-full border shrink-0 font-mono"
-                    style={{ color: a.color, borderColor: `${a.color}35`, background: `${a.color}10` }}>
-                    {a.status}
-                  </span>
-                </motion.div>
-              ))}
-            </div>
-          </div>
+          <button onClick={next} className="w-6 h-6 rounded-full border border-gray-200 flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-white transition-all">
+            <ChevronRightIcon size={12} />
+          </button>
         </div>
       </div>
     </motion.div>
   )
 }
 
-/* ── Hero Section ── */
+/* ══════════════════════════════════════════════════════════════
+   HERO SECTION
+══════════════════════════════════════════════════════════════ */
 export default function HeroSection() {
   const ref = useRef<HTMLElement>(null)
   const inView = useInView(ref, { once: true })
@@ -204,16 +501,11 @@ export default function HeroSection() {
 
       {/* Background layers */}
       <div className="absolute inset-0 pointer-events-none select-none">
-        {/* Dot grid */}
         <div className="absolute inset-0 opacity-[0.032]"
           style={{ backgroundImage: 'radial-gradient(circle, rgba(162,130,255,1) 1px, transparent 1px)', backgroundSize: '36px 36px' }} />
-        {/* Primary orb */}
         <div className="absolute top-1/4 left-1/4 w-[700px] h-[700px] rounded-full bg-violet-600/10 blur-[130px]" style={{ animation: 'pulse 8s ease-in-out infinite' }} />
-        {/* Cyan orb */}
         <div className="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] rounded-full bg-cyan-500/7 blur-[110px]" style={{ animation: 'pulse 10s ease-in-out infinite', animationDelay: '3s' }} />
-        {/* Bottom fade */}
         <div className="absolute bottom-0 left-0 right-0 h-40 bg-gradient-to-t from-[var(--bg-primary)] to-transparent" />
-        {/* Top corner accent */}
         <div className="absolute top-0 right-0 w-96 h-96 bg-violet-600/5 blur-[80px] rounded-full" />
       </div>
 
@@ -314,9 +606,9 @@ export default function HeroSection() {
             </motion.div>
           </div>
 
-          {/* Right — Mockup */}
+          {/* Right — Carousel */}
           <div className="flex justify-center lg:justify-end">
-            <DashboardMockup />
+            <HeroCarousel />
           </div>
         </div>
       </div>
