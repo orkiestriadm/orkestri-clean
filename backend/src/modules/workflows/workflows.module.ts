@@ -28,6 +28,15 @@ class RejectDto {
   observacoes?: string;
 }
 
+class DelegarDto {
+  novoAprovadorId: string;
+  motivo?: string;
+}
+
+class AjustesDto {
+  mensagem: string;
+}
+
 @Injectable()
 export class WorkflowsService {
   constructor(
@@ -313,6 +322,74 @@ export class WorkflowsService {
     if (r.solicitanteId !== user.id && !user.isMaster) throw new ForbiddenException("Sem permissão");
     if (r.status === "APROVADA") throw new BadRequestException("Solicitação aprovada não pode ser removida");
     return (this.prisma as any).workflowRequest.delete({ where: { id } });
+  }
+
+  async delegar(id: string, dto: DelegarDto, user: any) {
+    const r = await this.findOne(id, user);
+    if (r.status !== "PENDENTE") throw new BadRequestException("Apenas solicitações pendentes podem ser delegadas");
+    if (r.aprovadorAtualId !== user.id && !user.isMaster)
+      throw new ForbiddenException("Apenas o aprovador atual ou master pode delegar");
+    const novoAprovador = await this.prisma.user.findUnique({ where: { id: dto.novoAprovadorId } });
+    if (!novoAprovador) throw new NotFoundException("Usuário não encontrado");
+
+    const { v4: uuid } = await import("uuid");
+    await (this.prisma as any).workflowApproval.create({
+      data: {
+        id: uuid(),
+        requestId: id,
+        aprovadorId: user.id,
+        nivel: (r._count?.aprovacoes || 0) + 1,
+        decisao: "DELEGADO",
+        observacoes: dto.motivo || `Delegado para ${novoAprovador.nome}`,
+      },
+    });
+
+    const updated = await (this.prisma as any).workflowRequest.update({
+      where: { id },
+      data: { aprovadorAtualId: dto.novoAprovadorId },
+    });
+
+    await this.notify(dto.novoAprovadorId, "workflow_novo",
+      `Aprovação delegada: ${r.titulo}`,
+      `${user.nome || "Um usuário"} delegou esta solicitação para você.`,
+      id);
+
+    const phone = await this.getUserPhone(dto.novoAprovadorId);
+    if (phone) {
+      const msg = `*Aprovação delegada para você*\n\n*Solicitação:* ${r.titulo}\n*De:* ${r.solicitante?.nome || "?"}\n*Delegado por:* ${user.nome || "?"}\n\n${this.appUrl}/dashboard/aprovacoes`;
+      this.wa.sendMessageForOrg(user.organizationId, phone, msg).catch(() => {});
+    }
+    return updated;
+  }
+
+  async solicitarAjustes(id: string, dto: AjustesDto, user: any) {
+    const r = await this.findOne(id, user);
+    if (r.status !== "PENDENTE") throw new BadRequestException("Apenas solicitações pendentes podem receber pedido de ajuste");
+    if (r.aprovadorAtualId !== user.id && !user.isMaster)
+      throw new ForbiddenException("Apenas o aprovador atual ou master pode solicitar ajustes");
+
+    const { v4: uuid } = await import("uuid");
+    await (this.prisma as any).workflowApproval.create({
+      data: {
+        id: uuid(),
+        requestId: id,
+        aprovadorId: user.id,
+        nivel: (r._count?.aprovacoes || 0) + 1,
+        decisao: "AJUSTE_SOLICITADO",
+        observacoes: dto.mensagem,
+      },
+    });
+
+    await this.notify(r.solicitanteId, "workflow_ajuste",
+      `Ajustes solicitados: ${r.titulo}`,
+      dto.mensagem, id);
+
+    const phone = await this.getUserPhone(r.solicitanteId);
+    if (phone) {
+      const msg = `*Ajustes solicitados na sua solicitação*\n\n*Solicitação:* ${r.titulo}\n*Mensagem:* ${dto.mensagem}\n\n${this.appUrl}/dashboard/aprovacoes`;
+      this.wa.sendMessageForOrg(user.organizationId, phone, msg).catch(() => {});
+    }
+    return this.findOne(id, user);
   }
 
   async stats(user: any) {
@@ -628,6 +705,16 @@ export class WorkflowsController {
   @Patch(":id/cancelar")
   cancel(@Req() req: any, @Param("id") id: string) {
     return this.svc.cancel(id, req.user);
+  }
+
+  @Patch(":id/delegar")
+  delegar(@Req() req: any, @Param("id") id: string, @Body() dto: DelegarDto) {
+    return this.svc.delegar(id, dto, req.user);
+  }
+
+  @Patch(":id/ajustes")
+  solicitarAjustes(@Req() req: any, @Param("id") id: string, @Body() dto: AjustesDto) {
+    return this.svc.solicitarAjustes(id, dto, req.user);
   }
 
   @Delete(":id")
