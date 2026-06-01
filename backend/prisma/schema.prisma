@@ -122,9 +122,11 @@ model Organization {
   squads            Squad[]                 @relation("OrgSquads")
   aprovadoresSetor  AprovadorSetor[]
   billing           OrgBilling?
+  workflowTemplates WorkflowTemplate[] @relation("OrgWorkflowTemplates")
 
   @@map("organizations")
 }
+
 
 model OrgWhatsappConfig {
   id             String       @id @default(uuid())
@@ -227,6 +229,7 @@ model User {
   aprovadoresPrimarioDeSetor AprovadorSetor[]        @relation("AprovadorPrimario")
   aprovadoresBackupDeSetor   AprovadorSetor[]        @relation("AprovadorBackup")
   aprovadoresConfigurados    AprovadorSetor[]        @relation("AprovadorConfigurador")
+  workflowTemplatesCriados   WorkflowTemplate[]      @relation("WfTemplateCriador")
 
   @@unique([organizationId, email])
   @@index([organizationId])
@@ -504,6 +507,28 @@ model WorkflowApproval {
   @@index([requestId])
   @@index([aprovadorId])
   @@map("workflow_approvals")
+}
+
+// ── Workflow Templates (Fase 3 — Workflow Visual) ──────────────────────────────
+model WorkflowTemplate {
+  id             String   @id @default(uuid())
+  organizationId String   @map("organization_id")
+  nome           String
+  descricao      String?
+  tipo           String   @default("outro") // ti | rh | financeiro | juridico | compras | facilities | outro
+  icone          String?
+  cor            String   @default("#a78bfa")
+  ativo          Boolean  @default(true)
+  etapas         Json     @default("[]")
+  criadoPorId    String   @map("criado_por_id")
+  criadoEm       DateTime @default(now()) @map("criado_em")
+  atualizadoEm   DateTime @updatedAt @map("atualizado_em")
+
+  organization Organization @relation("OrgWorkflowTemplates", fields: [organizationId], references: [id], onDelete: Cascade)
+  criadoPor    User         @relation("WfTemplateCriador", fields: [criadoPorId], references: [id])
+
+  @@index([organizationId])
+  @@map("workflow_templates")
 }
 
 // Matriz de aprovadores por setor — 1 primário + 1 backup com vigência.

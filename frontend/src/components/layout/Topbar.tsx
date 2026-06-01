@@ -2,7 +2,6 @@
 import { useState } from "react";
 import { usePathname } from "next/navigation";
 import { Menu, Search, Focus, CalendarClock } from "lucide-react";
-import ThemeToggle from "@/components/ui/ThemeToggle";
 import PasswordRequests from "@/components/ui/PasswordRequests";
 import NotificationBell from "@/components/ui/NotificationBell";
 import FocusMode from "@/components/ui/FocusMode";
@@ -34,6 +33,10 @@ const TITLES: Record<string, { label: string; desc: string }> = {
   "/dashboard/cadastros/fornecedores": { label: "Fornecedores",   desc: "Gestão de fornecedores" },
   "/dashboard/configuracoes":          { label: "Configurações",  desc: "Preferências do sistema" },
   "/dashboard/whatsapp-config":        { label: "WhatsApp",       desc: "Notificações via WhatsApp" },
+  "/dashboard/catalogo":               { label: "Catálogo",       desc: "Portal de serviços corporativos" },
+  "/dashboard/processos":              { label: "Processos",      desc: "Construtor visual de fluxos" },
+  "/dashboard/cmdb":                   { label: "CMDB",           desc: "Mapa de dependências e ativos" },
+  "/dashboard/ia":                     { label: "IA Operacional", desc: "Análises preditivas e insights" },
   "/dashboard/historico":              { label: "Histórico",      desc: "Auditoria de atividades" },
   "/dashboard/perfil":                 { label: "Meu Perfil",     desc: "Configurações pessoais" },
 };
@@ -56,7 +59,7 @@ export default function Topbar({ children }: { children?: React.ReactNode }) {
   return (
     <>
       {user?.impersonating && (
-        <div className="flex items-center justify-between px-5 py-2 text-[12px] font-mono border-b shrink-0 bg-amber-500/[0.04] border-amber-500/20 text-amber-600 dark:text-amber-400">
+        <div className="flex items-center justify-between px-5 py-2 text-[12px] font-mono border-b shrink-0 bg-amber-500/[0.04] border-amber-500/20 text-amber-600">
           <span>Administrando: <strong className="font-semibold">{user.impersonatingOrgName}</strong></span>
           <button onClick={exitImpersonation} disabled={exitingImpersonation}
             className="text-[11px] px-3 py-1 rounded-md border border-amber-500/30 transition-colors hover:bg-amber-500/10">
@@ -95,8 +98,7 @@ export default function Topbar({ children }: { children?: React.ReactNode }) {
           </button>
           <PasswordRequests />
           <NotificationBell />
-          <ThemeToggle />
-          
+
           <div className="hidden sm:flex items-center gap-2 h-[34px] px-3 rounded-[10px] border border-[var(--border-subtle)] bg-[var(--bg-secondary)] ml-1 shadow-premium-sm">
             <CalendarClock size={13} className="text-emerald-500" />
             <span className="text-[11px] font-mono text-[var(--text-muted)]">

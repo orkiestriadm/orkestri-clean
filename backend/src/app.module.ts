@@ -40,6 +40,7 @@ import { CapacityModule } from './modules/capacity/capacity.module';
 import { SkillsModule } from './modules/skills/skills.module';
 import { AusenciasModule } from './modules/ausencias/ausencias.module';
 import { WorkflowsModule } from './modules/workflows/workflows.module';
+import { WorkflowTemplatesModule } from './modules/workflow-templates/workflow-templates.module';
 import { WorkforceModule } from './modules/workforce/workforce.module';
 import { SquadsModule } from './modules/squads/squads.module';
 import { BillingModule } from './modules/billing/billing.module';
@@ -73,6 +74,7 @@ import { BillingModule } from './modules/billing/billing.module';
     SkillsModule,
     AusenciasModule,
     WorkflowsModule,
+    WorkflowTemplatesModule,
     WorkforceModule,
     SquadsModule,
     BillingModule,

@@ -3,6 +3,139 @@ import { useState, useEffect, useCallback } from "react";
 import Topbar from "@/components/layout/Topbar";
 import { useAuthStore } from "@/lib/store";
 import { api } from "@/lib/api";
+import { Brain, Search, Sparkles, X, ArrowRight, Loader2 } from "lucide-react";
+
+// ── AI Search Panel (Fase 5) ───────────────────────────────────────────────────
+function AISearchPanel({ artigos, onClose, onOpenArticle }: {
+  artigos: Artigo[]; onClose: () => void; onOpenArticle: (a: Artigo) => void;
+}) {
+  const [query, setQuery] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [results, setResults] = useState<Artigo[]>([]);
+  const [answer, setAnswer] = useState("");
+  const [searched, setSearched] = useState(false);
+
+  const search = async () => {
+    if (!query.trim()) return;
+    setLoading(true); setSearched(true);
+    try {
+      // Search in knowledge base using API
+      const { data } = await api.get("/conhecimento", { params: { q: query, limit: 5 } });
+      const found: Artigo[] = data.items || [];
+      setResults(found);
+
+      // Generate rule-based "AI answer" from found articles
+      if (found.length > 0) {
+        const keywords = query.toLowerCase().split(" ").filter(w => w.length > 2);
+        const best = found[0];
+        const snippet = best.resumo || best.conteudo?.slice(0, 200) || "";
+        setAnswer(`Com base na base de conhecimento, encontrei ${found.length} artigo${found.length > 1 ? "s" : ""} relacionado${found.length > 1 ? "s" : ""} à sua consulta. O artigo mais relevante é "${best.titulo}"${snippet ? `: ${snippet}...` : "."}`);
+      } else {
+        // Cross-search via stats/search
+        try {
+          const sr = await api.get("/stats/search", { params: { q: query } });
+          if (sr.data?.chamados?.length || sr.data?.projetos?.length) {
+            const total = (sr.data.chamados?.length || 0) + (sr.data.projetos?.length || 0);
+            setAnswer(`Não encontrei artigos específicos sobre "${query}", mas encontrei ${total} resultado${total > 1 ? "s" : ""} em chamados e projetos. Considere criar um artigo sobre este tema.`);
+          } else {
+            setAnswer(`Não encontrei artigos sobre "${query}" na base de conhecimento. Considere criar um novo artigo sobre este tema para ajudar outros usuários.`);
+          }
+        } catch {
+          setAnswer(`Não encontrei artigos sobre "${query}". Considere criar um novo artigo.`);
+        }
+      }
+    } catch {
+      setAnswer("Não foi possível realizar a busca. Tente novamente.");
+    } finally { setLoading(false); }
+  };
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)", zIndex: 100, display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "80px 16px" }}>
+      <div className="card" style={{ width: "100%", maxWidth: 640, maxHeight: "70vh", overflowY: "auto", padding: 0 }}>
+        {/* Header */}
+        <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "18px 20px", borderBottom: "1px solid var(--border-subtle)" }}>
+          <div style={{ width: 32, height: 32, borderRadius: 10, background: "rgba(124,58,237,0.15)", border: "1px solid rgba(124,58,237,0.25)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+            <Brain size={15} style={{ color: "var(--accent-violet)" }} />
+          </div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 14, fontWeight: 700, fontFamily: "var(--font-display)", color: "var(--text-primary)" }}>Perguntar à IA</div>
+            <div style={{ fontSize: 11, color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>Busca inteligente na base de conhecimento</div>
+          </div>
+          <button className="btn-icon" onClick={onClose}><X size={14} /></button>
+        </div>
+
+        {/* Search */}
+        <div style={{ padding: "16px 20px", borderBottom: "1px solid var(--border-subtle)" }}>
+          <div style={{ display: "flex", gap: 8 }}>
+            <input className="input-o" style={{ flex: 1 }}
+              placeholder="Ex: Como redefinir senha? Como abrir chamado urgente?"
+              value={query} onChange={e => setQuery(e.target.value)}
+              onKeyDown={e => e.key === "Enter" && search()} autoFocus />
+            <button className="btn btn-violet" style={{ fontSize: 12, paddingLeft: 14, paddingRight: 14 }} onClick={search} disabled={loading || !query.trim()}>
+              {loading ? <Loader2 size={13} style={{ animation: "spin 1s linear infinite" }} /> : <Search size={13} />}
+            </button>
+          </div>
+        </div>
+
+        {/* Results */}
+        {searched && !loading && (
+          <div style={{ padding: "16px 20px" }}>
+            {/* AI Answer */}
+            {answer && (
+              <div style={{ background: "rgba(124,58,237,0.06)", border: "1px solid rgba(124,58,237,0.18)", borderRadius: 12, padding: "14px 16px", marginBottom: 16 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
+                  <Sparkles size={12} style={{ color: "var(--accent-violet)" }} />
+                  <span style={{ fontSize: 11, fontWeight: 700, color: "var(--accent-violet)", fontFamily: "var(--font-mono)", letterSpacing: "0.06em" }}>RESPOSTA IA</span>
+                </div>
+                <p style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.6 }}>{answer}</p>
+              </div>
+            )}
+
+            {/* Article results */}
+            {results.length > 0 && (
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", fontFamily: "var(--font-mono)", marginBottom: 10, letterSpacing: "0.06em" }}>ARTIGOS ENCONTRADOS</div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  {results.map(a => (
+                    <button key={a.id} onClick={() => { onOpenArticle(a); onClose(); }}
+                      style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", borderRadius: 10, border: "1px solid var(--border-subtle)", background: "var(--bg-secondary)", cursor: "pointer", textAlign: "left", transition: "all 0.15s" }}
+                      onMouseEnter={e => (e.currentTarget.style.borderColor = "var(--accent-violet)")}
+                      onMouseLeave={e => (e.currentTarget.style.borderColor = "var(--border-subtle)")}>
+                      {a.categoria && (
+                        <div style={{ width: 6, height: 6, borderRadius: "50%", background: a.categoria.cor, flexShrink: 0 }} />
+                      )}
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.titulo}</div>
+                        {a.resumo && <div style={{ fontSize: 11, color: "var(--text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginTop: 2 }}>{a.resumo}</div>}
+                      </div>
+                      <div style={{ fontSize: 11, color: "var(--text-muted)", fontFamily: "var(--font-mono)", flexShrink: 0 }}>{a.visualizacoes} views</div>
+                      <ArrowRight size={13} style={{ color: "var(--text-muted)", flexShrink: 0 }} />
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {!searched && (
+          <div style={{ padding: "20px 20px 24px", display: "flex", flexWrap: "wrap", gap: 8 }}>
+            <div style={{ fontSize: 11, color: "var(--text-muted)", width: "100%", fontFamily: "var(--font-mono)", marginBottom: 4 }}>SUGESTÕES</div>
+            {["Como abrir um chamado urgente?", "Como redefinir minha senha?", "Como solicitar acesso a sistema?", "Política de uso de equipamentos"].map(s => (
+              <button key={s} onClick={() => { setQuery(s); }}
+                style={{ fontSize: 12, padding: "6px 12px", borderRadius: 20, border: "1px solid var(--border-subtle)", background: "var(--bg-hover)", color: "var(--text-secondary)", cursor: "pointer", transition: "all 0.15s" }}
+                onMouseEnter={e => (e.currentTarget.style.borderColor = "var(--accent-violet)")}
+                onMouseLeave={e => (e.currentTarget.style.borderColor = "var(--border-subtle)")}>
+                {s}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+    </div>
+  );
+}
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type Categoria = { id: string; nome: string; descricao?: string; icone: string; cor: string; ordem: number; ativo: boolean; totalArtigos?: number; };
@@ -235,6 +368,7 @@ export default function ConhecimentoPage() {
   const [allTags,      setAllTags]     = useState<string[]>([]);
   const [selected,     setSelected]    = useState<Artigo | null>(null);
   const [editing,      setEditing]     = useState(false);
+  const [showAI,       setShowAI]      = useState(false);
   const [showDrafts,   setShowDrafts]  = useState(false);
   const [msg,          setMsg]         = useState("");
 
@@ -292,10 +426,16 @@ export default function ConhecimentoPage() {
     <div style={{ display:"flex", flexDirection:"column", height:"100%" }}>
       <Topbar>
         {msg && <span style={{ fontSize:12, color: msg.includes("Erro") ? "var(--accent-red)" : "var(--accent-green)", fontFamily:"var(--font-mono)" }}>{msg}</span>}
+        {!selected && !editing && (
+          <button className="btn btn-ghost" style={{ fontSize:12, display:"flex", alignItems:"center", gap:6 }} onClick={() => setShowAI(true)}>
+            <Brain size={13} style={{ color:"var(--accent-violet)" }} /> Perguntar à IA
+          </button>
+        )}
         {canCreate && !selected && !editing && (
           <button className="btn btn-violet" style={{ fontSize:12 }} onClick={() => { setSelected(null); setEditing(true); }}>Novo artigo</button>
         )}
       </Topbar>
+      {showAI && <AISearchPanel artigos={artigos} onClose={() => setShowAI(false)} onOpenArticle={openArticle} />}
 
       <div style={{ flex:1, overflow:"hidden", display:"flex" }}>
         {/* Sidebar: categories + tags */}

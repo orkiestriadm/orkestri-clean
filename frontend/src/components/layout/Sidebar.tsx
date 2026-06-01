@@ -6,7 +6,8 @@ import {
   LayoutDashboard, CalendarDays, Layers, StickyNote, MessageCircle,
   Building2, GanttChart, BarChart2, Users, History, Settings, LogOut,
   Headphones, PiggyBank, Truck, BookOpen, Package, Zap, Clock, FileText, Activity, CheckSquare,
-  SmilePlus, TrendingUp, UserCircle, Receipt, ChevronDown, Shield, Star, LayoutGrid, CreditCard,
+  SmilePlus, TrendingUp, UserCircle, Receipt, ChevronDown, Shield, Star, LayoutGrid, CreditCard, Brain,
+  LayoutGrid as Grid3x3, GitBranch, Network, ShoppingBag,
 } from "lucide-react";
 import { useAuthStore } from "@/lib/store";
 import UserStatus from "@/components/ui/UserStatus";
@@ -22,12 +23,14 @@ const NAV: NavGroup[] = [
     items: [
       { href: "/dashboard",            label: "Visão Geral", icon: LayoutDashboard, permission: null },
       { href: "/dashboard/executivo",  label: "Executivo",   icon: TrendingUp,      permission: null },
+      { href: "/dashboard/ia",         label: "IA Operacional", icon: Brain,        permission: null },
       { href: "/dashboard/relatorios", label: "Relatórios",  icon: BarChart2,       permission: "relatorios:ver" },
     ],
   },
   {
     id: "servicedesk", label: "Service Desk",
     items: [
+      { href: "/dashboard/catalogo",      label: "Catálogo",     icon: ShoppingBag,  permission: null },
       { href: "/dashboard/chamados",     label: "Chamados",     icon: Headphones,   permission: "chamados:ver" },
       { href: "/dashboard/apontamentos", label: "Horas",        icon: Clock,        permission: "chamados:ver" },
       { href: "/dashboard/csat",         label: "CSAT",         icon: SmilePlus,    permission: "chamados:ver" },
@@ -41,6 +44,8 @@ const NAV: NavGroup[] = [
       { href: "/dashboard/gantt",     label: "Linha do Tempo", icon: GanttChart,   permission: "gantt:ver" },
       { href: "/dashboard/agenda",    label: "Agenda",         icon: CalendarDays, permission: "agenda:ver" },
       { href: "/dashboard/ativos",    label: "Ativos",         icon: Package,      permission: "ativos:ver" },
+      { href: "/dashboard/cmdb",      label: "CMDB",           icon: Network,      permission: "ativos:ver" },
+      { href: "/dashboard/processos", label: "Processos",      icon: GitBranch,    permission: null },
       { href: "/dashboard/workforce", label: "Workforce",      icon: LayoutGrid,   permission: null },
       { href: "/dashboard/capacity",  label: "Capacidade",     icon: Activity,     permission: null },
       { href: "/dashboard/aprovacoes",label: "Aprovações",     icon: CheckSquare,  permission: null },
