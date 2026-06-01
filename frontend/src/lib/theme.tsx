@@ -8,7 +8,7 @@ function getPreferredTheme(): Theme {
   if (typeof window === "undefined") return "dark";
   const saved = localStorage.getItem("orkestri-theme-v3") as Theme | null;
   if (saved === "dark" || saved === "light") return saved;
-  return "dark";
+  return "light";
 }
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {

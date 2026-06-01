@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { usePathname } from "next/navigation";
 import { Menu, Search, Focus, CalendarClock } from "lucide-react";
+import ThemeToggle from "@/components/ui/ThemeToggle";
 import PasswordRequests from "@/components/ui/PasswordRequests";
 import NotificationBell from "@/components/ui/NotificationBell";
 import FocusMode from "@/components/ui/FocusMode";
@@ -98,6 +99,7 @@ export default function Topbar({ children }: { children?: React.ReactNode }) {
           </button>
           <PasswordRequests />
           <NotificationBell />
+          <ThemeToggle />
 
           <div className="hidden sm:flex items-center gap-2 h-[34px] px-3 rounded-[10px] border border-[var(--border-subtle)] bg-[var(--bg-secondary)] ml-1 shadow-premium-sm">
             <CalendarClock size={13} className="text-emerald-500" />
