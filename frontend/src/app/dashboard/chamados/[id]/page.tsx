@@ -20,6 +20,9 @@ interface Chamado {
   slaRespostaStatus: string; slaRespostaAt?: string; slaResolucaoAt?: string;
   primeiraRespostaEm?: string; avaliacao?: number; avaliacaoNota?: string;
   resolvidoEm?: string; fechadoEm?: string; criadoEm: string; atualizadoEm: string;
+  horasEstimadas?: number;
+  skillRequerida?: { id: string; nome: string };
+  nivelMinimo?: string;
   solicitante: { id: string; nome: string; email: string; avatar?: string };
   atendente?: { id: string; nome: string; email: string; avatar?: string } | null;
   cliente?: { id: string; nome: string; empresa?: string } | null;
@@ -639,6 +642,8 @@ export default function ChamadoDetailPage({ params }: { params: Promise<{ id: st
                     { label: "Atendente", content: chamado.atendente ? <div className="flex items-center gap-2"><Avatar nome={chamado.atendente.nome} size={22} /><span className="text-foreground">{chamado.atendente.nome}</span></div> : <span className="text-muted-foreground">Não atribuído</span> },
                     { label: "Cliente", content: chamado.cliente ? <div className="flex items-center gap-1.5 text-foreground"><Building2 size={13} className="text-muted-foreground" />{chamado.cliente.empresa || chamado.cliente.nome}</div> : "—" },
                     { label: "Categoria", content: chamado.categoria || <span className="text-muted-foreground">—</span> },
+                    chamado.horasEstimadas != null && { label: "Horas estimadas", content: <span className="font-mono text-xs text-blue-400">{chamado.horasEstimadas}h</span> },
+                    chamado.skillRequerida && { label: "Skill requerida", content: <span className="text-xs text-violet-400">{chamado.skillRequerida.nome}{chamado.nivelMinimo ? ` · ${chamado.nivelMinimo}` : ""}</span> },
                     { label: "Criado em", content: <span className="font-mono text-xs">{fmtDt(chamado.criadoEm)}</span> },
                     { label: "Atualizado", content: <span className="font-mono text-xs">{fmtDt(chamado.atualizadoEm)}</span> },
                     chamado.resolvidoEm && { label: "Resolvido em", content: <span className="font-mono text-xs text-green-400">{fmtDt(chamado.resolvidoEm)}</span> },

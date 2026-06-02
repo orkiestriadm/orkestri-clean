@@ -1,11 +1,12 @@
 "use client";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAuthStore } from "@/lib/store";
 import { api } from "@/lib/api";
 import {
   Plus, Search, X, Send, Tag, Building2, Star, Loader2, RefreshCw,
   MessageSquare, ExternalLink, BookOpen, Hand, Inbox, User as UserIcon,
-  Globe2, History, AlertCircle, CheckCircle2
+  Globe2, History, AlertCircle, CheckCircle2, Download, Clock,
 } from "lucide-react";
 import Topbar from "@/components/layout/Topbar";
 
@@ -88,6 +89,46 @@ function formatDate(d: string) {
   return new Date(d).toLocaleString("pt-BR", {
     day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit",
   });
+}
+
+// ── Age Badge ─────────────────────────────────────────────────────────────────
+function AgeBadge({ atualizadoEm, status }: { atualizadoEm: string; status: string }) {
+  if (["resolvido","fechado","cancelado"].includes(status)) return null;
+  const h = (Date.now() - new Date(atualizadoEm).getTime()) / 3600000;
+  if (h < 24) return null;
+  const d = Math.floor(h / 24);
+  const cls = d >= 3
+    ? "text-red-400 bg-red-500/10 border-red-500/20"
+    : "text-amber-400 bg-amber-500/10 border-amber-500/20";
+  return (
+    <span className={`inline-flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.5 rounded border ${cls}`}>
+      <Clock size={8} /> {d}d sem resposta
+    </span>
+  );
+}
+
+// ── CSV Export ────────────────────────────────────────────────────────────────
+function exportCSV(chamados: Chamado[]) {
+  const headers = ["#","Título","Status","Prioridade","Categoria","Solicitante","Atendente","Cliente","SLA","Criado em","Atualizado em"];
+  const rows = chamados.map(c => [
+    c.numero,
+    `"${c.titulo.replace(/"/g,'""')}"`,
+    c.status,
+    c.prioridade,
+    c.categoria || "",
+    `"${c.solicitante.nome}"`,
+    c.atendente ? `"${c.atendente.nome}"` : "",
+    c.cliente ? `"${c.cliente.empresa || c.cliente.nome}"` : "",
+    c.slaStatus || "ok",
+    new Date(c.criadoEm).toLocaleString("pt-BR"),
+    new Date(c.atualizadoEm).toLocaleString("pt-BR"),
+  ].join(","));
+  const csv = [headers.join(","), ...rows].join("\n");
+  const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = `chamados-${new Date().toISOString().slice(0,10)}.csv`;
+  a.click(); URL.revokeObjectURL(url);
 }
 
 // ── Sub-components ─────────────────────────────────────────────────────────────
@@ -181,6 +222,7 @@ function ChamadoCard({ chamado, onClick, selected, onSelect, onAssumir, canAssum
           )}
         </div>
         <div className="flex items-center gap-2">
+          <AgeBadge atualizadoEm={chamado.atualizadoEm} status={chamado.status} />
           <SlaBadge slaStatus={chamado.slaStatus} />
           <span className="text-[10px] text-muted-foreground">{relTime(chamado.criadoEm)}</span>
         </div>
@@ -933,20 +975,26 @@ function BulkActionBar({ ids, users, onDone, onCancel }: {
 // ── Main Page ──────────────────────────────────────────────────────────────────
 export default function ChamadosPage() {
   const { user } = useAuthStore();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
   const [chamados, setChamados] = useState<Chamado[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<Chamado | null>(null);
   const [showNew, setShowNew] = useState(false);
-  const [search, setSearch] = useState("");
-  const [filterStatus, setFilterStatus] = useState("");
-  const [filterPrio, setFilterPrio] = useState("");
-  const [filterCat, setFilterCat] = useState("");
+  // Filtros inicializados da URL
+  const [search, setSearch] = useState(() => searchParams?.get("q") || "");
+  const [filterStatus, setFilterStatus] = useState(() => searchParams?.get("status") || "");
+  const [filterPrio, setFilterPrio] = useState(() => searchParams?.get("prioridade") || "");
+  const [filterCat, setFilterCat] = useState(() => searchParams?.get("categoria") || "");
+  const [scope, setScope] = useState<Scope>(() => (searchParams?.get("scope") as Scope) || "meus");
   const [bulkIds, setBulkIds] = useState<Set<string>>(new Set());
   const [bulkUsers, setBulkUsers] = useState<Usuario[]>([]);
-  // Escopo do board: fila / meus / todos. Padrão = meus (Jira-like).
-  const [scope, setScope] = useState<Scope>("meus");
   const [toast, setToast] = useState<{ type: "ok" | "err"; msg: string } | null>(null);
+  // Drag-and-drop
+  const [dragId, setDragId] = useState<string | null>(null);
+  const [dragOver, setDragOver] = useState<string | null>(null);
 
   // Quem pode editar/assumir chamado: master OU permissão chamados:editar/*
   const canEditar = !!(user?.isMaster
@@ -957,6 +1005,36 @@ export default function ChamadosPage() {
   useEffect(() => {
     if (!user?.isMaster && scope === "todos") setScope("meus");
   }, [user?.isMaster, scope]);
+
+  // Sync filtros → URL (preserva compartilhamento e refresh)
+  useEffect(() => {
+    const p = new URLSearchParams();
+    if (search) p.set("q", search);
+    if (filterStatus) p.set("status", filterStatus);
+    if (filterPrio) p.set("prioridade", filterPrio);
+    if (filterCat) p.set("categoria", filterCat);
+    if (scope !== "meus") p.set("scope", scope);
+    const q = p.toString();
+    router.replace(`/dashboard/chamados${q ? "?" + q : ""}`, { scroll: false });
+  }, [search, filterStatus, filterPrio, filterCat, scope]);
+
+  // Drag-and-drop: muda status ao soltar em outra coluna
+  const handleDrop = useCallback(async (newStatus: string) => {
+    if (!dragId || !newStatus) return;
+    const chamado = chamados.find(c => c.id === dragId);
+    if (!chamado || chamado.status === newStatus) { setDragId(null); setDragOver(null); return; }
+    // Otimista: atualiza localmente primeiro
+    setChamados(prev => prev.map(c => c.id === dragId ? { ...c, status: newStatus } : c));
+    setDragId(null); setDragOver(null);
+    try {
+      await api.patch(`/chamados/${dragId}/status`, { status: newStatus });
+      setToast({ type: "ok", msg: `#${chamado.numero} movido para ${newStatus.replace("_"," ")}` });
+    } catch {
+      // Reverte em caso de erro
+      setChamados(prev => prev.map(c => c.id === dragId ? { ...c, status: chamado.status } : c));
+      setToast({ type: "err", msg: "Não foi possível mover o chamado." });
+    }
+  }, [dragId, chamados]);
 
   function toggleBulk(id: string) {
     setBulkIds(prev => {
@@ -1023,17 +1101,19 @@ export default function ChamadosPage() {
 
   const topbarActions = (
     <>
-      <button
-        onClick={load}
-        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border text-xs text-muted-foreground hover:bg-accent transition-colors"
-      >
-        <RefreshCw size={13} className={loading ? "animate-spin" : ""} />
-        Atualizar
+      <button onClick={load}
+        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[var(--border-subtle)] text-xs text-[var(--text-muted)] hover:bg-[var(--bg-hover)] transition-colors">
+        <RefreshCw size={13} className={loading ? "animate-spin" : ""} /> Atualizar
       </button>
-      <button
-        onClick={() => setShowNew(true)}
-        className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-border text-xs text-muted-foreground hover:bg-accent transition-colors"
-      >
+      {chamados.length > 0 && (
+        <button onClick={() => exportCSV(chamados)}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[var(--border-subtle)] text-xs text-[var(--text-muted)] hover:bg-[var(--bg-hover)] transition-colors"
+          title="Exportar chamados em CSV">
+          <Download size={13} /> CSV
+        </button>
+      )}
+      <button onClick={() => setShowNew(true)}
+        className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-[var(--border-subtle)] text-xs text-[var(--text-muted)] hover:bg-[var(--bg-hover)] transition-colors">
         <Plus size={13} /> Novo Chamado
       </button>
     </>
@@ -1148,7 +1228,11 @@ export default function ChamadosPage() {
         ) : (
           <div className="flex gap-5 h-full min-w-max pb-4">
             {byCols.map(col => (
-              <div key={col.key} className="w-[300px] flex-shrink-0 flex flex-col">
+              <div key={col.key} className="w-[300px] flex-shrink-0 flex flex-col"
+                onDragOver={e => { e.preventDefault(); setDragOver(col.key); }}
+                onDragLeave={() => setDragOver(null)}
+                onDrop={() => handleDrop(col.key)}
+              >
                 <div className="px-1 mb-3 flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <span className="w-2.5 h-2.5 rounded-full" style={{ background: col.color, boxShadow: `0 0 10px ${col.color}80` }} />
@@ -1158,20 +1242,32 @@ export default function ChamadosPage() {
                     {col.items.length}
                   </span>
                 </div>
-                <div className="flex-1 overflow-y-auto space-y-3 px-1 pb-4">
-                  {col.items.length === 0 && (
+                <div className={`flex-1 overflow-y-auto space-y-3 px-1 pb-4 rounded-xl transition-all ${dragOver === col.key && dragId ? "bg-[var(--bg-hover)] ring-2 ring-inset ring-[var(--border-medium)]" : ""}`}>
+                  {col.items.length === 0 && dragOver !== col.key && (
                     <div className="border border-dashed border-[var(--border-subtle)] rounded-xl p-5 text-center bg-[var(--bg-card)]/50 mt-1">
                       <p className="text-xs text-[var(--text-muted)]">Nenhum chamado</p>
                     </div>
                   )}
                   {col.items.map(c => (
-                    <ChamadoCard key={c.id} chamado={c} onClick={() => setSelected(c)}
-                      selected={bulkIds.has(c.id)}
-                      onSelect={user?.isMaster ? e => { e.stopPropagation(); toggleBulk(c.id); } : undefined}
-                      onAssumir={handleAssumir}
-                      canAssumir={canEditar}
-                    />
+                    <div key={c.id}
+                      draggable={canEditar}
+                      onDragStart={() => setDragId(c.id)}
+                      onDragEnd={() => { setDragId(null); setDragOver(null); }}
+                      style={{ opacity: dragId === c.id ? 0.4 : 1, cursor: canEditar ? "grab" : "default" }}
+                    >
+                      <ChamadoCard chamado={c} onClick={() => setSelected(c)}
+                        selected={bulkIds.has(c.id)}
+                        onSelect={user?.isMaster ? e => { e.stopPropagation(); toggleBulk(c.id); } : undefined}
+                        onAssumir={handleAssumir}
+                        canAssumir={canEditar}
+                      />
+                    </div>
                   ))}
+                  {dragOver === col.key && dragId && (
+                    <div className="border-2 border-dashed rounded-xl p-4 text-center text-xs text-[var(--text-muted)]" style={{ borderColor: col.color }}>
+                      Soltar aqui → {col.label}
+                    </div>
+                  )}
                 </div>
               </div>
             ))}

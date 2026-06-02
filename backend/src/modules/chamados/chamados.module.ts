@@ -748,10 +748,125 @@ import { SlaModule } from "../sla/sla.module";
 import { AutomacoesModule } from "../automacoes/automacoes.module";
 import { WebhooksModule } from "../automacoes/webhooks.module";
 import { NotificationsModule } from "../notifications/notifications.module";
+import { Injectable, OnModuleInit, Logger } from "@nestjs/common";
+
+// ── SLA Escalation Scheduler ─────────────────────────────────────────────────
+// Verifica a cada 30min chamados com SLA violado e notifica os masters da org.
+// Evita spam: só notifica se já passou 1h desde o último alerta neste chamado.
+@Injectable()
+class SlaEscalationScheduler implements OnModuleInit {
+  private readonly logger = new Logger("SlaEscalationScheduler");
+
+  constructor(private prisma: PrismaService, private wa: WhatsAppService) {}
+
+  onModuleInit() {
+    // Primeiro tick após 2min (aguarda boot); depois a cada 30min
+    setTimeout(() => this.tick().catch(() => {}), 2 * 60_000);
+    setInterval(() => this.tick().catch(() => {}), 30 * 60_000);
+    this.logger.log("SlaEscalationScheduler iniciado (30min interval)");
+  }
+
+  async tick() {
+    const now = new Date();
+    const db = this.prisma as any;
+
+    // Busca chamados abertos com SLA de resolução violado
+    const violados = await db.chamado.findMany({
+      where: {
+        status: { notIn: ["resolvido", "fechado", "cancelado"] },
+        slaResolucaoAt: { lt: now },
+      },
+      include: {
+        solicitante: { select: { id: true, nome: true } },
+        atendente: { select: { id: true, nome: true } },
+        organization: {
+          select: {
+            id: true,
+            nome: true,
+            users: { where: { isMaster: true, ativo: true }, select: { id: true, nome: true, email: true } },
+          },
+        },
+      },
+    });
+
+    if (violados.length === 0) return;
+    this.logger.log(`SLA: ${violados.length} chamado(s) violado(s) — checando escalações...`);
+
+    for (const chamado of violados) {
+      const org = chamado.organization;
+      if (!org?.users?.length) continue;
+
+      const horasAtraso = Math.round((now.getTime() - new Date(chamado.slaResolucaoAt).getTime()) / 3600000);
+
+      // Só escalar se atraso ≥ 1h (evita ruído de chamados recém-violados)
+      if (horasAtraso < 1) continue;
+
+      // Verifica se já foi escalado recentemente (último comentário interno de escalação < 1h)
+      const ultimaEscalacao = await db.chamadoComentario.findFirst({
+        where: {
+          chamadoId: chamado.id,
+          interno: true,
+          texto: { startsWith: "[SLA_ESCALACAO]" },
+          criadoEm: { gt: new Date(now.getTime() - 60 * 60_000) },
+        },
+      });
+      if (ultimaEscalacao) continue;
+
+      // Registra escalação como comentário interno (audit trail)
+      await db.chamadoComentario.create({
+        data: {
+          id: require("uuid").v4(),
+          chamadoId: chamado.id,
+          userId: org.users[0].id,
+          texto: `[SLA_ESCALACAO] Chamado #${chamado.numero} com SLA violado há ${horasAtraso}h. Escalado automaticamente para os masters.`,
+          interno: true,
+        },
+      });
+
+      // Notifica cada master via in-app + WhatsApp
+      for (const master of org.users) {
+        try {
+          await db.notificacao.create({
+            data: {
+              id: require("uuid").v4(),
+              userId: master.id,
+              tipo: "sla_violado",
+              titulo: `⚠️ SLA Violado — Chamado #${chamado.numero}`,
+              mensagem: `Chamado "${chamado.titulo}" está ${horasAtraso}h acima do SLA de resolução.${chamado.atendente ? ` Atendente: ${chamado.atendente.nome}.` : " Sem atendente atribuído."}`,
+              referenciaId: chamado.id,
+              referenciaTipo: "chamado",
+            },
+          });
+        } catch {}
+
+        // WhatsApp (best-effort)
+        try {
+          const waConfig = await db.orgWhatsappConfig.findUnique({
+            where: { organizationId: org.id },
+          });
+          if (waConfig?.conectado) {
+            const userWa = await db.userWhatsapp.findUnique({ where: { userId: master.id } });
+            if (userWa?.phoneNumber) {
+              const msg =
+                `⚠️ *SLA Violado — Chamado #${chamado.numero}*\n\n` +
+                `*Título:* ${chamado.titulo}\n` +
+                `*Atraso:* ${horasAtraso}h acima do prazo\n` +
+                (chamado.atendente ? `*Atendente:* ${chamado.atendente.nome}\n` : "*Sem atendente*\n") +
+                `\nAcesse para tomar ação imediata.`;
+              this.wa.sendMessageForOrg(org.id, userWa.phoneNumber, msg).catch(() => {});
+            }
+          }
+        } catch {}
+      }
+
+      this.logger.warn(`Escalado: #${chamado.numero} (${horasAtraso}h de atraso) → ${org.users.length} master(s)`);
+    }
+  }
+}
 
 @Module({
   imports:     [SlaModule, AutomacoesModule, WebhooksModule, NotificationsModule],
   controllers: [ChamadosController],
-  providers:   [WhatsAppService, EmailService],
+  providers:   [WhatsAppService, EmailService, SlaEscalationScheduler],
 })
 export class ChamadosModule {}
