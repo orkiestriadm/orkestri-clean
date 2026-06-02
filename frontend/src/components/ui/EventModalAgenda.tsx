@@ -125,14 +125,22 @@ export default function EventModalAgenda({ date, event, users, onClose, onSave }
             </div>
           </Field>
 
-          {otherUsers.length > 0 && (
-            <MemberSelector
-              users={otherUsers}
-              selected={partic}
-              onChange={setPartic}
-              label="PARTICIPANTES"
-            />
-          )}
+          <div>
+            <label style={{ fontSize:11, color:"var(--text-muted)", fontFamily:"var(--font-mono)", letterSpacing:"0.08em", display:"block", marginBottom:6 }}>PARTICIPANTES</label>
+            {otherUsers.length > 0 ? (
+              <MemberSelector
+                users={otherUsers}
+                selected={partic}
+                onChange={setPartic}
+                label=""
+              />
+            ) : (
+              <div style={{ padding:"10px 14px", borderRadius:10, border:"1px dashed var(--border-medium)", background:"var(--bg-secondary)", fontSize:12, color:"var(--text-muted)", display:"flex", alignItems:"center", gap:8 }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                Nenhum membro disponível — cadastre usuários em <a href="/dashboard/cadastros" style={{ color:"var(--accent-violet)", textDecoration:"underline" }}>Cadastros → Usuários</a>
+              </div>
+            )}
+          </div>
 
           {error && <p style={{ color:"var(--accent-red)", fontSize:12 }}>{error}</p>}
 
