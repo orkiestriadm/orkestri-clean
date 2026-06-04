@@ -6,6 +6,8 @@ import * as cookieParser from "cookie-parser";
 import { NestExpressApplication } from "@nestjs/platform-express";
 import * as path from "path";
 import * as fs from "fs";
+import { randomBytes } from "crypto";
+import { Request, Response, NextFunction } from "express";
 import { FirstAccessGuard } from "./modules/auth/first-access.guard";
 
 async function bootstrap() {
@@ -24,7 +26,34 @@ async function bootstrap() {
   app.setGlobalPrefix('api');
 
   // Security headers
-  app.use(helmet());
+  app.use(helmet({
+    crossOriginResourcePolicy: { policy: "same-site" },
+    contentSecurityPolicy: false, // gerenciado pelo Nginx
+  }));
+
+  // CSRF — Double Submit Cookie pattern
+  // O frontend lê o cookie csrf_token (não-HttpOnly) e envia como header X-CSRF-Token
+  const CSRF_SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
+  const CSRF_EXEMPT_PATHS = ["/api/auth/login", "/api/auth/solicitar-acesso", "/api/auth/esqueci-senha",
+    "/api/auth/enviar-otp", "/api/auth/verificar-otp", "/api/auth/redefinir-senha",
+    "/api/auth/tenant-info", "/api/auth/organizations", "/api/billing/webhook/mp",
+    "/api/billing/public/signup", "/health"];
+
+  app.use((req: Request, res: Response, next: NextFunction) => {
+    // Emite cookie CSRF a cada request (token rotativo por sessão)
+    if (!req.cookies?.csrf_token) {
+      const token = randomBytes(32).toString("hex");
+      res.cookie("csrf_token", token, { httpOnly: false, sameSite: "strict", secure: req.headers["x-forwarded-proto"] === "https", path: "/" });
+    }
+    if (CSRF_SAFE_METHODS.has(req.method) || CSRF_EXEMPT_PATHS.includes(req.path)) return next();
+    const headerToken = req.headers["x-csrf-token"] as string;
+    const cookieToken = req.cookies?.csrf_token;
+    if (!headerToken || !cookieToken || headerToken !== cookieToken) {
+      res.status(403).json({ message: "CSRF token inválido." });
+      return;
+    }
+    next();
+  });
 
   // CORS — origins controladas via env
   const origins = process.env.CORS_ORIGINS
@@ -33,7 +62,7 @@ async function bootstrap() {
   app.enableCors({
     origin: origins,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Authorization", "Content-Type"],
+    allowedHeaders: ["Authorization", "Content-Type", "X-CSRF-Token"],
     credentials: true,
   });
 

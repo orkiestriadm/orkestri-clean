@@ -21,7 +21,7 @@ services:
       - frontend
 
   certbot:
-    image: certbot/certbot:latest
+    image: certbot/certbot:v2.11.0
     container_name: orkestri_certbot
     restart: unless-stopped
     volumes:

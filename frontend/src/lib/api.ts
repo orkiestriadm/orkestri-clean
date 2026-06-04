@@ -8,6 +8,15 @@ const BASE = typeof window !== "undefined"
 // withCredentials: true ensures HttpOnly cookies are sent automatically
 export const api = axios.create({ baseURL: BASE, withCredentials: true, timeout: 10000 });
 
+// ── Request interceptor: CSRF Double Submit Cookie ──
+api.interceptors.request.use((config) => {
+  if (typeof document !== "undefined") {
+    const csrf = document.cookie.split("; ").find(c => c.startsWith("csrf_token="))?.split("=")[1];
+    if (csrf) config.headers["X-CSRF-Token"] = csrf;
+  }
+  return config;
+});
+
 // ── Response interceptor: error handling global ──
 api.interceptors.response.use(
   (r) => r,
@@ -42,8 +51,15 @@ api.interceptors.response.use(
       return Promise.reject(err);
     }
 
-    // 403 — sem permissão
+    // 403 — primeiro acesso (senha temporária)
     if (status === 403) {
+      const errData = err.response?.data as { code?: string } | undefined;
+      if (errData?.code === "PRIMEIRO_ACESSO") {
+        if (!window.location.pathname.includes("/primeiro-acesso")) {
+          window.location.href = "/primeiro-acesso";
+        }
+        return Promise.reject(err);
+      }
       useToastStore.getState().error("Sem permissao", message || "Voce nao tem acesso a este recurso.");
       return Promise.reject(err);
     }

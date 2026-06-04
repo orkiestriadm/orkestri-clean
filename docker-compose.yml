@@ -17,16 +17,16 @@ services:
     container_name: orkestri_postgres
     restart: unless-stopped
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-orkestri}
-      POSTGRES_USER: ${POSTGRES_USER:-orkestri}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-orkestri_secure_2024}
+      POSTGRES_DB: ${POSTGRES_DB:?POSTGRES_DB obrigatorio}
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER obrigatorio}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD obrigatorio}
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./scripts/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     networks:
       - orkestri_net
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U orkestri"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -35,13 +35,13 @@ services:
     image: redis:7-alpine
     container_name: orkestri_redis
     restart: unless-stopped
-    command: redis-server --requirepass ${REDIS_PASSWORD:-redis_secure_2024}
+    command: redis-server --requirepass ${REDIS_PASSWORD:?REDIS_PASSWORD obrigatorio}
     volumes:
       - redis_data:/data
     networks:
       - orkestri_net
     healthcheck:
-      test: ["CMD", "redis-cli", "--pass", "${REDIS_PASSWORD:-redis_secure_2024}", "ping"]
+      test: ["CMD", "redis-cli", "--pass", "${REDIS_PASSWORD}", "ping"]
       interval: 10s
       timeout: 3s
       retries: 5
@@ -63,9 +63,9 @@ services:
       JWT_SECRET: ${JWT_SECRET}
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost}
-      MASTER_EMAIL: ${MASTER_EMAIL:-sa@orkestri.local}
-      MASTER_PASSWORD: ${MASTER_PASSWORD}
-      MASTER_NOME: ${MASTER_NOME:-SA}
+      MASTER_EMAIL: ${MASTER_EMAIL:?MASTER_EMAIL obrigatorio}
+      MASTER_PASSWORD: ${MASTER_PASSWORD:?MASTER_PASSWORD obrigatorio}
+      MASTER_NOME: ${MASTER_NOME:-Administrator}
       TENANT_NOME: ${TENANT_NOME:-Orkestri}
       EVOLUTION_API_URL: http://orkestri_evolution:8080
       EVOLUTION_API_KEY: ${EVOLUTION_API_KEY}
@@ -87,6 +87,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    mem_limit: 768m
+    memswap_limit: 768m
     healthcheck:
       test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:3000/api/health"]
       interval: 15s
@@ -106,6 +108,11 @@ services:
     image: orkestri/frontend:latest
     container_name: orkestri_frontend
     restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp
+    mem_limit: 512m
+    memswap_limit: 512m
     networks:
       - orkestri_net
     depends_on:
@@ -141,15 +148,17 @@ services:
     restart: unless-stopped
     environment:
       PORT: 3001
-      SA_TOKEN: ${SA_TOKEN:-orkestri-sa-2024}
+      SA_TOKEN: ${SA_TOKEN:?SA_TOKEN obrigatorio}
     ports:
       - "8080:3001"
     volumes:
       - ./saas:/saas
-      - /var/run/docker.sock:/var/run/docker.sock
+      - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./saas/nginx-conf:/etc/nginx/conf.d
     networks:
       - orkestri_net
+    mem_limit: 256m
+    memswap_limit: 256m
 
   nginx:
     image: nginx:1.25-alpine
