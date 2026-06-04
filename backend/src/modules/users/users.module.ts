@@ -339,8 +339,60 @@ class UsersController {
   }
 }
 
+// ── CSV Import Controller ──────────────────────────────────────────────────────
+@Controller("users")
+@UseGuards(AuthGuard("jwt"))
+class UsersCsvController {
+  constructor(private prisma: PrismaService, private cache: CacheService) {}
+
+  @Post("import-csv")
+  async importCsv(@Req() req: any, @Body() body: { csv: string }) {
+    if (!req.user?.isMaster) throw new BadRequestException("Apenas Masters podem importar usuários");
+    if (!body?.csv?.trim()) throw new BadRequestException("CSV vazio");
+
+    const lines = body.csv.split("\n").map((l: string) => l.trim()).filter(Boolean);
+    if (lines.length < 2) throw new BadRequestException("CSV deve ter cabeçalho + ao menos 1 linha");
+
+    const headers = lines[0].split(",").map((h: string) => h.trim().toLowerCase().replace(/['"]/g, ""));
+    const nomeIdx = headers.findIndex((h: string) => h.includes("nome"));
+    const emailIdx = headers.findIndex((h: string) => h.includes("email"));
+    const perfilIdx = headers.findIndex((h: string) => h.includes("perfil") || h.includes("role"));
+    if (nomeIdx === -1 || emailIdx === -1) throw new BadRequestException("CSV deve conter colunas 'nome' e 'email'");
+
+    const orgId = req.user.organizationId;
+    const masterRole = await (this.prisma as any).role.findUnique({ where: { nome: "master" } });
+    const tecnicoRole = await (this.prisma as any).role.findFirst({ where: { nome: { in: ["tecnico", "analista"] } } });
+
+    const results = { criados: 0, ignorados: 0, erros: [] as string[] };
+
+    for (let i = 1; i < lines.length; i++) {
+      const cols = lines[i].split(",").map((c: string) => c.trim().replace(/^["']|["']$/g, ""));
+      const nome = cols[nomeIdx]?.trim();
+      const email = cols[emailIdx]?.trim()?.toLowerCase();
+      if (!nome || !email || !email.includes("@")) { results.erros.push(`Linha ${i + 1}: nome ou email inválido`); continue; }
+
+      const existing = await (this.prisma as any).user.findFirst({ where: { email, organizationId: orgId } });
+      if (existing) { results.ignorados++; continue; }
+
+      const senhaTemp = Math.random().toString(36).slice(2, 10).toUpperCase() + "@" + Math.floor(Math.random() * 900 + 100);
+      const senhaHash = await bcrypt.hash(senhaTemp, 10);
+      const { v4: uuid } = await import("uuid");
+      try {
+        const user = await (this.prisma as any).user.create({ data: { id: uuid(), organizationId: orgId, nome, email, senhaHash, ativo: true, primeiroAcesso: true } as any });
+        if (tecnicoRole) await (this.prisma as any).userRole.create({ data: { userId: user.id, roleId: tecnicoRole.id } });
+        results.criados++;
+      } catch (e: any) {
+        results.erros.push(`Linha ${i + 1}: ${e.message?.slice(0, 60)}`);
+      }
+    }
+
+    await this.cache.del(CACHE_USERS_LIST, `${CACHE_USERS_LIST}:true`, `${CACHE_USERS_LIST}:0`);
+    return { ...results, total: lines.length - 1 };
+  }
+}
+
 @Module({
-  controllers: [UsersController],
+  controllers: [UsersController, UsersCsvController],
   providers: [CacheService],
 })
 export class UsersModule {}

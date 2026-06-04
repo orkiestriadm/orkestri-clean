@@ -122,7 +122,8 @@ model Organization {
   squads            Squad[]                 @relation("OrgSquads")
   aprovadoresSetor  AprovadorSetor[]
   billing           OrgBilling?
-  workflowTemplates WorkflowTemplate[] @relation("OrgWorkflowTemplates")
+  workflowTemplates  WorkflowTemplate[]  @relation("OrgWorkflowTemplates")
+  chamadoTemplates   ChamadoTemplate[]   @relation("OrgChamadoTemplates")
 
   @@map("organizations")
 }
@@ -230,6 +231,8 @@ model User {
   aprovadoresBackupDeSetor   AprovadorSetor[]        @relation("AprovadorBackup")
   aprovadoresConfigurados    AprovadorSetor[]        @relation("AprovadorConfigurador")
   workflowTemplatesCriados   WorkflowTemplate[]      @relation("WfTemplateCriador")
+  chamadoTemplatesCriados    ChamadoTemplate[]       @relation("ChamadoTemplateCriador")
+  chamadoAnexosUploads       ChamadoAnexo[]          @relation("AnexoUploader")
 
   @@unique([organizationId, email])
   @@index([organizationId])
@@ -1005,6 +1008,7 @@ model Chamado {
   comentarios        ChamadoComentario[]
   apontamentos       ApontamentoHoras[]
   auditorias         ChamadoAuditoria[]
+  anexos             ChamadoAnexo[]
   skillRequerida     Skill?              @relation("ChamadoSkill", fields: [skillRequeridaId], references: [id], onDelete: SetNull)
 
   @@index([organizationId, status])
@@ -1014,6 +1018,45 @@ model Chamado {
   @@index([atendenteId])
   @@index([organizationId, status, atendenteId])
   @@map("chamados")
+}
+
+// ── Anexos de Chamado ──────────────────────────────────────────────────────────
+model ChamadoAnexo {
+  id           String   @id @default(uuid())
+  chamadoId    String   @map("chamado_id")
+  uploaderId   String   @map("uploader_id")
+  nomeOriginal String   @map("nome_original")
+  nomeArquivo  String   @map("nome_arquivo")
+  mimeType     String   @map("mime_type")
+  tamanhoBytes Int      @map("tamanho_bytes")
+  criadoEm    DateTime @default(now()) @map("criado_em")
+
+  chamado  Chamado @relation(fields: [chamadoId], references: [id], onDelete: Cascade)
+  uploader User    @relation("AnexoUploader", fields: [uploaderId], references: [id])
+
+  @@index([chamadoId])
+  @@map("chamado_anexos")
+}
+
+// ── Templates de Chamado ───────────────────────────────────────────────────────
+model ChamadoTemplate {
+  id             String   @id @default(uuid())
+  organizationId String   @map("organization_id")
+  criadoPorId    String   @map("criado_por_id")
+  nome           String
+  titulo         String
+  descricao      String?  @db.Text
+  prioridade     String   @default("media")
+  categoria      String?
+  tags           String?
+  criadoEm       DateTime @default(now()) @map("criado_em")
+  atualizadoEm   DateTime @updatedAt @map("atualizado_em")
+
+  organization Organization @relation("OrgChamadoTemplates", fields: [organizationId], references: [id], onDelete: Cascade)
+  criadoPor    User         @relation("ChamadoTemplateCriador", fields: [criadoPorId], references: [id])
+
+  @@index([organizationId])
+  @@map("chamado_templates")
 }
 
 model ChamadoComentario {

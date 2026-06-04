@@ -350,6 +350,86 @@ class OrgWhatsAppController {
   }
 }
 
+// ── Demo Data Generator ───────────────────────────────────────────────────────
+@Controller("superadmin/organizations")
+@UseGuards(AuthGuard("jwt"))
+class DemoDataController {
+  constructor(private prisma: PrismaService) {}
+  private guard(req: any) { if (!isSuperAdmin(req)) throw new ForbiddenException("Restrito a super-admins"); }
+
+  @Post(":orgId/demo-data")
+  async generateDemoData(@Req() req: any, @Param("orgId") orgId: string) {
+    this.guard(req);
+    const { v4: uuid } = await import("uuid");
+    const db = this.prisma as any;
+
+    const org = await db.organization.findUnique({ where: { id: orgId } });
+    if (!org) throw new NotFoundException("Organização não encontrada");
+
+    const master = await db.user.findFirst({ where: { organizationId: orgId, isMaster: true } });
+    if (!master) throw new BadRequestException("A organização precisa ter pelo menos um master.");
+
+    const now = new Date();
+    const hs = (h: number) => new Date(now.getTime() - h * 3600000);
+    const ds = (d: number) => new Date(now.getTime() - d * 86400000);
+    const df = (d: number) => new Date(now.getTime() + d * 86400000);
+
+    const counts = { chamados: 0, projetos: 0, clientes: 0, ativos: 0, eventos: 0 };
+
+    // Clientes demo
+    const clientesData = [
+      { id: uuid(), organizationId: orgId, nome: "Carlos Mendes", empresa: "TechSolutions Ltda", email: "carlos@techsolutions.com", telefone: "11999990001", segmento: "TI", ativo: true, criadoEm: ds(30) },
+      { id: uuid(), organizationId: orgId, nome: "Ana Lima",     empresa: "Distribuidora ABC", email: "ana@abc.com.br",           telefone: "11999990002", segmento: "Distribuição", ativo: true, criadoEm: ds(25) },
+      { id: uuid(), organizationId: orgId, nome: "João Pereira", empresa: "Grupo Inovação SA",  email: "joao@inovacao.com.br",      telefone: "11999990003", segmento: "Serviços", ativo: true, criadoEm: ds(20) },
+    ];
+    for (const c of clientesData) {
+      try { await db.cliente.create({ data: c }); counts.clientes++; } catch {}
+    }
+    const clientes = await db.cliente.findMany({ where: { organizationId: orgId }, take: 3 });
+
+    // Chamados demo
+    const chamadosData = [
+      { id: uuid(), organizationId: orgId, solicitanteId: master.id, titulo: "Computador não liga após atualização", descricao: "Após a atualização do Windows, o computador não inicializa mais. Tela preta após o boot.", status: "em_atendimento", prioridade: "alta", categoria: "Suporte Técnico", slaHoras: 8, criadoEm: hs(5), atualizadoEm: hs(3), atendenteId: master.id, clienteId: clientes[0]?.id },
+      { id: uuid(), organizationId: orgId, solicitanteId: master.id, titulo: "Criar usuário no Microsoft 365",        descricao: "Precisamos criar um novo usuário para a colaboradora Maria Santos que inicia na segunda-feira.", status: "aberto", prioridade: "media", categoria: "TI", slaHoras: 24, criadoEm: hs(2), atualizadoEm: hs(2), clienteId: clientes[1]?.id },
+      { id: uuid(), organizationId: orgId, solicitanteId: master.id, titulo: "Impressora HP não imprime em cores",     descricao: "A impressora HP LaserJet Pro está imprimindo apenas em preto e branco mesmo com tinta colorida.", status: "aguardando", prioridade: "baixa", categoria: "Hardware", slaHoras: 72, criadoEm: hs(48), atualizadoEm: hs(24), atendenteId: master.id },
+      { id: uuid(), organizationId: orgId, solicitanteId: master.id, titulo: "Servidor de produção com alta CPU",      descricao: "O servidor de produção está com CPU acima de 95% nas últimas 2 horas. Risco de queda do serviço.", status: "em_atendimento", prioridade: "critica", categoria: "Infraestrutura", slaHoras: 2, criadoEm: hs(1), atualizadoEm: hs(0.5), atendenteId: master.id, slaResolucaoAt: df(0.08) },
+      { id: uuid(), organizationId: orgId, solicitanteId: master.id, titulo: "Solicitar acesso ao sistema ERP",        descricao: "O usuário Diego Fernandes precisa de acesso ao módulo financeiro do ERP.", status: "resolvido", prioridade: "media", categoria: "Acesso", slaHoras: 24, criadoEm: ds(3), atualizadoEm: ds(2), resolvidoEm: ds(2), atendenteId: master.id, clienteId: clientes[2]?.id },
+      { id: uuid(), organizationId: orgId, solicitanteId: master.id, titulo: "Backup não executou na madrugada",       descricao: "O backup automático agendado para as 02:00 não foi executado. Log de erro em anexo.", status: "fechado", prioridade: "alta", categoria: "Infraestrutura", slaHoras: 8, criadoEm: ds(7), atualizadoEm: ds(6), resolvidoEm: ds(6), fechadoEm: ds(5), atendenteId: master.id, avaliacao: 5, avaliacaoNota: "Excelente atendimento, problema resolvido rapidamente!" },
+    ];
+    for (const c of chamadosData) {
+      try { await db.chamado.create({ data: c }); counts.chamados++; } catch {}
+    }
+
+    // Ativos demo
+    const ativosData = [
+      { id: uuid(), organizationId: orgId, codigo: "NB-DEMO-001", nome: "Notebook Dell Latitude 5540", tipo: "Computadores", status: "ativo", responsavelId: master.id, valorCompra: 4200, dataCompra: ds(365), dataGarantiaFim: df(365), numeroSerie: "DL5540DEMO001", criadoEm: ds(365) },
+      { id: uuid(), organizationId: orgId, codigo: "SV-DEMO-001", nome: "Servidor Dell PowerEdge R750", tipo: "Hardware", status: "ativo", responsavelId: master.id, valorCompra: 45000, dataCompra: ds(180), dataGarantiaFim: df(900), numeroSerie: "DVPR750DEMO", criadoEm: ds(180) },
+      { id: uuid(), organizationId: orgId, codigo: "PR-DEMO-001", nome: "Impressora HP LaserJet Pro", tipo: "Periféricos", status: "em_manutencao", responsavelId: master.id, valorCompra: 1800, dataCompra: ds(730), dataGarantiaFim: ds(5), criadoEm: ds(730) },
+    ];
+    for (const a of ativosData) {
+      try { await db.ativo.create({ data: a }); counts.ativos++; } catch {}
+    }
+
+    // Projeto demo
+    try {
+      const proj = await db.project.create({ data: { id: uuid(), organizationId: orgId, nome: "Migração para Cloud AWS", descricao: "Migração da infraestrutura on-premise para AWS", status: "EM_ANDAMENTO", prioridade: "ALTA", criadoPorId: master.id, prazo: df(90), criadoEm: ds(15), atualizadoEm: ds(1) } });
+      const cols = ["A Fazer","Em Andamento","Em Revisão","Concluída","Cancelada"];
+      for (let i = 0; i < cols.length; i++) {
+        await db.projectColumn.create({ data: { id: uuid(), projectId: proj.id, nome: cols[i], ordem: i, cor: ["#94a3b8","#3b82f6","#f59e0b","#22c55e","#ef4444"][i] } });
+      }
+      counts.projetos++;
+    } catch {}
+
+    // Evento demo
+    try {
+      await db.event.create({ data: { id: uuid(), organizationId: orgId, userId: master.id, titulo: "Daily Standup — Equipe TI", descricao: "Reunião diária de alinhamento", inicio: new Date(now.getFullYear(), now.getMonth(), now.getDate(), 9, 0), fim: new Date(now.getFullYear(), now.getMonth(), now.getDate(), 9, 30), tipo: "REUNIAO", cor: "#a78bfa", recorrencia: "SEMANAL", criadoEm: ds(7) } });
+      counts.eventos++;
+    } catch {}
+
+    return { ok: true, gerado: counts, mensagem: `Dados demo criados com sucesso para ${org.nome}` };
+  }
+}
+
 @Module({
   imports: [
     JwtModule.registerAsync({
@@ -357,7 +437,7 @@ class OrgWhatsAppController {
       useFactory: (config: ConfigService) => ({ secret: config.get("JWT_SECRET"), signOptions: { expiresIn: "8h" } }),
     }),
   ],
-  controllers: [SuperAdminOrgsController, SuperAdminController, OrgWhatsAppController],
+  controllers: [SuperAdminOrgsController, SuperAdminController, OrgWhatsAppController, DemoDataController],
   providers: [WhatsAppService, EmailService],
 })
 export class OrganizationsModule {}

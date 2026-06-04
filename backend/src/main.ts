@@ -3,10 +3,18 @@ import { ValidationPipe, Logger } from "@nestjs/common";
 import { AppModule } from "./app.module";
 import helmet from "helmet";
 import * as cookieParser from "cookie-parser";
+import { NestExpressApplication } from "@nestjs/platform-express";
+import * as path from "path";
+import * as fs from "fs";
 
 async function bootstrap() {
   const logger = new Logger("Bootstrap");
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+
+  // Servir uploads de arquivos (anexos de chamados)
+  const uploadsDir = process.env.UPLOAD_DIR || "/app/uploads";
+  if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
+  app.useStaticAssets(uploadsDir, { prefix: "/uploads" });
 
   // Cookie parsing (required for HttpOnly JWT cookies)
   app.use(cookieParser());

@@ -1,4 +1,8 @@
-import { Module, Controller, Get, Post, Put, Patch, Delete, Body, Param, Query, UseGuards, Req, NotFoundException, BadRequestException, ForbiddenException, ConflictException } from "@nestjs/common";
+import { Module, Controller, Get, Post, Put, Patch, Delete, Body, Param, Query, UseGuards, Req, NotFoundException, BadRequestException, ForbiddenException, ConflictException, UseInterceptors, UploadedFile } from "@nestjs/common";
+import { FileInterceptor } from "@nestjs/platform-express";
+import { diskStorage } from "multer";
+import * as path from "path";
+import * as fs from "fs";
 import { AuthGuard } from "@nestjs/passport";
 import { IsString, IsOptional, IsInt, Min, Max } from "class-validator";
 import { Type } from "class-transformer";
@@ -864,9 +868,64 @@ class SlaEscalationScheduler implements OnModuleInit {
   }
 }
 
+// ── Upload Controller ────────────────────────────────────────────────────────
+const UPLOAD_DIR = process.env.UPLOAD_DIR || "/app/uploads";
+const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20 MB
+const ALLOWED_MIMES = ["image/jpeg","image/png","image/gif","image/webp","application/pdf","text/plain","application/vnd.ms-excel","application/vnd.openxmlformats-officedocument.spreadsheetml.sheet","application/msword","application/vnd.openxmlformats-officedocument.wordprocessingml.document","application/zip","video/mp4","text/csv"];
+
+@Controller("chamados")
+@UseGuards(AuthGuard("jwt"))
+class ChamadoUploadController {
+  constructor(private prisma: PrismaService) {}
+
+  @Post(":id/anexos")
+  @UseInterceptors(FileInterceptor("file", {
+    storage: diskStorage({
+      destination: (req: any, _file, cb) => {
+        const dir = path.join(UPLOAD_DIR, req.params.id);
+        fs.mkdirSync(dir, { recursive: true });
+        cb(null, dir);
+      },
+      filename: (_req, file, cb) => {
+        const ext = path.extname(file.originalname);
+        cb(null, `${Date.now()}-${Math.random().toString(36).slice(2)}${ext}`);
+      },
+    }),
+    limits: { fileSize: MAX_FILE_SIZE },
+    fileFilter: (_req, file, cb) => {
+      if (ALLOWED_MIMES.includes(file.mimetype)) cb(null, true);
+      else cb(new BadRequestException(`Tipo de arquivo não permitido: ${file.mimetype}`), false);
+    },
+  }))
+  async upload(@Req() req: any, @Param("id") id: string, @UploadedFile() file: any) {
+    if (!file) throw new BadRequestException("Arquivo obrigatório");
+    const chamado = await (this.prisma as any).chamado.findUnique({ where: { id } });
+    if (!chamado) throw new NotFoundException("Chamado não encontrado");
+    const anexo = await (this.prisma as any).chamadoAnexo.create({
+      data: { id: require("uuid").v4(), chamadoId: id, uploaderId: req.user.id, nomeOriginal: file.originalname, nomeArquivo: file.filename, mimeType: file.mimetype, tamanhoBytes: file.size },
+    });
+    return { ...anexo, url: `/uploads/${id}/${file.filename}` };
+  }
+
+  @Get(":id/anexos")
+  async listAnexos(@Param("id") id: string) {
+    const anexos = await (this.prisma as any).chamadoAnexo.findMany({ where: { chamadoId: id }, include: { uploader: { select: { id: true, nome: true } } }, orderBy: { criadoEm: "asc" } });
+    return anexos.map((a: any) => ({ ...a, url: `/uploads/${id}/${a.nomeArquivo}` }));
+  }
+
+  @Delete(":id/anexos/:anexoId")
+  async deleteAnexo(@Req() req: any, @Param("id") id: string, @Param("anexoId") anexoId: string) {
+    const anexo = await (this.prisma as any).chamadoAnexo.findUnique({ where: { id: anexoId } });
+    if (!anexo) throw new NotFoundException("Anexo não encontrado");
+    if (anexo.uploaderId !== req.user.id && !req.user.isMaster) throw new ForbiddenException("Sem permissão");
+    try { fs.unlinkSync(path.join(UPLOAD_DIR, id, anexo.nomeArquivo)); } catch {}
+    return (this.prisma as any).chamadoAnexo.delete({ where: { id: anexoId } });
+  }
+}
+
 @Module({
   imports:     [SlaModule, AutomacoesModule, WebhooksModule, NotificationsModule],
-  controllers: [ChamadosController],
+  controllers: [ChamadosController, ChamadoUploadController],
   providers:   [WhatsAppService, EmailService, SlaEscalationScheduler],
 })
 export class ChamadosModule {}

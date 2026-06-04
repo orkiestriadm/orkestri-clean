@@ -41,6 +41,7 @@ import { SkillsModule } from './modules/skills/skills.module';
 import { AusenciasModule } from './modules/ausencias/ausencias.module';
 import { WorkflowsModule } from './modules/workflows/workflows.module';
 import { WorkflowTemplatesModule } from './modules/workflow-templates/workflow-templates.module';
+import { ChamadoTemplatesModule } from './modules/chamado-templates/chamado-templates.module';
 import { WorkforceModule } from './modules/workforce/workforce.module';
 import { SquadsModule } from './modules/squads/squads.module';
 import { BillingModule } from './modules/billing/billing.module';
@@ -75,6 +76,7 @@ import { BillingModule } from './modules/billing/billing.module';
     AusenciasModule,
     WorkflowsModule,
     WorkflowTemplatesModule,
+    ChamadoTemplatesModule,
     WorkforceModule,
     SquadsModule,
     BillingModule,

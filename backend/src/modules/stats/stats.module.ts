@@ -179,38 +179,45 @@ class StatsController {
   // GET /stats/search?q=...
   @Get("search")
   async search(@Req() req: any, @Query("q") q: string) {
-    if (!q || q.trim().length < 2) return { chamados: [], clientes: [], contratos: [], faturas: [], artigos: [] };
+    if (!q || q.trim().length < 2) return { chamados: [], clientes: [], contratos: [], faturas: [], artigos: [], projetos: [], ativos: [], usuarios: [] };
     const s = q.trim();
     const orgId = req.user?.organizationId;
     const ow = orgId ? { organizationId: orgId } as any : {};
-    const [chamados, clientes, contratos, faturas, artigos] = await Promise.all([
+    const [chamados, clientes, contratos, faturas, artigos, projetos, ativos, usuarios] = await Promise.all([
       this.db.chamado.findMany({
         where: { OR: [{ titulo: { contains: s, mode: "insensitive" } }, { descricao: { contains: s, mode: "insensitive" } }], ...ow },
-        take: 5,
-        select: { id: true, numero: true, titulo: true, status: true, prioridade: true },
+        take: 5, select: { id: true, numero: true, titulo: true, status: true, prioridade: true },
       }),
       this.db.cliente.findMany({
         where: { ativo: true, OR: [{ nome: { contains: s, mode: "insensitive" } }, { empresa: { contains: s, mode: "insensitive" } }], ...ow },
-        take: 5,
-        select: { id: true, nome: true, empresa: true },
+        take: 5, select: { id: true, nome: true, empresa: true },
       }),
       this.db.contrato.findMany({
         where: { ativo: true, OR: [{ titulo: { contains: s, mode: "insensitive" } }, { plano: { contains: s, mode: "insensitive" } }], ...ow },
-        take: 5,
-        select: { id: true, numero: true, titulo: true, status: true, cliente: { select: { nome: true } } },
+        take: 5, select: { id: true, numero: true, titulo: true, status: true, cliente: { select: { nome: true } } },
       }),
       this.db.fatura.findMany({
         where: { OR: [{ descricao: { contains: s, mode: "insensitive" } }, { observacoes: { contains: s, mode: "insensitive" } }], ...ow },
-        take: 5,
-        select: { id: true, numero: true, descricao: true, valor: true, status: true, cliente: { select: { nome: true } } },
+        take: 5, select: { id: true, numero: true, descricao: true, valor: true, status: true, cliente: { select: { nome: true } } },
       }),
       this.db.artigoConhecimento.findMany({
         where: { status: "publicado", OR: [{ titulo: { contains: s, mode: "insensitive" } }, { resumo: { contains: s, mode: "insensitive" } }], ...ow },
-        take: 5,
-        select: { id: true, titulo: true, slug: true, resumo: true },
+        take: 5, select: { id: true, titulo: true, slug: true, resumo: true },
+      }),
+      this.db.project.findMany({
+        where: { OR: [{ nome: { contains: s, mode: "insensitive" } }, { descricao: { contains: s, mode: "insensitive" } }], ...ow },
+        take: 5, select: { id: true, nome: true, status: true, prioridade: true },
+      }),
+      this.db.ativo.findMany({
+        where: { OR: [{ nome: { contains: s, mode: "insensitive" } }, { codigo: { contains: s, mode: "insensitive" } }], ...ow },
+        take: 5, select: { id: true, nome: true, codigo: true, status: true, tipo: true },
+      }),
+      this.db.user.findMany({
+        where: { ativo: true, OR: [{ nome: { contains: s, mode: "insensitive" } }, { email: { contains: s, mode: "insensitive" } }], ...ow },
+        take: 5, select: { id: true, nome: true, email: true },
       }),
     ]);
-    return { chamados, clientes, contratos, faturas, artigos };
+    return { chamados, clientes, contratos, faturas, artigos, projetos, ativos, usuarios };
   }
 }
 

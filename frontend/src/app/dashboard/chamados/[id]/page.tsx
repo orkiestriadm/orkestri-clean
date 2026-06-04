@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 import {
   ArrowLeft, Headphones, User, Building2, Clock, CheckCircle,
   XCircle, AlertTriangle, Send, Lock, Unlock, Edit2, Save, X,
-  Plus, Trash2, Star, RefreshCw, ChevronDown,
+  Plus, Trash2, Star, RefreshCw, ChevronDown, Paperclip,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -37,6 +37,11 @@ interface Apontamento {
   user: { id: string; nome: string };
   chamado: { numero: number; titulo: string };
 }
+type Anexo = {
+  id: string; nomeOriginal: string; nomeArquivo: string; mimeType: string;
+  tamanhoBytes: number; criadoEm: string; url: string;
+  uploader: { id: string; nome: string };
+};
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const STATUS_MAP: Record<string, { label: string; color: string; bg: string }> = {
@@ -221,6 +226,11 @@ export default function ChamadoDetailPage({ params }: { params: Promise<{ id: st
   const [csatComent, setCsatComent] = useState("");
   const [savingCsat, setSavingCsat] = useState(false);
 
+  // Anexos
+  const [anexos, setAnexos] = useState<Anexo[]>([]);
+  const [uploadingAnexo, setUploadingAnexo] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const isMaster = user?.isMaster;
   const isAtendente = chamado?.atendenteId === user?.id;
   const isSolicitante = chamado?.solicitanteId === user?.id;
@@ -235,12 +245,14 @@ export default function ChamadoDetailPage({ params }: { params: Promise<{ id: st
   async function load(silent = false) {
     silent ? setRefreshing(true) : setLoading(true);
     try {
-      const [{ data: c }, { data: apts }] = await Promise.all([
+      const [{ data: c }, { data: apts }, { data: anx }] = await Promise.all([
         api.get(`/chamados/${id}`),
         api.get(`/apontamentos?chamadoId=${id}`),
+        api.get(`/chamados/${id}/anexos`).catch(() => ({ data: [] })),
       ]);
       setChamado(c);
       setApontamentos(apts);
+      setAnexos(Array.isArray(anx) ? anx : []);
       setEditForm({ titulo: c.titulo, descricao: c.descricao, status: c.status, prioridade: c.prioridade, categoria: c.categoria || "", tags: c.tags || "", atendenteId: c.atendenteId || "" });
       if (c.avaliacao) setCsatNota(c.avaliacao);
     } catch { router.push("/dashboard/chamados"); }
@@ -308,6 +320,40 @@ export default function ChamadoDetailPage({ params }: { params: Promise<{ id: st
     if (!confirm("Remover apontamento?")) return;
     await api.delete(`/apontamentos/${aptId}`);
     setApontamentos(p => p.filter(a => a.id !== aptId));
+  }
+
+  function fmtBytes(bytes: number) {
+    if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+    return `${Math.ceil(bytes / 1024)} KB`;
+  }
+
+  function fileIcon(mimeType: string) {
+    if (mimeType.startsWith("image/")) return "📷";
+    if (mimeType === "application/pdf" || mimeType.includes("word") || mimeType.includes("document")) return "📄";
+    if (mimeType.includes("spreadsheet") || mimeType.includes("excel") || mimeType === "text/csv") return "📊";
+    if (mimeType === "application/zip" || mimeType.includes("compressed")) return "🗜️";
+    return "📎";
+  }
+
+  async function handleAnexoUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingAnexo(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const { data } = await api.post(`/chamados/${id}/anexos`, fd, { headers: { "Content-Type": "multipart/form-data" } });
+      setAnexos(prev => [...prev, data]);
+    } catch {} finally {
+      setUploadingAnexo(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  }
+
+  async function handleDeleteAnexo(anexoId: string) {
+    if (!confirm("Remover anexo?")) return;
+    await api.delete(`/chamados/${id}/anexos/${anexoId}`);
+    setAnexos(prev => prev.filter(a => a.id !== anexoId));
   }
 
   async function handleCsat() {
@@ -565,6 +611,60 @@ export default function ChamadoDetailPage({ params }: { params: Promise<{ id: st
                       </div>
                       {(isMaster || a.user.id === user?.id) && (
                         <button onClick={() => handleDeleteApontamento(a.id)} className="text-muted-foreground hover:text-red-400 transition-colors flex-shrink-0">
+                          <Trash2 size={13} />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Anexos */}
+            <div className="rounded-xl border border-border bg-card p-5">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                  <Paperclip size={14} className="text-muted-foreground" />
+                  Anexos
+                  {anexos.length > 0 && <span className="text-muted-foreground font-normal">({anexos.length})</span>}
+                </h2>
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploadingAnexo}
+                  className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground border border-border hover:bg-accent px-2.5 py-1 rounded-lg transition-colors disabled:opacity-50"
+                >
+                  {uploadingAnexo ? <RefreshCw size={12} className="animate-spin" /> : <Plus size={12} />}
+                  {uploadingAnexo ? "Enviando..." : "Adicionar anexo"}
+                </button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  className="hidden"
+                  accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt,.csv,.zip"
+                  onChange={handleAnexoUpload}
+                />
+              </div>
+              {anexos.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-4">Nenhum anexo neste chamado.</p>
+              ) : (
+                <div className="space-y-2">
+                  {anexos.map(a => (
+                    <div key={a.id} className="flex items-center gap-3 p-3 rounded-lg bg-muted/30 border border-border">
+                      <span className="text-lg flex-shrink-0">{fileIcon(a.mimeType)}</span>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <a href={a.url} target="_blank" rel="noopener noreferrer"
+                            className="text-sm font-medium text-foreground hover:text-primary transition-colors truncate max-w-[200px]">
+                            {a.nomeOriginal}
+                          </a>
+                          <span className="text-xs text-muted-foreground font-mono">{fmtBytes(a.tamanhoBytes)}</span>
+                        </div>
+                        <div className="text-xs text-muted-foreground mt-0.5">
+                          {a.uploader.nome} · {fmtDate(a.criadoEm)}
+                        </div>
+                      </div>
+                      {(isMaster || a.uploader.id === user?.id) && (
+                        <button onClick={() => handleDeleteAnexo(a.id)} className="text-muted-foreground hover:text-red-400 transition-colors flex-shrink-0">
                           <Trash2 size={13} />
                         </button>
                       )}

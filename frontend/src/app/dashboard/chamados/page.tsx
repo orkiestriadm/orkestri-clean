@@ -244,10 +244,7 @@ function ChamadoCard({ chamado, onClick, selected, onSelect, onAssumir, canAssum
 }
 
 // ── New Chamado Modal ──────────────────────────────────────────────────────────
-type Template = { nome: string; titulo: string; descricao: string; prioridade: string; categoria: string };
-const TEMPLATES_KEY = "chamado-templates-v1";
-function loadTemplates(): Template[] { try { return JSON.parse(localStorage.getItem(TEMPLATES_KEY) || "[]"); } catch { return []; } }
-function saveTemplates(ts: Template[]) { localStorage.setItem(TEMPLATES_KEY, JSON.stringify(ts)); }
+type Template = { id: string; nome: string; titulo: string; descricao?: string; prioridade: string; categoria?: string };
 
 type KbSugestao = { id: string; titulo: string; slug: string; resumo?: string; categoria?: { nome: string; cor: string } };
 
@@ -264,7 +261,7 @@ function NovoChamadoModal({ onClose, onCreated }: { onClose: () => void; onCreat
 
   useEffect(() => {
     api.get("/clientes").then(r => setClientes(Array.isArray(r.data) ? r.data : [])).catch(() => {});
-    setTemplates(loadTemplates());
+    api.get("/chamado-templates").then(r => setTemplates(Array.isArray(r.data) ? r.data : [])).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -278,13 +275,20 @@ function NovoChamadoModal({ onClose, onCreated }: { onClose: () => void; onCreat
   }, [form.titulo]);
 
   function applyTemplate(t: Template) {
-    setForm(f => ({ ...f, titulo: t.titulo, descricao: t.descricao, prioridade: t.prioridade, categoria: t.categoria }));
+    setForm(f => ({ ...f, titulo: t.titulo, descricao: t.descricao || f.descricao, prioridade: t.prioridade, categoria: t.categoria || f.categoria }));
   }
-  function saveAsTemplate() {
+  async function saveAsTemplate() {
     if (!templateNome.trim() || !form.titulo) return;
-    const updated = [...templates.filter(t => t.nome !== templateNome.trim()), { nome: templateNome.trim(), ...form }];
-    saveTemplates(updated);
-    setTemplates(updated);
+    try {
+      const { data } = await api.post("/chamado-templates", {
+        nome: templateNome.trim(),
+        titulo: form.titulo,
+        descricao: form.descricao,
+        prioridade: form.prioridade,
+        categoria: form.categoria || undefined,
+      });
+      setTemplates(prev => [...prev.filter(t => t.nome !== templateNome.trim()), data]);
+    } catch {}
     setShowSaveTemplate(false);
     setTemplateNome("");
   }
@@ -313,10 +317,10 @@ function NovoChamadoModal({ onClose, onCreated }: { onClose: () => void; onCreat
           <h2 className="font-semibold text-[var(--text-primary)] font-display text-lg">Novo Chamado</h2>
           <div className="flex items-center gap-2">
             {templates.length > 0 && (
-              <select onChange={e => { if (e.target.value) applyTemplate(templates.find(t => t.nome === e.target.value)!); e.target.value = ""; }}
+              <select onChange={e => { if (e.target.value) applyTemplate(templates.find(t => t.id === e.target.value)!); e.target.value = ""; }}
                 className="input-o text-xs py-1.5 w-auto">
                 <option value="">Usar template...</option>
-                {templates.map(t => <option key={t.nome} value={t.nome}>{t.nome}</option>)}
+                {templates.map(t => <option key={t.id} value={t.id}>{t.nome}</option>)}
               </select>
             )}
             <button type="button" onClick={onClose} className="text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"><X size={18} /></button>
