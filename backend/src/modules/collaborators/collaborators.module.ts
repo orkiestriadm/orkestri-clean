@@ -4,6 +4,7 @@ import {
   HttpCode, HttpStatus, Injectable,
 } from "@nestjs/common";
 import { AuthGuard } from "@nestjs/passport";
+import { IsString, IsOptional, IsNumber, IsBoolean, IsArray } from "class-validator";
 import { PrismaService } from "../../prisma/prisma.service";
 import { PermissionsGuard } from "../auth/permissions.guard";
 import { Permissions } from "../auth/permissions.decorator";
@@ -11,48 +12,48 @@ import { Permissions } from "../auth/permissions.decorator";
 // ─── DTOs ────────────────────────────────────────────────────────────────────
 
 class CreateCollaboratorDto {
-  userId: string;
-  matricula?: string;
-  fotoUrl?: string;
-  emailCorporativo?: string;
-  telefone?: string;
-  cargo?: string;
-  departamento?: string;
-  setorId?: string;
-  squad?: string;
-  especialidade?: string;
-  senioridade?: string;
-  gestorId?: string;
-  jornadaHorasDia?: number;
-  jornadaHorasMes?: number;
-  turno?: string;
-  escala?: string;
-  tipoVinculo?: string;
-  skills?: any;
-  certificacoes?: any;
-  ativo?: boolean;
+  @IsOptional() @IsString() userId?: string;
+  @IsOptional() @IsString() matricula?: string;
+  @IsOptional() @IsString() fotoUrl?: string;
+  @IsOptional() @IsString() emailCorporativo?: string;
+  @IsOptional() @IsString() telefone?: string;
+  @IsOptional() @IsString() cargo?: string;
+  @IsOptional() @IsString() departamento?: string;
+  @IsOptional() @IsString() setorId?: string;
+  @IsOptional() @IsString() squad?: string;
+  @IsOptional() @IsString() especialidade?: string;
+  @IsOptional() @IsString() senioridade?: string;
+  @IsOptional() @IsString() gestorId?: string;
+  @IsOptional() @IsNumber() jornadaHorasDia?: number;
+  @IsOptional() @IsNumber() jornadaHorasMes?: number;
+  @IsOptional() @IsString() turno?: string;
+  @IsOptional() @IsString() escala?: string;
+  @IsOptional() @IsString() tipoVinculo?: string;
+  @IsOptional() @IsArray() skills?: any;
+  @IsOptional() @IsArray() certificacoes?: any;
+  @IsOptional() @IsBoolean() ativo?: boolean;
 }
 
 class UpdateCollaboratorDto {
-  matricula?: string;
-  fotoUrl?: string;
-  emailCorporativo?: string;
-  telefone?: string;
-  cargo?: string;
-  departamento?: string;
-  setorId?: string | null;
-  squad?: string;
-  especialidade?: string;
-  senioridade?: string;
-  gestorId?: string | null;
-  jornadaHorasDia?: number;
-  jornadaHorasMes?: number;
-  turno?: string;
-  escala?: string;
-  tipoVinculo?: string;
-  skills?: any;
-  certificacoes?: any;
-  ativo?: boolean;
+  @IsOptional() @IsString() matricula?: string;
+  @IsOptional() @IsString() fotoUrl?: string;
+  @IsOptional() @IsString() emailCorporativo?: string;
+  @IsOptional() @IsString() telefone?: string;
+  @IsOptional() @IsString() cargo?: string;
+  @IsOptional() @IsString() departamento?: string;
+  @IsOptional() @IsString() setorId?: string;
+  @IsOptional() @IsString() squad?: string;
+  @IsOptional() @IsString() especialidade?: string;
+  @IsOptional() @IsString() senioridade?: string;
+  @IsOptional() @IsString() gestorId?: string;
+  @IsOptional() @IsNumber() jornadaHorasDia?: number;
+  @IsOptional() @IsNumber() jornadaHorasMes?: number;
+  @IsOptional() @IsString() turno?: string;
+  @IsOptional() @IsString() escala?: string;
+  @IsOptional() @IsString() tipoVinculo?: string;
+  @IsOptional() @IsArray() skills?: any;
+  @IsOptional() @IsArray() certificacoes?: any;
+  @IsOptional() @IsBoolean() ativo?: boolean;
 }
 
 // ─── Service ─────────────────────────────────────────────────────────────────
