@@ -822,7 +822,7 @@ export default function FornecedoresPage() {
 
   return (
     <div className="flex flex-col h-screen bg-background">
-      <Topbar title="Fornecedores" />
+      <Topbar />
 
       <div className="flex-1 overflow-auto p-6">
         {/* Header */}
