@@ -4,6 +4,8 @@ import { IsString } from "class-validator";
 import { PrismaService } from "../../prisma/prisma.service";
 import * as OTPAuth from "otpauth";
 import * as QRCode from "qrcode";
+import { randomBytes } from "crypto";
+import * as bcryptjs from "bcryptjs";
 
 class VerifyTotpDto { @IsString() token: string; }
 class DisableTotpDto { @IsString() senha: string; }
@@ -63,19 +65,23 @@ class TwoFAController {
       secret: OTPAuth.Secret.fromBase32(profile.twoFactorSecret),
     });
 
-    const delta = totp.validate({ token: dto.token, window: 1 });
+    const delta = totp.validate({ token: dto.token, window: 0 });
     if (delta === null) throw new UnauthorizedException("Codigo invalido");
 
-    // Gera codigos de backup
+    // Gera backup codes criptograficamente seguros
     const backupCodes = Array.from({ length: 8 }, () =>
-      Math.random().toString(36).substring(2, 8).toUpperCase()
+      randomBytes(4).toString("hex").toUpperCase()
     );
+
+    // Armazena apenas os hashes dos backup codes
+    const backupHashes = await Promise.all(backupCodes.map(c => bcryptjs.hash(c, 10)));
 
     await this.prisma.userProfile.update({
       where: { userId: req.user.id },
-      data: { twoFactorAtivo: true, twoFactorBackup: JSON.stringify(backupCodes) },
+      data: { twoFactorAtivo: true, twoFactorBackup: JSON.stringify(backupHashes) },
     });
 
+    // Retorna os códigos em plaintext apenas uma vez para o usuário salvar
     return { sucesso: true, backupCodes };
   }
 
@@ -83,11 +89,10 @@ class TwoFAController {
   @Post("disable")
   @UseGuards(AuthGuard("jwt"))
   async disable(@Body() dto: DisableTotpDto, @Req() req: any) {
-    const bcrypt = require("bcryptjs");
     const user = await this.prisma.user.findUnique({ where: { id: req.user.id } });
     if (!user) throw new UnauthorizedException();
 
-    const valid = await bcrypt.compare(dto.senha, user.senhaHash);
+    const valid = await bcryptjs.compare(dto.senha, user.senhaHash);
     if (!valid) throw new UnauthorizedException("Senha incorreta");
 
     await this.prisma.userProfile.update({
@@ -125,18 +130,25 @@ class TwoFAController {
       secret: OTPAuth.Secret.fromBase32(profile.twoFactorSecret),
     });
 
-    const delta = totp.validate({ token: dto.token, window: 1 });
+    const delta = totp.validate({ token: dto.token, window: 0 });
     if (delta !== null) return { valido: true };
 
-    // Tenta codigo de backup
+    // Tenta codigo de backup — comparação com hash bcrypt
     if (profile.twoFactorBackup) {
-      const backups: string[] = JSON.parse(profile.twoFactorBackup);
-      const idx = backups.findIndex(b => b === dto.token.toUpperCase());
-      if (idx >= 0) {
-        backups.splice(idx, 1);
+      const backupHashes: string[] = JSON.parse(profile.twoFactorBackup);
+      const tokenUpper = dto.token.toUpperCase();
+      let matchIdx = -1;
+      for (let i = 0; i < backupHashes.length; i++) {
+        if (await bcryptjs.compare(tokenUpper, backupHashes[i])) {
+          matchIdx = i;
+          break;
+        }
+      }
+      if (matchIdx >= 0) {
+        backupHashes.splice(matchIdx, 1);
         await this.prisma.userProfile.update({
           where: { userId: req.user.id },
-          data: { twoFactorBackup: JSON.stringify(backups) },
+          data: { twoFactorBackup: JSON.stringify(backupHashes) },
         });
         return { valido: true, backupUsado: true };
       }

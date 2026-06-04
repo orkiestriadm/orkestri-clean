@@ -251,9 +251,13 @@ export class AuthService implements OnModuleInit {
   }
 
   private async seedMaster() {
-    const masterEmail = this.config.get("MASTER_EMAIL", "sa@orkestri.local");
-    const masterPassword = this.config.get("MASTER_PASSWORD", "123@TBR");
-    const masterNome = this.config.get("MASTER_NOME", "SA");
+    const masterEmail = this.config.get<string>("MASTER_EMAIL");
+    const masterPassword = this.config.get<string>("MASTER_PASSWORD");
+    const masterNome = this.config.get<string>("MASTER_NOME", "Administrator");
+
+    if (!masterEmail || !masterPassword) {
+      throw new Error("MASTER_EMAIL e MASTER_PASSWORD são obrigatórios no ambiente. A API não pode inicializar sem essas variáveis.");
+    }
 
     await this.seedPermissionsAndRoles();
 
@@ -818,7 +822,7 @@ export class AuthService implements OnModuleInit {
       data: { used: true },
     });
 
-    const code = String(Math.floor(100000 + Math.random() * 900000));
+    const code = String(require("crypto").randomInt(100000, 1000000));
     const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
     await (this.prisma as any).passwordResetOtp.create({
       data: {
