@@ -569,7 +569,7 @@ function UserPermissionsModal({ user, allPerms, onClose }: { user: User; allPerm
 }
 
 // ── Aba Organograma + Diretório ────────────────────────────────────────────────
-type SetorTree = Setor & { filhos: SetorTree[] };
+type SetorTree = Setor & { filhos?: SetorTree[] };
 type DiretorioUser = { id:string; nome:string; email:string; avatar?:string; cargo?:string; telefone?:string; statusOnline?:string; setor?:{ id:string; nome:string; cor:string }|null; roles:string[]; isMaster:boolean; nivel:number; ultimoLogin?:string; };
 
 function SetorCard({ s, depth=0 }: { s: SetorTree; depth?: number }) {
