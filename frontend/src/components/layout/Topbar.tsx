@@ -83,11 +83,11 @@ export default function Topbar({ children }: { children?: React.ReactNode }) {
         <div className="flex items-center gap-2">
           {children}
           <button
-            className="hidden sm:flex items-center gap-2 h-[34px] px-3 rounded-[10px] border border-[var(--border-subtle)] bg-[var(--bg-secondary)] text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:border-[var(--border-medium)] shadow-premium-sm transition-all text-[12px] font-medium group"
+            className="hidden sm:flex items-center gap-2 h-[34px] px-3 rounded-[10px] border border-[var(--border-subtle)] bg-[var(--bg-secondary)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--border-medium)] transition-all duration-200 text-[12px] font-medium group"
             onClick={() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", ctrlKey: true, bubbles: true }))}>
-            <Search size={13} className="text-[var(--text-faint)] group-hover:text-[var(--text-primary)] transition-colors" />
+            <Search size={13} className="text-[var(--text-muted)] group-hover:text-[var(--text-primary)] transition-colors" />
             <span>Buscar</span>
-            <kbd className="ml-2 text-[9px] px-1.5 py-0.5 rounded border border-[var(--border-subtle)] font-mono bg-[var(--bg-hover)] hidden md:inline">⌘K</kbd>
+            <kbd className="ml-2 text-[9px] px-1.5 py-0.5 rounded border border-[var(--border-subtle)] font-mono bg-[var(--bg-hover)] hidden md:inline text-[var(--text-muted)]">⌘K</kbd>
           </button>
           
           <div className="w-[1px] h-4 bg-[var(--border-subtle)] mx-1 hidden sm:block" />
@@ -101,9 +101,9 @@ export default function Topbar({ children }: { children?: React.ReactNode }) {
           <NotificationBell />
           <ThemeToggle />
 
-          <div className="hidden sm:flex items-center gap-2 h-[34px] px-3 rounded-[10px] border border-[var(--border-subtle)] bg-[var(--bg-secondary)] ml-1 shadow-premium-sm">
-            <CalendarClock size={13} className="text-emerald-500" />
-            <span className="text-[11px] font-mono text-[var(--text-muted)]">
+          <div className="hidden sm:flex items-center gap-2 h-[34px] px-3 rounded-[10px] border border-[var(--border-subtle)] bg-[var(--bg-secondary)] ml-1">
+            <CalendarClock size={13} className="text-[var(--accent-green)]" />
+            <span className="text-[11px] font-mono text-[var(--text-secondary)] font-medium">
               {new Date().toLocaleDateString("pt-BR", { weekday: "short", day: "numeric", month: "short" })}
             </span>
           </div>

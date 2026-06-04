@@ -81,15 +81,15 @@ function systemStatus(alerts: Alert[]) {
    HELPERS
 ═══════════════════════════════════════════════ */
 const STATUS_LABEL: Record<string, string> = { aberto: "Aberto", em_atendimento: "Em atendimento", aguardando: "Aguardando", resolvido: "Resolvido", fechado: "Fechado", cancelado: "Cancelado" };
-const STATUS_COLOR: Record<string, string> = { aberto: "text-blue-500", em_atendimento: "text-amber-500", aguardando: "text-violet-500", resolvido: "text-emerald-500", fechado: "text-[var(--text-muted)]", cancelado: "text-red-500" };
-const PRIO_DOT: Record<string, string> = { baixa: "bg-[var(--border-strong)]", media: "bg-blue-400", alta: "bg-amber-400", urgente: "bg-red-500" };
-const TIPO_COLORS: Record<string, string> = { TAREFA: "text-violet-600 bg-violet-500/10 border-violet-500/20", COMPROMISSO: "text-amber-600 bg-amber-500/10 border-amber-500/20", HABITO: "text-emerald-600 bg-emerald-500/10 border-emerald-500/20" };
+const STATUS_COLOR: Record<string, string> = { aberto: "text-[var(--accent-cyan)]", em_atendimento: "text-[var(--accent-amber)]", aguardando: "text-[var(--accent-violet)]", resolvido: "text-[var(--accent-green)]", fechado: "text-[var(--text-muted)]", cancelado: "text-[var(--accent-red)]" };
+const PRIO_DOT: Record<string, string> = { baixa: "bg-[var(--border-strong)]", media: "bg-[var(--accent-cyan)]", alta: "bg-[var(--accent-amber)]", urgente: "bg-[var(--accent-red)]" };
+const TIPO_COLORS: Record<string, string> = { TAREFA: "text-[var(--accent-violet)] bg-[var(--accent-violet-dim)] border-[var(--accent-violet)]/10", COMPROMISSO: "text-[var(--accent-amber)] bg-[var(--accent-amber)]/[0.04] border-[var(--accent-amber)]/10", HABITO: "text-[var(--accent-green)] bg-[var(--accent-green)]/[0.04] border-[var(--accent-green)]/10" };
 const SEV_COLORS: Record<AlertSeverity, { dot: string; text: string; bg: string; border: string }> = {
-  critical: { dot: "bg-red-500",    text: "text-red-400",    bg: "bg-red-500/8",    border: "border-red-500/20" },
-  high:     { dot: "bg-orange-500", text: "text-orange-400", bg: "bg-orange-500/8", border: "border-orange-500/20" },
-  medium:   { dot: "bg-amber-500",  text: "text-amber-400",  bg: "bg-amber-500/8",  border: "border-amber-500/20" },
-  low:      { dot: "bg-blue-400",   text: "text-blue-400",   bg: "bg-blue-500/8",   border: "border-blue-500/20" },
-  ok:       { dot: "bg-emerald-400",text: "text-emerald-400",bg: "bg-emerald-500/8",border: "border-emerald-500/20" },
+  critical: { dot: "bg-[var(--accent-red)]",    text: "text-[var(--accent-red)]",    bg: "bg-[var(--accent-red)]/[0.04]",    border: "border-[var(--accent-red)]/10" },
+  high:     { dot: "bg-orange-500",             text: "text-orange-500",             bg: "bg-orange-500/[0.04]",             border: "border-orange-500/10" },
+  medium:   { dot: "bg-[var(--accent-amber)]",  text: "text-[var(--accent-amber)]",  bg: "bg-[var(--accent-amber)]/[0.04]",  border: "border-[var(--accent-amber)]/10" },
+  low:      { dot: "bg-[var(--accent-cyan)]",   text: "text-[var(--accent-cyan)]",   bg: "bg-[var(--accent-cyan)]/[0.04]",   border: "border-[var(--accent-cyan)]/10" },
+  ok:       { dot: "bg-[var(--accent-green)]",  text: "text-[var(--accent-green)]",  bg: "bg-[var(--accent-green)]/[0.04]",  border: "border-[var(--accent-green)]/10" },
 };
 
 function fmtMinutes(m: number) {

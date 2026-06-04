@@ -343,7 +343,7 @@ function SlideProjetos() {
                     <div className="text-[6px] font-medium text-gray-700 leading-tight">{t}</div>
                     <div className="mt-0.5 flex items-center gap-0.5">
                       <span className="w-3 h-3 rounded-full bg-violet-200 flex items-center justify-center text-[5px] font-bold text-violet-700">
-                        {['A','DP','GR','CS','BL'][col.tasks.indexOf(t) % 5]}
+                        {['A', 'DP', 'GR', 'CS', 'BL'][col.tasks.indexOf(t) % 5]}
                       </span>
                     </div>
                   </div>
@@ -379,9 +379,9 @@ const MAX_SCALE = 1.45
 
 function HeroCarousel() {
   const [current, setCurrent] = useState(0)
-  const [paused, setPaused]   = useState(false)
-  const [frozen, setFrozen]   = useState(false)  // para de avançar após fechar zoom
-  const [zoomed, setZoomed]   = useState(false)
+  const [paused, setPaused] = useState(false)
+  const [frozen, setFrozen] = useState(false)  // para de avançar após fechar zoom
+  const [zoomed, setZoomed] = useState(false)
   const [modalScale, setModalScale] = useState(MAX_SCALE)
 
   // Auto-avanço — para quando pausado OU frozen
@@ -417,10 +417,10 @@ function HeroCarousel() {
     if (!frozen) setTimeout(() => setPaused(false), 8000)
   }, [frozen])
 
-  const openZoom  = useCallback(() => setZoomed(true), [])
+  const openZoom = useCallback(() => setZoomed(true), [])
   const closeZoom = useCallback(() => { setZoomed(false); setFrozen(true) }, [])
 
-  const slide    = SLIDES[current]
+  const slide = SLIDES[current]
   const SlideComp = slide.component
 
   // ── Conteúdo do app window (renderizado em dois lugares) ──
@@ -565,7 +565,7 @@ function HeroCarousel() {
               transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
               className="relative overflow-hidden rounded-2xl shadow-[0_40px_120px_rgba(0,0,0,0.8)] border border-[rgba(162,130,255,0.25)]"
               style={{
-                width:  `${BASE_W * modalScale}px`,
+                width: `${BASE_W * modalScale}px`,
                 height: `${BASE_H * modalScale}px`,
               }}
               onClick={(e) => e.stopPropagation()}
@@ -669,7 +669,7 @@ export default function HeroSection() {
                 href="/solicitar-acesso"
                 className="inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-xl bg-gradient-to-r from-violet-600 to-violet-500 text-white font-semibold hover:from-violet-500 hover:to-violet-400 transition-all shadow-[0_0_28px_rgba(124,58,237,0.5)] hover:shadow-[0_0_40px_rgba(124,58,237,0.7)] hover:-translate-y-0.5 active:translate-y-0 text-sm"
               >
-                Teste Grátis <ArrowRight size={15} />
+                Teste por 7 dias grátis <ArrowRight size={15} />
               </Link>
 
               <Link
