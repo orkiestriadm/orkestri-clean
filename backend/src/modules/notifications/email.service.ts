@@ -283,4 +283,21 @@ export class EmailService {
       `)
     );
   }
+
+  async sendNewIpAlert(to: string, ip: string, quando: string): Promise<boolean> {
+    return this.send(
+      to,
+      "Novo acesso detectado na sua conta Orkestri",
+      this.layout(
+        `<h2 style="font-size:20px;font-weight:700;color:#1f2937;margin:0 0 16px;">Novo acesso à sua conta</h2>
+        <p style="font-size:15px;color:#374151;">Detectamos um login na sua conta a partir de um IP não reconhecido.</p>
+        <div class="info-box">
+          <div class="info-row"><span class="info-label">IP:</span><span class="info-value">${ip}</span></div>
+          <div class="info-row"><span class="info-label">Quando:</span><span class="info-value">${quando}</span></div>
+        </div>
+        <p style="font-size:14px;color:#6b7280;">Se foi você, pode ignorar este e-mail. Caso contrário, troque sua senha imediatamente.</p>
+        <a href="${this.appUrl}/dashboard/configuracoes" class="btn">Trocar senha agora</a>`
+      )
+    );
+  }
 }

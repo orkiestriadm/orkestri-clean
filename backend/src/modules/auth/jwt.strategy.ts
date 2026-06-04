@@ -28,6 +28,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     }
     const user = await this.prisma.user.findUnique({ where: { id: payload.sub } });
     if (!user || !user.ativo) throw new UnauthorizedException();
+    if ((user as any).bloqueado) throw new UnauthorizedException("Conta bloqueada. Contate o Administrador.");
 
     // Impersonation: super-admin operating within another org's context.
     // Dentro da impersonação ele atua como master DAQUELE tenant —
@@ -90,6 +91,8 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     }
     // ────────────────────────────────────────────────────────────────────────
 
+    const primeiroAcesso = !!(user as any).primeiroAcesso;
+
     return {
       id: payload.sub, email: payload.email,
       organizationId: (user as any).organizationId,
@@ -97,6 +100,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       isMaster: permissions.includes("*"),
       isSuperAdmin,
       permissions,
+      primeiroAcesso,
       _iat: payload.iat,
       _exp: payload.exp,
     };

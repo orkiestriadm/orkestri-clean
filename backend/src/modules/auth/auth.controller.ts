@@ -8,6 +8,7 @@ import { Response } from "express";
 import { AuthService } from "./auth.service";
 import { CacheService } from "../cache/cache.service";
 import { LoginDto } from "./auth.dto";
+import { SkipFirstAccessGuard } from "./first-access.decorator";
 
 // 5 failed attempts per 15-minute window → 429 for the rest of the window
 const RATE_LIMIT_MAX = 5;
@@ -117,6 +118,15 @@ export class AuthController {
     }
     const result = await this.auth.login(dto.email, dto.senha);
     await this.cache.del(rlKey);
+
+    // Alerta de novo IP — detecta login de IP desconhecido
+    const ipKey = `known:ip:${result.user.id}:${ip}`;
+    const knownIp = await this.cache.get(ipKey);
+    if (!knownIp) {
+      await this.cache.set(ipKey, "1", 30 * 24 * 60 * 60); // Lembra IP por 30 dias
+      this.auth.alertNewIpLogin(result.user.id, result.user.email, ip).catch(() => {});
+    }
+
     // Set HttpOnly cookie — JS cannot read this token
     const isSecure = req.headers["x-forwarded-proto"] === "https";
     res.cookie("orkestri_token", result.accessToken, {
@@ -131,6 +141,7 @@ export class AuthController {
 
   @Get("me")
   @UseGuards(AuthGuard("jwt"))
+  @SkipFirstAccessGuard()
   async me(@Req() req: any) {
     const base = await this.auth.me(req.user.id);
     if (req.user.impersonating) {
@@ -154,6 +165,7 @@ export class AuthController {
   @Post("logout")
   @UseGuards(AuthGuard("jwt"))
   @HttpCode(200)
+  @SkipFirstAccessGuard()
   async logout(@Req() req: any, @Res({ passthrough: true }) res: Response) {
     res.clearCookie("orkestri_token", { path: "/" });
     return this.auth.logout(req.user.id, req.user._iat, req.user._exp);
@@ -229,6 +241,7 @@ export class AuthController {
 
   @Patch("primeiro-acesso")
   @UseGuards(AuthGuard("jwt"))
+  @SkipFirstAccessGuard()
   primeiroAcesso(@Body() dto: PrimeiroAcessoDto, @Req() req: any) {
     return this.auth.changeFirstPassword(req.user.id, dto.novaSenha);
   }

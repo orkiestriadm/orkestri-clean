@@ -424,24 +424,18 @@ export class AuthService implements OnModuleInit {
     if (!user || !user.ativo) throw new UnauthorizedException("Credenciais inválidas");
     const isMasterUser = user.userRoles.some(ur => ur.role.isMaster);
     if ((user as any).bloqueado) {
-      if (isMasterUser) {
-        // Master nunca fica bloqueado permanentemente
-        await this.prisma.user.update({ where: { id: user.id }, data: { bloqueado: false, tentativasFalhas: 0 } as any });
-      } else {
-        throw new UnauthorizedException("Conta bloqueada. Contate o Administrador.");
-      }
+      throw new UnauthorizedException("Conta bloqueada. Contate o Administrador.");
     }
     const valid = await bcrypt.compare(senha, user.senhaHash);
     if (!valid) {
-      if (!isMasterUser) {
-        const novasTentativas = ((user as any).tentativasFalhas || 0) + 1;
-        const bloquear = novasTentativas >= 5;
-        await this.prisma.user.update({
-          where: { id: user.id },
-          data: { tentativasFalhas: novasTentativas, ...(bloquear ? { bloqueado: true } : {}) } as any,
-        });
-        if (bloquear) throw new UnauthorizedException("Conta bloqueada após múltiplas tentativas. Contate o Administrador.");
-      }
+      // Registra tentativa falha para todos os usuários, incluindo master
+      const novasTentativas = ((user as any).tentativasFalhas || 0) + 1;
+      const bloquear = !isMasterUser && novasTentativas >= 5;
+      await this.prisma.user.update({
+        where: { id: user.id },
+        data: { tentativasFalhas: novasTentativas, ...(bloquear ? { bloqueado: true } : {}) } as any,
+      });
+      if (bloquear) throw new UnauthorizedException("Conta bloqueada após múltiplas tentativas. Contate o Administrador.");
       throw new UnauthorizedException("Credenciais inválidas");
     }
     await this.prisma.user.update({
@@ -797,10 +791,13 @@ export class AuthService implements OnModuleInit {
     if (!user) return { message: "Se o e-mail estiver cadastrado, você receberá o link de redefinição." };
     if (!user.ativo || (user as any).bloqueado) return { message: "Se o e-mail estiver cadastrado, você receberá o link de redefinição." };
 
+    const jti = require("crypto").randomUUID(); // ID único do token — permite revogação
     const resetToken = this.jwt.sign(
-      { sub: user.id, type: "email_reset" },
+      { sub: user.id, type: "email_reset", jti },
       { secret: this.config.get("JWT_SECRET"), expiresIn: "30m" },
     );
+    // Registra JTI válido no Redis com TTL de 30min (single-use)
+    await this.cache.set(`reset:token:${jti}`, "1", 1800);
     const appUrl = this.config.get("APP_URL", "http://localhost");
     const resetUrl = `${appUrl}/recuperar-senha?token=${resetToken}`;
     this.email.sendPasswordResetLink(user.email, user.nome, resetUrl).catch(() => {});
@@ -852,15 +849,17 @@ export class AuthService implements OnModuleInit {
 
     if (otp.otpCode !== code) {
       const newAttempts = otp.otpAttempts + 1;
+      const MAX_OTP_ATTEMPTS = 7;
       await (this.prisma as any).passwordResetOtp.update({
         where: { id: otp.id },
         data: { otpAttempts: newAttempts },
       });
-      if (newAttempts >= 2) {
-        await this.prisma.user.update({ where: { id: user.id }, data: { bloqueado: true } as any });
-        throw new UnauthorizedException("Muitas tentativas incorretas. Conta bloqueada. Contate o Administrador.");
+      if (newAttempts >= MAX_OTP_ATTEMPTS) {
+        // Invalida o OTP — usuário deve solicitar novo código
+        await (this.prisma as any).passwordResetOtp.update({ where: { id: otp.id }, data: { used: true } });
+        throw new UnauthorizedException("Muitas tentativas incorretas. Solicite um novo código.");
       }
-      throw new UnauthorizedException(`Código incorreto. ${2 - newAttempts} tentativa(s) restante(s).`);
+      throw new UnauthorizedException(`Código incorreto. ${MAX_OTP_ATTEMPTS - newAttempts} tentativa(s) restante(s).`);
     }
 
     await (this.prisma as any).passwordResetOtp.update({ where: { id: otp.id }, data: { used: true } });
@@ -880,11 +879,21 @@ export class AuthService implements OnModuleInit {
       throw new UnauthorizedException("Token inválido ou expirado.");
     }
     if (payload.type !== "reset" && payload.type !== "email_reset") throw new UnauthorizedException("Token inválido.");
+
+    // Valida single-use: tokens email_reset precisam ter JTI válido no Redis
+    if (payload.type === "email_reset") {
+      if (!payload.jti) throw new UnauthorizedException("Token inválido.");
+      const valid = await this.cache.get(`reset:token:${payload.jti}`);
+      if (!valid) throw new UnauthorizedException("Token já utilizado ou expirado.");
+      // Consome o token — impede reutilização
+      await this.cache.del(`reset:token:${payload.jti}`);
+    }
+
     this.validatePasswordStrength(novaSenha);
     const hash = await bcrypt.hash(novaSenha, 12);
     await this.prisma.user.update({
       where: { id: payload.sub },
-      data: { senhaHash: hash, tentativasFalhas: 0 } as any,
+      data: { senhaHash: hash, tentativasFalhas: 0, bloqueado: false } as any,
     });
     return { message: "Senha redefinida com sucesso." };
   }
@@ -909,6 +918,25 @@ export class AuthService implements OnModuleInit {
       data: { bloqueado: false, tentativasFalhas: 0 } as any,
     });
     return { message: "Usuário desbloqueado." };
+  }
+
+  async alertNewIpLogin(userId: string, email: string, ip: string) {
+    try {
+      const agora = new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" });
+      await this.prisma.notification.create({
+        data: {
+          id: require("crypto").randomUUID(),
+          userId,
+          tipo: "seguranca",
+          titulo: "Novo acesso detectado",
+          mensagem: `Login realizado de um IP não reconhecido: ${ip} em ${agora}. Se não foi você, troque sua senha imediatamente.`,
+        },
+      });
+      // Notificação por e-mail opcional — usa sendNewIpAlert se disponível
+      if (typeof (this.email as any).sendNewIpAlert === "function") {
+        (this.email as any).sendNewIpAlert(email, ip, agora).catch(() => {});
+      }
+    } catch { /* não bloqueia o login por falha de alerta */ }
   }
 
   getTenantInfo() {

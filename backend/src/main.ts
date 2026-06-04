@@ -1,4 +1,4 @@
-import { NestFactory } from "@nestjs/core";
+import { NestFactory, Reflector } from "@nestjs/core";
 import { ValidationPipe, Logger } from "@nestjs/common";
 import { AppModule } from "./app.module";
 import helmet from "helmet";
@@ -6,6 +6,7 @@ import * as cookieParser from "cookie-parser";
 import { NestExpressApplication } from "@nestjs/platform-express";
 import * as path from "path";
 import * as fs from "fs";
+import { FirstAccessGuard } from "./modules/auth/first-access.guard";
 
 async function bootstrap() {
   const logger = new Logger("Bootstrap");
@@ -38,6 +39,9 @@ async function bootstrap() {
 
   // Validação global de DTOs
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true, forbidNonWhitelisted: true }));
+
+  // Guard global: bloqueia endpoints quando usuário ainda não trocou senha temporária
+  app.useGlobalGuards(new FirstAccessGuard(app.get(Reflector)));
 
   const port = process.env.PORT || 3000;
   await app.listen(port, "0.0.0.0");
