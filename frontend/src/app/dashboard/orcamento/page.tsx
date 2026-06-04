@@ -235,8 +235,8 @@ function ItemModal({ tipo, categorias, centrosCusto, fornecedores, onClose, onSa
           <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-accent"><X size={16}/></button>
         </div>
         <form onSubmit={submit} className="flex-1 overflow-y-auto p-6 space-y-5">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="col-span-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="sm:col-span-2">
               <FL l="Nome do Item" req />
               <input value={form.nome} onChange={e=>set("nome",e.target.value)}
                 className="w-full bg-input border border-border rounded-lg px-3 py-2 text-sm text-foreground outline-none focus:border-primary" placeholder="Ex: Microsoft 365 E3" />
@@ -292,7 +292,7 @@ function ItemModal({ tipo, categorias, centrosCusto, fornecedores, onClose, onSa
 
           <div>
             <FL l="Valores Mensais Previstos (R$)" />
-            <div className="grid grid-cols-4 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
               {MESES.map((m,i)=>(
                 <div key={i}>
                   <div className="text-[10px] text-muted-foreground mb-1 text-center">{m}</div>
@@ -438,7 +438,7 @@ function TabItens({ tipo, cicloId, categorias, centrosCusto, fornecedores }:{
       </div>
 
       {/* Totals strip */}
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         {[
           { l:"Total Previsto", v:fmtBRL(totalPrevisto), c:"text-violet-400" },
           { l:"Total Realizado", v:fmtBRL(totalRealizado), c:execColor(totalExec) },
@@ -527,7 +527,7 @@ function TabItens({ tipo, cicloId, categorias, centrosCusto, fornecedores }:{
 
                   {/* Expanded detail */}
                   {isExp && (
-                    <div className="px-6 py-3 bg-white/2 border-t border-border text-xs text-muted-foreground grid grid-cols-3 gap-3">
+                    <div className="px-4 sm:px-6 py-3 bg-white/2 border-t border-border text-xs text-muted-foreground grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                       {item.descricao && <div><span className="font-medium text-foreground">Descrição: </span>{item.descricao}</div>}
                       {item.fornecedor && <div><span className="font-medium text-foreground">Fornecedor: </span>{item.fornecedor.nome}</div>}
                       {item.centroCusto && <div><span className="font-medium text-foreground">Centro de Custo: </span>{item.centroCusto.nome}</div>}

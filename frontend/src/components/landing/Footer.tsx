@@ -61,10 +61,10 @@ export default function Footer() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
 
         {/* Main footer */}
-        <div className="py-16 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-8 lg:gap-12">
+        <div className="py-12 sm:py-16 grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-6 sm:gap-8 lg:gap-12">
 
           {/* Brand */}
-          <div className="col-span-2 sm:col-span-3 lg:col-span-1">
+          <div className="col-span-1 xs:col-span-2 sm:col-span-3 lg:col-span-1">
             <Link href="/" className="inline-block mb-4">
               <BrandLogo size="md" />
             </Link>

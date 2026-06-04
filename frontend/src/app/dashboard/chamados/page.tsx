@@ -948,19 +948,19 @@ function BulkActionBar({ ids, users, onDone, onCancel }: {
   }
 
   return (
-    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 flex items-center gap-3 px-6 py-3 card-premium rounded-full shadow-premium-xl border-[var(--accent-violet)]/30 backdrop-blur-xl animate-in slide-in-from-bottom-8">
+    <div className="fixed bottom-4 sm:bottom-6 left-1/2 -translate-x-1/2 z-40 flex flex-wrap items-center justify-center gap-2 sm:gap-3 px-4 sm:px-6 py-3 card-premium rounded-2xl sm:rounded-full shadow-premium-xl border-[var(--accent-violet)]/30 backdrop-blur-xl animate-in slide-in-from-bottom-8 max-w-[calc(100vw-32px)]">
       <div className="flex items-center justify-center w-6 h-6 rounded-full bg-[var(--accent-violet)]/20 text-[var(--accent-violet)] font-bold text-xs">
         {ids.length}
       </div>
       <span className="text-sm font-semibold text-[var(--text-primary)]">selecionados</span>
       <div className="w-px h-5 bg-[var(--border-medium)] mx-1" />
       <select value={status} onChange={e => setStatus(e.target.value)}
-        className="input-o text-xs py-1.5 min-w-[140px] rounded-full px-4 border-transparent bg-[var(--bg-hover)]">
+        className="input-o text-xs py-1.5 w-full sm:min-w-[120px] sm:w-auto rounded-full px-4 border-transparent bg-[var(--bg-hover)]">
         <option value="">Alterar status...</option>
         {STATUS_COLS.map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
       </select>
       <select value={atendente} onChange={e => setAtendente(e.target.value)}
-        className="input-o text-xs py-1.5 min-w-[140px] rounded-full px-4 border-transparent bg-[var(--bg-hover)]">
+        className="input-o text-xs py-1.5 w-full sm:min-w-[120px] sm:w-auto rounded-full px-4 border-transparent bg-[var(--bg-hover)]">
         <option value="">Atribuir para...</option>
         <option value="__none__">Remover atribuição</option>
         {users.map(u => <option key={u.id} value={u.id}>{u.nome}</option>)}
@@ -1130,7 +1130,7 @@ export default function ChamadosPage() {
       {/* Stats */}
       {stats && (
         <div className="px-6 py-3 border-b border-border flex-shrink-0">
-          <div className="grid grid-cols-4 lg:grid-cols-8 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2 sm:gap-3">
             <StatCard label="Total"        value={stats.total} />
             <StatCard label="Abertos"      value={stats.aberto}          color="text-slate-400" />
             <StatCard label="Em Atend."    value={stats.em_atendimento}  color="text-blue-400" />
@@ -1179,8 +1179,8 @@ export default function ChamadosPage() {
       </div>
 
       {/* Filters */}
-      <div className="px-6 py-4 border-b border-[var(--border-subtle)] flex-shrink-0 flex items-center gap-3 flex-wrap bg-[var(--bg-primary)]">
-        <div className="relative flex-1 min-w-48">
+      <div className="px-4 sm:px-6 py-3 sm:py-4 border-b border-[var(--border-subtle)] flex-shrink-0 flex flex-wrap items-center gap-2 sm:gap-3 bg-[var(--bg-primary)]">
+        <div className="relative w-full sm:flex-1 sm:min-w-40">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
           <input
             className="input-o pl-9 py-2"
@@ -1190,27 +1190,27 @@ export default function ChamadosPage() {
           />
         </div>
         <select
-          className="input-o py-2 min-w-[160px]"
+          className="input-o py-2 flex-1 min-w-[120px]"
           value={filterStatus}
           onChange={e => setFilterStatus(e.target.value)}
         >
-          <option value="">Todos os status</option>
+          <option value="">Status</option>
           {STATUS_COLS.map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
         </select>
         <select
-          className="input-o py-2 min-w-[160px]"
+          className="input-o py-2 flex-1 min-w-[120px]"
           value={filterPrio}
           onChange={e => setFilterPrio(e.target.value)}
         >
-          <option value="">Todas as prioridades</option>
+          <option value="">Prioridade</option>
           {PRIORIDADES.map(p => <option key={p} value={p}>{PRIORIDADE_MAP[p].label}</option>)}
         </select>
         <select
-          className="input-o py-2 min-w-[160px]"
+          className="input-o py-2 flex-1 min-w-[120px]"
           value={filterCat}
           onChange={e => setFilterCat(e.target.value)}
         >
-          <option value="">Todas as categorias</option>
+          <option value="">Categoria</option>
           {CATEGORIAS.map(c => <option key={c} value={c}>{c}</option>)}
         </select>
         {(filterStatus || filterPrio || filterCat || search) && (
@@ -1232,7 +1232,7 @@ export default function ChamadosPage() {
         ) : (
           <div className="flex gap-5 h-full min-w-max pb-4">
             {byCols.map(col => (
-              <div key={col.key} className="w-[300px] flex-shrink-0 flex flex-col"
+              <div key={col.key} className="w-[260px] sm:w-[300px] lg:w-[320px] flex-shrink-0 flex flex-col"
                 onDragOver={e => { e.preventDefault(); setDragOver(col.key); }}
                 onDragLeave={() => setDragOver(null)}
                 onDrop={() => handleDrop(col.key)}

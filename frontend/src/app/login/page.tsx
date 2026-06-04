@@ -273,7 +273,7 @@ export default function LoginPage() {
           <div className="mt-6 text-center space-y-3">
             <Link href="/solicitar-acesso" className="text-[13px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors">
               Quer conhecer o sistema?{' '}
-              <span className="text-[var(--accent-violet)] opacity-80 hover:opacity-100">Teste Grátis por 7 dias →</span>
+              <span className="text-[var(--accent-violet)] opacity-80 hover:opacity-100">Solicitar acesso →</span>
             </Link>
             <p className="text-[11px] text-[var(--text-faint)] font-mono">Orkiestri Enterprise · v2.0.4</p>
           </div>
