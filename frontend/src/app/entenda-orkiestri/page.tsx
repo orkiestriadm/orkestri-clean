@@ -242,7 +242,7 @@ export default function UnderstandOrkiestriPage() {
                     </div>
                     <div className="flex items-center justify-between border-b border-white/5 pb-3">
                       <span className="text-slate-300 text-sm">Atendimento / Chamados</span>
-                      <span class="text-xs bg-white/5 text-slate-400 px-2.5 py-1 rounded-md font-mono">Movidesk</span>
+                      <span className="text-xs bg-white/5 text-slate-400 px-2.5 py-1 rounded-md font-mono">Movidesk</span>
                     </div>
                     <div className="flex items-center justify-between border-b border-white/5 pb-3">
                       <span className="text-slate-300 text-sm">Organização de Tarefas</span>
