@@ -177,7 +177,7 @@ export default function UnderstandOrkiestriPage() {
                 </span>
               </h1>
 
-              <p class="font-display text-2xl md:text-3xl font-bold text-slate-200 leading-relaxed mb-6">
+              <p className="font-display text-2xl md:text-3xl font-bold text-slate-200 leading-relaxed mb-6">
                 A evolução da orquestração operacional corporativa.
               </p>
 
