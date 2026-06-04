@@ -145,8 +145,9 @@ export default function PricingSection() {
               >
                 {/* Wrapper que lida com o tamanho e efeitos de hover de forma independente do Framer Motion */}
                 <div
+                  style={{ willChange: 'transform' }}
                   className={`group/card relative flex flex-col h-full w-full transition-all duration-300 ease-out ${isHighlight
-                      ? 'scale-[1.04] hover:scale-[1.06] hover:-translate-y-2 z-10'
+                      ? 'scale-[1.02] sm:scale-[1.04] hover:scale-[1.03] sm:hover:scale-[1.06] hover:-translate-y-1 sm:hover:-translate-y-2 z-10'
                       : 'hover:scale-[1.01] hover:-translate-y-1 z-0'
                     }`}
                 >

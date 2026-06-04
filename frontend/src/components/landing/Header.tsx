@@ -90,12 +90,11 @@ export default function Header() {
 
               <Link
                 href="/login"
-                onClick={() => {
-                  /* Analytics: dispare evento "login_intent" aqui */
-                }}
-                className="hidden sm:inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-gradient-to-r from-violet-600 to-violet-500 text-white text-sm font-semibold hover:from-violet-500 hover:to-violet-400 transition-all shadow-[0_0_20px_rgba(124,58,237,0.35)] hover:shadow-[0_0_32px_rgba(124,58,237,0.55)] hover:-translate-y-px active:translate-y-0 active:shadow-none"
+                className="inline-flex items-center gap-1.5 px-3 sm:px-5 py-2 sm:py-2.5 rounded-xl bg-gradient-to-r from-violet-600 to-violet-500 text-white text-xs sm:text-sm font-semibold hover:from-violet-500 hover:to-violet-400 transition-all shadow-[0_0_20px_rgba(124,58,237,0.35)] hover:shadow-[0_0_32px_rgba(124,58,237,0.55)] hover:-translate-y-px active:translate-y-0 active:shadow-none"
               >
-                Login <ArrowRight size={14} />
+                <span className="hidden sm:inline">Login</span>
+                <span className="sm:hidden">Entrar</span>
+                <ArrowRight size={14} />
               </Link>
 
               <button
@@ -127,7 +126,7 @@ export default function Header() {
               animate={{ x: 0 }}
               exit={{ x: '100%' }}
               transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
-              className="fixed top-0 right-0 bottom-0 z-50 w-72 bg-[var(--bg-primary)] border-l border-[var(--border-subtle)] flex flex-col md:hidden"
+              className="fixed top-0 right-0 bottom-0 z-50 w-[min(288px,85vw)] bg-[var(--bg-primary)] border-l border-[var(--border-subtle)] flex flex-col md:hidden"
             >
               <div className="flex items-center justify-between px-5 h-16 border-b border-[var(--border-subtle)]">
                 <span className="font-display font-bold text-[var(--text-primary)]">Menu</span>

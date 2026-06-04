@@ -393,20 +393,49 @@
 @keyframes fadeIn    { from { opacity:0 } to { opacity:1 } }
 @keyframes scaleIn   { from { opacity:0; transform:scale(0.97) } to { opacity:1; transform:scale(1) } }
 
+/* ── Fluid Typography — clamp() para escalamento suave ──────── */
+.text-fluid-xs   { font-size: clamp(0.65rem,  1.5vw, 0.75rem);  }
+.text-fluid-sm   { font-size: clamp(0.75rem,  2vw,   0.875rem); }
+.text-fluid-base { font-size: clamp(0.875rem, 2.5vw, 1rem);     }
+.text-fluid-lg   { font-size: clamp(1rem,     3vw,   1.125rem); }
+.text-fluid-xl   { font-size: clamp(1.125rem, 3.5vw, 1.25rem);  }
+.text-fluid-2xl  { font-size: clamp(1.25rem,  4vw,   1.5rem);   }
+.text-fluid-3xl  { font-size: clamp(1.5rem,   5vw,   1.875rem); }
+.text-fluid-4xl  { font-size: clamp(1.875rem, 6vw,   2.25rem);  }
+.text-fluid-5xl  { font-size: clamp(2.25rem,  7vw,   3rem);     }
+
 /* ── Responsive ────────────────────────────────────────────── */
 @media (max-width: 768px) {
   :root { --sidebar-w: 0px; }
   .sidebar-desktop { display: none !important; }
   .sidebar-mobile-overlay { position: fixed; inset: 0; z-index: 100; background: rgba(0,0,0,0.6); backdrop-filter: blur(6px); animation: fadeIn 0.2s ease; }
-  .sidebar-mobile { position: fixed; left: 0; top: 0; bottom: 0; width: 280px; z-index: 101; background: var(--bg-card); border-right: 1px solid var(--border-subtle); box-shadow: 4px 0 24px rgba(0,0,0,0.4); }
-  .modal-box { padding: 20px; }
+  .sidebar-mobile { position: fixed; left: 0; top: 0; bottom: 0; width: min(280px, 85vw); z-index: 101; background: var(--bg-card); border-right: 1px solid var(--border-subtle); box-shadow: 4px 0 24px rgba(0,0,0,0.4); }
+  .modal-box { padding: 16px; max-width: calc(100vw - 24px) !important; width: 100%; }
+  .modal-overlay { padding: 12px; }
 
   /* Tabelas — scroll horizontal em vez de comprimir colunas */
   .page-content { overflow-x: auto; }
   .table-scroll-wrapper { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+  /* Typography mobile */
+  .font-display { letter-spacing: -0.01em; }
 }
+
 @media (min-width: 769px) and (max-width: 1024px) {
   :root { --sidebar-w: 220px; }
+
+  /* Modal seguro em tablet */
+  .modal-box { max-width: calc(100vw - 48px) !important; }
+}
+
+/* ── Safe area insets (iPhone notch/home bar) ────────────────── */
+@supports (padding: max(0px)) {
+  .app-shell {
+    padding-bottom: max(0px, env(safe-area-inset-bottom));
+  }
+  .sidebar {
+    padding-bottom: max(0px, env(safe-area-inset-bottom));
+  }
 }
 
 /* ── Landing page (isolada) ───────── */

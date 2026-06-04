@@ -52,7 +52,7 @@ export default function LoginPage() {
   if (!mounted) return null;
 
   return (
-    <div className="bg-[var(--bg-primary)] overflow-hidden transition-colors duration-300" style={{ height: '100dvh', display: 'grid', gridTemplateColumns: '1fr 1fr' }}>
+    <div className="bg-[var(--bg-primary)] overflow-hidden transition-colors duration-300 grid lg:grid-cols-2" style={{ height: '100dvh' }}>
 
       {/* ── Background ── */}
       <div className="fixed inset-0 pointer-events-none select-none">
@@ -156,7 +156,7 @@ export default function LoginPage() {
       </motion.div>
 
       {/* ── Right panel — Form ── */}
-      <div className="flex items-center justify-center p-6 relative z-10">
+      <div className="col-span-1 flex items-center justify-center p-4 sm:p-6 relative z-10 overflow-y-auto">
         <motion.div
           initial={{ opacity: 0, y: 24 }}
           animate={{ opacity: 1, y: 0 }}
