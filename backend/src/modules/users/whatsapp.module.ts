@@ -28,15 +28,35 @@ class UserWhatsAppController {
     return { sucesso: true };
   }
 
+  /** Status da instância WhatsApp da organização — acessível a todos os usuários */
+  @Get("whatsapp/org-status")
+  @UseGuards(AuthGuard("jwt"))
+  async orgStatus(@Req() req: any) {
+    const status = await this.wa.getOrgStatus(req.user.organizationId);
+    return { connected: status.connected, status: status.status };
+  }
+
   @Post("whatsapp/teste")
   @UseGuards(AuthGuard("jwt"))
   async testarWhatsApp(@Req() req: any) {
     const user = await this.prisma.user.findUnique({ where: { id: req.user.id } });
     const profile = await this.prisma.userProfile.findUnique({ where: { userId: req.user.id } });
     if (!profile?.whatsapp) throw new BadRequestException("Numero nao configurado");
-    const msg = "*Orkestri* - Teste\n\nOla, " + (user?.nome || "") + "!\n\nNotificacoes WhatsApp funcionando.";
+
+    // Verifica conexão antes de tentar enviar
+    const orgStatus = await this.wa.getOrgStatus(req.user.organizationId);
+    if (!orgStatus.connected) {
+      throw new BadRequestException(
+        "O WhatsApp da organização não está conectado. " +
+        (req.user.isMaster
+          ? "Acesse Configurações → WhatsApp e conecte a instância."
+          : "Solicite ao administrador que conecte o WhatsApp da organização.")
+      );
+    }
+
+    const msg = "*Orkestri* - Teste\n\nOla, " + (user?.nome || "") + "!\n\nNotificacoes WhatsApp funcionando corretamente!";
     const ok = await this.wa.sendMessageForOrg(req.user.organizationId, profile.whatsapp, msg);
-    if (!ok) throw new BadRequestException("Falha ao enviar. Verifique se o WhatsApp da organizacao esta conectado.");
+    if (!ok) throw new BadRequestException("Falha ao enviar. Verifique se o numero esta correto e cadastrado no WhatsApp.");
     return { sucesso: true };
   }
 }

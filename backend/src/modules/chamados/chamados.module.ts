@@ -137,6 +137,11 @@ class ChamadosController {
     return (p?.whatsapp && p?.whatsappAlertas) ? p.whatsapp : null;
   }
 
+  /** Resolve a instância WhatsApp da organização — garante que notificações usem a instância correta */
+  private async getWaInstance(orgId: string): Promise<string> {
+    return this.wa.resolveInstance(orgId);
+  }
+
   private deadlineFor(criadoEm: Date, slaHoras: number | null): Date | null {
     if (!slaHoras) return null;
     return new Date(criadoEm.getTime() + slaHoras * 3600000);
@@ -377,17 +382,18 @@ class ChamadosController {
       (chamado as any).slaResolucaoAt = slaResolucaoAt;
     }
 
+    const waInst = await this.getWaInstance(req.user.organizationId);
     if (dto.atendenteId && dto.atendenteId !== req.user.id) {
       await this.notificarAtendente(dto.atendenteId, chamado, "atribuido");
       const atendente = await this.prisma.user.findUnique({ where: { id: dto.atendenteId }, select: { email: true, nome: true } });
       const phone = await this.getUserPhone(dto.atendenteId);
-      if (phone) this.wa.sendChamadoAtribuido(phone, chamado.numero, chamado.titulo, chamado.prioridade, this.deadlineFor(chamado.criadoEm, chamado.slaHoras), this.appUrl).catch(() => {});
+      if (phone) this.wa.sendChamadoAtribuido(phone, chamado.numero, chamado.titulo, chamado.prioridade, this.deadlineFor(chamado.criadoEm, chamado.slaHoras), this.appUrl, waInst).catch(() => {});
       if (atendente?.email) this.email.sendChamadoAtribuido(atendente.email, atendente.nome, chamado.numero, chamado.titulo, chamado.prioridade, chamado.solicitante?.nome || "").catch(() => {});
     }
     // Notifica solicitante da abertura
     const solicitante = await this.prisma.user.findUnique({ where: { id: chamado.solicitanteId }, select: { email: true, nome: true } });
     const solPhone = await this.getUserPhone(chamado.solicitanteId);
-    if (solPhone) this.wa.sendChamadoAberto(solPhone, chamado.numero, chamado.titulo, chamado.prioridade, chamado.slaHoras, this.appUrl).catch(() => {});
+    if (solPhone) this.wa.sendChamadoAberto(solPhone, chamado.numero, chamado.titulo, chamado.prioridade, chamado.slaHoras, this.appUrl, waInst).catch(() => {});
     if (solicitante?.email) this.email.sendChamadoAberto(solicitante.email, solicitante.nome, chamado.numero, chamado.titulo, chamado.prioridade, chamado.slaHoras).catch(() => {});
 
     // Fire automations async (non-blocking)
@@ -442,11 +448,12 @@ class ChamadosController {
       }
     }
 
+    const waInstUpd = await this.getWaInstance(req.user.organizationId);
     if (dto.atendenteId && dto.atendenteId !== existing.atendenteId && dto.atendenteId !== req.user.id) {
       await this.notificarAtendente(dto.atendenteId, updated, "atribuido");
       const atendente = await this.prisma.user.findUnique({ where: { id: dto.atendenteId }, select: { email: true, nome: true } });
       const phone = await this.getUserPhone(dto.atendenteId);
-      if (phone) this.wa.sendChamadoAtribuido(phone, updated.numero, updated.titulo, updated.prioridade, this.deadlineFor(updated.criadoEm, updated.slaHoras), this.appUrl).catch(() => {});
+      if (phone) this.wa.sendChamadoAtribuido(phone, updated.numero, updated.titulo, updated.prioridade, this.deadlineFor(updated.criadoEm, updated.slaHoras), this.appUrl, waInstUpd).catch(() => {});
       if (atendente?.email) this.email.sendChamadoAtribuido(atendente.email, atendente.nome, updated.numero, updated.titulo, updated.prioridade, updated.solicitante?.nome || "").catch(() => {});
     }
     if (dto.status && dto.status !== existing.status && existing.solicitanteId !== req.user.id) {
@@ -455,9 +462,9 @@ class ChamadosController {
       const phone = await this.getUserPhone(existing.solicitanteId);
       if (phone) {
         if (dto.status === "resolvido") {
-          this.wa.sendChamadoResolvido(phone, updated.numero, updated.titulo, this.appUrl).catch(() => {});
+          this.wa.sendChamadoResolvido(phone, updated.numero, updated.titulo, this.appUrl, waInstUpd).catch(() => {});
         } else {
-          this.wa.sendChamadoStatus(phone, updated.numero, updated.titulo, dto.status, this.appUrl).catch(() => {});
+          this.wa.sendChamadoStatus(phone, updated.numero, updated.titulo, dto.status, this.appUrl, waInstUpd).catch(() => {});
         }
       }
       if (solicitante?.email) {
@@ -506,11 +513,12 @@ class ChamadosController {
       await this.notificarSolicitante(existing.solicitanteId, updated, body.status);
       const solicitante = await this.prisma.user.findUnique({ where: { id: existing.solicitanteId }, select: { email: true, nome: true } });
       const phone = await this.getUserPhone(existing.solicitanteId);
+      const waInstStatus = await this.getWaInstance(req.user.organizationId);
       if (phone) {
         if (body.status === "resolvido") {
-          this.wa.sendChamadoResolvido(phone, updated.numero, updated.titulo, this.appUrl).catch(() => {});
+          this.wa.sendChamadoResolvido(phone, updated.numero, updated.titulo, this.appUrl, waInstStatus).catch(() => {});
         } else {
-          this.wa.sendChamadoStatus(phone, updated.numero, updated.titulo, body.status, this.appUrl).catch(() => {});
+          this.wa.sendChamadoStatus(phone, updated.numero, updated.titulo, body.status, this.appUrl, waInstStatus).catch(() => {});
         }
       }
       if (solicitante?.email) {
@@ -554,7 +562,8 @@ class ChamadosController {
     if (body.atendenteId && body.atendenteId !== req.user.id) {
       await this.notificarAtendente(body.atendenteId, updated, "atribuido");
       const phone = await this.getUserPhone(body.atendenteId);
-      if (phone) this.wa.sendChamadoAtribuido(phone, updated.numero, updated.titulo, updated.prioridade, this.deadlineFor(updated.criadoEm, updated.slaHoras), this.appUrl).catch(() => {});
+      const waInstAtrib = await this.getWaInstance(req.user.organizationId);
+      if (phone) this.wa.sendChamadoAtribuido(phone, updated.numero, updated.titulo, updated.prioridade, this.deadlineFor(updated.criadoEm, updated.slaHoras), this.appUrl, waInstAtrib).catch(() => {});
     }
     // Auditoria — diferencia atribuição inicial / transferência / remoção
     let acao = "atribuicao";
@@ -619,7 +628,8 @@ class ChamadosController {
       await this.notificarSolicitante(existing.solicitanteId, updated, "em_atendimento");
       const sol = await this.prisma.user.findUnique({ where: { id: existing.solicitanteId }, select: { email: true, nome: true } });
       const phone = await this.getUserPhone(existing.solicitanteId);
-      if (phone) this.wa.sendChamadoStatus(phone, updated.numero, updated.titulo, "em_atendimento", this.appUrl).catch(() => {});
+      const waInstAssumir = await this.getWaInstance(req.user.organizationId);
+      if (phone) this.wa.sendChamadoStatus(phone, updated.numero, updated.titulo, "em_atendimento", this.appUrl, waInstAssumir).catch(() => {});
       if (sol?.email) this.email.sendChamadoStatus(sol.email, sol.nome, updated.numero, updated.titulo, "em_atendimento").catch(() => {});
     }
 
