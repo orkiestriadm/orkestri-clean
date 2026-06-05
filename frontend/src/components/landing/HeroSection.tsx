@@ -383,8 +383,6 @@ function HeroCarousel() {
   const [frozen, setFrozen] = useState(false)  // para de avançar após fechar zoom
   const [zoomed, setZoomed] = useState(false)
   const [modalScale, setModalScale] = useState(MAX_SCALE)
-  const [cardScale, setCardScale] = useState(1)
-  const containerRef = useRef<HTMLDivElement>(null)
 
   // Auto-avanço — para quando pausado OU frozen
   useEffect(() => {
@@ -392,19 +390,6 @@ function HeroCarousel() {
     const t = setInterval(() => setCurrent(c => (c + 1) % SLIDES.length), 4000)
     return () => clearInterval(t)
   }, [paused, frozen])
-
-  // Escala do card inline — adapta ao container
-  useEffect(() => {
-    const compute = () => {
-      if (!containerRef.current) return
-      const w = containerRef.current.offsetWidth
-      setCardScale(Math.min(1, w / BASE_W))
-    }
-    compute()
-    const ro = new ResizeObserver(compute)
-    if (containerRef.current) ro.observe(containerRef.current)
-    return () => ro.disconnect()
-  }, [])
 
   // Calcula escala responsiva quando o modal abre
   useEffect(() => {
@@ -520,14 +505,12 @@ function HeroCarousel() {
     <>
       {/* ─── Card do carrossel ─── */}
       <motion.div
-        ref={containerRef}
         initial={{ opacity: 0, y: 44, scale: 0.97 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         transition={{ duration: 0.9, delay: 0.35, ease: [0.22, 1, 0.36, 1] }}
         className="relative w-full max-w-[620px] mx-auto lg:mx-0 cursor-pointer group"
         onClick={openZoom}
         title="Clique para ampliar"
-        style={{ height: cardScale < 1 ? BASE_H * cardScale : undefined }}
       >
         {/* Ambient glow */}
         <div className="absolute -inset-8 bg-gradient-to-br from-violet-600/18 via-violet-500/4 to-cyan-500/10 rounded-3xl blur-3xl pointer-events-none" />
@@ -551,17 +534,7 @@ function HeroCarousel() {
           </div>
         </div>
 
-        {/* Scale wrapper para responsividade */}
-        <div style={cardScale < 1 ? {
-          width: BASE_W,
-          transform: `scale(${cardScale})`,
-          transformOrigin: 'top left',
-          position: 'absolute',
-          top: 0,
-          left: 0,
-        } : {}}>
-          {renderWindow()}
-        </div>
+        {renderWindow()}
       </motion.div>
 
       {/* ─── Modal de zoom ─── */}
