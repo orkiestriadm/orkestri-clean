@@ -16,9 +16,6 @@ module.exports = {
         "2xl": "1400px",
       },
     },
-    screens: {
-      xs: '480px',
-    },
     extend: {
       fontFamily: {
         display: ["var(--font-display)"],

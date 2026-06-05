@@ -534,7 +534,7 @@ export default function AgendaPage() {
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 18l6-6-6-6" strokeLinecap="round"/></svg>
                       </button>
                     </div>
-                    <div className="grid grid-cols-3 xs:grid-cols-4 gap-2">
+                    <div className="grid grid-cols-3 gap-2">
                       {MONTHS.map((m, idx) => (
                         <button 
                           key={m}

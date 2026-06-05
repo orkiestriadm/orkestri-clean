@@ -52,7 +52,7 @@ export default function LoginPage() {
   if (!mounted) return null;
 
   return (
-    <div className="bg-[var(--bg-primary)] overflow-hidden transition-colors duration-300 grid lg:grid-cols-2" style={{ height: '100dvh' }}>
+    <div className="bg-[var(--bg-primary)] overflow-hidden transition-colors duration-300" style={{ height: '100dvh', display: 'grid', gridTemplateColumns: '1fr 1fr' }}>
 
       {/* ── Background ── */}
       <div className="fixed inset-0 pointer-events-none select-none">
@@ -156,7 +156,7 @@ export default function LoginPage() {
       </motion.div>
 
       {/* ── Right panel — Form ── */}
-      <div className="col-span-1 flex items-center justify-center p-4 sm:p-6 relative z-10 overflow-y-auto">
+      <div className="flex items-center justify-center p-6 relative z-10">
         <motion.div
           initial={{ opacity: 0, y: 24 }}
           animate={{ opacity: 1, y: 0 }}
@@ -273,7 +273,7 @@ export default function LoginPage() {
           <div className="mt-6 text-center space-y-3">
             <Link href="/solicitar-acesso" className="text-[13px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors">
               Quer conhecer o sistema?{' '}
-              <span className="text-[var(--accent-violet)] opacity-80 hover:opacity-100">Solicitar acesso →</span>
+              <span className="text-[var(--accent-violet)] opacity-80 hover:opacity-100">Teste Grátis por 7 dias →</span>
             </Link>
             <p className="text-[11px] text-[var(--text-faint)] font-mono">Orkiestri Enterprise · v2.0.4</p>
           </div>

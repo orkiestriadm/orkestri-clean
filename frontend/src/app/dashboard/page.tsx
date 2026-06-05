@@ -357,7 +357,7 @@ export default function CommandCenter() {
       <Topbar />
 
       <div className="flex-1 overflow-y-auto page-content">
-        <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-10 py-6 sm:py-8 space-y-4 sm:space-y-6 pb-8 sm:pb-24">
+        <div className="max-w-[1600px] mx-auto px-6 lg:px-10 py-8 space-y-6 pb-24">
 
           {/* ── Header ── */}
           <div className="flex items-end justify-between animate-fade-in">
@@ -404,7 +404,7 @@ export default function CommandCenter() {
           <StatusBar status={sysStatus} alerts={alerts} lastUpdated={lastUpdated} onRefresh={loadAll} loading={loading} />
 
           {/* ── 4 Sector Widgets ── */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
 
             {!hidden.chamados && (
               <SectorWidget
@@ -483,7 +483,7 @@ export default function CommandCenter() {
           </div>
 
           {/* ── Middle row: AI Insights + Chart ── */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
 
             {!hidden.insights && (
               <div className="xl:col-span-1">
@@ -550,7 +550,7 @@ export default function CommandCenter() {
           </div>
 
           {/* ── Bottom row: Activity + Tasks ── */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-5 gap-4">
+          <div className="grid grid-cols-1 xl:grid-cols-5 gap-4">
 
             {/* Activity Feed */}
             {!hidden.atividade && (

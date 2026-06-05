@@ -32,7 +32,7 @@ function Spin() { return <svg className="animate-spin" width="15" height="15" vi
 function Modal({ title, onClose, children, wide }: any) {
   return (
     <div className="modal-overlay" onClick={e=>{if((e.target as HTMLElement).classList.contains("modal-overlay"))onClose();}}>
-      <div className="modal-box" style={{ maxWidth: typeof window !== 'undefined' ? Math.min(wide ? 700 : 480, window.innerWidth - 32) : wide ? 700 : 480, width: '100%' }}>
+      <div className="modal-box" style={{ maxWidth:wide?700:480 }}>
         <div className="flex items-center justify-between mb-6">
           <h3 className="font-display text-lg font-bold text-[var(--text-primary)]">{title}</h3>
           <button className="btn-icon" onClick={onClose}>
