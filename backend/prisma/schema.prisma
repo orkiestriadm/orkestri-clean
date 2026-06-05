@@ -125,6 +125,8 @@ model Organization {
   workflowTemplates  WorkflowTemplate[]  @relation("OrgWorkflowTemplates")
   chamadoTemplates   ChamadoTemplate[]   @relation("OrgChamadoTemplates")
   webhooks           Webhook[]
+  monitoringKey      String?  @map("monitoring_key")
+  pingLogs           PingLog[]
 
   @@map("organizations")
 }
@@ -1449,6 +1451,11 @@ model Ativo {
   valorAquisicao  Float?               @map("valor_aquisicao")
   dataGarantiaFim DateTime?            @map("data_garantia_fim")
   observacoes     String?              @db.Text
+  ip              String?
+  monitorar       Boolean              @default(false)
+  online          Boolean?
+  ultimoPing      DateTime?            @map("ultimo_ping")
+  latenciaMs      Int?                 @map("latencia_ms")
   criadoEm        DateTime             @default(now()) @map("criado_em")
   atualizadoEm    DateTime             @updatedAt @map("atualizado_em")
   organization    Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
@@ -1456,11 +1463,29 @@ model Ativo {
   responsavel     User?                @relation("AtivoResponsavel", fields: [responsavelId], references: [id], onDelete: SetNull)
   setor           Setor?               @relation(fields: [setorId], references: [id], onDelete: SetNull)
   transferencias  TransferenciaAtivo[]
+  pingLogs        PingLog[]
 
   @@unique([organizationId, codigo])
   @@index([organizationId, status])
+  @@index([organizationId, monitorar])
   @@index([responsavelId])
   @@map("ativos")
+}
+
+model PingLog {
+  id             String       @id @default(uuid())
+  ativoId        String       @map("ativo_id")
+  organizationId String       @map("organization_id")
+  online         Boolean
+  latenciaMs     Int?         @map("latencia_ms")
+  erro           String?
+  criadoEm       DateTime     @default(now()) @map("criado_em")
+  ativo          Ativo        @relation(fields: [ativoId], references: [id], onDelete: Cascade)
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([ativoId, criadoEm(sort: Desc)])
+  @@index([organizationId, criadoEm(sort: Desc)])
+  @@map("ping_logs")
 }
 
 model TransferenciaAtivo {

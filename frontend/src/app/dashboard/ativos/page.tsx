@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import Topbar from "@/components/layout/Topbar";
 import { useAuthStore } from "@/lib/store";
 import { api } from "@/lib/api";
@@ -11,6 +12,7 @@ type Ativo = {
   status: string; marca?: string; modelo?: string; numeroSerie?: string; localizacao?: string;
   categoriaId?: string; responsavelId?: string; setorId?: string;
   dataAquisicao?: string; valorAquisicao?: number; dataGarantiaFim?: string; observacoes?: string;
+  ip?: string | null; monitorar?: boolean; online?: boolean | null; ultimoPing?: string | null; latenciaMs?: number | null;
   garantiaOk?: boolean | null; garantiaVencida?: boolean; garantiaRisco?: boolean | null;
   criadoEm: string; atualizadoEm: string;
   categoria?: { id: string; nome: string; cor: string; icone: string; };
@@ -130,6 +132,24 @@ function AtivoForm({ ativo, categorias, users, setores, onSave, onCancel }: {
         <F label="FIM DE GARANTIA"><input className="input-o" type="date" value={d.dataGarantiaFim ? d.dataGarantiaFim.slice(0,10) : ""} onChange={e=>set("dataGarantiaFim",e.target.value)} /></F>
         <div style={{ gridColumn:"1/-1" }}>
           <F label="OBSERVAÇÕES"><textarea className="input-o" value={d.observacoes||""} onChange={e=>set("observacoes",e.target.value)} style={{ minHeight:80, resize:"vertical" }} /></F>
+        </div>
+        {/* Monitoramento */}
+        <div style={{ gridColumn:"1/-1", padding:"12px 14px", background:"rgba(6,182,212,0.05)", border:"1px solid rgba(6,182,212,0.15)", borderRadius:8 }}>
+          <div style={{ fontSize:11, color:"var(--accent-cyan)", fontFamily:"var(--font-mono)", fontWeight:700, marginBottom:10 }}>MONITORAMENTO DE REDE</div>
+          <div style={{ display:"grid", gridTemplateColumns:"1fr auto", gap:12, alignItems:"center" }}>
+            <F label="ENDEREÇO IP (ex: 192.168.1.10)">
+              <input className="input-o" value={d.ip||""} onChange={e=>set("ip",e.target.value)} placeholder="192.168.1.10" />
+            </F>
+            <div style={{ paddingTop:18 }}>
+              <label style={{ display:"flex", alignItems:"center", gap:8, cursor:"pointer", fontSize:13 }}>
+                <input type="checkbox" checked={!!d.monitorar} onChange={e=>set("monitorar",e.target.checked)} style={{ width:16, height:16 }} />
+                <span style={{ color:"var(--text-secondary)" }}>Monitorar este ativo</span>
+              </label>
+            </div>
+          </div>
+          {!d.ip && d.monitorar && (
+            <div style={{ fontSize:11, color:"var(--accent-amber, #f59e0b)", marginTop:6 }}>⚠ Preencha o IP para que o monitoramento funcione.</div>
+          )}
         </div>
       </div>
 
@@ -282,6 +302,7 @@ function AtivoDetail({ ativo, canEdit, canTransfer, canDelete, onEdit, onTransfe
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export default function AtivosPage() {
+  const router  = useRouter();
   const { user } = useAuthStore();
   const [categorias, setCategorias] = useState<Categoria[]>([]);
   const [ativos,     setAtivos]     = useState<Ativo[]>([]);
@@ -356,6 +377,11 @@ export default function AtivosPage() {
     <div className="flex flex-col h-full">
       <Topbar>
         {msg && <span className={`text-xs font-mono ${msg.includes("Erro") ? "text-red-400" : "text-green-400"}`}>{msg}</span>}
+        {!editing && !selected && (
+          <button className="btn btn-ghost text-xs" onClick={() => router.push("/dashboard/ativos/monitoramento")}>
+            🖥 Monitoramento
+          </button>
+        )}
         {canCreate && !editing && !selected && (
           <button className="btn btn-violet text-xs" onClick={() => { setSelected(null); setEditing(true); }}>Novo ativo</button>
         )}
