@@ -397,8 +397,8 @@ class ChamadosController {
     if (solicitante?.email) this.email.sendChamadoAberto(solicitante.email, solicitante.nome, chamado.numero, chamado.titulo, chamado.prioridade, chamado.slaHoras).catch(() => {});
 
     // Fire automations async (non-blocking)
-    this.automacao.executar("chamado_criado", { id: chamado.id, numero: chamado.numero, titulo: chamado.titulo, prioridade, status: chamado.status, categoria: dto.categoria || null, solicitanteId: chamado.solicitanteId, atendenteId: chamado.atendenteId || null, clienteId: chamado.clienteId || null }).catch(() => {});
-    this.webhook.fire("chamado.criado", { id: chamado.id, numero: chamado.numero, titulo: chamado.titulo, prioridade, status: chamado.status, clienteId: chamado.clienteId || null, criadoEm: chamado.criadoEm }).catch(() => {});
+    this.automacao.executar("chamado_criado", { id: chamado.id, numero: chamado.numero, titulo: chamado.titulo, prioridade, status: chamado.status, categoria: dto.categoria || null, solicitanteId: chamado.solicitanteId, atendenteId: chamado.atendenteId || null, clienteId: chamado.clienteId || null, organizationId: orgId, tags: chamado.tags || "" }).catch(() => {});
+    this.webhook.fire("chamado.criado", { id: chamado.id, numero: chamado.numero, titulo: chamado.titulo, prioridade, status: chamado.status, clienteId: chamado.clienteId || null, criadoEm: chamado.criadoEm }, orgId).catch(() => {});
 
     // Auditoria — criação (+ atribuição inicial se houver)
     await this.recordAudit(chamado.id, req.user.id, "criado", null, chamado.status, { numero: chamado.numero, prioridade });
@@ -476,8 +476,14 @@ class ChamadosController {
       }
     }
     if (dto.status && ["resolvido", "fechado"].includes(dto.status) && dto.status !== existing.status) {
-      this.webhook.fire("chamado.resolvido", { id: updated.id, numero: updated.numero, titulo: updated.titulo, status: updated.status, clienteId: updated.clienteId || null, resolvidoEm: (updated as any).resolvidoEm || new Date() }).catch(() => {});
+      const evtName = dto.status === "fechado" ? "chamado.fechado" : "chamado.resolvido";
+      const autoTrigger = dto.status === "fechado" ? "chamado_fechado" : "chamado_resolvido";
+      this.automacao.executar(autoTrigger, { id: updated.id, numero: updated.numero, titulo: updated.titulo, prioridade: updated.prioridade, status: dto.status, categoria: updated.categoria || null, solicitanteId: updated.solicitanteId, atendenteId: updated.atendenteId || null, clienteId: updated.clienteId || null, organizationId: req.user?.organizationId, tags: (updated as any).tags || "" }).catch(() => {});
+      this.webhook.fire(evtName, { id: updated.id, numero: updated.numero, titulo: updated.titulo, status: updated.status, clienteId: updated.clienteId || null, resolvidoEm: (updated as any).resolvidoEm || new Date() }, req.user?.organizationId).catch(() => {});
     }
+    // Fire chamado_atualizado for all updates
+    this.automacao.executar("chamado_atualizado", { id: updated.id, numero: updated.numero, titulo: updated.titulo, prioridade: updated.prioridade, status: updated.status, categoria: updated.categoria || null, solicitanteId: updated.solicitanteId, atendenteId: updated.atendenteId || null, clienteId: updated.clienteId || null, organizationId: req.user?.organizationId, tags: (updated as any).tags || "" }).catch(() => {});
+    this.webhook.fire("chamado.atualizado", { id: updated.id, numero: updated.numero, titulo: updated.titulo, prioridade: updated.prioridade, status: updated.status, clienteId: updated.clienteId || null }, req.user?.organizationId).catch(() => {});
     // Auditoria — registra mudanças relevantes
     if (dto.status && dto.status !== existing.status) {
       await this.recordAudit(id, req.user.id, "status", existing.status, dto.status);
@@ -530,9 +536,14 @@ class ChamadosController {
       }
     }
     // Fire automations async
-    this.automacao.executar("chamado_atualizado", { id: updated.id, numero: updated.numero, titulo: updated.titulo, prioridade: updated.prioridade, status: body.status, categoria: updated.categoria || null, solicitanteId: updated.solicitanteId, atendenteId: updated.atendenteId || null }).catch(() => {});
+    const orgIdStatus = req.user?.organizationId;
+    const baseCtx = { id: updated.id, numero: updated.numero, titulo: updated.titulo, prioridade: updated.prioridade, status: body.status, categoria: updated.categoria || null, solicitanteId: updated.solicitanteId, atendenteId: updated.atendenteId || null, organizationId: orgIdStatus, tags: (updated as any).tags || "" };
+    this.automacao.executar("chamado_atualizado", baseCtx).catch(() => {});
     if (["resolvido", "fechado"].includes(body.status) && body.status !== existing.status) {
-      this.webhook.fire("chamado.resolvido", { id: updated.id, numero: updated.numero, titulo: updated.titulo, status: updated.status, clienteId: updated.clienteId || null, resolvidoEm: (updated as any).resolvidoEm || new Date() }).catch(() => {});
+      const evtStatus = body.status === "fechado" ? "chamado.fechado" : "chamado.resolvido";
+      const trigStatus = body.status === "fechado" ? "chamado_fechado" : "chamado_resolvido";
+      this.automacao.executar(trigStatus, baseCtx).catch(() => {});
+      this.webhook.fire(evtStatus, { id: updated.id, numero: updated.numero, titulo: updated.titulo, status: updated.status, clienteId: updated.clienteId || null, resolvidoEm: (updated as any).resolvidoEm || new Date() }, orgIdStatus).catch(() => {});
     }
     // Auditoria
     if (body.status !== existing.status) {

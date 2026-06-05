@@ -1,6 +1,6 @@
 import {
   Module, Controller, Get, Post, Put, Patch, Delete,
-  Body, Param, Query, UseGuards, Injectable,
+  Body, Param, Query, Req, UseGuards, Injectable,
   NotFoundException, BadRequestException,
 } from "@nestjs/common";
 import { AuthGuard } from "@nestjs/passport";
@@ -28,9 +28,11 @@ export class WebhookService {
   constructor(private prisma: PrismaService) {}
   private get db() { return this.prisma as any; }
 
-  async fire(evento: string, payload: Record<string, any>): Promise<void> {
+  async fire(evento: string, payload: Record<string, any>, organizationId?: string): Promise<void> {
     try {
-      const hooks = await this.db.webhook.findMany({ where: { evento, ativo: true } });
+      const where: any = { evento, ativo: true };
+      if (organizationId) where.organizationId = organizationId;
+      const hooks = await this.db.webhook.findMany({ where });
       for (const hook of hooks) {
         this.dispatch(hook, evento, payload).catch(() => {});
       }
@@ -109,8 +111,9 @@ class WebhooksController {
   // GET /webhooks
   @Get()
   @Permissions("automacoes:ver")
-  async findAll(@Query("ativo") ativo?: string) {
-    const where: any = {};
+  async findAll(@Req() req: any, @Query("ativo") ativo?: string) {
+    const orgId = req.user?.organizationId;
+    const where: any = { ...(orgId ? { organizationId: orgId } : {}) };
     if (ativo === "true")  where.ativo = true;
     if (ativo === "false") where.ativo = false;
     return this.db.webhook.findMany({ where, orderBy: { criadoEm: "desc" } });
@@ -134,12 +137,12 @@ class WebhooksController {
   async create(@Body() body: {
     nome: string; url: string; evento: string;
     headers?: Record<string, string>; secret?: string; descricao?: string;
-  }) {
+  }, @Req() req: any) {
     if (!body.nome?.trim()) throw new BadRequestException("Nome obrigatório");
     if (!body.url?.trim())  throw new BadRequestException("URL obrigatória");
     if (!body.evento)       throw new BadRequestException("Evento obrigatório");
     try { new URL(body.url); } catch { throw new BadRequestException("URL inválida"); }
-
+    const orgId = req.user?.organizationId;
     return this.db.webhook.create({
       data: {
         id:        crypto.randomUUID(),
@@ -149,7 +152,8 @@ class WebhooksController {
         headers:   body.headers || {},
         secret:    body.secret?.trim() || null,
         descricao: body.descricao?.trim() || null,
-      },
+        ...(orgId ? { organizationId: orgId } : {}),
+      } as any,
     });
   }
 

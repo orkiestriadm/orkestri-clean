@@ -124,6 +124,7 @@ model Organization {
   billing           OrgBilling?
   workflowTemplates  WorkflowTemplate[]  @relation("OrgWorkflowTemplates")
   chamadoTemplates   ChamadoTemplate[]   @relation("OrgChamadoTemplates")
+  webhooks           Webhook[]
 
   @@map("organizations")
 }
@@ -1369,6 +1370,47 @@ model AutomacaoExecucao {
   @@index([automacaoId])
   @@index([criadoEm(sort: Desc)])
   @@map("automacao_execucoes")
+}
+
+// ── Webhooks ──────────────────────────────────────────────────────────────────
+
+model Webhook {
+  id             String       @id @default(uuid())
+  organizationId String       @map("organization_id")
+  nome           String
+  descricao      String?
+  url            String
+  evento         String
+  headers        Json         @default("{}")
+  secret         String?
+  ativo          Boolean      @default(true)
+  totalEnvios    Int          @default(0) @map("total_envios")
+  ultimoEnvio    DateTime?    @map("ultimo_envio")
+  ultimoStatus   Int?         @map("ultimo_status")
+  criadoEm       DateTime     @default(now()) @map("criado_em")
+  atualizadoEm   DateTime     @updatedAt @map("atualizado_em")
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  logs           WebhookLog[]
+
+  @@index([organizationId, evento])
+  @@index([evento, ativo])
+  @@map("webhooks")
+}
+
+model WebhookLog {
+  id         String    @id @default(uuid())
+  webhookId  String    @map("webhook_id")
+  evento     String
+  payload    Json?
+  statusCode Int?      @map("status_code")
+  response   String?   @db.Text
+  sucesso    Boolean   @default(false)
+  erro       String?   @db.Text
+  criadoEm   DateTime  @default(now()) @map("criado_em")
+  webhook    Webhook   @relation(fields: [webhookId], references: [id], onDelete: Cascade)
+
+  @@index([webhookId, criadoEm(sort: Desc)])
+  @@map("webhook_logs")
 }
 
 // ── Ativos ────────────────────────────────────────────────────────────────────
