@@ -2,13 +2,16 @@ import {
   Module, Controller, Get, Post, Put, Patch, Delete,
   Body, Param, Query, UseGuards, Req, Logger,
   Injectable, NotFoundException, BadRequestException, ForbiddenException,
+  OnModuleInit,
 } from "@nestjs/common";
+import { ScheduleModule, Cron, CronExpression } from "@nestjs/schedule";
 import { AuthGuard } from "@nestjs/passport";
 import { PrismaService } from "../../prisma/prisma.service";
 import { Permissions } from "../auth/permissions.decorator";
 import { PermissionsGuard } from "../auth/permissions.guard";
 import { WhatsAppService } from "../notifications/whatsapp.service";
 import { NotificationsModule } from "../notifications/notifications.module";
+import { WebhookService, WebhooksModule } from "./webhooks.module";
 import * as crypto from "crypto";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -26,6 +29,52 @@ const PRIORIDADE_TO_ENUM: Record<string, string> = {
   baixa: "BAIXA", media: "MEDIA", alta: "ALTA", critica: "URGENTE",
 };
 
+const ACOES_VALIDAS = new Set([
+  "atribuir_atendente", "mudar_status", "mudar_prioridade", "escalar_chamado",
+  "adicionar_tag", "remover_tag", "adicionar_comentario", "criar_notificacao",
+  "enviar_whatsapp", "criar_tarefa",
+]);
+
+const MAX_AUTOMACAO_DEPTH = 3;
+
+function validateAcoes(acoes: any[]): void {
+  if (!Array.isArray(acoes)) throw new BadRequestException("acoes deve ser um array");
+  acoes.forEach((a, i) => {
+    if (!a || typeof a !== "object") throw new BadRequestException(`Ação #${i + 1} inválida`);
+    if (!ACOES_VALIDAS.has(a.tipo)) throw new BadRequestException(`Ação #${i + 1}: tipo "${a.tipo}" desconhecido`);
+    switch (a.tipo) {
+      case "atribuir_atendente":
+        if (!a.atendenteId) throw new BadRequestException(`Ação #${i + 1}: atendenteId obrigatório`);
+        break;
+      case "mudar_status":
+        if (!a.status) throw new BadRequestException(`Ação #${i + 1}: status obrigatório`);
+        break;
+      case "mudar_prioridade":
+        if (!a.prioridade) throw new BadRequestException(`Ação #${i + 1}: prioridade obrigatória`);
+        break;
+      case "adicionar_tag":
+      case "remover_tag":
+        if (!a.tag) throw new BadRequestException(`Ação #${i + 1}: tag obrigatória`);
+        break;
+      case "adicionar_comentario":
+        if (!a.texto?.trim()) throw new BadRequestException(`Ação #${i + 1}: texto obrigatório`);
+        break;
+      case "criar_notificacao":
+        if (!a.titulo?.trim()) throw new BadRequestException(`Ação #${i + 1}: titulo obrigatório`);
+        if (a.para === "usuario" && !a.usuarioId) throw new BadRequestException(`Ação #${i + 1}: usuarioId obrigatório`);
+        break;
+      case "enviar_whatsapp":
+        if (!a.mensagem?.trim()) throw new BadRequestException(`Ação #${i + 1}: mensagem obrigatória`);
+        if (a.para === "usuario" && !a.usuarioId) throw new BadRequestException(`Ação #${i + 1}: usuarioId obrigatório`);
+        break;
+      case "criar_tarefa":
+        if (!a.projectId) throw new BadRequestException(`Ação #${i + 1}: projectId obrigatório`);
+        if (!a.titulo?.trim()) throw new BadRequestException(`Ação #${i + 1}: titulo obrigatório`);
+        break;
+    }
+  });
+}
+
 // ── AutomacaoService (exported for use in ChamadosModule and others) ──────────
 @Injectable()
 export class AutomacaoService {
@@ -38,6 +87,14 @@ export class AutomacaoService {
 
   /** Called by ChamadosModule/ContratosModule after relevant events */
   async executar(trigger: string, context: Record<string, any>): Promise<void> {
+    // Loop guard — automation actions can re-trigger automations indirectly
+    const depth = Number(context.__depth || 0);
+    if (depth >= MAX_AUTOMACAO_DEPTH) {
+      this.logger.warn(`Automacao ${trigger}: profundidade máxima (${MAX_AUTOMACAO_DEPTH}) atingida — abortando`);
+      return;
+    }
+    const nextCtx = { ...context, __depth: depth + 1 };
+
     try {
       const where: any = { trigger, ativo: true };
       if (context.organizationId) where.organizationId = context.organizationId;
@@ -45,12 +102,14 @@ export class AutomacaoService {
       const automacoes = await this.db.automacao.findMany({ where });
       for (const auto of automacoes) {
         try {
-          if (!this.avaliarCondicoes(auto.condicoes, context)) continue;
+          if (!this.avaliarCondicoes(auto.condicoes, nextCtx)) continue;
 
+          // Per-execution cache for richer template variables
+          const tplCache: Record<string, string> = {};
           const acoes = (auto.acoes as Acao[]) || [];
           const resultados: any[] = [];
           for (const acao of acoes) {
-            const r = await this.executarAcao(acao, context);
+            const r = await this.executarAcao(acao, nextCtx, tplCache);
             resultados.push(r);
           }
 
@@ -90,13 +149,11 @@ export class AutomacaoService {
   // ── Condition evaluation ────────────────────────────────────────────────────
 
   avaliarCondicoes(condicoes: any, ctx: Record<string, any>): boolean {
-    // New format: {grupos: [{itens: [...]}]} — groups combine with OR
     if (condicoes && !Array.isArray(condicoes) && condicoes.grupos) {
       const grupos = (condicoes as CondicoesConfig).grupos;
       if (grupos.length === 0) return true;
       return grupos.some(g => g.itens.length === 0 || g.itens.every(c => this.avaliarCondicao(c, ctx)));
     }
-    // Old format: flat array — all AND
     const itens: CondicaoItem[] = Array.isArray(condicoes) ? condicoes : [];
     if (itens.length === 0) return true;
     return itens.every(c => this.avaliarCondicao(c, ctx));
@@ -125,11 +182,20 @@ export class AutomacaoService {
 
   // ── Action execution ────────────────────────────────────────────────────────
 
-  private async executarAcao(acao: Acao, ctx: Record<string, any>): Promise<any> {
+  /** dry-run version returns what would happen without side-effects */
+  async dryRunAcao(acao: Acao, ctx: Record<string, any>, tplCache: Record<string, string>): Promise<any> {
+    const targets = ["criar_notificacao","enviar_whatsapp"].includes(acao.tipo)
+      ? await this.resolveTargets(acao, ctx)
+      : [];
+    const texto = acao.mensagem || acao.texto || acao.titulo || "";
+    const preview = texto ? await this.interpolate(String(texto), ctx, tplCache) : "";
+    return { acao: acao.tipo, dryRun: true, alvo: targets.length || undefined, preview: preview || undefined };
+  }
+
+  private async executarAcao(acao: Acao, ctx: Record<string, any>, tplCache: Record<string, string>): Promise<any> {
     const chamadoId = ctx.id;
 
     switch (acao.tipo) {
-      // ── Chamado mutations ────────────────────────────────────────────────────
       case "atribuir_atendente":
         if (chamadoId && acao.atendenteId) {
           await this.db.chamado.update({
@@ -162,10 +228,15 @@ export class AutomacaoService {
         if (chamadoId) {
           await this.db.chamado.update({ where: { id: chamadoId }, data: { prioridade: novaPrioridade } });
           if (acao.notificar !== false) {
-            const titulo   = await this.interpolate(`Chamado escalado: {{titulo}} (#{{numero}})`, ctx);
-            const mensagem = await this.interpolate(`Prioridade alterada para ${novaPrioridade}`, ctx);
+            const titulo   = await this.interpolate(`Chamado escalado: {{titulo}} (#{{numero}})`, ctx, tplCache);
+            const mensagem = await this.interpolate(`Prioridade alterada para ${novaPrioridade}`, ctx, tplCache);
+            // Scope masters to this organization
             const masters = await this.db.userRole.findMany({
-              where: { role: { isMaster: true } }, select: { userId: true },
+              where: {
+                role: { isMaster: true },
+                ...(ctx.organizationId ? { user: { organizationId: ctx.organizationId } } : {}),
+              },
+              select: { userId: true },
             });
             for (const m of masters) {
               await this.db.notification.create({
@@ -203,9 +274,8 @@ export class AutomacaoService {
         break;
 
       case "adicionar_comentario": {
-        const texto = await this.interpolate(acao.texto || "", ctx);
+        const texto = await this.interpolate(acao.texto || "", ctx, tplCache);
         if (chamadoId && texto) {
-          // Use solicitante or a master as author of the automated comment
           let userId = ctx.solicitanteId;
           if (!userId && ctx.organizationId) {
             const role = await this.db.userRole.findFirst({
@@ -224,10 +294,9 @@ export class AutomacaoService {
         break;
       }
 
-      // ── Notification / messaging ─────────────────────────────────────────────
       case "criar_notificacao": {
-        const titulo   = await this.interpolate(acao.titulo   || "Automação executada", ctx);
-        const mensagem = await this.interpolate(acao.mensagem || "", ctx);
+        const titulo   = await this.interpolate(acao.titulo   || "Automação executada", ctx, tplCache);
+        const mensagem = await this.interpolate(acao.mensagem || "", ctx, tplCache);
         const targets  = await this.resolveTargets(acao, ctx);
         for (const userId of targets) {
           await this.db.notification.create({
@@ -241,7 +310,7 @@ export class AutomacaoService {
       }
 
       case "enviar_whatsapp": {
-        const mensagem = await this.interpolate(acao.mensagem || "", ctx);
+        const mensagem = await this.interpolate(acao.mensagem || "", ctx, tplCache);
         if (!mensagem || !ctx.organizationId) break;
         const targets = await this.resolveTargets(acao, ctx);
         let sent = 0;
@@ -255,13 +324,12 @@ export class AutomacaoService {
         return { acao: "enviar_whatsapp", targets: targets.length, enviados: sent };
       }
 
-      // ── Task creation ────────────────────────────────────────────────────────
       case "criar_tarefa": {
         if (!acao.projectId || !acao.titulo) break;
         const criadoPorId = ctx.atendenteId || ctx.solicitanteId;
         if (!criadoPorId) break;
-        const titulo    = await this.interpolate(acao.titulo, ctx);
-        const descricao = acao.descricao ? await this.interpolate(acao.descricao, ctx) : null;
+        const titulo    = await this.interpolate(acao.titulo, ctx, tplCache);
+        const descricao = acao.descricao ? await this.interpolate(acao.descricao, ctx, tplCache) : null;
         const prioMap   = PRIORIDADE_TO_ENUM[ctx.prioridade || ""] || "MEDIA";
         const task = await this.db.task.create({
           data: {
@@ -290,13 +358,19 @@ export class AutomacaoService {
     if (acao.para === "atendente"   && ctx.atendenteId)   targets.push(ctx.atendenteId);
     if (acao.para === "usuario"     && acao.usuarioId)    targets.push(acao.usuarioId);
     if (acao.para === "masters") {
-      const masters = await this.db.userRole.findMany({ where: { role: { isMaster: true } }, select: { userId: true } });
+      const masters = await this.db.userRole.findMany({
+        where: {
+          role: { isMaster: true },
+          ...(ctx.organizationId ? { user: { organizationId: ctx.organizationId } } : {}),
+        },
+        select: { userId: true },
+      });
       masters.forEach((m: any) => targets.push(m.userId));
     }
     return [...new Set(targets)] as string[];
   }
 
-  private async interpolate(text: string, ctx: Record<string, any>): Promise<string> {
+  private async interpolate(text: string, ctx: Record<string, any>, cache: Record<string, string>): Promise<string> {
     let result = text
       .replace(/\{\{titulo\}\}/g,     ctx.titulo     || "")
       .replace(/\{\{numero\}\}/g,     String(ctx.numero || ""))
@@ -306,24 +380,120 @@ export class AutomacaoService {
       .replace(/\{\{data\}\}/g,       new Date().toLocaleDateString("pt-BR"))
       .replace(/\{\{hora\}\}/g,       new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }));
 
-    // Lazy-load related data for richer templates
     if (ctx.id && (result.includes("{{cliente}}") || result.includes("{{atendente}}") || result.includes("{{solicitante}}"))) {
-      const chamado = await this.db.chamado.findUnique({
-        where: { id: ctx.id },
-        select: {
-          cliente:    { select: { nome: true } },
-          atendente:  { select: { nome: true } },
-          solicitante:{ select: { nome: true } },
-        },
-      }).catch(() => null);
-      if (chamado) {
-        result = result
-          .replace(/\{\{cliente\}\}/g,     chamado.cliente?.nome    || "")
-          .replace(/\{\{atendente\}\}/g,   chamado.atendente?.nome  || "")
-          .replace(/\{\{solicitante\}\}/g, chamado.solicitante?.nome || "");
+      if (cache.cliente === undefined) {
+        const chamado = await this.db.chamado.findUnique({
+          where: { id: ctx.id },
+          select: {
+            cliente:    { select: { nome: true } },
+            atendente:  { select: { nome: true } },
+            solicitante:{ select: { nome: true } },
+          },
+        }).catch(() => null);
+        cache.cliente     = chamado?.cliente?.nome     || "";
+        cache.atendente   = chamado?.atendente?.nome   || "";
+        cache.solicitante = chamado?.solicitante?.nome || "";
       }
+      result = result
+        .replace(/\{\{cliente\}\}/g,     cache.cliente)
+        .replace(/\{\{atendente\}\}/g,   cache.atendente)
+        .replace(/\{\{solicitante\}\}/g, cache.solicitante);
     }
     return result;
+  }
+}
+
+// ── Cron job: contratos / garantias ───────────────────────────────────────────
+@Injectable()
+export class AutomacaoCronService {
+  private readonly logger = new Logger(AutomacaoCronService.name);
+  constructor(
+    private prisma: PrismaService,
+    private automacao: AutomacaoService,
+    private webhook: WebhookService,
+  ) {}
+  private get db() { return this.prisma as any; }
+
+  // Daily at 08:00 server time — checks expiring/expired contracts and warranties
+  @Cron(CronExpression.EVERY_DAY_AT_8AM)
+  async dispararTriggersDiarios() {
+    this.logger.log("Disparando triggers diários (contratos / garantias)…");
+    await Promise.all([
+      this.handleContratosVencendo(),
+      this.handleContratosVencidos(),
+      this.handleAtivosGarantiaVencendo(),
+    ]);
+  }
+
+  private async handleContratosVencendo() {
+    const now      = new Date();
+    const in30Days = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+    const contratos = await this.db.contrato.findMany({
+      where: {
+        ativo: true,
+        vigenciaFim: { gte: now, lte: in30Days },
+        status: { notIn: ["rescindido", "suspenso"] },
+      },
+      include: { cliente: { select: { nome: true } } },
+    });
+    for (const c of contratos) {
+      const diasRestantes = Math.ceil((c.vigenciaFim.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+      const payload = {
+        id: c.id, numero: c.numero, titulo: c.titulo,
+        clienteId: c.clienteId, clienteNome: c.cliente?.nome || "",
+        status: c.status, vigenciaFim: c.vigenciaFim,
+        diasRestantes,
+        organizationId: c.organizationId,
+      };
+      await this.automacao.executar("contrato_vencendo", payload).catch(() => {});
+      this.webhook.fire("contrato.vencendo", payload, c.organizationId).catch(() => {});
+    }
+    this.logger.log(`contrato_vencendo: ${contratos.length} contratos`);
+  }
+
+  private async handleContratosVencidos() {
+    const now = new Date();
+    const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    // Vencidos no último dia (evita reenviar diariamente para todos os antigos)
+    const contratos = await this.db.contrato.findMany({
+      where: {
+        ativo: true,
+        vigenciaFim: { gte: yesterday, lt: now },
+        status: { notIn: ["rescindido", "suspenso"] },
+      },
+      include: { cliente: { select: { nome: true } } },
+    });
+    for (const c of contratos) {
+      const payload = {
+        id: c.id, numero: c.numero, titulo: c.titulo,
+        clienteId: c.clienteId, clienteNome: c.cliente?.nome || "",
+        status: c.status, vigenciaFim: c.vigenciaFim,
+        organizationId: c.organizationId,
+      };
+      await this.automacao.executar("contrato_vencido", payload).catch(() => {});
+      this.webhook.fire("contrato.vencido", payload, c.organizationId).catch(() => {});
+    }
+    this.logger.log(`contrato_vencido: ${contratos.length} contratos`);
+  }
+
+  private async handleAtivosGarantiaVencendo() {
+    const now      = new Date();
+    const in30Days = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+    const ativos = await this.db.ativo.findMany({
+      where: { dataGarantiaFim: { gte: now, lte: in30Days } },
+      select: { id: true, codigo: true, nome: true, dataGarantiaFim: true, organizationId: true },
+    });
+    for (const a of ativos) {
+      const diasRestantes = Math.ceil((a.dataGarantiaFim.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+      const payload = {
+        id: a.id, codigo: a.codigo, nome: a.nome,
+        dataGarantiaFim: a.dataGarantiaFim, diasRestantes,
+        organizationId: a.organizationId,
+      };
+      await this.automacao.executar("ativo_garantia_vencendo", payload).catch(() => {});
+      this.webhook.fire("ativo.garantia_vencendo", payload, a.organizationId).catch(() => {});
+    }
+    this.logger.log(`ativo_garantia_vencendo: ${ativos.length} ativos`);
   }
 }
 
@@ -390,6 +560,7 @@ class AutomacoesController {
     if (!body.nome?.trim()) throw new BadRequestException("Nome obrigatorio");
     if (!body.trigger)       throw new BadRequestException("Trigger obrigatorio");
     if (!TRIGGERS_VALIDOS.includes(body.trigger)) throw new BadRequestException("Trigger invalido");
+    validateAcoes(body.acoes || []);
     const orgId = req.user?.organizationId;
     return this.db.automacao.create({
       data: {
@@ -410,6 +581,7 @@ class AutomacoesController {
     const existing = await this.db.automacao.findUnique({ where: { id } });
     if (!existing) throw new NotFoundException("Automacao nao encontrada");
     if (body.trigger && !TRIGGERS_VALIDOS.includes(body.trigger)) throw new BadRequestException("Trigger invalido");
+    if (body.acoes !== undefined) validateAcoes(body.acoes);
     return this.db.automacao.update({
       where: { id },
       data: {
@@ -433,7 +605,7 @@ class AutomacoesController {
 
   @Post(":id/testar")
   @Permissions("automacoes:editar")
-  async testar(@Param("id") id: string, @Body() body: { contexto?: Record<string, any> }) {
+  async testar(@Param("id") id: string, @Body() body: { contexto?: Record<string, any>; dryRun?: boolean }) {
     const auto = await this.db.automacao.findUnique({ where: { id } });
     if (!auto) throw new NotFoundException("Automacao nao encontrada");
     const ctx = body.contexto || {
@@ -442,12 +614,22 @@ class AutomacoesController {
     };
     const match = this.automacaoService.avaliarCondicoes(auto.condicoes, ctx);
     const grupos = this.normalizeGrupos(auto.condicoes);
+
+    // Dry-run das ações (sem efeitos colaterais)
+    const tplCache: Record<string, string> = {};
+    const acoesPreview = match
+      ? await Promise.all(
+          (auto.acoes as Acao[] || []).map(a => this.automacaoService.dryRunAcao(a, ctx, tplCache)),
+        )
+      : [];
+
     return {
       match,
       grupos: grupos.map(g => ({
         ...g,
         itens: g.itens.map((c: CondicaoItem) => ({ ...c, resultado: this.testarCondicao(c, ctx) })),
       })),
+      acoesPreview,
       contextoUsado: ctx,
     };
   }
@@ -475,9 +657,9 @@ class AutomacoesController {
 
 // ── Module ────────────────────────────────────────────────────────────────────
 @Module({
-  imports:     [NotificationsModule],
+  imports:     [NotificationsModule, WebhooksModule, ScheduleModule.forRoot()],
   controllers: [AutomacoesController],
-  providers:   [PrismaService, AutomacaoService],
+  providers:   [PrismaService, AutomacaoService, AutomacaoCronService],
   exports:     [AutomacaoService],
 })
 export class AutomacoesModule {}

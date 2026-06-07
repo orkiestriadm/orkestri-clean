@@ -5,6 +5,7 @@ import { Type } from "class-transformer";
 import { PrismaService } from "../../prisma/prisma.service";
 import { Permissions } from "../auth/permissions.decorator";
 import { PermissionsGuard } from "../auth/permissions.guard";
+import { WebhookService, WebhooksModule } from "../automacoes/webhooks.module";
 
 class CreateProjectDto {
   @IsString() titulo: string;
@@ -94,7 +95,10 @@ async function createDeadlineEvent(prisma: PrismaService, project: any, userIds:
 @Controller("projects")
 @UseGuards(AuthGuard("jwt"), PermissionsGuard)
 class ProjectsController {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private webhook: WebhookService,
+  ) {}
 
   @Get()
   @Permissions("projetos:ver")
@@ -196,6 +200,15 @@ class ProjectsController {
         ...(dto.valor !== undefined && { valor: dto.valor ?? null }),
       },
     });
+
+    // Webhook quando projeto é marcado como concluído
+    if (dto.status === "CONCLUIDO" && existing.status !== "CONCLUIDO") {
+      this.webhook.fire("projeto.concluido", {
+        id: updated.id, titulo: updated.titulo, status: updated.status,
+        clienteId: updated.clienteId || null, progressoPct: updated.progressoPct,
+        concluidoEm: new Date(),
+      }, (updated as any).organizationId).catch(() => {});
+    }
 
     // Se mudou o prazo, atualiza eventos existentes ou cria novos
     if (dto.dataFim && dto.dataFim !== existing.dataFim?.toISOString().slice(0, 10)) {
@@ -389,5 +402,8 @@ class ProjectsController {
   }
 }
 
-@Module({ controllers: [ProjectsController] })
+@Module({
+  imports: [WebhooksModule],
+  controllers: [ProjectsController],
+})
 export class ProjectsModule {}

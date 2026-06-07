@@ -6,6 +6,7 @@ import * as bcrypt from "bcryptjs";
 import { Permissions } from "../auth/permissions.decorator";
 import { PermissionsGuard } from "../auth/permissions.guard";
 import { CacheService } from "../cache/cache.service";
+import { WebhookService, WebhooksModule } from "../automacoes/webhooks.module";
 
 const CACHE_USERS_LIST = "cache:users:list";
 const CACHE_USER       = (id: string) => `cache:user:${id}`;
@@ -54,7 +55,11 @@ function mapUser(u: any) {
 @Controller("users")
 @UseGuards(AuthGuard("jwt"), PermissionsGuard)
 class UsersController {
-  constructor(private prisma: PrismaService, private cache: CacheService) {}
+  constructor(
+    private prisma: PrismaService,
+    private cache: CacheService,
+    private webhook: WebhookService,
+  ) {}
 
   @Get()
   @Permissions("usuarios:ver")
@@ -216,6 +221,10 @@ class UsersController {
       include: { userRoles: { include: { role: true } }, profile: { include: { setor: true } } },
     });
     await this.cache.del(CACHE_USERS_LIST, `${CACHE_USERS_LIST}:true`, `${CACHE_USERS_LIST}:0`);
+    this.webhook.fire("usuario.criado", {
+      id: user.id, nome: user.nome, email: user.email,
+      cargo: dto.cargo || null, criadoEm: user.criadoEm,
+    }, orgId).catch(() => {});
     return mapUser(user);
   }
 
@@ -392,6 +401,7 @@ class UsersCsvController {
 }
 
 @Module({
+  imports: [WebhooksModule],
   controllers: [UsersController, UsersCsvController],
   providers: [CacheService],
 })
