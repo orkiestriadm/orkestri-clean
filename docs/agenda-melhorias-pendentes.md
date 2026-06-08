@@ -23,6 +23,7 @@
 14. ~~Atalhos de teclado~~ — `useEffect(keydown)` + `<ShortcutsHelp>` (T/J/K/M/W/D/N/?/Esc/Shift+P)
 16. ~~Print-friendly view~~ — `@media print`, botão impressão, `.no-print` / `.print-only` / `.agenda-printable`
 + ~~Acessibilidade básica~~ — `aria-label` em ícones, `role="dialog"`, `role="tablist"`, foco visível
+11. ~~Mini-calendário + Próximos eventos~~ — `<MiniCalendar>` + `<UpcomingEventsList>` em sidebar 240px, responsivo (some abaixo de 1024px)
 
 ---
 
@@ -344,13 +345,11 @@ Botão "Imprimir" no topbar → `window.print()`.
 
 | Ordem | Item | Esforço | Impacto |
 |---|---|---|---|
-| 1 | #11 — Mini-calendário + Próximos eventos | 4h | Alto |
-| 2 | #4+#13 — Altura proporcional + overlap | 1-2 dias | Muito alto |
-| 3 | #12 — Drag & drop | 1-2 dias | Muito alto |
-| 4 | #15 — Múltiplos calendários | 1-2 dias | Alto |
+| 1 | #4+#13 — Altura proporcional + overlap | 1-2 dias | Muito alto |
+| 2 | #12 — Drag & drop | 1-2 dias | Muito alto |
+| 3 | #15 — Múltiplos calendários | 1-2 dias | Alto |
 
-**Recomendação:** começar por #11 (mais rápido, alta visibilidade). Os pesados
-(#4, #12, #15) merecem sessão dedicada cada.
+**Recomendação:** os pesados (#4, #12, #15) merecem sessão dedicada cada.
 
 ---
 

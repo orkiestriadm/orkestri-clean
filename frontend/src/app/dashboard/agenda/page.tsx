@@ -6,6 +6,8 @@ import Topbar from "@/components/layout/Topbar";
 import { useAuthStore } from "@/lib/store";
 import { api } from "@/lib/api";
 import { Calendar, CalendarDays, Users, Briefcase, Bell, ClipboardList, Keyboard, Printer } from "lucide-react";
+import MiniCalendar from "@/components/agenda/MiniCalendar";
+import UpcomingEventsList from "@/components/agenda/UpcomingEventsList";
 
 const DAYS_SHORT  = ["Dom","Seg","Ter","Qua","Qui","Sex","Sab"];
 const DAYS_FULL   = ["Domingo","Segunda","Terca","Quarta","Quinta","Sexta","Sabado"];
@@ -818,6 +820,20 @@ export default function AgendaPage() {
   };
   const goToday = () => { setCur({year:today.getFullYear(),month:today.getMonth()+1}); setWeekStart(startOfWeek(today)); setCurDate(new Date()); };
 
+  // ── Item #11: helpers do mini-calendar ──────────────────────────────────
+  // Atualiza o período de exibição para incluir a data clicada (mantém a vista).
+  const selectDate = (d: Date) => {
+    setCurDate(d);
+    setCur({ year: d.getFullYear(), month: d.getMonth() + 1 });
+    setWeekStart(startOfWeek(d));
+  };
+  // Set de YYYY-MM-DD com pelo menos 1 evento — alimenta os pontinhos do mini.
+  const eventDateSet = (() => {
+    const s = new Set<string>();
+    for (const e of events) s.add(e.inicio.slice(0, 10));
+    return s;
+  })();
+
   const periodLabel = () => {
     if (view==="mes") return `${MONTHS[cur.month-1]} ${cur.year}`;
     if (view==="semana") { const we=addDays(weekStart,6); return `${weekStart.getDate()} ${MONTHS[weekStart.getMonth()].slice(0,3)} - ${we.getDate()} ${MONTHS[we.getMonth()].slice(0,3)} ${we.getFullYear()}`; }
@@ -855,6 +871,28 @@ export default function AgendaPage() {
       </Topbar>
 
       <div style={{ flex:1, overflowY:"auto", padding:"16px 24px 24px" }} className="agenda-content">
+       <div className="agenda-layout" style={{
+         display: "grid",
+         gridTemplateColumns: "240px minmax(0, 1fr)",
+         gap: 20,
+         alignItems: "start",
+       }}>
+        {/* ── Sidebar (mini-calendar + próximos eventos) — item #11 ── */}
+        <aside className="agenda-sidebar no-print" style={{ display: "flex", flexDirection: "column", gap: 12, position: "sticky", top: 0 }}>
+          <MiniCalendar
+            selectedDate={curDate}
+            eventDates={eventDateSet}
+            onChange={selectDate}
+          />
+          <UpcomingEventsList
+            events={events as any}
+            limit={6}
+            onPick={(ev) => setModalDet(ev as any)}
+          />
+        </aside>
+
+        {/* ── Calendário principal ──────────────────────────────────── */}
+        <main className="agenda-main" style={{ minWidth: 0 }}>
         <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:16 }} className="no-print">
           <div style={{ display:"flex", alignItems:"center", gap:10 }}>
             <button className="btn-icon" onClick={prev} aria-label="Período anterior" title="Anterior (J)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M15 18l-6-6 6-6" strokeLinecap="round"/></svg></button>
@@ -936,6 +974,8 @@ export default function AgendaPage() {
         {!loading && !isEmpty && view==="mes" && <MonthView events={events} cur={cur} onDayClick={(ds:string)=>setCurDate(new Date(ds+"T12:00:00"))} onDayDblClick={(ds:string)=>setModalNew(ds+"T09:00")} onEventClick={(ev:Event)=>setModalDet(ev)} />}
         {!loading && !isEmpty && view==="semana" && <WeekView events={events} weekStart={weekStart} onSlotClick={(dt:string)=>setModalNew(dt)} onEventClick={(ev:Event)=>setModalDet(ev)} />}
         {!loading && !isEmpty && view==="dia" && <DayView events={events} date={curDate} onSlotClick={(dt:string)=>setModalNew(dt)} onEventClick={(ev:Event)=>setModalDet(ev)} />}
+        </main>
+       </div>
       </div>
 
       {/* Título de impressão — só visível em print */}
@@ -973,6 +1013,16 @@ export default function AgendaPage() {
           border-radius: 6px;
         }
 
+        /* ── Item #11: layout responsivo da sidebar ───────────────────── */
+        @media (max-width: 1024px) {
+          .agenda-layout {
+            grid-template-columns: 1fr !important;
+          }
+          .agenda-sidebar {
+            display: none !important;
+          }
+        }
+
         /* ── Item #16: print-friendly ─────────────────────────────────── */
         @media print {
           .no-print, [aria-label="Fechar"] { display: none !important; }
@@ -981,6 +1031,8 @@ export default function AgendaPage() {
           body, html { background: white !important; color: black !important; }
           .agenda-printable { width: 100%; padding: 0 !important; }
           .agenda-content { overflow: visible !important; padding: 0 !important; }
+          /* sidebar não imprime (já está no .no-print acima, mas reforça) */
+          .agenda-layout { grid-template-columns: 1fr !important; }
 
           /* Cards limpos, sem sombra */
           .card { border: 1px solid #999 !important; box-shadow: none !important;
