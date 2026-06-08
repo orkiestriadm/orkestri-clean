@@ -12,6 +12,8 @@ import * as fs from "fs";
 import { PrismaService } from "../../prisma/prisma.service";
 import { Permissions } from "../auth/permissions.decorator";
 import { PermissionsGuard } from "../auth/permissions.guard";
+import { AutomacaoService } from "../automacoes/automacoes.module";
+import { AutomacoesModule } from "../automacoes/automacoes.module";
 
 const STATUS_VALID = ["vigente", "vencendo", "vencido", "suspenso", "rescindido"];
 const TIPOS_VALID  = ["servico", "manutencao", "suporte", "licenca", "consultoria", "outro"];
@@ -42,7 +44,7 @@ async function nextNumero(db: any): Promise<number> {
 @Controller("contratos")
 @UseGuards(AuthGuard("jwt"), PermissionsGuard)
 class ContratosController {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService, private automacao: AutomacaoService) {}
   private get db() { return this.prisma as any; }
 
   // GET /contratos/stats
@@ -170,6 +172,8 @@ class ContratosController {
         responsavel: { select: { id: true, nome: true } },
       },
     });
+    const ctx = { id: contrato.id, titulo: contrato.titulo, numero: contrato.numero, status: contrato.status, clienteId: contrato.clienteId, responsavelId: contrato.responsavelId, organizationId: orgId };
+    this.automacao.executar("contrato_criado", ctx).catch(() => {});
     return mapContrato(contrato);
   }
 
@@ -201,6 +205,11 @@ class ContratosController {
         responsavel: { select: { id: true, nome: true } },
       },
     });
+    const orgUpdated = (existing as any).organizationId;
+    const ctxUpdate = { id: updated.id, titulo: updated.titulo, numero: updated.numero, status: updated.status, clienteId: updated.clienteId, organizationId: orgUpdated };
+    this.automacao.executar("contrato_atualizado", ctxUpdate).catch(() => {});
+    if (updated.status === "vencendo") this.automacao.executar("contrato_vencendo", ctxUpdate).catch(() => {});
+    if (updated.status === "vencido")  this.automacao.executar("contrato_vencido",  ctxUpdate).catch(() => {});
     return mapContrato(updated);
   }
 
@@ -238,6 +247,8 @@ class ContratosController {
         responsavel: { select: { id: true, nome: true } },
       },
     });
+    const ctxRenovar = { id: novo.id, titulo: novo.titulo, numero: novo.numero, status: novo.status, clienteId: novo.clienteId, organizationId: (existing as any).organizationId };
+    this.automacao.executar("contrato_renovado", ctxRenovar).catch(() => {});
     return mapContrato(novo);
   }
 
@@ -327,7 +338,8 @@ class ContratosController {
 
 // ── Module ────────────────────────────────────────────────────────────────────
 @Module({
+  imports:     [AutomacoesModule],
   controllers: [ContratosController],
-  providers:   [PrismaService],
+  providers:   [PrismaService, AutomacaoService],
 })
 export class ContratosModule {}

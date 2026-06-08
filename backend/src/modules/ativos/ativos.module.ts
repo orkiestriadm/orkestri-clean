@@ -8,6 +8,8 @@ import { AuthGuard } from "@nestjs/passport";
 import { PrismaService } from "../../prisma/prisma.service";
 import { Permissions } from "../auth/permissions.decorator";
 import { PermissionsGuard } from "../auth/permissions.guard";
+import { AutomacaoService } from "../automacoes/automacoes.module";
+import { AutomacoesModule } from "../automacoes/automacoes.module";
 import * as crypto from "crypto";
 
 // ── helpers ───────────────────────────────────────────────────────────────────
@@ -85,8 +87,12 @@ class CategoriasAtivoController {
 @Controller("ativos/monitoramento")
 class MonitoramentoController {
   private readonly logger = new Logger(MonitoramentoController.name);
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService, private automacao: AutomacaoService) {}
   private get db() { return this.prisma as any; }
+
+  private executarAutomacao(trigger: string, ctx: Record<string, any>) {
+    this.automacao.executar(trigger, ctx).catch(() => {});
+  }
 
   private async resolveOrg(key: string): Promise<string | null> {
     if (!key) return null;
@@ -200,6 +206,8 @@ class MonitoramentoController {
     for (const r of body.resultados) {
       if (!r.ativoId) continue;
       try {
+        // Busca estado anterior para detectar mudança online/offline
+        const anterior = await this.db.ativo.findUnique({ where: { id: r.ativoId }, select: { online: true, nome: true, ip: true } });
         await this.db.ativo.update({
           where: { id: r.ativoId },
           data: { online: r.online, ultimoPing: now, latenciaMs: r.latenciaMs ?? null },
@@ -207,6 +215,12 @@ class MonitoramentoController {
         await this.db.pingLog.create({
           data: { id: crypto.randomUUID(), ativoId: r.ativoId, organizationId: orgId, online: r.online, latenciaMs: r.latenciaMs ?? null, erro: r.erro ?? null },
         });
+        // Dispara automação quando muda de estado (online ↔ offline)
+        if (anterior && anterior.online !== r.online) {
+          const ctx = { id: r.ativoId, nome: anterior.nome, ip: anterior.ip, online: r.online, latenciaMs: r.latenciaMs, organizationId: orgId };
+          const trigger = r.online ? "ativo_online" : "ativo_offline";
+          this.db.automacao && this.executarAutomacao(trigger, ctx);
+        }
         processados++;
       } catch (err: any) {
         this.logger.warn(`Falha ping ativo ${r.ativoId}: ${err.message}`);
@@ -408,7 +422,8 @@ class AtivosController {
 
 // ── Module ────────────────────────────────────────────────────────────────────
 @Module({
+  imports:     [AutomacoesModule],
   controllers: [CategoriasAtivoController, MonitoramentoController, AtivosController],
-  providers:   [PrismaService],
+  providers:   [PrismaService, AutomacaoService],
 })
 export class AtivosModule {}

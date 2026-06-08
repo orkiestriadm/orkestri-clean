@@ -6,6 +6,7 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { Permissions } from "../auth/permissions.decorator";
 import { PermissionsGuard } from "../auth/permissions.guard";
 import { WebhookService, WebhooksModule } from "../automacoes/webhooks.module";
+import { AutomacaoService, AutomacoesModule } from "../automacoes/automacoes.module";
 
 class CreateProjectDto {
   @IsString() titulo: string;
@@ -98,6 +99,7 @@ class ProjectsController {
   constructor(
     private prisma: PrismaService,
     private webhook: WebhookService,
+    private automacao: AutomacaoService,
   ) {}
 
   @Get()
@@ -176,6 +178,12 @@ class ProjectsController {
     if (dto.dataFim) {
       await createDeadlineEvent(this.prisma, { ...project, dataFim: dto.dataFim }, allMemberIds, req.user.id);
     }
+
+    // Trigger automacao + webhook
+    this.automacao.executar("projeto_criado", {
+      id: project.id, titulo: project.titulo, status: project.status,
+      organizationId: orgId, criadoPorId: req.user.id,
+    }).catch(() => {});
 
     return project;
   }
@@ -283,12 +291,26 @@ class ProjectsController {
     }
 
     await recalcProgress(this.prisma, projectId);
+
+    // Trigger automacao
+    const proj = await this.prisma.project.findUnique({ where: { id: projectId }, select: { organizationId: true } as any });
+    const orgIdTask = (proj as any)?.organizationId;
+    this.automacao.executar("tarefa_criada", {
+      id: task.id, titulo: task.titulo, projectId, assigneeId: task.assigneeId, status: task.status, organizationId: orgIdTask,
+    }).catch(() => {});
+    if (task.assigneeId) {
+      this.automacao.executar("tarefa_atribuida", {
+        id: task.id, titulo: task.titulo, projectId, assigneeId: task.assigneeId, organizationId: orgIdTask,
+      }).catch(() => {});
+    }
+
     return task;
   }
 
   @Patch(":id/tasks/:taskId")
   @Permissions("projetos:editar")
   async updateTask(@Param("id") projectId: string, @Param("taskId") taskId: string, @Body() dto: UpdateTaskDto) {
+    const before = await this.prisma.task.findUnique({ where: { id: taskId } });
     const task = await this.prisma.task.update({
       where: { id: taskId },
       data: {
@@ -302,6 +324,20 @@ class ProjectsController {
       include: { assignee: { select: { id: true, nome: true } } },
     });
     await recalcProgress(this.prisma, projectId);
+
+    const proj = await this.prisma.project.findUnique({ where: { id: projectId }, select: { organizationId: true } as any });
+    const orgIdT = (proj as any)?.organizationId;
+    if (dto.status === "CONCLUIDA" && before?.status !== "CONCLUIDA") {
+      this.automacao.executar("tarefa_concluida", {
+        id: task.id, titulo: task.titulo, projectId, assigneeId: task.assigneeId, organizationId: orgIdT,
+      }).catch(() => {});
+    }
+    if (dto.assigneeId && before?.assigneeId !== task.assigneeId) {
+      this.automacao.executar("tarefa_atribuida", {
+        id: task.id, titulo: task.titulo, projectId, assigneeId: task.assigneeId, organizationId: orgIdT,
+      }).catch(() => {});
+    }
+
     return task;
   }
 
@@ -403,7 +439,7 @@ class ProjectsController {
 }
 
 @Module({
-  imports: [WebhooksModule],
+  imports: [WebhooksModule, AutomacoesModule],
   controllers: [ProjectsController],
 })
 export class ProjectsModule {}

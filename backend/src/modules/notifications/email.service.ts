@@ -300,4 +300,19 @@ export class EmailService {
       )
     );
   }
+
+  /** Email genérico para automações — assunto e corpo definidos pelo usuário */
+  async sendGeneric(toEmail: string, nome: string, assunto: string, mensagem: string): Promise<boolean> {
+    return this.send(
+      toEmail,
+      assunto,
+      this.layout(`
+        <p>Olá${nome ? `, <strong>${nome}</strong>` : ""}!</p>
+        <div style="white-space:pre-line;font-size:14px;color:#374151;line-height:1.6">${mensagem.replace(/\n/g, "<br>")}</div>
+        <p style="font-size:12px;color:#9ca3af;margin-top:24px;border-top:1px solid #e5e7eb;padding-top:12px">
+          Este e-mail foi enviado automaticamente pelo Orkiestri.
+        </p>
+      `)
+    );
+  }
 }

@@ -6,6 +6,8 @@ import { AuthService } from "./auth.service";
 import { AuthController } from "./auth.controller";
 import { JwtStrategy } from "./jwt.strategy";
 import { NotificationsModule } from "../notifications/notifications.module";
+import { AutomacoesModule } from "../automacoes/automacoes.module";
+import { AutomacaoService } from "../automacoes/automacoes.module";
 
 @Module({
   imports: [
@@ -16,8 +18,9 @@ import { NotificationsModule } from "../notifications/notifications.module";
       inject: [ConfigService],
     }),
     NotificationsModule,
+    AutomacoesModule,
   ],
-  providers: [AuthService, JwtStrategy],
+  providers: [AuthService, JwtStrategy, AutomacaoService],
   controllers: [AuthController],
   exports: [AuthService],
 })

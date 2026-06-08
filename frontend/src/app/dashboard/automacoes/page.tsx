@@ -31,13 +31,35 @@ type Project    = { id: string; titulo: string; };
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const TRIGGERS = [
-  { value: "chamado_criado",           label: "Chamado criado",           color: "var(--accent-green)" },
-  { value: "chamado_atualizado",       label: "Chamado atualizado",       color: "var(--accent-cyan)" },
-  { value: "chamado_resolvido",        label: "Chamado resolvido",        color: "var(--accent-violet)" },
-  { value: "chamado_fechado",          label: "Chamado fechado",          color: "var(--text-muted)" },
-  { value: "contrato_vencendo",        label: "Contrato vencendo",        color: "var(--accent-yellow, #f59e0b)" },
-  { value: "contrato_vencido",         label: "Contrato vencido",         color: "var(--accent-red)" },
-  { value: "ativo_garantia_vencendo",  label: "Garantia de ativo vencendo", color: "var(--accent-orange, #f97316)" },
+  // Chamados
+  { value: "chamado_criado",           label: "Chamado criado",             color: "var(--accent-green)",          grupo: "Chamados" },
+  { value: "chamado_atualizado",       label: "Chamado atualizado",         color: "var(--accent-cyan)",           grupo: "Chamados" },
+  { value: "chamado_resolvido",        label: "Chamado resolvido",          color: "var(--accent-violet)",         grupo: "Chamados" },
+  { value: "chamado_fechado",          label: "Chamado fechado",            color: "var(--text-muted)",            grupo: "Chamados" },
+  { value: "chamado_sla_risco",        label: "SLA em risco / violado",     color: "var(--accent-red)",            grupo: "Chamados" },
+  // Contratos
+  { value: "contrato_criado",          label: "Contrato criado",            color: "var(--accent-green)",          grupo: "Contratos" },
+  { value: "contrato_atualizado",      label: "Contrato atualizado",        color: "var(--accent-cyan)",           grupo: "Contratos" },
+  { value: "contrato_vencendo",        label: "Contrato vencendo (30 dias)",color: "#f59e0b",                      grupo: "Contratos" },
+  { value: "contrato_vencido",         label: "Contrato vencido",           color: "var(--accent-red)",            grupo: "Contratos" },
+  { value: "contrato_renovado",        label: "Contrato renovado",          color: "var(--accent-green)",          grupo: "Contratos" },
+  // Projetos & Tarefas
+  { value: "projeto_criado",           label: "Projeto criado",             color: "var(--accent-violet)",         grupo: "Projetos" },
+  { value: "projeto_concluido",        label: "Projeto concluído",          color: "var(--accent-green)",          grupo: "Projetos" },
+  { value: "projeto_cancelado",        label: "Projeto cancelado",          color: "var(--accent-red)",            grupo: "Projetos" },
+  { value: "tarefa_criada",            label: "Tarefa criada",              color: "var(--accent-cyan)",           grupo: "Projetos" },
+  { value: "tarefa_concluida",         label: "Tarefa concluída",           color: "var(--accent-green)",          grupo: "Projetos" },
+  { value: "tarefa_atribuida",         label: "Tarefa atribuída",           color: "#f59e0b",                      grupo: "Projetos" },
+  // Aprovações / Workflows
+  { value: "workflow_pendente",        label: "Aprovação solicitada",       color: "#f59e0b",                      grupo: "Aprovações" },
+  { value: "workflow_aprovado",        label: "Aprovação aprovada",         color: "var(--accent-green)",          grupo: "Aprovações" },
+  { value: "workflow_rejeitado",       label: "Aprovação rejeitada",        color: "var(--accent-red)",            grupo: "Aprovações" },
+  // Ativos
+  { value: "ativo_garantia_vencendo",  label: "Garantia de ativo vencendo", color: "#f97316",                      grupo: "Ativos" },
+  { value: "ativo_offline",            label: "Ativo ficou offline",        color: "var(--accent-red)",            grupo: "Ativos" },
+  { value: "ativo_online",             label: "Ativo voltou online",        color: "var(--accent-green)",          grupo: "Ativos" },
+  // Usuários
+  { value: "usuario_criado",           label: "Usuário aprovado/criado",    color: "var(--accent-violet)",         grupo: "Usuários" },
 ];
 
 const CAMPOS = [
@@ -68,16 +90,24 @@ const OPERADORES = [
 ];
 
 const TIPO_ACAO = [
-  { value: "atribuir_atendente",  label: "Atribuir atendente",     icon: "👤" },
-  { value: "mudar_status",        label: "Mudar status",           icon: "🔄" },
-  { value: "mudar_prioridade",    label: "Mudar prioridade",       icon: "⚡" },
-  { value: "escalar_chamado",     label: "Escalar chamado",        icon: "🚨" },
-  { value: "adicionar_tag",       label: "Adicionar tag",          icon: "🏷" },
-  { value: "remover_tag",         label: "Remover tag",            icon: "✂️" },
-  { value: "adicionar_comentario",label: "Adicionar comentário",   icon: "💬" },
-  { value: "criar_notificacao",   label: "Criar notificação",      icon: "🔔" },
-  { value: "enviar_whatsapp",     label: "Enviar WhatsApp",        icon: "📱" },
-  { value: "criar_tarefa",        label: "Criar tarefa no projeto", icon: "✅" },
+  // Chamado
+  { value: "atribuir_atendente",   label: "Atribuir atendente",        icon: "👤", grupo: "Chamado" },
+  { value: "mudar_status",         label: "Mudar status do chamado",   icon: "🔄", grupo: "Chamado" },
+  { value: "mudar_prioridade",     label: "Mudar prioridade",          icon: "⚡", grupo: "Chamado" },
+  { value: "escalar_chamado",      label: "Escalar chamado",           icon: "🚨", grupo: "Chamado" },
+  { value: "adicionar_tag",        label: "Adicionar tag",             icon: "🏷", grupo: "Chamado" },
+  { value: "remover_tag",          label: "Remover tag",               icon: "✂️", grupo: "Chamado" },
+  { value: "adicionar_comentario", label: "Adicionar comentário",      icon: "💬", grupo: "Chamado" },
+  { value: "criar_chamado",        label: "Criar novo chamado",        icon: "🎫", grupo: "Chamado" },
+  // Comunicação
+  { value: "criar_notificacao",    label: "Notificação no sistema",    icon: "🔔", grupo: "Comunicação" },
+  { value: "enviar_whatsapp",      label: "Enviar WhatsApp",           icon: "📱", grupo: "Comunicação" },
+  { value: "enviar_email",         label: "Enviar e-mail",             icon: "📧", grupo: "Comunicação" },
+  // Projetos
+  { value: "criar_tarefa",         label: "Criar tarefa no projeto",   icon: "✅", grupo: "Projetos" },
+  { value: "alterar_status_projeto",label:"Alterar status do projeto", icon: "📁", grupo: "Projetos" },
+  // Agenda
+  { value: "criar_evento_agenda",  label: "Criar evento na agenda",    icon: "📅", grupo: "Agenda" },
 ];
 
 const PRIORIDADES = ["baixa","media","alta","critica"];
@@ -310,19 +340,90 @@ function AcaoBuilder({ acoes, onChange, users, projects }: {
                 <option value="">Selecione o projeto</option>
                 {projects.map(p => <option key={p.id} value={p.id}>{p.titulo}</option>)}
               </select>
-              <input className="input-o" style={{ fontSize: 12 }} value={a.titulo || ""} onChange={e => set(i, { titulo: e.target.value })} placeholder="Título da tarefa (ex: Verificar {{titulo}} do chamado #{{numero}})" />
+              <input className="input-o" style={{ fontSize: 12 }} value={a.titulo || ""} onChange={e => set(i, { titulo: e.target.value })} placeholder="Título da tarefa (ex: Verificar {{titulo}} #{{numero}})" />
               <textarea className="input-o" style={{ fontSize: 12, resize: "vertical", minHeight: 50 }} value={a.descricao || ""} onChange={e => set(i, { descricao: e.target.value })} placeholder="Descrição (opcional)" />
               <div style={{ display: "flex", gap: 8 }}>
                 <select className="input-o" style={{ fontSize: 12 }} value={a.prioridade || ""} onChange={e => set(i, { prioridade: e.target.value })}>
-                  <option value="">Prioridade (usar a do chamado)</option>
+                  <option value="">Prioridade (usar a do evento)</option>
                   {PRIORIDADES.map(p => <option key={p} value={p}>{p}</option>)}
                 </select>
                 <select className="input-o" style={{ fontSize: 12 }} value={a.assigneeId || ""} onChange={e => set(i, { assigneeId: e.target.value })}>
-                  <option value="">Atribuir a (padrão: atendente do chamado)</option>
+                  <option value="">Atribuir a (padrão: atendente)</option>
                   {users.map(u => <option key={u.id} value={u.id}>{u.nome}</option>)}
                 </select>
               </div>
               <TemplateVarsHint />
+            </div>
+          )}
+
+          {/* Email */}
+          {a.tipo === "enviar_email" && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              <div style={{ display: "flex", gap: 8 }}>
+                <select className="input-o" style={{ fontSize: 12, width: 160 }} value={a.para || "solicitante"} onChange={e => set(i, { para: e.target.value })}>
+                  {PARA_OPTIONS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
+                </select>
+                {a.para === "usuario" && (
+                  <select className="input-o" style={{ fontSize: 12 }} value={a.usuarioId || ""} onChange={e => set(i, { usuarioId: e.target.value })}>
+                    <option value="">Selecione usuário</option>
+                    {users.map(u => <option key={u.id} value={u.id}>{u.nome}</option>)}
+                  </select>
+                )}
+              </div>
+              <input className="input-o" style={{ fontSize: 12 }} value={a.para_email || ""} onChange={e => set(i, { para_email: e.target.value })} placeholder="Ou e-mail avulso (ex: cliente@empresa.com)" />
+              <input className="input-o" style={{ fontSize: 12 }} value={a.assunto || ""} onChange={e => set(i, { assunto: e.target.value })} placeholder="Assunto do e-mail" />
+              <textarea className="input-o" style={{ fontSize: 12, resize: "vertical", minHeight: 80 }} value={a.mensagem || ""} onChange={e => set(i, { mensagem: e.target.value })} placeholder="Corpo do e-mail (suporta variáveis)" />
+              <TemplateVarsHint />
+            </div>
+          )}
+
+          {/* Criar chamado */}
+          {a.tipo === "criar_chamado" && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              <input className="input-o" style={{ fontSize: 12 }} value={a.titulo_chamado || ""} onChange={e => set(i, { titulo_chamado: e.target.value })} placeholder="Título do novo chamado (ex: Seguimento: {{titulo}})" />
+              <textarea className="input-o" style={{ fontSize: 12, resize: "vertical", minHeight: 50 }} value={a.descricao || ""} onChange={e => set(i, { descricao: e.target.value })} placeholder="Descrição (opcional)" />
+              <div style={{ display: "flex", gap: 8 }}>
+                <select className="input-o" style={{ fontSize: 12 }} value={a.prioridade || ""} onChange={e => set(i, { prioridade: e.target.value })}>
+                  <option value="">Prioridade (usar a do evento)</option>
+                  {PRIORIDADES.map(p => <option key={p} value={p}>{p}</option>)}
+                </select>
+                <select className="input-o" style={{ fontSize: 12 }} value={a.atendenteId || ""} onChange={e => set(i, { atendenteId: e.target.value })}>
+                  <option value="">Atendente (opcional)</option>
+                  {users.map(u => <option key={u.id} value={u.id}>{u.nome}</option>)}
+                </select>
+              </div>
+              <TemplateVarsHint />
+            </div>
+          )}
+
+          {/* Criar evento na agenda */}
+          {a.tipo === "criar_evento_agenda" && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              <select className="input-o" style={{ fontSize: 12 }} value={a.para || "atendente"} onChange={e => set(i, { para: e.target.value })}>
+                {PARA_OPTIONS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
+              </select>
+              <input className="input-o" style={{ fontSize: 12 }} value={a.titulo_evento || ""} onChange={e => set(i, { titulo_evento: e.target.value })} placeholder="Título do evento (ex: Reunião: {{titulo}})" />
+              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                <label style={{ fontSize: 12, color: "var(--text-secondary)", flexShrink: 0 }}>Daqui a</label>
+                <input className="input-o" style={{ fontSize: 12, width: 70 }} type="number" min={1} value={a.dias_futuro || 1} onChange={e => set(i, { dias_futuro: Number(e.target.value) })} />
+                <label style={{ fontSize: 12, color: "var(--text-secondary)" }}>dia(s)</label>
+              </div>
+              <textarea className="input-o" style={{ fontSize: 12, resize: "vertical", minHeight: 40 }} value={a.descricao || ""} onChange={e => set(i, { descricao: e.target.value })} placeholder="Descrição (opcional)" />
+              <TemplateVarsHint />
+            </div>
+          )}
+
+          {/* Alterar status projeto */}
+          {a.tipo === "alterar_status_projeto" && (
+            <div style={{ display: "flex", gap: 8 }}>
+              <select className="input-o" style={{ fontSize: 12 }} value={a.projectId || ""} onChange={e => set(i, { projectId: e.target.value })}>
+                <option value="">Selecione o projeto</option>
+                {projects.map(p => <option key={p.id} value={p.id}>{p.titulo}</option>)}
+              </select>
+              <select className="input-o" style={{ fontSize: 12 }} value={a.status || ""} onChange={e => set(i, { status: e.target.value })}>
+                <option value="">Novo status</option>
+                {["PLANEJAMENTO","EM_ANDAMENTO","PAUSADO","CONCLUIDO","CANCELADO"].map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
             </div>
           )}
         </div>
@@ -398,7 +499,14 @@ function AutomacaoForm({ automacao, users, projects, onSave, onCancel }: {
         <div>
           <label style={{ fontSize: 10, color: "var(--text-muted)", fontFamily: "var(--font-mono)", display: "block", marginBottom: 4 }}>GATILHO (TRIGGER)</label>
           <select className="input-o" value={trigger} onChange={e => setTrigger(e.target.value)}>
-            {TRIGGERS.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+            {(() => {
+              const grupos = [...new Set(TRIGGERS.map(t => t.grupo))];
+              return grupos.map(g => (
+                <optgroup key={g} label={g}>
+                  {TRIGGERS.filter(t => t.grupo === g).map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+                </optgroup>
+              ));
+            })()}
           </select>
         </div>
         <div style={{ gridColumn: "1/-1" }}>

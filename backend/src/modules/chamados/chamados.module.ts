@@ -782,7 +782,7 @@ import { Injectable, OnModuleInit, Logger } from "@nestjs/common";
 class SlaEscalationScheduler implements OnModuleInit {
   private readonly logger = new Logger("SlaEscalationScheduler");
 
-  constructor(private prisma: PrismaService, private wa: WhatsAppService) {}
+  constructor(private prisma: PrismaService, private wa: WhatsAppService, private automacao: AutomacaoService) {}
 
   onModuleInit() {
     // Primeiro tick após 2min (aguarda boot); depois a cada 30min
@@ -884,7 +884,30 @@ class SlaEscalationScheduler implements OnModuleInit {
         } catch {}
       }
 
+      this.automacao.executar("chamado_sla_risco", {
+        id: chamado.id, numero: chamado.numero, titulo: chamado.titulo,
+        prioridade: chamado.prioridade, status: chamado.status,
+        solicitanteId: chamado.solicitanteId, atendenteId: chamado.atendenteId || null,
+        organizationId: org.id, horasAtraso,
+      }).catch(() => {});
+
       this.logger.warn(`Escalado: #${chamado.numero} (${horasAtraso}h de atraso) → ${org.users.length} master(s)`);
+    }
+
+    // Dispara automação para chamados em risco (dentro de 2h do prazo)
+    const emRisco = await db.chamado.findMany({
+      where: {
+        status: { notIn: ["resolvido", "fechado", "cancelado"] },
+        slaResolucaoAt: { gt: now, lt: new Date(now.getTime() + 2 * 3600000) },
+      },
+      select: { id: true, numero: true, titulo: true, prioridade: true, status: true, solicitanteId: true, atendenteId: true, organizationId: true },
+    });
+    for (const c of emRisco) {
+      this.automacao.executar("chamado_sla_risco", {
+        id: c.id, numero: c.numero, titulo: c.titulo, prioridade: c.prioridade,
+        status: c.status, solicitanteId: c.solicitanteId, atendenteId: c.atendenteId || null,
+        organizationId: c.organizationId, emRisco: true,
+      }).catch(() => {});
     }
   }
 }
@@ -947,6 +970,6 @@ class ChamadoUploadController {
 @Module({
   imports:     [SlaModule, AutomacoesModule, WebhooksModule, NotificationsModule],
   controllers: [ChamadosController, ChamadoUploadController],
-  providers:   [WhatsAppService, EmailService, SlaEscalationScheduler],
+  providers:   [WhatsAppService, EmailService, SlaEscalationScheduler, AutomacaoService],
 })
 export class ChamadosModule {}

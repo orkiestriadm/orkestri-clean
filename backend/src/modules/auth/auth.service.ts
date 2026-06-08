@@ -5,6 +5,7 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { CacheService } from "../cache/cache.service";
 import { WhatsAppService } from "../notifications/whatsapp.service";
 import { EmailService } from "../notifications/email.service";
+import { AutomacaoService } from "../automacoes/automacoes.module";
 import * as bcrypt from "bcryptjs";
 
 // Todas as permissões do sistema no formato "recurso:acao"
@@ -240,6 +241,7 @@ export class AuthService implements OnModuleInit {
     private cache: CacheService,
     private wa: WhatsAppService,
     private email: EmailService,
+    private automacao: AutomacaoService,
   ) {}
 
   async onModuleInit() {
@@ -755,6 +757,7 @@ export class AuthService implements OnModuleInit {
       entregaEmail = true;
     } catch { entregaEmail = false; }
     this.logAudit(requestUser.id, "usuarios", "users", userId, "CREATE", `Conta aprovada via solicitação: ${email}`).catch(() => {});
+    this.automacao.executar("usuario_criado", { id: userId, nome, email, organizationId }).catch(() => {});
     return {
       message: "Usuário aprovado com sucesso.",
       userId,

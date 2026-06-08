@@ -7,6 +7,7 @@ import { Permissions } from "../auth/permissions.decorator";
 import { PermissionsGuard } from "../auth/permissions.guard";
 import { CacheService } from "../cache/cache.service";
 import { WebhookService, WebhooksModule } from "../automacoes/webhooks.module";
+import { AutomacaoService, AutomacoesModule } from "../automacoes/automacoes.module";
 
 const CACHE_USERS_LIST = "cache:users:list";
 const CACHE_USER       = (id: string) => `cache:user:${id}`;
@@ -59,6 +60,7 @@ class UsersController {
     private prisma: PrismaService,
     private cache: CacheService,
     private webhook: WebhookService,
+    private automacao: AutomacaoService,
   ) {}
 
   @Get()
@@ -225,6 +227,10 @@ class UsersController {
       id: user.id, nome: user.nome, email: user.email,
       cargo: dto.cargo || null, criadoEm: user.criadoEm,
     }, orgId).catch(() => {});
+    this.automacao.executar("usuario_criado", {
+      id: user.id, nome: user.nome, email: user.email,
+      cargo: dto.cargo || null, organizationId: orgId,
+    }).catch(() => {});
     return mapUser(user);
   }
 
@@ -401,7 +407,7 @@ class UsersCsvController {
 }
 
 @Module({
-  imports: [WebhooksModule],
+  imports: [WebhooksModule, AutomacoesModule],
   controllers: [UsersController, UsersCsvController],
   providers: [CacheService],
 })

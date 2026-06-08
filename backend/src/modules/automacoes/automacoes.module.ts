@@ -10,6 +10,7 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { Permissions } from "../auth/permissions.decorator";
 import { PermissionsGuard } from "../auth/permissions.guard";
 import { WhatsAppService } from "../notifications/whatsapp.service";
+import { EmailService } from "../notifications/email.service";
 import { NotificationsModule } from "../notifications/notifications.module";
 import { WebhookService, WebhooksModule } from "./webhooks.module";
 import * as crypto from "crypto";
@@ -21,8 +22,19 @@ interface CondicoesConfig { grupos: CondicaoGrupo[]; }
 interface Acao { tipo: string; [key: string]: any; }
 
 const TRIGGERS_VALIDOS = [
-  "chamado_criado", "chamado_atualizado", "chamado_resolvido", "chamado_fechado",
-  "contrato_vencendo", "contrato_vencido", "ativo_garantia_vencendo",
+  // Chamados
+  "chamado_criado", "chamado_atualizado", "chamado_resolvido", "chamado_fechado", "chamado_sla_risco",
+  // Contratos
+  "contrato_criado", "contrato_atualizado", "contrato_vencendo", "contrato_vencido", "contrato_renovado",
+  // Projetos & Tarefas
+  "projeto_criado", "projeto_concluido", "projeto_cancelado",
+  "tarefa_criada", "tarefa_concluida", "tarefa_atribuida",
+  // Workflows / Aprovações
+  "workflow_pendente", "workflow_aprovado", "workflow_rejeitado",
+  // Ativos
+  "ativo_garantia_vencendo", "ativo_offline", "ativo_online",
+  // Usuários
+  "usuario_criado",
 ];
 
 const PRIORIDADE_TO_ENUM: Record<string, string> = {
@@ -32,7 +44,8 @@ const PRIORIDADE_TO_ENUM: Record<string, string> = {
 const ACOES_VALIDAS = new Set([
   "atribuir_atendente", "mudar_status", "mudar_prioridade", "escalar_chamado",
   "adicionar_tag", "remover_tag", "adicionar_comentario", "criar_notificacao",
-  "enviar_whatsapp", "criar_tarefa",
+  "enviar_whatsapp", "enviar_email", "criar_tarefa", "criar_chamado",
+  "criar_evento_agenda", "alterar_status_projeto",
 ]);
 
 const MAX_AUTOMACAO_DEPTH = 3;
@@ -67,9 +80,24 @@ function validateAcoes(acoes: any[]): void {
         if (!a.mensagem?.trim()) throw new BadRequestException(`Ação #${i + 1}: mensagem obrigatória`);
         if (a.para === "usuario" && !a.usuarioId) throw new BadRequestException(`Ação #${i + 1}: usuarioId obrigatório`);
         break;
+      case "enviar_email":
+        if (!a.mensagem?.trim()) throw new BadRequestException(`Ação #${i + 1}: mensagem obrigatória`);
+        if (!a.para && !a.para_email) throw new BadRequestException(`Ação #${i + 1}: destinatário (para ou para_email) obrigatório`);
+        if (a.para === "usuario" && !a.usuarioId) throw new BadRequestException(`Ação #${i + 1}: usuarioId obrigatório`);
+        break;
       case "criar_tarefa":
         if (!a.projectId) throw new BadRequestException(`Ação #${i + 1}: projectId obrigatório`);
         if (!a.titulo?.trim()) throw new BadRequestException(`Ação #${i + 1}: titulo obrigatório`);
+        break;
+      case "criar_chamado":
+        if (!a.titulo_chamado?.trim()) throw new BadRequestException(`Ação #${i + 1}: titulo_chamado obrigatório`);
+        break;
+      case "criar_evento_agenda":
+        if (!a.titulo_evento?.trim()) throw new BadRequestException(`Ação #${i + 1}: titulo_evento obrigatório`);
+        break;
+      case "alterar_status_projeto":
+        if (!a.projectId) throw new BadRequestException(`Ação #${i + 1}: projectId obrigatório`);
+        if (!a.status) throw new BadRequestException(`Ação #${i + 1}: status obrigatório`);
         break;
     }
   });
@@ -82,6 +110,7 @@ export class AutomacaoService {
   constructor(
     private prisma: PrismaService,
     private wa: WhatsAppService,
+    private email: EmailService,
   ) {}
   private get db() { return this.prisma as any; }
 
@@ -344,6 +373,96 @@ export class AutomacaoService {
           },
         });
         return { acao: "criar_tarefa", taskId: task.id, titulo };
+      }
+
+      // ── Email ────────────────────────────────────────────────────────────────
+      case "enviar_email": {
+        const assunto  = await this.interpolate(acao.assunto  || "Notificação do Orkiestri", ctx, tplCache);
+        const mensagem = await this.interpolate(acao.mensagem || "", ctx, tplCache);
+        if (!mensagem) break;
+        const targets  = await this.resolveTargets(acao, ctx);
+        let enviados   = 0;
+        for (const userId of targets) {
+          const u = await this.db.user.findUnique({ where: { id: userId }, select: { email: true, nome: true } });
+          if (u?.email) {
+            const ok = await this.email.sendGeneric(u.email, u.nome, assunto, mensagem).catch(() => false);
+            if (ok) enviados++;
+          }
+        }
+        if (acao.para_email) {
+          const ok = await this.email.sendGeneric(acao.para_email, acao.para_nome || "", assunto, mensagem).catch(() => false);
+          if (ok) enviados++;
+        }
+        return { acao: "enviar_email", enviados };
+      }
+
+      // ── Criar chamado a partir de outra automação ────────────────────────────
+      case "criar_chamado": {
+        if (!acao.titulo_chamado || !ctx.organizationId) break;
+        const titulo    = await this.interpolate(acao.titulo_chamado, ctx, tplCache);
+        const descricao = acao.descricao
+          ? await this.interpolate(acao.descricao, ctx, tplCache)
+          : "Chamado criado automaticamente pela automação.";
+        const criadoPorId = ctx.solicitanteId || ctx.atendenteId;
+        if (!criadoPorId) break;
+        const count  = await this.db.chamado.count({ where: { organizationId: ctx.organizationId } });
+        const numero = count + 1;
+        const prio = (acao.prioridade || ctx.prioridade || "media") as string;
+        const slaMap: Record<string, number> = { baixa: 72, media: 24, alta: 8, critica: 2 };
+        const novoChamado = await this.db.chamado.create({
+          data: {
+            id:              crypto.randomUUID(),
+            numero,
+            titulo,
+            descricao,
+            prioridade:      prio,
+            status:          "aberto",
+            slaHoras:        slaMap[prio] ?? 24,
+            solicitanteId:   criadoPorId,
+            atendenteId:     acao.atendenteId || null,
+            categoriaId:     acao.categoriaId || null,
+            organizationId:  ctx.organizationId,
+          },
+        });
+        return { acao: "criar_chamado", chamadoId: novoChamado.id, numero };
+      }
+
+      // ── Criar evento na agenda dos targets ───────────────────────────────────
+      case "criar_evento_agenda": {
+        if (!ctx.organizationId) break;
+        const targets = await this.resolveTargets(acao, ctx);
+        if (!targets.length) break;
+        const titulo    = await this.interpolate(acao.titulo_evento || "Evento automático", ctx, tplCache);
+        const descricao = acao.descricao ? await this.interpolate(acao.descricao, ctx, tplCache) : "";
+        const inicio = acao.data_inicio
+          ? new Date(acao.data_inicio)
+          : (() => { const d = new Date(); d.setDate(d.getDate() + (acao.dias_futuro || 1)); d.setHours(9, 0, 0, 0); return d; })();
+        const fim = new Date(inicio.getTime() + 60 * 60 * 1000);
+        let criados = 0;
+        for (const userId of targets) {
+          await this.db.event.create({
+            data: {
+              id: crypto.randomUUID(),
+              titulo, descricao, inicio, fim,
+              tipo: "COMPROMISSO",
+              userId,
+              criadoPorId: userId,
+              organizationId: ctx.organizationId,
+            },
+          }).catch(() => {});
+          criados++;
+        }
+        return { acao: "criar_evento_agenda", criados };
+      }
+
+      // ── Alterar status de projeto ────────────────────────────────────────────
+      case "alterar_status_projeto": {
+        if (!acao.projectId || !acao.status) break;
+        await this.db.project.update({
+          where: { id: acao.projectId },
+          data: { status: acao.status },
+        });
+        return { acao: "alterar_status_projeto", status: acao.status };
       }
     }
 
@@ -659,7 +778,7 @@ class AutomacoesController {
 @Module({
   imports:     [NotificationsModule, WebhooksModule, ScheduleModule.forRoot()],
   controllers: [AutomacoesController],
-  providers:   [PrismaService, AutomacaoService, AutomacaoCronService],
+  providers:   [PrismaService, AutomacaoService, AutomacaoCronService, EmailService],
   exports:     [AutomacaoService],
 })
 export class AutomacoesModule {}

@@ -8,6 +8,8 @@ import { ConfigService } from "@nestjs/config";
 import { PrismaService } from "../../prisma/prisma.service";
 import { WhatsAppService } from "../notifications/whatsapp.service";
 import { NotificationsModule } from "../notifications/notifications.module";
+import { AutomacaoService } from "../automacoes/automacoes.module";
+import { AutomacoesModule } from "../automacoes/automacoes.module";
 
 const TIPOS_VALIDOS = ["despesa", "horas_extra", "alteracao_cadastral", "folga_compensatoria", "compra", "viagem", "outro"];
 
@@ -43,6 +45,7 @@ export class WorkflowsService {
     private prisma: PrismaService,
     private config: ConfigService,
     private wa: WhatsAppService,
+    private automacao: AutomacaoService,
   ) {}
 
   private get appUrl() { return this.config.get("APP_URL", "https://orkiestri.com.br"); }
@@ -223,6 +226,7 @@ export class WorkflowsService {
         created.titulo, created.solicitante.nome, dto.valor || null, created.id,
       ).catch(() => {});
     }
+    this.automacao.executar("workflow_pendente", { id: created.id, titulo: created.titulo, tipo: created.tipo, valor: created.valor, solicitanteId: created.solicitanteId, organizationId: user.organizationId }).catch(() => {});
     return created;
   }
 
@@ -273,6 +277,7 @@ export class WorkflowsService {
     });
     await this.notify(r.solicitanteId, "workflow_aprovado",
       "Solicitação aprovada", `Sua solicitação "${r.titulo}" foi aprovada.`, id);
+    this.automacao.executar("workflow_aprovado", { id: aprovada.id, titulo: r.titulo, tipo: r.tipo, valor: r.valor, solicitanteId: r.solicitanteId, aprovadoPorId: user.id, organizationId: user.organizationId }).catch(() => {});
     return aprovada;
   }
 
@@ -304,6 +309,7 @@ export class WorkflowsService {
     });
     await this.notify(r.solicitanteId, "workflow_rejeitado",
       "Solicitação rejeitada", `Sua solicitação "${r.titulo}" foi rejeitada. Motivo: ${dto.motivo.trim()}`, id);
+    this.automacao.executar("workflow_rejeitado", { id: rejeitada.id, titulo: r.titulo, tipo: r.tipo, valor: r.valor, solicitanteId: r.solicitanteId, motivo: dto.motivo.trim(), organizationId: user.organizationId }).catch(() => {});
     return rejeitada;
   }
 
@@ -795,9 +801,9 @@ export class AprovadoresSetorController {
 }
 
 @Module({
-  imports: [NotificationsModule],
+  imports: [NotificationsModule, AutomacoesModule],
   controllers: [WorkflowsController, AprovadoresSetorController],
-  providers: [WorkflowsService, WhatsAppService, WorkflowReminderScheduler],
+  providers: [WorkflowsService, WhatsAppService, WorkflowReminderScheduler, AutomacaoService],
   exports: [WorkflowsService],
 })
 export class WorkflowsModule {}
