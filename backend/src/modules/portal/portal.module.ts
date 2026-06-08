@@ -210,5 +210,5 @@ class PortalController {
   }
 }
 
-@Module({ controllers: [PortalController], providers: [PrismaService] })
+@Module({ controllers: [PortalController] })
 export class PortalModule {}

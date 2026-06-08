@@ -271,7 +271,7 @@ class SlaController {
 // ── Module ────────────────────────────────────────────────────────────────────
 @Module({
   controllers: [SlaController],
-  providers:   [PrismaService, SlaService],
+  providers:   [SlaService],
   exports:     [SlaService],
 })
 export class SlaModule {}

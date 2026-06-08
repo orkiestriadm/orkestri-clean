@@ -158,6 +158,5 @@ class OrganizacaoController {
 
 @Module({
   controllers: [SetoresController, OrganizacaoController],
-  providers: [PrismaService],
 })
 export class SetoresModule {}

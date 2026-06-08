@@ -344,5 +344,5 @@ class RelatoriosController {
   }
 }
 
-@Module({ controllers: [RelatoriosController], providers: [PrismaService] })
+@Module({ controllers: [RelatoriosController] })
 export class RelatoriosModule {}

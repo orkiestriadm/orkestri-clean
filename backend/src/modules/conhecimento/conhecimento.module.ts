@@ -368,6 +368,5 @@ class PublicConhecimentoController {
 // ── Module ────────────────────────────────────────────────────────────────────
 @Module({
   controllers: [CategoriasController, ConhecimentoController, PublicConhecimentoController],
-  providers:   [PrismaService],
 })
 export class ConhecimentoModule {}

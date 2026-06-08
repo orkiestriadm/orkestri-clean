@@ -340,6 +340,7 @@ class ContratosController {
 @Module({
   imports:     [AutomacoesModule],
   controllers: [ContratosController],
-  providers:   [PrismaService, AutomacaoService],
+  // PrismaService vem do PrismaModule (@Global); AutomacaoService via AutomacoesModule.
+  providers:   [],
 })
 export class ContratosModule {}

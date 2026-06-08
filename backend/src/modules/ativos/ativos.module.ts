@@ -424,6 +424,7 @@ class AtivosController {
 @Module({
   imports:     [AutomacoesModule],
   controllers: [CategoriasAtivoController, MonitoramentoController, AtivosController],
-  providers:   [PrismaService, AutomacaoService],
+  // PrismaService vem do PrismaModule (@Global); AutomacaoService via AutomacoesModule.
+  providers:   [],
 })
 export class AtivosModule {}

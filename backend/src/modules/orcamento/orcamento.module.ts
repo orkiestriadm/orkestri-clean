@@ -709,6 +709,5 @@ class OrcamentoController {
 
 @Module({
   controllers: [OrcamentoController],
-  providers: [PrismaService],
 })
 export class OrcamentoModule {}

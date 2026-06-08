@@ -10,8 +10,10 @@
 set -euo pipefail
 
 SCRIPT_PATH="/opt/orkestri/scripts/backup.sh"
+CHECK_PATH="/opt/orkestri/scripts/check-backup.sh"
 LOG_PATH="/opt/orkestri/backups/logs/cron.log"
 CRON_LINE="0 5 * * * $SCRIPT_PATH >> $LOG_PATH 2>&1"
+CHECK_LINE="30 6 * * * $CHECK_PATH >> $LOG_PATH 2>&1"
 BACKUP_DIR="/opt/orkestri/backups"
 
 echo "==> Verificando pré-requisitos..."
@@ -23,6 +25,7 @@ fi
 
 # Garante permissão de execução
 chmod +x "$SCRIPT_PATH"
+[ -f "$CHECK_PATH" ] && chmod +x "$CHECK_PATH"
 
 # Cria diretórios necessários
 mkdir -p "$BACKUP_DIR"/{db,uploads,logs}
@@ -32,10 +35,21 @@ echo "==> Diretórios de backup criados em $BACKUP_DIR"
 CURRENT_CRON=$(crontab -l 2>/dev/null || true)
 
 if echo "$CURRENT_CRON" | grep -qF "$SCRIPT_PATH"; then
-  echo "==> Cron já configurado (nenhuma alteração feita)."
+  echo "==> Cron de backup já configurado."
 else
   (echo "$CURRENT_CRON"; echo "$CRON_LINE") | crontab -
-  echo "==> Cron instalado com sucesso."
+  CURRENT_CRON=$(crontab -l 2>/dev/null || true)
+  echo "==> Cron de backup instalado."
+fi
+
+# Cron do check-backup (apenas se o script existe)
+if [ -f "$CHECK_PATH" ]; then
+  if echo "$CURRENT_CRON" | grep -qF "$CHECK_PATH"; then
+    echo "==> Cron de verificação já configurado."
+  else
+    (echo "$CURRENT_CRON"; echo "$CHECK_LINE") | crontab -
+    echo "==> Cron de verificação instalado (06:30 diário)."
+  fi
 fi
 
 echo ""

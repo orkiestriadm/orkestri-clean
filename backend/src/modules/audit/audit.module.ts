@@ -170,7 +170,7 @@ class AuditController {
 // ── Module ────────────────────────────────────────────────────────────────────
 @Module({
   controllers: [AuditController],
-  providers: [PrismaService, AuditService],
+  providers: [AuditService],
   exports: [AuditService],
 })
 export class AuditModule {}

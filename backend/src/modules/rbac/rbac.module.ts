@@ -294,6 +294,6 @@ class MatrixController {
     AuthModule, // herda AuthService + AutomacoesModule (re-exportado)
   ],
   controllers: [RolesController, PermissionsController, UserPermissionsController, MatrixController],
-  providers: [PrismaService, CacheService],
+  providers: [CacheService],
 })
 export class RbacModule {}

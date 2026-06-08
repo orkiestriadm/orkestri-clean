@@ -312,7 +312,7 @@ class WebhooksController {
 // ── Module ────────────────────────────────────────────────────────────────────
 @Module({
   controllers: [WebhooksController],
-  providers:   [PrismaService, WebhookService],
+  providers:   [WebhookService],
   exports:     [WebhookService],
 })
 export class WebhooksModule {}

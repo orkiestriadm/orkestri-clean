@@ -217,6 +217,5 @@ class CsatController {
 // ── Module ────────────────────────────────────────────────────────────────────
 @Module({
   controllers: [CsatController],
-  providers:   [PrismaService],
 })
 export class CsatModule {}

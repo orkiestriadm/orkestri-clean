@@ -221,5 +221,5 @@ class StatsController {
   }
 }
 
-@Module({ controllers: [StatsController], providers: [PrismaService] })
+@Module({ controllers: [StatsController] })
 export class StatsModule {}

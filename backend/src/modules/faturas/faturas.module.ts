@@ -340,6 +340,5 @@ class FaturasController {
 // ── Module ────────────────────────────────────────────────────────────────────
 @Module({
   controllers: [FaturasController],
-  providers:   [PrismaService],
 })
 export class FaturasModule {}

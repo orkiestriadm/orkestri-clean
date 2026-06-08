@@ -778,7 +778,7 @@ class AutomacoesController {
 @Module({
   imports:     [NotificationsModule, WebhooksModule, ScheduleModule.forRoot()],
   controllers: [AutomacoesController],
-  providers:   [PrismaService, AutomacaoService, AutomacaoCronService],
+  providers:   [AutomacaoService, AutomacaoCronService],
   // Re-export NotificationsModule so consumers of AutomacaoService (Projects,
   // Users, Chamados, etc.) inherit WhatsAppService/EmailService transparently.
   exports:     [AutomacaoService, NotificationsModule],

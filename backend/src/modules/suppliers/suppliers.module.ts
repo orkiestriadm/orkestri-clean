@@ -466,7 +466,5 @@ class SuppliersController {
 
 @Module({
   controllers: [SuppliersController],
-  providers: [PrismaService],
-  exports: [],
 })
 export class SuppliersModule {}

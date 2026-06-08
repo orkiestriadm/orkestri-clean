@@ -133,6 +133,5 @@ class ApontamentosController {
 // ── Module ────────────────────────────────────────────────────────────────────
 @Module({
   controllers: [ApontamentosController],
-  providers:   [PrismaService],
 })
 export class ApontamentosModule {}
