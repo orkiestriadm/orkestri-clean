@@ -6,6 +6,9 @@
  *   npm run smoke:health                                # default http://localhost:3000
  *   API_URL=https://orkiestri.com npm run smoke:health  # explícito
  *
+ * No servidor (Lightsail) o host não tem node, mas tem `curl`. Equivalente:
+ *   curl -sk -w "HTTP:%{http_code}\n" https://localhost/api/health
+ *
  * Sai com código 0 se /health retornou 200, código 1 caso contrário.
  *
  * Esse é o canário que teria detectado o crash de DI da última deploy:
