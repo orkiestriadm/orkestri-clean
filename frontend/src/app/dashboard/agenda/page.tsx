@@ -1,17 +1,28 @@
 "use client";
 import EventModalAgenda from "@/components/ui/EventModalAgenda";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import Topbar from "@/components/layout/Topbar";
 import { useAuthStore } from "@/lib/store";
 import { api } from "@/lib/api";
-import { Calendar } from "lucide-react";
+import { Calendar, CalendarDays, Users, Briefcase, Bell, ClipboardList } from "lucide-react";
 
 const DAYS_SHORT  = ["Dom","Seg","Ter","Qua","Qui","Sex","Sab"];
 const DAYS_FULL   = ["Domingo","Segunda","Terca","Quarta","Quinta","Sexta","Sabado"];
 const MONTHS      = ["Janeiro","Fevereiro","Marco","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
-const TIPOS       = ["PESSOAL","REUNIAO","PROJETO","COMPROMISSO","LEMBRETE"];
-const CORES       = ["#a78bfa","#22d3ee","#34d399","#fbbf24","#f87171","#60a5fa","#f472b6"];
+
+// ── Tipos com ícone + cor padrão (item #6) ───────────────────────────────────
+type TipoMeta = { value: string; label: string; icon: any; defaultColor: string };
+const TIPO_META: TipoMeta[] = [
+  { value: "REUNIAO",     label: "Reunião",     icon: Users,         defaultColor: "#22d3ee" },
+  { value: "COMPROMISSO", label: "Compromisso", icon: CalendarDays,  defaultColor: "#a78bfa" },
+  { value: "PROJETO",     label: "Projeto",     icon: Briefcase,     defaultColor: "#34d399" },
+  { value: "LEMBRETE",    label: "Lembrete",    icon: Bell,          defaultColor: "#fbbf24" },
+  { value: "PESSOAL",     label: "Pessoal",     icon: ClipboardList, defaultColor: "#f472b6" },
+];
+const tipoMeta = (t: string) => TIPO_META.find(x => x.value === t) || TIPO_META[1];
+
+const CORES = ["#a78bfa","#22d3ee","#34d399","#fbbf24","#f87171","#60a5fa","#f472b6","#fb923c","#a3e635","#94a3b8"];
 const RECORRENCIAS = [
   { value:"", label:"Nao repetir" },
   { value:"DIARIA", label:"Diariamente" },
@@ -20,9 +31,10 @@ const RECORRENCIAS = [
   { value:"MENSAL", label:"Mensalmente" },
 ];
 const HOURS = Array.from({length:24},(_,i)=>i);
+const HOUR_HEIGHT = 56; // px por slot de hora (usado em conflitos e linha do agora)
 
 type Participante = { id: string; nome: string; email: string; };
-type Event = { id: string; titulo: string; descricao?: string; inicio: string; fim?: string; tipo: string; cor: string; diaTodo: boolean; confirmado: boolean; criadoPorId: string; participants?: {user:Participante}[]; recorrencia?: string; local?: string; ata?: string; isRecurring?: boolean; recurringParentId?: string; };
+type Event = { id: string; titulo: string; descricao?: string; inicio: string; fim?: string; tipo: string; cor: string; diaTodo: boolean; confirmado: boolean; criadoPorId: string; participants?: {user:Participante}[]; recorrencia?: string; local?: string; ata?: string; isRecurring?: boolean; recurringParentId?: string; userId?: string; };
 type View = "mes"|"semana"|"dia";
 
 function fmtTime(iso: string) { return new Date(iso).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"}); }
@@ -32,6 +44,7 @@ function addDays(d: Date, n: number) { const r = new Date(d); r.setDate(r.getDat
 function isSameDay(a: Date, b: Date) { return a.getFullYear()===b.getFullYear()&&a.getMonth()===b.getMonth()&&a.getDate()===b.getDate(); }
 function toLocalISOStr(d: Date) { const pad=(n:number)=>String(n).padStart(2,"0"); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`; }
 
+// ── Feriados ───────────────────────────────────────────────────────────────────
 function calculateMovableHolidays(year: number) {
   const f = Math.floor, G = year % 19, C = f(year / 100);
   const H = (C - f(C / 4) - f((8 * C + 13) / 25) + 19 * G + 15) % 30;
@@ -60,6 +73,78 @@ function getHoliday(date: Date) {
   return null;
 }
 
+// ── Item #1: diferenciar visualmente feriado vs FDS vs hoje ───────────────────
+// Antes ambos usavam o mesmo vermelho. Agora cada caso tem visual próprio.
+function dayVisual(date: Date) {
+  const today = new Date();
+  const isToday   = isSameDay(date, today);
+  const dow       = date.getDay();
+  const isWeekend = dow === 0 || dow === 6;
+  const holiday   = getHoliday(date);
+
+  if (isToday) {
+    return { bg: "rgba(124,58,237,0.06)", border: "1px solid rgba(124,58,237,0.5)", color: "var(--accent-violet)", weight: 700, kind: "today" as const, holiday };
+  }
+  if (holiday) {
+    // Feriado: vermelho real, com bg mais nítido
+    return { bg: "rgba(239,68,68,0.06)", border: "1px solid rgba(239,68,68,0.3)", color: "var(--accent-red)", weight: 600, kind: "holiday" as const, holiday };
+  }
+  if (isWeekend) {
+    // FDS: cinza esmaecido, NÃO compete por atenção
+    return { bg: "rgba(148,163,184,0.04)", border: "1px solid transparent", color: "var(--text-muted)", weight: 400, kind: "weekend" as const, holiday: null };
+  }
+  return { bg: "transparent", border: "1px solid transparent", color: "var(--text-secondary)", weight: 400, kind: "normal" as const, holiday: null };
+}
+
+// ── Item #10: detecta conflitos (eventos sobrepostos no tempo) ────────────────
+function detectConflicts(events: Event[]): Set<string> {
+  const conflicts = new Set<string>();
+  const timed = events.filter(e => !e.diaTodo && e.fim);
+  for (let i = 0; i < timed.length; i++) {
+    const a = timed[i];
+    const aStart = new Date(a.inicio).getTime();
+    const aEnd = new Date(a.fim!).getTime();
+    for (let j = i + 1; j < timed.length; j++) {
+      const b = timed[j];
+      const bStart = new Date(b.inicio).getTime();
+      const bEnd = new Date(b.fim!).getTime();
+      if (aStart < bEnd && bStart < aEnd) {
+        conflicts.add(a.id);
+        conflicts.add(b.id);
+      }
+    }
+  }
+  return conflicts;
+}
+
+// ── Item #2: hook que atualiza minuto a minuto para a linha "agora" ───────────
+function useNow() {
+  const [now, setNow] = useState(new Date());
+  useEffect(() => {
+    const tick = () => setNow(new Date());
+    const t = setInterval(tick, 60_000); // a cada minuto
+    return () => clearInterval(t);
+  }, []);
+  return now;
+}
+
+// ── Item #2: linha vermelha horizontal indicando hora atual ───────────────────
+function NowLine({ visible }: { visible: boolean }) {
+  const now = useNow();
+  if (!visible) return null;
+  const top = (now.getHours() + now.getMinutes() / 60) * HOUR_HEIGHT;
+  return (
+    <div style={{
+      position: "absolute", left: 0, right: 0, top: `${top}px`, pointerEvents: "none",
+      zIndex: 5, display: "flex", alignItems: "center",
+    }}>
+      <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#ef4444", boxShadow: "0 0 6px rgba(239,68,68,0.6)", marginLeft: -4 }} />
+      <div style={{ flex: 1, height: 2, background: "#ef4444", opacity: 0.85 }} />
+    </div>
+  );
+}
+
+// ── Modal genérico ────────────────────────────────────────────────────────────
 function Modal({ title, onClose, children, wide }: any) {
   return (
     <div className="modal-overlay" onClick={e=>{if((e.target as HTMLElement).classList.contains("modal-overlay"))onClose();}}>
@@ -78,14 +163,98 @@ function Field({ label, children }: any) {
   return <div><label style={{ fontSize:11, color:"var(--text-muted)", fontFamily:"var(--font-mono)", letterSpacing:"0.08em", display:"block", marginBottom:6 }}>{label}</label>{children}</div>;
 }
 
+// ── Item #3: popover "+N eventos" — lista completa ao clicar ──────────────────
+function MoreEventsPopover({ events, anchor, onClose, onPick }: { events: Event[]; anchor: { x: number; y: number }; onClose: () => void; onPick: (e: Event) => void }) {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const onDoc = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) onClose(); };
+    document.addEventListener("mousedown", onDoc);
+    return () => document.removeEventListener("mousedown", onDoc);
+  }, [onClose]);
+  return (
+    <div ref={ref} style={{
+      position: "fixed", top: anchor.y, left: anchor.x, zIndex: 100,
+      background: "var(--bg-card)", border: "1px solid var(--border-subtle)", borderRadius: 10,
+      boxShadow: "0 12px 40px rgba(0,0,0,0.35)", padding: 8, minWidth: 240, maxHeight: 320, overflowY: "auto",
+    }}>
+      <div style={{ fontSize: 10, color: "var(--text-muted)", fontFamily: "var(--font-mono)", padding: "4px 8px 6px" }}>
+        {events.length} eventos
+      </div>
+      {events.map(ev => {
+        const Icon = tipoMeta(ev.tipo).icon;
+        return (
+          <button key={ev.id} onClick={() => { onPick(ev); onClose(); }}
+            style={{ width: "100%", textAlign: "left", display: "flex", alignItems: "center", gap: 8, padding: "6px 8px", borderRadius: 6, border: "none", background: "transparent", cursor: "pointer", color: "var(--text-primary)" }}
+            onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "var(--bg-hover)"}
+            onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "transparent"}
+          >
+            <Icon size={12} style={{ color: ev.cor, flexShrink: 0 }} />
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 12, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ev.titulo}</div>
+              <div style={{ fontSize: 10, color: "var(--text-muted)" }}>{ev.diaTodo ? "Dia todo" : fmtTime(ev.inicio)}</div>
+            </div>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+// ── Item #8: skeleton de loading ─────────────────────────────────────────────
+function CalendarSkeleton({ view }: { view: View }) {
+  if (view === "mes") {
+    return (
+      <div className="card" style={{ padding: 16 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", marginBottom: 6 }}>
+          {DAYS_SHORT.map(d => <div key={d} style={{ textAlign: "center", fontSize: 11, fontFamily: "var(--font-mono)", color: "var(--text-muted)", padding: "4px 0" }}>{d}</div>)}
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 2 }}>
+          {Array.from({ length: 35 }).map((_, i) => (
+            <div key={i} style={{ minHeight: 96, borderRadius: 8, background: "var(--bg-hover)", opacity: 0.4, animation: `pulse 1.5s ease-in-out ${i * 0.02}s infinite` }} />
+          ))}
+        </div>
+      </div>
+    );
+  }
+  return (
+    <div className="card" style={{ padding: 16, minHeight: 400 }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        {Array.from({ length: 8 }).map((_, i) => (
+          <div key={i} style={{ height: 40, borderRadius: 6, background: "var(--bg-hover)", opacity: 0.4, animation: `pulse 1.5s ease-in-out ${i * 0.05}s infinite` }} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ── Item #9: estado vazio ─────────────────────────────────────────────────────
+function EmptyState({ onCreate, period }: { onCreate: () => void; period: string }) {
+  return (
+    <div className="card" style={{ padding: "60px 20px", textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
+      <div style={{ width: 56, height: 56, borderRadius: "50%", background: "rgba(124,58,237,0.1)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <Calendar size={28} style={{ color: "var(--accent-violet)" }} />
+      </div>
+      <div>
+        <h3 style={{ fontSize: 15, fontWeight: 600, color: "var(--text-primary)", marginBottom: 4 }}>Nenhum evento {period}</h3>
+        <p style={{ fontSize: 12, color: "var(--text-muted)" }}>Comece criando seu primeiro evento — clique em qualquer dia ou no botão acima.</p>
+      </div>
+      <button className="btn btn-violet" style={{ fontSize: 12, marginTop: 4 }} onClick={onCreate}>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 5v14M5 12h14" strokeLinecap="round"/></svg>
+        Criar evento agora
+      </button>
+    </div>
+  );
+}
+
+// ── EventModal (com cor custom + ícone por tipo) ─────────────────────────────
 function EventModal({ date, event, users, onClose, onSave }: any) {
   const { user: me } = useAuthStore();
   const [titulo,      setTitulo]      = useState(event?.titulo||"");
   const [descricao,   setDescricao]   = useState(event?.descricao||"");
   const [inicio,      setInicio]      = useState(event?event.inicio.slice(0,16):date+"T09:00");
   const [fim,         setFim]         = useState(event?.fim?event.fim.slice(0,16):date+"T10:00");
-  const [tipo,        setTipo]        = useState(event?.tipo||"PESSOAL");
-  const [cor,         setCor]         = useState(event?.cor||"#a78bfa");
+  const [tipo,        setTipo]        = useState(event?.tipo||"REUNIAO");
+  const [cor,         setCor]         = useState(event?.cor||tipoMeta(event?.tipo||"REUNIAO").defaultColor);
   const [diaTodo,     setDiaTodo]     = useState(event?.diaTodo||false);
   const [local,       setLocal]       = useState(event?.local||"");
   const [recorrencia, setRecorrencia] = useState(event?.recorrencia||"");
@@ -94,6 +263,12 @@ function EventModal({ date, event, users, onClose, onSave }: any) {
   const [loading,     setLoading]     = useState(false);
   const [error,       setError]       = useState("");
   const isEdit = !!event;
+
+  // Item #5: quando muda o tipo, atualiza a cor pra default daquele tipo (se ainda não customizou)
+  const onTipoChange = (t: string) => {
+    if (cor === tipoMeta(tipo).defaultColor) setCor(tipoMeta(t).defaultColor);
+    setTipo(t);
+  };
 
   const save = async () => {
     if (!titulo.trim()) { setError("Titulo obrigatorio"); return; }
@@ -125,10 +300,43 @@ function EventModal({ date, event, users, onClose, onSave }: any) {
           <Field label="INICIO"><input className="input-o" type="datetime-local" value={inicio} onChange={e=>setInicio(e.target.value)} /></Field>
           <Field label="FIM"><input className="input-o" type="datetime-local" value={fim} onChange={e=>setFim(e.target.value)} /></Field>
         </>}
-        <Field label="TIPO"><select className="input-o" value={tipo} onChange={e=>setTipo(e.target.value)}>{TIPOS.map(t=><option key={t}>{t}</option>)}</select></Field>
+        {/* Item #6: tipo com ícone visível na lista */}
+        <Field label="TIPO">
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 4 }}>
+            {TIPO_META.map(t => {
+              const Icon = t.icon;
+              const active = tipo === t.value;
+              return (
+                <button key={t.value} onClick={() => onTipoChange(t.value)} type="button"
+                  style={{
+                    display: "flex", flexDirection: "column", alignItems: "center", gap: 4, padding: "8px 4px",
+                    border: active ? `1px solid ${t.defaultColor}` : "1px solid var(--border-subtle)",
+                    background: active ? `${t.defaultColor}15` : "transparent",
+                    color: active ? t.defaultColor : "var(--text-muted)",
+                    borderRadius: 8, cursor: "pointer", fontSize: 10, transition: "all 0.15s",
+                  }}
+                >
+                  <Icon size={14} />
+                  <span>{t.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        </Field>
         <Field label="RECORRENCIA"><select className="input-o" value={recorrencia} onChange={e=>setRecorrencia(e.target.value)}>{RECORRENCIAS.map(r=><option key={r.value} value={r.value}>{r.label}</option>)}</select></Field>
         {recorrencia && <div style={{ gridColumn:"1/-1" }}><Field label="REPETIR ATE"><input className="input-o" type="date" value={recFim} onChange={e=>setRecFim(e.target.value)} /></Field></div>}
-        <div style={{ gridColumn:"1/-1" }}><Field label="COR"><div style={{ display:"flex", gap:8 }}>{CORES.map(c=><button key={c} onClick={()=>setCor(c)} style={{ width:26, height:26, borderRadius:"50%", background:c, border:cor===c?"3px solid white":"3px solid transparent", cursor:"pointer", outline:"none", boxShadow:cor===c?`0 0 0 2px ${c}`:"none" }} />)}</div></Field></div>
+        {/* Item #5: paleta + cor customizada */}
+        <div style={{ gridColumn:"1/-1" }}>
+          <Field label="COR">
+            <div style={{ display:"flex", gap:8, alignItems: "center", flexWrap: "wrap" }}>
+              {CORES.map(c=><button key={c} type="button" onClick={()=>setCor(c)} style={{ width:26, height:26, borderRadius:"50%", background:c, border:cor===c?"3px solid white":"3px solid transparent", cursor:"pointer", outline:"none", boxShadow:cor===c?`0 0 0 2px ${c}`:"none" }} />)}
+              <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", padding: "4px 8px", borderRadius: 6, background: "var(--bg-hover)", border: "1px dashed var(--border-subtle)" }}>
+                <input type="color" value={cor} onChange={e => setCor(e.target.value)} style={{ width: 18, height: 18, padding: 0, border: "none", background: "transparent", cursor: "pointer" }} />
+                <span style={{ fontSize: 11, color: "var(--text-muted)" }}>Custom</span>
+              </label>
+            </div>
+          </Field>
+        </div>
         {users.filter((u:any)=>u.id!==me?.id).length > 0 && (
           <div style={{ gridColumn:"1/-1" }}><Field label="PARTICIPANTES">
             <div style={{ display:"flex", flexDirection:"column", gap:5, maxHeight:120, overflowY:"auto" }}>
@@ -173,6 +381,7 @@ function EventDetail({ event, onClose, onEdit, onDelete, canEdit, me, onRespond 
   };
 
   const isPendingForMe = !event.confirmado && event.userId === me?.id;
+  const TipoIcon = tipoMeta(event.tipo).icon;
 
   return (
     <Modal title="Detalhes do evento" onClose={onClose} wide>
@@ -190,11 +399,13 @@ function EventDetail({ event, onClose, onEdit, onDelete, canEdit, me, onRespond 
           </div>
         )}
         <div style={{ display:"flex", alignItems:"flex-start", gap:14 }}>
-          <div style={{ width:12, height:12, borderRadius:"50%", background:event.cor, boxShadow:`0 0 8px ${event.cor}`, marginTop:4, flexShrink:0 }} />
+          <div style={{ width:36, height:36, borderRadius:8, background: event.cor+"22", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 2 }}>
+            <TipoIcon size={18} style={{ color: event.cor }} />
+          </div>
           <div style={{ flex:1 }}>
             <h2 style={{ fontFamily:"var(--font-display)", fontSize:18, fontWeight:700, marginBottom:6 }}>{event.titulo}</h2>
             <div style={{ display:"flex", flexWrap:"wrap", gap:8 }}>
-              <span className="badge badge-violet">{event.tipo}</span>
+              <span className="badge badge-violet">{tipoMeta(event.tipo).label}</span>
               {event.isRecurring && <span className="badge badge-cyan">Recorrente</span>}
               {!event.confirmado && <span className="badge badge-amber">Pendente</span>}
             </div>
@@ -247,14 +458,42 @@ function EventDetail({ event, onClose, onEdit, onDelete, canEdit, me, onRespond 
   );
 }
 
+// ── Pílula visual de evento (compacta) ───────────────────────────────────────
+function EventPill({ ev, conflict, onClick }: { ev: Event; conflict: boolean; onClick: (e: React.MouseEvent) => void }) {
+  const Icon = tipoMeta(ev.tipo).icon;
+  return (
+    <div onClick={onClick} title={conflict ? `⚠️ Conflito de horário: ${ev.titulo}` : ev.titulo}
+      style={{
+        background: ev.cor + (ev.confirmado ? "20" : "0f"),
+        borderLeft: `2px ${ev.confirmado ? "solid" : "dashed"} ${ev.cor}`,
+        borderRight: conflict ? `2px solid #ef4444` : undefined,
+        borderRadius: 3, padding: "1px 5px", fontSize: 10, color: ev.cor,
+        marginBottom: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+        cursor: "pointer", opacity: ev.confirmado ? 1 : 0.7,
+        display: "flex", alignItems: "center", gap: 3,
+      }}
+    >
+      <Icon size={9} style={{ flexShrink: 0 }} />
+      {conflict && <span style={{ fontSize: 9 }}>⚠️</span>}
+      {!ev.diaTodo && <span style={{ opacity: 0.7, flexShrink: 0 }}>{fmtTime(ev.inicio)}</span>}
+      {!ev.confirmado && <span>⏳</span>}
+      <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{ev.titulo}</span>
+    </div>
+  );
+}
+
+// ── MONTH VIEW ────────────────────────────────────────────────────────────────
 function MonthView({ events, cur, onDayClick, onDayDblClick, onEventClick }: any) {
-  const today = new Date();
   const daysInMonth = new Date(cur.year, cur.month, 0).getDate();
   const firstDay = new Date(cur.year, cur.month-1, 1).getDay();
   const dayStr = (d:number) => `${cur.year}-${String(cur.month).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
-  const todayStr = today.toISOString().split("T")[0];
+  const [more, setMore] = useState<{ events: Event[]; anchor: { x: number; y: number } } | null>(null);
+
+  // item #10
+  const conflicts = detectConflicts(events);
+
   return (
-    <div className="card animate-up" style={{ padding:16 }}>
+    <div className="card animate-up" style={{ padding:16, position: "relative" }}>
       <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", marginBottom:6 }}>
         {DAYS_SHORT.map(d=><div key={d} style={{ textAlign:"center", fontSize:11, fontFamily:"var(--font-mono)", color:"var(--text-muted)", padding:"4px 0" }}>{d}</div>)}
       </div>
@@ -263,117 +502,103 @@ function MonthView({ events, cur, onDayClick, onDayDblClick, onEventClick }: any
         {Array(daysInMonth).fill(null).map((_,i)=>{
           const d=i+1; const ds=dayStr(d);
           const dateObj = new Date(cur.year, cur.month-1, d);
-          const isWeekend = dateObj.getDay() === 0 || dateObj.getDay() === 6;
-          const holiday = getHoliday(dateObj);
-          const isToday=ds===todayStr;
-          const dayEvs=events.filter((e:Event)=>e.inicio.startsWith(ds));
-          
-          let bgClass = "transparent";
-          let borderClass = "1px solid transparent";
-          let textClass = "var(--text-secondary)";
-          let fontW = 400;
-
-          if (isToday) {
-            bgClass = "rgba(124,58,237,0.08)";
-            borderClass = "1px solid rgba(124,58,237,0.4)";
-            textClass = "var(--accent-violet)";
-            fontW = 700;
-          } else if (holiday || isWeekend) {
-            bgClass = "rgba(239,68,68,0.03)";
-            borderClass = "1px solid rgba(239,68,68,0.15)";
-            textClass = "var(--accent-red)";
-            fontW = 500;
-          }
+          const vis = dayVisual(dateObj);                                 // item #1
+          const dayEvs = events.filter((e:Event)=>e.inicio.startsWith(ds));
+          const visible = dayEvs.slice(0, 3);                             // item #3: agora mostra 3
+          const overflow = dayEvs.length - visible.length;
 
           return (
             <div key={d} onClick={()=>onDayClick(ds)} onDoubleClick={()=>onDayDblClick(ds)}
-              style={{ minHeight:72, borderRadius:8, padding:"5px 6px", cursor:"pointer", background:bgClass, border:borderClass, transition:"all 0.15s" }}
-              onMouseEnter={e=>{if(!isToday)(e.currentTarget as HTMLElement).style.background="var(--bg-hover)";}}
-              onMouseLeave={e=>{if(!isToday)(e.currentTarget as HTMLElement).style.background=bgClass;}}
+              style={{
+                minHeight: 96, borderRadius: 8, padding: "5px 6px", cursor: "pointer",
+                background: vis.bg, border: vis.border, transition: "all 0.15s",
+                position: "relative",
+              }}
+              onMouseEnter={e=>{if(vis.kind!=="today")(e.currentTarget as HTMLElement).style.background="var(--bg-hover)";}}
+              onMouseLeave={e=>{if(vis.kind!=="today")(e.currentTarget as HTMLElement).style.background=vis.bg;}}
             >
-              <div style={{ fontSize:12, fontWeight:fontW, color:textClass, marginBottom:3, display:"flex", justifyContent:"space-between" }}>
+              <div style={{ fontSize:12, fontWeight: vis.weight, color: vis.color, marginBottom:3, display:"flex", justifyContent:"space-between", alignItems: "center" }}>
                 <span>{d}</span>
+                {vis.kind === "today" && <span style={{ fontSize: 8, fontFamily: "var(--font-mono)", background: "var(--accent-violet)", color: "white", padding: "1px 5px", borderRadius: 3 }}>HOJE</span>}
               </div>
-              {holiday && (
+              {vis.holiday && (
                 <div style={{ background:"rgba(239,68,68,0.1)", borderLeft:"2px solid var(--accent-red)", borderRadius:3, padding:"1px 5px", fontSize:9, color:"var(--accent-red)", marginBottom:2, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
-                  ★ {holiday}
+                  ★ {vis.holiday}
                 </div>
               )}
-              {dayEvs.slice(0,2).map((ev:Event)=>(
-                <div key={ev.id} onClick={e=>{e.stopPropagation();onEventClick(ev);}} style={{ background:ev.cor+(ev.confirmado?"20":"0f"), borderLeft:`2px ${ev.confirmado?"solid":"dashed"} ${ev.cor}`, borderRadius:3, padding:"1px 5px", fontSize:10, color:ev.cor, marginBottom:2, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", cursor:"pointer", opacity:ev.confirmado?1:0.7 }}>
-                  {!ev.diaTodo&&<span style={{ opacity:0.7 }}>{fmtTime(ev.inicio)} </span>}{!ev.confirmado&&"⏳ "}{ev.titulo}
-                </div>
+              {visible.map((ev:Event)=>(
+                <EventPill key={ev.id} ev={ev} conflict={conflicts.has(ev.id)} onClick={e=>{e.stopPropagation(); onEventClick(ev);}} />
               ))}
-              {dayEvs.length>2&&<div style={{ fontSize:9, color:"var(--text-muted)" }}>+{dayEvs.length-2}</div>}
+              {overflow > 0 && (
+                <button
+                  onClick={e => {
+                    e.stopPropagation();
+                    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                    setMore({ events: dayEvs, anchor: { x: rect.left, y: rect.bottom + 4 } });
+                  }}
+                  style={{
+                    fontSize: 9, color: "var(--accent-violet)", background: "transparent", border: "none",
+                    cursor: "pointer", padding: "0 4px", fontWeight: 600,
+                  }}
+                >
+                  +{overflow} mais
+                </button>
+              )}
             </div>
           );
         })}
       </div>
+      {more && <MoreEventsPopover events={more.events} anchor={more.anchor} onClose={() => setMore(null)} onPick={onEventClick} />}
     </div>
   );
 }
 
+// ── WEEK VIEW ─────────────────────────────────────────────────────────────────
 function WeekView({ events, weekStart, onSlotClick, onEventClick }: any) {
-  const today = new Date();
   const days = Array.from({length:7},(_,i)=>addDays(weekStart,i));
+  const today = new Date();
+  const showNowLine = days.some(d => isSameDay(d, today));    // item #2
+  const conflicts = detectConflicts(events);                   // item #10
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Auto-scroll para 7h ao montar (item bônus: não começa às 0h vazio)
+  useEffect(() => {
+    if (scrollRef.current) scrollRef.current.scrollTop = 7 * HOUR_HEIGHT;
+  }, []);
+
   return (
     <div className="card animate-up" style={{ overflow:"hidden" }}>
       <div style={{ display:"grid", gridTemplateColumns:"48px repeat(7,1fr)", borderBottom:"1px solid var(--border-subtle)" }}>
         <div />
         {days.map(d=>{
-          const isToday=isSameDay(d,today);
-          const isWeekend = d.getDay() === 0 || d.getDay() === 6;
-          const holiday = getHoliday(d);
-          const isSpecial = isWeekend || !!holiday;
-          
-          let bgClass = "transparent";
-          let numClass = "var(--text-primary)";
-          let nameClass = "var(--text-muted)";
-          if (isToday) {
-            bgClass = "rgba(124,58,237,0.05)";
-            numClass = "var(--accent-violet)";
-            nameClass = "var(--accent-violet)";
-          } else if (isSpecial) {
-            bgClass = "rgba(239,68,68,0.02)";
-            numClass = "var(--accent-red)";
-            nameClass = "var(--accent-red)";
-          }
-
+          const vis = dayVisual(d);                            // item #1
           return (
-            <div key={d.toISOString()} style={{ padding:"10px 4px", textAlign:"center", borderLeft:"1px solid var(--border-subtle)", background:bgClass }}>
-              <div style={{ fontSize:11, color:nameClass, fontFamily:"var(--font-mono)", opacity:isToday?1:0.7 }}>{DAYS_SHORT[d.getDay()]}</div>
-              <div style={{ fontSize:16, fontWeight:isToday?700:isSpecial?600:400, color:numClass, fontFamily:"var(--font-display)" }}>{d.getDate()}</div>
-              {holiday && <div style={{ fontSize:9, color:"var(--accent-red)", marginTop:2, opacity:0.8 }}>{holiday.split(" ")[0]}</div>}
+            <div key={d.toISOString()} style={{ padding:"10px 4px", textAlign:"center", borderLeft:"1px solid var(--border-subtle)", background: vis.bg }}>
+              <div style={{ fontSize:11, color: vis.color, fontFamily:"var(--font-mono)", opacity: vis.kind === "today" ? 1 : 0.7 }}>{DAYS_SHORT[d.getDay()]}</div>
+              <div style={{ fontSize:16, fontWeight: vis.weight, color: vis.color, fontFamily:"var(--font-display)" }}>{d.getDate()}</div>
+              {vis.holiday && <div style={{ fontSize:9, color:"var(--accent-red)", marginTop:2, opacity:0.85 }}>{vis.holiday.split(" ")[0]}</div>}
             </div>
           );
         })}
       </div>
-      <div style={{ overflowY:"auto", maxHeight:"calc(100vh - 260px)" }}>
+      <div ref={scrollRef} style={{ overflowY:"auto", maxHeight:"calc(100vh - 260px)", position: "relative" }}>
+        {/* item #2: linha do agora — posicionada absoluta no container scrollável */}
+        <NowLine visible={showNowLine} />
         {HOURS.map(h=>(
-          <div key={h} style={{ display:"grid", gridTemplateColumns:"48px repeat(7,1fr)", borderBottom:"1px solid rgba(162,130,255,0.05)", minHeight:56 }}>
+          <div key={h} style={{ display:"grid", gridTemplateColumns:"48px repeat(7,1fr)", borderBottom:"1px solid rgba(162,130,255,0.05)", minHeight: HOUR_HEIGHT }}>
             <div style={{ padding:"2px 8px 0 0", textAlign:"right", fontSize:10, color:"var(--text-muted)", fontFamily:"var(--font-mono)" }}>{String(h).padStart(2,"0")}:00</div>
             {days.map(d=>{
-              const isToday=isSameDay(d,today);
-              const isWeekend = d.getDay() === 0 || d.getDay() === 6;
-              const holiday = getHoliday(d);
-              const isSpecial = isWeekend || !!holiday;
-              
-              let bgHover = "var(--bg-hover)";
-              let bgBase = "transparent";
-              if (isToday) { bgBase = "rgba(124,58,237,0.02)"; bgHover = "rgba(124,58,237,0.06)"; }
-              else if (isSpecial) { bgBase = "rgba(239,68,68,0.01)"; bgHover = "rgba(239,68,68,0.04)"; }
-
+              const vis = dayVisual(d);
+              const slotBg = vis.bg !== "transparent" ? vis.bg : "transparent";
               const slotEvs=events.filter((e:Event)=>{ if(!e.inicio)return false; const ed=new Date(e.inicio); return isSameDay(ed,d)&&ed.getHours()===h; });
               return (
                 <div key={d.toISOString()} onClick={()=>{ const dt=new Date(d); dt.setHours(h,0,0,0); onSlotClick(toLocalISOStr(dt)); }}
-                  style={{ borderLeft:"1px solid var(--border-subtle)", padding:"2px 3px", minHeight:56, cursor:"pointer", background:bgBase }}
-                  onMouseEnter={e=>(e.currentTarget as HTMLElement).style.background=bgHover}
-                  onMouseLeave={e=>(e.currentTarget as HTMLElement).style.background=bgBase}
+                  style={{ borderLeft:"1px solid var(--border-subtle)", padding:"2px 3px", minHeight: HOUR_HEIGHT, cursor:"pointer", background: slotBg }}
+                  onMouseEnter={e=>(e.currentTarget as HTMLElement).style.background="var(--bg-hover)"}
+                  onMouseLeave={e=>(e.currentTarget as HTMLElement).style.background=slotBg}
                 >
                   {slotEvs.map((ev:Event)=>(
-                    <div key={ev.id} onClick={e=>{e.stopPropagation();onEventClick(ev);}} style={{ background:ev.cor+(ev.confirmado?"25":"10"), borderLeft:`2px ${ev.confirmado?"solid":"dashed"} ${ev.cor}`, borderRadius:4, padding:"2px 5px", fontSize:11, color:ev.cor, marginBottom:2, cursor:"pointer", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", opacity:ev.confirmado?1:0.72 }}>
-                      {!ev.confirmado&&"⏳ "}{fmtTime(ev.inicio)} {ev.titulo}
-                    </div>
+                    <EventPill key={ev.id} ev={ev} conflict={conflicts.has(ev.id)} onClick={e=>{e.stopPropagation();onEventClick(ev);}} />
                   ))}
                 </div>
               );
@@ -385,48 +610,81 @@ function WeekView({ events, weekStart, onSlotClick, onEventClick }: any) {
   );
 }
 
+// ── DAY VIEW ──────────────────────────────────────────────────────────────────
 function DayView({ events, date, onSlotClick, onEventClick }: any) {
   const dayEvs = events.filter((e:Event)=>isSameDay(new Date(e.inicio),date));
   const allDay  = dayEvs.filter((e:Event)=>e.diaTodo);
   const timed   = dayEvs.filter((e:Event)=>!e.diaTodo);
-  
-  const isWeekend = date.getDay() === 0 || date.getDay() === 6;
-  const holiday = getHoliday(date);
-  const isSpecial = isWeekend || !!holiday;
-  const bgHeader = isSpecial ? "rgba(239,68,68,0.04)" : "rgba(124,58,237,0.04)";
-  const colorTitle = isSpecial ? "var(--accent-red)" : "inherit";
+  const vis = dayVisual(date);                                  // item #1
+  const showNowLine = isSameDay(date, new Date());               // item #2
+  const conflicts = detectConflicts(events);                     // item #10
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (scrollRef.current) scrollRef.current.scrollTop = 7 * HOUR_HEIGHT;
+  }, []);
 
   return (
     <div className="card animate-up" style={{ overflow:"hidden" }}>
-      <div style={{ padding:"14px 20px", borderBottom:"1px solid var(--border-subtle)", background:bgHeader }}>
-        <div style={{ fontFamily:"var(--font-display)", fontSize:18, fontWeight:700, color:colorTitle }}>
+      <div style={{ padding:"14px 20px", borderBottom:"1px solid var(--border-subtle)", background: vis.bg }}>
+        <div style={{ fontFamily:"var(--font-display)", fontSize:18, fontWeight:700, color: vis.color }}>
           {DAYS_FULL[date.getDay()]}, {date.getDate()} de {MONTHS[date.getMonth()]}
-          {holiday && <span style={{ fontSize:13, fontWeight:500, marginLeft:8, opacity:0.8 }}>- {holiday}</span>}
+          {vis.holiday && <span style={{ fontSize:13, fontWeight:500, marginLeft:8, opacity:0.8 }}>· {vis.holiday}</span>}
+          {vis.kind === "today" && <span style={{ fontSize: 10, fontFamily: "var(--font-mono)", background: "var(--accent-violet)", color: "white", padding: "2px 8px", borderRadius: 4, marginLeft: 10, verticalAlign: "middle" }}>HOJE</span>}
         </div>
         <div style={{ fontSize:12, color:"var(--text-muted)", marginTop:2 }}>{dayEvs.length} evento{dayEvs.length!==1?"s":""}</div>
       </div>
       {allDay.length > 0 && (
         <div style={{ padding:"8px 20px", borderBottom:"1px solid var(--border-subtle)", display:"flex", flexWrap:"wrap", gap:6 }}>
           <span style={{ fontSize:10, color:"var(--text-muted)", fontFamily:"var(--font-mono)", marginRight:4 }}>DIA TODO</span>
-          {allDay.map((ev:Event)=><div key={ev.id} onClick={()=>onEventClick(ev)} style={{ background:ev.cor+"20", border:`1px solid ${ev.cor}40`, borderRadius:6, padding:"3px 10px", fontSize:12, color:ev.cor, cursor:"pointer" }}>{ev.titulo}</div>)}
+          {allDay.map((ev:Event)=>{
+            const Icon = tipoMeta(ev.tipo).icon;
+            return (
+              <div key={ev.id} onClick={()=>onEventClick(ev)} style={{ background:ev.cor+"20", border:`1px solid ${ev.cor}40`, borderRadius:6, padding:"3px 10px", fontSize:12, color:ev.cor, cursor:"pointer", display: "flex", alignItems: "center", gap: 5 }}>
+                <Icon size={11} /> {ev.titulo}
+              </div>
+            );
+          })}
         </div>
       )}
-      <div style={{ overflowY:"auto", maxHeight:"calc(100vh - 300px)" }}>
+      <div ref={scrollRef} style={{ overflowY:"auto", maxHeight:"calc(100vh - 300px)", position: "relative" }}>
+        <NowLine visible={showNowLine} />
         {HOURS.map(h=>{
           const hEvs=timed.filter((e:Event)=>new Date(e.inicio).getHours()===h);
           return (
-            <div key={h} style={{ display:"grid", gridTemplateColumns:"60px 1fr", borderBottom:"1px solid rgba(162,130,255,0.05)", minHeight:64 }}>
+            <div key={h} style={{ display:"grid", gridTemplateColumns:"60px 1fr", borderBottom:"1px solid rgba(162,130,255,0.05)", minHeight: HOUR_HEIGHT }}>
               <div style={{ padding:"6px 12px 0", fontSize:12, color:"var(--text-muted)", fontFamily:"var(--font-mono)" }}>{String(h).padStart(2,"0")}:00</div>
               <div onClick={()=>{ const dt=new Date(date); dt.setHours(h,0,0,0); onSlotClick(toLocalISOStr(dt)); }} style={{ padding:"4px 8px", cursor:"pointer", borderLeft:"1px solid var(--border-subtle)" }}
                 onMouseEnter={e=>(e.currentTarget as HTMLElement).style.background="var(--bg-hover)"}
                 onMouseLeave={e=>(e.currentTarget as HTMLElement).style.background="transparent"}
               >
-                {hEvs.map((ev:Event)=>(
-                  <div key={ev.id} onClick={e=>{e.stopPropagation();onEventClick(ev);}} style={{ background:ev.cor+(ev.confirmado?"18":"0a"), borderLeft:`3px ${ev.confirmado?"solid":"dashed"} ${ev.cor}`, borderRadius:6, padding:"6px 12px", marginBottom:4, cursor:"pointer", opacity:ev.confirmado?1:0.75 }}>
-                    <div style={{ fontSize:13, fontWeight:500 }}>{!ev.confirmado&&<span style={{ opacity:0.8, marginRight:4 }}>⏳</span>}{ev.titulo}</div>
-                    <div style={{ fontSize:11, color:ev.cor, marginTop:2 }}>{!ev.confirmado&&<span style={{ marginRight:4, fontSize:10 }}>Aguardando •</span>}{fmtTime(ev.inicio)}{ev.fim?` - ${fmtTime(ev.fim)}`:""}{ev.local?`  -  ${ev.local}`:""}</div>
-                  </div>
-                ))}
+                {hEvs.map((ev:Event)=>{
+                  const Icon = tipoMeta(ev.tipo).icon;
+                  const isConflict = conflicts.has(ev.id);
+                  return (
+                    <div key={ev.id} onClick={e=>{e.stopPropagation();onEventClick(ev);}}
+                      title={isConflict ? "⚠️ Conflito de horário" : undefined}
+                      style={{
+                        background: ev.cor + (ev.confirmado ? "18" : "0a"),
+                        borderLeft: `3px ${ev.confirmado ? "solid" : "dashed"} ${ev.cor}`,
+                        borderRight: isConflict ? `3px solid #ef4444` : undefined,
+                        borderRadius: 6, padding: "6px 12px", marginBottom: 4, cursor: "pointer",
+                        opacity: ev.confirmado ? 1 : 0.75,
+                      }}
+                    >
+                      <div style={{ fontSize:13, fontWeight:500, display: "flex", alignItems: "center", gap: 6 }}>
+                        <Icon size={12} style={{ color: ev.cor, opacity: 0.8 }} />
+                        {isConflict && <span style={{ color: "#ef4444" }}>⚠️</span>}
+                        {!ev.confirmado && <span style={{ opacity:0.8 }}>⏳</span>}
+                        <span>{ev.titulo}</span>
+                      </div>
+                      <div style={{ fontSize:11, color:ev.cor, marginTop:2, paddingLeft: 18 }}>
+                        {!ev.confirmado && <span style={{ marginRight: 4, fontSize: 10 }}>Aguardando •</span>}
+                        {fmtTime(ev.inicio)}{ev.fim?` - ${fmtTime(ev.fim)}`:""}{ev.local?`  ·  ${ev.local}`:""}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           );
@@ -436,6 +694,7 @@ function DayView({ events, date, onSlotClick, onEventClick }: any) {
   );
 }
 
+// ── MAIN PAGE ─────────────────────────────────────────────────────────────────
 export default function AgendaPage() {
   const { user: me } = useAuthStore();
   const today = new Date();
@@ -493,6 +752,10 @@ export default function AgendaPage() {
     try { await api.delete("/agenda/"+deleteId); await load(); setDeleteId(null); setModalDet(null); } catch {}
   };
 
+  // empty state: nenhum evento no período (item #9)
+  const isEmpty = !loading && events.length === 0;
+  const emptyPeriod = view === "mes" ? "neste mês" : view === "semana" ? "nesta semana" : "neste dia";
+
   return (
     <div style={{ display:"flex", flexDirection:"column", height:"100%" }}>
       <Topbar>
@@ -513,14 +776,14 @@ export default function AgendaPage() {
           <div style={{ display:"flex", alignItems:"center", gap:10 }}>
             <button className="btn-icon" onClick={prev}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M15 18l-6-6 6-6" strokeLinecap="round"/></svg></button>
             <div className="relative flex items-center justify-center gap-1">
-              <div 
+              <div
                 className="flex items-center gap-2 px-3 py-1.5 rounded-lg hover:bg-accent cursor-pointer transition-colors"
                 onClick={() => setShowDatePicker(!showDatePicker)}
               >
                 <h2 style={{ fontFamily:"var(--font-display)", fontSize:17, fontWeight:700 }}>{periodLabel()}</h2>
                 <Calendar size={16} className="text-muted-foreground" />
               </div>
-              
+
               {showDatePicker && (
                 <>
                   <div className="fixed inset-0 z-[40]" onClick={() => setShowDatePicker(false)} />
@@ -536,7 +799,7 @@ export default function AgendaPage() {
                     </div>
                     <div className="grid grid-cols-3 gap-2">
                       {MONTHS.map((m, idx) => (
-                        <button 
+                        <button
                           key={m}
                           className={`py-2 px-1 text-[13px] font-medium rounded-lg transition-colors ${cur.year === pickerYear && cur.month === idx + 1 ? 'bg-zinc-900 dark:bg-white text-white dark:text-black shadow-md' : 'hover:bg-accent text-muted-foreground hover:text-foreground'}`}
                           onClick={() => {
@@ -551,7 +814,7 @@ export default function AgendaPage() {
                         </button>
                       ))}
                     </div>
-                    <button 
+                    <button
                       className="w-full mt-3 py-2 rounded-lg bg-accent text-[13px] font-semibold hover:bg-zinc-200 dark:hover:bg-zinc-800 transition-colors"
                       onClick={() => {
                         goToday();
@@ -578,9 +841,15 @@ export default function AgendaPage() {
           </div>
         </div>
 
-        {view==="mes" && <MonthView events={events} cur={cur} onDayClick={(ds:string)=>setCurDate(new Date(ds+"T12:00:00"))} onDayDblClick={(ds:string)=>setModalNew(ds+"T09:00")} onEventClick={(ev:Event)=>setModalDet(ev)} />}
-        {view==="semana" && <WeekView events={events} weekStart={weekStart} onSlotClick={(dt:string)=>setModalNew(dt)} onEventClick={(ev:Event)=>setModalDet(ev)} />}
-        {view==="dia" && <DayView events={events} date={curDate} onSlotClick={(dt:string)=>setModalNew(dt)} onEventClick={(ev:Event)=>setModalDet(ev)} />}
+        {/* item #8: skeleton enquanto carrega */}
+        {loading && <CalendarSkeleton view={view} />}
+
+        {/* item #9: empty state quando carregou e não tem nada */}
+        {isEmpty && <EmptyState period={emptyPeriod} onCreate={() => setModalNew(toLocalISOStr(new Date()))} />}
+
+        {!loading && !isEmpty && view==="mes" && <MonthView events={events} cur={cur} onDayClick={(ds:string)=>setCurDate(new Date(ds+"T12:00:00"))} onDayDblClick={(ds:string)=>setModalNew(ds+"T09:00")} onEventClick={(ev:Event)=>setModalDet(ev)} />}
+        {!loading && !isEmpty && view==="semana" && <WeekView events={events} weekStart={weekStart} onSlotClick={(dt:string)=>setModalNew(dt)} onEventClick={(ev:Event)=>setModalDet(ev)} />}
+        {!loading && !isEmpty && view==="dia" && <DayView events={events} date={curDate} onSlotClick={(dt:string)=>setModalNew(dt)} onEventClick={(ev:Event)=>setModalDet(ev)} />}
       </div>
 
       {(modalNew||modalEdit) && <EventModalAgenda date={modalNew||(modalEdit?.inicio.slice(0,16)??"")} event={modalEdit||undefined} users={users} onClose={()=>{setModalNew(null);setModalEdit(null);}} onSave={load} />}
@@ -594,7 +863,7 @@ export default function AgendaPage() {
           </div>
         </Modal>
       )}
-      <style>{`@keyframes spin{to{transform:rotate(360deg)}} @keyframes fadeIn{from{opacity:0}to{opacity:1}} @keyframes scaleIn{from{opacity:0;transform:scale(0.96)}to{opacity:1;transform:scale(1)}}`}</style>
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}} @keyframes fadeIn{from{opacity:0}to{opacity:1}} @keyframes scaleIn{from{opacity:0;transform:scale(0.96)}to{opacity:1;transform:scale(1)}} @keyframes pulse{0%,100%{opacity:0.4}50%{opacity:0.6}}`}</style>
     </div>
   );
 }
