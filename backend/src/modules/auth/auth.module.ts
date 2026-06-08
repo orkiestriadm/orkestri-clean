@@ -7,7 +7,6 @@ import { AuthController } from "./auth.controller";
 import { JwtStrategy } from "./jwt.strategy";
 import { NotificationsModule } from "../notifications/notifications.module";
 import { AutomacoesModule } from "../automacoes/automacoes.module";
-import { AutomacaoService } from "../automacoes/automacoes.module";
 
 @Module({
   imports: [
@@ -20,7 +19,7 @@ import { AutomacaoService } from "../automacoes/automacoes.module";
     NotificationsModule,
     AutomacoesModule,
   ],
-  providers: [AuthService, JwtStrategy, AutomacaoService],
+  providers: [AuthService, JwtStrategy],
   controllers: [AuthController],
   exports: [AuthService],
 })
