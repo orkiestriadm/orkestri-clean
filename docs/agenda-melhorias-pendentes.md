@@ -20,6 +20,9 @@
 8. ~~Skeleton de loading~~ — `<CalendarSkeleton>`
 9. ~~Empty state~~ — `<EmptyState>`
 10. ~~Indicador de conflito~~ — `detectConflicts()` + borda direita vermelha + ⚠️
+14. ~~Atalhos de teclado~~ — `useEffect(keydown)` + `<ShortcutsHelp>` (T/J/K/M/W/D/N/?/Esc/Shift+P)
+16. ~~Print-friendly view~~ — `@media print`, botão impressão, `.no-print` / `.print-only` / `.agenda-printable`
++ ~~Acessibilidade básica~~ — `aria-label` em ícones, `role="dialog"`, `role="tablist"`, foco visível
 
 ---
 
@@ -341,16 +344,13 @@ Botão "Imprimir" no topbar → `window.print()`.
 
 | Ordem | Item | Esforço | Impacto |
 |---|---|---|---|
-| 1 | #14 — Atalhos de teclado | 1h | Médio (rápido) |
-| 2 | #16 — Print-friendly | 2h | Médio |
-| 3 | #11 — Mini-calendário + Próximos eventos | 4h | Alto |
-| 4 | #4+#13 — Altura proporcional + overlap | 1-2 dias | Muito alto |
-| 5 | #12 — Drag & drop | 1-2 dias | Muito alto |
-| 6 | #15 — Múltiplos calendários | 1-2 dias | Alto |
-| 7 | Acessibilidade | 2h | Alto a longo prazo |
+| 1 | #11 — Mini-calendário + Próximos eventos | 4h | Alto |
+| 2 | #4+#13 — Altura proporcional + overlap | 1-2 dias | Muito alto |
+| 3 | #12 — Drag & drop | 1-2 dias | Muito alto |
+| 4 | #15 — Múltiplos calendários | 1-2 dias | Alto |
 
-**Recomendação:** começar pela ordem listada. Os primeiros 3 itens cabem em uma
-sessão de 6-8h. Os pesados (#4, #12, #15) merecem sessão dedicada cada.
+**Recomendação:** começar por #11 (mais rápido, alta visibilidade). Os pesados
+(#4, #12, #15) merecem sessão dedicada cada.
 
 ---
 

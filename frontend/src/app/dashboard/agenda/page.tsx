@@ -5,7 +5,7 @@ import Link from "next/link";
 import Topbar from "@/components/layout/Topbar";
 import { useAuthStore } from "@/lib/store";
 import { api } from "@/lib/api";
-import { Calendar, CalendarDays, Users, Briefcase, Bell, ClipboardList } from "lucide-react";
+import { Calendar, CalendarDays, Users, Briefcase, Bell, ClipboardList, Keyboard, Printer } from "lucide-react";
 
 const DAYS_SHORT  = ["Dom","Seg","Ter","Qua","Qui","Sex","Sab"];
 const DAYS_FULL   = ["Domingo","Segunda","Terca","Quarta","Quinta","Sexta","Sabado"];
@@ -147,15 +147,52 @@ function NowLine({ visible }: { visible: boolean }) {
 // ── Modal genérico ────────────────────────────────────────────────────────────
 function Modal({ title, onClose, children, wide }: any) {
   return (
-    <div className="modal-overlay" onClick={e=>{if((e.target as HTMLElement).classList.contains("modal-overlay"))onClose();}}>
+    <div className="modal-overlay no-print" role="dialog" aria-modal="true" aria-label={title} onClick={e=>{if((e.target as HTMLElement).classList.contains("modal-overlay"))onClose();}}>
       <div className="modal-box" onClick={e=>e.stopPropagation()} style={{ maxWidth:wide?680:520 }}>
         <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:24 }}>
           <h3 style={{ fontFamily:"var(--font-display)", fontSize:16, fontWeight:700, color:"var(--text-primary)" }}>{title}</h3>
-          <button className="btn-icon" onClick={onClose}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
+          <button className="btn-icon" onClick={onClose} aria-label="Fechar"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
         </div>
         {children}
       </div>
     </div>
+  );
+}
+
+// ── Item #14: modal de ajuda dos atalhos ──────────────────────────────────
+function ShortcutsHelp({ onClose }: { onClose: () => void }) {
+  const SHORTCUTS = [
+    { keys: ["T"], desc: "Ir para hoje" },
+    { keys: ["J"], desc: "Período anterior" },
+    { keys: ["K"], desc: "Próximo período" },
+    { keys: ["M"], desc: "Vista de mês" },
+    { keys: ["W"], desc: "Vista de semana" },
+    { keys: ["D"], desc: "Vista de dia" },
+    { keys: ["N"], desc: "Criar novo evento" },
+    { keys: ["Shift", "P"], desc: "Imprimir agenda" },
+    { keys: ["?"], desc: "Mostrar esta ajuda" },
+    { keys: ["Esc"], desc: "Fechar modal ou popover" },
+  ];
+  return (
+    <Modal title="Atalhos de teclado" onClose={onClose}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        {SHORTCUTS.map((s, i) => (
+          <div key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 12px", background: "var(--bg-hover)", borderRadius: 6 }}>
+            <span style={{ fontSize: 13, color: "var(--text-secondary)" }}>{s.desc}</span>
+            <div style={{ display: "flex", gap: 4 }}>
+              {s.keys.map((k, j) => (
+                <kbd key={j} style={{ fontFamily: "var(--font-mono)", fontSize: 11, padding: "3px 8px", background: "var(--bg-glass)", border: "1px solid var(--border-subtle)", borderRadius: 4, color: "var(--text-primary)", boxShadow: "0 1px 0 var(--border-subtle)", minWidth: 26, textAlign: "center" }}>
+                  {k}
+                </kbd>
+              ))}
+            </div>
+          </div>
+        ))}
+        <p style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 4 }}>
+          Os atalhos não funcionam enquanto você está digitando em campos de texto.
+        </p>
+      </div>
+    </Modal>
   );
 }
 
@@ -711,6 +748,7 @@ export default function AgendaPage() {
   const [deleteId,  setDeleteId]  = useState<string|null>(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [pickerYear, setPickerYear] = useState(today.getFullYear());
+  const [showHelp, setShowHelp] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -728,6 +766,45 @@ export default function AgendaPage() {
   }, [view, cur, weekStart, curDate]);
 
   useEffect(() => { load(); }, [load]);
+
+  // ── Item #14: atalhos de teclado ────────────────────────────────────────
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      // ignora quando digitando em input/textarea/select ou com modal aberto
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+
+      const anyModalOpen = !!(modalNew || modalEdit || modalDet || deleteId || showHelp || showDatePicker);
+
+      if (e.key === "Escape") {
+        if (showHelp) setShowHelp(false);
+        else if (showDatePicker) setShowDatePicker(false);
+        else if (deleteId) setDeleteId(null);
+        else if (modalNew) setModalNew(null);
+        else if (modalEdit) setModalEdit(null);
+        else if (modalDet) setModalDet(null);
+        return;
+      }
+      if (anyModalOpen) return; // só atalhos com tudo fechado
+
+      switch (e.key.toLowerCase()) {
+        case "t": goToday(); break;
+        case "j": prev(); break;
+        case "k": next(); break;
+        case "m": setView("mes"); break;
+        case "w": setView("semana"); break;
+        case "d": setView("dia"); break;
+        case "n": setModalNew(toLocalISOStr(new Date())); break;
+        case "?": setShowHelp(true); break;
+        case "/": e.preventDefault(); setShowHelp(true); break;
+        case "p": if (e.shiftKey) window.print(); break;
+      }
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [view, cur, weekStart, curDate, modalNew, modalEdit, modalDet, deleteId, showHelp, showDatePicker]);
 
   const prev = () => {
     if (view==="mes") setCur(c=>c.month===1?{year:c.year-1,month:12}:{...c,month:c.month-1});
@@ -757,24 +834,30 @@ export default function AgendaPage() {
   const emptyPeriod = view === "mes" ? "neste mês" : view === "semana" ? "nesta semana" : "neste dia";
 
   return (
-    <div style={{ display:"flex", flexDirection:"column", height:"100%" }}>
+    <div className="agenda-printable" style={{ display:"flex", flexDirection:"column", height:"100%" }}>
       <Topbar>
-        <Link href="/dashboard/agenda/disponibilidade">
-          <button className="btn btn-ghost" style={{ fontSize:12 }}>
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+        <Link href="/dashboard/agenda/disponibilidade" className="no-print">
+          <button className="btn btn-ghost" style={{ fontSize:12 }} aria-label="Ver disponibilidade da equipe">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
             Disponibilidade
           </button>
         </Link>
-        <button className="btn btn-violet" style={{ fontSize:12 }} onClick={()=>setModalNew(toLocalISOStr(new Date()))}>
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 5v14M5 12h14" strokeLinecap="round"/></svg>
+        <button className="btn btn-ghost no-print" style={{ fontSize:12 }} onClick={() => setShowHelp(true)} aria-label="Ver atalhos de teclado" title="Atalhos de teclado (?)">
+          <Keyboard size={13} aria-hidden="true" />
+        </button>
+        <button className="btn btn-ghost no-print" style={{ fontSize:12 }} onClick={() => window.print()} aria-label="Imprimir agenda" title="Imprimir (Shift+P)">
+          <Printer size={13} aria-hidden="true" />
+        </button>
+        <button className="btn btn-violet no-print" style={{ fontSize:12 }} onClick={()=>setModalNew(toLocalISOStr(new Date()))} aria-label="Criar novo evento">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M12 5v14M5 12h14" strokeLinecap="round"/></svg>
           Novo evento
         </button>
       </Topbar>
 
-      <div style={{ flex:1, overflowY:"auto", padding:"16px 24px 24px" }}>
-        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:16 }}>
+      <div style={{ flex:1, overflowY:"auto", padding:"16px 24px 24px" }} className="agenda-content">
+        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:16 }} className="no-print">
           <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-            <button className="btn-icon" onClick={prev}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M15 18l-6-6 6-6" strokeLinecap="round"/></svg></button>
+            <button className="btn-icon" onClick={prev} aria-label="Período anterior" title="Anterior (J)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M15 18l-6-6 6-6" strokeLinecap="round"/></svg></button>
             <div className="relative flex items-center justify-center gap-1">
               <div
                 className="flex items-center gap-2 px-3 py-1.5 rounded-lg hover:bg-accent cursor-pointer transition-colors"
@@ -827,16 +910,19 @@ export default function AgendaPage() {
                 </>
               )}
             </div>
-            <button className="btn-icon" onClick={next}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 18l6-6-6-6" strokeLinecap="round"/></svg></button>
+            <button className="btn-icon" onClick={next} aria-label="Próximo período" title="Próximo (K)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M9 18l6-6-6-6" strokeLinecap="round"/></svg></button>
           </div>
           <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-            <button className="btn btn-ghost" style={{ fontSize:12 }} onClick={goToday}>Hoje</button>
-            <div style={{ display:"flex", gap:2, background:"var(--bg-glass)", border:"1px solid var(--border-subtle)", borderRadius:8, padding:3 }}>
-              {(["mes","semana","dia"] as View[]).map(v=>(
-                <button key={v} onClick={()=>setView(v)} style={{ padding:"5px 12px", borderRadius:6, background:view===v?"var(--accent-violet)":"transparent", border:"none", color:view===v?"white":"var(--text-muted)", fontSize:12, cursor:"pointer", fontFamily:"var(--font-display)", fontWeight:view===v?600:400, transition:"all 0.15s", textTransform:"capitalize" }}>
-                  {v==="mes"?"Mes":v==="semana"?"Semana":"Dia"}
-                </button>
-              ))}
+            <button className="btn btn-ghost" style={{ fontSize:12 }} onClick={goToday} aria-label="Ir para hoje" title="Hoje (T)">Hoje</button>
+            <div role="tablist" aria-label="Modo de visualização" style={{ display:"flex", gap:2, background:"var(--bg-glass)", border:"1px solid var(--border-subtle)", borderRadius:8, padding:3 }}>
+              {(["mes","semana","dia"] as View[]).map(v=>{
+                const labels = { mes: "Mês (M)", semana: "Semana (W)", dia: "Dia (D)" };
+                return (
+                  <button key={v} role="tab" aria-selected={view===v} aria-label={labels[v]} title={labels[v]} onClick={()=>setView(v)} style={{ padding:"5px 12px", borderRadius:6, background:view===v?"var(--accent-violet)":"transparent", border:"none", color:view===v?"white":"var(--text-muted)", fontSize:12, cursor:"pointer", fontFamily:"var(--font-display)", fontWeight:view===v?600:400, transition:"all 0.15s", textTransform:"capitalize" }}>
+                    {v==="mes"?"Mes":v==="semana"?"Semana":"Dia"}
+                  </button>
+                );
+              })}
             </div>
           </div>
         </div>
@@ -852,6 +938,15 @@ export default function AgendaPage() {
         {!loading && !isEmpty && view==="dia" && <DayView events={events} date={curDate} onSlotClick={(dt:string)=>setModalNew(dt)} onEventClick={(ev:Event)=>setModalDet(ev)} />}
       </div>
 
+      {/* Título de impressão — só visível em print */}
+      <div className="print-only" style={{ display: "none" }}>
+        <h1 style={{ fontSize: 22, fontWeight: 700, marginBottom: 4 }}>Agenda — {periodLabel()}</h1>
+        <p style={{ fontSize: 11, color: "#666", marginBottom: 16 }}>
+          Impresso em {new Date().toLocaleString("pt-BR")} · {events.length} evento{events.length !== 1 ? "s" : ""}
+        </p>
+      </div>
+
+      {showHelp && <ShortcutsHelp onClose={() => setShowHelp(false)} />}
       {(modalNew||modalEdit) && <EventModalAgenda date={modalNew||(modalEdit?.inicio.slice(0,16)??"")} event={modalEdit||undefined} users={users} onClose={()=>{setModalNew(null);setModalEdit(null);}} onSave={load} />}
       {modalDet && <EventDetail event={modalDet} me={me} onRespond={load} canEdit={modalDet.criadoPorId===me?.id||!!me?.isMaster} onClose={()=>setModalDet(null)} onEdit={()=>{setModalEdit(modalDet);setModalDet(null);}} onDelete={()=>setDeleteId(modalDet.recurringParentId||modalDet.id)} />}
       {deleteId && (
@@ -863,7 +958,45 @@ export default function AgendaPage() {
           </div>
         </Modal>
       )}
-      <style>{`@keyframes spin{to{transform:rotate(360deg)}} @keyframes fadeIn{from{opacity:0}to{opacity:1}} @keyframes scaleIn{from{opacity:0;transform:scale(0.96)}to{opacity:1;transform:scale(1)}} @keyframes pulse{0%,100%{opacity:0.4}50%{opacity:0.6}}`}</style>
+      <style>{`
+        @keyframes spin{to{transform:rotate(360deg)}}
+        @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+        @keyframes scaleIn{from{opacity:0;transform:scale(0.96)}to{opacity:1;transform:scale(1)}}
+        @keyframes pulse{0%,100%{opacity:0.4}50%{opacity:0.6}}
+
+        /* ── Acessibilidade: foco visível ─────────────────────────────── */
+        .agenda-printable button:focus-visible,
+        .agenda-printable [role="button"]:focus-visible,
+        .agenda-printable a:focus-visible {
+          outline: 2px solid var(--accent-violet);
+          outline-offset: 2px;
+          border-radius: 6px;
+        }
+
+        /* ── Item #16: print-friendly ─────────────────────────────────── */
+        @media print {
+          .no-print, [aria-label="Fechar"] { display: none !important; }
+          .print-only { display: block !important; }
+
+          body, html { background: white !important; color: black !important; }
+          .agenda-printable { width: 100%; padding: 0 !important; }
+          .agenda-content { overflow: visible !important; padding: 0 !important; }
+
+          /* Cards limpos, sem sombra */
+          .card { border: 1px solid #999 !important; box-shadow: none !important;
+                  background: white !important; color: black !important; }
+
+          /* Preserva cores dos eventos */
+          [style*="background"], [style*="border"] { print-color-adjust: exact !important;
+                                                     -webkit-print-color-adjust: exact !important; }
+
+          /* Layout de quebra de página */
+          h1, h2, h3 { page-break-after: avoid; }
+
+          /* Mês: garante grid legível */
+          .card[style*="padding:16"] { padding: 8px !important; }
+        }
+      `}</style>
     </div>
   );
 }
