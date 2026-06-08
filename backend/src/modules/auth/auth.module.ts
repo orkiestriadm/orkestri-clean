@@ -21,6 +21,8 @@ import { AutomacoesModule } from "../automacoes/automacoes.module";
   ],
   providers: [AuthService, JwtStrategy],
   controllers: [AuthController],
-  exports: [AuthService],
+  // Re-export AutomacoesModule so any module importing AuthModule (Rbac, etc.)
+  // can instantiate AuthService without redeclaring AutomacaoService deps.
+  exports: [AuthService, AutomacoesModule],
 })
 export class AuthModule {}

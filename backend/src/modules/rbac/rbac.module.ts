@@ -9,6 +9,7 @@ import { ConfigModule, ConfigService } from "@nestjs/config";
 import { PassportModule } from "@nestjs/passport";
 import { PrismaService } from "../../prisma/prisma.service";
 import { AuthService } from "../auth/auth.service";
+import { AuthModule } from "../auth/auth.module";
 import { CacheService } from "../cache/cache.service";
 import { NotificationsModule } from "../notifications/notifications.module";
 import { randomUUID } from "crypto";
@@ -290,8 +291,9 @@ class MatrixController {
       inject: [ConfigService],
     }),
     NotificationsModule,
+    AuthModule, // herda AuthService + AutomacoesModule (re-exportado)
   ],
   controllers: [RolesController, PermissionsController, UserPermissionsController, MatrixController],
-  providers: [PrismaService, AuthService, CacheService],
+  providers: [PrismaService, CacheService],
 })
 export class RbacModule {}
