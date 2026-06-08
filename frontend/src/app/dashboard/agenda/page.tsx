@@ -522,14 +522,28 @@ function EventPill({ ev, conflict, onClick }: { ev: Event; conflict: boolean; on
 }
 
 // ── MONTH VIEW ────────────────────────────────────────────────────────────────
-function MonthView({ events, cur, onDayClick, onDayDblClick, onEventClick }: any) {
+function MonthView({ events, cur, onDayClick, onDayDblClick, onEventClick, selectedDate }: any) {
   const daysInMonth = new Date(cur.year, cur.month, 0).getDate();
   const firstDay = new Date(cur.year, cur.month-1, 1).getDay();
   const dayStr = (d:number) => `${cur.year}-${String(cur.month).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
   const [more, setMore] = useState<{ events: Event[]; anchor: { x: number; y: number } } | null>(null);
+  const [hoveredDay, setHoveredDay] = useState<number | null>(null);
 
   // item #10
   const conflicts = detectConflicts(events);
+
+  // ── Lógica de clique inteligente — funciona em desktop E mobile ──────────
+  // - Clique único em dia diferente → seleciona dia (sem abrir modal)
+  // - Clique único em dia JÁ selecionado → abre modal de criação (mobile-friendly)
+  // - Duplo clique em qualquer dia → abre modal (desktop)
+  // - Clique no botão "+" no canto → abre modal direto
+  const handleDayClick = (ds: string, dateObj: Date) => {
+    if (selectedDate && isSameDay(dateObj, selectedDate)) {
+      onDayDblClick(ds);   // segundo clique no mesmo dia = criar evento
+    } else {
+      onDayClick(ds);      // primeiro clique = selecionar
+    }
+  };
 
   return (
     <div className="card animate-up" style={{ padding:16, position: "relative" }}>
@@ -546,19 +560,64 @@ function MonthView({ events, cur, onDayClick, onDayDblClick, onEventClick }: any
           const visible = dayEvs.slice(0, 3);                             // item #3: agora mostra 3
           const overflow = dayEvs.length - visible.length;
 
+          const isSelected = selectedDate && isSameDay(dateObj, selectedDate);
+          const isHovered  = hoveredDay === d;
+
           return (
-            <div key={d} onClick={()=>onDayClick(ds)} onDoubleClick={()=>onDayDblClick(ds)}
+            <div
+              key={d}
+              onClick={() => handleDayClick(ds, dateObj)}
+              onDoubleClick={() => onDayDblClick(ds)}
+              role="button"
+              tabIndex={0}
+              aria-label={`${d} de ${MONTHS[cur.month-1]}, ${dayEvs.length} evento${dayEvs.length !== 1 ? "s" : ""}. Duplo clique para criar.`}
+              title="Duplo clique para criar evento"
+              onKeyDown={(e) => {
+                if (e.key === "Enter") onDayDblClick(ds);
+              }}
               style={{
                 minHeight: 96, borderRadius: 8, padding: "5px 6px", cursor: "pointer",
-                background: vis.bg, border: vis.border, transition: "all 0.15s",
+                background: vis.bg, border: isSelected ? "1px solid var(--accent-violet)" : vis.border,
+                transition: "all 0.15s",
                 position: "relative",
               }}
-              onMouseEnter={e=>{if(vis.kind!=="today")(e.currentTarget as HTMLElement).style.background="var(--bg-hover)";}}
-              onMouseLeave={e=>{if(vis.kind!=="today")(e.currentTarget as HTMLElement).style.background=vis.bg;}}
+              onMouseEnter={e=>{ setHoveredDay(d); if(vis.kind!=="today") (e.currentTarget as HTMLElement).style.background="var(--bg-hover)"; }}
+              onMouseLeave={e=>{ setHoveredDay(null); if(vis.kind!=="today") (e.currentTarget as HTMLElement).style.background=vis.bg; }}
             >
+              {/* Botão "+" que aparece no hover — terceira forma de criar (a mais óbvia visualmente) */}
+              {isHovered && (
+                <button
+                  className="no-print"
+                  onClick={(e) => { e.stopPropagation(); onDayDblClick(ds); }}
+                  aria-label={`Criar evento no dia ${d}`}
+                  title="Criar evento neste dia"
+                  style={{
+                    position: "absolute",
+                    top: 4,
+                    right: 4,
+                    width: 18,
+                    height: 18,
+                    borderRadius: 4,
+                    background: "var(--accent-violet)",
+                    color: "white",
+                    border: "none",
+                    cursor: "pointer",
+                    fontSize: 13,
+                    fontWeight: 700,
+                    lineHeight: 1,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    zIndex: 2,
+                    boxShadow: "0 2px 6px rgba(124,58,237,0.4)",
+                  }}
+                >
+                  +
+                </button>
+              )}
               <div style={{ fontSize:12, fontWeight: vis.weight, color: vis.color, marginBottom:3, display:"flex", justifyContent:"space-between", alignItems: "center" }}>
                 <span>{d}</span>
-                {vis.kind === "today" && <span style={{ fontSize: 8, fontFamily: "var(--font-mono)", background: "var(--accent-violet)", color: "white", padding: "1px 5px", borderRadius: 3 }}>HOJE</span>}
+                {vis.kind === "today" && !isHovered && <span style={{ fontSize: 8, fontFamily: "var(--font-mono)", background: "var(--accent-violet)", color: "white", padding: "1px 5px", borderRadius: 3 }}>HOJE</span>}
               </div>
               {vis.holiday && (
                 <div style={{ background:"rgba(239,68,68,0.1)", borderLeft:"2px solid var(--accent-red)", borderRadius:3, padding:"1px 5px", fontSize:9, color:"var(--accent-red)", marginBottom:2, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
@@ -971,7 +1030,7 @@ export default function AgendaPage() {
         {/* item #9: empty state quando carregou e não tem nada */}
         {isEmpty && <EmptyState period={emptyPeriod} onCreate={() => setModalNew(toLocalISOStr(new Date()))} />}
 
-        {!loading && !isEmpty && view==="mes" && <MonthView events={events} cur={cur} onDayClick={(ds:string)=>setCurDate(new Date(ds+"T12:00:00"))} onDayDblClick={(ds:string)=>setModalNew(ds+"T09:00")} onEventClick={(ev:Event)=>setModalDet(ev)} />}
+        {!loading && !isEmpty && view==="mes" && <MonthView events={events} cur={cur} selectedDate={curDate} onDayClick={(ds:string)=>setCurDate(new Date(ds+"T12:00:00"))} onDayDblClick={(ds:string)=>setModalNew(ds+"T09:00")} onEventClick={(ev:Event)=>setModalDet(ev)} />}
         {!loading && !isEmpty && view==="semana" && <WeekView events={events} weekStart={weekStart} onSlotClick={(dt:string)=>setModalNew(dt)} onEventClick={(ev:Event)=>setModalDet(ev)} />}
         {!loading && !isEmpty && view==="dia" && <DayView events={events} date={curDate} onSlotClick={(dt:string)=>setModalNew(dt)} onEventClick={(ev:Event)=>setModalDet(ev)} />}
         </main>
