@@ -2,6 +2,7 @@ import { Module, Controller, Get, Post, Patch, Body, UseGuards, Req, BadRequestE
 import { AuthGuard } from "@nestjs/passport";
 import { PrismaService } from "../../prisma/prisma.service";
 import { WhatsAppService } from "../notifications/whatsapp.service";
+import { NotificationsModule } from "../notifications/notifications.module";
 
 @Controller("users/me")
 class UserWhatsAppController {
@@ -62,7 +63,7 @@ class UserWhatsAppController {
 }
 
 @Module({
+  imports: [NotificationsModule],
   controllers: [UserWhatsAppController],
-  providers: [WhatsAppService],
 })
 export class UserWhatsAppModule {}

@@ -970,6 +970,8 @@ class ChamadoUploadController {
 @Module({
   imports:     [SlaModule, AutomacoesModule, WebhooksModule, NotificationsModule],
   controllers: [ChamadosController, ChamadoUploadController],
-  providers:   [WhatsAppService, EmailService, SlaEscalationScheduler, AutomacaoService],
+  // WhatsAppService/EmailService vem via NotificationsModule (re-exportado);
+  // AutomacaoService via AutomacoesModule. Manter apenas o scheduler local.
+  providers:   [SlaEscalationScheduler],
 })
 export class ChamadosModule {}

@@ -6,7 +6,8 @@
         "start": "node dist/main",
         "test": "jest --passWithNoTests",
         "test:watch": "jest --watch",
-        "test:cov": "jest --coverage"
+        "test:cov": "jest --coverage",
+        "smoke:health": "node scripts/smoke-health.js"
     },
     "dependencies": {
         "@nestjs/common": "^10.0.0",

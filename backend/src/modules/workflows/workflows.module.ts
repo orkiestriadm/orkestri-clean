@@ -803,7 +803,8 @@ export class AprovadoresSetorController {
 @Module({
   imports: [NotificationsModule, AutomacoesModule],
   controllers: [WorkflowsController, AprovadoresSetorController],
-  providers: [WorkflowsService, WhatsAppService, WorkflowReminderScheduler, AutomacaoService],
+  // WhatsAppService vem via NotificationsModule; AutomacaoService via AutomacoesModule.
+  providers: [WorkflowsService, WorkflowReminderScheduler],
   exports: [WorkflowsService],
 })
 export class WorkflowsModule {}

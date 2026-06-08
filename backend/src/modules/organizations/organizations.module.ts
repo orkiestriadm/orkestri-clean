@@ -12,6 +12,7 @@ import { Response } from "express";
 import { PrismaService } from "../../prisma/prisma.service";
 import { WhatsAppService } from "../notifications/whatsapp.service";
 import { EmailService } from "../notifications/email.service";
+import { NotificationsModule } from "../notifications/notifications.module";
 import * as bcrypt from "bcryptjs";
 
 class CreateOrgDto {
@@ -436,8 +437,8 @@ class DemoDataController {
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({ secret: config.get("JWT_SECRET"), signOptions: { expiresIn: "8h" } }),
     }),
+    NotificationsModule,
   ],
   controllers: [SuperAdminOrgsController, SuperAdminController, OrgWhatsAppController, DemoDataController],
-  providers: [WhatsAppService, EmailService],
 })
 export class OrganizationsModule {}
