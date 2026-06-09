@@ -8,6 +8,7 @@ import { api } from "@/lib/api";
 import { Calendar, CalendarDays, Users, Briefcase, Bell, ClipboardList, Keyboard, Printer } from "lucide-react";
 import MiniCalendar from "@/components/agenda/MiniCalendar";
 import UpcomingEventsList from "@/components/agenda/UpcomingEventsList";
+import { layoutEvents } from "@/components/agenda/eventLayout";
 
 const DAYS_SHORT  = ["Dom","Seg","Ter","Qua","Qui","Sex","Sab"];
 const DAYS_FULL   = ["Domingo","Segunda","Terca","Quarta","Quinta","Sexta","Sabado"];
@@ -651,6 +652,163 @@ function MonthView({ events, cur, onDayClick, onDayDblClick, onEventClick, selec
   );
 }
 
+// ── Item #4+#13: bloco de evento posicionado absolutamente ────────────────────
+// Renderiza um evento com altura proporcional à duração e largura ajustada
+// pelo cluster de overlap (colIdx / totalCols).
+function TimedEventBlock({
+  event, top, height, colIdx, totalCols, conflict, onClick, compact,
+}: {
+  event: Event;
+  top: number;
+  height: number;
+  colIdx: number;
+  totalCols: number;
+  conflict: boolean;
+  onClick: (e: React.MouseEvent) => void;
+  compact?: boolean;       // semana usa fonte menor que dia
+}) {
+  const Icon = tipoMeta(event.tipo).icon;
+  const widthPct = 100 / totalCols;
+  const leftPct = colIdx * widthPct;
+  const minHeight = compact ? 22 : 28;
+  const showFullInfo = height > 45; // só mostra horário + local se couber
+
+  return (
+    <div
+      onClick={onClick}
+      title={`${event.titulo}${event.fim ? ` (${fmtTime(event.inicio)} - ${fmtTime(event.fim)})` : ""}${conflict ? " — ⚠️ conflito" : ""}`}
+      style={{
+        position: "absolute",
+        top: `${top}px`,
+        height: `${Math.max(height, minHeight) - 2}px`,
+        left: `calc(${leftPct}% + 2px)`,
+        width: `calc(${widthPct}% - 4px)`,
+        background: event.cor + (event.confirmado ? "20" : "0f"),
+        borderLeft: `3px ${event.confirmado ? "solid" : "dashed"} ${event.cor}`,
+        borderRight: conflict ? `3px solid #ef4444` : undefined,
+        borderRadius: 4,
+        padding: compact ? "2px 5px" : "4px 8px",
+        cursor: "pointer",
+        overflow: "hidden",
+        opacity: event.confirmado ? 1 : 0.78,
+        display: "flex",
+        flexDirection: "column",
+        gap: 2,
+        zIndex: 1,
+        boxShadow: "0 1px 2px rgba(0,0,0,0.06)",
+      }}
+    >
+      <div style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 4,
+        fontSize: compact ? 10 : 11,
+        fontWeight: 600,
+        color: event.cor,
+        overflow: "hidden",
+        textOverflow: "ellipsis",
+        whiteSpace: "nowrap",
+        lineHeight: 1.2,
+      }}>
+        <Icon size={compact ? 9 : 10} style={{ flexShrink: 0 }} aria-hidden="true" />
+        {conflict && <span style={{ fontSize: 9, flexShrink: 0 }}>⚠️</span>}
+        {!event.confirmado && <span style={{ flexShrink: 0 }}>⏳</span>}
+        <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{event.titulo}</span>
+      </div>
+      {showFullInfo && (
+        <div style={{
+          fontSize: compact ? 9 : 10,
+          color: event.cor,
+          opacity: 0.75,
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          whiteSpace: "nowrap",
+          lineHeight: 1.2,
+        }}>
+          {fmtTime(event.inicio)}{event.fim ? `–${fmtTime(event.fim)}` : ""}
+          {event.local && height > 60 ? ` · ${event.local}` : ""}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Item #4+#13: trilha temporal para uma coluna (1 dia) ──────────────────────
+// Renderiza linhas de hora + slots clicáveis + eventos posicionados absolutos.
+function DayTimeline({
+  date, events, conflicts, onSlotClick, onEventClick, compact = false,
+}: {
+  date: Date;
+  events: Event[];
+  conflicts: Set<string>;
+  onSlotClick: (dt: string) => void;
+  onEventClick: (ev: Event) => void;
+  compact?: boolean;
+}) {
+  const dayStart = new Date(date);
+  dayStart.setHours(0, 0, 0, 0);
+
+  // Eventos do dia (apenas timed; diaTodo é tratado no header).
+  const dayEvents = events.filter(e => {
+    if (e.diaTodo || !e.inicio) return false;
+    return isSameDay(new Date(e.inicio), date);
+  });
+
+  // Algoritmo de layout: top/height/colIdx/totalCols por evento.
+  const layout = layoutEvents<Event>(dayEvents, dayStart, HOUR_HEIGHT);
+
+  const vis = dayVisual(date);
+  const slotBg = vis.bg !== "transparent" ? vis.bg : "transparent";
+
+  return (
+    <div style={{
+      position: "relative",
+      height: 24 * HOUR_HEIGHT,
+      borderLeft: "1px solid var(--border-subtle)",
+      background: slotBg,
+    }}>
+      {/* Linhas de hora (visuais + slots clicáveis) */}
+      {HOURS.map(h => (
+        <div
+          key={h}
+          onClick={() => {
+            const dt = new Date(date);
+            dt.setHours(h, 0, 0, 0);
+            onSlotClick(toLocalISOStr(dt));
+          }}
+          style={{
+            position: "absolute",
+            top: h * HOUR_HEIGHT,
+            left: 0,
+            right: 0,
+            height: HOUR_HEIGHT,
+            borderTop: "1px solid rgba(162,130,255,0.08)",
+            cursor: "pointer",
+            transition: "background 0.12s",
+          }}
+          onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "var(--bg-hover)"}
+          onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "transparent"}
+        />
+      ))}
+
+      {/* Eventos posicionados absolutamente */}
+      {layout.map(({ event, top, height, colIdx, totalCols }) => (
+        <TimedEventBlock
+          key={event.id}
+          event={event}
+          top={top}
+          height={height}
+          colIdx={colIdx}
+          totalCols={totalCols}
+          conflict={conflicts.has(event.id)}
+          compact={compact}
+          onClick={e => { e.stopPropagation(); onEventClick(event); }}
+        />
+      ))}
+    </div>
+  );
+}
+
 // ── WEEK VIEW ─────────────────────────────────────────────────────────────────
 function WeekView({ events, weekStart, onSlotClick, onEventClick }: any) {
   const days = Array.from({length:7},(_,i)=>addDays(weekStart,i));
@@ -666,6 +824,7 @@ function WeekView({ events, weekStart, onSlotClick, onEventClick }: any) {
 
   return (
     <div className="card animate-up" style={{ overflow:"hidden" }}>
+      {/* Header com nomes dos dias */}
       <div style={{ display:"grid", gridTemplateColumns:"48px repeat(7,1fr)", borderBottom:"1px solid var(--border-subtle)" }}>
         <div />
         {days.map(d=>{
@@ -679,30 +838,43 @@ function WeekView({ events, weekStart, onSlotClick, onEventClick }: any) {
           );
         })}
       </div>
+      {/* Container scrollável com timeline absoluta */}
       <div ref={scrollRef} style={{ overflowY:"auto", maxHeight:"calc(100vh - 260px)", position: "relative" }}>
-        {/* item #2: linha do agora — posicionada absoluta no container scrollável */}
         <NowLine visible={showNowLine} />
-        {HOURS.map(h=>(
-          <div key={h} style={{ display:"grid", gridTemplateColumns:"48px repeat(7,1fr)", borderBottom:"1px solid rgba(162,130,255,0.05)", minHeight: HOUR_HEIGHT }}>
-            <div style={{ padding:"2px 8px 0 0", textAlign:"right", fontSize:10, color:"var(--text-muted)", fontFamily:"var(--font-mono)" }}>{String(h).padStart(2,"0")}:00</div>
-            {days.map(d=>{
-              const vis = dayVisual(d);
-              const slotBg = vis.bg !== "transparent" ? vis.bg : "transparent";
-              const slotEvs=events.filter((e:Event)=>{ if(!e.inicio)return false; const ed=new Date(e.inicio); return isSameDay(ed,d)&&ed.getHours()===h; });
-              return (
-                <div key={d.toISOString()} onClick={()=>{ const dt=new Date(d); dt.setHours(h,0,0,0); onSlotClick(toLocalISOStr(dt)); }}
-                  style={{ borderLeft:"1px solid var(--border-subtle)", padding:"2px 3px", minHeight: HOUR_HEIGHT, cursor:"pointer", background: slotBg }}
-                  onMouseEnter={e=>(e.currentTarget as HTMLElement).style.background="var(--bg-hover)"}
-                  onMouseLeave={e=>(e.currentTarget as HTMLElement).style.background=slotBg}
-                >
-                  {slotEvs.map((ev:Event)=>(
-                    <EventPill key={ev.id} ev={ev} conflict={conflicts.has(ev.id)} onClick={e=>{e.stopPropagation();onEventClick(ev);}} />
-                  ))}
-                </div>
-              );
-            })}
+        <div style={{ display: "grid", gridTemplateColumns: "48px repeat(7,1fr)", position: "relative" }}>
+          {/* Coluna de horas (ticks) */}
+          <div style={{ position: "relative", height: 24 * HOUR_HEIGHT }}>
+            {HOURS.map(h => (
+              <div
+                key={h}
+                style={{
+                  position: "absolute",
+                  top: h * HOUR_HEIGHT,
+                  right: 6,
+                  fontSize: 10,
+                  color: "var(--text-muted)",
+                  fontFamily: "var(--font-mono)",
+                  textAlign: "right",
+                  width: 40,
+                }}
+              >
+                {String(h).padStart(2, "0")}:00
+              </div>
+            ))}
           </div>
-        ))}
+          {/* Uma timeline por dia */}
+          {days.map(d => (
+            <DayTimeline
+              key={d.toISOString()}
+              date={d}
+              events={events}
+              conflicts={conflicts}
+              onSlotClick={onSlotClick}
+              onEventClick={onEventClick}
+              compact={true}
+            />
+          ))}
+        </div>
       </div>
     </div>
   );
@@ -712,7 +884,7 @@ function WeekView({ events, weekStart, onSlotClick, onEventClick }: any) {
 function DayView({ events, date, onSlotClick, onEventClick }: any) {
   const dayEvs = events.filter((e:Event)=>isSameDay(new Date(e.inicio),date));
   const allDay  = dayEvs.filter((e:Event)=>e.diaTodo);
-  const timed   = dayEvs.filter((e:Event)=>!e.diaTodo);
+  // timed events agora são renderizados pelo DayTimeline (item #4+#13)
   const vis = dayVisual(date);                                  // item #1
   const showNowLine = isSameDay(date, new Date());               // item #2
   const conflicts = detectConflicts(events);                     // item #10
@@ -745,48 +917,39 @@ function DayView({ events, date, onSlotClick, onEventClick }: any) {
           })}
         </div>
       )}
+      {/* Item #4+#13: timeline com posicionamento absoluto e overlap lado a lado */}
       <div ref={scrollRef} style={{ overflowY:"auto", maxHeight:"calc(100vh - 300px)", position: "relative" }}>
         <NowLine visible={showNowLine} />
-        {HOURS.map(h=>{
-          const hEvs=timed.filter((e:Event)=>new Date(e.inicio).getHours()===h);
-          return (
-            <div key={h} style={{ display:"grid", gridTemplateColumns:"60px 1fr", borderBottom:"1px solid rgba(162,130,255,0.05)", minHeight: HOUR_HEIGHT }}>
-              <div style={{ padding:"6px 12px 0", fontSize:12, color:"var(--text-muted)", fontFamily:"var(--font-mono)" }}>{String(h).padStart(2,"0")}:00</div>
-              <div onClick={()=>{ const dt=new Date(date); dt.setHours(h,0,0,0); onSlotClick(toLocalISOStr(dt)); }} style={{ padding:"4px 8px", cursor:"pointer", borderLeft:"1px solid var(--border-subtle)" }}
-                onMouseEnter={e=>(e.currentTarget as HTMLElement).style.background="var(--bg-hover)"}
-                onMouseLeave={e=>(e.currentTarget as HTMLElement).style.background="transparent"}
+        <div style={{ display: "grid", gridTemplateColumns: "60px 1fr", position: "relative" }}>
+          {/* Coluna de horas (ticks à esquerda) */}
+          <div style={{ position: "relative", height: 24 * HOUR_HEIGHT }}>
+            {HOURS.map(h => (
+              <div
+                key={h}
+                style={{
+                  position: "absolute",
+                  top: h * HOUR_HEIGHT,
+                  right: 8,
+                  fontSize: 12,
+                  color: "var(--text-muted)",
+                  fontFamily: "var(--font-mono)",
+                  width: 48,
+                  textAlign: "right",
+                }}
               >
-                {hEvs.map((ev:Event)=>{
-                  const Icon = tipoMeta(ev.tipo).icon;
-                  const isConflict = conflicts.has(ev.id);
-                  return (
-                    <div key={ev.id} onClick={e=>{e.stopPropagation();onEventClick(ev);}}
-                      title={isConflict ? "⚠️ Conflito de horário" : undefined}
-                      style={{
-                        background: ev.cor + (ev.confirmado ? "18" : "0a"),
-                        borderLeft: `3px ${ev.confirmado ? "solid" : "dashed"} ${ev.cor}`,
-                        borderRight: isConflict ? `3px solid #ef4444` : undefined,
-                        borderRadius: 6, padding: "6px 12px", marginBottom: 4, cursor: "pointer",
-                        opacity: ev.confirmado ? 1 : 0.75,
-                      }}
-                    >
-                      <div style={{ fontSize:13, fontWeight:500, display: "flex", alignItems: "center", gap: 6 }}>
-                        <Icon size={12} style={{ color: ev.cor, opacity: 0.8 }} />
-                        {isConflict && <span style={{ color: "#ef4444" }}>⚠️</span>}
-                        {!ev.confirmado && <span style={{ opacity:0.8 }}>⏳</span>}
-                        <span>{ev.titulo}</span>
-                      </div>
-                      <div style={{ fontSize:11, color:ev.cor, marginTop:2, paddingLeft: 18 }}>
-                        {!ev.confirmado && <span style={{ marginRight: 4, fontSize: 10 }}>Aguardando •</span>}
-                        {fmtTime(ev.inicio)}{ev.fim?` - ${fmtTime(ev.fim)}`:""}{ev.local?`  ·  ${ev.local}`:""}
-                      </div>
-                    </div>
-                  );
-                })}
+                {String(h).padStart(2, "0")}:00
               </div>
-            </div>
-          );
-        })}
+            ))}
+          </div>
+          <DayTimeline
+            date={date}
+            events={events}
+            conflicts={conflicts}
+            onSlotClick={onSlotClick}
+            onEventClick={onEventClick}
+            compact={false}
+          />
+        </div>
       </div>
     </div>
   );
