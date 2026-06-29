@@ -93,6 +93,18 @@ const ALL_PERMISSIONS: { recurso: string; acao: string; descricao: string }[] = 
   { recurso: "automacoes",    acao: "criar",       descricao: "Criar automações" },
   { recurso: "automacoes",    acao: "editar",      descricao: "Editar automações" },
   { recurso: "automacoes",    acao: "excluir",     descricao: "Excluir automações" },
+  // Monitoramento operacional
+  { recurso: "monitoramento", acao: "ver",         descricao: "Ver monitoramento de serviços e hardware" },
+  // Financeiro
+  { recurso: "financeiro",    acao: "ver",         descricao: "Ver módulo financeiro (contas a pagar, dashboard)" },
+  { recurso: "financeiro",    acao: "gerenciar",   descricao: "Criar, editar e excluir títulos financeiros" },
+  // Gestão de Frotas
+  { recurso: "frota",         acao: "ver",         descricao: "Ver gestão de frotas" },
+  { recurso: "frota",         acao: "criar",       descricao: "Cadastrar veículos e registros de frota" },
+  { recurso: "frota",         acao: "editar",      descricao: "Editar registros de frota" },
+  { recurso: "frota",         acao: "excluir",     descricao: "Excluir (lógico) registros de frota" },
+  { recurso: "frota",         acao: "configurar",  descricao: "Configurar categorias e parâmetros da frota" },
+  { recurso: "frota",         acao: "relatorios",  descricao: "Acessar relatórios da frota" },
 ];
 
 // Permissões base — todo usuário recebe automaticamente, independente do papel
@@ -134,6 +146,9 @@ const ROLE_DEFAULTS: Record<string, { nivel: number; descricao: string; permisso
       "conhecimento:ver","conhecimento:criar","conhecimento:editar","conhecimento:publicar",
       "sla:ver","sla:gerenciar",
       "automacoes:ver","automacoes:criar","automacoes:editar","automacoes:excluir",
+      "monitoramento:ver",
+      "financeiro:ver","financeiro:gerenciar",
+      "frota:ver","frota:criar","frota:editar","frota:excluir","frota:configurar","frota:relatorios",
     ],
   },
   analista: {
@@ -150,6 +165,9 @@ const ROLE_DEFAULTS: Record<string, { nivel: number; descricao: string; permisso
       "solicitacoes:ver","solicitacoes:criar",
       "conhecimento:ver","conhecimento:criar",
       "ativos:ver",
+      "monitoramento:ver",
+      "financeiro:ver",
+      "frota:ver",
     ],
   },
   tecnico: {
@@ -163,6 +181,7 @@ const ROLE_DEFAULTS: Record<string, { nivel: number; descricao: string; permisso
       "solicitacoes:ver","solicitacoes:criar",
       "conhecimento:ver",
       "ativos:ver",
+      "frota:ver",
     ],
   },
   visualizador: {
@@ -194,6 +213,7 @@ const ROLE_DEFAULTS: Record<string, { nivel: number; descricao: string; permisso
       "conhecimento:ver","conhecimento:criar","conhecimento:editar",
       "sla:ver",
       "ativos:ver","ativos:criar","ativos:editar",
+      "frota:ver","frota:criar","frota:editar","frota:relatorios",
     ],
   },
   operador: {
@@ -209,6 +229,7 @@ const ROLE_DEFAULTS: Record<string, { nivel: number; descricao: string; permisso
       "solicitacoes:ver","solicitacoes:criar",
       "conhecimento:ver",
       "ativos:ver",
+      "frota:ver",
     ],
   },
   auditor: {

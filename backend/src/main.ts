@@ -7,12 +7,17 @@ import { NestExpressApplication } from "@nestjs/platform-express";
 import * as path from "path";
 import * as fs from "fs";
 import { randomBytes } from "crypto";
-import { Request, Response, NextFunction } from "express";
+import { Request, Response, NextFunction, json, urlencoded } from "express";
 import { FirstAccessGuard } from "./modules/auth/first-access.guard";
 
 async function bootstrap() {
   const logger = new Logger("Bootstrap");
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
+
+  // Limite de corpo de requisição elevado — import de planilhas (ex.: contas a pagar,
+  // 500+ linhas ~ 200KB+) estoura o padrao de 100kb do Express e retorna 413.
+  app.use(json({ limit: "50mb" }));
+  app.use(urlencoded({ extended: true, limit: "50mb" }));
 
   // Servir uploads de arquivos (anexos de chamados)
   const uploadsDir = process.env.UPLOAD_DIR || "/app/uploads";

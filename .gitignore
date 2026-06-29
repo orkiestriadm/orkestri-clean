@@ -54,6 +54,13 @@ backend/node_modules/.prisma/
 # Misc
 fm2.js
 
+# Dados internos da empresa / planilhas de importação (nunca versionar)
+importar/
+plano-estrategico-orkiestri.pdf
+plano-estrategico-orkiestri.py
+backend/prisma/import-planilhas.js
+query-mtp.sh
+
 # saas — ignorar dados de runtime, mas versionar código
 saas/tenants.json
 saas/tenants/

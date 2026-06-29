@@ -46,10 +46,19 @@ class UpdateTaskDto {
   @IsOptional() @IsDateString() dataVencimento?: string;
 }
 
+// Progresso PONDERADO pelo estagio da tarefa (nao so concluidas), para a barra
+// "andar" conforme o trabalho avanca. Canceladas saem da conta (nao travam 100%).
+const PESO_STATUS: Record<string, number> = { A_FAZER: 0, EM_ANDAMENTO: 0.5, EM_REVISAO: 0.8, CONCLUIDA: 1 };
+function calcPct(tasks: { status: string }[]): number {
+  const ativas = tasks.filter(t => t.status !== "CANCELADA");
+  if (!ativas.length) return 0;
+  const soma = ativas.reduce((acc, t) => acc + (PESO_STATUS[t.status] ?? 0), 0);
+  return Math.round((soma / ativas.length) * 100);
+}
+
 async function recalcProgress(prisma: PrismaService, projectId: string) {
-  const tasks = await prisma.task.findMany({ where: { projectId } });
-  if (!tasks.length) { await prisma.project.update({ where: { id: projectId }, data: { progressoPct: 0 } }); return 0; }
-  const pct = Math.round((tasks.filter(t => t.status === "CONCLUIDA").length / tasks.length) * 100);
+  const tasks = await prisma.task.findMany({ where: { projectId }, select: { status: true } });
+  const pct = calcPct(tasks);
   await prisma.project.update({ where: { id: projectId }, data: { progressoPct: pct } });
   return pct;
 }
@@ -126,6 +135,8 @@ class ProjectsController {
       ...p,
       totalTasks: p._count.tasks,
       tasksConcluidas: p.tasks.filter((t: any) => t.status === "CONCLUIDA").length,
+      // Recalcula na hora (ponderado) para projetos antigos refletirem ja na listagem
+      progressoPct: calcPct(p.tasks),
     }));
   }
 
@@ -142,7 +153,7 @@ class ProjectsController {
       },
     });
     if (!p) throw new NotFoundException("Projeto nao encontrado");
-    return p;
+    return { ...p, progressoPct: calcPct(p.tasks) };
   }
 
   @Post()

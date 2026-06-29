@@ -107,6 +107,13 @@ services:
       MP_WEBHOOK_SECRET: ${MP_WEBHOOK_SECRET}
       MP_PLAN_BUSINESS_CLOUD: ${MP_PLAN_BUSINESS_CLOUD}
       MP_PLAN_BUSINESS_PLUS: ${MP_PLAN_BUSINESS_PLUS}
+      ZABBIX_API_URL: ${ZABBIX_API_URL}
+      ZABBIX_API_TOKEN: ${ZABBIX_API_TOKEN}
+      N1_DB_HOST: ${N1_DB_HOST}
+      N1_DB_PORT: ${N1_DB_PORT:-3306}
+      N1_DB_USER: ${N1_DB_USER}
+      N1_DB_PASS: ${N1_DB_PASS}
+      N1_DB_NAME: ${N1_DB_NAME:-SGA_N1}
     volumes:
       - uploads_data:/app/uploads
     networks:

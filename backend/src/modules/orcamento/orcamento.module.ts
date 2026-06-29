@@ -170,7 +170,11 @@ class OrcamentoController {
 
   @Get("dashboard")
   @Permissions("orcamento:ver")
-  async dashboard(@Req() req: any, @Query("ano") anoQ?: string, @Query("cicloId") cicloId?: string) {
+  async dashboard(
+    @Req() req: any, @Query("ano") anoQ?: string, @Query("cicloId") cicloId?: string,
+    @Query("centroCustoId") centroCustoId?: string, @Query("categoriaId") categoriaId?: string,
+    @Query("mesIni") mesIniQ?: string, @Query("mesFim") mesFimQ?: string,
+  ) {
     const orgId = req.user?.organizationId;
     const orgWhere = orgId ? { organizationId: orgId } as any : {};
     let ciclo: any;
@@ -180,104 +184,169 @@ class OrcamentoController {
       const ano = anoQ ? parseInt(anoQ) : new Date().getFullYear();
       ciclo = await (this.prisma as any).orcamentoCiclo.findFirst({ where: { ano, ...orgWhere } });
     }
-    if (!ciclo) return { ciclo: null, kpis: null, evolucaoMensal: [], topItens: [], alertas: [], distribuicao: [] };
+    if (!ciclo) return { ciclo: null, kpis: null, evolucaoMensal: [], topItens: [], alertas: [], distribuicao: [], distribuicaoCategoria: [], distribuicaoCentroCusto: [], capexOpex: [] };
+
+    const mesIni = Math.max(1, Math.min(12, parseInt(mesIniQ || "1") || 1));
+    const mesFim = Math.max(mesIni, Math.min(12, parseInt(mesFimQ || "12") || 12));
+    const inRange = (m: number) => m >= mesIni && m <= mesFim;
+
+    const itemWhere: any = { cicloId: ciclo.id, status: { not: "cancelado" } };
+    if (centroCustoId) itemWhere.centroCustoId = centroCustoId;
+    if (categoriaId)   itemWhere.categoriaId   = categoriaId;
 
     const itens = await (this.prisma as any).itemOrcamento.findMany({
-      where: { cicloId: ciclo.id, status: { not: "cancelado" } },
+      where: itemWhere,
       include: { meses: true, categoria: true, centroCusto: true },
     });
 
-    // KPIs globais
-    let totalPrevistoOpex = 0, totalRealizadoOpex = 0;
-    let totalPrevistoCap  = 0, totalRealizadoCap  = 0;
+    const sumPrev = (i: any) => i.meses.reduce((s: number, m: any) => s + (inRange(m.mes) ? (m.valorPrevisto  || 0) : 0), 0);
+    const sumReal = (i: any) => i.meses.reduce((s: number, m: any) => s + (inRange(m.mes) ? (m.valorRealizado || 0) : 0), 0);
     const mesAtual = new Date().getMonth() + 1;
 
+    let prevOpex = 0, realOpex = 0, prevCap = 0, realCap = 0;
+    const centrosSet = new Set<string>();
+    const distCat: Record<string, number> = {};
+    const distCC: Record<string, number> = {};
+
     for (const item of itens) {
-      const prev = item.meses.reduce((s: number, m: any) => s + (m.valorPrevisto || 0), 0);
-      const real = item.meses.reduce((s: number, m: any) => s + (m.valorRealizado || 0), 0);
-      if (item.tipo === "OPEX") { totalPrevistoOpex += prev; totalRealizadoOpex += real; }
-      else                      { totalPrevistoCap  += prev; totalRealizadoCap  += real; }
+      const prev = sumPrev(item), real = sumReal(item);
+      if (item.tipo === "OPEX") { prevOpex += prev; realOpex += real; }
+      else                      { prevCap  += prev; realCap  += real; }
+      if (item.centroCusto?.id) centrosSet.add(item.centroCusto.id);
+      const base = real || prev; // realizado, ou previsto se ainda sem realizado
+      const cat = item.categoria?.nome || "Outros";
+      distCat[cat] = (distCat[cat] || 0) + base;
+      const cc = item.centroCusto?.nome || "Sem centro de custo";
+      distCC[cc] = (distCC[cc] || 0) + base;
     }
 
-    // Evolução mensal (Jan–Dez)
-    const evolucaoMensal = MESES.map(mes => {
-      const prevMes  = itens.reduce((s: number, i: any) => s + (i.meses.find((m: any) => m.mes === mes)?.valorPrevisto  || 0), 0);
-      const realMes  = itens.reduce((s: number, i: any) => s + (i.meses.find((m: any) => m.mes === mes)?.valorRealizado || 0), 0);
-      return { mes, label: fmtMes(mes), previsto: prevMes, realizado: realMes };
-    });
+    const totalPrevisto  = prevOpex + prevCap;
+    const totalRealizado = realOpex + realCap;
+    const desvio = totalRealizado - totalPrevisto;
+    const desvioPct = totalPrevisto ? Math.round((desvio / totalPrevisto) * 1000) / 10 : 0;
 
-    // Top 5 por realizado
+    // Evolução mensal (Jan–Dez, ano todo)
+    const evolucaoMensal = MESES.map(mes => ({
+      mes, label: fmtMes(mes),
+      previsto:  itens.reduce((s: number, i: any) => s + (i.meses.find((m: any) => m.mes === mes)?.valorPrevisto  || 0), 0),
+      realizado: itens.reduce((s: number, i: any) => s + (i.meses.find((m: any) => m.mes === mes)?.valorRealizado || 0), 0),
+    }));
+
+    // Ranking dos maiores (por realizado, ou previsto se sem realizado)
     const topItens = itens
-      .map((i: any) => ({
-        id: i.id, nome: i.nome, tipo: i.tipo,
-        categoria: i.categoria?.nome,
-        realizado: i.meses.reduce((s: number, m: any) => s + (m.valorRealizado || 0), 0),
-        previsto:  i.meses.reduce((s: number, m: any) => s + (m.valorPrevisto  || 0), 0),
-      }))
-      .sort((a: any, b: any) => b.realizado - a.realizado)
-      .slice(0, 5);
+      .map((i: any) => ({ id: i.id, nome: i.nome, tipo: i.tipo, categoria: i.categoria?.nome, previsto: sumPrev(i), realizado: sumReal(i) }))
+      .sort((a: any, b: any) => (b.realizado || b.previsto) - (a.realizado || a.previsto))
+      .slice(0, 8)
+      .map((i: any) => ({ ...i, execucao: calcExecucao(i.previsto, i.realizado) }));
 
     // Alertas de estouro (mês atual)
-    const alertas: any[] = [];
+    const alertasNorm: any[] = [];
     for (const item of itens) {
       const mesObj = item.meses.find((m: any) => m.mes === mesAtual);
       if (!mesObj) continue;
       const exec = calcExecucao(mesObj.valorPrevisto, mesObj.valorRealizado || 0);
-      if (exec >= 90) alertas.push({
-        itemId: item.id, nome: item.nome, tipo: item.tipo,
-        mes: mesAtual, previsto: mesObj.valorPrevisto,
-        realizado: mesObj.valorRealizado || 0, execucao: exec,
+      if (exec >= 90) alertasNorm.push({
+        tipo: exec > 100 ? "estouro" : "alerta",
+        mensagem: `${item.nome}: ${exec}% executado em ${fmtMes(mesAtual)} (Prev R$${(mesObj.valorPrevisto||0).toFixed(0)} / Real R$${(mesObj.valorRealizado||0).toFixed(0)})`,
+        itemId: item.id, execucao: exec,
       });
     }
+    alertasNorm.sort((a, b) => b.execucao - a.execucao);
 
-    // Distribuição por categoria (OPEX)
-    const distOpex: Record<string, number> = {};
-    const distCapex: Record<string, number> = {};
-    for (const item of itens) {
-      const real = item.meses.reduce((s: number, m: any) => s + (m.valorRealizado || 0), 0);
-      const catNome = item.categoria?.nome || "Outros";
-      if (item.tipo === "OPEX") distOpex[catNome] = (distOpex[catNome] || 0) + real;
-      else                      distCapex[catNome] = (distCapex[catNome] || 0) + real;
-    }
-
-    const totalPrevisto  = totalPrevistoOpex + totalPrevistoCap;
-    const totalRealizado = totalRealizadoOpex + totalRealizadoCap;
-    const estouros = alertas.filter(a => a.execucao > 100).length;
-
-    // Distribuição unificada por categoria
-    const distAll = { ...distOpex };
-    for (const [k, v] of Object.entries(distCapex)) distAll[k] = (distAll[k] || 0) + v;
-    const distTotal = Object.values(distAll).reduce((s, v) => s + v, 0) || 1;
-    const distribuicao = Object.entries(distAll).map(([categoria, previsto]) => ({
-      categoria, cor: "#a78bfa", previsto,
-      percentual: Math.round((previsto / distTotal) * 100),
-    })).sort((a, b) => b.previsto - a.previsto).slice(0, 8);
-
-    // Normaliza topItens com campo execucao
-    const topItensNorm = topItens.map((i: any) => ({
-      ...i, execucao: calcExecucao(i.previsto, i.realizado),
-    }));
-
-    // Normaliza alertas para formato { tipo, mensagem, itemId? }
-    const alertasNorm = alertas.sort((a: any, b: any) => b.execucao - a.execucao).slice(0, 8).map((a: any) => ({
-      tipo: a.execucao > 100 ? "estouro" : "alerta",
-      mensagem: `${a.nome}: ${a.execucao}% executado no mês ${fmtMes(a.mes)} (Prev: R$${a.previsto.toFixed(0)} / Real: R$${a.realizado.toFixed(0)})`,
-      itemId: a.itemId,
-    }));
+    const toArr = (obj: Record<string, number>) => {
+      const tot = Object.values(obj).reduce((s, v) => s + v, 0) || 1;
+      return Object.entries(obj).map(([nome, valor]) => ({ nome, valor, percentual: Math.round((valor / tot) * 100) }))
+        .sort((a, b) => b.valor - a.valor);
+    };
+    const distribuicaoCategoria   = toArr(distCat).slice(0, 12);
+    const distribuicaoCentroCusto = toArr(distCC).slice(0, 12);
 
     return {
       ciclo: { id: ciclo.id, ano: ciclo.ano, status: ciclo.status },
+      filtro: { mesIni, mesFim, centroCustoId: centroCustoId || null, categoriaId: categoriaId || null },
       kpis: {
         totalPrevisto, totalRealizado,
         execucao: calcExecucao(totalPrevisto, totalRealizado),
-        estouros,
+        desvio, desvioPct,
+        previstoOpex: prevOpex, realizadoOpex: realOpex,
+        previstoCapex: prevCap, realizadoCapex: realCap,
+        qtdCentrosCusto: centrosSet.size, qtdItens: itens.length,
+        estouros: alertasNorm.filter(a => a.execucao > 100).length,
         alertas: alertasNorm.length,
-        pendentesAprovacao: 0,
       },
       evolucaoMensal,
-      topItens: topItensNorm,
-      alertas: alertasNorm,
-      distribuicao,
+      topItens,
+      alertas: alertasNorm.slice(0, 8),
+      distribuicaoCategoria,
+      distribuicaoCentroCusto,
+      capexOpex: [
+        { tipo: "OPEX",  previsto: prevOpex, realizado: realOpex },
+        { tipo: "CAPEX", previsto: prevCap,  realizado: realCap },
+      ],
+      // compat com o frontend antigo
+      distribuicao: distribuicaoCategoria.slice(0, 8).map(d => ({ categoria: d.nome, cor: "#a78bfa", previsto: d.valor, percentual: d.percentual })),
+    };
+  }
+
+  // Comparação entre dois ciclos (anos/versões), por dimensão (categoria/centro de custo/item).
+  @Get("comparacao")
+  @Permissions("orcamento:ver")
+  async comparacao(
+    @Req() req: any,
+    @Query("cicloA") cicloAId?: string, @Query("cicloB") cicloBId?: string,
+    @Query("dimensao") dimQ?: string, @Query("base") baseQ?: string,
+  ) {
+    const orgId = req.user?.organizationId;
+    const orgWhere = orgId ? { organizationId: orgId } as any : {};
+    if (!cicloAId || !cicloBId) throw new BadRequestException("Selecione dois ciclos para comparar");
+    const dim  = ["categoria", "centroCusto", "item"].includes(dimQ || "") ? dimQ! : "categoria";
+    const base = baseQ === "previsto" ? "previsto" : "realizado";
+
+    const [ca, cb] = await Promise.all([
+      (this.prisma as any).orcamentoCiclo.findFirst({ where: { id: cicloAId, ...orgWhere } }),
+      (this.prisma as any).orcamentoCiclo.findFirst({ where: { id: cicloBId, ...orgWhere } }),
+    ]);
+    if (!ca || !cb) throw new BadRequestException("Ciclo não encontrado");
+
+    const loadItens = (cicloId: string) => (this.prisma as any).itemOrcamento.findMany({
+      where: { cicloId, status: { not: "cancelado" } },
+      include: { meses: true, categoria: true, centroCusto: true },
+    });
+    const [itensA, itensB] = await Promise.all([loadItens(ca.id), loadItens(cb.id)]);
+
+    const mesVal = (m: any) => (base === "previsto" ? (m.valorPrevisto || 0) : (m.valorRealizado || 0));
+    const valorItem = (i: any) => i.meses.reduce((s: number, m: any) => s + mesVal(m), 0);
+    const grupo = (i: any) => dim === "centroCusto" ? (i.centroCusto?.nome || "Sem centro de custo")
+      : dim === "item" ? i.nome : (i.categoria?.nome || "Outros");
+
+    const aggr = (itens: any[]) => {
+      const g: Record<string, number> = {};
+      for (const i of itens) { const n = grupo(i); g[n] = (g[n] || 0) + valorItem(i); }
+      return g;
+    };
+    const gA = aggr(itensA), gB = aggr(itensB);
+    const nomes = Array.from(new Set([...Object.keys(gA), ...Object.keys(gB)]));
+    const linhas = nomes.map(nome => {
+      const valorA = gA[nome] || 0, valorB = gB[nome] || 0;
+      const variacao = valorB - valorA;
+      const variacaoPct = valorA ? Math.round((variacao / valorA) * 1000) / 10 : (valorB ? 100 : 0);
+      return { nome, valorA, valorB, variacao, variacaoPct };
+    }).sort((a, b) => Math.abs(b.variacao) - Math.abs(a.variacao));
+
+    const totA = Object.values(gA).reduce((s, v) => s + v, 0);
+    const totB = Object.values(gB).reduce((s, v) => s + v, 0);
+    const mensalDe = (itens: any[]) => MESES.map(mes =>
+      itens.reduce((s: number, i: any) => { const m = i.meses.find((x: any) => x.mes === mes); return s + (m ? mesVal(m) : 0); }, 0));
+    const mensalA = mensalDe(itensA), mensalB = mensalDe(itensB);
+    const evolucaoMensal = MESES.map((mes, i) => ({ mes, label: fmtMes(mes), valorA: mensalA[i], valorB: mensalB[i] }));
+
+    return {
+      cicloA: { id: ca.id, ano: ca.ano, descricao: ca.descricao },
+      cicloB: { id: cb.id, ano: cb.ano, descricao: cb.descricao },
+      dimensao: dim, base,
+      totais: { valorA: totA, valorB: totB, variacao: totB - totA, variacaoPct: totA ? Math.round(((totB - totA) / totA) * 1000) / 10 : 0 },
+      linhas,
+      evolucaoMensal,
     };
   }
 
@@ -345,10 +414,11 @@ class OrcamentoController {
 
   @Post("categorias")
   @Permissions("orcamento:admin")
-  async createCategoria(@Body() dto: CreateCategoriaDto) {
+  async createCategoria(@Body() dto: CreateCategoriaDto, @Req() req: any) {
     return (this.prisma as any).categoriaOrcamento.create({
       data: {
-        id: uuid(), tipo: dto.tipo, codigo: dto.codigo, nome: dto.nome,
+        id: uuid(), organizationId: req.user?.organizationId,
+        tipo: dto.tipo, codigo: dto.codigo, nome: dto.nome,
         cor: dto.cor || "#a78bfa", icone: dto.icone || null, paiId: dto.paiId || null,
       },
     });
@@ -437,8 +507,8 @@ class OrcamentoController {
 
   @Post("fornecedores")
   @Permissions("orcamento:admin")
-  async createFornecedor(@Body() dto: CreateFornecedorDto) {
-    return (this.prisma as any).fornecedorOrcamento.create({ data: { id: uuid(), ...dto } });
+  async createFornecedor(@Body() dto: CreateFornecedorDto, @Req() req: any) {
+    return (this.prisma as any).fornecedorOrcamento.create({ data: { id: uuid(), organizationId: req.user?.organizationId, ...dto } });
   }
 
   @Put("fornecedores/:id")
@@ -543,6 +613,79 @@ class OrcamentoController {
     return mapItem(item);
   }
 
+  // Importação em lote (planilha OPEX): cria ciclos, categorias, itens e meses.
+  // Re-importável: se o ciclo do ano já existe, substitui os itens dele.
+  @Post("importar-opex")
+  @Permissions("orcamento:planejar")
+  async importarOpex(@Body() body: any, @Req() req: any) {
+    const orgId = req.user?.organizationId;
+    const userId = req.user.id;
+    const ciclos = Array.isArray(body?.ciclos) ? body.ciclos : [];
+    if (!ciclos.length) throw new BadRequestException("Nada para importar");
+    const orgWhere = orgId ? { organizationId: orgId } : {};
+    const resumo: any[] = [];
+
+    for (const c of ciclos) {
+      const ano = Number(c.ano);
+      if (!ano) continue;
+
+      let ciclo = await (this.prisma as any).orcamentoCiclo.findFirst({ where: { ano, ...orgWhere } });
+      if (ciclo) {
+        await (this.prisma as any).itemOrcamento.deleteMany({ where: { cicloId: ciclo.id } });
+        if (c.descricao) await (this.prisma as any).orcamentoCiclo.update({ where: { id: ciclo.id }, data: { descricao: c.descricao } });
+      } else {
+        ciclo = await (this.prisma as any).orcamentoCiclo.create({
+          data: { id: uuid(), organizationId: orgId, ano, descricao: c.descricao || `OPEX ${ano}` },
+        });
+      }
+
+      // categorias (cria se faltar), em cache por nome
+      const catCache: Record<string, any> = {};
+      const getCat = async (nome: string) => {
+        const key = (nome || "SEM CATEGORIA").trim().toUpperCase();
+        if (catCache[key]) return catCache[key];
+        let cat = await (this.prisma as any).categoriaOrcamento.findFirst({ where: { nome: key, ...orgWhere } });
+        if (!cat) cat = await (this.prisma as any).categoriaOrcamento.create({
+          data: { id: uuid(), organizationId: orgId, tipo: "OPEX", codigo: (key.replace(/[^A-Z0-9]/g, "").slice(0, 14) || "OPEX"), nome: key },
+        });
+        catCache[key] = cat;
+        return cat;
+      };
+
+      let nItens = 0;
+      for (const it of (c.itens || [])) {
+        const cat = await getCat(it.categoria);
+        const prev = it.previsto || {};
+        const real = it.realizado || {};
+        await (this.prisma as any).itemOrcamento.create({
+          data: {
+            id: uuid(), cicloId: ciclo.id, categoriaId: cat.id, tipo: "OPEX",
+            nome: String(it.despesa || "—").trim() || "—",
+            observacoes: it.observacoes || null,
+            criadoPorId: userId,
+            meses: {
+              create: MESES.map((mes) => {
+                const vr = real[mes];
+                const temReal = vr != null && vr !== "" && !Number.isNaN(Number(vr));
+                return {
+                  id: uuid(), mes,
+                  valorPrevisto: Number(prev[mes] || 0),
+                  valorRealizado: temReal ? Number(vr) : null,
+                  status: temReal ? "lancado" : "pendente",
+                  lancadoPorId: temReal ? userId : null,
+                  lancadoEm: temReal ? new Date() : null,
+                };
+              }),
+            },
+          },
+        });
+        nItens++;
+      }
+      resumo.push({ ano, descricao: c.descricao || ciclo.descricao, itens: nItens });
+    }
+    return { ok: true, ciclos: resumo };
+  }
+
   @Put("itens/:id")
   @Permissions("orcamento:planejar")
   async updateItem(@Param("id") id: string, @Body() dto: UpdateItemDto, @Req() req: any) {
@@ -560,6 +703,20 @@ class OrcamentoController {
     });
     await addOrcTimeline(this.prisma, id, "editado", "Item atualizado", undefined, req.user.id);
     return mapItem(updated);
+  }
+
+  @Delete("itens/:id")
+  @Permissions("orcamento:planejar")
+  async deleteItem(@Param("id") id: string, @Req() req: any) {
+    const orgWhere = req.user?.organizationId ? {} : {};
+    const item = await (this.prisma as any).itemOrcamento.findUnique({ where: { id }, include: { ciclo: true } });
+    if (!item) throw new NotFoundException("Item não encontrado");
+    if (req.user?.organizationId && item.ciclo?.organizationId && item.ciclo.organizationId !== req.user.organizationId) {
+      throw new NotFoundException("Item não encontrado");
+    }
+    // meses e timeline têm onDelete cascade — o item é removido inteiro.
+    await (this.prisma as any).itemOrcamento.delete({ where: { id } });
+    return { ok: true, nome: item.nome };
   }
 
   @Patch("itens/:id/previsto")

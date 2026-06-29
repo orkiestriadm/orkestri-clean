@@ -38,7 +38,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         .then(u => { clearTimeout(fallback); useAuthStore.setState({ user: u }); setReady(true); })
         .catch(() => { clearTimeout(fallback); router.replace("/login"); });
       return () => clearTimeout(fallback);
-    } else { setReady(true); }
+    } else {
+      setReady(true);
+      // Sempre atualiza permissões em background para evitar sidebar desatualizado
+      authApi.me()
+        .then(u => { useAuthStore.setState({ user: u }); })
+        .catch(() => { router.replace("/login"); });
+    }
   }, []);
 
   // Fecha sidebar ao navegar (mobile)

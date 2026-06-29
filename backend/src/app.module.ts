@@ -45,6 +45,11 @@ import { ChamadoTemplatesModule } from './modules/chamado-templates/chamado-temp
 import { WorkforceModule } from './modules/workforce/workforce.module';
 import { SquadsModule } from './modules/squads/squads.module';
 import { BillingModule } from './modules/billing/billing.module';
+import { MonitoramentoModule } from './modules/monitoramento/monitoramento.module';
+import { OsaModule } from './modules/osa/osa.module';
+import { FinanceiroModule } from './modules/financeiro/financeiro.module';
+import { FrotaModule } from './modules/frota/frota.module';
+import { JwtModule } from '@nestjs/jwt';
 
 @Module({
   imports: [
@@ -80,6 +85,12 @@ import { BillingModule } from './modules/billing/billing.module';
     WorkforceModule,
     SquadsModule,
     BillingModule,
+    // Modulo Monitoramento Operacional (independente do modulo Ativos)
+    JwtModule.register({ secret: process.env.JWT_SECRET, signOptions: { expiresIn: "1h" } }),
+    MonitoramentoModule,
+    OsaModule,
+    FinanceiroModule,
+    FrotaModule,
   ],
 })
 export class AppModule {}

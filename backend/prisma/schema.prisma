@@ -128,6 +128,44 @@ model Organization {
   monitoringKey      String?  @map("monitoring_key")
   pingLogs           PingLog[]
 
+  // ── Chamados v2 (campos custom) ──
+  chamadoCustomFields ChamadoCustomField[]
+
+  // ── Monitoramento Operacional (modulo independente) ──
+  monAssets       MonAsset[]
+  monUnidades     MonUnidade[]
+  monStatusEvents MonStatusEvent[]
+  monMaps         MonMap[]
+  monAlertChannels MonAlertChannel[]
+  monAlertRules   MonAlertRule[]
+  monSlaMetas     MonSlaMeta[]
+  monServices     MonService[]
+  monServiceEvents MonServiceEvent[]
+  osaMonitores    OsaMonitor[]
+
+  // ── Financeiro ──
+  contasPagar     ContaPagar[]
+
+  // ── Gestão de Frotas ──
+  veiculos           Veiculo[]
+  motoristas         Motorista[]
+  categoriasVeiculo  CategoriaVeiculo[]
+  pneus              Pneu[]
+  revisoesVeiculo    RevisaoVeiculo[]
+  manutencoesVeiculo ManutencaoVeiculo[]
+  documentosVeiculo  DocumentoVeiculo[]
+  abastecimentos     Abastecimento[]
+  condutoresVeiculo  VeiculoCondutor[]
+  motoristaRenovacoes MotoristaCnhRenovacao[]
+  motoristaAnexos     MotoristaAnexo[]
+  pneuEventos         PneuEvento[]
+  pneuLayouts         PneuLayout[]
+  planosRevisao       PlanoRevisao[]
+  manutencaoMaoObra   ManutencaoMaoObra[]
+  manutencaoAnexos    ManutencaoAnexo[]
+  documentoAnexos     DocumentoAnexo[]
+  reportSchedules     FrotaReportSchedule[]
+
   @@map("organizations")
 }
 
@@ -197,6 +235,9 @@ model User {
   chamadosAtendidos         Chamado[]                @relation("ChamadoAtendente")
   comentariosChamado        ChamadoComentario[]
   chamadoAuditorias         ChamadoAuditoria[]
+  chamadoWatchers           ChamadoWatcher[]         @relation("ChamadoWatcher")
+  chamadoSubtasks           ChamadoSubtask[]         @relation("ChamadoSubtask")
+  chamadoLinksCriados       ChamadoLink[]            @relation("ChamadoLinkCreator")
   permissionOverrides       UserPermissionOverride[]
   passwordResetOtps         PasswordResetOtp[]
   clientesResponsavel       Cliente[]                @relation("ClienteResponsavel")
@@ -214,6 +255,7 @@ model User {
   setoresResponsavel        Setor[]                  @relation("SetorResponsavel")
   artigosConhecimento       ArtigoConhecimento[]     @relation("ArtigoAutor")
   ativosResponsavel         Ativo[]                  @relation("AtivoResponsavel")
+  monAssetsResponsavel      MonAsset[]               @relation("MonAssetResponsavel")
   transferenciasRealizadas  TransferenciaAtivo[]     @relation("TransfPor")
   transferenciasRecebidas   TransferenciaAtivo[]     @relation("TransfPara")
   transferenciasEnviadas    TransferenciaAtivo[]     @relation("TransfDe")
@@ -236,6 +278,8 @@ model User {
   workflowTemplatesCriados   WorkflowTemplate[]      @relation("WfTemplateCriador")
   chamadoTemplatesCriados    ChamadoTemplate[]       @relation("ChamadoTemplateCriador")
   chamadoAnexosUploads       ChamadoAnexo[]          @relation("AnexoUploader")
+  veiculosResponsavel        Veiculo[]               @relation("VeiculoResponsavel")
+  manutencoesSolicitadas     ManutencaoVeiculo[]     @relation("ManutencaoSolicitante")
 
   @@unique([organizationId, email])
   @@index([organizationId])
@@ -273,6 +317,7 @@ model CentroCusto {
   responsavel    User?           @relation("CentroCustoResp", fields: [responsavelId], references: [id], onDelete: SetNull)
   organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   itens          ItemOrcamento[]
+  veiculos       Veiculo[]
   criadoEm       DateTime        @default(now()) @map("criado_em")
 
   @@unique([organizationId, codigo])
@@ -1012,6 +1057,11 @@ model Chamado {
   apontamentos       ApontamentoHoras[]
   auditorias         ChamadoAuditoria[]
   anexos             ChamadoAnexo[]
+  watchers           ChamadoWatcher[]
+  subtasks           ChamadoSubtask[]
+  linksFrom          ChamadoLink[]       @relation("LinkFrom")
+  linksTo            ChamadoLink[]       @relation("LinkTo")
+  customValues       ChamadoCustomValue[]
   skillRequerida     Skill?              @relation("ChamadoSkill", fields: [skillRequeridaId], references: [id], onDelete: SetNull)
 
   @@index([organizationId, status])
@@ -1073,6 +1123,91 @@ model ChamadoComentario {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("chamado_comentarios")
+}
+
+// ── Watchers / Seguidores ─────────────────────────────────────────────────────
+// Usuarios que escolheram acompanhar um chamado sem ser solicitante/atendente.
+// Recebem notificacoes em todas as interacoes publicas.
+model ChamadoWatcher {
+  id        String   @id @default(uuid())
+  chamadoId String   @map("chamado_id")
+  userId    String   @map("user_id")
+  criadoEm  DateTime @default(now()) @map("criado_em")
+  chamado   Chamado  @relation(fields: [chamadoId], references: [id], onDelete: Cascade)
+  user      User     @relation("ChamadoWatcher", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([chamadoId, userId])
+  @@index([userId])
+  @@map("chamado_watchers")
+}
+
+// ── Subtasks / Checklist ─────────────────────────────────────────────────────
+model ChamadoSubtask {
+  id          String    @id @default(uuid())
+  chamadoId   String    @map("chamado_id")
+  titulo      String
+  concluido   Boolean   @default(false)
+  assigneeId  String?   @map("assignee_id")
+  ordem       Int       @default(0)
+  criadoEm    DateTime  @default(now()) @map("criado_em")
+  concluidoEm DateTime? @map("concluido_em")
+  chamado     Chamado   @relation(fields: [chamadoId], references: [id], onDelete: Cascade)
+  assignee    User?     @relation("ChamadoSubtask", fields: [assigneeId], references: [id], onDelete: SetNull)
+
+  @@index([chamadoId, ordem])
+  @@map("chamado_subtasks")
+}
+
+// ── Links entre chamados ─────────────────────────────────────────────────────
+// tipo: RELACIONADO | BLOQUEIA | BLOQUEADO_POR | DUPLICADO_DE
+model ChamadoLink {
+  id            String   @id @default(uuid())
+  fromChamadoId String   @map("from_chamado_id")
+  toChamadoId   String   @map("to_chamado_id")
+  tipo          String
+  criadoEm      DateTime @default(now()) @map("criado_em")
+  criadoPorId   String?  @map("criado_por_id")
+  fromChamado   Chamado  @relation("LinkFrom", fields: [fromChamadoId], references: [id], onDelete: Cascade)
+  toChamado     Chamado  @relation("LinkTo",   fields: [toChamadoId],   references: [id], onDelete: Cascade)
+  criadoPor     User?    @relation("ChamadoLinkCreator", fields: [criadoPorId], references: [id], onDelete: SetNull)
+
+  @@unique([fromChamadoId, toChamadoId, tipo])
+  @@index([fromChamadoId])
+  @@index([toChamadoId])
+  @@map("chamado_links")
+}
+
+// ── Custom fields por categoria de chamado ───────────────────────────────────
+// tipo: TEXT | TEXTAREA | NUMBER | DATE | SELECT | BOOLEAN
+model ChamadoCustomField {
+  id             String   @id @default(uuid())
+  organizationId String   @map("organization_id")
+  categoria      String?  // null = aplica a todas as categorias
+  label          String
+  tipo           String
+  obrigatorio    Boolean  @default(false)
+  ordem          Int      @default(0)
+  opcoesJson     Json?    @map("opcoes_json")
+  ativo          Boolean  @default(true)
+  criadoEm       DateTime @default(now()) @map("criado_em")
+  organization   Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  values         ChamadoCustomValue[]
+
+  @@index([organizationId, categoria])
+  @@map("chamado_custom_fields")
+}
+
+model ChamadoCustomValue {
+  id        String  @id @default(uuid())
+  chamadoId String  @map("chamado_id")
+  fieldId   String  @map("field_id")
+  valor     String  @db.Text
+  chamado   Chamado            @relation(fields: [chamadoId], references: [id], onDelete: Cascade)
+  field     ChamadoCustomField @relation(fields: [fieldId], references: [id], onDelete: Cascade)
+
+  @@unique([chamadoId, fieldId])
+  @@index([chamadoId])
+  @@map("chamado_custom_values")
 }
 
 // Histórico/auditoria de chamados — registra ações importantes (criação, claim,
@@ -1464,6 +1599,7 @@ model Ativo {
   setor           Setor?               @relation(fields: [setorId], references: [id], onDelete: SetNull)
   transferencias  TransferenciaAtivo[]
   pingLogs        PingLog[]
+  veiculo         Veiculo?
 
   @@unique([organizationId, codigo])
   @@index([organizationId, status])
@@ -1505,6 +1641,489 @@ model TransferenciaAtivo {
 
   @@index([ativoId])
   @@map("transferencias_ativo")
+}
+
+// ── Gestão de Frotas ──────────────────────────────────────────────────────────
+//
+// Cadastro central: Veiculo. Todos os sub-cadastros vinculam-se por veiculoId.
+// Padrão comum: exclusão lógica (deletedAt), auditoria de usuário (criadoPorId /
+// atualizadoPorId — escalares; a trilha completa fica em audit_log), criadoEm e
+// atualizadoEm. Tudo escopado por organizationId (multi-tenant).
+
+model CategoriaVeiculo {
+  id             String       @id @default(uuid())
+  organizationId String       @map("organization_id")
+  nome           String
+  descricao      String?
+  icone          String       @default("car")
+  cor            String       @default("#0ea5e9")
+  ativo          Boolean      @default(true)
+  criadoPorId    String?      @map("criado_por_id")
+  atualizadoPorId String?     @map("atualizado_por_id")
+  deletedAt      DateTime?    @map("deleted_at")
+  criadoEm       DateTime     @default(now()) @map("criado_em")
+  atualizadoEm   DateTime     @updatedAt @map("atualizado_em")
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  veiculos       Veiculo[]
+
+  @@unique([organizationId, nome])
+  @@index([organizationId, deletedAt])
+  @@map("categorias_veiculo")
+}
+
+model Veiculo {
+  id              String              @id @default(uuid())
+  organizationId  String              @map("organization_id")
+  codigo          String
+  placa           String
+  renavam         String?
+  chassi          String?
+  marca           String?
+  modelo          String?
+  anoFabricacao   Int?                @map("ano_fabricacao")
+  anoModelo       Int?                @map("ano_modelo")
+  cor             String?
+  tipo            String              @default("carro")
+  combustivel     String              @default("flex")
+  categoriaId     String?             @map("categoria_id")
+  status          String              @default("ativo")
+  kmAtual         Int                 @default(0) @map("km_atual")
+  horimetroAtual  Int?                @map("horimetro_atual")
+  capacidadeTanque Float?             @map("capacidade_tanque")
+  motoristaId     String?             @map("motorista_id")
+  responsavelId   String?             @map("responsavel_id")
+  centroCustoId   String?             @map("centro_custo_id")
+  unidade         String?
+  setorId         String?             @map("setor_id")
+  ativoId         String?             @unique @map("ativo_id")
+  dataAquisicao   DateTime?           @map("data_aquisicao")
+  valorAquisicao  Float?              @map("valor_aquisicao")
+  observacoes     String?             @db.Text
+  criadoPorId     String?             @map("criado_por_id")
+  atualizadoPorId String?             @map("atualizado_por_id")
+  deletedAt       DateTime?           @map("deleted_at")
+  criadoEm        DateTime            @default(now()) @map("criado_em")
+  atualizadoEm    DateTime            @updatedAt @map("atualizado_em")
+  organization    Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  categoria       CategoriaVeiculo?   @relation(fields: [categoriaId], references: [id], onDelete: SetNull)
+  motorista       Motorista?          @relation("VeiculoMotoristaPadrao", fields: [motoristaId], references: [id], onDelete: SetNull)
+  responsavel     User?               @relation("VeiculoResponsavel", fields: [responsavelId], references: [id], onDelete: SetNull)
+  centroCusto     CentroCusto?        @relation(fields: [centroCustoId], references: [id], onDelete: SetNull)
+  setor           Setor?              @relation(fields: [setorId], references: [id], onDelete: SetNull)
+  ativo           Ativo?              @relation(fields: [ativoId], references: [id], onDelete: SetNull)
+  pneus           Pneu[]
+  revisoes        RevisaoVeiculo[]
+  manutencoes     ManutencaoVeiculo[]
+  documentos      DocumentoVeiculo[]
+  abastecimentos  Abastecimento[]
+  condutores      VeiculoCondutor[]
+
+  @@unique([organizationId, placa])
+  @@unique([organizationId, codigo])
+  @@index([organizationId, status])
+  @@index([organizationId, deletedAt])
+  @@map("veiculos")
+}
+
+model Motorista {
+  id              String       @id @default(uuid())
+  organizationId  String       @map("organization_id")
+  nome            String
+  cpf             String?
+  matricula       String?
+  departamento    String?
+  cargo           String?
+  cnh             String?
+  categoriaCnh    String?      @map("categoria_cnh")
+  cnhEmissao      DateTime?    @map("cnh_emissao")
+  validadeCnh     DateTime?    @map("validade_cnh")
+  orgaoEmissor    String?      @map("orgao_emissor")
+  telefone        String?
+  email           String?
+  userId          String?      @map("user_id")
+  status          String       @default("ativo")
+  observacoes     String?      @db.Text
+  criadoPorId     String?      @map("criado_por_id")
+  atualizadoPorId String?      @map("atualizado_por_id")
+  deletedAt       DateTime?    @map("deleted_at")
+  criadoEm        DateTime     @default(now()) @map("criado_em")
+  atualizadoEm    DateTime     @updatedAt @map("atualizado_em")
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  veiculos        Veiculo[]    @relation("VeiculoMotoristaPadrao")
+  abastecimentos  Abastecimento[]
+  condutorAssignments VeiculoCondutor[]
+  renovacoes      MotoristaCnhRenovacao[]
+  anexos          MotoristaAnexo[]
+
+  @@index([organizationId, deletedAt])
+  @@index([organizationId, status])
+  @@map("motoristas")
+}
+
+model MotoristaCnhRenovacao {
+  id                String       @id @default(uuid())
+  organizationId    String       @map("organization_id")
+  motoristaId       String       @map("motorista_id")
+  numeroAnterior    String?      @map("numero_anterior")
+  categoriaAnterior String?      @map("categoria_anterior")
+  validadeAnterior  DateTime?    @map("validade_anterior")
+  numeroNovo        String?      @map("numero_novo")
+  categoriaNova     String?      @map("categoria_nova")
+  validadeNova      DateTime?    @map("validade_nova")
+  orgaoEmissor      String?      @map("orgao_emissor")
+  dataRenovacao     DateTime     @default(now()) @map("data_renovacao")
+  observacoes       String?      @db.Text
+  criadoPorId       String?      @map("criado_por_id")
+  criadoEm          DateTime     @default(now()) @map("criado_em")
+  organization      Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  motorista         Motorista    @relation(fields: [motoristaId], references: [id], onDelete: Cascade)
+
+  @@index([motoristaId, dataRenovacao])
+  @@map("motorista_cnh_renovacoes")
+}
+
+model MotoristaAnexo {
+  id             String       @id @default(uuid())
+  organizationId String       @map("organization_id")
+  motoristaId    String       @map("motorista_id")
+  tipo           String
+  nomeArquivo    String       @map("nome_arquivo")
+  nomeOriginal   String       @map("nome_original")
+  mime           String?
+  tamanho        Int?
+  criadoPorId    String?      @map("criado_por_id")
+  deletedAt      DateTime?    @map("deleted_at")
+  criadoEm       DateTime     @default(now()) @map("criado_em")
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  motorista      Motorista    @relation(fields: [motoristaId], references: [id], onDelete: Cascade)
+
+  @@index([motoristaId, deletedAt])
+  @@map("motorista_anexos")
+}
+
+model Pneu {
+  id              String       @id @default(uuid())
+  organizationId  String       @map("organization_id")
+  veiculoId       String?      @map("veiculo_id")
+  numeroFogo      String?      @map("numero_fogo")
+  codigo          String?
+  numeroSerie     String?      @map("numero_serie")
+  marca           String?
+  modelo          String?
+  medida          String?
+  dot             String?
+  dataFabricacao  DateTime?    @map("data_fabricacao")
+  fornecedor      String?
+  valorCompra     Float?       @map("valor_compra")
+  posicao         String?
+  dataInstalacao  DateTime?    @map("data_instalacao")
+  kmInstalacao    Int?         @map("km_instalacao")
+  kmInicial       Int?         @map("km_inicial")
+  kmAtual         Int?         @map("km_atual")
+  vidaUtilKm      Int?         @map("vida_util_km")
+  kmPrevisto      Int?         @map("km_previsto")
+  status          String       @default("estoque")
+  observacoes     String?      @db.Text
+  criadoPorId     String?      @map("criado_por_id")
+  atualizadoPorId String?      @map("atualizado_por_id")
+  deletedAt       DateTime?    @map("deleted_at")
+  criadoEm        DateTime     @default(now()) @map("criado_em")
+  atualizadoEm    DateTime     @updatedAt @map("atualizado_em")
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  veiculo         Veiculo?     @relation(fields: [veiculoId], references: [id], onDelete: SetNull)
+  eventos         PneuEvento[]
+
+  @@index([organizationId, deletedAt])
+  @@index([veiculoId])
+  @@map("pneus")
+}
+
+model PneuEvento {
+  id              String       @id @default(uuid())
+  organizationId  String       @map("organization_id")
+  pneuId          String       @map("pneu_id")
+  veiculoId       String?      @map("veiculo_id")
+  tipo            String       // instalacao | remocao | rodizio | recapagem | descarte
+  data            DateTime     @default(now())
+  km              Int?
+  posicaoDe       String?      @map("posicao_de")
+  posicaoPara     String?      @map("posicao_para")
+  custo           Float?
+  observacoes     String?      @db.Text
+  criadoPorId     String?      @map("criado_por_id")
+  criadoEm        DateTime     @default(now()) @map("criado_em")
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  pneu            Pneu         @relation(fields: [pneuId], references: [id], onDelete: Cascade)
+
+  @@index([pneuId, data])
+  @@index([organizationId, tipo])
+  @@map("pneu_eventos")
+}
+
+model PneuLayout {
+  id             String       @id @default(uuid())
+  organizationId String       @map("organization_id")
+  tipo           String       // carro | moto | caminhao | van | onibus
+  posicoes       Json         @default("[]")
+  criadoEm       DateTime     @default(now()) @map("criado_em")
+  atualizadoEm   DateTime     @updatedAt @map("atualizado_em")
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, tipo])
+  @@map("pneu_layouts")
+}
+
+model RevisaoVeiculo {
+  id              String       @id @default(uuid())
+  organizationId  String       @map("organization_id")
+  veiculoId       String       @map("veiculo_id")
+  tipo            String?
+  descricao       String?
+  dataPrevista    DateTime?    @map("data_prevista")
+  kmPrevisto      Int?         @map("km_previsto")
+  dataRealizada   DateTime?    @map("data_realizada")
+  kmRealizado     Int?         @map("km_realizado")
+  horimetro       Int?
+  status          String       @default("agendada")
+  custo           Float?
+  oficina         String?
+  observacoes     String?      @db.Text
+  criadoPorId     String?      @map("criado_por_id")
+  atualizadoPorId String?      @map("atualizado_por_id")
+  deletedAt       DateTime?    @map("deleted_at")
+  criadoEm        DateTime     @default(now()) @map("criado_em")
+  atualizadoEm    DateTime     @updatedAt @map("atualizado_em")
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  veiculo         Veiculo      @relation(fields: [veiculoId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, deletedAt])
+  @@index([veiculoId])
+  @@index([organizationId, status])
+  @@map("revisoes_veiculo")
+}
+
+// Planos de revisão preventiva: regra por modelo + tipo, baseada em km, data ou horímetro.
+model PlanoRevisao {
+  id                 String       @id @default(uuid())
+  organizationId     String       @map("organization_id")
+  modelo             String
+  marca              String?
+  tipo               String       // troca_oleo | filtros | correias | freios | suspensao | revisao_geral
+  base               String       @default("km") // km | data | horimetro
+  intervaloKm        Int?         @map("intervalo_km")
+  intervaloDias      Int?         @map("intervalo_dias")
+  intervaloHorimetro Int?         @map("intervalo_horimetro")
+  ativo              Boolean      @default(true)
+  observacoes        String?      @db.Text
+  criadoPorId        String?      @map("criado_por_id")
+  atualizadoPorId    String?      @map("atualizado_por_id")
+  deletedAt          DateTime?    @map("deleted_at")
+  criadoEm           DateTime     @default(now()) @map("criado_em")
+  atualizadoEm       DateTime     @updatedAt @map("atualizado_em")
+  organization       Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, deletedAt])
+  @@index([organizationId, modelo])
+  @@map("planos_revisao")
+}
+
+model ManutencaoVeiculo {
+  id              String       @id @default(uuid())
+  organizationId  String       @map("organization_id")
+  veiculoId       String       @map("veiculo_id")
+  numeroOs        String?      @map("numero_os")
+  tipo            String       @default("corretiva")
+  descricao       String?
+  solicitanteId   String?      @map("solicitante_id")
+  data            DateTime?
+  dataAgendada    DateTime?    @map("data_agendada")
+  dataAbertura    DateTime?    @map("data_abertura")
+  dataFechamento  DateTime?    @map("data_fechamento")
+  km              Int?
+  custoPecas      Float?       @map("custo_pecas")
+  custoServicos   Float?       @map("custo_servicos")
+  custoTerceiros  Float?       @map("custo_terceiros")
+  custo           Float?
+  fornecedorId    String?      @map("fornecedor_id")
+  fornecedor      String?
+  oficina         String?
+  pecas           Json         @default("[]")
+  status          String       @default("aberta")
+  observacoes     String?      @db.Text
+  criadoPorId     String?      @map("criado_por_id")
+  atualizadoPorId String?      @map("atualizado_por_id")
+  deletedAt       DateTime?    @map("deleted_at")
+  criadoEm        DateTime     @default(now()) @map("criado_em")
+  atualizadoEm    DateTime     @updatedAt @map("atualizado_em")
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  veiculo         Veiculo      @relation(fields: [veiculoId], references: [id], onDelete: Cascade)
+  solicitante     User?        @relation("ManutencaoSolicitante", fields: [solicitanteId], references: [id], onDelete: SetNull)
+  maoObra         ManutencaoMaoObra[]
+  anexos          ManutencaoAnexo[]
+
+  @@index([organizationId, deletedAt])
+  @@index([veiculoId])
+  @@index([organizationId, status])
+  @@map("manutencoes_veiculo")
+}
+
+model ManutencaoMaoObra {
+  id             String            @id @default(uuid())
+  organizationId String            @map("organization_id")
+  manutencaoId   String            @map("manutencao_id")
+  descricao      String
+  responsavel    String?
+  horas          Float?
+  valorHora      Float?            @map("valor_hora")
+  custo          Float?
+  data           DateTime          @default(now())
+  criadoPorId    String?           @map("criado_por_id")
+  criadoEm       DateTime          @default(now()) @map("criado_em")
+  organization   Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  manutencao     ManutencaoVeiculo @relation(fields: [manutencaoId], references: [id], onDelete: Cascade)
+
+  @@index([manutencaoId])
+  @@map("manutencao_mao_obra")
+}
+
+model ManutencaoAnexo {
+  id             String            @id @default(uuid())
+  organizationId String            @map("organization_id")
+  manutencaoId   String            @map("manutencao_id")
+  tipo           String            // nota_fiscal | foto | orcamento
+  nomeArquivo    String            @map("nome_arquivo")
+  nomeOriginal   String            @map("nome_original")
+  mime           String?
+  tamanho        Int?
+  criadoPorId    String?           @map("criado_por_id")
+  deletedAt      DateTime?         @map("deleted_at")
+  criadoEm       DateTime          @default(now()) @map("criado_em")
+  organization   Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  manutencao     ManutencaoVeiculo @relation(fields: [manutencaoId], references: [id], onDelete: Cascade)
+
+  @@index([manutencaoId, deletedAt])
+  @@map("manutencao_anexos")
+}
+
+model DocumentoVeiculo {
+  id              String       @id @default(uuid())
+  organizationId  String       @map("organization_id")
+  veiculoId       String       @map("veiculo_id")
+  tipo            String       @default("crlv")
+  numero          String?
+  descricao       String?
+  dataEmissao     DateTime?    @map("data_emissao")
+  dataVencimento  DateTime?    @map("data_vencimento")
+  valor           Float?
+  arquivoUrl      String?      @map("arquivo_url")
+  status          String       @default("vigente")
+  observacoes     String?      @db.Text
+  criadoPorId     String?      @map("criado_por_id")
+  atualizadoPorId String?      @map("atualizado_por_id")
+  deletedAt       DateTime?    @map("deleted_at")
+  criadoEm        DateTime     @default(now()) @map("criado_em")
+  atualizadoEm    DateTime     @updatedAt @map("atualizado_em")
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  veiculo         Veiculo      @relation(fields: [veiculoId], references: [id], onDelete: Cascade)
+  anexos          DocumentoAnexo[]
+
+  @@index([organizationId, deletedAt])
+  @@index([veiculoId])
+  @@index([organizationId, dataVencimento])
+  @@map("documentos_veiculo")
+}
+
+model DocumentoAnexo {
+  id             String           @id @default(uuid())
+  organizationId String           @map("organization_id")
+  documentoId    String           @map("documento_id")
+  nomeArquivo    String           @map("nome_arquivo")
+  nomeOriginal   String           @map("nome_original")
+  mime           String?
+  tamanho        Int?
+  criadoPorId    String?          @map("criado_por_id")
+  deletedAt      DateTime?        @map("deleted_at")
+  criadoEm       DateTime         @default(now()) @map("criado_em")
+  organization   Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  documento      DocumentoVeiculo @relation(fields: [documentoId], references: [id], onDelete: Cascade)
+
+  @@index([documentoId, deletedAt])
+  @@map("documento_anexos")
+}
+
+model Abastecimento {
+  id              String       @id @default(uuid())
+  organizationId  String       @map("organization_id")
+  veiculoId       String       @map("veiculo_id")
+  motoristaId     String?      @map("motorista_id")
+  data            DateTime     @default(now())
+  kmAtual         Int?         @map("km_atual")
+  litros          Float?
+  valorLitro      Float?       @map("valor_litro")
+  valorTotal      Float?       @map("valor_total")
+  tipoCombustivel String?      @map("tipo_combustivel")
+  posto           String?
+  tanqueCheio     Boolean      @default(true) @map("tanque_cheio")
+  consumoKmL      Float?       @map("consumo_km_l")
+  custoKm         Float?       @map("custo_km")
+  observacoes     String?      @db.Text
+  criadoPorId     String?      @map("criado_por_id")
+  atualizadoPorId String?      @map("atualizado_por_id")
+  deletedAt       DateTime?    @map("deleted_at")
+  criadoEm        DateTime     @default(now()) @map("criado_em")
+  atualizadoEm    DateTime     @updatedAt @map("atualizado_em")
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  veiculo         Veiculo      @relation(fields: [veiculoId], references: [id], onDelete: Cascade)
+  motorista       Motorista?   @relation(fields: [motoristaId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, deletedAt])
+  @@index([veiculoId, data])
+  @@map("abastecimentos")
+}
+
+model VeiculoCondutor {
+  id              String       @id @default(uuid())
+  organizationId  String       @map("organization_id")
+  veiculoId       String       @map("veiculo_id")
+  motoristaId     String       @map("motorista_id")
+  dataInicio      DateTime     @default(now()) @map("data_inicio")
+  dataFim         DateTime?    @map("data_fim")
+  kmInicial       Int?         @map("km_inicial")
+  kmFinal         Int?         @map("km_final")
+  motivo          String?
+  observacoes     String?      @db.Text
+  criadoPorId     String?      @map("criado_por_id")
+  atualizadoPorId String?      @map("atualizado_por_id")
+  deletedAt       DateTime?    @map("deleted_at")
+  criadoEm        DateTime     @default(now()) @map("criado_em")
+  atualizadoEm    DateTime     @updatedAt @map("atualizado_em")
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  veiculo         Veiculo      @relation(fields: [veiculoId], references: [id], onDelete: Cascade)
+  motorista       Motorista    @relation(fields: [motoristaId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, deletedAt])
+  @@index([veiculoId, dataInicio])
+  @@map("veiculo_condutores")
+}
+
+model FrotaReportSchedule {
+  id             String       @id @default(uuid())
+  organizationId String       @map("organization_id")
+  titulo         String
+  tipoRelatorio  String       @map("tipo_relatorio") // veiculos | motoristas | cnhs | pneus | historico_pneus | revisoes | manutencoes | custos | abastecimentos | disponibilidade
+  formato        String       // pdf | excel | csv
+  frequencia     String       // diaria | semanal | mensal
+  filtros        Json         @default("{}")
+  destinatarios  String       // emails separados por virgula
+  ativo          Boolean      @default(true)
+  ultimoEnvio    DateTime?    @map("ultimo_envio")
+  criadoPorId    String?      @map("criado_por_id")
+  criadoEm       DateTime     @default(now()) @map("criado_em")
+  atualizadoEm   DateTime     @updatedAt @map("atualizado_em")
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@map("frota_report_schedules")
 }
 
 // ── Conhecimento ──────────────────────────────────────────────────────────────
@@ -1586,6 +2205,7 @@ model Setor {
   ativos         Ativo[]
   collaborators  Collaborator[] @relation("SetorCollaborators")
   aprovadorConfig AprovadorSetor?
+  veiculos       Veiculo[]
 
   @@unique([organizationId, nome])
   @@map("setores")
@@ -1853,4 +2473,455 @@ model BillingPayment {
   @@index([orgBillingId])
   @@index([status])
   @@map("billing_payments")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ── MONITORAMENTO OPERACIONAL (modulo independente do modulo Ativos) ─────────
+// ═══════════════════════════════════════════════════════════════════════════════
+
+enum MonCategoria {
+  ITS
+  SERVIDORES
+  COMPUTADORES
+  PRACAS
+  INFRAESTRUTURA
+}
+
+enum MonProtocolo {
+  ICMP
+  TCP
+  HTTP
+  SNMP
+}
+
+enum MonStatus {
+  ONLINE
+  OFFLINE
+  INSTAVEL
+  NAO_MONITORADO
+}
+
+enum MonSeveridade {
+  INFO
+  ATENCAO
+  CRITICO
+}
+
+enum MonMapTipo {
+  GEO
+  INFRA
+}
+
+enum MonAlertCanal {
+  EMAIL
+  WHATSAPP
+  TELEGRAM
+  PUSH
+}
+
+// ── Coleta profunda (leitura do Zabbix): serviços + desempenho de hardware ──
+enum MonServiceTipo {
+  ZABBIX   // estado lido de um item/trigger do Zabbix
+  TCP      // (futuro) checagem de porta pelo proprio Orkestri
+  HTTP     // (futuro) healthcheck HTTP pelo proprio Orkestri
+}
+
+enum MonServiceEstado {
+  UP
+  DOWN
+  DESCONHECIDO
+}
+
+model MonUnidade {
+  id             String   @id @default(uuid())
+  organizationId String   @map("organization_id")
+  nome           String
+  tipo           String?
+  latitude       Float?
+  longitude      Float?
+  criadoEm       DateTime @default(now()) @map("criado_em")
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  assets         MonAsset[]
+  mapas          MonMap[]
+
+  @@index([organizationId])
+  @@map("mon_unidade")
+}
+
+model MonAsset {
+  id              String       @id @default(uuid())
+  organizationId  String       @map("organization_id")
+  nome            String
+  categoria       MonCategoria
+  tipo            String
+  localizacao     String?
+  unidadeId       String?      @map("unidade_id")
+  responsavelId   String?      @map("responsavel_id")
+  observacoes     String?
+
+  ip              String
+  hostname        String?
+  porta           Int?
+  link            String?      // URL pra acesso web (camera, switch, etc) — duplo-clique no UI abre em nova aba
+  intervaloSeg    Int          @default(60) @map("intervalo_seg")
+  timeoutSeg      Int          @default(3)  @map("timeout_seg")
+  protocolo       MonProtocolo @default(ICMP)
+
+  ativo               Boolean   @default(true)
+  ultimoStatus        MonStatus @default(NAO_MONITORADO) @map("ultimo_status")
+  ultimoCheckEm       DateTime? @map("ultimo_check_em")
+  ultimaLatenciaMs    Int?      @map("ultima_latencia_ms")
+  perdaPctUltimaHora  Float?    @map("perda_pct_ultima_hora")
+  uptime24h           Float?    @map("uptime_24h")
+
+  // Abertura automatica de chamado quando o ativo fica OFFLINE
+  abreChamadoAuto     Boolean   @default(false) @map("abre_chamado_auto")
+  chamadoAbertoId     String?   @map("chamado_aberto_id")  // chamado auto atualmente aberto (evita duplicar)
+
+  // Coleta profunda (serviços + hardware lidos do Zabbix). Independente do ICMP.
+  coletaProfunda      Boolean   @default(false) @map("coleta_profunda")  // puxa serviços/métricas do Zabbix
+  zabbixHostId        String?   @map("zabbix_host_id")                    // hostid no Zabbix (mapeamento estável; senão casa por IP)
+
+  // Inteligencia operacional
+  dependeDeId         String?   @map("depende_de_id")      // uplink: ativo do qual este depende (ex: camera -> switch)
+  latenciaBaseMs      Float?    @map("latencia_base_ms")   // baseline de latencia (media 7d) p/ deteccao de anomalia
+  dependeDe           MonAsset? @relation("MonAssetDep", fields: [dependeDeId], references: [id], onDelete: SetNull)
+  dependentes         MonAsset[] @relation("MonAssetDep")
+
+  // janela curta pra anti-flap (contadores)
+  consecutivoFalhas   Int       @default(0) @map("consecutivo_falhas")
+  consecutivoSucessos Int       @default(0) @map("consecutivo_sucessos")
+
+  criadoEm     DateTime @default(now()) @map("criado_em")
+  atualizadoEm DateTime @updatedAt        @map("atualizado_em")
+
+  organization Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  unidade      MonUnidade?      @relation(fields: [unidadeId],     references: [id], onDelete: SetNull)
+  responsavel  User?            @relation("MonAssetResponsavel", fields: [responsavelId], references: [id], onDelete: SetNull)
+  positions    MonMapPosition[]
+  events       MonStatusEvent[]
+  services     MonService[]
+  metrics      MonMetric[]
+
+  @@index([organizationId, ativo])
+  @@index([organizationId, coletaProfunda])
+  @@index([organizationId, categoria])
+  @@index([organizationId, ultimoStatus])
+  @@map("mon_asset")
+}
+
+model MonProbeResult {
+  id         BigInt    @id @default(autoincrement())
+  assetId    String    @map("asset_id")
+  ts         DateTime
+  ok         Boolean
+  latenciaMs Int?      @map("latencia_ms")
+  erro       String?
+
+  @@index([assetId, ts(sort: Desc)])
+  @@map("mon_probe_result")
+}
+
+model MonRollupMinute {
+  assetId  String   @map("asset_id")
+  bucket   DateTime
+  total    Int
+  ok       Int
+  avgLatMs Float?   @map("avg_lat_ms")
+  maxLatMs Int?     @map("max_lat_ms")
+
+  @@id([assetId, bucket])
+  @@index([bucket])
+  @@map("mon_rollup_minute")
+}
+
+model MonRollupHour {
+  assetId  String   @map("asset_id")
+  bucket   DateTime
+  total    Int
+  ok       Int
+  avgLatMs Float?   @map("avg_lat_ms")
+
+  @@id([assetId, bucket])
+  @@index([bucket])
+  @@map("mon_rollup_hour")
+}
+
+model MonStatusEvent {
+  id             String         @id @default(uuid())
+  organizationId String         @map("organization_id")
+  assetId        String         @map("asset_id")
+  statusAnterior MonStatus      @map("status_anterior")
+  statusNovo     MonStatus      @map("status_novo")
+  severidade     MonSeveridade
+  iniciadoEm     DateTime       @map("iniciado_em")
+  finalizadoEm   DateTime?      @map("finalizado_em")
+  duracaoSeg     Int?           @map("duracao_seg")
+  mensagem       String?
+  reconhecidoPorId String?      @map("reconhecido_por_id")
+  reconhecidoEm    DateTime?    @map("reconhecido_em")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  asset        MonAsset     @relation(fields: [assetId],        references: [id], onDelete: Cascade)
+
+  @@index([organizationId, iniciadoEm(sort: Desc)])
+  @@index([assetId, iniciadoEm(sort: Desc)])
+  @@map("mon_status_event")
+}
+
+model MonMap {
+  id             String      @id @default(uuid())
+  organizationId String      @map("organization_id")
+  nome           String
+  tipo           MonMapTipo
+  unidadeId      String?     @map("unidade_id")
+  backgroundUrl  String?     @map("background_url")
+  centroLat      Float?      @map("centro_lat")
+  centroLng      Float?      @map("centro_lng")
+  zoom           Int?
+  criadoEm       DateTime    @default(now()) @map("criado_em")
+  atualizadoEm   DateTime    @updatedAt        @map("atualizado_em")
+
+  organization Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  unidade      MonUnidade?      @relation(fields: [unidadeId],     references: [id], onDelete: SetNull)
+  positions    MonMapPosition[]
+
+  @@index([organizationId])
+  @@map("mon_map")
+}
+
+model MonMapPosition {
+  id      String  @id @default(uuid())
+  mapId   String  @map("map_id")
+  assetId String  @map("asset_id")
+  x       Float
+  y       Float
+  z       Int     @default(0)
+  width   Int     @default(40)
+  height  Int     @default(40)
+  rotulo  String?
+
+  map   MonMap   @relation(fields: [mapId],   references: [id], onDelete: Cascade)
+  asset MonAsset @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  @@unique([mapId, assetId])
+  @@index([mapId])
+  @@map("mon_map_position")
+}
+
+model MonAlertChannel {
+  id             String        @id @default(uuid())
+  organizationId String        @map("organization_id")
+  tipo           MonAlertCanal
+  nome           String
+  configJson     Json          @map("config_json")
+  ativo          Boolean       @default(false)
+  criadoEm       DateTime      @default(now()) @map("criado_em")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@map("mon_alert_channel")
+}
+
+model MonSlaMeta {
+  id             String   @id @default(uuid())
+  organizationId String   @map("organization_id")
+  categoria      String   // ITS / SERVIDORES / ... (string pra alinhar com enum sem acoplar)
+  metaPct        Float    @default(99) @map("meta_pct")
+  criadoEm       DateTime @default(now()) @map("criado_em")
+  atualizadoEm   DateTime @updatedAt @map("atualizado_em")
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, categoria])
+  @@map("mon_sla_meta")
+}
+
+model MonAlertRule {
+  id             String        @id @default(uuid())
+  organizationId String        @map("organization_id")
+  nome           String
+  condicaoJson   Json          @map("condicao_json")
+  channelIds     String[]      @map("channel_ids")
+  severidade     MonSeveridade
+  ativo          Boolean       @default(false)
+  criadoEm       DateTime      @default(now()) @map("criado_em")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@map("mon_alert_rule")
+}
+
+// ── Coleta profunda (leitura do Zabbix) ─────────────────────────────────────────
+
+// Um serviço monitorado dentro de um ativo (daemon SAGA, item/trigger do Zabbix)
+model MonService {
+  id             String           @id @default(uuid())
+  organizationId String           @map("organization_id")
+  assetId        String           @map("asset_id")
+  nome           String           // ex: "Foto", "Mensageria", "TAG"
+  tipo           MonServiceTipo   @default(ZABBIX)
+  alvo           String           // ZABBIX: chave do item (ex "system.run[systemctl is-active foto]") ou itemid
+  esperado       String?          // valor que representa UP (ex: "active", "Running", "1")
+  intervaloSeg   Int              @default(60) @map("intervalo_seg")
+  ativo          Boolean          @default(true)
+
+  estado              MonServiceEstado @default(DESCONHECIDO)
+  ultimoValor         String?          @map("ultimo_valor")
+  ultimoCheckEm       DateTime?        @map("ultimo_check_em")
+  ultimaTransicao     DateTime?        @map("ultima_transicao")
+  consecutivoFalhas   Int              @default(0) @map("consecutivo_falhas")
+  consecutivoSucessos Int              @default(0) @map("consecutivo_sucessos")
+
+  abreChamadoAuto Boolean @default(false) @map("abre_chamado_auto")
+  chamadoAbertoId String? @map("chamado_aberto_id")
+
+  criadoEm     DateTime @default(now()) @map("criado_em")
+  atualizadoEm DateTime @updatedAt @map("atualizado_em")
+
+  organization Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  asset        MonAsset          @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  events       MonServiceEvent[]
+
+  @@index([organizationId])
+  @@index([assetId])
+  @@map("mon_service")
+}
+
+// Histórico de transições de estado de um serviço (UP <-> DOWN)
+model MonServiceEvent {
+  id             String           @id @default(uuid())
+  organizationId String           @map("organization_id")
+  serviceId      String           @map("service_id")
+  estadoAnterior MonServiceEstado @map("estado_anterior")
+  estadoNovo     MonServiceEstado @map("estado_novo")
+  iniciadoEm     DateTime         @map("iniciado_em")
+  finalizadoEm   DateTime?        @map("finalizado_em")
+  duracaoSeg     Int?             @map("duracao_seg")
+  mensagem       String?
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  service      MonService   @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  @@index([serviceId, iniciadoEm(sort: Desc)])
+  @@map("mon_service_event")
+}
+
+// Snapshot da última métrica de hardware por (ativo, chave, rotulo). Upsert a cada coleta.
+model MonMetric {
+  id         String   @id @default(uuid())
+  assetId    String   @map("asset_id")
+  chave      String   // cpu | mem | disk | load1 | uptime | swap
+  rotulo     String   @default("")   // ex: "/" ou "C:" para disco; "" quando não se aplica
+  valor      Float
+  unidade    String?  // "%", "s", ""
+  coletadoEm DateTime @map("coletado_em")
+
+  asset MonAsset @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  @@unique([assetId, chave, rotulo])
+  @@index([assetId])
+  @@map("mon_metric")
+}
+
+// Série temporal de métricas de hardware (para gráficos / histórico)
+model MonMetricSample {
+  id      BigInt   @id @default(autoincrement())
+  assetId String   @map("asset_id")
+  chave   String
+  rotulo  String   @default("")
+  valor   Float
+  ts      DateTime
+
+  @@index([assetId, chave, ts(sort: Desc)])
+  @@map("mon_metric_sample")
+}
+
+// ── Monitoramento OSA (último arquivo .tag recebido, via SMB — só metadados) ──
+model OsaMonitor {
+  id             String  @id @default(uuid())
+  organizationId String  @map("organization_id")
+  descricao      String
+  ip             String
+
+  // ── Fonte: leitura do Zabbix (auto-descoberta do item fadami.tag.recebido) ──
+  zabbixHostId   String? @map("zabbix_host_id")
+  itemKey        String  @default("fadami.tag.recebido") @map("item_key")
+  valorAtual     String? @map("valor_atual")   // último valor lido (p/ detectar mudança = novo tag)
+  servicoEstado  String? @map("servico_estado") // estado do serviço OSA no Zabbix (RUNNING/STOPPED)
+
+  // ── Legado SMB (mantido, não usado na auto-descoberta) ──
+  caminho        String? // caminho monitorado (legado SMB)
+  share          String?
+  usuario        String?
+  dominio        String?
+  senhaCifrada   String? @map("senha_cifrada")
+  filtro         String  @default("*.tag")
+  tempoMaxMin    Int     @default(5) @map("tempo_max_min")
+  intervaloSeg   Int     @default(60) @map("intervalo_seg")
+  ativo          Boolean @default(true)
+
+  // Resultado da última coleta (a dashboard lê só isto, nunca o servidor)
+  ultimoArquivo     String?   @map("ultimo_arquivo")
+  serie             String?
+  sequencial        String?
+  ultimaAtualizacao DateTime? @map("ultima_atualizacao") // mtime do arquivo mais recente
+  ultimoCheckEm     DateTime? @map("ultimo_check_em")
+  status            String    @default("DESCONHECIDO")    // ONLINE | ATENCAO | ATRASADO | ERRO | DESCONHECIDO
+  ultimoErro        String?   @map("ultimo_erro")
+
+  criadoEm     DateTime @default(now()) @map("criado_em")
+  atualizadoEm DateTime @updatedAt @map("atualizado_em")
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, ativo])
+  @@map("osa_monitor")
+}
+
+// ── Financeiro — Contas a Pagar ───────────────────────────────────────────────
+
+model ContaPagar {
+  id                    String    @id @default(uuid())
+  organizationId        String    @map("organization_id")
+
+  fornecedorCodigo      String?   @map("fornecedor_codigo")
+  fornecedorNome        String    @map("fornecedor_nome")
+  prefixo               String?
+  numero                String
+  parcela               String?
+  tipo                  String
+  natureza              String?
+
+  dataEmissao           DateTime? @map("data_emissao")
+  dataVencto            DateTime? @map("data_vencto")
+  dataVenctoReal        DateTime? @map("data_vencto_real")
+  dataPagamento         DateTime? @map("data_pagamento")
+
+  valorOriginal         Decimal?  @map("valor_original")          @db.Decimal(15,2)
+  valorVencidoNominal   Decimal?  @map("valor_vencido_nominal")   @db.Decimal(15,2)
+  valorVencidoCorrigido Decimal?  @map("valor_vencido_corrigido") @db.Decimal(15,2)
+  valorAVencerNominal   Decimal?  @map("valor_a_vencer_nominal")  @db.Decimal(15,2)
+  valorJuros            Decimal?  @map("valor_juros")             @db.Decimal(15,2)
+  valorPago             Decimal?  @map("valor_pago")              @db.Decimal(15,2)
+
+  portador              String?
+  diasAtraso            Int?      @map("dias_atraso")
+  historico             String?   @db.Text
+  classeValor           String?   @map("classe_valor")
+  observacao            String?   @db.Text
+  pedido                String?
+  ctaContab             String?   @map("cta_contab")
+  centroCusto           String?   @map("centro_custo")
+
+  criadoEm              DateTime  @default(now()) @map("criado_em")
+  atualizadoEm          DateTime  @updatedAt      @map("atualizado_em")
+  importadoEm           DateTime? @map("importado_em")
+
+  organization          Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([organizationId, dataVenctoReal])
+  @@index([organizationId, fornecedorNome])
+  @@map("contas_pagar")
 }

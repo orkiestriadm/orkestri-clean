@@ -41,6 +41,36 @@ export class EmailService {
     }
   }
 
+  async sendWithAttachment(to: string, subject: string, html: string, filename: string, contentBase64: string): Promise<boolean> {
+    if (!to || !this.resend) {
+      this.logger.warn(`Email com anexo não enviado para ${to || "(vazio)"} — serviço de e-mail indisponível.`);
+      return false;
+    }
+    try {
+      const res: any = await this.resend.emails.send({
+        from: this.from,
+        to,
+        subject,
+        html: this.layout(html),
+        attachments: [
+          {
+            filename,
+            content: contentBase64,
+          },
+        ],
+      });
+      if (res?.error) {
+        this.logger.error(`Resend recusou e-mail para ${to}: ${JSON.stringify(res.error)}`);
+        return false;
+      }
+      this.logger.log(`Email com anexo ${filename} enviado para ${to}: ${subject}`);
+      return true;
+    } catch (e: any) {
+      this.logger.error(`Erro ao enviar email com anexo para ${to}: ${e.message}`);
+      return false;
+    }
+  }
+
   // ── Templates base ─────────────────────────────────────────────────────────
 
   private layout(conteudo: string): string {

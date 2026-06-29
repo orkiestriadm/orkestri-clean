@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
@@ -7,9 +7,10 @@ import {
   Building2, GanttChart, BarChart2, Users, History, Settings, LogOut,
   Headphones, PiggyBank, Truck, BookOpen, Package, Zap, Clock, FileText, Activity, CheckSquare,
   SmilePlus, TrendingUp, UserCircle, Receipt, ChevronDown, Shield, Star, LayoutGrid, CreditCard, Brain,
-  LayoutGrid as Grid3x3, GitBranch, Network, ShoppingBag,
+  LayoutGrid as Grid3x3, GitBranch, Network, ShoppingBag, Radio, Wallet, FileSpreadsheet, Wrench,
 } from "lucide-react";
 import { useAuthStore } from "@/lib/store";
+import { authApi } from "@/lib/api";
 import UserStatus from "@/components/ui/UserStatus";
 import { BrandLogo } from "@/components/ui/logo";
 import { cn } from "@/lib/utils";
@@ -44,13 +45,36 @@ const NAV: NavGroup[] = [
       { href: "/dashboard/gantt",     label: "Linha do Tempo", icon: GanttChart,   permission: "gantt:ver" },
       { href: "/dashboard/agenda",    label: "Agenda",         icon: CalendarDays, permission: "agenda:ver" },
       { href: "/dashboard/ativos",    label: "Ativos",         icon: Package,      permission: "ativos:ver" },
+      { href: "/dashboard/monitoramento", label: "Monitoramento Operacional", icon: Radio, permission: "monitoramento:ver" },
       { href: "/dashboard/cmdb",      label: "CMDB",           icon: Network,      permission: "ativos:ver" },
       { href: "/dashboard/processos", label: "Processos",      icon: GitBranch,    permission: null },
       { href: "/dashboard/workforce", label: "Workforce",      icon: LayoutGrid,   permission: null },
       { href: "/dashboard/capacity",  label: "Capacidade",     icon: Activity,     permission: null },
       { href: "/dashboard/aprovacoes",label: "Aprovações",     icon: CheckSquare,  permission: null },
-      { href: "/dashboard/orcamento", label: "Orçamento",      icon: PiggyBank,    permission: "orcamento:ver" },
       { href: "/dashboard/keep",      label: "Keep",           icon: StickyNote,   permission: "keep:ver" },
+    ],
+  },
+  {
+    id: "financeiro", label: "Financeiro",
+    items: [
+      { href: "/dashboard/financeiro",                  label: "Dashboard",      icon: Wallet,          permission: "financeiro:ver" },
+      { href: "/dashboard/financeiro/contas-a-pagar",   label: "Contas a Pagar", icon: FileSpreadsheet,  permission: "financeiro:ver" },
+      { href: "/dashboard/orcamento",                   label: "Orçamento",      icon: PiggyBank,        permission: "orcamento:ver" },
+    ],
+  },
+  {
+    id: "frota", label: "Gestão de Frotas",
+    items: [
+      { href: "/dashboard/frota",                label: "Dashboard",      icon: LayoutDashboard, permission: "frota:ver" },
+      { href: "/dashboard/frota/veiculos",       label: "Veículos",       icon: Truck,           permission: "frota:ver" },
+      { href: "/dashboard/frota/motoristas",     label: "Motoristas",     icon: Users,           permission: "frota:ver" },
+      { href: "/dashboard/frota/pneus",          label: "Pneus",          icon: Package,         permission: "frota:ver" },
+      { href: "/dashboard/frota/revisoes",       label: "Revisões",       icon: CalendarDays,    permission: "frota:ver" },
+      { href: "/dashboard/frota/manutencoes",    label: "Manutenções",    icon: Wrench,          permission: "frota:ver" },
+      { href: "/dashboard/frota/documentacoes",  label: "Documentações",  icon: FileText,        permission: "frota:ver" },
+      { href: "/dashboard/frota/abastecimentos", label: "Abastecimentos", icon: Zap,             permission: "frota:ver" },
+      { href: "/dashboard/frota/relatorios",     label: "Relatórios",     icon: BarChart2,       permission: "frota:relatorios" },
+      { href: "/dashboard/frota/configuracoes",  label: "Configurações",  icon: Settings,        permission: "frota:configurar" },
     ],
   },
   {
@@ -162,20 +186,46 @@ export default function Sidebar() {
   const [loggingOut, setLoggingOut] = useState(false);
   const { favorites, toggleFavorite, isFavorite } = useFavorites();
 
+  // Busca permissões frescas do servidor sempre que o sidebar monta
+  // Evita que o store Zustand (in-memory) mostre permissões desatualizadas
+  const [freshPerms, setFreshPerms] = useState<string[] | null>(null);
+  useEffect(() => {
+    authApi.me()
+      .then(u => {
+        setFreshPerms(u.permissions);
+        useAuthStore.setState({ user: u });
+      })
+      .catch(() => {});
+  }, []);
+
   const [expanded, setExpanded] = useState<Record<string, boolean>>(() => {
+    let saved: Record<string, boolean> = {};
+    if (typeof window !== "undefined") {
+      try { saved = JSON.parse(localStorage.getItem("orkestri-sidebar-expanded") || "{}"); } catch {}
+    }
     const init: Record<string, boolean> = {};
     for (const g of NAV) {
       if (!g.label) continue;
-      init[g.id] = groupHasActive(g, path);
+      // Se há estado salvo usa ele; caso contrário expande grupo ativo ou "financeiro"/"operacoes"
+      if (g.id in saved) {
+        init[g.id] = saved[g.id];
+      } else {
+        init[g.id] = groupHasActive(g, path) || g.id === "financeiro" || g.id === "operacoes";
+      }
     }
     return init;
   });
 
-  const toggle = (id: string) => setExpanded(e => ({ ...e, [id]: !e[id] }));
+  const toggle = (id: string) => setExpanded(e => {
+    const next = { ...e, [id]: !e[id] };
+    try { localStorage.setItem("orkestri-sidebar-expanded", JSON.stringify(next)); } catch {}
+    return next;
+  });
 
   const can = (permission: string | null) => {
     if (!permission || user?.isMaster) return true;
-    const perms: string[] = user?.permissions || [];
+    // freshPerms: permissões buscadas direto da API ao montar (evita store desatualizado)
+    const perms: string[] = freshPerms ?? user?.permissions ?? [];
     return perms.includes("*") || perms.includes(permission);
   };
 
@@ -305,7 +355,7 @@ export default function Sidebar() {
       <div className="px-4 py-4 border-t border-[var(--sidebar-border)] shrink-0 bg-[var(--sidebar-bg)]">
         <div className="flex items-center gap-3 px-3 py-2.5 rounded-[12px] bg-[var(--bg-primary)] border border-transparent mb-3 hover:bg-[var(--bg-hover)] transition-all cursor-pointer">
           <Link href="/dashboard/perfil" className="relative shrink-0">
-            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-violet-500/10 to-cyan-500/10 border border-[var(--border-subtle)] flex items-center justify-center text-[11px] font-bold text-[var(--sidebar-text-hi)]">
+            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-red-500/10 to-cyan-500/10 border border-[var(--border-subtle)] flex items-center justify-center text-[11px] font-bold text-[var(--sidebar-text-hi)]">
               {initials}
             </div>
             <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-500 border border-[var(--sidebar-bg)]" />
