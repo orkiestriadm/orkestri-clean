@@ -5,7 +5,35 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { ConfigService } from "@nestjs/config";
 import * as fs from "fs";
 import * as path from "path";
-import { execSync } from "child_process";
+import { spawn } from "child_process";
+
+// Tabelas de telemetria do Monitoramento (time-series regeneravel, ~7GB). Sao
+// EXCLUIDAS do dump de dados para o backup ser rapido e nao derrubar a API.
+// A estrutura (CREATE TABLE) continua no backup; apenas os dados sao pulados.
+const BACKUP_EXCLUDE_DATA = [
+  "mon_probe_result", "mon_metric_sample", "mon_rollup_minute",
+  "mon_rollup_hour", "mon_status_event",
+];
+
+// Executa pg_dump em streaming direto para arquivo, SEM bloquear o event loop e
+// SEM bufferizar a saida em memoria (o execSync antigo travava a API inteira e
+// estourava memoria em bancos grandes). Resolve com Promise.
+function runPgDump(args: string[], outFile: string, pass: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const out = fs.createWriteStream(outFile);
+    const child = spawn("pg_dump", args, { env: { ...process.env, PGPASSWORD: pass } });
+    let stderr = "";
+    child.stdout.pipe(out);
+    child.stderr.on("data", d => { stderr += d.toString(); });
+    child.on("error", reject);
+    out.on("error", reject);
+    child.on("close", code => {
+      out.close();
+      if (code === 0) resolve();
+      else reject(new Error(`pg_dump saiu com codigo ${code}: ${stderr.slice(0, 500)}`));
+    });
+  });
+}
 
 class UpdateSistemaConfigDto {
   @IsOptional() @IsString() logsPath?: string;
@@ -108,10 +136,15 @@ export class SistemaService implements OnModuleInit {
       if (!match) throw new Error("DATABASE_URL invalida");
       const [, user, pass, host, port, db] = match;
 
-      const cmd = `PGPASSWORD=${pass} pg_dump -h ${host} -p ${port} -U ${user} -Fc ${db}`;
-      const output = execSync(cmd);
       fs.mkdirSync(dir, { recursive: true });
-      fs.writeFileSync(arquivo, output);
+      // -Fc = formato custom (comprimido). Exclui os DADOS das tabelas de telemetria
+      // (mantém a estrutura). Streaming direto p/ arquivo, sem travar a API.
+      const args = [
+        "-h", host, "-p", port, "-U", user, "-Fc",
+        ...BACKUP_EXCLUDE_DATA.flatMap(t => ["--exclude-table-data", t]),
+        db,
+      ];
+      await runPgDump(args, arquivo, pass);
       await this.saveConfig("ultimoBackupFull", now.toISOString());
 
       this.logger.log(`Backup full concluido: ${arquivo}`);
@@ -136,17 +169,16 @@ export class SistemaService implements OnModuleInit {
       if (!match) throw new Error("DATABASE_URL invalida");
       const [, user, pass, host, port, db] = match;
 
-      // Backup incremental: apenas tabelas com dados recentes (ultima hora)
+      // Backup incremental: apenas as tabelas de negocio (leves). Streaming p/ arquivo,
+      // sem travar a API. As tabelas de telemetria (mon_*) NAO entram aqui.
       const tables = ["events", "tasks", "notes", "daily_tasks", "notifications", "audit_log"];
-      const since  = new Date(now.getTime() - 60*60*1000).toISOString();
-      const whereClauses = tables.map(t =>
-        `(SELECT '${t}' as tabela, COUNT(*) as registros FROM ${t} WHERE criado_em >= '${since}')`
-      ).join(" UNION ALL ");
-
-      const cmd = `PGPASSWORD=${pass} pg_dump -h ${host} -p ${port} -U ${user} --data-only --table=${tables.join(" --table=")} ${db}`;
-      const output = execSync(cmd);
       fs.mkdirSync(dir, { recursive: true });
-      fs.writeFileSync(arquivo, output);
+      const args = [
+        "-h", host, "-p", port, "-U", user, "--data-only",
+        ...tables.flatMap(t => ["--table", t]),
+        db,
+      ];
+      await runPgDump(args, arquivo, pass);
       await this.saveConfig("ultimoBackupIncremental", now.toISOString());
 
       this.logger.log(`Backup incremental concluido: ${arquivo}`);

@@ -6,7 +6,8 @@ import {
 } from "@nestjs/common";
 import { AuthGuard } from "@nestjs/passport";
 import { FileInterceptor } from "@nestjs/platform-express";
-import { diskStorage } from "multer";
+import { diskStorage, memoryStorage } from "multer";
+import * as XLSX from "xlsx";
 import * as path from "path";
 import * as fs from "fs";
 import { PrismaService } from "../../prisma/prisma.service";
@@ -17,6 +18,7 @@ import * as crypto from "crypto";
 import { EmailService } from "../notifications/email.service";
 import { NotificationsModule } from "../notifications/notifications.module";
 import { FrotaRelatoriosService } from "./frota-relatorios.service";
+import { ReservasModule } from "./reservas/reservas.module";
 
 const FROTA_UPLOAD_DIR = process.env.UPLOAD_DIR || "/app/uploads";
 const ANEXO_TIPOS = ["cnh_frente", "cnh_verso", "exame", "certificado"];
@@ -261,7 +263,7 @@ class VeiculosController extends BaseFrotaController {
     { k: "status", t: "string" }, { k: "kmAtual", t: "int" }, { k: "horimetroAtual", t: "int" }, { k: "capacidadeTanque", t: "float" },
     { k: "motoristaId", t: "string" }, { k: "responsavelId", t: "string" }, { k: "centroCustoId", t: "string" },
     { k: "unidade", t: "string" }, { k: "setorId", t: "string" }, { k: "ativoId", t: "string" },
-    { k: "dataAquisicao", t: "date" }, { k: "valorAquisicao", t: "float" }, { k: "observacoes", t: "string" },
+    { k: "dataAquisicao", t: "date" }, { k: "valorAquisicao", t: "float" }, { k: "observacoes", t: "string" }, { k: "descricao", t: "string" },
   ];
 
   protected async beforeCreate(data: any, req: any): Promise<void> {
@@ -276,6 +278,58 @@ class VeiculosController extends BaseFrotaController {
       data.codigo = codigo;
     }
     if (typeof data.placa === "string") data.placa = data.placa.toUpperCase().replace(/\s+/g, "");
+  }
+
+  // POST /frota/veiculos/:id/atualizar-km — atualiza o "KM atual" (hodômetro) do veículo.
+  // Sem { km } no corpo: PUXA o maior KM lançado nos abastecimentos (só sobe).
+  // Com { km }: define manualmente (permite correção). O kmAtual e lido pela Revisao e pelos Pneus.
+  @Post(":id/atualizar-km")
+  @Permissions("frota:editar")
+  async atualizarKm(@Param("id") id: string, @Body() body: any, @Req() req: any) {
+    const orgId = req.user?.organizationId;
+    const v = await this.db.veiculo.findFirst({ where: { id, organizationId: orgId, deletedAt: null }, select: { id: true, kmAtual: true } });
+    if (!v) throw new NotFoundException("Veículo não encontrado");
+
+    const manual = body?.km != null && body.km !== "";
+    let novoKm: number | null = manual ? Math.trunc(Number(body.km)) : null;
+    let fonte = "manual";
+    let ultimoAbastecimento: Date | null = null;
+    if (!manual) {
+      const ab = await this.db.abastecimento.findFirst({
+        where: { veiculoId: id, organizationId: orgId, deletedAt: null, kmAtual: { not: null } },
+        orderBy: { kmAtual: "desc" }, select: { kmAtual: true, data: true },
+      });
+      novoKm = ab?.kmAtual ?? null;
+      ultimoAbastecimento = ab?.data ?? null;
+      fonte = "abastecimento";
+    }
+    if (novoKm == null || isNaN(novoKm)) throw new BadRequestException("Nenhum KM de abastecimento encontrado. Informe o KM manualmente.");
+
+    // Abastecimento so atualiza para cima (hodometro e monotonico); ajuste manual pode corrigir.
+    const aplicado = manual ? true : novoKm > (v.kmAtual ?? 0);
+    if (aplicado) await this.db.veiculo.update({ where: { id }, data: { kmAtual: novoKm } });
+    return { aplicado, fonte, anterior: v.kmAtual ?? null, kmAtual: aplicado ? novoKm : (v.kmAtual ?? null), ultimoAbastecimento };
+  }
+
+  // POST /frota/veiculos/km/sincronizar — sincroniza o KM de TODOS os veiculos a partir do
+  // ultimo abastecimento de cada um (so sobe). Retorna quantos foram atualizados.
+  @Post("km/sincronizar")
+  @Permissions("frota:editar")
+  async sincronizarKm(@Req() req: any) {
+    const orgId = req.user?.organizationId;
+    const veiculos = await this.db.veiculo.findMany({ where: { organizationId: orgId, deletedAt: null }, select: { id: true, kmAtual: true } });
+    let atualizados = 0;
+    for (const v of veiculos) {
+      const ab = await this.db.abastecimento.findFirst({
+        where: { veiculoId: v.id, organizationId: orgId, deletedAt: null, kmAtual: { not: null } },
+        orderBy: { kmAtual: "desc" }, select: { kmAtual: true },
+      });
+      if (ab?.kmAtual != null && ab.kmAtual > (v.kmAtual ?? 0)) {
+        await this.db.veiculo.update({ where: { id: v.id }, data: { kmAtual: ab.kmAtual } });
+        atualizados++;
+      }
+    }
+    return { atualizados, total: veiculos.length };
   }
 
   // GET /frota/veiculos/:id/timeline — linha do tempo completa do veículo
@@ -661,7 +715,7 @@ class PlanosRevisaoController extends BaseFrotaController {
   protected filterKeys = ["tipo", "base", "modelo"];
   protected orderBy = { modelo: "asc" } as any;
   protected fields: FieldDef[] = [
-    { k: "modelo", t: "string" }, { k: "marca", t: "string" }, { k: "tipo", t: "string" },
+    { k: "modelo", t: "string" }, { k: "marca", t: "string" }, { k: "veiculoId", t: "string" }, { k: "tipo", t: "string" },
     { k: "base", t: "string" }, { k: "intervaloKm", t: "int" }, { k: "intervaloDias", t: "int" },
     { k: "intervaloHorimetro", t: "int" }, { k: "ativo", t: "bool" }, { k: "observacoes", t: "string" },
   ];
@@ -705,31 +759,36 @@ class RevisaoAgendaController {
     const norm = (s: string) => (s || "").trim().toLowerCase();
     const itens: any[] = [];
     for (const v of veiculos) {
-      const planosV = planos.filter((p: any) => norm(p.modelo) === norm(v.modelo) && (!p.marca || norm(p.marca) === norm(v.marca)));
+      // Plano vinculado a um veículo específico aplica só a ele; senão, casa por modelo (+marca).
+      const planosV = planos.filter((p: any) => p.veiculoId
+        ? p.veiculoId === v.id
+        : (norm(p.modelo) === norm(v.modelo) && (!p.marca || norm(p.marca) === norm(v.marca))));
       for (const p of planosV) {
         const last = lastByKey[`${v.id}::${p.tipo}`];
-        const base: any = { veiculoId: v.id, placa: v.placa, codigo: v.codigo, modelo: v.modelo, tipo: p.tipo, baseTipo: p.base, planoId: p.id, ultimaData: last?.dataRealizada || null, ultimaKm: last?.kmRealizado ?? null };
+        const base: any = { veiculoId: v.id, placa: v.placa, codigo: v.codigo, modelo: v.modelo, tipo: p.tipo, baseTipo: p.base, planoId: p.id, kmAtual: v.kmAtual, ultimaData: last?.dataRealizada || null, ultimaKm: last?.kmRealizado ?? null };
         if (p.base === "km" && p.intervaloKm) {
           const lastKm = last?.kmRealizado ?? v.kmAtual;
           const prox = lastKm + p.intervaloKm;
           const restante = prox - v.kmAtual;
-          itens.push({ ...base, proximaKm: prox, atual: v.kmAtual, restante, unidade: "km", farol: farolFromPct(restante / p.intervaloKm) });
+          itens.push({ ...base, proximaKm: prox, atual: v.kmAtual, restante, unidade: "km", intervalo: p.intervaloKm, pct: Math.max(0, Math.min(1, 1 - restante / p.intervaloKm)), farol: farolFromPct(restante / p.intervaloKm) });
         } else if (p.base === "data" && p.intervaloDias) {
           const lastData = last?.dataRealizada ? new Date(last.dataRealizada) : (v.dataAquisicao ? new Date(v.dataAquisicao) : new Date(v.criadoEm));
           const prox = new Date(lastData.getTime() + p.intervaloDias * 86400000);
           const restante = Math.ceil((prox.getTime() - Date.now()) / 86400000);
-          itens.push({ ...base, proximaData: prox, restante, unidade: "dias", farol: farolFromPct(restante / p.intervaloDias) });
+          itens.push({ ...base, proximaData: prox, restante, unidade: "dias", intervalo: p.intervaloDias, pct: Math.max(0, Math.min(1, 1 - restante / p.intervaloDias)), farol: farolFromPct(restante / p.intervaloDias) });
         } else if (p.base === "horimetro" && p.intervaloHorimetro) {
           if (v.horimetroAtual == null) { itens.push({ ...base, semDado: true, unidade: "h", farol: "cinza" }); }
           else {
             const lastH = last?.horimetro ?? v.horimetroAtual;
             const prox = lastH + p.intervaloHorimetro;
             const restante = prox - v.horimetroAtual;
-            itens.push({ ...base, proximaHorimetro: prox, atual: v.horimetroAtual, restante, unidade: "h", farol: farolFromPct(restante / p.intervaloHorimetro) });
+            itens.push({ ...base, proximaHorimetro: prox, atual: v.horimetroAtual, restante, unidade: "h", intervalo: p.intervaloHorimetro, pct: Math.max(0, Math.min(1, 1 - restante / p.intervaloHorimetro)), farol: farolFromPct(restante / p.intervaloHorimetro) });
           }
         }
       }
     }
+    // Agenda controlada só por PLANO (KM/data/horímetro). Agendamentos avulsos por data
+    // (registros agendada/atrasada) NÃO entram mais na agenda — o controle é pelo plano.
     const sev: Record<string, number> = { vermelho: 0, laranja: 1, amarelo: 2, verde: 3, cinza: 4 };
     itens.sort((a, b) => (sev[a.farol] - sev[b.farol]) || ((a.restante ?? 1e12) - (b.restante ?? 1e12)));
     const resumo = { vermelho: 0, laranja: 0, amarelo: 0, verde: 0, cinza: 0 } as Record<string, number>;
@@ -967,6 +1026,44 @@ class DocumentosController extends BaseFrotaController {
   }
 }
 
+// ── Helpers da importação de planilha de abastecimento (cartão-combustível) ──────
+const stripAccents = (s: string) => s.normalize("NFD").split("").filter(c => { const x = c.charCodeAt(0); return x < 768 || x > 879; }).join("");
+const normHeader = (h: any) => stripAccents(String(h ?? "").trim().toLowerCase());
+const normPlacaImp = (s: any) => String(s ?? "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+const PLATE_RE = /^([A-Z]{3}[0-9]{4}|[A-Z]{3}[0-9][A-Z][0-9]{2})$/; // antiga LLLNNNN ou Mercosul LLLNLNN
+function normComb(s: any): string {
+  const t = stripAccents(String(s ?? "").toLowerCase());
+  if (t.includes("arla")) return "arla";
+  if (t.includes("diesel")) return "diesel";
+  if (t.includes("etanol") || t.includes("alcool")) return "etanol";
+  if (t.includes("gasolina")) return "gasolina";
+  if (t.includes("gnv")) return "gnv";
+  return "";
+}
+function toNumImp(v: any): number | null {
+  if (v == null || v === "") return null;
+  const n = Number(String(v).replace(/\s/g, "").replace(",", "."));
+  return isNaN(n) ? null : n;
+}
+function toIntImp(v: any): number | null {
+  const n = toNumImp(v); return n == null ? null : Math.trunc(n);
+}
+function parseDataHora(v: any): Date | null {
+  if (v == null || v === "") return null;
+  if (v instanceof Date) return v;
+  const s = String(v).trim();
+  const m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:[ T](\d{1,2}):(\d{2})(?::(\d{2}))?)?/);
+  if (m) {
+    const y = Number(m[3]), mo = Number(m[2]), d = Number(m[1]);
+    const h = Number(m[4] || 0), mi = Number(m[5] || 0), se = Number(m[6] || 0);
+    const dt = new Date(y, mo - 1, d, h, mi, se);
+    return isNaN(dt.getTime()) ? null : dt;
+  }
+  const dt = new Date(s);
+  return isNaN(dt.getTime()) ? null : dt;
+}
+const KM_SALTO_MAX = 30000; // avanço plausível de hodômetro numa importação
+
 // ── Abastecimentos ─────────────────────────────────────────────────────────────
 @Controller("frota/abastecimentos")
 @UseGuards(AuthGuard("jwt"), PermissionsGuard)
@@ -1015,6 +1112,133 @@ class AbastecimentosController extends BaseFrotaController {
         data: { kmAtual: data.kmAtual },
       }).catch(() => {});
     }
+  }
+
+  // POST /frota/abastecimentos/importar — importa planilha de transações de cartão-combustível.
+  // Sem confirmar (padrão): DRY-RUN (prévia, não grava). confirmar=true: grava.
+  // Regras: casa veículo por placa (fallback código/nº da frota); ARLA e linhas sem placa são
+  // ignoradas; placas reais não cadastradas são criadas; kmAtual só avança se o salto for plausível.
+  @Post("importar")
+  @Permissions("frota:criar")
+  @UseInterceptors(FileInterceptor("file", { storage: memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 } }))
+  async importar(@UploadedFile() file: any, @Body() body: any, @Req() req: any) {
+    const orgId = req.user?.organizationId;
+    if (!file?.buffer) throw new BadRequestException("Arquivo obrigatório");
+    const confirmar = body?.confirmar === "true" || body?.confirmar === true;
+
+    const wb = XLSX.read(file.buffer, { type: "buffer" });
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    const raw: any[][] = XLSX.utils.sheet_to_json(ws, { header: 1, raw: true, defval: null });
+    if (!raw?.length) throw new BadRequestException("Planilha vazia");
+    const header = (raw[0] || []).map(normHeader);
+    const col = (name: string) => header.indexOf(name);
+    const iData = col("data/hora lancamento"), iPlaca = col("placa"), iCond = col("condutor"),
+          iPosto = col("credenciado / nome fantasia"), iComb = col("combustivel"),
+          iQtd = col("quantidade"), iVUnit = col("valor unitario"), iVTot = col("valor total"),
+          iKm = col("km"), iFrota = col("numero da frota");
+    if (iPlaca < 0 || iKm < 0) throw new BadRequestException("Layout não reconhecido (esperado relatório com colunas Placa e KM).");
+
+    const veiculos = await this.db.veiculo.findMany({ where: { organizationId: orgId, deletedAt: null }, select: { id: true, placa: true, codigo: true, kmAtual: true } });
+    const byPlaca = new Map<string, any>(), byCodigo = new Map<string, any>();
+    for (const v of veiculos) { if (v.placa) byPlaca.set(normPlacaImp(v.placa), v); if (v.codigo) byCodigo.set(normPlacaImp(v.codigo), v); }
+
+    const dataRows = raw.slice(1).filter(r => r && r.some((c: any) => c != null && c !== ""));
+    const parsed: any[] = [];
+    for (const r of dataRows) {
+      const placa = normPlacaImp(r[iPlaca]);
+      const comb = normComb(r[iComb]);
+      const p: any = {
+        placaRaw: String(r[iPlaca] ?? "").trim(), placa, comb,
+        km: toIntImp(r[iKm]), litros: toNumImp(r[iQtd]), valorLitro: toNumImp(r[iVUnit]), valorTotal: toNumImp(r[iVTot]),
+        data: parseDataHora(r[iData]),
+        posto: (r[iPosto] != null ? String(r[iPosto]).trim() : "") || null,
+        condutor: (r[iCond] != null ? String(r[iCond]).trim() : "") || null,
+        frota: iFrota >= 0 ? normPlacaImp(r[iFrota]) : "",
+      };
+      let veic = placa ? (byPlaca.get(placa) || byCodigo.get(placa)) : null;
+      if (!veic && p.frota) veic = byCodigo.get(p.frota) || byPlaca.get(p.frota);
+      p.veiculo = veic || null;
+      if (comb === "arla") { p.acao = "ignorar"; p.motivo = "ARLA (não é combustível)"; }
+      else if (!placa) { p.acao = "ignorar"; p.motivo = "sem placa"; }
+      else if (veic) { p.acao = "importar"; }
+      else if (PLATE_RE.test(placa)) { p.acao = "cadastrar"; p.motivo = "placa não cadastrada — será criada"; }
+      else { p.acao = "ignorar"; p.motivo = "código (não é placa)"; }
+      parsed.push(p);
+    }
+
+    // dedup contra o que já existe (veículo + data exata)
+    const datas = parsed.map(p => p.data).filter(Boolean) as Date[];
+    let existentes = new Set<string>();
+    if (datas.length) {
+      const min = new Date(Math.min(...datas.map(d => d.getTime()))), max = new Date(Math.max(...datas.map(d => d.getTime())));
+      const ja = await this.db.abastecimento.findMany({ where: { organizationId: orgId, deletedAt: null, data: { gte: min, lte: max } }, select: { veiculoId: true, data: true } });
+      existentes = new Set(ja.map(a => `${a.veiculoId}|${new Date(a.data).getTime()}`));
+    }
+    // Dedup contra o banco E entre as linhas do próprio arquivo (vistos acumula as já contadas).
+    const vistos = new Set<string>(existentes);
+    for (const p of parsed) {
+      if (p.acao !== "importar" || !p.veiculo || !p.data) continue;
+      const k = `${p.veiculo.id}|${p.data.getTime()}`;
+      if (vistos.has(k)) { p.acao = "duplicado"; p.motivo = existentes.has(k) ? "já importado" : "linha repetida na planilha"; }
+      else vistos.add(k);
+    }
+
+    const placasCadastrar = [...new Set(parsed.filter(p => p.acao === "cadastrar").map(p => p.placa))];
+    const placasIgnoradas = [...new Set(parsed.filter(p => p.acao === "ignorar" && p.placa && p.motivo === "código (não é placa)").map(p => p.placa))];
+    const resumo: any = {
+      totalLinhas: parsed.length,
+      importar: parsed.filter(p => p.acao === "importar").length,
+      cadastrarEImportar: parsed.filter(p => p.acao === "cadastrar").length,
+      duplicados: parsed.filter(p => p.acao === "duplicado").length,
+      ignorados: parsed.filter(p => p.acao === "ignorar").length,
+      placasNovas: placasCadastrar, placasIgnoradas,
+      periodo: datas.length ? { de: new Date(Math.min(...datas.map(d => d.getTime()))), ate: new Date(Math.max(...datas.map(d => d.getTime()))) } : null,
+    };
+
+    if (!confirmar) {
+      return { dryRun: true, resumo, amostra: parsed.slice(0, 25).map(p => ({ placa: p.placaRaw, veiculo: p.veiculo?.placa || null, data: p.data, km: p.km, litros: p.litros, comb: p.comb, acao: p.acao, motivo: p.motivo || null })) };
+    }
+
+    // ===== COMMIT =====
+    const novos = new Map<string, any>();
+    for (const placa of placasCadastrar) {
+      const v = await this.db.veiculo.create({ data: { id: crypto.randomUUID(), organizationId: orgId, placa, codigo: `IMP-${placa}`, status: "ativo", tipo: "carro", kmAtual: 0, criadoPorId: req.user?.id || null } as any });
+      novos.set(placa, v); byPlaca.set(placa, v);
+    }
+    for (const p of parsed) {
+      if (p.acao === "cadastrar") { p.veiculo = novos.get(p.placa) || null; p.acao = p.veiculo ? "importar" : "ignorar"; }
+    }
+
+    // Já deduplicado na marcação acima (banco + intra-arquivo): basta pegar os "importar".
+    const aInserir = parsed
+      .filter(p => p.acao === "importar" && p.veiculo && p.data)
+      .sort((a, b) => a.data.getTime() - b.data.getTime());
+    let inseridos = 0;
+    const kmPorVeiculo = new Map<string, number>();
+    for (const p of aInserir) {
+      const vid = p.veiculo.id;
+      let valorTotal = p.valorTotal;
+      if (valorTotal == null && p.litros != null && p.valorLitro != null) valorTotal = Number((p.litros * p.valorLitro).toFixed(2));
+      let consumoKmL: number | null = null, custoKm: number | null = null;
+      if (p.km != null) {
+        const ant = await this.db.abastecimento.findFirst({ where: { veiculoId: vid, deletedAt: null, kmAtual: { not: null, lt: p.km } }, orderBy: { data: "desc" }, select: { kmAtual: true } });
+        if (ant?.kmAtual != null) { const dist = p.km - ant.kmAtual; if (dist > 0) { if (p.litros) consumoKmL = Number((dist / p.litros).toFixed(2)); if (valorTotal != null) custoKm = Number((valorTotal / dist).toFixed(3)); } }
+      }
+      await this.db.abastecimento.create({ data: { id: crypto.randomUUID(), organizationId: orgId, veiculoId: vid, data: p.data, kmAtual: p.km, litros: p.litros, valorLitro: p.valorLitro, valorTotal, tipoCombustivel: p.comb || null, posto: p.posto, consumoKmL, custoKm, criadoPorId: req.user?.id || null } as any });
+      inseridos++;
+      if (p.km != null) {
+        const atual = p.veiculo.kmAtual ?? 0;
+        const plausivel = atual === 0 ? (p.km > 0 && p.km < 2000000) : (p.km > atual && (p.km - atual) <= KM_SALTO_MAX);
+        if (plausivel) kmPorVeiculo.set(vid, Math.max(kmPorVeiculo.get(vid) ?? 0, p.km));
+      }
+    }
+    let kmAtualizados = 0;
+    for (const [vid, km] of kmPorVeiculo) {
+      // Veículos novos são criados com kmAtual 0 e os existentes têm valor; só avança para cima.
+      const rr = await this.db.veiculo.updateMany({ where: { id: vid, kmAtual: { lt: km } }, data: { kmAtual: km } });
+      kmAtualizados += rr.count;
+    }
+    return { dryRun: false, resumo: { ...resumo, inseridos, veiculosCadastrados: novos.size, kmAtualizados } };
   }
 
   // GET /frota/abastecimentos/analise/consumo — consumo médio, custo/km e desvios
@@ -1441,7 +1665,7 @@ class FrotaHistoricoController {
 
 // ── Module ─────────────────────────────────────────────────────────────────────
 @Module({
-  imports: [AuditModule, NotificationsModule],
+  imports: [AuditModule, NotificationsModule, ReservasModule],
   controllers: [
     FrotaDashboardController,
     VeiculosController,

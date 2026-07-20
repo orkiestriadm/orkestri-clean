@@ -1,7 +1,17 @@
-import { Module, Controller, Get, Post, Put, Delete, Body, Param, UseGuards, Req } from "@nestjs/common";
+import { Module, Controller, Get, Post, Put, Delete, Body, Param, UseGuards, Req, ForbiddenException } from "@nestjs/common";
 import { AuthGuard } from "@nestjs/passport";
 import { IsString, IsOptional } from "class-validator";
 import { PrismaService } from "../../prisma/prisma.service";
+
+// Masters e usuarios com a permissao RBAC "setores:gerenciar" (ex: administrador)
+// podem gerenciar setores. Antes exigia apenas isMaster, o que barrava admins.
+function canManageSetores(user: any): boolean {
+  return !!user && (
+    user.isMaster ||
+    user.permissions?.includes("*") ||
+    user.permissions?.includes("setores:gerenciar")
+  );
+}
 
 class SetorDto {
   @IsString() nome: string;
@@ -59,7 +69,7 @@ class SetoresController {
   @Post()
   @UseGuards(AuthGuard("jwt"))
   async create(@Body() dto: SetorDto, @Req() req: any) {
-    if (!req.user.isMaster) throw new Error("Apenas masters");
+    if (!canManageSetores(req.user)) throw new ForbiddenException("Voce nao tem permissao para gerenciar setores");
     const orgId = req.user?.organizationId;
     return (this.prisma.setor.create as any)({
       data: {
@@ -77,7 +87,7 @@ class SetoresController {
   @Put(":id")
   @UseGuards(AuthGuard("jwt"))
   async update(@Param("id") id: string, @Body() dto: SetorDto, @Req() req: any) {
-    if (!req.user.isMaster) throw new Error("Apenas masters");
+    if (!canManageSetores(req.user)) throw new ForbiddenException("Voce nao tem permissao para gerenciar setores");
     if (dto.parentId === id) throw new Error("Um setor não pode ser pai de si mesmo");
     return (this.prisma.setor.update as any)({
       where: { id },
@@ -95,7 +105,7 @@ class SetoresController {
   @Delete(":id")
   @UseGuards(AuthGuard("jwt"))
   async remove(@Param("id") id: string, @Req() req: any) {
-    if (!req.user.isMaster) throw new Error("Apenas masters");
+    if (!canManageSetores(req.user)) throw new ForbiddenException("Voce nao tem permissao para gerenciar setores");
     const setor = await (this.prisma.setor.findUnique as any)({ where: { id } });
     // Move children up to grandparent
     await (this.prisma.setor.updateMany as any)({

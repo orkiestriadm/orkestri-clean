@@ -14,7 +14,14 @@ const CACHE_USER       = (id: string) => `cache:user:${id}`;
 const TTL_LIST         = 60;   // 1 min
 const TTL_USER         = 120;  // 2 min
 
-const ALL_MODULOS = ["projetos", "crm", "keep", "gantt", "relatorios"];
+// Modulos "gerenciaveis" (visibilidade no menu). Devem casar com o catalogo do
+// front (cadastros/page.tsx MODULOS_CATALOG) e com o gating do Sidebar.tsx.
+// Regra: lista vazia => usuario ve TODOS os modulos (retrocompat, ninguem perde acesso).
+const ALL_MODULOS = [
+  "chamados", "conhecimento", "projetos", "gantt", "agenda", "ativos",
+  "monitoramento", "keep", "crm", "financeiro", "orcamento", "frota", "relatorios",
+  "whatsapp",
+];
 
 function parseModulos(raw?: string | null): string[] {
   try { return JSON.parse(raw || "[]"); } catch { return [...ALL_MODULOS]; }

@@ -6,8 +6,8 @@ import Topbar from "@/components/layout/Topbar";
 import { useAuthStore } from "@/lib/store";
 import { api } from "@/lib/api";
 import { 
-  History, Plus, Pencil, Trash2, X, Eye, 
-  Search, Download, Filter, ChevronLeft,
+  History, Plus, Pencil, Trash2, X, Eye,
+  Search, Download, ChevronLeft,
   Truck, Users, Disc, CalendarDays, Wrench, FileText, Zap, Settings, HelpCircle
 } from "lucide-react";
 
@@ -84,7 +84,7 @@ const SOURCE_EP: Record<SourceKey, string> = {
   centrosCusto: "/orcamento/centros-custo",
 };
 function sourceLabel(key: SourceKey, row: any): string {
-  if (key === "veiculos")     return `${row.placa || row.codigo}${row.modelo ? " — " + row.modelo : ""}`;
+  if (key === "veiculos")     return `${row.placa || row.codigo}${row.modelo ? " — " + row.modelo : ""}${row.descricao ? " · " + String(row.descricao).slice(0, 30) : ""}`;
   if (key === "centrosCusto") return `${row.codigo ? row.codigo + " — " : ""}${row.nome}`;
   return row.nome || row.placa || row.id;
 }
@@ -237,7 +237,6 @@ export default function CrudView({ config, intro }: { config: CrudConfig; intro?
   const [creating, setCreating] = useState(false);
   const [histId, setHistId] = useState<string | null>(null);
   const [msg, setMsg] = useState("");
-  const [showFilters, setShowFilters] = useState(false);
 
   const limit = 30;
   const canCreate = hasPerms(user, "frota:criar");
@@ -332,11 +331,6 @@ export default function CrudView({ config, intro }: { config: CrudConfig; intro?
               </p>
             </div>
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              {(config.filters || []).length > 0 && (
-                <button onClick={() => setShowFilters(s => !s)} className={`btn ${showFilters ? 'btn-violet' : 'btn-ghost'}`} style={{ fontSize: 12, gap: 6 }}>
-                  <Filter size={14} /> Filtros
-                </button>
-              )}
               <button onClick={exportCSV} className="btn btn-ghost" style={{ fontSize: 12, gap: 6 }}>
                 <Download size={14} /> Exportar CSV
               </button>
@@ -350,35 +344,37 @@ export default function CrudView({ config, intro }: { config: CrudConfig; intro?
 
           {intro}
 
-          {/* Search Bar + Dynamic Select Filters */}
-          <div className="card-premium" style={{ display: "flex", flexWrap: "wrap", gap: 14, padding: "14px 18px", marginBottom: 20, alignItems: "center" }}>
-            <div style={{ flex: 1, minWidth: 260, position: "relative" }}>
-              <Search size={14} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "var(--text-muted)" }} />
-              <input 
-                className="input-o" 
-                placeholder={`Pesquisar por ${config.singular}...`} 
-                value={q} 
-                onChange={e => setQ(e.target.value)} 
-                style={{ paddingLeft: 34, width: "100%" }} 
-              />
+          {/* Busca + filtros (sempre visíveis) */}
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginBottom: 18, alignItems: "center" }}>
+            <div style={{ flex: "1 1 260px", minWidth: 220, position: "relative" }}>
+              <Search size={14} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "var(--text-muted)", pointerEvents: "none" }} />
+              <input className="input-o" placeholder={`Pesquisar por ${config.singular}...`} value={q} onChange={e => setQ(e.target.value)} style={{ paddingLeft: 34, width: "100%" }} />
             </div>
-            {showFilters && (config.filters || []).map(flt => (
-              <select key={flt.key} className="input-o" style={{ minWidth: 160 }}
+            {(config.filters || []).map(flt => (
+              <select key={flt.key} className="input-o" style={{ minWidth: 150, flex: "0 0 auto" }}
                 value={filterVals[flt.key] || ""} onChange={e => setFilterVals(v => ({ ...v, [flt.key]: e.target.value }))}>
                 <option value="">{flt.label}: todos</option>
                 {flt.options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
               </select>
             ))}
+            {(q || Object.values(filterVals).some(Boolean)) && <button className="btn btn-ghost" style={{ fontSize: 11 }} onClick={() => { setQ(""); setFilterVals({}); }}>Limpar</button>}
+            <span style={{ fontSize: 11, color: "var(--text-muted)", fontFamily: "var(--font-mono)", marginLeft: "auto" }}>{total} {config.singular}{total !== 1 ? "s" : ""}</span>
           </div>
 
+          <style>{`
+            @keyframes crudIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+            .crud-row { animation: crudIn .3s ease both; }
+            .crud-row:hover { background: var(--bg-hover); box-shadow: inset 2px 0 0 var(--accent-violet); }
+          `}</style>
           {/* Table Card */}
-          <div className="card-premium overflow-hidden">
+          <div className="card-premium overflow-hidden" style={{ position: "relative" }}>
+            <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 2, background: "linear-gradient(90deg, var(--accent-violet), transparent 55%)", zIndex: 1 }} />
             <div style={{ overflowX: "auto" }}>
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
                 <thead>
-                  <tr className="border-b border-[var(--border-subtle)] bg-[var(--bg-primary)]">
+                  <tr style={{ borderBottom: "1px solid var(--border-subtle)", background: "linear-gradient(180deg, var(--bg-hover), transparent)" }}>
                     {config.columns.map(c => (
-                      <th key={c.key} style={{ textAlign: c.align || "left", padding: "12px 16px", fontSize: 10, fontFamily: "var(--font-mono)", color: "var(--text-muted)", fontWeight: 600, textTransform: "uppercase", whiteSpace: "nowrap" }}>{c.label}</th>
+                      <th key={c.key} style={{ textAlign: c.align || "left", padding: "13px 16px", fontSize: 10, fontFamily: "var(--font-mono)", color: "var(--text-muted)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.1em", whiteSpace: "nowrap" }}>{c.label}</th>
                     ))}
                     <th style={{ width: 1 }} />
                   </tr>
@@ -386,8 +382,8 @@ export default function CrudView({ config, intro }: { config: CrudConfig; intro?
                 <tbody>
                   {loading && <tr><td colSpan={config.columns.length + 1} style={{ padding: 24, textAlign: "center", color: "var(--text-muted)" }}>Carregando...</td></tr>}
                   {!loading && items.length === 0 && <tr><td colSpan={config.columns.length + 1} style={{ padding: 24, textAlign: "center", color: "var(--text-muted)" }}>Nenhum registro encontrado.</td></tr>}
-                  {!loading && items.map((row) => (
-                    <tr key={row.id} className="border-b border-[var(--border-subtle)] hover:bg-[var(--bg-hover)] transition-colors">
+                  {!loading && items.map((row, ri) => (
+                    <tr key={row.id} className="crud-row border-b border-[var(--border-subtle)] transition-colors" style={{ animationDelay: `${Math.min(ri, 16) * 22}ms` }}>
                       {config.columns.map(c => (
                         <td key={c.key} style={{ padding: "12px 16px", textAlign: c.align || "left", color: "var(--text-primary)", verticalAlign: "middle" }}>
                           {c.render ? c.render(row, lookups) : (row[c.key] ?? "—")}

@@ -22,6 +22,17 @@ const TTL_ROLES     = 300;  // 5 min
 const TTL_PERMS     = 3600; // 1 h
 const TTL_MATRIX    = 300;  // 5 min
 
+// Pode gerenciar papéis/permissões de usuários: master, curinga, ou a permissão
+// RBAC "usuarios:permissoes" (ex.: administrador). Antes exigia só isMaster, o que
+// impedia o administrador de editar o perfil/permissões de outros usuários.
+function canManagePerms(user: any): boolean {
+  return !!user && (
+    user.isMaster ||
+    user.permissions?.includes("*") ||
+    user.permissions?.includes("usuarios:permissoes")
+  );
+}
+
 // ──────────────────────────────────────────────
 // Controller de Papéis (Roles)
 // ──────────────────────────────────────────────
@@ -157,7 +168,7 @@ class UserPermissionsController {
   // GET /rbac/users/:userId/roles — papéis do usuário
   @Get("roles")
   async getUserRoles(@Param("userId") userId: string, @Req() req: any) {
-    if (!req.user.isMaster && req.user.id !== userId) throw new ForbiddenException();
+    if (!canManagePerms(req.user) && req.user.id !== userId) throw new ForbiddenException();
     return this.prisma.userRole.findMany({
       where: { userId },
       include: { role: { include: { rolePermissions: { include: { permission: true } } } } },
@@ -167,7 +178,7 @@ class UserPermissionsController {
   // POST /rbac/users/:userId/roles — atribuir papel
   @Post("roles")
   async assignRole(@Param("userId") userId: string, @Body() body: any, @Req() req: any) {
-    if (!req.user.isMaster) throw new ForbiddenException("Apenas masters");
+    if (!canManagePerms(req.user)) throw new ForbiddenException("Sem permissao para gerenciar papeis");
     const { roleId } = body;
     if (!roleId) throw new BadRequestException("roleId é obrigatório");
     const role = await this.prisma.role.findUnique({ where: { id: roleId } });
@@ -187,7 +198,10 @@ class UserPermissionsController {
   @Delete("roles/:roleId")
   @HttpCode(HttpStatus.NO_CONTENT)
   async removeRole(@Param("userId") userId: string, @Param("roleId") roleId: string, @Req() req: any) {
-    if (!req.user.isMaster) throw new ForbiddenException("Apenas masters");
+    if (!canManagePerms(req.user)) throw new ForbiddenException("Sem permissao para gerenciar papeis");
+    // Papel master só pode ser removido por master (evita não-master mexer em master).
+    const role = await this.prisma.role.findUnique({ where: { id: roleId } });
+    if (role?.isMaster && !req.user.isMaster) throw new ForbiddenException("Apenas masters podem remover o papel master");
     await this.prisma.userRole.deleteMany({ where: { userId, roleId } });
     await this.cache.del(`cache:user:${userId}`, `cache:permissions:${userId}`, "cache:users:list");
   }
@@ -195,7 +209,7 @@ class UserPermissionsController {
   // GET /rbac/users/:userId/overrides — overrides individuais
   @Get("overrides")
   async getOverrides(@Param("userId") userId: string, @Req() req: any) {
-    if (!req.user.isMaster && req.user.id !== userId) throw new ForbiddenException();
+    if (!canManagePerms(req.user) && req.user.id !== userId) throw new ForbiddenException();
     return this.prisma.userPermissionOverride.findMany({
       where: { userId },
       include: { permission: true },
@@ -205,7 +219,7 @@ class UserPermissionsController {
   // POST /rbac/users/:userId/overrides — criar/atualizar override
   @Post("overrides")
   async setOverride(@Param("userId") userId: string, @Body() body: any, @Req() req: any) {
-    if (!req.user.isMaster) throw new ForbiddenException("Apenas masters");
+    if (!canManagePerms(req.user)) throw new ForbiddenException("Sem permissao para gerenciar permissoes");
     const { permissionId, conceder } = body;
     if (!permissionId) throw new BadRequestException("permissionId é obrigatório");
     const result = await this.prisma.userPermissionOverride.upsert({
@@ -221,7 +235,7 @@ class UserPermissionsController {
   @Delete("overrides/:permissionId")
   @HttpCode(HttpStatus.NO_CONTENT)
   async removeOverride(@Param("userId") userId: string, @Param("permissionId") permissionId: string, @Req() req: any) {
-    if (!req.user.isMaster) throw new ForbiddenException("Apenas masters");
+    if (!canManagePerms(req.user)) throw new ForbiddenException("Sem permissao para gerenciar permissoes");
     await this.prisma.userPermissionOverride.deleteMany({ where: { userId, permissionId } });
     await this.cache.del(`cache:user:${userId}`, `cache:permissions:${userId}`);
   }
@@ -229,7 +243,7 @@ class UserPermissionsController {
   // GET /rbac/users/:userId/effective — permissões efetivas resolvidas
   @Get("effective")
   async getEffective(@Param("userId") userId: string, @Req() req: any) {
-    if (!req.user.isMaster && req.user.id !== userId) throw new ForbiddenException();
+    if (!canManagePerms(req.user) && req.user.id !== userId) throw new ForbiddenException();
     const permissions = await this.authService.resolvePermissions(userId);
     return { userId, permissions };
   }

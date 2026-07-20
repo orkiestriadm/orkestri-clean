@@ -6,7 +6,9 @@ const BASE = typeof window !== "undefined"
   : "http://localhost/api";
 
 // withCredentials: true ensures HttpOnly cookies are sent automatically
-export const api = axios.create({ baseURL: BASE, withCredentials: true, timeout: 10000 });
+// timeout 30s: evita falsos "sem conexao" em janelas de contencao (ex: backup do
+// Postgres) ou endpoints externos mais lentos (OSA/Zabbix). Antes era 10s.
+export const api = axios.create({ baseURL: BASE, withCredentials: true, timeout: 30000 });
 
 // ── Request interceptor: CSRF Double Submit Cookie ──
 api.interceptors.request.use((config) => {

@@ -8,7 +8,7 @@ import { api } from "@/lib/api";
 import { Badge, fmtDate, fmtMoney } from "../../_components/crud";
 import PneuTree from "../../_components/PneuTree";
 import {
-  ArrowLeft, Clock, Package as DiscIcon, CalendarDays, Wrench, Users, DollarSign, Plus, X,
+  ArrowLeft, Clock, Package as DiscIcon, CalendarDays, Wrench, Users, DollarSign, Plus, X, RefreshCw,
 } from "lucide-react";
 
 const STATUS: Record<string, { label: string; color: string }> = {
@@ -119,6 +119,56 @@ const TABS = [
   { id: "custos", label: "Custos", icon: DollarSign },
 ];
 
+// Modal "Atualizar KM Atual": pre-preenche com o KM do ultimo abastecimento e permite
+// ajustar manualmente. Grava no kmAtual do veiculo (usado pela Revisao e pelos Pneus).
+function KmModal({ veiculoId, kmAtual, ultimoAbastKm, onSaved, onClose }: { veiculoId: string; kmAtual?: number | null; ultimoAbastKm?: number | null; onSaved: () => void; onClose: () => void }) {
+  const [km, setKm] = useState<number | "">(ultimoAbastKm ?? kmAtual ?? "");
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState("");
+  const [msg, setMsg] = useState("");
+  const fmt = (n?: number | null) => n != null ? n.toLocaleString("pt-BR") : "—";
+
+  const puxar = () => {
+    setErr(""); setMsg("");
+    if (ultimoAbastKm != null) { setKm(ultimoAbastKm); setMsg(`Puxado do abastecimento: ${fmt(ultimoAbastKm)} km`); }
+    else setErr("Nenhum abastecimento com KM registrado para este veiculo.");
+  };
+  const salvar = async () => {
+    if (km === "" || isNaN(Number(km))) { setErr("Informe um KM valido"); return; }
+    setSaving(true); setErr("");
+    try { await api.post(`/frota/veiculos/${veiculoId}/atualizar-km`, { km: Math.trunc(Number(km)) }); onSaved(); }
+    catch (e: any) { setErr(e?.response?.data?.message || "Erro ao atualizar"); setSaving(false); }
+  };
+
+  return (
+    <div className="modal-overlay" onClick={e => { if ((e.target as HTMLElement).classList.contains("modal-overlay")) onClose(); }}>
+      <div className="modal-box" style={{ maxWidth: 420, display: "flex", flexDirection: "column", gap: 14 }} onClick={e => e.stopPropagation()}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <h3 style={{ fontFamily: "var(--font-display)", fontSize: 16, fontWeight: 700 }}>Atualizar KM Atual</h3>
+          <button className="btn-icon" onClick={onClose}><X size={16} /></button>
+        </div>
+        <div style={{ fontSize: 12, color: "var(--text-muted)", display: "flex", justifyContent: "space-between", gap: 12 }}>
+          <span>Hodometro atual: <b style={{ color: "var(--text-primary)" }}>{fmt(kmAtual)} km</b></span>
+          <span>Ultimo abastecimento: <b style={{ color: "var(--text-primary)" }}>{fmt(ultimoAbastKm)} km</b></span>
+        </div>
+        <div>
+          <label style={{ fontSize: 11, color: "var(--text-muted)", fontFamily: "var(--font-mono)", letterSpacing: "0.08em", display: "block", marginBottom: 6 }}>NOVO KM ATUAL</label>
+          <div style={{ display: "flex", gap: 8 }}>
+            <input className="input-o" type="number" value={km} onChange={e => setKm(e.target.value === "" ? "" : Number(e.target.value))} style={{ flex: 1 }} autoFocus />
+            <button className="btn btn-ghost" style={{ whiteSpace: "nowrap", display: "inline-flex", alignItems: "center", gap: 6 }} onClick={puxar}><RefreshCw size={13} /> Puxar do abastecimento</button>
+          </div>
+        </div>
+        {msg && <div style={{ fontSize: 12, color: "var(--accent-green)" }}>{msg}</div>}
+        {err && <div style={{ fontSize: 12, color: "var(--accent-red)" }}>{err}</div>}
+        <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
+          <button className="btn btn-ghost" onClick={onClose}>Cancelar</button>
+          <button className="btn btn-violet" onClick={salvar} disabled={saving}>{saving ? "Salvando..." : "Salvar KM"}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function VeiculoDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
@@ -129,7 +179,9 @@ export default function VeiculoDetailPage() {
   const [tab, setTab] = useState("timeline");
   const [loading, setLoading] = useState(true);
   const [condutorOpen, setCondutorOpen] = useState(false);
+  const [kmOpen, setKmOpen] = useState(false);
   const canCreate = hasPerms(user, "frota:criar");
+  const canEdit = hasPerms(user, "frota:editar");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -149,6 +201,9 @@ export default function VeiculoDetailPage() {
   if (!v) return <div className="flex flex-col h-full"><Topbar /><main className="flex-1 p-6 text-[var(--text-muted)] text-sm">Veículo não encontrado.</main></div>;
 
   const st = STATUS[v.status] || { label: v.status, color: "var(--text-muted)" };
+  // Maior KM lançado nos abastecimentos deste veículo (para o modal "Atualizar KM")
+  const ultimoAbastKm: number | null = (v.abastecimentos || []).reduce(
+    (mx: number | null, a: any) => (a.kmAtual != null && (mx == null || a.kmAtual > mx) ? a.kmAtual : mx), null);
 
   // Custos consolidados
   const custos: { data: any; tipo: string; descricao: string; valor: number }[] = [];
@@ -161,7 +216,7 @@ export default function VeiculoDetailPage() {
 
   const INFO: [string, any][] = [
     ["Código", v.codigo], ["RENAVAM", v.renavam], ["Chassi", v.chassi],
-    ["Marca", v.marca], ["Modelo", v.modelo], ["Ano", [v.anoFabricacao, v.anoModelo].filter(Boolean).join("/")],
+    ["Marca", v.marca], ["Modelo", v.modelo], ["Descrição", v.descricao], ["Ano", [v.anoFabricacao, v.anoModelo].filter(Boolean).join("/")],
     ["Cor", v.cor], ["Tipo", v.tipo], ["Combustível", v.combustivel],
     ["Categoria", v.categoria?.nome], ["Centro de custo", v.centroCusto?.nome], ["Unidade", v.unidade],
     ["Setor", v.setor?.nome], ["Responsável", v.responsavel?.nome], ["Motorista padrão", v.motorista?.nome],
@@ -173,6 +228,11 @@ export default function VeiculoDetailPage() {
   return (
     <div className="flex flex-col h-full">
       <Topbar>
+        {canEdit && (
+          <button className="btn btn-ghost text-xs" onClick={() => setKmOpen(true)} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <RefreshCw size={14} /> Atualizar KM
+          </button>
+        )}
         {canCreate && tab === "condutores" && (
           <button className="btn btn-violet text-xs" onClick={() => setCondutorOpen(true)} style={{ display: "flex", alignItems: "center", gap: 6 }}>
             <Plus size={14} /> Designar condutor
@@ -313,6 +373,7 @@ export default function VeiculoDetailPage() {
       </main>
 
       {condutorOpen && <CondutorModal veiculoId={v.id} kmAtual={v.kmAtual} onSaved={() => { setCondutorOpen(false); load(); }} onClose={() => setCondutorOpen(false)} />}
+      {kmOpen && <KmModal veiculoId={v.id} kmAtual={v.kmAtual} ultimoAbastKm={ultimoAbastKm} onSaved={() => { setKmOpen(false); load(); }} onClose={() => setKmOpen(false)} />}
     </div>
   );
 }

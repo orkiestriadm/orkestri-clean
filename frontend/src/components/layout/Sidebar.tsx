@@ -222,11 +222,25 @@ export default function Sidebar() {
     return next;
   });
 
+  // Permissão pura (o backend já resolve o acesso real por módulo/papel/override).
   const can = (permission: string | null) => {
     if (!permission || user?.isMaster) return true;
     // freshPerms: permissões buscadas direto da API ao montar (evita store desatualizado)
     const perms: string[] = freshPerms ?? user?.permissions ?? [];
     return perms.includes("*") || perms.includes(permission);
+  };
+
+  // Usuário "restrito" = tem lista de módulos (não-vazia) e não é master.
+  // Nesse caso, só enxerga itens dos módulos liberados + a Visão Geral (home).
+  // Itens genéricos (permission:null, ex.: Executivo/IA/Processos) ficam ocultos.
+  const userModulos = (user as any)?.modulos as string[] | undefined;
+  const restrito = !user?.isMaster && !!userModulos && userModulos.length > 0;
+  const canSee = (item: NavItem) => {
+    if (!can(item.permission)) return false;
+    if (!restrito) return true;
+    if (item.href === "/dashboard") return true;
+    if (!item.permission) return false;
+    return userModulos!.includes(item.permission.split(":")[0]);
   };
 
   const initials = (user?.nome || "U").split(" ").map((n: string) => n[0]).slice(0, 2).join("").toUpperCase();
@@ -236,7 +250,7 @@ export default function Sidebar() {
     router.replace("/login");
   };
 
-  const favItems = ALL_ITEMS.filter(item => isFavorite(item.href) && can(item.permission));
+  const favItems = ALL_ITEMS.filter(item => isFavorite(item.href) && canSee(item));
 
   return (
     <aside className="sidebar">
@@ -290,7 +304,7 @@ export default function Sidebar() {
         </div>
 
         {NAV.map(group => {
-          const visible = group.items.filter(i => can(i.permission));
+          const visible = group.items.filter(i => canSee(i));
           if (!visible.length) return null;
 
           if (!group.label) {
