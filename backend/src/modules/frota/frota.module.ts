@@ -139,7 +139,13 @@ abstract class BaseFrotaController {
       if (query[k]) where[k] = query[k];
     }
     if (query.q && this.searchFields.length) {
-      where.OR = this.searchFields.map(f => ({ [f]: { contains: query.q, mode: "insensitive" } }));
+      where.OR = this.searchFields.map(f => {
+        if (f.includes(".")) {
+          const [rel, field] = f.split(".");
+          return { [rel]: { [field]: { contains: query.q, mode: "insensitive" } } };
+        }
+        return { [f]: { contains: query.q, mode: "insensitive" } };
+      });
     }
     const [items, total] = await Promise.all([
       this.delegate.findMany({ where, include: this.include, orderBy: this.orderBy, take, skip }),
@@ -1071,7 +1077,7 @@ class AbastecimentosController extends BaseFrotaController {
   constructor(prisma: PrismaService, audit: AuditService) { super(prisma, audit); }
   protected model = "abastecimento";
   protected tabela = "abastecimentos";
-  protected searchFields = ["posto", "tipoCombustivel"];
+  protected searchFields = ["veiculo.placa", "veiculo.codigo", "posto"];
   protected requiredFields = ["veiculoId"];
   protected filterKeys = ["veiculoId", "motoristaId"];
   protected orderBy = { data: "desc" } as any;
