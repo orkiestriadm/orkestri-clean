@@ -243,7 +243,8 @@ export default function Sidebar() {
     <aside className="sidebar">
       {/* ── Logo ── */}
       <div className="flex items-center justify-center h-16 border-b border-[var(--sidebar-border)] shrink-0 px-4">
-        <BrandLogo size="md" />
+        <img src="/branding/logo-ttbr-colorida.png" alt="Triunfo TBR" className="h-8 w-auto block dark:hidden" />
+        <img src="/branding/logo-ttbr-branca.png" alt="Triunfo TBR" className="h-8 w-auto hidden dark:block" />
       </div>
 
       {/* ── Navigation ── */}
