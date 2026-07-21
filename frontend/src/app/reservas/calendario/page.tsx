@@ -41,18 +41,32 @@ export default function CalendarioReservas() {
         api.get("/frota/veiculos")
       ]);
       
-      const formatedEvents = resReservas.data.map((r: any) => ({
-        id: r.id,
-        title: `${r.veiculo?.placa || ''} - ${r.titulo}`,
-        start: new Date(r.dataInicio),
-        end: new Date(r.dataFim),
-        resource: r.veiculoId,
-        status: r.status,
+      const getArray = (data: any) => {
+        if (Array.isArray(data)) return data;
+        if (data?.linhas && Array.isArray(data.linhas)) return data.linhas;
+        if (data?.data && Array.isArray(data.data)) return data.data;
+        if (data?.items && Array.isArray(data.items)) return data.items;
+        return [];
+      };
+
+      const reservasArray = getArray(resReservas?.data);
+      const veiculosArray = getArray(resVeiculos?.data);
+
+      const formatedEvents = reservasArray.map((r: any) => ({
+        id: r?.id || Math.random().toString(),
+        title: `${r?.veiculo?.placa || ''} - ${r?.titulo || r?.motivo || 'Reserva'}`,
+        start: r?.dataInicio ? new Date(r.dataInicio) : new Date(),
+        end: r?.dataFim ? new Date(r.dataFim) : new Date(),
+        resource: r?.veiculoId,
+        status: r?.status || 'CONFIRMADA',
       }));
+
       setEvents(formatedEvents);
-      setVeiculos(resVeiculos.data?.linhas || resVeiculos.data || []);
+      setVeiculos(veiculosArray);
     } catch (e) {
       console.error("Erro ao carregar reservas", e);
+      setEvents([]);
+      setVeiculos([]);
     } finally {
       setLoading(false);
     }

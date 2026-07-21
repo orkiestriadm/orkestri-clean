@@ -18,9 +18,17 @@ export default function VeiculosDisponiveis() {
       setLoading(true);
       const { data } = await api.get("/frota/veiculos");
       // Formata ou salva os veículos reais retornados
-      setVeiculos(data.linhas || data || []);
+      const getArray = (d: any) => {
+        if (Array.isArray(d)) return d;
+        if (d?.linhas && Array.isArray(d.linhas)) return d.linhas;
+        if (d?.data && Array.isArray(d.data)) return d.data;
+        if (d?.items && Array.isArray(d.items)) return d.items;
+        return [];
+      };
+      setVeiculos(getArray(data));
     } catch (e) {
       console.error("Erro ao carregar lista de veículos", e);
+      setVeiculos([]);
     } finally {
       setLoading(false);
     }
