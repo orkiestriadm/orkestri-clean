@@ -113,17 +113,6 @@ const BASE_PERMISSIONS = [
   "whatsapp:ver",
 ];
 
-// Módulos "gerenciáveis" por usuário (recurso RBAC). Quando o usuário tem uma lista
-// de módulos (profile.modulos) NÃO vazia, o acesso dele é restrito EXATAMENTE a esses
-// módulos: permissões desses recursos que não estejam liberados são removidas, e cada
-// módulo liberado concede todas as suas ações. Lista vazia = sem restrição (admin/legado).
-// Deve casar com o catálogo do front (cadastros MODULOS_CFG) e o Sidebar.
-const MODULE_RESOURCES = new Set([
-  "chamados", "conhecimento", "projetos", "gantt", "agenda", "ativos",
-  "monitoramento", "keep", "crm", "financeiro", "orcamento", "frota", "relatorios",
-  "whatsapp",
-]);
-
 // Permissões por papel padrão (master ignora — tem acesso total via isMaster)
 // As BASE_PERMISSIONS são adicionadas automaticamente no resolvePermissions()
 // e NÃO precisam ser repetidas aqui, mas estão inclusas para clareza na UI
@@ -415,12 +404,10 @@ export class AuthService implements OnModuleInit {
           }
         },
         permissionOverrides: { include: { permission: true } },
-        profile: { select: { modulos: true } },
       },
     }) as {
       userRoles: { role: { isMaster: boolean; rolePermissions: { permission: { recurso: string; acao: string } }[] } }[];
       permissionOverrides: { conceder: boolean; permission: { recurso: string; acao: string } }[];
-      profile: { modulos: string | null } | null;
     } | null;
 
     if (!user) return [];
@@ -430,32 +417,12 @@ export class AuthService implements OnModuleInit {
     if (user.userRoles.some(ur => ur.role.isMaster)) {
       result = ["*"];
     } else {
-      let modulos: string[] = [];
-      try { modulos = JSON.parse(user.profile?.modulos || "[]"); } catch { modulos = []; }
-      const restrito = modulos.length > 0;
-
-      // Restrito: SEM permissões base (nada forçado). Sem restrição: mantém base (legado/admin).
-      const perms = new Set<string>(restrito ? [] : BASE_PERMISSIONS);
-
-      // Permissões dos papéis
+      const perms = new Set<string>(BASE_PERMISSIONS);
       for (const ur of user.userRoles) {
         for (const rp of ur.role.rolePermissions) {
           perms.add(`${rp.permission.recurso}:${rp.permission.acao}`);
         }
       }
-
-      if (restrito) {
-        // Remove permissões de módulos gerenciáveis que NÃO foram liberados a este usuário
-        for (const key of Array.from(perms)) {
-          const recurso = key.split(":")[0];
-          if (MODULE_RESOURCES.has(recurso) && !modulos.includes(recurso)) perms.delete(key);
-        }
-        // Concede todas as ações dos módulos liberados (acesso completo ao módulo)
-        const modPerms = await this.prisma.permission.findMany({ where: { recurso: { in: modulos } } });
-        for (const p of modPerms) perms.add(`${p.recurso}:${p.acao}`);
-      }
-
-      // Overrides individuais (concede/revoga por usuário) — sempre por último, têm prioridade
       for (const ov of user.permissionOverrides) {
         const key = `${ov.permission.recurso}:${ov.permission.acao}`;
         if (ov.conceder) perms.add(key);
@@ -475,7 +442,7 @@ export class AuthService implements OnModuleInit {
   async login(email: string, senha: string) {
     const user = await this.prisma.user.findFirst({
       where: { email },
-      include: { userRoles: { include: { role: true } }, profile: { select: { modulos: true } } },
+      include: { userRoles: { include: { role: true } } },
     });
     if (!user || !user.ativo) throw new UnauthorizedException("Credenciais inválidas");
     const isMasterUser = user.userRoles.some(ur => ur.role.isMaster);
@@ -505,14 +472,12 @@ export class AuthService implements OnModuleInit {
     const permissions = await this.resolvePermissions(user.id);
     const primeiroAcesso = (user as any).primeiroAcesso ?? true;
     const organizationId = (user as any).organizationId;
-    let modulos: string[] = [];
-    try { modulos = JSON.parse((user as any).profile?.modulos || "[]"); } catch { modulos = []; }
     const payload = { sub: user.id, email: user.email, organizationId, roles, isMaster, isSuperAdmin, permissions };
     const accessToken = this.jwt.sign(payload, { secret: this.config.get("JWT_SECRET"), expiresIn: "8h" });
     const refreshToken = this.jwt.sign({ sub: user.id }, { secret: this.config.get("JWT_REFRESH_SECRET"), expiresIn: "7d" });
     return {
       accessToken, refreshToken, primeiroAcesso,
-      user: { id: user.id, nome: user.nome, email: user.email, avatar: user.avatar, organizationId, roles, isMaster, isSuperAdmin, permissions, modulos, primeiroAcesso },
+      user: { id: user.id, nome: user.nome, email: user.email, avatar: user.avatar, organizationId, roles, isMaster, isSuperAdmin, permissions, primeiroAcesso },
     };
   }
 

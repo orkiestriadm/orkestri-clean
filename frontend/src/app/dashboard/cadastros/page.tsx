@@ -54,25 +54,19 @@ type Collaborator = {
 
 // ── Constantes ────────────────────────────────────────────────────────────────
 const CORES_SETOR  = ["#a78bfa","#22d3ee","#34d399","#fbbf24","#f87171","#60a5fa","#f472b6","#94a3b8"];
-// Catálogo de módulos filtráveis (visibilidade no menu). Deve casar com
-// ALL_MODULOS do backend (users.module.ts) e GATEABLE_MODULOS do Sidebar.tsx.
+const ALL_MODULOS  = ["projetos","crm","keep","gantt","relatorios"];
 const MODULOS_CFG  = [
-  { key:"chamados",     label:"Service Desk",    desc:"Chamados, horas e CSAT",              cor:"#22d3ee" },
-  { key:"conhecimento", label:"Conhecimento",    desc:"Base de conhecimento",                cor:"#38bdf8" },
-  { key:"projetos",     label:"Projetos",        desc:"Projetos e tarefas",                  cor:"#a78bfa" },
-  { key:"gantt",        label:"Linha do Tempo",  desc:"Visualizacao Gantt",                  cor:"#34d399" },
-  { key:"agenda",       label:"Agenda",          desc:"Calendario de eventos",               cor:"#60a5fa" },
-  { key:"ativos",       label:"Ativos / CMDB",   desc:"Inventario de ativos e CMDB",         cor:"#818cf8" },
-  { key:"monitoramento",label:"Monitoramento",   desc:"Monitoramento operacional",           cor:"#f59e0b" },
-  { key:"keep",         label:"Keep",            desc:"Notas e anotacoes",                   cor:"#2dd4bf" },
-  { key:"crm",          label:"CRM",             desc:"Clientes, contratos e faturas",       cor:"#f472b6" },
-  { key:"financeiro",   label:"Financeiro",      desc:"Contas a pagar e dashboard",          cor:"#4ade80" },
-  { key:"orcamento",    label:"Orcamento",       desc:"Planejamento orcamentario",           cor:"#a3e635" },
-  { key:"frota",        label:"Gestao de Frotas",desc:"Veiculos, manutencoes e docs",        cor:"#fb923c" },
-  { key:"relatorios",   label:"Relatorios",      desc:"Dashboards e relatorios",             cor:"#fbbf24" },
-  { key:"whatsapp",     label:"WhatsApp",        desc:"Configuracao de alertas WhatsApp",    cor:"#22c55e" },
+  { key:"projetos",  label:"Projetos",       desc:"Gerenciamento de projetos e tarefas", cor:"#a78bfa" },
+  { key:"crm",       label:"CRM",            desc:"Pipeline de negocios e clientes",     cor:"#f472b6" },
+  { key:"keep",      label:"Keep",           desc:"Notas e anotacoes pessoais",           cor:"#22d3ee" },
+  { key:"gantt",     label:"Linha do Tempo", desc:"Visualizacao Gantt dos projetos",      cor:"#34d399" },
+  { key:"relatorios",label:"Relatorios",     desc:"Dashboards e relatorios analiticos",   cor:"#fbbf24" },
 ];
-const ALL_MODULOS  = MODULOS_CFG.map(m => m.key);
+const ALWAYS_ON = [
+  { label:"Visao Geral", desc:"Dashboard e resumo do sistema"    },
+  { label:"Agenda",      desc:"Calendario de eventos e reunioes" },
+  { label:"WhatsApp",    desc:"Configuracao de alertas WhatsApp" },
+];
 
 // ── Componentes base ──────────────────────────────────────────────────────────
 function Spin() {
@@ -196,14 +190,9 @@ function UserModal({ user, setores, roles, onClose, onSave }: { user?: User; set
   const [telefone, setTelefone]= useState(user?.telefone||"");
   const [setorId,  setSetorId] = useState(user?.setor?.id||"");
   const [roleId,   setRoleId]  = useState<string>("");
-  // Módulos visíveis no menu. Lista vazia no back = vê tudo; por isso, ao editar um
-  // usuário com lista vazia (legado) pré-marcamos TODOS para refletir o estado real.
-  const [modulos,  setModulos] = useState<string[]>(user?.modulos?.length ? user.modulos : ALL_MODULOS);
   const [loading,  setLoading] = useState(false);
   const [error,    setError]   = useState("");
   const isEdit = !!user;
-  const toggleModulo = (k: string) => setModulos(prev => prev.includes(k) ? prev.filter(x => x !== k) : [...prev, k]);
-  const allModulosOn = modulos.length >= ALL_MODULOS.length;
 
   // Busca papel atual do usuário na edição
   useEffect(() => {
@@ -227,9 +216,8 @@ function UserModal({ user, setores, roles, onClose, onSave }: { user?: User; set
       let userId = user?.id;
       if (isEdit) {
         await api.put("/users/"+user!.id, { nome, email, cargo, telefone, setorId:setorId||undefined });
-        await api.patch("/users/"+user!.id+"/modulos", { modulos });
       } else {
-        const res = await api.post("/users", { nome, email, senha, cargo, telefone, setorId:setorId||undefined, modulos });
+        const res = await api.post("/users", { nome, email, senha, cargo, telefone, setorId:setorId||undefined, modulos:[] });
         userId = res.data.id;
       }
       // Atribui papel se selecionado
@@ -310,12 +298,14 @@ function UserModal({ user, setores, roles, onClose, onSave }: { user?: User; set
       {step===2 && (
         <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
 
-          {/* Como o acesso funciona */}
-          <div style={{ padding:"10px 14px", background:"rgba(34,211,238,0.04)", border:"1px solid rgba(34,211,238,0.15)", borderRadius:8, display:"flex", alignItems:"flex-start", gap:10 }}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#22d3ee" strokeWidth="2" style={{ marginTop:2, flexShrink:0 }}><circle cx="12" cy="12" r="10"/><polyline points="12 8 12 12 14 14"/></svg>
-            <div style={{ fontSize:11, color:"var(--text-secondary)", lineHeight:1.5 }}>
-              O usuario so acessa os <b>modulos marcados</b> abaixo — nenhum outro (nem por URL). Sem modulos marcados, ve apenas a Visao Geral. O <b>papel</b> serve para acessos administrativos (usuarios, configuracoes) que nao sao modulos.
+          {/* Permissões base fixas */}
+          <div style={{ padding:"10px 14px", background:"rgba(34,211,238,0.04)", border:"1px solid rgba(34,211,238,0.15)", borderRadius:8, display:"flex", alignItems:"center", gap:10 }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#22d3ee" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 8 12 12 14 14"/></svg>
+            <div>
+              <span style={{ fontSize:12, fontWeight:500, color:"#22d3ee" }}>Permissoes base (fixas para todos)</span>
+              <span style={{ fontSize:11, color:"var(--text-muted)", marginLeft:8 }}>Agenda completa · WhatsApp</span>
             </div>
+            <span style={{ fontSize:9, fontFamily:"var(--font-mono)", color:"#22d3ee", marginLeft:"auto" }}>SEMPRE ATIVO</span>
           </div>
 
           {/* Seleção de papel */}
@@ -374,37 +364,6 @@ function UserModal({ user, setores, roles, onClose, onSave }: { user?: User; set
               </div>
             </div>
           )}
-
-          {/* Seleção de módulos visíveis no menu */}
-          <div>
-            <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:10 }}>
-              <div style={{ fontSize:10, color:"var(--text-muted)", fontFamily:"var(--font-mono)", letterSpacing:"0.1em" }}>MODULOS VISIVEIS NO MENU</div>
-              <button onClick={()=>setModulos(allModulosOn ? [] : ALL_MODULOS.slice())}
-                style={{ fontSize:10, fontFamily:"var(--font-mono)", color:"var(--accent-violet)", background:"transparent", border:"none", cursor:"pointer" }}>
-                {allModulosOn ? "Desmarcar todos" : "Marcar todos"}
-              </button>
-            </div>
-            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
-              {MODULOS_CFG.map(m => {
-                const on = modulos.includes(m.key);
-                return (
-                  <button key={m.key} onClick={()=>toggleModulo(m.key)}
-                    style={{ display:"flex", alignItems:"center", gap:10, padding:"9px 12px", background:on?"var(--bg-hover)":"transparent", border:`1px solid ${on?m.cor+"55":"var(--border-subtle)"}`, borderRadius:8, cursor:"pointer", textAlign:"left", transition:"all 0.15s" }}>
-                    <div style={{ width:16, height:16, borderRadius:4, border:`2px solid ${on?m.cor:"var(--border-subtle)"}`, background:on?m.cor:"transparent", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
-                      {on && <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>}
-                    </div>
-                    <div style={{ minWidth:0 }}>
-                      <div style={{ fontSize:12, fontWeight:600, color:on?"var(--text-primary)":"var(--text-secondary)" }}>{m.label}</div>
-                      <div style={{ fontSize:10, color:"var(--text-muted)", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{m.desc}</div>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-            <div style={{ fontSize:10, color:"var(--text-muted)", marginTop:8, lineHeight:1.5 }}>
-              Cada modulo marcado libera o acesso completo a ele (menu + uso). Desmarcado = sem acesso. Apenas a Visao Geral fica sempre visivel.
-            </div>
-          </div>
 
           {error && <div style={{ background:"rgba(220,38,38,0.08)", border:"1px solid rgba(220,38,38,0.2)", borderRadius:8, padding:"10px 14px", color:"var(--accent-red)", fontSize:12 }}>{error}</div>}
           <div style={{ display:"flex", gap:10 }}>
