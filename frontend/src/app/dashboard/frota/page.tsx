@@ -7,7 +7,7 @@ import Link from "next/link";
 import Topbar from "@/components/layout/Topbar";
 import { api } from "@/lib/api";
 import {
-  Truck, CheckCircle2, Wrench, CalendarDays, CreditCard, Package, Activity, DollarSign, BarChart2, TrendingUp, Filter, RefreshCw, ChevronRight,
+  Truck, CheckCircle2, Wrench, CalendarDays, CreditCard, Package, Activity, DollarSign, BarChart2, TrendingUp, Filter, RefreshCw, ChevronRight, X
 } from "lucide-react";
 import {
   ResponsiveContainer, BarChart, Bar, LineChart, Line, ComposedChart, PieChart, Pie, Cell,
@@ -21,24 +21,22 @@ const MANUT_LABEL: Record<string, string> = { aberta: "Aberta", em_andamento: "E
 const REV_LABEL: Record<string, string> = { agendada: "Agendada", realizada: "Realizada", atrasada: "Atrasada", cancelada: "Cancelada" };
 const PNEU_LABEL: Record<string, string> = { instalacao: "Instalação", remocao: "Remoção", rodizio: "Rodízio", recapagem: "Recapagem", descarte: "Descarte" };
 
-const inputStyle: React.CSSProperties = {
-  width: "100%", padding: "7px 10px", borderRadius: 8, border: "1px solid var(--border-subtle)",
-  background: "var(--bg-secondary)", color: "var(--text-primary)", fontSize: 12.5,
-};
-const lblStyle: React.CSSProperties = { fontSize: 11, color: "var(--text-muted)", display: "block", marginBottom: 4 };
-const chartTitleStyle: React.CSSProperties = { fontSize: 14, fontWeight: 700, margin: "0 0 16px" };
-const tooltipStyle = { background: "var(--bg-card)", border: "1px solid var(--border-medium)", borderRadius: 10, fontSize: 12 };
-
-function KpiCard({ label, valor, icon, cor, sub }: { label: string; valor: string; icon: React.ReactNode; cor: string; sub?: string }) {
+function KpiCard({ label, valor, icon, colorClass, textClass, ringClass }: { label: string; valor: string; icon: React.ReactNode; colorClass: string; textClass: string; ringClass: string }) {
   return (
-    <div className="card-premium" style={{ padding: "14px 18px", display: "flex", alignItems: "center", gap: 12 }}>
-      <div style={{ width: 38, height: 38, borderRadius: 10, background: "var(--bg-secondary)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-        <span style={{ color: cor }}>{icon}</span>
-      </div>
-      <div style={{ minWidth: 0 }}>
-        <div style={{ fontSize: 20, fontWeight: 800, color: cor, lineHeight: 1.1, letterSpacing: "-0.02em", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{valor}</div>
-        <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{label}</div>
-        {sub && <div style={{ fontSize: 10, color: "var(--text-muted)", marginTop: 1, opacity: 0.8 }}>{sub}</div>}
+    <div className={`flex-1 min-w-[180px] rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm bg-white dark:bg-slate-950 p-4 transition-all relative overflow-hidden group`}>
+      <div className={`absolute -right-6 -top-6 w-24 h-24 rounded-full opacity-10 group-hover:opacity-20 transition-opacity blur-2xl ${colorClass}`} />
+      <div className="flex items-center gap-3">
+        <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 bg-slate-50 dark:bg-slate-900 ${textClass}`}>
+          {icon}
+        </div>
+        <div className="min-w-0">
+          <div className={`text-2xl font-black tracking-tight leading-tight ${textClass} truncate`}>
+            {valor}
+          </div>
+          <div className="text-xs font-medium text-slate-500 dark:text-slate-400 mt-0.5 truncate">
+            {label}
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -75,22 +73,23 @@ export default function FrotaDashboardPage() {
   const c = d?.charts || {};
 
   return (
-    <>
+    <div className="flex flex-col h-full bg-[var(--bg-primary)] text-[var(--text-primary)] animate-in fade-in slide-in-from-bottom-4 duration-500">
       <Topbar />
-      <div className="page-content">
+      
+      <main className="flex-1 overflow-y-auto page-content">
         <div style={{ maxWidth: 1400, margin: "0 auto", padding: "20px 24px 60px" }}>
 
-          {/* Header */}
+          {/* Header Row */}
           <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", marginBottom: 24 }}>
-            <div style={{ width: 44, height: 44, borderRadius: 12, background: "#6d28d9", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 6px 16px -6px rgba(109,40,217,0.6)" }}>
+            <div style={{ width: 44, height: 44, borderRadius: 12, background: "var(--accent-violet)", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 6px 16px -6px rgba(109,40,217,0.6)", flexShrink: 0 }}>
               <Truck size={22} color="#fff" />
             </div>
             <div style={{ flex: 1 }}>
               <h1 style={{ fontSize: 22, fontWeight: 800, margin: 0, letterSpacing: "-0.02em" }}>Dashboard de Frota</h1>
               <p style={{ color: "var(--text-muted)", margin: "2px 0 0", fontSize: 13 }}>Visão geral e custos da frota de veículos</p>
             </div>
-            <div style={{ display: "flex", gap: 8 }}>
-              <button onClick={() => setShowFilters(s => !s)} className="btn btn-ghost" style={{ fontSize: 12, gap: 6 }}>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <button onClick={() => setShowFilters(s => !s)} className={`btn ${showFilters ? 'btn-violet' : 'btn-ghost'}`} style={{ fontSize: 12, gap: 6 }}>
                 <Filter size={14} /> Filtros
               </button>
               <button onClick={load} className="btn btn-ghost" style={{ fontSize: 12 }}><RefreshCw size={14} /></button>
@@ -100,207 +99,227 @@ export default function FrotaDashboardPage() {
             </div>
           </div>
 
-          {/* Filters bar */}
+          {/* Filters Area */}
           {showFilters && (
-            <div className="card-premium" style={{ padding: "14px 18px", marginBottom: 20, display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 12 }}>
-              <div>
-                <label style={lblStyle}>Período início</label>
-                <input type="date" value={f.from} onChange={e => setFilter("from", e.target.value)} style={inputStyle} />
+            <div className="bg-white dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-4 mb-6">
+              <div className="flex items-center justify-between mb-4">
+                <span className="text-sm font-semibold text-slate-800 dark:text-slate-200">Filtros do Dashboard</span>
+                <button onClick={() => setF({ from: "", to: "", unidade: "", centroCustoId: "", tipo: "", veiculoId: "", motoristaId: "" })} className="text-xs text-red-500 hover:text-red-600 transition-colors flex items-center gap-1">
+                  <X size={12} /> Limpar
+                </button>
               </div>
-              <div>
-                <label style={lblStyle}>Período fim</label>
-                <input type="date" value={f.to} onChange={e => setFilter("to", e.target.value)} style={inputStyle} />
-              </div>
-              <div>
-                <label style={lblStyle}>Unidade</label>
-                <select value={f.unidade} onChange={e => setFilter("unidade", e.target.value)} style={inputStyle}>
-                  <option value="">Todas</option>
-                  {unidades.map(u => <option key={u} value={u}>{u}</option>)}
-                </select>
-              </div>
-              <div>
-                <label style={lblStyle}>Centro de Custo</label>
-                <select value={f.centroCustoId} onChange={e => setFilter("centroCustoId", e.target.value)} style={inputStyle}>
-                  <option value="">Todos</option>
-                  {centros.map((x: any) => <option key={x.id} value={x.id}>{x.nome}</option>)}
-                </select>
-              </div>
-              <div>
-                <label style={lblStyle}>Tipo Veículo</label>
-                <select value={f.tipo} onChange={e => setFilter("tipo", e.target.value)} style={inputStyle}>
-                  <option value="">Todos</option>
-                  {TIPO_OPTS.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-                </select>
-              </div>
-              <div>
-                <label style={lblStyle}>Veículo</label>
-                <select value={f.veiculoId} onChange={e => setFilter("veiculoId", e.target.value)} style={inputStyle}>
-                  <option value="">Todos</option>
-                  {veiculos.map((v: any) => <option key={v.id} value={v.id}>{v.placa}</option>)}
-                </select>
-              </div>
-              <div>
-                <label style={lblStyle}>Motorista</label>
-                <select value={f.motoristaId} onChange={e => setFilter("motoristaId", e.target.value)} style={inputStyle}>
-                  <option value="">Todos</option>
-                  {motoristas.map((m: any) => <option key={m.id} value={m.id}>{m.nome}</option>)}
-                </select>
-              </div>
-              <div style={{ display: "flex", alignItems: "flex-end", gap: 8 }}>
-                <button onClick={load} className="btn btn-violet" style={{ fontSize: 12, flex: 1 }}>Aplicar</button>
-                <button onClick={() => setF({ from: "", to: "", unidade: "", centroCustoId: "", tipo: "", veiculoId: "", motoristaId: "" })} className="btn btn-ghost" style={{ fontSize: 12 }}>Limpar</button>
+              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
+                <div>
+                  <label className="text-[11px] font-medium text-slate-500 mb-1.5 block">Início</label>
+                  <input type="date" value={f.from} onChange={e => setFilter("from", e.target.value)} className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl text-xs px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500/50" />
+                </div>
+                <div>
+                  <label className="text-[11px] font-medium text-slate-500 mb-1.5 block">Fim</label>
+                  <input type="date" value={f.to} onChange={e => setFilter("to", e.target.value)} className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl text-xs px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500/50" />
+                </div>
+                <div>
+                  <label className="text-[11px] font-medium text-slate-500 mb-1.5 block">Unidade</label>
+                  <select value={f.unidade} onChange={e => setFilter("unidade", e.target.value)} className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl text-xs px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500/50">
+                    <option value="">Todas</option>
+                    {unidades.map(u => <option key={String(u)} value={String(u)}>{String(u)}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[11px] font-medium text-slate-500 mb-1.5 block">Centro de Custo</label>
+                  <select value={f.centroCustoId} onChange={e => setFilter("centroCustoId", e.target.value)} className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl text-xs px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500/50">
+                    <option value="">Todos</option>
+                    {centros.map((x: any) => <option key={x.id} value={x.id}>{x.nome}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[11px] font-medium text-slate-500 mb-1.5 block">Tipo Veículo</label>
+                  <select value={f.tipo} onChange={e => setFilter("tipo", e.target.value)} className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl text-xs px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500/50">
+                    <option value="">Todos</option>
+                    {TIPO_OPTS.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[11px] font-medium text-slate-500 mb-1.5 block">Veículo</label>
+                  <select value={f.veiculoId} onChange={e => setFilter("veiculoId", e.target.value)} className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl text-xs px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500/50">
+                    <option value="">Todos</option>
+                    {veiculos.map((v: any) => <option key={v.id} value={v.id}>{v.placa}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[11px] font-medium text-slate-500 mb-1.5 block">Motorista</label>
+                  <select value={f.motoristaId} onChange={e => setFilter("motoristaId", e.target.value)} className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl text-xs px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500/50">
+                    <option value="">Todos</option>
+                    {motoristas.map((m: any) => <option key={m.id} value={m.id}>{m.nome}</option>)}
+                  </select>
+                </div>
               </div>
             </div>
           )}
 
           {loading ? <LoadingSkeleton /> : (
             <>
-              {/* KPIs */}
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 14, marginBottom: 24 }}>
-                <KpiCard label="Total de Veículos" valor={k.totalVeiculos.toString()} icon={<Truck size={18} />} cor="var(--accent-violet)" />
-                <KpiCard label="Veículos Ativos" valor={k.ativos.toString()} icon={<CheckCircle2 size={18} />} cor="var(--accent-green)" />
-                <KpiCard label="Em Manutenção" valor={k.emManutencao.toString()} icon={<Wrench size={18} />} cor="var(--accent-amber)" />
-                <KpiCard label="Próximas Revisões" valor={k.proximasRevisoes.toString()} icon={<CalendarDays size={18} />} cor="#06b6d4" />
-                <KpiCard label="CNHs a Vencer" valor={k.cnhVencer.toString()} icon={<CreditCard size={18} />} cor="#f97316" />
-                <KpiCard label="Pneus em Estoque" valor={k.pneusEstoque.toString()} icon={<Package size={18} />} cor="#8b5cf6" />
-                <KpiCard label="Pneus em Uso" valor={k.pneusUso.toString()} icon={<Activity size={18} />} cor="#14b8a6" />
-                <KpiCard label="Custos do Mês" valor={R(k.custoMes)} icon={<DollarSign size={18} />} cor="var(--accent-green)" />
-                <KpiCard label="Custo por Veículo" valor={R(k.custoPorVeiculo)} icon={<BarChart2 size={18} />} cor="var(--accent-amber)" />
-                <KpiCard label="Disponibilidade" valor={`${k.disponibilidade}%`} icon={<TrendingUp size={18} />} cor={k.disponibilidade >= 70 ? "var(--accent-green)" : "var(--accent-red)"} />
+              {/* KPIs Grid */}
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-6">
+                <KpiCard label="Total de Veículos" valor={k.totalVeiculos.toString()} icon={<Truck size={18} />} colorClass="bg-red-500" textClass="text-red-600 dark:text-red-400" ringClass="ring-red-500" />
+                <KpiCard label="Veículos Ativos" valor={k.ativos.toString()} icon={<CheckCircle2 size={18} />} colorClass="bg-emerald-500" textClass="text-emerald-600 dark:text-emerald-400" ringClass="ring-emerald-500" />
+                <KpiCard label="Em Manutenção" valor={k.emManutencao.toString()} icon={<Wrench size={18} />} colorClass="bg-amber-500" textClass="text-amber-600 dark:text-amber-400" ringClass="ring-amber-500" />
+                <KpiCard label="Próximas Revisões" valor={k.proximasRevisoes.toString()} icon={<CalendarDays size={18} />} colorClass="bg-cyan-500" textClass="text-cyan-600 dark:text-cyan-400" ringClass="ring-cyan-500" />
+                <KpiCard label="CNHs a Vencer" valor={k.cnhVencer.toString()} icon={<CreditCard size={18} />} colorClass="bg-orange-500" textClass="text-orange-600 dark:text-orange-400" ringClass="ring-orange-500" />
+                <KpiCard label="Pneus em Estoque" valor={k.pneusEstoque.toString()} icon={<Package size={18} />} colorClass="bg-violet-500" textClass="text-violet-600 dark:text-violet-400" ringClass="ring-violet-500" />
+                <KpiCard label="Pneus em Uso" valor={k.pneusUso.toString()} icon={<Activity size={18} />} colorClass="bg-teal-500" textClass="text-teal-600 dark:text-teal-400" ringClass="ring-teal-500" />
+                <KpiCard label="Custos do Mês" valor={R(k.custoMes)} icon={<DollarSign size={18} />} colorClass="bg-emerald-500" textClass="text-emerald-600 dark:text-emerald-400" ringClass="ring-emerald-500" />
+                <KpiCard label="Custo por Veículo" valor={R(k.custoPorVeiculo)} icon={<BarChart2 size={18} />} colorClass="bg-amber-500" textClass="text-amber-600 dark:text-amber-400" ringClass="ring-amber-500" />
+                <KpiCard label="Disponibilidade" valor={`${k.disponibilidade}%`} icon={<TrendingUp size={18} />} colorClass={k.disponibilidade >= 70 ? "bg-emerald-500" : "bg-red-500"} textClass={k.disponibilidade >= 70 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"} ringClass={k.disponibilidade >= 70 ? "ring-emerald-500" : "ring-red-500"} />
               </div>
 
               {/* Charts row 1 */}
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(420px, 1fr))", gap: 16, marginBottom: 16 }}>
-                <div className="card-premium" style={{ padding: "18px 20px" }}>
-                  <h3 style={chartTitleStyle}>Custos Mensais</h3>
-                  <ResponsiveContainer width="100%" height={240}>
-                    <BarChart data={c.custosMensais || []}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle)" />
-                      <XAxis dataKey="label" tick={{ fontSize: 11, fill: "var(--text-muted)" }} />
-                      <YAxis tick={{ fontSize: 10, fill: "var(--text-muted)" }} tickFormatter={(v) => R(v)} width={70} />
-                      <Tooltip contentStyle={tooltipStyle} formatter={(v: any, n: string) => [R(v), ({ manut: "Manutenção", abast: "Abastec.", revisao: "Revisão", doc: "Documento" } as any)[n] || n]} />
-                      <Legend wrapperStyle={{ fontSize: 11 }} formatter={(n) => ({ manut: "Manutenção", abast: "Abastec.", revisao: "Revisão", doc: "Documento" } as any)[n] || n} />
-                      <Bar dataKey="manut" stackId="a" fill="#f59e0b" />
-                      <Bar dataKey="abast" stackId="a" fill="#22c55e" />
-                      <Bar dataKey="revisao" stackId="a" fill="#06b6d4" />
-                      <Bar dataKey="doc" stackId="a" fill="#8b5cf6" radius={[4, 4, 0, 0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+                <div className="bg-white dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-5">
+                  <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200 mb-5">Custos Mensais</h3>
+                  <div className="w-full h-[280px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={c.custosMensais || []}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle)" vertical={false} />
+                        <XAxis dataKey="label" tick={{ fontSize: 11, fill: "var(--text-muted)" }} axisLine={false} tickLine={false} />
+                        <YAxis tick={{ fontSize: 11, fill: "var(--text-muted)" }} tickFormatter={(v) => R(v)} width={75} axisLine={false} tickLine={false} />
+                        <Tooltip contentStyle={{ background: "var(--bg-card)", border: "1px solid var(--border-medium)", borderRadius: 10, fontSize: 12 }} formatter={(v: any, n: string) => [R(v), ({ manut: "Manutenção", abast: "Abastec.", revisao: "Revisão", doc: "Documento" } as any)[n] || n]} />
+                        <Legend wrapperStyle={{ fontSize: 11, paddingTop: 10 }} formatter={(n) => ({ manut: "Manutenção", abast: "Abastec.", revisao: "Revisão", doc: "Documento" } as any)[n] || n} />
+                        <Bar dataKey="manut" stackId="a" fill="#f59e0b" />
+                        <Bar dataKey="abast" stackId="a" fill="#22c55e" />
+                        <Bar dataKey="revisao" stackId="a" fill="#06b6d4" />
+                        <Bar dataKey="doc" stackId="a" fill="#8b5cf6" radius={[4, 4, 0, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
                 </div>
 
-                <div className="card-premium" style={{ padding: "18px 20px" }}>
-                  <h3 style={chartTitleStyle}>Custos por Veículo (top 10)</h3>
-                  <ResponsiveContainer width="100%" height={240}>
-                    <BarChart data={c.custosPorVeiculo || []} layout="vertical">
-                      <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle)" horizontal={false} />
-                      <XAxis type="number" tick={{ fontSize: 10, fill: "var(--text-muted)" }} tickFormatter={(v) => R(v)} />
-                      <YAxis type="category" dataKey="placa" tick={{ fontSize: 10, fill: "var(--text-muted)" }} width={70} />
-                      <Tooltip contentStyle={tooltipStyle} formatter={(v: any) => R(v)} />
-                      <Bar dataKey="total" radius={[0, 4, 4, 0]}>{(c.custosPorVeiculo || []).map((_: any, i: number) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}</Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
+                <div className="bg-white dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-5">
+                  <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200 mb-5">Custos por Veículo (top 10)</h3>
+                  <div className="w-full h-[280px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={c.custosPorVeiculo || []} layout="vertical">
+                        <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle)" horizontal={false} />
+                        <XAxis type="number" tick={{ fontSize: 11, fill: "var(--text-muted)" }} tickFormatter={(v) => R(v)} axisLine={false} tickLine={false} />
+                        <YAxis type="category" dataKey="placa" tick={{ fontSize: 11, fill: "var(--text-muted)", fontWeight: 600 }} width={75} axisLine={false} tickLine={false} />
+                        <Tooltip contentStyle={{ background: "var(--bg-card)", border: "1px solid var(--border-medium)", borderRadius: 10, fontSize: 12 }} formatter={(v: any) => R(v)} />
+                        <Bar dataKey="total" radius={[0, 4, 4, 0]}>{(c.custosPorVeiculo || []).map((_: any, i: number) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}</Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
                 </div>
               </div>
 
               {/* Charts row 2 */}
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(420px, 1fr))", gap: 16, marginBottom: 16 }}>
-                <div className="card-premium" style={{ padding: "18px 20px" }}>
-                  <h3 style={chartTitleStyle}>Custos por Unidade</h3>
-                  <ResponsiveContainer width="100%" height={240}>
-                    <PieChart>
-                      <Pie data={c.custosPorUnidade || []} dataKey="total" nameKey="unidade" cx="50%" cy="50%" outerRadius={80} label={(e: any) => e.unidade}>
-                        {(c.custosPorUnidade || []).map((_: any, i: number) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
-                      </Pie>
-                      <Tooltip contentStyle={tooltipStyle} formatter={(v: any) => R(v)} />
-                    </PieChart>
-                  </ResponsiveContainer>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+                <div className="bg-white dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-5">
+                  <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200 mb-5">Custos por Unidade</h3>
+                  <div className="w-full h-[280px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie data={c.custosPorUnidade || []} dataKey="total" nameKey="unidade" cx="50%" cy="50%" outerRadius={90} label={(e: any) => e.unidade} labelLine={{ stroke: "var(--border-medium)" }}>
+                          {(c.custosPorUnidade || []).map((_: any, i: number) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
+                        </Pie>
+                        <Tooltip contentStyle={{ background: "var(--bg-card)", border: "1px solid var(--border-medium)", borderRadius: 10, fontSize: 12 }} formatter={(v: any) => R(v)} />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
                 </div>
 
-                <div className="card-premium" style={{ padding: "18px 20px" }}>
-                  <h3 style={chartTitleStyle}>Consumo de Combustível</h3>
-                  <ResponsiveContainer width="100%" height={240}>
-                    <ComposedChart data={c.consumo || []}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle)" />
-                      <XAxis dataKey="label" tick={{ fontSize: 11, fill: "var(--text-muted)" }} />
-                      <YAxis yAxisId="l" tick={{ fontSize: 10, fill: "var(--text-muted)" }} />
-                      <YAxis yAxisId="r" orientation="right" tick={{ fontSize: 10, fill: "var(--text-muted)" }} />
-                      <Tooltip contentStyle={tooltipStyle} />
-                      <Legend wrapperStyle={{ fontSize: 11 }} formatter={(n) => n === "litros" ? "Litros" : "km/L"} />
-                      <Bar yAxisId="l" dataKey="litros" fill="#06b6d4" radius={[4, 4, 0, 0]} />
-                      <Line yAxisId="r" type="monotone" dataKey="kmL" stroke="#8b5cf6" strokeWidth={2} dot={{ r: 3 }} />
-                    </ComposedChart>
-                  </ResponsiveContainer>
+                <div className="bg-white dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-5">
+                  <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200 mb-5">Consumo de Combustível</h3>
+                  <div className="w-full h-[280px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <ComposedChart data={c.consumo || []}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle)" vertical={false} />
+                        <XAxis dataKey="label" tick={{ fontSize: 11, fill: "var(--text-muted)" }} axisLine={false} tickLine={false} />
+                        <YAxis yAxisId="l" tick={{ fontSize: 11, fill: "var(--text-muted)" }} axisLine={false} tickLine={false} />
+                        <YAxis yAxisId="r" orientation="right" tick={{ fontSize: 11, fill: "var(--text-muted)" }} axisLine={false} tickLine={false} />
+                        <Tooltip contentStyle={{ background: "var(--bg-card)", border: "1px solid var(--border-medium)", borderRadius: 10, fontSize: 12 }} />
+                        <Legend wrapperStyle={{ fontSize: 11, paddingTop: 10 }} formatter={(n) => n === "litros" ? "Litros" : "km/L"} />
+                        <Bar yAxisId="l" dataKey="litros" fill="#06b6d4" radius={[4, 4, 0, 0]} />
+                        <Line yAxisId="r" type="monotone" dataKey="kmL" stroke="#8b5cf6" strokeWidth={3} dot={{ r: 4, strokeWidth: 2 }} />
+                      </ComposedChart>
+                    </ResponsiveContainer>
+                  </div>
                 </div>
               </div>
 
               {/* Charts row 3 */}
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 16 }}>
-                <div className="card-premium" style={{ padding: "18px 20px" }}>
-                  <h3 style={chartTitleStyle}>Manutenções (por status)</h3>
-                  <ResponsiveContainer width="100%" height={240}>
-                    <PieChart>
-                      <Pie data={(c.manutencoes || []).map((x: any) => ({ ...x, label: MANUT_LABEL[x.status] || x.status }))} dataKey="count" nameKey="label" cx="50%" cy="50%" outerRadius={80} label={(e: any) => `${e.label}: ${e.count}`}>
-                        {(c.manutencoes || []).map((_: any, i: number) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
-                      </Pie>
-                      <Tooltip contentStyle={tooltipStyle} />
-                    </PieChart>
-                  </ResponsiveContainer>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="bg-white dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-5">
+                  <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200 mb-5">Manutenções (status)</h3>
+                  <div className="w-full h-[220px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie data={(c.manutencoes || []).map((x: any) => ({ ...x, label: MANUT_LABEL[x.status] || x.status }))} dataKey="count" nameKey="label" cx="50%" cy="50%" outerRadius={75} label={(e: any) => `${e.label}: ${e.count}`} labelLine={{ stroke: "var(--border-medium)" }}>
+                          {(c.manutencoes || []).map((_: any, i: number) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
+                        </Pie>
+                        <Tooltip contentStyle={{ background: "var(--bg-card)", border: "1px solid var(--border-medium)", borderRadius: 10, fontSize: 12 }} />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
                 </div>
 
-                <div className="card-premium" style={{ padding: "18px 20px" }}>
-                  <h3 style={chartTitleStyle}>Revisões (por status)</h3>
-                  <ResponsiveContainer width="100%" height={240}>
-                    <BarChart data={(c.revisoes || []).map((x: any) => ({ ...x, label: REV_LABEL[x.status] || x.status }))}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle)" />
-                      <XAxis dataKey="label" tick={{ fontSize: 11, fill: "var(--text-muted)" }} />
-                      <YAxis allowDecimals={false} tick={{ fontSize: 10, fill: "var(--text-muted)" }} />
-                      <Tooltip contentStyle={tooltipStyle} />
-                      <Bar dataKey="count" radius={[4, 4, 0, 0]}>{(c.revisoes || []).map((_: any, i: number) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}</Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
+                <div className="bg-white dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-5">
+                  <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200 mb-5">Revisões (status)</h3>
+                  <div className="w-full h-[220px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={(c.revisoes || []).map((x: any) => ({ ...x, label: REV_LABEL[x.status] || x.status }))}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle)" vertical={false} />
+                        <XAxis dataKey="label" tick={{ fontSize: 11, fill: "var(--text-muted)" }} axisLine={false} tickLine={false} />
+                        <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: "var(--text-muted)" }} axisLine={false} tickLine={false} />
+                        <Tooltip contentStyle={{ background: "var(--bg-card)", border: "1px solid var(--border-medium)", borderRadius: 10, fontSize: 12 }} />
+                        <Bar dataKey="count" radius={[4, 4, 0, 0]}>{(c.revisoes || []).map((_: any, i: number) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}</Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
                 </div>
 
-                <div className="card-premium" style={{ padding: "18px 20px" }}>
-                  <h3 style={chartTitleStyle}>Trocas de Pneus</h3>
-                  <ResponsiveContainer width="100%" height={240}>
-                    <BarChart data={(c.trocasPneus || []).map((x: any) => ({ ...x, label: PNEU_LABEL[x.tipo] || x.tipo }))}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle)" />
-                      <XAxis dataKey="label" tick={{ fontSize: 11, fill: "var(--text-muted)" }} />
-                      <YAxis allowDecimals={false} tick={{ fontSize: 10, fill: "var(--text-muted)" }} />
-                      <Tooltip contentStyle={tooltipStyle} />
-                      <Bar dataKey="count" radius={[4, 4, 0, 0]}>{(c.trocasPneus || []).map((_: any, i: number) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}</Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
+                <div className="bg-white dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-5">
+                  <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200 mb-5">Trocas de Pneus</h3>
+                  <div className="w-full h-[220px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={(c.trocasPneus || []).map((x: any) => ({ ...x, label: PNEU_LABEL[x.tipo] || x.tipo }))}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle)" vertical={false} />
+                        <XAxis dataKey="label" tick={{ fontSize: 11, fill: "var(--text-muted)" }} axisLine={false} tickLine={false} />
+                        <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: "var(--text-muted)" }} axisLine={false} tickLine={false} />
+                        <Tooltip contentStyle={{ background: "var(--bg-card)", border: "1px solid var(--border-medium)", borderRadius: 10, fontSize: 12 }} />
+                        <Bar dataKey="count" radius={[4, 4, 0, 0]}>{(c.trocasPneus || []).map((_: any, i: number) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}</Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
                 </div>
 
-                <div className="card-premium" style={{ padding: "18px 20px" }}>
-                  <h3 style={chartTitleStyle}>Vencimentos de Documentos</h3>
-                  <ResponsiveContainer width="100%" height={240}>
-                    <BarChart data={c.vencimentos || []}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle)" />
-                      <XAxis dataKey="faixa" tick={{ fontSize: 11, fill: "var(--text-muted)" }} />
-                      <YAxis allowDecimals={false} tick={{ fontSize: 10, fill: "var(--text-muted)" }} />
-                      <Tooltip contentStyle={tooltipStyle} />
-                      <Bar dataKey="count" radius={[4, 4, 0, 0]}>
-                        {(c.vencimentos || []).map((_: any, i: number) => <Cell key={i} fill={["#ef4444", "#f59e0b", "#eab308", "#22c55e"][i] || "#8b5cf6"} />)}
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
+                <div className="bg-white dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-5">
+                  <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200 mb-5">Vencimentos (Docs)</h3>
+                  <div className="w-full h-[220px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={c.vencimentos || []}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle)" vertical={false} />
+                        <XAxis dataKey="faixa" tick={{ fontSize: 11, fill: "var(--text-muted)" }} axisLine={false} tickLine={false} />
+                        <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: "var(--text-muted)" }} axisLine={false} tickLine={false} />
+                        <Tooltip contentStyle={{ background: "var(--bg-card)", border: "1px solid var(--border-medium)", borderRadius: 10, fontSize: 12 }} />
+                        <Bar dataKey="count" radius={[4, 4, 0, 0]}>
+                          {(c.vencimentos || []).map((_: any, i: number) => <Cell key={i} fill={["#ef4444", "#f59e0b", "#eab308", "#22c55e"][i] || "#8b5cf6"} />)}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
                 </div>
               </div>
             </>
           )}
         </div>
-      </div>
-    </>
+      </main>
+    </div>
   );
 }
 
 function LoadingSkeleton() {
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 14 }}>
+    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
       {[...Array(10)].map((_, i) => (
-        <div key={i} className="card-premium" style={{ padding: "14px 18px", height: 70, background: "var(--bg-secondary)", animation: "pulse 1.5s infinite" }} />
+        <div key={i} className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 h-[88px] animate-pulse" />
       ))}
     </div>
   );
