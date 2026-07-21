@@ -90,7 +90,7 @@ function sourceLabel(key: SourceKey, row: any): string {
 }
 
 // ── Drawer de histórico (alterações + auditoria de usuário) ─────────────────────
-function HistoricoDrawer({ tabela, id, onClose }: { tabela: string; id: string; onClose: () => void }) {
+export function HistoricoDrawer({ tabela, id, onClose }: { tabela: string; id: string; onClose: () => void }) {
   const [logs, setLogs] = useState<any[] | null>(null);
   useEffect(() => {
     api.get(`/frota/historico/${tabela}/${id}`).then(r => setLogs(r.data)).catch(() => setLogs([]));
@@ -135,7 +135,7 @@ function HistoricoDrawer({ tabela, id, onClose }: { tabela: string; id: string; 
 }
 
 // ── Modal de formulário ─────────────────────────────────────────────────────────
-function FormModal({ config, lookups, initial, onSaved, onClose }: {
+export function FormModal({ config, lookups, initial, onSaved, onClose }: {
   config: CrudConfig; lookups: Lookups; initial: any;
   onSaved: () => void; onClose: () => void;
 }) {
