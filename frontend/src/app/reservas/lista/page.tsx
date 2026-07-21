@@ -42,7 +42,7 @@ export default function ListaReservas() {
   const getStatusBadge = (status: string) => {
     switch(status) {
       case "CONFIRMADA":
-        return <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 border border-blue-200 dark:border-blue-800"><CheckCircle className="w-3.5 h-3.5"/> Confirmada</span>;
+        return <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 border border-red-200 dark:border-red-800"><CheckCircle className="w-3.5 h-3.5"/> Confirmada</span>;
       case "SOLICITADA":
         return <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 border border-amber-200 dark:border-amber-800"><Clock className="w-3.5 h-3.5"/> Solicitada</span>;
       case "FINALIZADA":
@@ -83,7 +83,7 @@ export default function ListaReservas() {
               placeholder="Buscar por título ou veículo..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="block w-full pl-10 pr-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none text-sm transition-all"
+              className="block w-full pl-10 pr-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:ring-2 focus:ring-red-500 outline-none text-sm transition-all"
             />
           </div>
           <div className="flex gap-2 w-full sm:w-auto">
@@ -142,7 +142,7 @@ export default function ListaReservas() {
                     {getStatusBadge(reserva.status)}
                   </td>
                   <td className="px-6 py-4 text-right">
-                    <button className="p-2 text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition-colors opacity-0 group-hover:opacity-100">
+                    <button className="p-2 text-slate-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-colors opacity-0 group-hover:opacity-100">
                       <MoreVertical className="w-5 h-5" />
                     </button>
                   </td>

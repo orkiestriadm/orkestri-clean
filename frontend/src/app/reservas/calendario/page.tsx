@@ -16,7 +16,7 @@ const locales = {
 const localizer = dateFnsLocalizer({
   format,
   parse,
-  startOfWeek: () => startOfWeek(new Date(), { locale: ptBR }),
+  startOfWeek,
   getDay,
   locales,
 });
@@ -64,7 +64,7 @@ export default function CalendarioReservas() {
   const [modalEnd, setModalEnd] = useState<Date | undefined>(undefined);
 
   const eventStyleGetter = (event: any) => {
-    let backgroundColor = "#3b82f6"; // default blue (CONFIRMADA)
+    let backgroundColor = "#dc2626"; // default red (CONFIRMADA)
     if (event.status === "EM_ANDAMENTO") backgroundColor = "#10b981"; // emerald
     if (event.status === "CANCELADA") backgroundColor = "#ef4444"; // red
     if (event.status === "FINALIZADA") backgroundColor = "#64748b"; // slate
@@ -122,7 +122,7 @@ export default function CalendarioReservas() {
             setModalEnd(new Date(new Date().setHours(new Date().getHours() + 2)));
             setIsModalOpen(true);
           }}
-          className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors shadow-lg shadow-blue-500/30"
+          className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-medium transition-colors shadow-lg shadow-red-600/30"
         >
           <Plus className="w-5 h-5" /> Nova Reserva
         </button>
@@ -150,8 +150,8 @@ export default function CalendarioReservas() {
           .dark .rbc-time-view, .dark .rbc-month-view, .dark .rbc-agenda-view { border-color: #1e293b; }
           .rbc-btn-group button { border-color: #e2e8f0; color: #475569; }
           .dark .rbc-btn-group button { border-color: #334155; color: #cbd5e1; background: #0f172a; }
-          .rbc-btn-group button.rbc-active { background: #eff6ff; color: #2563eb; font-weight: 600; box-shadow: none; border-color: #bfdbfe; }
-          .dark .rbc-btn-group button.rbc-active { background: #1e3a8a; color: #bfdbfe; border-color: #1d4ed8; }
+          .rbc-btn-group button.rbc-active { background: #fef2f2; color: #dc2626; font-weight: 600; box-shadow: none; border-color: #fecaca; }
+          .dark .rbc-btn-group button.rbc-active { background: #7f1d1d; color: #fecaca; border-color: #991b1b; }
           .rbc-event { transition: transform 0.1s; }
           .rbc-event:hover { transform: scale(1.02); z-index: 50 !important; }
         `}} />

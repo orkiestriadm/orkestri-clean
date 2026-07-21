@@ -68,7 +68,7 @@ export default function ReservasDashboard() {
         <StatCard
           title="Total de Reservas"
           value={stats.totalReservas}
-          icon={<Clock className="w-5 h-5 text-blue-500" />}
+          icon={<Clock className="w-5 h-5 text-red-500" />}
           description="Neste mês"
         />
         <StatCard
@@ -104,8 +104,8 @@ export default function ReservasDashboard() {
               {proximas.map(reserva => (
                 <div key={reserva.id} className="flex justify-between items-center p-4 bg-slate-50 dark:bg-slate-800 rounded-lg">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center">
-                      <Car className="text-blue-600 dark:text-blue-400 w-5 h-5" />
+                    <div className="w-10 h-10 rounded-full bg-red-100 dark:bg-red-900 flex items-center justify-center">
+                      <Car className="text-red-600 dark:text-red-400 w-5 h-5" />
                     </div>
                     <div>
                       <p className="font-semibold text-slate-900 dark:text-slate-100">
@@ -118,7 +118,7 @@ export default function ReservasDashboard() {
                     <p className="font-medium text-slate-900 dark:text-slate-100">
                       {new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }).format(new Date(reserva.dataInicio))}
                     </p>
-                    <p className="text-sm text-blue-600 dark:text-blue-400 font-semibold">{reserva.status}</p>
+                    <p className="text-sm text-red-600 dark:text-red-400 font-semibold">{reserva.status}</p>
                   </div>
                 </div>
               ))}

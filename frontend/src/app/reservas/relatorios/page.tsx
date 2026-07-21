@@ -47,13 +47,13 @@ export default function RelatoriosReservas() {
           <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Relatórios de Utilização</h1>
           <p className="text-slate-500 text-sm mt-1">Acompanhe métricas e estatísticas do uso da frota.</p>
         </div>
-        <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm">
+        <button className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors shadow-sm">
           <Download className="w-4 h-4" /> Exportar PDF
         </button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <StatCard title="Total de Reservas" value={stats.totalReservas} icon={<BarChart3 className="w-5 h-5 text-blue-500" />} />
+        <StatCard title="Total de Reservas" value={stats.totalReservas} icon={<BarChart3 className="w-5 h-5 text-red-500" />} />
         <StatCard title="Média de Horas/Reserva" value={`${stats.mediaHorasPorReserva}h`} icon={<Clock className="w-5 h-5 text-emerald-500" />} />
         <StatCard title="Veículo Mais Usado" value={stats.veiculoMaisUsado} icon={<Car className="w-5 h-5 text-indigo-500" />} />
         <StatCard title="Reservas Canceladas" value={stats.reservasCanceladas} icon={<TrendingUp className="w-5 h-5 text-rose-500" />} />

@@ -90,7 +90,7 @@ export default function ReservaModal({ isOpen, onClose, onSave, initialStart, in
                 <select
                   value={formData.veiculoId}
                   onChange={(e) => setFormData({ ...formData, veiculoId: e.target.value })}
-                  className="block w-full pl-10 pr-3 py-2.5 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                  className="block w-full pl-10 pr-3 py-2.5 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none transition-all"
                   required
                 >
                   <option value="">Selecione um veículo...</option>
@@ -110,7 +110,7 @@ export default function ReservaModal({ isOpen, onClose, onSave, initialStart, in
                 placeholder="Ex: Reunião com Cliente X"
                 value={formData.titulo}
                 onChange={(e) => setFormData({ ...formData, titulo: e.target.value })}
-                className="block w-full px-4 py-2.5 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                className="block w-full px-4 py-2.5 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none transition-all"
                 required
               />
             </div>
@@ -124,7 +124,7 @@ export default function ReservaModal({ isOpen, onClose, onSave, initialStart, in
                   type="date"
                   value={formData.dataInicio}
                   onChange={(e) => setFormData({ ...formData, dataInicio: e.target.value })}
-                  className="block w-full px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none"
+                  className="block w-full px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:ring-2 focus:ring-red-500 outline-none"
                   required
                 />
               </div>
@@ -136,7 +136,7 @@ export default function ReservaModal({ isOpen, onClose, onSave, initialStart, in
                   type="time"
                   value={formData.horaInicio}
                   onChange={(e) => setFormData({ ...formData, horaInicio: e.target.value })}
-                  className="block w-full px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none"
+                  className="block w-full px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:ring-2 focus:ring-red-500 outline-none"
                   required
                 />
               </div>
@@ -151,7 +151,7 @@ export default function ReservaModal({ isOpen, onClose, onSave, initialStart, in
                   type="date"
                   value={formData.dataFim}
                   onChange={(e) => setFormData({ ...formData, dataFim: e.target.value })}
-                  className="block w-full px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none"
+                  className="block w-full px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:ring-2 focus:ring-red-500 outline-none"
                   required
                 />
               </div>
@@ -163,7 +163,7 @@ export default function ReservaModal({ isOpen, onClose, onSave, initialStart, in
                   type="time"
                   value={formData.horaFim}
                   onChange={(e) => setFormData({ ...formData, horaFim: e.target.value })}
-                  className="block w-full px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none"
+                  className="block w-full px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:ring-2 focus:ring-red-500 outline-none"
                   required
                 />
               </div>
@@ -178,7 +178,7 @@ export default function ReservaModal({ isOpen, onClose, onSave, initialStart, in
                 placeholder="Ex: São Paulo, SP"
                 value={formData.destino}
                 onChange={(e) => setFormData({ ...formData, destino: e.target.value })}
-                className="block w-full px-4 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                className="block w-full px-4 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:ring-2 focus:ring-red-500 outline-none transition-all"
               />
             </div>
 
@@ -191,7 +191,7 @@ export default function ReservaModal({ isOpen, onClose, onSave, initialStart, in
                 placeholder="Informações adicionais..."
                 value={formData.descricao}
                 onChange={(e) => setFormData({ ...formData, descricao: e.target.value })}
-                className="block w-full px-4 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none transition-all resize-none"
+                className="block w-full px-4 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:ring-2 focus:ring-red-500 outline-none transition-all resize-none"
               ></textarea>
             </div>
           </form>
@@ -208,7 +208,7 @@ export default function ReservaModal({ isOpen, onClose, onSave, initialStart, in
           <button
             type="submit"
             form="reserva-form"
-            className="px-5 py-2.5 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors shadow-lg shadow-blue-500/30 flex items-center gap-2"
+            className="px-5 py-2.5 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors shadow-lg shadow-red-500/30 flex items-center gap-2"
           >
             Confirmar Reserva
           </button>

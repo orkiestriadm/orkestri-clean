@@ -8,8 +8,9 @@ export default function ReservasLayout({ children }: { children: ReactNode }) {
       {/* Sidebar */}
       <aside className="w-20 lg:w-64 flex-shrink-0 border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 flex flex-col transition-all">
         <div className="h-16 flex items-center justify-center lg:justify-start lg:px-6 border-b border-slate-200 dark:border-slate-800">
-          <Car className="h-6 w-6 text-blue-600 dark:text-blue-500 shrink-0" />
-          <span className="ml-3 font-bold text-xl hidden lg:block bg-gradient-to-r from-blue-600 to-indigo-500 bg-clip-text text-transparent">Reservas</span>
+          <Car className="h-6 w-6 text-red-600 dark:text-red-500 shrink-0 lg:hidden" />
+          <img src="/branding/logo-ttbr-colorida.png" alt="Triunfo TBR" className="h-8 w-auto hidden lg:block dark:hidden" />
+          <img src="/branding/logo-ttbr-branca.png" alt="Triunfo TBR" className="h-8 w-auto hidden dark:lg:block" />
         </div>
 
         <nav className="flex-1 py-6 space-y-2 px-3">
@@ -40,7 +41,7 @@ export default function ReservasLayout({ children }: { children: ReactNode }) {
 
 function NavItem({ href, icon, label }: { href: string; icon: ReactNode; label: string }) {
   return (
-    <Link href={href} className="flex items-center p-3 text-slate-600 hover:text-blue-600 dark:text-slate-400 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-all group">
+    <Link href={href} className="flex items-center p-3 text-slate-600 hover:text-red-600 dark:text-slate-400 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all group">
       <div className="shrink-0 group-hover:scale-110 transition-transform">{icon}</div>
       <span className="ml-3 hidden lg:block font-medium">{label}</span>
     </Link>
