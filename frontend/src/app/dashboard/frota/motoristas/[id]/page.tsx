@@ -31,34 +31,55 @@ function RenovarModal({ motorista, onSaved, onClose }: { motorista: any; onSaved
     try { await api.post(`/frota/motoristas/${motorista.id}/renovar`, d); onSaved(); }
     catch (e: any) { setErr(e?.response?.data?.message || "Erro ao renovar"); setSaving(false); }
   };
-  const L = ({ label, children }: { label: string; children: React.ReactNode }) => (
-    <div><label style={{ fontSize: 11, color: "var(--text-muted)", fontFamily: "var(--font-mono)", letterSpacing: "0.08em", display: "block", marginBottom: 6 }}>{label}</label>{children}</div>
+
+  const InputField = ({ label, children }: { label: string; children: React.ReactNode }) => (
+    <div>
+      <label className="text-[11px] font-medium text-slate-500 mb-1.5 block uppercase tracking-wider">{label}</label>
+      {children}
+    </div>
   );
 
   return (
-    <div className="modal-overlay" onClick={e => { if ((e.target as HTMLElement).classList.contains("modal-overlay")) onClose(); }}>
-      <div className="modal-box" style={{ maxWidth: 460, display: "flex", flexDirection: "column", gap: 14 }} onClick={e => e.stopPropagation()}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <h3 style={{ fontFamily: "var(--font-display)", fontSize: 16, fontWeight: 700 }}>Renovar CNH</h3>
-          <button className="btn-icon" onClick={onClose}><X size={16} /></button>
+    <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 transition-all" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200" onClick={e => e.stopPropagation()}>
+        <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
+          <h3 className="text-lg font-bold text-slate-800 dark:text-slate-200">Renovar CNH</h3>
+          <button className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors" onClick={onClose}><X size={18} /></button>
         </div>
-        {err && <div style={{ fontSize: 12, color: "var(--accent-red)" }}>{err}</div>}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-          <L label="NOVO NÚMERO"><input className="input-o" value={d.numeroNovo || ""} onChange={e => set("numeroNovo", e.target.value)} /></L>
-          <L label="CATEGORIA">
-            <select className="input-o" value={d.categoriaNova || ""} onChange={e => set("categoriaNova", e.target.value || null)}>
-              <option value="">—</option>
-              {CNH_OPTS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
-            </select>
-          </L>
-          <L label="NOVA VALIDADE *"><input className="input-o" type="date" value={d.validadeNova || ""} onChange={e => set("validadeNova", e.target.value || null)} /></L>
-          <L label="EMISSÃO"><input className="input-o" type="date" value={d.dataRenovacao || ""} onChange={e => set("dataRenovacao", e.target.value || null)} /></L>
-          <L label="ÓRGÃO EMISSOR"><input className="input-o" value={d.orgaoEmissor || ""} onChange={e => set("orgaoEmissor", e.target.value)} /></L>
+        
+        <div className="p-6 flex flex-col gap-5">
+          {err && <div className="text-xs font-medium text-red-500 bg-red-50 dark:bg-red-500/10 p-3 rounded-xl">{err}</div>}
+          
+          <div className="grid grid-cols-2 gap-4">
+            <InputField label="Novo Número">
+              <input className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-sm px-3 py-2.5 outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 transition-all" value={d.numeroNovo || ""} onChange={e => set("numeroNovo", e.target.value)} />
+            </InputField>
+            <InputField label="Categoria">
+              <select className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-sm px-3 py-2.5 outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 transition-all" value={d.categoriaNova || ""} onChange={e => set("categoriaNova", e.target.value || null)}>
+                <option value="">—</option>
+                {CNH_OPTS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+              </select>
+            </InputField>
+            <InputField label="Nova Validade *">
+              <input className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-sm px-3 py-2.5 outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 transition-all" type="date" value={d.validadeNova || ""} onChange={e => set("validadeNova", e.target.value || null)} />
+            </InputField>
+            <InputField label="Emissão">
+              <input className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-sm px-3 py-2.5 outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 transition-all" type="date" value={d.dataRenovacao || ""} onChange={e => set("dataRenovacao", e.target.value || null)} />
+            </InputField>
+            <div className="col-span-2">
+              <InputField label="Órgão Emissor">
+                <input className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-sm px-3 py-2.5 outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 transition-all" value={d.orgaoEmissor || ""} onChange={e => set("orgaoEmissor", e.target.value)} />
+              </InputField>
+            </div>
+          </div>
+          <InputField label="Observações">
+            <input className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-sm px-3 py-2.5 outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 transition-all" value={d.observacoes || ""} onChange={e => set("observacoes", e.target.value)} />
+          </InputField>
         </div>
-        <L label="OBSERVAÇÕES"><input className="input-o" value={d.observacoes || ""} onChange={e => set("observacoes", e.target.value)} /></L>
-        <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
-          <button className="btn btn-ghost" onClick={onClose}>Cancelar</button>
-          <button className="btn btn-violet" onClick={save} disabled={saving}>{saving ? "Salvando..." : "Renovar"}</button>
+
+        <div className="px-6 py-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 flex justify-end gap-3 rounded-b-2xl">
+          <button className="px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 transition-colors" onClick={onClose}>Cancelar</button>
+          <button className="px-5 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-sm shadow-indigo-200 dark:shadow-none transition-all disabled:opacity-70 disabled:cursor-not-allowed" onClick={save} disabled={saving}>{saving ? "Salvando..." : "Renovar"}</button>
         </div>
       </div>
     </div>
@@ -83,31 +104,37 @@ function AnexoCat({ tipo, label, anexos, motoristaId, canEdit, onChange }: { tip
   };
 
   return (
-    <div className="card" style={{ padding: "14px 16px" }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-        <span style={{ fontSize: 12, fontWeight: 600 }}>{label}</span>
+    <div className="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm p-5 transition-all duration-300 hover:shadow-md">
+      <div className="flex items-center justify-between mb-4">
+        <span className="text-sm font-bold text-slate-800 dark:text-slate-200">{label}</span>
         {canEdit && (
           <>
-            <input ref={inputRef} type="file" accept="image/*,application/pdf" style={{ display: "none" }} onChange={e => e.target.files?.[0] && upload(e.target.files[0])} />
-            <button className="btn btn-ghost" style={{ fontSize: 11, padding: "5px 10px" }} disabled={busy} onClick={() => inputRef.current?.click()}>
+            <input ref={inputRef} type="file" accept="image/*,application/pdf" className="hidden" onChange={e => e.target.files?.[0] && upload(e.target.files[0])} />
+            <button className="flex items-center gap-1.5 text-[11px] font-semibold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-500/10 dark:hover:bg-indigo-500/20 px-3 py-1.5 rounded-lg transition-colors" disabled={busy} onClick={() => inputRef.current?.click()}>
               <Plus size={12} /> {busy ? "Enviando..." : "Anexar"}
             </button>
           </>
         )}
       </div>
-      {itens.length === 0 && <div style={{ fontSize: 12, color: "var(--text-muted)" }}>Nenhum arquivo.</div>}
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+      
+      {itens.length === 0 && <div className="text-[13px] text-slate-500 dark:text-slate-400 italic">Nenhum arquivo.</div>}
+      
+      <div className="flex flex-wrap gap-4">
         {itens.map(a => {
           const isImg = (a.mime || "").startsWith("image/");
           return (
-            <div key={a.id} style={{ width: 120, border: "1px solid var(--border-subtle)", borderRadius: 8, overflow: "hidden", position: "relative" }}>
-              <a href={a.url} target="_blank" rel="noreferrer" style={{ display: "block" }}>
+            <div key={a.id} className="w-28 group relative border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden bg-slate-50 dark:bg-slate-900 transition-all hover:border-indigo-300 hover:shadow-sm">
+              <a href={a.url} target="_blank" rel="noreferrer" className="block">
                 {isImg
-                  ? <img src={a.url} alt={a.nomeOriginal} style={{ width: "100%", height: 80, objectFit: "cover" }} />
-                  : <div style={{ height: 80, display: "flex", alignItems: "center", justifyContent: "center", background: "var(--bg-hover)" }}><FileText size={28} style={{ color: "var(--text-muted)" }} /></div>}
+                  ? <img src={a.url} alt={a.nomeOriginal} className="w-full h-20 object-cover transition-transform duration-300 group-hover:scale-105" />
+                  : <div className="h-20 flex items-center justify-center bg-slate-100 dark:bg-slate-800/50 group-hover:bg-slate-200 dark:group-hover:bg-slate-800 transition-colors"><FileText size={28} className="text-slate-400" /></div>}
               </a>
-              <div style={{ padding: "4px 6px", fontSize: 10, color: "var(--text-muted)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{a.nomeOriginal}</div>
-              {canEdit && <button className="btn-icon" style={{ position: "absolute", top: 2, right: 2, width: 22, height: 22, background: "rgba(0,0,0,0.4)", color: "#fff" }} onClick={() => remove(a.id)}><Trash2 size={11} /></button>}
+              <div className="px-2 py-1.5 text-[10px] font-medium text-slate-600 dark:text-slate-400 truncate border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950">{a.nomeOriginal}</div>
+              {canEdit && (
+                <button className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-black/50 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-500 backdrop-blur-sm" onClick={() => remove(a.id)}>
+                  <Trash2 size={12} />
+                </button>
+              )}
             </div>
           );
         })}
@@ -140,8 +167,8 @@ export default function MotoristaDetailPage() {
   }, [id, loadAnexos, loadRenov]);
   useEffect(() => { load(); }, [load]);
 
-  if (loading) return <div className="flex flex-col h-full"><Topbar /><main className="flex-1 p-6 text-[var(--text-muted)] text-sm">Carregando...</main></div>;
-  if (!m) return <div className="flex flex-col h-full"><Topbar /><main className="flex-1 p-6 text-[var(--text-muted)] text-sm">Motorista não encontrado.</main></div>;
+  if (loading) return <div className="flex flex-col h-full bg-[var(--bg-primary)]"><Topbar /><main className="flex-1 p-6 text-slate-500 text-sm flex items-center justify-center font-medium animate-pulse">Carregando informações...</main></div>;
+  if (!m) return <div className="flex flex-col h-full bg-[var(--bg-primary)]"><Topbar /><main className="flex-1 p-6 text-slate-500 text-sm flex items-center justify-center font-medium">Motorista não encontrado.</main></div>;
 
   const cnh = cnhStatus(m.validadeCnh, bloqueio);
   const INFO: [string, any][] = [
@@ -152,61 +179,79 @@ export default function MotoristaDetailPage() {
   ];
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full bg-slate-50 dark:bg-[var(--bg-primary)] animate-in fade-in slide-in-from-bottom-4 duration-500">
       <Topbar>
-        {canEdit && <button className="btn btn-violet text-xs" onClick={() => setRenovOpen(true)} style={{ display: "flex", alignItems: "center", gap: 6 }}><RefreshCw size={14} /> Renovar CNH</button>}
+        {canEdit && (
+          <button className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-semibold rounded-xl shadow-sm shadow-red-200 dark:shadow-none transition-all" onClick={() => setRenovOpen(true)}>
+            <RefreshCw size={14} /> Renovar CNH
+          </button>
+        )}
       </Topbar>
-      <main className="flex-1 overflow-y-auto p-6">
-        <button className="btn btn-ghost text-xs" onClick={() => router.push("/dashboard/frota/motoristas")} style={{ display: "inline-flex", alignItems: "center", gap: 6, marginBottom: 16 }}><ArrowLeft size={14} /> Voltar</button>
+      
+      <main className="flex-1 overflow-y-auto p-6 lg:p-8 max-w-7xl mx-auto w-full">
+        <button className="flex items-center gap-2 text-sm font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 transition-colors mb-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2 shadow-sm" onClick={() => router.push("/dashboard/frota/motoristas")}>
+          <ArrowLeft size={16} /> Voltar
+        </button>
 
-        {/* Header */}
-        <div className="card" style={{ padding: "20px 24px", marginBottom: 18, borderLeft: `3px solid ${cnh.color}` }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6, flexWrap: "wrap" }}>
-            <h2 style={{ fontSize: 22, fontWeight: 800, fontFamily: "var(--font-display)" }}>{m.nome}</h2>
+        {/* Header - Motorista */}
+        <div className="bg-white dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-6 lg:p-8 mb-8 relative overflow-hidden">
+          <div className="absolute left-0 top-0 bottom-0 w-1.5" style={{ backgroundColor: cnh.color }} />
+          
+          <div className="flex items-center gap-3 mb-8 flex-wrap">
+            <h2 className="text-2xl lg:text-3xl font-black text-slate-800 dark:text-slate-100 tracking-tight">{m.nome}</h2>
             <Badge color={cnh.color}>CNH: {cnh.label}</Badge>
             {m.status !== "ativo" && <Badge>{m.status}</Badge>}
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 12, marginTop: 14 }}>
+          
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-y-6 gap-x-4">
             {INFO.filter(([, v]) => v).map(([k, v]) => (
-              <div key={k}>
-                <div style={{ fontSize: 10, color: "var(--text-muted)", fontFamily: "var(--font-mono)", marginBottom: 2 }}>{k}</div>
-                <div style={{ fontSize: 13, color: "var(--text-primary)", fontWeight: 500 }}>{v}</div>
+              <div key={k} className="flex flex-col">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">{k}</span>
+                <span className="text-[13px] font-semibold text-slate-700 dark:text-slate-300">{v}</span>
               </div>
             ))}
           </div>
         </div>
 
         {/* Anexos */}
-        <div style={{ fontSize: 11, color: "var(--text-muted)", fontFamily: "var(--font-mono)", fontWeight: 600, marginBottom: 8 }}>DOCUMENTOS E ANEXOS</div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 12, marginBottom: 22 }}>
+        <div className="text-xs font-bold text-slate-400 dark:text-slate-500 tracking-widest uppercase mb-4 pl-1">Documentos e Anexos</div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
           {ANEXO_CATS.map(c => <AnexoCat key={c.tipo} tipo={c.tipo} label={c.label} anexos={anexos} motoristaId={id} canEdit={canEdit} onChange={loadAnexos} />)}
         </div>
 
         {/* Histórico de renovações */}
-        <div style={{ fontSize: 11, color: "var(--text-muted)", fontFamily: "var(--font-mono)", fontWeight: 600, marginBottom: 8 }}>HISTÓRICO DE RENOVAÇÕES</div>
-        <div className="card" style={{ overflow: "hidden" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
-            <thead>
-              <tr style={{ borderBottom: "1px solid var(--border-subtle)" }}>
-                {["Data", "Validade anterior", "Validade nova", "Categoria", "Órgão", "Obs."].map(h => (
-                  <th key={h} style={{ textAlign: "left", padding: "10px 14px", fontSize: 10, fontFamily: "var(--font-mono)", color: "var(--text-muted)", fontWeight: 600, textTransform: "uppercase", whiteSpace: "nowrap" }}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {renovacoes.length === 0 && <tr><td colSpan={6} style={{ padding: 20, textAlign: "center", color: "var(--text-muted)" }}>Nenhuma renovação registrada.</td></tr>}
-              {renovacoes.map(r => (
-                <tr key={r.id} style={{ borderBottom: "1px solid var(--border-subtle)" }}>
-                  <td style={{ padding: "10px 14px" }}>{fmtDate(r.dataRenovacao)}</td>
-                  <td style={{ padding: "10px 14px" }}>{fmtDate(r.validadeAnterior)}</td>
-                  <td style={{ padding: "10px 14px", fontWeight: 600 }}>{fmtDate(r.validadeNova)}</td>
-                  <td style={{ padding: "10px 14px" }}>{r.categoriaNova || "—"}</td>
-                  <td style={{ padding: "10px 14px" }}>{r.orgaoEmissor || "—"}</td>
-                  <td style={{ padding: "10px 14px", color: "var(--text-muted)" }}>{r.observacoes || "—"}</td>
+        <div className="text-xs font-bold text-slate-400 dark:text-slate-500 tracking-widest uppercase mb-4 pl-1">Histórico de Renovações</div>
+        <div className="bg-white dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm whitespace-nowrap">
+              <thead>
+                <tr className="bg-slate-50/50 dark:bg-slate-900/50 border-b border-slate-200 dark:border-slate-800">
+                  {["Data", "Validade anterior", "Validade nova", "Categoria", "Órgão", "Obs."].map(h => (
+                    <th key={h} className="px-6 py-4 text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">{h}</th>
+                  ))}
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800/50">
+                {renovacoes.length === 0 && (
+                  <tr>
+                    <td colSpan={6} className="px-6 py-12 text-center text-slate-500 dark:text-slate-400 font-medium text-sm">
+                      Nenhuma renovação registrada.
+                    </td>
+                  </tr>
+                )}
+                {renovacoes.map(r => (
+                  <tr key={r.id} className="hover:bg-slate-50 dark:hover:bg-slate-900/50 transition-colors">
+                    <td className="px-6 py-4 font-medium text-slate-600 dark:text-slate-300">{fmtDate(r.dataRenovacao)}</td>
+                    <td className="px-6 py-4 text-slate-600 dark:text-slate-300">{fmtDate(r.validadeAnterior)}</td>
+                    <td className="px-6 py-4 font-bold text-indigo-600 dark:text-indigo-400">{fmtDate(r.validadeNova)}</td>
+                    <td className="px-6 py-4 font-medium text-slate-600 dark:text-slate-300">{r.categoriaNova || "—"}</td>
+                    <td className="px-6 py-4 font-medium text-slate-600 dark:text-slate-300">{r.orgaoEmissor || "—"}</td>
+                    <td className="px-6 py-4 text-slate-500 dark:text-slate-400 italic text-xs max-w-[200px] truncate">{r.observacoes || "—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       </main>
 
