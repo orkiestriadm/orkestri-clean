@@ -7,13 +7,25 @@ import Topbar from "@/components/layout/Topbar";
 import { useAuthStore } from "@/lib/store";
 import { api } from "@/lib/api";
 import { Badge, cnhStatus } from "../_components/crud";
-import { Plus, Pencil, Trash2, Eye, X, Search, User, Download, Filter, ChevronLeft, Users } from "lucide-react";
+import { Plus, Pencil, Trash2, Eye, X, Search, User, Download, Filter, ChevronLeft, Users, CheckCircle2 } from "lucide-react";
 
 type Motorista = any;
 const STATUS_OPTS = [{ value: "ativo", label: "Ativo" }, { value: "inativo", label: "Inativo" }, { value: "afastado", label: "Afastado" }];
 const CNH_OPTS = ["A", "B", "AB", "C", "D", "E"].map(v => ({ value: v, label: v }));
 const hasPerms = (user: any, ...perms: string[]) =>
   user?.isMaster || user?.permissions?.includes("*") || perms.some((p: string) => user?.permissions?.includes(p));
+
+function getMotoristaCnhGroup(validade?: string | null) {
+  if (!validade) return "semCnh";
+  const dias = Math.ceil((new Date(validade).getTime() - Date.now()) / 86400000);
+  if (dias < 0) return "vencida";
+  if (dias <= 7) return "vence7";
+  if (dias <= 15) return "vence15";
+  if (dias <= 30) return "vence30";
+  if (dias <= 60) return "vence60";
+  if (dias <= 90) return "vence90";
+  return "validas";
+}
 
 // ── Modal de cadastro/edição ────────────────────────────────────────────────────
 function MotoristaForm({ motorista, onSaved, onClose }: { motorista?: Motorista; onSaved: () => void; onClose: () => void }) {
@@ -142,12 +154,25 @@ function MotoristaForm({ motorista, onSaved, onClose }: { motorista?: Motorista;
 }
 
 // ── Página ──────────────────────────────────────────────────────────────────────
-function Stat({ label, value, color }: { label: string; value: number; color: string }) {
+function ModernFilterCard({ label, value, colorClass, textClass, ringClass, active, onClick }: { label: string; value: number; colorClass: string; textClass: string; ringClass: string; active: boolean; onClick: () => void }) {
   return (
-    <div className="card-premium" style={{ padding: "12px 14px", borderLeft: `3px solid ${color}`, minWidth: 110, flex: "1 1 auto" }}>
-      <div style={{ fontSize: 20, fontWeight: 800, color, fontFamily: "var(--font-display)", lineHeight: 1.1 }}>{value}</div>
-      <div style={{ fontSize: 10, color: "var(--text-muted)", marginTop: 2, textTransform: "uppercase", fontFamily: "var(--font-mono)" }}>{label}</div>
-    </div>
+    <button 
+      onClick={onClick}
+      className={`flex-1 min-w-[100px] rounded-2xl border transition-all relative overflow-hidden group text-left p-3.5
+        ${active ? `ring-2 ring-offset-2 dark:ring-offset-slate-950 border-transparent shadow-md ${ringClass}` : 'border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md'} 
+        bg-white dark:bg-slate-950`}
+    >
+      <div className={`absolute -right-4 -top-4 w-16 h-16 rounded-full opacity-10 group-hover:opacity-20 transition-opacity blur-xl ${colorClass}`} />
+      
+      {active && <CheckCircle2 className={`absolute top-3 right-3 w-4 h-4 ${textClass} opacity-80`} />}
+
+      <div className={`text-2xl font-black tracking-tight mb-0.5 ${active ? textClass : 'text-slate-900 dark:text-white'}`}>
+        {value}
+      </div>
+      <div className="text-[10px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400">
+        {label}
+      </div>
+    </button>
   );
 }
 
@@ -159,10 +184,12 @@ export default function MotoristasPage() {
   const [loading, setLoading] = useState(false);
   const [q, setQ] = useState("");
   const [fStatus, setFStatus] = useState("");
+  const [cnhFilter, setCnhFilter] = useState<string | null>(null);
   const [editing, setEditing] = useState<Motorista | null>(null);
   const [creating, setCreating] = useState(false);
   const [msg, setMsg] = useState("");
   const [showFilters, setShowFilters] = useState(false);
+  
   const canCreate = hasPerms(user, "frota:criar");
   const canEdit = hasPerms(user, "frota:editar");
   const canDelete = hasPerms(user, "frota:excluir");
@@ -188,10 +215,15 @@ export default function MotoristasPage() {
     catch { showMsg("Erro ao excluir"); }
   };
 
+  const filteredItems = items.filter(m => {
+    if (!cnhFilter) return true;
+    return getMotoristaCnhGroup(m.validadeCnh) === cnhFilter;
+  });
+
   const exportCSV = () => {
-    if (!items.length) return;
+    if (!filteredItems.length) return;
     const headers = ["Nome", "CPF", "Matrícula", "Telefone", "E-mail", "Departamento", "Cargo", "CNH", "Categoria CNH", "Validade CNH", "Status"];
-    const rows = items.map(m => {
+    const rows = filteredItems.map(m => {
       return [
         m.nome || "", m.cpf || "", m.matricula || "", m.telefone || "", m.email || "", 
         m.departamento || "", m.cargo || "", m.cnh || "", m.categoriaCnh || "", 
@@ -209,8 +241,12 @@ export default function MotoristasPage() {
     document.body.removeChild(link);
   };
 
+  const toggleCnhFilter = (val: string) => {
+    setCnhFilter(prev => prev === val ? null : val);
+  };
+
   return (
-    <div className="flex flex-col h-full bg-[var(--bg-primary)] text-[var(--text-primary)]">
+    <div className="flex flex-col h-full bg-[var(--bg-primary)] text-[var(--text-primary)] animate-in fade-in slide-in-from-bottom-4 duration-500">
       <Topbar>
         {msg && <span className={`text-xs font-mono ${msg.includes("Erro") ? "text-red-400" : "text-green-400"}`}>{msg}</span>}
       </Topbar>
@@ -219,8 +255,8 @@ export default function MotoristasPage() {
         <div style={{ maxWidth: 1400, margin: "0 auto", padding: "20px 24px 60px" }}>
           
           {/* Back link */}
-          <Link href="/dashboard/frota" className="flex items-center gap-1 text-[11px] text-[var(--text-muted)] hover:text-[var(--text-primary)] mb-3" style={{ textDecoration: "none", transition: "colors 0.2s" }}>
-            <ChevronLeft size={12} /> Voltar para o Dashboard de Frota
+          <Link href="/dashboard/frota" className="flex items-center gap-1 text-[11px] font-medium text-slate-500 hover:text-slate-900 dark:hover:text-white mb-4 transition-colors">
+            <ChevronLeft size={14} /> Voltar para o Dashboard de Frota
           </Link>
 
           {/* Header Row */}
@@ -231,7 +267,7 @@ export default function MotoristasPage() {
             <div style={{ flex: 1 }}>
               <h1 style={{ fontSize: 22, fontWeight: 800, margin: 0, letterSpacing: "-0.02em" }}>Motoristas</h1>
               <p style={{ color: "var(--text-muted)", margin: "2px 0 0", fontSize: 13 }}>
-                {items.length} motorista(s) encontrado(s)
+                {filteredItems.length} motorista(s) encontrado(s)
               </p>
             </div>
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
@@ -251,35 +287,61 @@ export default function MotoristasPage() {
 
           {/* CNH Dashboard stats */}
           {dash && (
-            <div style={{ marginBottom: 24 }}>
-              <div style={{ fontSize: 11, color: "var(--text-muted)", fontFamily: "var(--font-mono)", fontWeight: 600, marginBottom: 8, letterSpacing: "0.08em" }}>DASHBOARD DA CNH</div>
-              <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                <Stat label="Vencidas" value={dash.vencida} color="var(--accent-red)" />
-                <Stat label="≤ 7 dias" value={dash.vence7} color="var(--accent-red)" />
-                <Stat label="≤ 15 dias" value={dash.vence15} color="var(--accent-amber)" />
-                <Stat label="≤ 30 dias" value={dash.vence30} color="var(--accent-amber)" />
-                <Stat label="≤ 60 dias" value={dash.vence60} color="#eab308" />
-                <Stat label="≤ 90 dias" value={dash.vence90} color="#eab308" />
-                <Stat label="Válidas" value={dash.validas} color="var(--accent-green)" />
-                <Stat label="Sem CNH" value={dash.semCnh} color="var(--text-muted)" />
+            <div className="mb-8">
+              <div className="text-[11px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-3 flex items-center justify-between">
+                <span>Dashboard da CNH</span>
+                {cnhFilter && (
+                  <button onClick={() => setCnhFilter(null)} className="flex items-center gap-1 text-red-500 hover:text-red-600 transition-colors">
+                    <X size={12} /> Limpar filtro de CNH
+                  </button>
+                )}
+              </div>
+              <div className="flex gap-3 flex-wrap">
+                <ModernFilterCard label="Vencidas" value={dash.vencida} 
+                  colorClass="bg-red-500" textClass="text-red-600 dark:text-red-400" ringClass="ring-red-500"
+                  active={cnhFilter === "vencida"} onClick={() => toggleCnhFilter("vencida")} />
+                <ModernFilterCard label="≤ 7 dias" value={dash.vence7} 
+                  colorClass="bg-red-500" textClass="text-red-600 dark:text-red-400" ringClass="ring-red-500"
+                  active={cnhFilter === "vence7"} onClick={() => toggleCnhFilter("vence7")} />
+                <ModernFilterCard label="≤ 15 dias" value={dash.vence15} 
+                  colorClass="bg-orange-500" textClass="text-orange-600 dark:text-orange-400" ringClass="ring-orange-500"
+                  active={cnhFilter === "vence15"} onClick={() => toggleCnhFilter("vence15")} />
+                <ModernFilterCard label="≤ 30 dias" value={dash.vence30} 
+                  colorClass="bg-amber-500" textClass="text-amber-600 dark:text-amber-400" ringClass="ring-amber-500"
+                  active={cnhFilter === "vence30"} onClick={() => toggleCnhFilter("vence30")} />
+                <ModernFilterCard label="≤ 60 dias" value={dash.vence60} 
+                  colorClass="bg-yellow-500" textClass="text-yellow-600 dark:text-yellow-400" ringClass="ring-yellow-500"
+                  active={cnhFilter === "vence60"} onClick={() => toggleCnhFilter("vence60")} />
+                <ModernFilterCard label="≤ 90 dias" value={dash.vence90} 
+                  colorClass="bg-yellow-500" textClass="text-yellow-600 dark:text-yellow-400" ringClass="ring-yellow-500"
+                  active={cnhFilter === "vence90"} onClick={() => toggleCnhFilter("vence90")} />
+                <ModernFilterCard label="Válidas" value={dash.validas} 
+                  colorClass="bg-emerald-500" textClass="text-emerald-600 dark:text-emerald-400" ringClass="ring-emerald-500"
+                  active={cnhFilter === "validas"} onClick={() => toggleCnhFilter("validas")} />
+                <ModernFilterCard label="Sem CNH" value={dash.semCnh} 
+                  colorClass="bg-slate-400" textClass="text-slate-600 dark:text-slate-400" ringClass="ring-slate-400"
+                  active={cnhFilter === "semCnh"} onClick={() => toggleCnhFilter("semCnh")} />
               </div>
             </div>
           )}
 
           {/* Search + Filter Row */}
-          <div className="card-premium" style={{ display: "flex", flexWrap: "wrap", gap: 14, padding: "14px 18px", marginBottom: 20, alignItems: "center" }}>
-            <div style={{ flex: 1, minWidth: 260, position: "relative" }}>
-              <Search size={14} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "var(--text-muted)" }} />
+          <div className="bg-white dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-3 mb-5 flex flex-wrap gap-3 items-center">
+            <div className="flex-1 min-w-[260px] relative">
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
               <input 
-                className="input-o" 
-                placeholder="Pesquisar por motorista..." 
+                className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl text-sm pl-9 pr-3 py-2.5 focus:ring-2 focus:ring-indigo-500/50 outline-none transition-all" 
+                placeholder="Pesquisar por motorista, matrícula ou CNH..." 
                 value={q} 
                 onChange={e => setQ(e.target.value)} 
-                style={{ paddingLeft: 34, width: "100%" }} 
               />
             </div>
             {showFilters && (
-              <select className="input-o" style={{ minWidth: 160 }} value={fStatus} onChange={e => setFStatus(e.target.value)}>
+              <select 
+                className="bg-slate-50 dark:bg-slate-900 border-none rounded-xl text-sm px-3 py-2.5 min-w-[160px] focus:ring-2 focus:ring-indigo-500/50 outline-none transition-all" 
+                value={fStatus} 
+                onChange={e => setFStatus(e.target.value)}
+              >
                 <option value="">Status: todos</option>
                 {STATUS_OPTS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
               </select>
@@ -287,34 +349,36 @@ export default function MotoristasPage() {
           </div>
 
           {/* Table Card */}
-          <div className="card-premium overflow-hidden">
-            <div style={{ overflowX: "auto" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
-                <thead>
-                  <tr className="border-b border-[var(--border-subtle)] bg-[var(--bg-primary)]">
+          <div className="bg-white dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm whitespace-nowrap">
+                <thead className="bg-slate-50 dark:bg-slate-900/50">
+                  <tr>
                     {["Nome", "Matrícula", "CNH", "Validade CNH", "Vínculo", "Status", ""].map((h, i) => (
-                      <th key={i} style={{ textAlign: "left", padding: "12px 16px", fontSize: 10, fontFamily: "var(--font-mono)", color: "var(--text-muted)", fontWeight: 600, textTransform: "uppercase", whiteSpace: "nowrap" }}>{h}</th>
+                      <th key={i} className="px-4 py-3.5 font-semibold text-xs uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                        {h}
+                      </th>
                     ))}
                   </tr>
                 </thead>
-                <tbody>
-                  {loading && <tr><td colSpan={7} style={{ padding: 24, textAlign: "center", color: "var(--text-muted)" }}>Carregando...</td></tr>}
-                  {!loading && items.length === 0 && <tr><td colSpan={7} style={{ padding: 24, textAlign: "center", color: "var(--text-muted)" }}>Nenhum motorista encontrado.</td></tr>}
-                  {!loading && items.map(m => {
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
+                  {loading && <tr><td colSpan={7} className="px-4 py-8 text-center text-slate-500">Carregando...</td></tr>}
+                  {!loading && filteredItems.length === 0 && <tr><td colSpan={7} className="px-4 py-8 text-center text-slate-500">Nenhum motorista encontrado com os filtros selecionados.</td></tr>}
+                  {!loading && filteredItems.map(m => {
                     const cnh = cnhStatus(m.validadeCnh, bloqueio);
                     return (
-                      <tr key={m.id} className="border-b border-[var(--border-subtle)] hover:bg-[var(--bg-hover)] transition-colors">
-                        <td style={{ padding: "12px 16px", fontWeight: 600, color: "var(--text-primary)" }}>{m.nome}</td>
-                        <td style={{ padding: "12px 16px", fontFamily: "var(--font-mono)", color: "var(--text-muted)" }}>{m.matricula || "—"}</td>
-                        <td style={{ padding: "12px 16px", color: "var(--text-primary)" }}>{m.cnh ? `${m.cnh}${m.categoriaCnh ? " · " + m.categoriaCnh : ""}` : "—"}</td>
-                        <td style={{ padding: "12px 16px" }}><Badge color={cnh.color}>{cnh.label}</Badge></td>
-                        <td style={{ padding: "12px 16px" }}>{m.userId ? <Badge color="var(--accent-cyan)">Usuário</Badge> : <span style={{ color: "var(--text-muted)" }}>Externo</span>}</td>
-                        <td style={{ padding: "12px 16px" }}>{STATUS_OPTS.find(s => s.value === m.status)?.label || m.status}</td>
-                        <td style={{ padding: "8px 12px", whiteSpace: "nowrap" }}>
-                          <div style={{ display: "flex", gap: 4, justifyContent: "flex-end" }}>
-                            <button className="btn-icon" title="Detalhe" onClick={() => router.push(`/dashboard/frota/motoristas/${m.id}`)}><Eye size={14} /></button>
-                            {canEdit && <button className="btn-icon" title="Editar" onClick={() => setEditing(m)}><Pencil size={14} /></button>}
-                            {canDelete && <button className="btn-icon" title="Excluir" onClick={() => remove(m)} style={{ color: "var(--accent-red)" }}><Trash2 size={14} /></button>}
+                      <tr key={m.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-900/50 transition-colors">
+                        <td className="px-4 py-3 font-semibold text-slate-800 dark:text-slate-200">{m.nome}</td>
+                        <td className="px-4 py-3 font-mono text-slate-500">{m.matricula || "—"}</td>
+                        <td className="px-4 py-3 text-slate-700 dark:text-slate-300">{m.cnh ? `${m.cnh}${m.categoriaCnh ? " · " + m.categoriaCnh : ""}` : "—"}</td>
+                        <td className="px-4 py-3"><Badge color={cnh.color}>{cnh.label}</Badge></td>
+                        <td className="px-4 py-3">{m.userId ? <Badge color="var(--accent-cyan)">Usuário</Badge> : <span className="text-slate-400">Externo</span>}</td>
+                        <td className="px-4 py-3">{STATUS_OPTS.find(s => s.value === m.status)?.label || m.status}</td>
+                        <td className="px-4 py-3 text-right">
+                          <div className="flex gap-1 justify-end">
+                            <button className="p-1.5 text-slate-400 hover:text-indigo-600 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition-colors" title="Detalhe" onClick={() => router.push(`/dashboard/frota/motoristas/${m.id}`)}><Eye size={16} /></button>
+                            {canEdit && <button className="p-1.5 text-slate-400 hover:text-emerald-600 rounded-lg hover:bg-emerald-50 dark:hover:bg-emerald-900/30 transition-colors" title="Editar" onClick={() => setEditing(m)}><Pencil size={16} /></button>}
+                            {canDelete && <button className="p-1.5 text-slate-400 hover:text-red-600 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors" title="Excluir" onClick={() => remove(m)}><Trash2 size={16} /></button>}
                           </div>
                         </td>
                       </tr>
