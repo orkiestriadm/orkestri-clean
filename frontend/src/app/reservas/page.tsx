@@ -27,8 +27,16 @@ export default function ReservasDashboard() {
         api.get("/frota/veiculos")
       ]);
 
-      const reservas = resReservas.data;
-      const veiculos = resVeiculos.data;
+      const getArray = (d: any) => {
+        if (Array.isArray(d)) return d;
+        if (d?.linhas && Array.isArray(d.linhas)) return d.linhas;
+        if (d?.data && Array.isArray(d.data)) return d.data;
+        if (d?.items && Array.isArray(d.items)) return d.items;
+        return [];
+      };
+
+      const reservas = getArray(resReservas.data);
+      const veiculos = getArray(resVeiculos.data);
 
       const ativas = reservas.filter((r: any) => r.status === 'EM_ANDAMENTO').length;
       const manutencao = veiculos.filter((v: any) => v.status === 'Manutenção').length;

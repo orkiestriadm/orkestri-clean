@@ -21,9 +21,17 @@ export default function RelatoriosReservas() {
     try {
       setLoading(true);
       const { data } = await api.get("/frota/reservas");
+      const getArray = (d: any) => {
+        if (Array.isArray(d)) return d;
+        if (d?.linhas && Array.isArray(d.linhas)) return d.linhas;
+        if (d?.data && Array.isArray(d.data)) return d.data;
+        if (d?.items && Array.isArray(d.items)) return d.items;
+        return [];
+      };
+      const reservasArr = getArray(data);
       
-      const totais = data.length;
-      const canceladas = data.filter((r: any) => r.status === 'CANCELADA').length;
+      const totais = reservasArr.length;
+      const canceladas = reservasArr.filter((r: any) => r.status === 'CANCELADA').length;
       
       // Cálculo básico de estatísticas
       setStats({

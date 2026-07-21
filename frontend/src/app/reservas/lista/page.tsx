@@ -17,13 +17,21 @@ export default function ListaReservas() {
     try {
       setLoading(true);
       const { data } = await api.get("/frota/reservas");
-      setReservas(data.map((r: any) => ({
+      const getArray = (d: any) => {
+        if (Array.isArray(d)) return d;
+        if (d?.linhas && Array.isArray(d.linhas)) return d.linhas;
+        if (d?.data && Array.isArray(d.data)) return d.data;
+        if (d?.items && Array.isArray(d.items)) return d.items;
+        return [];
+      };
+      const rawReservas = getArray(data);
+      setReservas(rawReservas.map((r: any) => ({
         id: r.id,
-        titulo: r.titulo,
+        titulo: r.titulo || r.motivo || 'Sem título',
         veiculo: r.veiculo ? `${r.veiculo.modelo} (${r.veiculo.placa})` : "Veículo Desconhecido",
         dataInicio: r.dataInicio,
         dataFim: r.dataFim,
-        destino: r.destino,
+        destino: r.destino || '-',
         status: r.status,
         criadoEm: r.createdAt || r.dataInicio // Fallback se não vier createdAt
       })));
