@@ -52,6 +52,7 @@ export type CrudConfig = {
   filters?: Filter[];
   defaults?: Record<string, any>;
   detailHref?: (row: any) => string;   // se definido, mostra ação "abrir detalhe"
+  searchPlaceholder?: string; // custom placeholder for search input
 };
 
 // ── Helpers visuais ────────────────────────────────────────────────────────────
@@ -349,7 +350,7 @@ export default function CrudView({ config, intro }: { config: CrudConfig; intro?
           <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginBottom: 18, alignItems: "center" }}>
             <div style={{ flex: "1 1 260px", minWidth: 220, position: "relative" }}>
               <Search size={14} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "var(--text-muted)", pointerEvents: "none" }} />
-              <input className="input-o" placeholder={`Pesquisar por ${config.singular}...`} value={q} onChange={e => setQ(e.target.value)} style={{ paddingLeft: 34, width: "100%" }} />
+              <input className="input-o" placeholder={config.searchPlaceholder || `Pesquisar por ${config.singular}...`} value={q} onChange={e => setQ(e.target.value)} style={{ paddingLeft: 34, width: "100%" }} />
             </div>
             {(config.filters || []).map(flt => {
               const opts = flt.source ? (lookups[flt.source] || []) : (flt.options || []);
