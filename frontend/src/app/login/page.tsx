@@ -6,7 +6,6 @@ import { useAuthStore } from "@/lib/store";
 import { authApi } from "@/lib/api";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowRight, Shield, Zap, BarChart3, Eye, EyeOff, CheckCircle2 } from "lucide-react";
-import { BrandLogo } from "@/components/ui/logo";
 
 const FEATURES = [
   { icon: Shield, label: "Segurança enterprise", desc: "Multi-tenant, JWT HttpOnly, OWASP nativo" },
@@ -55,16 +54,15 @@ export default function LoginPage() {
     <div className="bg-[var(--bg-primary)] overflow-hidden transition-colors duration-300" style={{ height: '100dvh', display: 'grid', gridTemplateColumns: '1fr 1fr' }}>
 
       {/* ── Background ── */}
-      <div className="fixed inset-0 pointer-events-none select-none">
-        {/* Primary orb */}
-        <div className="absolute top-[-15%] left-[-8%] w-[800px] h-[800px] rounded-full bg-violet-600/10 dark:bg-violet-700/8 blur-[150px]" />
-        {/* Cyan orb */}
-        <div className="absolute bottom-[-15%] right-[-8%] w-[700px] h-[700px] rounded-full bg-cyan-500/10 dark:bg-cyan-500/6 blur-[130px]" />
-        {/* Small accent */}
-        <div className="absolute top-1/2 right-1/3 w-[300px] h-[300px] rounded-full bg-violet-500/10 dark:bg-violet-500/5 blur-[80px] -translate-y-1/2" />
-        {/* Dot grid */}
-        <div className="absolute inset-0 opacity-[0.05] dark:opacity-[0.022]"
-          style={{ backgroundImage: 'radial-gradient(circle, var(--accent-violet) 1px, transparent 1px)', backgroundSize: '32px 32px' }} />
+      <div className="fixed inset-0 pointer-events-none select-none z-0">
+        <div className="absolute inset-y-0 left-0 w-full lg:w-1/2 bg-cover bg-center" style={{ backgroundImage: 'url(/branding/rodovia.jpg)' }}>
+          <div className="absolute inset-0 bg-red-900/80 mix-blend-multiply" />
+        </div>
+        
+        {/* Orbs right side (login side) */}
+        <div className="hidden lg:block absolute top-[-15%] right-[-8%] w-[800px] h-[800px] rounded-full bg-red-600/10 dark:bg-red-700/8 blur-[150px]" />
+        <div className="hidden lg:block absolute bottom-[-15%] right-[20%] w-[700px] h-[700px] rounded-full bg-orange-500/10 dark:bg-orange-500/6 blur-[130px]" />
+        
         {/* Vertical gradient separator */}
         <div className="hidden lg:block absolute top-0 bottom-0 left-1/2 w-px bg-gradient-to-b from-transparent via-[var(--border-strong)] to-transparent" />
       </div>
@@ -78,28 +76,28 @@ export default function LoginPage() {
       >
         {/* Logo */}
         <Link href="/">
-          <BrandLogo size="xxl" />
+          <img src="/branding/logo-ttbr-branca.png" alt="Triunfo TBR" className="h-16 w-auto" />
         </Link>
 
         {/* Main statement */}
         <div className="space-y-10">
           <div>
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-[var(--accent-violet)]/20 bg-[var(--accent-violet-dim)] text-[var(--accent-violet)] text-[11px] font-medium mb-6">
-              <span className="w-1.5 h-1.5 rounded-full bg-[var(--accent-green)] animate-pulse" />
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-red-500/40 bg-red-500/20 text-white text-[11px] font-medium mb-6 backdrop-blur-md">
+              <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
               Sistema disponível · 99,9% uptime
             </div>
-            <h1 className="font-display text-[44px] font-bold leading-[1.08] tracking-tight text-[var(--text-primary)] mb-5">
+            <h1 className="font-display text-[44px] font-bold leading-[1.08] tracking-tight text-white mb-5">
               Profundidade
               <br />
-              <span className="bg-gradient-to-r from-violet-500 via-fuchsia-400 to-violet-500 dark:from-violet-400 dark:via-fuchsia-300 dark:to-violet-400 bg-clip-text text-transparent">
+              <span className="bg-gradient-to-r from-red-400 via-orange-300 to-red-400 bg-clip-text text-transparent">
                 corporativa.
               </span>
               <br />
               Experiência
               <br />
-              <span className="text-[var(--text-muted)]">moderna.</span>
+              <span className="text-white/70">moderna.</span>
             </h1>
-            <p className="text-[15px] text-[var(--text-secondary)] leading-relaxed max-w-[340px]">
+            <p className="text-[15px] text-white/80 leading-relaxed max-w-[340px]">
               Transforme tarefas, chamados, projetos e indicadores em uma única operação inteligente.
             </p>
           </div>
@@ -114,12 +112,12 @@ export default function LoginPage() {
                 transition={{ delay: 0.35 + i * 0.1, duration: 0.5 }}
                 className="flex items-start gap-3.5 group"
               >
-                <div className="w-9 h-9 rounded-[10px] bg-[var(--bg-hover)] border border-[var(--border-subtle)] flex items-center justify-center shrink-0 mt-0.5 group-hover:bg-[var(--bg-active)] group-hover:border-[var(--border-medium)] transition-all">
-                  <Icon size={16} className="text-[var(--accent-violet)]" />
+                <div className="w-9 h-9 rounded-[10px] bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center shrink-0 mt-0.5 group-hover:bg-white/20 transition-all">
+                  <Icon size={16} className="text-white" />
                 </div>
                 <div>
-                  <div className="text-[13px] font-semibold text-[var(--text-primary)]">{label}</div>
-                  <div className="text-[12px] text-[var(--text-secondary)] mt-0.5">{desc}</div>
+                  <div className="text-[13px] font-semibold text-white">{label}</div>
+                  <div className="text-[12px] text-white/70 mt-0.5">{desc}</div>
                 </div>
               </motion.div>
             ))}
@@ -133,10 +131,10 @@ export default function LoginPage() {
                 initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.6 + i * 0.08, duration: 0.4 }}
-                className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-card)]/50 p-3 text-center shadow-premium-sm"
+                className="rounded-xl border border-white/20 bg-white/10 backdrop-blur-md p-3 text-center"
               >
-                <div className="font-display font-bold text-lg text-[var(--accent-violet)] leading-none">{stat.value}</div>
-                <div className="text-[10px] text-[var(--text-muted)] mt-1 font-mono">{stat.label}</div>
+                <div className="font-display font-bold text-lg text-white leading-none">{stat.value}</div>
+                <div className="text-[10px] text-white/70 mt-1 font-mono">{stat.label}</div>
               </motion.div>
             ))}
           </div>
@@ -145,13 +143,13 @@ export default function LoginPage() {
         {/* Social proof footer */}
         <div className="flex items-center gap-3">
           <div className="flex -space-x-1.5">
-            {['G', 'T', 'R', 'M', 'A'].map((l, i) => (
-              <div key={i} className="w-7 h-7 rounded-full border-2 border-[var(--bg-primary)] bg-gradient-to-br from-violet-500/60 to-violet-700/60 flex items-center justify-center text-[9px] font-bold text-white shadow-sm">
+            {['T', 'R', 'I', 'U', 'N', 'F', 'O'].map((l, i) => (
+              <div key={i} className="w-7 h-7 rounded-full border-2 border-red-900 bg-gradient-to-br from-red-500 to-red-700 flex items-center justify-center text-[9px] font-bold text-white shadow-sm">
                 {l}
               </div>
             ))}
           </div>
-          <p className="text-[12px] text-[var(--text-muted)]">+120 empresas confiam no Orkiestri</p>
+          <p className="text-[12px] text-white/70">Triunfo Transbrasiliana</p>
         </div>
       </motion.div>
 
@@ -165,7 +163,7 @@ export default function LoginPage() {
         >
           {/* Mobile logo */}
           <div className="mb-10 lg:hidden flex justify-center">
-            <BrandLogo size="lg" />
+            <img src="/branding/logo-ttbr-colorida.png" alt="Triunfo TBR" className="h-16 w-auto" />
           </div>
 
           {/* Header */}
@@ -178,7 +176,7 @@ export default function LoginPage() {
           {/* Form card */}
           <div className="relative rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-glass)] backdrop-blur-2xl p-8 shadow-premium-lg">
             {/* Top glow line */}
-            <div className="absolute top-0 left-8 right-8 h-px bg-gradient-to-r from-transparent via-[var(--accent-violet)]/40 to-transparent" />
+            <div className="absolute top-0 left-8 right-8 h-px bg-gradient-to-r from-transparent via-red-500/60 to-transparent" />
 
             <form onSubmit={handleLogin} className="flex flex-col gap-5">
 
@@ -199,7 +197,7 @@ export default function LoginPage() {
               <div className="flex flex-col gap-1.5">
                 <div className="flex items-center justify-between">
                   <label className="text-[11px] font-semibold text-[var(--text-muted)] tracking-widest uppercase">Senha</label>
-                  <Link href="/recuperar-senha" className="text-[12px] text-[var(--accent-violet)] opacity-80 hover:opacity-100 transition-opacity">
+                  <Link href="/recuperar-senha" className="text-[12px] text-red-500 opacity-80 hover:opacity-100 transition-opacity">
                     Esqueci a senha
                   </Link>
                 </div>
@@ -242,7 +240,7 @@ export default function LoginPage() {
               <button
                 type="submit"
                 disabled={localLoading || !email || !senha}
-                className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl btn-primary text-white font-semibold text-[14px] disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl bg-red-600 hover:bg-red-700 text-white font-semibold text-[14px] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {localLoading ? (
                   <>
@@ -269,13 +267,12 @@ export default function LoginPage() {
             </form>
           </div>
 
-          {/* Footer links */}
-          <div className="mt-6 text-center space-y-3">
+          <div className="mt-6 text-center space-y-3 relative z-10">
             <Link href="/solicitar-acesso" className="text-[13px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors">
-              Quer conhecer o sistema?{' '}
-              <span className="text-[var(--accent-violet)] opacity-80 hover:opacity-100">Teste Grátis por 7 dias →</span>
+              Problemas para acessar?{' '}
+              <span className="text-red-500 opacity-80 hover:opacity-100">Fale com o suporte →</span>
             </Link>
-            <p className="text-[11px] text-[var(--text-faint)] font-mono">Orkiestri Enterprise · v2.0.4</p>
+            <p className="text-[11px] text-[var(--text-faint)] font-mono">Orkiestri HUB Operacional</p>
           </div>
         </motion.div>
       </div>
