@@ -41,7 +41,7 @@ export type Column = {
   render?: (row: any, lk: Lookups) => React.ReactNode;
   align?: "left" | "right" | "center";
 };
-export type Filter = { key: string; label: string; options: Option[] };
+export type Filter = { key: string; label: string; options?: Option[]; source?: SourceKey };
 export type CrudConfig = {
   endpoint: string;   // ex.: "/frota/veiculos"
   tabela: string;     // ex.: "veiculos" (para histórico/auditoria)
@@ -244,10 +244,11 @@ export default function CrudView({ config, intro }: { config: CrudConfig; intro?
   const canDelete = hasPerms(user, "frota:excluir");
   const showMsg = (m: string) => { setMsg(m); setTimeout(() => setMsg(""), 3000); };
 
-  // Carrega listas auxiliares usadas pelos selects do formulário
+  // Carrega listas auxiliares usadas pelos selects do formulário e pelos filtros
   useEffect(() => {
     const used = new Set<SourceKey>();
     config.fields.forEach(f => f.source && used.add(f.source));
+    config.filters?.forEach(f => f.source && used.add(f.source));
     used.forEach((key) => {
       api.get(SOURCE_EP[key], { params: { limit: 200 } })
         .then(r => {
@@ -350,13 +351,16 @@ export default function CrudView({ config, intro }: { config: CrudConfig; intro?
               <Search size={14} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "var(--text-muted)", pointerEvents: "none" }} />
               <input className="input-o" placeholder={`Pesquisar por ${config.singular}...`} value={q} onChange={e => setQ(e.target.value)} style={{ paddingLeft: 34, width: "100%" }} />
             </div>
-            {(config.filters || []).map(flt => (
-              <select key={flt.key} className="input-o" style={{ minWidth: 150, flex: "0 0 auto" }}
-                value={filterVals[flt.key] || ""} onChange={e => setFilterVals(v => ({ ...v, [flt.key]: e.target.value }))}>
-                <option value="">{flt.label}: todos</option>
-                {flt.options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-              </select>
-            ))}
+            {(config.filters || []).map(flt => {
+              const opts = flt.source ? (lookups[flt.source] || []) : (flt.options || []);
+              return (
+                <select key={flt.key} className="input-o" style={{ minWidth: 150, flex: "0 0 auto" }}
+                  value={filterVals[flt.key] || ""} onChange={e => setFilterVals(v => ({ ...v, [flt.key]: e.target.value }))}>
+                  <option value="">{flt.label}: todos</option>
+                  {opts.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </select>
+              );
+            })}
             {(q || Object.values(filterVals).some(Boolean)) && <button className="btn btn-ghost" style={{ fontSize: 11 }} onClick={() => { setQ(""); setFilterVals({}); }}>Limpar</button>}
             <span style={{ fontSize: 11, color: "var(--text-muted)", fontFamily: "var(--font-mono)", marginLeft: "auto" }}>{total} {config.singular}{total !== 1 ? "s" : ""}</span>
           </div>

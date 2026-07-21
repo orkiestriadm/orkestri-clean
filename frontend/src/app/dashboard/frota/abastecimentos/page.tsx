@@ -303,7 +303,10 @@ function AbastecimentoIntro() {
 const config: CrudConfig = {
   endpoint: "/frota/abastecimentos", tabela: "abastecimentos", singular: "abastecimento", plural: "Abastecimentos",
   defaults: { tanqueCheio: true },
-  filters: [{ key: "tipoCombustivel", label: "Combustível", options: COMB_OPTS }],
+  filters: [
+    { key: "tipoCombustivel", label: "Combustível", options: COMB_OPTS },
+    { key: "veiculoId", label: "Veículo", source: "veiculos" as any },
+  ],
   columns: [
     { key: "data", label: "Data", render: r => fmtDate(r.data) },
     { key: "veiculo", label: "Veículo", render: r => <span className="font-mono font-bold bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded text-xs">{r.veiculo?.placa || "—"}</span> },
