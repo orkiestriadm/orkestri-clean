@@ -380,7 +380,7 @@ export default function CalendarioReservas() {
           </div>
 
           {/* Calendar grid */}
-          <div className="flex-1 overflow-y-auto">
+          <div className="flex-1 overflow-y-auto relative">
             {viewMode === "month" && (
               <div className="h-full flex flex-col">
                 {/* Day of week headers */}
