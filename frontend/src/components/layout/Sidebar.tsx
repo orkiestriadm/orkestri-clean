@@ -73,6 +73,7 @@ const NAV: NavGroup[] = [
       { href: "/dashboard/frota/manutencoes",    label: "Manutenções",    icon: Wrench,          permission: "frota:ver" },
       { href: "/dashboard/frota/documentacoes",  label: "Documentações",  icon: FileText,        permission: "frota:ver" },
       { href: "/dashboard/frota/abastecimentos", label: "Abastecimentos", icon: Zap,             permission: "frota:ver" },
+      { href: "/reservas",                       label: "Reserva de Carros", icon: CalendarDays, permission: "frota:ver" },
       { href: "/dashboard/frota/relatorios",     label: "Relatórios",     icon: BarChart2,       permission: "frota:relatorios" },
       { href: "/dashboard/frota/configuracoes",  label: "Configurações",  icon: Settings,        permission: "frota:configurar" },
     ],
