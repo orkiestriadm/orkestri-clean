@@ -50,7 +50,7 @@ export default function CalendarioReservas() {
         status: r.status,
       }));
       setEvents(formatedEvents);
-      setVeiculos(resVeiculos.data);
+      setVeiculos(resVeiculos.data?.linhas || resVeiculos.data || []);
     } catch (e) {
       console.error("Erro ao carregar reservas", e);
     } finally {

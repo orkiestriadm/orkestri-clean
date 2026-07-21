@@ -18,7 +18,7 @@ export default function VeiculosDisponiveis() {
       setLoading(true);
       const { data } = await api.get("/frota/veiculos");
       // Formata ou salva os veículos reais retornados
-      setVeiculos(data);
+      setVeiculos(data.linhas || data || []);
     } catch (e) {
       console.error("Erro ao carregar lista de veículos", e);
     } finally {
