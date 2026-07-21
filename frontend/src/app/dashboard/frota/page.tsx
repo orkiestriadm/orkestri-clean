@@ -174,9 +174,9 @@ export default function FrotaDashboardPage() {
 
               {/* Charts row 1 */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
-                <div className="bg-white dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-5">
-                  <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200 mb-5">Custos Mensais</h3>
-                  <div className="w-full h-[280px]">
+                <div className="bg-white dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-4 relative transition-all duration-300 hover:scale-105 hover:-translate-y-1 hover:shadow-2xl hover:z-10">
+                  <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200 mb-3">Custos Mensais</h3>
+                  <div className="w-full h-[220px]">
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart data={c.custosMensais || []}>
                         <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle)" vertical={false} />
@@ -193,9 +193,9 @@ export default function FrotaDashboardPage() {
                   </div>
                 </div>
 
-                <div className="bg-white dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-5">
-                  <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200 mb-5">Custos por Veículo (top 10)</h3>
-                  <div className="w-full h-[280px]">
+                <div className="bg-white dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-4 relative transition-all duration-300 hover:scale-105 hover:-translate-y-1 hover:shadow-2xl hover:z-10">
+                  <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200 mb-3">Custos por Veículo (top 10)</h3>
+                  <div className="w-full h-[220px]">
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart data={c.custosPorVeiculo || []} layout="vertical">
                         <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle)" horizontal={false} />
@@ -211,9 +211,9 @@ export default function FrotaDashboardPage() {
 
               {/* Charts row 2 */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
-                <div className="bg-white dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-5">
-                  <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200 mb-5">Custos por Unidade</h3>
-                  <div className="w-full h-[280px]">
+                <div className="bg-white dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-4 relative transition-all duration-300 hover:scale-105 hover:-translate-y-1 hover:shadow-2xl hover:z-10">
+                  <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200 mb-3">Custos por Unidade</h3>
+                  <div className="w-full h-[220px]">
                     <ResponsiveContainer width="100%" height="100%">
                       <PieChart>
                         <Pie data={c.custosPorUnidade || []} dataKey="total" nameKey="unidade" cx="50%" cy="50%" outerRadius={90} label={(e: any) => e.unidade} labelLine={{ stroke: "var(--border-medium)" }}>
@@ -225,9 +225,9 @@ export default function FrotaDashboardPage() {
                   </div>
                 </div>
 
-                <div className="bg-white dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-5">
-                  <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200 mb-5">Consumo de Combustível</h3>
-                  <div className="w-full h-[280px]">
+                <div className="bg-white dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-4 relative transition-all duration-300 hover:scale-105 hover:-translate-y-1 hover:shadow-2xl hover:z-10">
+                  <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200 mb-3">Consumo de Combustível</h3>
+                  <div className="w-full h-[220px]">
                     <ResponsiveContainer width="100%" height="100%">
                       <ComposedChart data={c.consumo || []}>
                         <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle)" vertical={false} />
@@ -246,9 +246,9 @@ export default function FrotaDashboardPage() {
 
               {/* Charts row 3 */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="bg-white dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-5">
-                  <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200 mb-5">Manutenções (status)</h3>
-                  <div className="w-full h-[220px]">
+                <div className="bg-white dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-4 relative transition-all duration-300 hover:scale-[1.15] hover:-translate-y-2 hover:shadow-2xl hover:z-20">
+                  <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200 mb-3">Manutenções (status)</h3>
+                  <div className="w-full h-[180px]">
                     <ResponsiveContainer width="100%" height="100%">
                       <PieChart>
                         <Pie data={(c.manutencoes || []).map((x: any) => ({ ...x, label: MANUT_LABEL[x.status] || x.status }))} dataKey="count" nameKey="label" cx="50%" cy="50%" outerRadius={75} label={(e: any) => `${e.label}: ${e.count}`} labelLine={{ stroke: "var(--border-medium)" }}>
@@ -260,9 +260,9 @@ export default function FrotaDashboardPage() {
                   </div>
                 </div>
 
-                <div className="bg-white dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-5">
-                  <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200 mb-5">Revisões (status)</h3>
-                  <div className="w-full h-[220px]">
+                <div className="bg-white dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-4 relative transition-all duration-300 hover:scale-[1.15] hover:-translate-y-2 hover:shadow-2xl hover:z-20">
+                  <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200 mb-3">Revisões (status)</h3>
+                  <div className="w-full h-[180px]">
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart data={(c.revisoes || []).map((x: any) => ({ ...x, label: REV_LABEL[x.status] || x.status }))}>
                         <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle)" vertical={false} />
@@ -275,9 +275,9 @@ export default function FrotaDashboardPage() {
                   </div>
                 </div>
 
-                <div className="bg-white dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-5">
-                  <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200 mb-5">Trocas de Pneus</h3>
-                  <div className="w-full h-[220px]">
+                <div className="bg-white dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-4 relative transition-all duration-300 hover:scale-[1.15] hover:-translate-y-2 hover:shadow-2xl hover:z-20">
+                  <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200 mb-3">Trocas de Pneus</h3>
+                  <div className="w-full h-[180px]">
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart data={(c.trocasPneus || []).map((x: any) => ({ ...x, label: PNEU_LABEL[x.tipo] || x.tipo }))}>
                         <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle)" vertical={false} />
@@ -290,9 +290,9 @@ export default function FrotaDashboardPage() {
                   </div>
                 </div>
 
-                <div className="bg-white dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-5">
-                  <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200 mb-5">Vencimentos (Docs)</h3>
-                  <div className="w-full h-[220px]">
+                <div className="bg-white dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-4 relative transition-all duration-300 hover:scale-[1.15] hover:-translate-y-2 hover:shadow-2xl hover:z-20">
+                  <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200 mb-3">Vencimentos (Docs)</h3>
+                  <div className="w-full h-[180px]">
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart data={c.vencimentos || []}>
                         <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle)" vertical={false} />
