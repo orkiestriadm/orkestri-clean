@@ -71,8 +71,8 @@ export default function CalendarioReservas() {
     try {
       setLoading(true);
       const [resR, resV] = await Promise.all([
-        api.get("/frota/reservas"),
-        api.get("/frota/veiculos"),
+        api.get("/frota/reservas?limit=1000"),
+        api.get("/frota/veiculos?limit=1000"),
       ]);
       const reservasArr = getArray(resR?.data);
       const veiculosArr = getArray(resV?.data);
