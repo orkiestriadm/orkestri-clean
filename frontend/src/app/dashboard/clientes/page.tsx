@@ -688,7 +688,7 @@ export default function ClientesPage() {
           ].map(s => (
             <div key={s.label} className="card" style={{ padding: "16px 20px" }}>
               <div style={{ fontSize: 10, fontFamily: "var(--font-mono)", letterSpacing: "0.08em", color: "var(--text-muted)", marginBottom: 8 }}>{s.label}</div>
-              <div style={{ fontFamily: "var(--font-display)", fontSize: 24, fontWeight: 700, color: s.color, marginBottom: 4 }}>{s.value}</div>
+              <div className="metric" style={{ fontSize: 24, color: s.color, marginBottom: 4 }}>{s.value}</div>
               <div style={{ fontSize: 11, color: "var(--text-muted)" }}>{s.sub}</div>
             </div>
           ))}

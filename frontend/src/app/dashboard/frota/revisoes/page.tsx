@@ -6,6 +6,7 @@ import Topbar from "@/components/layout/Topbar";
 import { useAuthStore } from "@/lib/store";
 import { api } from "@/lib/api";
 import { Badge, fmtDate, fmtMoney } from "../_components/crud";
+import { PageBody, BackLink, PageHeader, StatGrid, StatCard } from "../_components/ui";
 import { Plus, Pencil, Trash2, X, CheckCircle2, ChevronLeft, CalendarDays, RefreshCw, Search, Filter } from "lucide-react";
 
 const TIPO_OPTS = [
@@ -307,28 +308,17 @@ export default function RevisoesPage() {
       </Topbar>
 
       <main className="flex-1 overflow-y-auto page-content">
-        <div style={{ maxWidth: 1400, margin: "0 auto", padding: "20px 24px 60px" }}>
-          
-          {/* Back link */}
-          <Link href="/dashboard/frota" className="flex items-center gap-1 text-[11px] text-[var(--text-muted)] hover:text-[var(--text-primary)] mb-3" style={{ textDecoration: "none", transition: "colors 0.2s" }}>
-            <ChevronLeft size={12} /> Voltar para o Dashboard de Frota
-          </Link>
+        <PageBody>
+          <BackLink href="/dashboard/frota" label="Voltar para o Dashboard de Frota" />
 
-          {/* Header Row */}
-          <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", marginBottom: 24 }}>
-            <div style={{ width: 44, height: 44, borderRadius: 12, background: "var(--accent-violet)", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 6px 16px -6px rgba(99,102,241,0.6)", flexShrink: 0 }}>
-              <CalendarDays size={22} color="#fff" />
-            </div>
-            <div style={{ flex: 1 }}>
-              <h1 style={{ fontSize: 22, fontWeight: 800, margin: 0, letterSpacing: "-0.02em" }}>Revisões Preventivas</h1>
-              <p style={{ color: "var(--text-muted)", margin: "2px 0 0", fontSize: 13 }}>
-                Agenda de manutenções programadas por KM, data ou horímetro
-              </p>
-            </div>
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <PageHeader
+            icon={<CalendarDays size={22} />}
+            title="Revisões Preventivas"
+            subtitle="Agenda de manutenções programadas por KM, data ou horímetro"
+            actions={<>
               {tab === "agenda_km" && canEdit && (
                 <button className="btn btn-ghost" onClick={sincronizarKm} disabled={syncing} title="Puxa o KM do ultimo abastecimento de cada veiculo para atualizar a agenda" style={{ fontSize: 12, display: "inline-flex", alignItems: "center", gap: 6 }}>
-                  <RefreshCw size={14} /> {syncing ? "Atualizando..." : "Atualizar KM (abastecimento)"}
+                  <RefreshCw size={14} className={syncing ? "animate-spin" : ""} /> {syncing ? "Atualizando..." : "Atualizar KM (abastecimento)"}
                 </button>
               )}
               {tab === "planos" && canConfig && (
@@ -341,13 +331,13 @@ export default function RevisoesPage() {
                   <Plus size={14} /> Nova revisão
                 </button>
               )}
-            </div>
-          </div>
+            </>}
+          />
 
           {/* Tab Navigation */}
-          <div style={{ display: "flex", gap: 4, marginBottom: 18, borderBottom: "1px solid var(--border-subtle)" }}>
+          <div className="tab-bar">
             {TABS.map(t => (
-              <button key={t.id} onClick={() => setTab(t.id)} style={{ padding: "8px 16px", fontSize: 13, fontWeight: tab === t.id ? 700 : 500, color: tab === t.id ? "var(--text-primary)" : "var(--text-muted)", borderBottom: tab === t.id ? "2px solid var(--accent-violet, #8b5cf6)" : "2px solid transparent", background: "none" }}>{t.label}</button>
+              <button key={t.id} onClick={() => setTab(t.id)} className="tab-btn" data-active={tab === t.id}>{t.label}</button>
             ))}
           </div>
 
@@ -366,27 +356,21 @@ export default function RevisoesPage() {
 
               {/* Painel de faróis (clique para filtrar) */}
               {agenda && (
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(148px, 1fr))", gap: 12, marginBottom: 16 }}>
-                  {["vermelho", "laranja", "amarelo", "verde"].map(k => {
-                    const c = FAROL[k].color; const active = fFarol === k; const count = (resumoDyn as any)[k] || 0;
-                    const critical = k === "vermelho" && count > 0;
-                    return (
-                      <button key={k} onClick={() => setFFarol(active ? "" : k)}
-                        style={{ position: "relative", overflow: "hidden", textAlign: "left", cursor: "pointer", padding: "16px 18px", borderRadius: 14,
-                          background: `radial-gradient(130% 130% at 100% 0%, ${c}22, transparent 58%), var(--bg-secondary)`,
-                          border: `1px solid ${active ? c : "var(--border-subtle)"}`,
-                          boxShadow: active ? `0 0 0 1px ${c}, 0 12px 36px -16px ${c}` : "0 6px 22px -16px rgba(0,0,0,.5)",
-                          transition: "all .2s", ...(critical ? ({ ["--rc"]: c, animation: "revPulse 2.4s infinite" } as any) : {}) }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                          <span style={{ width: 9, height: 9, borderRadius: "50%", background: c, boxShadow: `0 0 12px ${c}`, flexShrink: 0 }} />
-                          <span style={{ fontSize: 9, letterSpacing: "0.14em", textTransform: "uppercase", fontFamily: "var(--font-mono)", color: "var(--text-muted)" }}>{FAROL[k].label}</span>
-                        </div>
-                        <div style={{ fontSize: 36, fontWeight: 800, fontFamily: "var(--font-display)", color: c, lineHeight: 1, marginTop: 10, textShadow: `0 0 24px ${c}55` }}>{count}</div>
-                        <span style={{ position: "absolute", right: 12, bottom: 11, fontSize: 8.5, fontFamily: "var(--font-mono)", color: active ? c : "var(--text-muted)", opacity: .85, textTransform: "uppercase", letterSpacing: "0.08em" }}>{active ? "● filtrando" : "filtrar"}</span>
-                      </button>
-                    );
-                  })}
-                </div>
+                <StatGrid>
+                  {["vermelho", "laranja", "amarelo", "verde"].map((k, i) => (
+                    <StatCard
+                      key={k}
+                      index={i}
+                      label={FAROL[k].label}
+                      value={(resumoDyn as any)[k] || 0}
+                      color={FAROL[k].color}
+                      total={baseAg.length}
+                      critical={k === "vermelho"}
+                      active={fFarol === k}
+                      onClick={() => setFFarol(fFarol === k ? "" : k)}
+                    />
+                  ))}
+                </StatGrid>
               )}
 
               {/* Busca + filtros */}
@@ -529,7 +513,7 @@ export default function RevisoesPage() {
             </div>
             </>
           )}
-        </div>
+        </PageBody>
       </main>
 
       {(planoNew || planoEdit) && <PlanoModal plano={planoEdit || undefined} veiculos={veiculos} onSaved={onPlanoSaved} onClose={() => { setPlanoNew(false); setPlanoEdit(null); }} />}

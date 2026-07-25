@@ -8,10 +8,11 @@ type ReservaModalProps = {
   onSave: (reserva: any) => void;
   initialStart?: Date;
   initialEnd?: Date;
+  initialVeiculoId?: string;
   veiculos: any[]; // Veículos disponíveis
 };
 
-export default function ReservaModal({ isOpen, onClose, onSave, initialStart, initialEnd, veiculos }: ReservaModalProps) {
+export default function ReservaModal({ isOpen, onClose, onSave, initialStart, initialEnd, initialVeiculoId, veiculos }: ReservaModalProps) {
   const [formData, setFormData] = useState({
     veiculoId: "",
     titulo: "",
@@ -28,7 +29,7 @@ export default function ReservaModal({ isOpen, onClose, onSave, initialStart, in
       const start = initialStart || new Date();
       const end = initialEnd || new Date(new Date().setHours(new Date().getHours() + 2));
       setFormData({
-        veiculoId: "",
+        veiculoId: initialVeiculoId || "",
         titulo: "",
         descricao: "",
         destino: "",
@@ -38,7 +39,7 @@ export default function ReservaModal({ isOpen, onClose, onSave, initialStart, in
         horaFim: format(end, "HH:mm"),
       });
     }
-  }, [isOpen, initialStart, initialEnd]);
+  }, [isOpen, initialStart, initialEnd, initialVeiculoId]);
 
   if (!isOpen) return null;
 

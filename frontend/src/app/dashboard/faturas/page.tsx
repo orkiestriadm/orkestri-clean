@@ -34,7 +34,7 @@ const STATUS_MAP: Record<string, { label: string; icon: any; cls: string; bg: st
   pendente:  { label: "Pendente",  icon: Clock,         cls: "text-amber-400",  bg: "bg-amber-500/10 border-amber-500/30"  },
   pago:      { label: "Pago",      icon: CheckCircle2,  cls: "text-emerald-400",bg: "bg-emerald-500/10 border-emerald-500/30"},
   vencido:   { label: "Vencido",   icon: AlertCircle,   cls: "text-red-400",    bg: "bg-red-500/10 border-red-500/30"      },
-  cancelado: { label: "Cancelado", icon: Ban,           cls: "text-slate-400",  bg: "bg-slate-500/10 border-slate-500/30"  },
+  cancelado: { label: "Cancelado", icon: Ban,           cls: "text-muted-o",  bg: "surface-sunken border-subtle-o"  },
 };
 
 function StatusBadge({ status }: { status: string }) {

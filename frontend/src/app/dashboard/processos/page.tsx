@@ -421,7 +421,7 @@ export default function ProcessosPage() {
               <div className="w-16 h-16 rounded-2xl flex items-center justify-center text-3xl"
                 style={{ background:"var(--bg-card)", border:"1px solid var(--border-subtle)" }}>🔄</div>
               <div>
-                <div className="font-display text-[16px] font-bold text-[var(--text-primary)] mb-1">Workflow Visual Builder</div>
+                <div className="font-display text-[16px] font-bold text-[var(--text-primary)] mb-1">Workflow Visual Builder</div> {/* ds-ok: titulo */}
                 <div className="text-[13px] text-[var(--text-muted)] max-w-[340px] leading-relaxed">
                   Selecione um processo na lista ou crie um novo para desenhar o fluxo de etapas.
                 </div>

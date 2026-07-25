@@ -127,7 +127,7 @@ export default function SistemaConfig() {
               ].map(opt => (
                 <button key={opt.value} onClick={()=>setConfig({...config,logsRetencaoHoras:opt.value})}
                   style={{ flex:1, padding:"12px 8px", borderRadius:10, border:`2px solid ${config.logsRetencaoHoras===opt.value?"var(--accent-violet)":"var(--border-subtle)"}`, background:config.logsRetencaoHoras===opt.value?"var(--accent-violet-dim)":"var(--bg-hover)", cursor:"pointer", textAlign:"center", transition:"all 0.15s" }}>
-                  <div style={{ fontFamily:"var(--font-display)", fontSize:16, fontWeight:700, color:config.logsRetencaoHoras===opt.value?"var(--accent-violet)":"var(--text-primary)" }}>{opt.label}</div>
+                  <div style={{ fontFamily:"var(--font-display)", fontSize:16, fontWeight:700, color:config.logsRetencaoHoras===opt.value?"var(--accent-violet)":"var(--text-primary)" }}> {/* ds-ok: titulo */}{opt.label}</div>
                   <div style={{ fontSize:10, color:"var(--text-muted)", marginTop:2 }}>{opt.desc}</div>
                 </button>
               ))}

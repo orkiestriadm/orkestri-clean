@@ -105,6 +105,12 @@ const ALL_PERMISSIONS: { recurso: string; acao: string; descricao: string }[] = 
   { recurso: "frota",         acao: "excluir",     descricao: "Excluir (lógico) registros de frota" },
   { recurso: "frota",         acao: "configurar",  descricao: "Configurar categorias e parâmetros da frota" },
   { recurso: "frota",         acao: "relatorios",  descricao: "Acessar relatórios da frota" },
+  // Reserva de Veículos
+  { recurso: "reservas",      acao: "ver",         descricao: "Ver reservas de carros" },
+  { recurso: "reservas",      acao: "criar",       descricao: "Criar reservas de carros" },
+  { recurso: "reservas",      acao: "editar",      descricao: "Editar reservas de carros" },
+  { recurso: "reservas",      acao: "cancelar",    descricao: "Cancelar reservas de carros" },
+  { recurso: "reservas",      acao: "admin",       descricao: "Gerenciar todas as reservas e aprovações" },
 ];
 
 // Permissões base — todo usuário recebe automaticamente, independente do papel
@@ -149,6 +155,7 @@ const ROLE_DEFAULTS: Record<string, { nivel: number; descricao: string; permisso
       "monitoramento:ver",
       "financeiro:ver","financeiro:gerenciar",
       "frota:ver","frota:criar","frota:editar","frota:excluir","frota:configurar","frota:relatorios",
+      "reservas:ver","reservas:criar","reservas:editar","reservas:cancelar","reservas:admin",
     ],
   },
   analista: {
@@ -167,7 +174,8 @@ const ROLE_DEFAULTS: Record<string, { nivel: number; descricao: string; permisso
       "ativos:ver",
       "monitoramento:ver",
       "financeiro:ver",
-      "frota:ver",
+      "frota:ver","frota:editar",
+      "reservas:ver","reservas:criar","reservas:editar","reservas:cancelar",
     ],
   },
   tecnico: {
@@ -181,7 +189,8 @@ const ROLE_DEFAULTS: Record<string, { nivel: number; descricao: string; permisso
       "solicitacoes:ver","solicitacoes:criar",
       "conhecimento:ver",
       "ativos:ver",
-      "frota:ver",
+      "frota:ver","frota:editar",
+      "reservas:ver","reservas:criar","reservas:editar","reservas:cancelar",
     ],
   },
   visualizador: {
@@ -214,6 +223,7 @@ const ROLE_DEFAULTS: Record<string, { nivel: number; descricao: string; permisso
       "sla:ver",
       "ativos:ver","ativos:criar","ativos:editar",
       "frota:ver","frota:criar","frota:editar","frota:relatorios",
+      "reservas:ver","reservas:criar","reservas:editar","reservas:cancelar","reservas:admin",
     ],
   },
   operador: {
@@ -230,6 +240,7 @@ const ROLE_DEFAULTS: Record<string, { nivel: number; descricao: string; permisso
       "conhecimento:ver",
       "ativos:ver",
       "frota:ver",
+      "reservas:ver","reservas:criar","reservas:cancelar",
     ],
   },
   auditor: {

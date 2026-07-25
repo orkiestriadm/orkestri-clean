@@ -15,18 +15,15 @@ const TIPO_OPTS = ["carro", "moto", "caminhao", "van", "onibus"].map(v => ({ val
 const COMB_OPTS = ["gasolina", "etanol", "diesel", "flex", "eletrico", "gnv"].map(v => ({ value: v, label: v[0].toUpperCase() + v.slice(1) }));
 
 const config: CrudConfig = {
-  endpoint: "/frota/veiculos", tabela: "veiculos", singular: "veículo", plural: "Veículos",
+  endpoint: "/frota/veiculos", tabela: "veiculos", singular: "veículo", plural: "Veículos", limit: 200,
   defaults: { tipo: "carro", combustivel: "flex", status: "ativo" },
   detailHref: r => `/dashboard/frota/veiculos/${r.id}`,
-  filters: [
-    { key: "status", label: "Status", options: STATUS_OPTS },
-    { key: "tipo", label: "Tipo", options: TIPO_OPTS },
-  ],
   columns: [
     { key: "placa", label: "Placa", render: r => <span style={{ fontFamily: "var(--font-mono)", fontWeight: 700 }}>{r.placa}</span> },
     { key: "codigo", label: "Código", render: r => <span style={{ fontFamily: "var(--font-mono)", color: "var(--text-muted)" }}>{r.codigo}</span> },
     { key: "modelo", label: "Marca/Modelo", render: r => [r.marca, r.modelo].filter(Boolean).join(" ") || "—" },
     { key: "descricao", label: "Descrição", render: r => <span title={r.descricao || ""} style={{ display: "inline-block", maxWidth: 220, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", verticalAlign: "bottom", color: r.descricao ? "var(--text-primary)" : "var(--text-muted)" }}>{r.descricao || "—"}</span> },
+    { key: "setor", label: "Setor", render: r => r.setor ? <Badge color={r.setor.cor}>{r.setor.nome}</Badge> : "—" },
     { key: "categoria", label: "Categoria", render: r => r.categoria ? <Badge color={r.categoria.cor}>{r.categoria.nome}</Badge> : "—" },
     { key: "responsavel", label: "Responsável", render: r => r.responsavel?.nome || "—" },
     { key: "kmAtual", label: "Hodômetro", align: "right", render: r => (r.kmAtual ?? 0).toLocaleString("pt-BR") },
@@ -45,7 +42,7 @@ const config: CrudConfig = {
     { key: "cor", label: "Cor" },
     { key: "tipo", label: "Tipo", type: "select", options: TIPO_OPTS },
     { key: "categoriaId", label: "Categoria", type: "select", source: "categorias" },
-    { key: "centroCustoId", label: "Centro de custo", type: "select", source: "centrosCusto" },
+    { key: "centroCusto", label: "Centro de custo" },
     { key: "unidade", label: "Unidade" },
     { key: "setorId", label: "Setor", type: "select", source: "setores" },
     { key: "responsavelId", label: "Responsável", type: "select", source: "users" },

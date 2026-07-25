@@ -24,42 +24,42 @@ const hasPerms = (user: any, ...perms: string[]) =>
 
 const TL_STYLE: Record<string, { color: string; bg: string; icon: any }> = {
   cadastro:      { color: "text-cyan-600 dark:text-cyan-400", bg: "bg-cyan-50 border-cyan-200 dark:bg-cyan-500/10 dark:border-cyan-500/20", icon: Clock },
-  pneu:          { color: "text-indigo-600 dark:text-indigo-400", bg: "bg-indigo-50 border-indigo-200 dark:bg-indigo-500/10 dark:border-indigo-500/20", icon: DiscIcon },
+  pneu:          { color: "accent-text", bg: "accent-soft border-accent-o  ", icon: DiscIcon },
   revisao:       { color: "text-cyan-600 dark:text-cyan-400", bg: "bg-cyan-50 border-cyan-200 dark:bg-cyan-500/10 dark:border-cyan-500/20", icon: CalendarDays },
   manutencao:    { color: "text-amber-600 dark:text-amber-400", bg: "bg-amber-50 border-amber-200 dark:bg-amber-500/10 dark:border-amber-500/20", icon: Wrench },
   abastecimento: { color: "text-emerald-600 dark:text-emerald-400", bg: "bg-emerald-50 border-emerald-200 dark:bg-emerald-500/10 dark:border-emerald-500/20", icon: DollarSign },
   documento:     { color: "text-cyan-600 dark:text-cyan-400", bg: "bg-cyan-50 border-cyan-200 dark:bg-cyan-500/10 dark:border-cyan-500/20", icon: CalendarDays },
-  condutor:      { color: "text-indigo-600 dark:text-indigo-400", bg: "bg-indigo-50 border-indigo-200 dark:bg-indigo-500/10 dark:border-indigo-500/20", icon: Users },
-  auditoria:     { color: "text-slate-500 dark:text-slate-400", bg: "bg-slate-100 border-slate-200 dark:bg-slate-800 dark:border-slate-700", icon: Clock },
+  condutor:      { color: "accent-text", bg: "accent-soft border-accent-o  ", icon: Users },
+  auditoria:     { color: "text-muted-o", bg: "surface-sunken border-subtle-o  ", icon: Clock },
 };
 
 // ── Tabela genérica ─────────────────────────────────────────────────────────────
 function MiniTable({ cols, rows, empty }: { cols: { h: string; r: (x: any) => React.ReactNode; align?: string }[]; rows: any[]; empty: string }) {
   return (
-    <div className="bg-white dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
+    <div className="surface-card rounded-2xl border border-subtle-o shadow-sm overflow-hidden">
       <div className="overflow-x-auto">
         <table className="w-full text-left text-sm whitespace-nowrap">
           <thead>
-            <tr className="bg-slate-50/50 dark:bg-slate-900/50 border-b border-slate-200 dark:border-slate-800">
+            <tr className="surface-sunken border-b border-subtle-o">
               {cols.map(c => (
-                <th key={c.h} className="px-6 py-4 text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider" style={{ textAlign: (c.align as any) || "left" }}>
+                <th key={c.h} className="px-6 py-4 text-[10px] font-bold text-muted-o uppercase tracking-wider" style={{ textAlign: (c.align as any) || "left" }}>
                   {c.h}
                 </th>
               ))}
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100 dark:divide-slate-800/50">
+          <tbody className="divide-y divide-subtle-o/50">
             {rows.length === 0 && (
               <tr>
-                <td colSpan={cols.length} className="px-6 py-12 text-center text-slate-500 dark:text-slate-400 font-medium text-sm">
+                <td colSpan={cols.length} className="px-6 py-12 text-center text-muted-o font-medium text-sm">
                   {empty}
                 </td>
               </tr>
             )}
             {rows.map((row, i) => (
-              <tr key={row.id || i} className="hover:bg-slate-50 dark:hover:bg-slate-900/50 transition-colors">
+              <tr key={row.id || i} className="hover-surface/50 transition-colors">
                 {cols.map(c => (
-                  <td key={c.h} className="px-6 py-4 font-medium text-slate-600 dark:text-slate-300" style={{ textAlign: (c.align as any) || "left" }}>
+                  <td key={c.h} className="px-6 py-4 font-medium text-secondary-o " style={{ textAlign: (c.align as any) || "left" }}>
                     {c.r(row)}
                   </td>
                 ))}
@@ -75,7 +75,7 @@ function MiniTable({ cols, rows, empty }: { cols: { h: string; r: (x: any) => Re
 // ── Componentes de Formulário Modernos ──────────────────────────────────────────
 const InputField = ({ label, children }: { label: string; children: React.ReactNode }) => (
   <div>
-    <label className="text-[11px] font-medium text-slate-500 mb-1.5 block uppercase tracking-wider">{label}</label>
+    <label className="text-[11px] font-medium text-muted-o mb-1.5 block uppercase tracking-wider">{label}</label>
     {children}
   </div>
 );
@@ -99,17 +99,17 @@ function CondutorModal({ veiculoId, kmAtual, onSaved, onClose }: { veiculoId: st
 
   return (
     <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 transition-all" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200" onClick={e => e.stopPropagation()}>
-        <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
-          <h3 className="text-lg font-bold text-slate-800 dark:text-slate-200">Designar Condutor</h3>
-          <button className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors" onClick={onClose}><X size={18} /></button>
+      <div className="surface-card rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200" onClick={e => e.stopPropagation()}>
+        <div className="px-6 py-4 border-b border-subtle-o flex items-center justify-between">
+          <h3 className="text-lg font-bold text-primary-o">Designar Condutor</h3>
+          <button className="text-muted-o hover:text-secondary-o dark:hover:text-primary-o transition-colors" onClick={onClose}><X size={18} /></button>
         </div>
         
         <div className="p-6 flex flex-col gap-5">
           {err && <div className="text-xs font-medium text-red-500 bg-red-50 dark:bg-red-500/10 p-3 rounded-xl">{err}</div>}
           
           <InputField label="Condutor *">
-            <select className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-sm px-3 py-2.5 outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 transition-all" value={d.motoristaId || ""} onChange={e => set("motoristaId", e.target.value)}>
+            <select className="w-full surface-sunken border border-subtle-o rounded-xl text-sm px-3 py-2.5 outline-none focus-accent focus-accent transition-all" value={d.motoristaId || ""} onChange={e => set("motoristaId", e.target.value)}>
               <option value="">—</option>
               {motoristas.map(m => <option key={m.id} value={m.id}>{m.nome}</option>)}
             </select>
@@ -117,27 +117,27 @@ function CondutorModal({ veiculoId, kmAtual, onSaved, onClose }: { veiculoId: st
           
           <div className="grid grid-cols-2 gap-4">
             <InputField label="Início">
-              <input className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-sm px-3 py-2.5 outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 transition-all" type="date" value={d.dataInicio || ""} onChange={e => set("dataInicio", e.target.value)} />
+              <input className="w-full surface-sunken border border-subtle-o rounded-xl text-sm px-3 py-2.5 outline-none focus-accent focus-accent transition-all" type="date" value={d.dataInicio || ""} onChange={e => set("dataInicio", e.target.value)} />
             </InputField>
             <InputField label="Fim">
-              <input className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-sm px-3 py-2.5 outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 transition-all" type="date" value={d.dataFim || ""} onChange={e => set("dataFim", e.target.value || null)} />
+              <input className="w-full surface-sunken border border-subtle-o rounded-xl text-sm px-3 py-2.5 outline-none focus-accent focus-accent transition-all" type="date" value={d.dataFim || ""} onChange={e => set("dataFim", e.target.value || null)} />
             </InputField>
             <InputField label="KM Inicial">
-              <input className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-sm px-3 py-2.5 outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 transition-all" type="number" value={d.kmInicial ?? ""} onChange={e => set("kmInicial", e.target.value === "" ? null : Number(e.target.value))} />
+              <input className="w-full surface-sunken border border-subtle-o rounded-xl text-sm px-3 py-2.5 outline-none focus-accent focus-accent transition-all" type="number" value={d.kmInicial ?? ""} onChange={e => set("kmInicial", e.target.value === "" ? null : Number(e.target.value))} />
             </InputField>
             <InputField label="KM Final">
-              <input className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-sm px-3 py-2.5 outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 transition-all" type="number" value={d.kmFinal ?? ""} onChange={e => set("kmFinal", e.target.value === "" ? null : Number(e.target.value))} />
+              <input className="w-full surface-sunken border border-subtle-o rounded-xl text-sm px-3 py-2.5 outline-none focus-accent focus-accent transition-all" type="number" value={d.kmFinal ?? ""} onChange={e => set("kmFinal", e.target.value === "" ? null : Number(e.target.value))} />
             </InputField>
           </div>
           
           <InputField label="Motivo">
-            <input className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-sm px-3 py-2.5 outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 transition-all" value={d.motivo || ""} onChange={e => set("motivo", e.target.value)} placeholder="Ex: rota comercial, substituição..." />
+            <input className="w-full surface-sunken border border-subtle-o rounded-xl text-sm px-3 py-2.5 outline-none focus-accent focus-accent transition-all" value={d.motivo || ""} onChange={e => set("motivo", e.target.value)} placeholder="Ex: rota comercial, substituição..." />
           </InputField>
         </div>
 
-        <div className="px-6 py-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 flex justify-end gap-3 rounded-b-2xl">
-          <button className="px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 transition-colors" onClick={onClose}>Cancelar</button>
-          <button className="px-5 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-sm shadow-indigo-200 dark:shadow-none transition-all disabled:opacity-70 disabled:cursor-not-allowed" onClick={save} disabled={saving}>{saving ? "Salvando..." : "Salvar"}</button>
+        <div className="px-6 py-4 border-t border-subtle-o surface-sunken flex justify-end gap-3 rounded-b-2xl">
+          <button className="px-4 py-2 text-sm font-medium text-secondary-o hover:text-primary-o  dark:hover:text-primary-o transition-colors" onClick={onClose}>Cancelar</button>
+          <button className="px-5 py-2 text-sm font-semibold text-white accent-solid rounded-xl shadow-sm shadow-none dark:shadow-none transition-all disabled:opacity-70 disabled:cursor-not-allowed" onClick={save} disabled={saving}>{saving ? "Salvando..." : "Salvar"}</button>
         </div>
       </div>
     </div>
@@ -166,30 +166,30 @@ function KmModal({ veiculoId, kmAtual, ultimoAbastKm, onSaved, onClose }: { veic
 
   return (
     <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 transition-all" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200" onClick={e => e.stopPropagation()}>
-        <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
-          <h3 className="text-lg font-bold text-slate-800 dark:text-slate-200">Atualizar KM Atual</h3>
-          <button className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors" onClick={onClose}><X size={18} /></button>
+      <div className="surface-card rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200" onClick={e => e.stopPropagation()}>
+        <div className="px-6 py-4 border-b border-subtle-o flex items-center justify-between">
+          <h3 className="text-lg font-bold text-primary-o">Atualizar KM Atual</h3>
+          <button className="text-muted-o hover:text-secondary-o dark:hover:text-primary-o transition-colors" onClick={onClose}><X size={18} /></button>
         </div>
         
         <div className="p-6 flex flex-col gap-5">
-          <div className="flex items-center justify-between bg-slate-50 dark:bg-slate-950 p-4 rounded-xl border border-slate-200 dark:border-slate-800">
+          <div className="flex items-center justify-between surface-sunken p-4 rounded-xl border border-subtle-o">
             <div className="flex flex-col">
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Hodômetro atual</span>
-              <span className="text-sm font-bold text-slate-700 dark:text-slate-300">{fmt(kmAtual)} km</span>
+              <span className="text-[10px] font-bold text-muted-o uppercase tracking-wider mb-1">Hodômetro atual</span>
+              <span className="text-sm font-bold text-secondary-o">{fmt(kmAtual)} km</span>
             </div>
-            <div className="w-px h-8 bg-slate-200 dark:bg-slate-800 mx-4"></div>
+            <div className="w-px h-8 bg-slate-200  mx-4"></div>
             <div className="flex flex-col">
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Últ. Abastecimento</span>
-              <span className="text-sm font-bold text-slate-700 dark:text-slate-300">{fmt(ultimoAbastKm)} km</span>
+              <span className="text-[10px] font-bold text-muted-o uppercase tracking-wider mb-1">Últ. Abastecimento</span>
+              <span className="text-sm font-bold text-secondary-o">{fmt(ultimoAbastKm)} km</span>
             </div>
           </div>
 
           <div>
-            <label className="text-[11px] font-medium text-slate-500 mb-1.5 block uppercase tracking-wider">Novo KM Atual</label>
+            <label className="text-[11px] font-medium text-muted-o mb-1.5 block uppercase tracking-wider">Novo KM Atual</label>
             <div className="flex gap-2">
-              <input className="flex-1 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-sm px-3 py-2.5 outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 transition-all" type="number" value={km} onChange={e => setKm(e.target.value === "" ? "" : Number(e.target.value))} autoFocus />
-              <button className="px-4 py-2 bg-indigo-50 dark:bg-indigo-500/10 hover:bg-indigo-100 dark:hover:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 text-xs font-semibold rounded-xl transition-colors flex items-center gap-1.5" onClick={puxar}>
+              <input className="flex-1 surface-sunken border border-subtle-o rounded-xl text-sm px-3 py-2.5 outline-none focus-accent focus-accent transition-all" type="number" value={km} onChange={e => setKm(e.target.value === "" ? "" : Number(e.target.value))} autoFocus />
+              <button className="px-4 py-2 accent-soft hover:accent-soft accent-text text-xs font-semibold rounded-xl transition-colors flex items-center gap-1.5" onClick={puxar}>
                 <RefreshCw size={12} /> Puxar
               </button>
             </div>
@@ -199,9 +199,9 @@ function KmModal({ veiculoId, kmAtual, ultimoAbastKm, onSaved, onClose }: { veic
           {err && <div className="text-xs font-medium text-red-500 bg-red-50 dark:bg-red-500/10 p-3 rounded-xl">{err}</div>}
         </div>
 
-        <div className="px-6 py-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 flex justify-end gap-3 rounded-b-2xl">
-          <button className="px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 transition-colors" onClick={onClose}>Cancelar</button>
-          <button className="px-5 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-sm shadow-indigo-200 dark:shadow-none transition-all disabled:opacity-70 disabled:cursor-not-allowed" onClick={salvar} disabled={saving}>{saving ? "Salvando..." : "Salvar KM"}</button>
+        <div className="px-6 py-4 border-t border-subtle-o surface-sunken flex justify-end gap-3 rounded-b-2xl">
+          <button className="px-4 py-2 text-sm font-medium text-secondary-o hover:text-primary-o  dark:hover:text-primary-o transition-colors" onClick={onClose}>Cancelar</button>
+          <button className="px-5 py-2 text-sm font-semibold text-white accent-solid rounded-xl shadow-sm shadow-none dark:shadow-none transition-all disabled:opacity-70 disabled:cursor-not-allowed" onClick={salvar} disabled={saving}>{saving ? "Salvando..." : "Salvar KM"}</button>
         </div>
       </div>
     </div>
@@ -246,8 +246,8 @@ export default function VeiculoDetailPage() {
 
   useEffect(() => { load(); }, [load]);
 
-  if (loading) return <div className="flex flex-col h-full bg-[var(--bg-primary)]"><Topbar /><main className="flex-1 p-6 text-slate-500 text-sm flex items-center justify-center font-medium animate-pulse">Carregando informações...</main></div>;
-  if (!v) return <div className="flex flex-col h-full bg-[var(--bg-primary)]"><Topbar /><main className="flex-1 p-6 text-slate-500 text-sm flex items-center justify-center font-medium">Veículo não encontrado.</main></div>;
+  if (loading) return <div className="flex flex-col h-full bg-[var(--bg-primary)]"><Topbar /><main className="flex-1 p-6 text-muted-o text-sm flex items-center justify-center font-medium animate-pulse">Carregando informações...</main></div>;
+  if (!v) return <div className="flex flex-col h-full bg-[var(--bg-primary)]"><Topbar /><main className="flex-1 p-6 text-muted-o text-sm flex items-center justify-center font-medium">Veículo não encontrado.</main></div>;
 
   const st = STATUS[v.status] || { label: v.status, color: "var(--text-muted)" };
   // Maior KM lançado nos abastecimentos deste veículo (para o modal "Atualizar KM")
@@ -275,55 +275,55 @@ export default function VeiculoDetailPage() {
   ];
 
   return (
-    <div className="flex flex-col h-full bg-slate-50 dark:bg-[var(--bg-primary)] animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="flex flex-col h-full surface-sunken dark:bg-[var(--bg-primary)] animate-in fade-in slide-in-from-bottom-4 duration-500">
       <Topbar>
         {canEdit && (
-          <button className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 text-sm font-semibold rounded-xl shadow-sm transition-all" onClick={() => setKmOpen(true)}>
-            <RefreshCw size={14} className="text-slate-400" /> Atualizar KM
+          <button className="flex items-center gap-2 px-4 py-2 surface-card border border-subtle-o hover-surface text-secondary-o  text-sm font-semibold rounded-xl shadow-sm transition-all" onClick={() => setKmOpen(true)}>
+            <RefreshCw size={14} className="text-muted-o" /> Atualizar KM
           </button>
         )}
         {canCreate && tab === "condutores" && (
-          <button className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl shadow-sm shadow-indigo-200 dark:shadow-none transition-all ml-3" onClick={() => setCondutorOpen(true)}>
+          <button className="flex items-center gap-2 px-4 py-2 accent-solid text-white text-sm font-semibold rounded-xl shadow-sm shadow-none dark:shadow-none transition-all ml-3" onClick={() => setCondutorOpen(true)}>
             <Plus size={14} /> Designar condutor
           </button>
         )}
       </Topbar>
 
       <main className="flex-1 overflow-y-auto p-6 lg:p-8 max-w-7xl mx-auto w-full">
-        <button className="flex items-center gap-2 text-sm font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 transition-colors mb-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2 shadow-sm" onClick={() => router.push("/dashboard/frota/veiculos")}>
+        <button className="flex items-center gap-2 text-sm font-medium text-secondary-o hover:text-primary-o dark:hover:text-primary-o transition-colors mb-6 surface-card border border-subtle-o rounded-xl px-4 py-2 shadow-sm" onClick={() => router.push("/dashboard/frota/veiculos")}>
           <ArrowLeft size={16} /> Voltar
         </button>
 
         {/* Header - Veículo */}
-        <div className="bg-white dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-6 lg:p-8 mb-8 relative overflow-hidden">
+        <div className="surface-card rounded-2xl border border-subtle-o shadow-sm p-6 lg:p-8 mb-8 relative overflow-hidden">
           <div className="absolute left-0 top-0 bottom-0 w-1.5" style={{ backgroundColor: st.color }} />
           
           <div className="flex items-center gap-3 mb-2 flex-wrap">
-            <h2 className="text-2xl lg:text-3xl font-black text-slate-800 dark:text-slate-100 tracking-tight uppercase">{v.placa}</h2>
+            <h2 className="text-2xl lg:text-3xl font-black text-primary-o tracking-tight uppercase">{v.placa}</h2>
             <Badge color={st.color}>{st.label}</Badge>
             {v.categoria && <Badge color={v.categoria.cor}>{v.categoria.nome}</Badge>}
           </div>
-          <div className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-8">
+          <div className="text-sm font-medium text-muted-o mb-8">
             {v.codigo} · {[v.marca, v.modelo].filter(Boolean).join(" ")}
           </div>
 
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-y-6 gap-x-4">
             {INFO.filter(([, val]) => val).map(([k, val]) => (
               <div key={k} className="flex flex-col">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">{k}</span>
-                <span className="text-[13px] font-semibold text-slate-700 dark:text-slate-300">{val}</span>
+                <span className="text-[10px] font-bold text-muted-o uppercase tracking-wider mb-1">{k}</span>
+                <span className="text-[13px] font-semibold text-secondary-o">{val}</span>
               </div>
             ))}
           </div>
         </div>
 
         {/* Tabs */}
-        <div className="flex flex-wrap gap-2 mb-8 border-b border-slate-200 dark:border-slate-800">
+        <div className="flex flex-wrap gap-2 mb-8 border-b border-subtle-o">
           {TABS.map(t => {
             const active = tab === t.id;
             const Icon = t.icon;
             return (
-              <button key={t.id} onClick={() => setTab(t.id)} className={`flex items-center gap-2 px-5 py-3 text-sm font-semibold border-b-2 transition-all ${active ? "text-indigo-600 dark:text-indigo-400 border-indigo-600 dark:border-indigo-400" : "text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 border-transparent hover:border-slate-300 dark:hover:border-slate-700"}`}>
+              <button key={t.id} onClick={() => setTab(t.id)} className={`flex items-center gap-2 px-5 py-3 text-sm font-semibold border-b-2 transition-all ${active ? "accent-text border-accent-o" : "text-muted-o hover:text-secondary-o  dark:hover:text-primary-o border-transparent hover:border-subtle-o"}`}>
                 <Icon size={16} /> {t.label}
               </button>
             );
@@ -333,24 +333,24 @@ export default function VeiculoDetailPage() {
         {/* Conteúdo das abas */}
         {tab === "timeline" && (
           <div className="relative pl-6 lg:pl-10 pb-8">
-            {timeline.length === 0 && <div className="text-slate-500 text-sm font-medium">Nenhum evento registrado.</div>}
+            {timeline.length === 0 && <div className="text-muted-o text-sm font-medium">Nenhum evento registrado.</div>}
             {timeline.map((e, i) => {
               const s = TL_STYLE[e.tipo] || TL_STYLE.auditoria;
               const Icon = s.icon;
               return (
                 <div key={i} className="flex gap-6 pb-8 relative group">
-                  {i < timeline.length - 1 && <div className="absolute left-[19px] top-10 bottom-0 w-px bg-slate-200 dark:bg-slate-800 group-hover:bg-indigo-200 dark:group-hover:bg-indigo-800 transition-colors" />}
+                  {i < timeline.length - 1 && <div className="absolute left-[19px] top-10 bottom-0 w-px bg-[var(--border-subtle)] transition-colors" />}
                   
                   <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 z-10 border shadow-sm ${s.bg}`}>
                     <Icon size={18} className={s.color} />
                   </div>
                   
-                  <div className="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-sm flex-1 transition-all group-hover:shadow-md group-hover:border-indigo-200 dark:group-hover:border-indigo-800/50">
+                  <div className="surface-card border border-subtle-o rounded-2xl p-5 shadow-sm flex-1 transition-all group-hover:shadow-md group-hover:border-accent-o ">
                     <div className="flex justify-between items-baseline gap-4 mb-1">
-                      <span className="text-[15px] font-bold text-slate-800 dark:text-slate-200">{e.titulo}</span>
-                      <span className="text-xs font-medium text-slate-500 whitespace-nowrap">{fmtDate(e.data)}</span>
+                      <span className="text-[15px] font-bold text-primary-o">{e.titulo}</span>
+                      <span className="text-xs font-medium text-muted-o whitespace-nowrap">{fmtDate(e.data)}</span>
                     </div>
-                    {e.descricao && <div className="text-[13px] text-slate-600 dark:text-slate-400 leading-relaxed">{e.descricao}</div>}
+                    {e.descricao && <div className="text-[13px] text-secondary-o leading-relaxed">{e.descricao}</div>}
                     {e.valor != null && <div className="text-sm font-bold text-emerald-600 dark:text-emerald-400 mt-3">{fmtMoney(e.valor)}</div>}
                   </div>
                 </div>
@@ -362,13 +362,13 @@ export default function VeiculoDetailPage() {
         {tab === "pneus" && (
           <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
             {tree?.posicoes?.length > 0 && (
-              <div className="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm p-6">
-                <div className="text-xs font-bold text-slate-400 tracking-widest uppercase mb-6">Esquema de Posição dos Pneus</div>
+              <div className="surface-card border border-subtle-o rounded-2xl shadow-sm p-6">
+                <div className="text-xs font-bold text-muted-o tracking-widest uppercase mb-6">Esquema de Posição dos Pneus</div>
                 <PneuTree posicoes={tree.posicoes} pneus={tree.pneus || []} />
               </div>
             )}
             <div>
-              <div className="text-xs font-bold text-slate-400 tracking-widest uppercase mb-4 pl-1">Listagem de Pneus</div>
+              <div className="text-xs font-bold text-muted-o tracking-widest uppercase mb-4 pl-1">Listagem de Pneus</div>
               <MiniTable empty="Nenhum pneu registrado." rows={v.pneus || []} cols={[
                 { h: "Nº Fogo / Código", r: (p) => p.numeroFogo || p.codigo || "—" },
                 { h: "Marca/Medida", r: (p) => [p.marca, p.medida].filter(Boolean).join(" · ") || "—" },
@@ -408,11 +408,11 @@ export default function VeiculoDetailPage() {
         {tab === "condutores" && (
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
             <MiniTable empty="Nenhum condutor registrado." rows={v.condutores || []} cols={[
-              { h: "Condutor", r: (x) => <span className="font-semibold text-slate-800 dark:text-slate-200">{x.motorista?.nome || "—"}</span> },
+              { h: "Condutor", r: (x) => <span className="font-semibold text-primary-o">{x.motorista?.nome || "—"}</span> },
               { h: "Início", r: (x) => fmtDate(x.dataInicio) },
               { h: "Fim", r: (x) => fmtDate(x.dataFim) },
               { h: "KM", align: "right", r: (x) => `${num(x.kmInicial)} → ${num(x.kmFinal)}` },
-              { h: "Motivo", r: (x) => <span className="text-slate-500">{x.motivo || "—"}</span> },
+              { h: "Motivo", r: (x) => <span className="text-muted-o">{x.motivo || "—"}</span> },
             ]} />
           </div>
         )}
@@ -424,12 +424,12 @@ export default function VeiculoDetailPage() {
               <div className="text-3xl font-black text-amber-600 dark:text-amber-500 tracking-tight">{fmtMoney(custoTotal)}</div>
             </div>
             
-            <div className="text-xs font-bold text-slate-400 tracking-widest uppercase mb-4 pl-1">Histórico de Custos</div>
+            <div className="text-xs font-bold text-muted-o tracking-widest uppercase mb-4 pl-1">Histórico de Custos</div>
             <MiniTable empty="Nenhum custo registrado." rows={custos} cols={[
               { h: "Data", r: (x) => fmtDate(x.data) },
               { h: "Tipo", r: (x) => <Badge color="var(--accent-amber)">{x.tipo}</Badge> },
-              { h: "Descrição", r: (x) => <span className="font-medium text-slate-700 dark:text-slate-300">{x.descricao || "—"}</span> },
-              { h: "Valor", align: "right", r: (x) => <span className="font-bold text-slate-800 dark:text-slate-200">{fmtMoney(x.valor)}</span> },
+              { h: "Descrição", r: (x) => <span className="font-medium text-secondary-o">{x.descricao || "—"}</span> },
+              { h: "Valor", align: "right", r: (x) => <span className="font-bold text-primary-o">{fmtMoney(x.valor)}</span> },
             ]} />
           </div>
         )}

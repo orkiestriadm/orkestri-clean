@@ -832,7 +832,7 @@ function WeekView({ events, weekStart, onSlotClick, onEventClick }: any) {
           return (
             <div key={d.toISOString()} style={{ padding:"10px 4px", textAlign:"center", borderLeft:"1px solid var(--border-subtle)", background: vis.bg }}>
               <div style={{ fontSize:11, color: vis.color, fontFamily:"var(--font-mono)", opacity: vis.kind === "today" ? 1 : 0.7 }}>{DAYS_SHORT[d.getDay()]}</div>
-              <div style={{ fontSize:16, fontWeight: vis.weight, color: vis.color, fontFamily:"var(--font-display)" }}>{d.getDate()}</div>
+              <div className="metric" style={{ fontSize:16, fontWeight: vis.weight, color: vis.color }}>{d.getDate()}</div>
               {vis.holiday && <div style={{ fontSize:9, color:"var(--accent-red)", marginTop:2, opacity:0.85 }}>{vis.holiday.split(" ")[0]}</div>}
             </div>
           );
@@ -897,7 +897,7 @@ function DayView({ events, date, onSlotClick, onEventClick }: any) {
   return (
     <div className="card animate-up" style={{ overflow:"hidden" }}>
       <div style={{ padding:"14px 20px", borderBottom:"1px solid var(--border-subtle)", background: vis.bg }}>
-        <div style={{ fontFamily:"var(--font-display)", fontSize:18, fontWeight:700, color: vis.color }}>
+        <div style={{ fontFamily:"var(--font-display)", fontSize:18, fontWeight:700, color: vis.color }}> {/* ds-ok: titulo */}
           {DAYS_FULL[date.getDay()]}, {date.getDate()} de {MONTHS[date.getMonth()]}
           {vis.holiday && <span style={{ fontSize:13, fontWeight:500, marginLeft:8, opacity:0.8 }}>· {vis.holiday}</span>}
           {vis.kind === "today" && <span style={{ fontSize: 10, fontFamily: "var(--font-mono)", background: "var(--accent-violet)", color: "white", padding: "2px 8px", borderRadius: 4, marginLeft: 10, verticalAlign: "middle" }}>HOJE</span>}

@@ -27,7 +27,7 @@ const TABELA_ICONS: Record<string, any> = {
 
 // ── Tipos de configuração ──────────────────────────────────────────────────────
 export type Option = { value: string; label: string };
-export type SourceKey = "veiculos" | "motoristas" | "categorias" | "setores" | "users" | "centrosCusto";
+export type SourceKey = "veiculos" | "motoristas" | "categorias" | "setores" | "users";
 export type FieldType = "text" | "number" | "date" | "textarea" | "select" | "checkbox";
 
 export type Field = {
@@ -53,6 +53,7 @@ export type CrudConfig = {
   defaults?: Record<string, any>;
   detailHref?: (row: any) => string;   // se definido, mostra ação "abrir detalhe"
   searchPlaceholder?: string; // custom placeholder for search input
+  limit?: number; // custom limit for pagination
 };
 
 // ── Helpers visuais ────────────────────────────────────────────────────────────
@@ -81,12 +82,10 @@ const SOURCE_EP: Record<SourceKey, string> = {
   motoristas:   "/frota/motoristas",
   categorias:   "/frota/categorias",
   setores:      "/setores",
-  users:        "/users",
-  centrosCusto: "/orcamento/centros-custo",
+  users:        "/users/picklist",
 };
 function sourceLabel(key: SourceKey, row: any): string {
   if (key === "veiculos")     return `${row.placa || row.codigo}${row.modelo ? " — " + row.modelo : ""}${row.descricao ? " · " + String(row.descricao).slice(0, 30) : ""}`;
-  if (key === "centrosCusto") return `${row.codigo ? row.codigo + " — " : ""}${row.nome}`;
   return row.nome || row.placa || row.id;
 }
 
@@ -232,14 +231,14 @@ export default function CrudView({ config, intro }: { config: CrudConfig; intro?
   const [loading, setLoading] = useState(false);
   const [q, setQ] = useState("");
   const [filterVals, setFilterVals] = useState<Record<string, string>>({});
-  const [lookups, setLookups] = useState<Lookups>({ veiculos: [], motoristas: [], categorias: [], setores: [], users: [], centrosCusto: [] });
+  const [lookups, setLookups] = useState<Lookups>({ veiculos: [], motoristas: [], categorias: [], setores: [], users: [] });
   const router = useRouter();
   const [editing, setEditing] = useState<any | null>(null);
   const [creating, setCreating] = useState(false);
   const [histId, setHistId] = useState<string | null>(null);
   const [msg, setMsg] = useState("");
 
-  const limit = 30;
+  const limit = config.limit || 100;
   const canCreate = hasPerms(user, "frota:criar");
   const canEdit   = hasPerms(user, "frota:editar");
   const canDelete = hasPerms(user, "frota:excluir");
@@ -251,7 +250,7 @@ export default function CrudView({ config, intro }: { config: CrudConfig; intro?
     config.fields.forEach(f => f.source && used.add(f.source));
     config.filters?.forEach(f => f.source && used.add(f.source));
     used.forEach((key) => {
-      api.get(SOURCE_EP[key], { params: { limit: 200 } })
+      api.get(SOURCE_EP[key], { params: { limit: 200 }, silent: true })
         .then(r => {
           const rows = r.data?.items ?? r.data?.users ?? r.data ?? [];
           setLookups(prev => ({ ...prev, [key]: rows.map((row: any) => ({ value: row.id, label: sourceLabel(key, row) })) }));
@@ -260,13 +259,17 @@ export default function CrudView({ config, intro }: { config: CrudConfig; intro?
     });
   }, [config]);
 
-  const load = useCallback(async () => {
+  const load = useCallback(() => {
     setLoading(true);
-    try {
-      const { data } = await api.get(config.endpoint, { params: { q, page, limit, ...filterVals } });
-      setItems(data.items || []); setTotal(data.total || 0);
-    } catch { setItems([]); } finally { setLoading(false); }
-  }, [config.endpoint, q, page, filterVals]);
+    const params: any = { page, limit, _t: Date.now() };
+    if (q) params.q = q;
+    Object.entries(filterVals).forEach(([k, v]) => { if (v) params[k] = v; });
+
+    api.get(config.endpoint, { params }).then(r => {
+      setItems(r.data.items || r.data || []);
+      setTotal(r.data.total ?? (r.data.items?.length || r.data?.length || 0));
+    }).catch(e => showMsg("Erro ao carregar dados")).finally(() => setLoading(false));
+  }, [config.endpoint, page, limit, q, filterVals]);
 
   useEffect(() => { setPage(1); }, [q, filterVals]);
   useEffect(() => { load(); }, [load]);

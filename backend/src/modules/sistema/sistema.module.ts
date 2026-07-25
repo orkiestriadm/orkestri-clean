@@ -132,7 +132,9 @@ export class SistemaService implements OnModuleInit {
 
     try {
       const dbUrl = this.configService.get("DATABASE_URL", "");
-      const match = dbUrl.match(/postgresql:\/\/([^:]+):([^@]+)@([^:]+):(\d+)\/(.+)/);
+      // Nome do banco vai até a barra e PARA no "?" — senão o pg_dump recebe
+      // "orkestri?connection_limit=..." como nome e falha (bug real observado em prod).
+      const match = dbUrl.match(/postgresql:\/\/([^:]+):([^@]+)@([^:]+):(\d+)\/([^?]+)/);
       if (!match) throw new Error("DATABASE_URL invalida");
       const [, user, pass, host, port, db] = match;
 
@@ -165,7 +167,9 @@ export class SistemaService implements OnModuleInit {
 
     try {
       const dbUrl = this.configService.get("DATABASE_URL", "");
-      const match = dbUrl.match(/postgresql:\/\/([^:]+):([^@]+)@([^:]+):(\d+)\/(.+)/);
+      // Nome do banco vai até a barra e PARA no "?" — senão o pg_dump recebe
+      // "orkestri?connection_limit=..." como nome e falha (bug real observado em prod).
+      const match = dbUrl.match(/postgresql:\/\/([^:]+):([^@]+)@([^:]+):(\d+)\/([^?]+)/);
       if (!match) throw new Error("DATABASE_URL invalida");
       const [, user, pass, host, port, db] = match;
 

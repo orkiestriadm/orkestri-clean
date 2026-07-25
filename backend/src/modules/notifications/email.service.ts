@@ -22,6 +22,11 @@ export class EmailService {
     }
   }
 
+  /** Indica se há provedor de e-mail configurado (RESEND_API_KEY presente). */
+  isEnabled(): boolean {
+    return this.resend !== null;
+  }
+
   private async send(to: string, subject: string, html: string): Promise<boolean> {
     if (!to || !this.resend) {
       this.logger.warn(`Email não enviado para ${to || "(vazio)"} — serviço de e-mail indisponível.`);

@@ -491,6 +491,38 @@ export class AlertScheduler implements OnModuleInit {
     }
   }
 
+  /** Hora do dia (0-23) em que os relatorios agendados sao disparados. */
+  private get horaEnvioRelatorios(): number {
+    const h = Number(process.env.FROTA_REPORT_HOUR);
+    return Number.isFinite(h) && h >= 0 && h <= 23 ? h : 7;
+  }
+
+  /**
+   * Vencimento por calendario, nao por tempo decorrido. O criterio antigo
+   * (>=23h / >=6d / >=28d) fazia a "diaria" adiantar 1h por dia, a "semanal"
+   * cair num dia da semana diferente a cada envio e a "mensal" rodar a cada 28
+   * dias. Agora compara o inicio do periodo corrente com o ultimo envio.
+   */
+  private relatorioVencido(frequencia: string, ultimoEnvio: Date | null, now: Date): boolean {
+    if (now.getHours() < this.horaEnvioRelatorios) return false;
+
+    const inicioPeriodo = new Date(now);
+    inicioPeriodo.setHours(this.horaEnvioRelatorios, 0, 0, 0);
+
+    if (frequencia === "semanal") {
+      // Volta para a segunda-feira da semana corrente.
+      const diaSemana = (inicioPeriodo.getDay() + 6) % 7;
+      inicioPeriodo.setDate(inicioPeriodo.getDate() - diaSemana);
+    } else if (frequencia === "mensal") {
+      inicioPeriodo.setDate(1);
+    } else if (frequencia !== "diaria") {
+      return false;
+    }
+
+    if (!ultimoEnvio) return true;
+    return new Date(ultimoEnvio).getTime() < inicioPeriodo.getTime();
+  }
+
   private async runScheduledReports() {
     try {
       const now = getNow();
@@ -503,40 +535,38 @@ export class AlertScheduler implements OnModuleInit {
       const relService = new FrotaRelatoriosService(this.prisma, this.email);
 
       for (const schedule of schedules) {
-        let shouldSend = false;
-        if (!schedule.ultimoEnvio) {
-          shouldSend = true;
-        } else {
-          const diffMs = now.getTime() - new Date(schedule.ultimoEnvio).getTime();
-          if (schedule.frequencia === "diaria" && diffMs >= 23 * 3600 * 1000) {
-            shouldSend = true;
-          } else if (schedule.frequencia === "semanal" && diffMs >= 6 * 24 * 3600 * 1000) {
-            shouldSend = true;
-          } else if (schedule.frequencia === "mensal" && diffMs >= 28 * 24 * 3600 * 1000) {
-            shouldSend = true;
-          }
-        }
+        if (!this.relatorioVencido(schedule.frequencia, schedule.ultimoEnvio, now)) continue;
 
-        if (shouldSend) {
-          this.logger.log(`Executando envio agendado de relatorio "${schedule.titulo}" (Tipo: ${schedule.tipoRelatorio}) para org=${schedule.organizationId}`);
-          try {
-            const mockBody = {
-              tipoRelatorio: schedule.tipoRelatorio,
-              filtros: schedule.filtros || {},
-              destinatarios: schedule.destinatarios,
-              formato: schedule.formato,
-            };
+        // Guarda de reentrada: o scheduler roda a cada 30s e a geracao do anexo
+        // e assincrona. Uma tentativa a cada 30min no maximo — evita disparo
+        // duplicado no sucesso e enxurrada de log na falha.
+        const guarda = `frota-report:${schedule.id}`;
+        const ultimaTentativa = this.sent.get(guarda) || 0;
+        if (Date.now() - ultimaTentativa < 30 * 60 * 1000) continue;
+        this.sent.set(guarda, Date.now());
 
-            await relService.enviarEmail(schedule.organizationId, mockBody);
+        this.logger.log(`Executando envio agendado de relatorio "${schedule.titulo}" (Tipo: ${schedule.tipoRelatorio}) para org=${schedule.organizationId}`);
+        try {
+          const res: any = await relService.enviarEmail(schedule.organizationId, {
+            tipoRelatorio: schedule.tipoRelatorio,
+            filtros: schedule.filtros || {},
+            destinatarios: schedule.destinatarios,
+            formato: schedule.formato,
+          });
 
+          // So marca como enviado se realmente saiu. Antes gravava ultimoEnvio
+          // mesmo com o servico de e-mail desligado, e o envio nunca era refeito.
+          if (res?.ok) {
             await (this.prisma as any).frotaReportSchedule.update({
               where: { id: schedule.id },
               data: { ultimoEnvio: now },
             });
-            this.logger.log(`Relatorio agendado "${schedule.titulo}" enviado com sucesso.`);
-          } catch (err: any) {
-            this.logger.error(`Erro ao enviar relatorio agendado "${schedule.titulo}": ${err.message}`);
+            this.logger.log(`Relatorio agendado "${schedule.titulo}" enviado para ${(res.enviados || []).join(", ")}.`);
+          } else {
+            this.logger.error(`Relatorio agendado "${schedule.titulo}" NAO foi enviado: ${res?.mensagem || "falha desconhecida"}. Nova tentativa em 30min.`);
           }
+        } catch (err: any) {
+          this.logger.error(`Erro ao enviar relatorio agendado "${schedule.titulo}": ${err.message}. Nova tentativa em 30min.`);
         }
       }
     } catch (e: any) {

@@ -45,7 +45,7 @@ type Anexo = {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const STATUS_MAP: Record<string, { label: string; color: string; bg: string }> = {
-  aberto:         { label: "Aberto",         color: "text-slate-400",  bg: "bg-slate-500/15 border-slate-500/30" },
+  aberto:         { label: "Aberto",         color: "text-muted-o",  bg: "bg-slate-500/15 border-subtle-o" },
   em_atendimento: { label: "Em atendimento", color: "text-blue-400",   bg: "bg-blue-500/15 border-blue-500/30" },
   aguardando:     { label: "Aguardando",     color: "text-yellow-400", bg: "bg-yellow-500/15 border-yellow-500/30" },
   resolvido:      { label: "Resolvido",      color: "text-green-400",  bg: "bg-green-500/15 border-green-500/30" },
@@ -498,7 +498,7 @@ export default function ChamadoDetailPage({ params }: { params: Promise<{ id: st
                     </button>
                   )}
                   {isClosed && chamado.status !== "aberto" && (
-                    <button onClick={() => handleStatus("aberto")} className="px-3 py-1.5 rounded-lg text-xs bg-slate-500/10 text-slate-400 border border-slate-500/20 hover:bg-slate-500/20 transition-colors">
+                    <button onClick={() => handleStatus("aberto")} className="px-3 py-1.5 rounded-lg text-xs surface-sunken text-muted-o border border-slate-500/20 hover:bg-slate-500/20 transition-colors">
                       ↺ Reabrir
                     </button>
                   )}

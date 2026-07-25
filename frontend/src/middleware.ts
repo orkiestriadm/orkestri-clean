@@ -10,8 +10,8 @@ export function middleware(request: NextRequest) {
   const token = request.cookies.get("orkestri_token")?.value;
   const { pathname } = request.nextUrl;
 
-  // Protege todas as rotas /dashboard
-  if (pathname.startsWith("/dashboard")) {
+  // Protege todas as rotas /dashboard e /reservas
+  if (pathname.startsWith("/dashboard") || pathname.startsWith("/reservas")) {
     if (!token) {
       const loginUrl = new URL("/login", request.url);
       loginUrl.searchParams.set("from", pathname);
@@ -28,5 +28,5 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/login"],
+  matcher: ["/dashboard/:path*", "/reservas/:path*", "/login"],
 };

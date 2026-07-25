@@ -72,7 +72,7 @@ export default function FocusMode({ onClose }: { onClose: () => void }) {
         {/* Header */}
         <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", width:"100%" }}>
           <div>
-            <div style={{ fontFamily:"var(--font-display)", fontSize:18, fontWeight:700, color:"var(--text-primary)" }}>Modo Foco</div>
+            <div style={{ fontFamily:"var(--font-display)", fontSize:18, fontWeight:700, color:"var(--text-primary)" }}> {/* ds-ok: titulo */}Modo Foco</div>
             <div style={{ fontSize:11, color:"var(--text-muted)", fontFamily:"var(--font-mono)" }}>{rounds} rodada{rounds!==1?"s":""} completada{rounds!==1?"s":""}</div>
           </div>
           <button className="btn-icon" onClick={onClose}>

@@ -18,6 +18,7 @@ import * as crypto from "crypto";
 import { EmailService } from "../notifications/email.service";
 import { NotificationsModule } from "../notifications/notifications.module";
 import { FrotaRelatoriosService } from "./frota-relatorios.service";
+import { janelaManutencao, janelaRevisao } from "./frota-datas";
 import { ReservasModule } from "./reservas/reservas.module";
 
 const FROTA_UPLOAD_DIR = process.env.UPLOAD_DIR || "/app/uploads";
@@ -126,13 +127,16 @@ abstract class BaseFrotaController {
 
   /** Hook opcional executado antes do create (ex.: gerar código). */
   protected async beforeCreate(_data: any, _req: any): Promise<void> {}
+  /** Hook opcional antes do update. `existing` é o registro atual no banco —
+   *  o update é parcial, então campos não enviados não estão em `data`. */
+  protected async beforeUpdate(_data: any, _existing: any, _req: any): Promise<void> {}
   /** Hook opcional após persistir (create/update). */
   protected async afterWrite(_row: any, _req: any, _acao: string): Promise<void> {}
 
   @Get()
   @Permissions("frota:ver")
   async findAll(@Req() req: any, @Query() query: any) {
-    const take = Math.min(Number(query.limit) || 50, 200);
+    const take = Math.min(Number(query.limit) || 50, 1000);
     const skip = (Math.max(Number(query.page) || 1, 1) - 1) * take;
     const where: any = this.scope(req);
     for (const k of this.filterKeys) {
@@ -142,9 +146,9 @@ abstract class BaseFrotaController {
       where.OR = this.searchFields.map(f => {
         if (f.includes(".")) {
           const [rel, field] = f.split(".");
-          return { [rel]: { [field]: { contains: query.q, mode: "insensitive" } } };
+          return { [rel]: { [field]: { contains: query.q } } };
         }
-        return { [f]: { contains: query.q, mode: "insensitive" } };
+        return { [f]: { contains: query.q } };
       });
     }
     const [items, total] = await Promise.all([
@@ -204,6 +208,7 @@ abstract class BaseFrotaController {
       atualizadoPorId: req.user?.id || null,
       ...buildData(body, this.fields, true),
     };
+    await this.beforeUpdate(data, existing, req);
     let row: any;
     try {
       row = await this.delegate.update({ where: { id }, data, include: this.includeOne || this.include });
@@ -238,7 +243,6 @@ const VEICULO_LIST_INCLUDE = {
   categoria:   { select: { id: true, nome: true, cor: true, icone: true } },
   motorista:   { select: { id: true, nome: true } },
   responsavel: { select: { id: true, nome: true, email: true, avatar: true } },
-  centroCusto: { select: { id: true, nome: true, codigo: true } },
   setor:       { select: { id: true, nome: true, cor: true } },
 };
 
@@ -250,7 +254,7 @@ class VeiculosController extends BaseFrotaController {
   protected tabela = "veiculos";
   protected searchFields = ["placa", "codigo", "marca", "modelo", "renavam", "chassi"];
   protected requiredFields = ["placa"];
-  protected filterKeys = ["status", "categoriaId", "tipo", "combustivel", "setorId", "motoristaId", "responsavelId", "centroCustoId"];
+  protected filterKeys = ["status", "categoriaId", "tipo", "combustivel", "setorId", "motoristaId", "responsavelId", "centroCusto"];
   protected include = VEICULO_LIST_INCLUDE;
   protected includeOne = {
     ...VEICULO_LIST_INCLUDE,
@@ -267,7 +271,7 @@ class VeiculosController extends BaseFrotaController {
     { k: "anoFabricacao", t: "int" }, { k: "anoModelo", t: "int" }, { k: "cor", t: "string" },
     { k: "tipo", t: "string" }, { k: "combustivel", t: "string" }, { k: "categoriaId", t: "string" },
     { k: "status", t: "string" }, { k: "kmAtual", t: "int" }, { k: "horimetroAtual", t: "int" }, { k: "capacidadeTanque", t: "float" },
-    { k: "motoristaId", t: "string" }, { k: "responsavelId", t: "string" }, { k: "centroCustoId", t: "string" },
+    { k: "motoristaId", t: "string" }, { k: "responsavelId", t: "string" }, { k: "centroCusto", t: "string" },
     { k: "unidade", t: "string" }, { k: "setorId", t: "string" }, { k: "ativoId", t: "string" },
     { k: "dataAquisicao", t: "date" }, { k: "valorAquisicao", t: "float" }, { k: "observacoes", t: "string" }, { k: "descricao", t: "string" },
   ];
@@ -360,7 +364,7 @@ class VeiculosController extends BaseFrotaController {
     ev.push({ tipo: "cadastro", data: v.criadoEm, titulo: "Veículo cadastrado", descricao: `${v.placa} — ${[v.marca, v.modelo].filter(Boolean).join(" ")}` });
     for (const p of pneus) ev.push({ tipo: "pneu", data: p.dataInstalacao || p.criadoEm, titulo: "Pneu instalado", descricao: [p.marca, p.medida, p.posicao].filter(Boolean).join(" · "), valor: null });
     for (const r of revisoes) ev.push({ tipo: "revisao", data: r.dataRealizada || r.dataPrevista || r.criadoEm, titulo: `Revisão${r.dataRealizada ? " realizada" : " agendada"}`, descricao: [r.tipo, r.oficina].filter(Boolean).join(" · "), valor: r.custo ?? null });
-    for (const m of manut) ev.push({ tipo: "manutencao", data: m.data || m.dataAgendada || m.criadoEm, titulo: `Manutenção ${m.tipo || ""}`.trim(), descricao: [m.descricao, m.oficina].filter(Boolean).join(" · "), valor: m.custo ?? null });
+    for (const m of manut) ev.push({ tipo: "manutencao", data: m.data || m.dataAbertura || m.dataAgendada || m.criadoEm, titulo: `Manutenção ${m.tipo || ""}`.trim(), descricao: [m.descricao, m.oficina].filter(Boolean).join(" · "), valor: m.custo ?? null });
     for (const a of abast) ev.push({ tipo: "abastecimento", data: a.data, titulo: "Abastecimento", descricao: [a.posto, a.litros != null ? `${a.litros} L` : "", a.motorista?.nome].filter(Boolean).join(" · "), valor: a.valorTotal ?? null });
     for (const d of docs) ev.push({ tipo: "documento", data: d.dataEmissao || d.criadoEm, titulo: `Documento ${String(d.tipo).toUpperCase()}`, descricao: [d.numero, d.dataVencimento ? `vence ${new Date(d.dataVencimento).toLocaleDateString("pt-BR")}` : ""].filter(Boolean).join(" · "), valor: d.valor ?? null });
     for (const c of cond) {
@@ -707,6 +711,22 @@ class RevisoesController extends BaseFrotaController {
     { k: "kmRealizado", t: "int" }, { k: "horimetro", t: "int" }, { k: "status", t: "string" }, { k: "custo", t: "float" },
     { k: "oficina", t: "string" }, { k: "observacoes", t: "string" },
   ];
+
+  /** Revisão marcada como realizada precisa ter data de realização — era o
+   *  campo que o relatório e a dashboard usam para situar a revisão no período.
+   *  Medido em 2026-07-24: só 12 de 52 revisões tinham `dataRealizada`. */
+  protected async beforeCreate(data: any, _req: any): Promise<void> {
+    if (data.status === "realizada" && !data.dataRealizada) {
+      data.dataRealizada = data.dataPrevista || new Date();
+    }
+  }
+
+  protected async beforeUpdate(data: any, existing: any, _req: any): Promise<void> {
+    const status = data.status ?? existing?.status;
+    if (status === "realizada" && !data.dataRealizada && !existing?.dataRealizada) {
+      data.dataRealizada = data.dataPrevista ?? existing?.dataPrevista ?? new Date();
+    }
+  }
 }
 
 // ── Planos de revisão preventiva (parametrização por modelo) ───────────────────
@@ -816,6 +836,7 @@ class ManutencoesController extends BaseFrotaController {
   protected include = {
     veiculo: { select: { id: true, placa: true, codigo: true } },
     solicitante: { select: { id: true, nome: true, avatar: true } },
+    _count: { select: { anexos: { where: { deletedAt: null } } } },
   };
   protected includeOne = {
     veiculo: { select: { id: true, placa: true, codigo: true } },
@@ -842,7 +863,23 @@ class ManutencoesController extends BaseFrotaController {
       data.numeroOs = os;
     }
     if (!data.dataAbertura) data.dataAbertura = new Date();
+    // `data` é a data de referência da OS para custo e relatório. O formulário
+    // não a envia, e nada a preenchia — resultado: 100% das OS ficavam com
+    // `data` NULL e sumiam de qualquer filtro por período. Ancorar na abertura.
+    if (!data.data) data.data = data.dataAbertura;
     data.custo = (data.custoPecas || 0) + (data.custoServicos || 0) + (data.custoTerceiros || 0);
+  }
+
+  protected async beforeUpdate(data: any, existing: any, _req: any): Promise<void> {
+    // Repara OS antigas ao primeiro salvamento e cobre o caso de a abertura ser
+    // preenchida só na edição.
+    const abertura = data.dataAbertura ?? existing?.dataAbertura;
+    if (!data.data && !existing?.data && abertura) data.data = abertura;
+    // Fecha a OS junto com a conclusão, se ainda não tiver fechamento.
+    if (data.status && ["finalizada", "cancelada"].includes(data.status)
+        && !data.dataFechamento && !existing?.dataFechamento) {
+      data.dataFechamento = new Date();
+    }
   }
 
   protected async afterWrite(row: any, _req: any, _acao: string): Promise<void> {
@@ -1366,7 +1403,7 @@ class FrotaDashboardController {
       this.db.veiculo.groupBy({ by: ["status"], _count: true, where: base }),
       this.db.motorista.count({ where: base }),
       this.db.manutencaoVeiculo.count({ where: { ...base, status: { notIn: ["concluida", "cancelada"] } } }),
-      this.db.manutencaoVeiculo.aggregate({ _sum: { custo: true }, where: { ...base, data: { gte: inicioMes } } }),
+      this.db.manutencaoVeiculo.aggregate({ _sum: { custo: true }, where: { ...base, ...janelaManutencao({ gte: inicioMes }) } }),
       this.db.abastecimento.aggregate({ _sum: { valorTotal: true }, where: { ...base, data: { gte: inicioMes } } }),
       this.db.motorista.count({ where: { ...base, validadeCnh: { gte: now, lte: em30 } } }),
       this.db.documentoVeiculo.count({ where: { ...base, dataVencimento: { gte: now, lte: em30 } } }),
@@ -1407,7 +1444,7 @@ class FrotaDashboardController {
     const vehWhere: any = { organizationId: orgId, deletedAt: null };
     if (q.tipo) vehWhere.tipo = q.tipo;
     if (q.unidade) vehWhere.unidade = q.unidade;
-    if (q.centroCustoId) vehWhere.centroCustoId = q.centroCustoId;
+    if (q.centroCusto) vehWhere.centroCusto = q.centroCusto;
     if (q.veiculoId) vehWhere.id = q.veiculoId;
     const veiculos = await this.db.veiculo.findMany({ where: vehWhere, select: { id: true, placa: true, modelo: true, status: true, unidade: true, tipo: true } });
     const vIds = veiculos.map((v: any) => v.id);
@@ -1423,13 +1460,13 @@ class FrotaDashboardController {
       this.db.motorista.count({ where: { ...motWhere, validadeCnh: { gte: now, lte: em30 } } }),
       this.db.pneu.count({ where: { organizationId: orgId, deletedAt: null, status: "estoque" } }),
       this.db.pneu.count({ where: { organizationId: orgId, deletedAt: null, status: "em_uso", veiculoId: inSet } }),
-      this.db.manutencaoVeiculo.aggregate({ _sum: { custo: true }, where: { organizationId: orgId, deletedAt: null, veiculoId: inSet, data: { gte: inicioMes } } }),
+      this.db.manutencaoVeiculo.aggregate({ _sum: { custo: true }, where: { organizationId: orgId, deletedAt: null, veiculoId: inSet, ...janelaManutencao({ gte: inicioMes }) } }),
       this.db.abastecimento.aggregate({ _sum: { valorTotal: true }, where: { organizationId: orgId, deletedAt: null, veiculoId: inSet, data: { gte: inicioMes } } }),
-      this.db.revisaoVeiculo.aggregate({ _sum: { custo: true }, where: { organizationId: orgId, deletedAt: null, veiculoId: inSet, dataRealizada: { gte: inicioMes } } }),
+      this.db.revisaoVeiculo.aggregate({ _sum: { custo: true }, where: { organizationId: orgId, deletedAt: null, veiculoId: inSet, ...janelaRevisao({ gte: inicioMes }) } }),
       this.db.documentoVeiculo.aggregate({ _sum: { valor: true }, where: { organizationId: orgId, deletedAt: null, veiculoId: inSet, dataEmissao: { gte: inicioMes } } }),
-      this.db.manutencaoVeiculo.findMany({ where: { organizationId: orgId, deletedAt: null, veiculoId: inSet, OR: [{ data: periodo }, { dataAbertura: periodo }] }, select: { veiculoId: true, custo: true, data: true, dataAbertura: true } }),
+      this.db.manutencaoVeiculo.findMany({ where: { organizationId: orgId, deletedAt: null, veiculoId: inSet, ...janelaManutencao(periodo) }, select: { veiculoId: true, custo: true, data: true, dataAbertura: true } }),
       this.db.abastecimento.findMany({ where: { organizationId: orgId, deletedAt: null, veiculoId: inSet, data: periodo, ...(q.motoristaId ? { motoristaId: q.motoristaId } : {}) }, select: { veiculoId: true, valorTotal: true, litros: true, consumoKmL: true, data: true } }),
-      this.db.revisaoVeiculo.findMany({ where: { organizationId: orgId, deletedAt: null, veiculoId: inSet, OR: [{ dataRealizada: periodo }, { dataPrevista: periodo }] }, select: { veiculoId: true, custo: true, dataRealizada: true, dataPrevista: true } }),
+      this.db.revisaoVeiculo.findMany({ where: { organizationId: orgId, deletedAt: null, veiculoId: inSet, ...janelaRevisao(periodo) }, select: { veiculoId: true, custo: true, dataRealizada: true, dataPrevista: true } }),
       this.db.documentoVeiculo.findMany({ where: { organizationId: orgId, deletedAt: null, veiculoId: inSet, dataEmissao: periodo }, select: { veiculoId: true, valor: true, dataEmissao: true } }),
       this.db.pneuEvento.findMany({ where: { organizationId: orgId, veiculoId: inSet, data: periodo }, select: { tipo: true } }),
       this.db.manutencaoVeiculo.groupBy({ by: ["status"], _count: true, where: { organizationId: orgId, deletedAt: null, veiculoId: inSet } }),
@@ -1572,7 +1609,7 @@ export class FrotaRelatoriosController {
   @Permissions("frota:relatorios")
   async enviarEmail(@Req() req: any, @Body() body: any) {
     const orgId = req.user?.organizationId;
-    return this.relService.enviarEmail(orgId, body);
+    return this.relService.enviarEmail(orgId, body, req.user?.id);
   }
 }
 

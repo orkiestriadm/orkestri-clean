@@ -195,15 +195,14 @@ function NovoApontamentoModal({
 // ── StatCard ──────────────────────────────────────────────────────────────────
 function StatCard({ icon: Icon, label, value, sub, color }: any) {
   return (
-    <div className="p-5 flex flex-col gap-3 rounded-xl border border-border bg-card hover:bg-accent/50 transition-colors">
+    <div className="kpi-card" style={{ padding: 18 }}>
+      <span className="kpi-card__halo" />
       <div className="flex items-center justify-between">
-        <span className="text-[11px] text-muted-foreground font-mono tracking-[0.08em]">{label}</span>
-        <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center border", color)}>
-          <Icon size={15} />
-        </div>
+        <span className="mono-cap">{label}</span>
+        <span className={cn("kpi-card__icon", color)} style={{ width: 32, height: 32 }}><Icon size={15} /></span>
       </div>
-      <div className="font-display text-3xl font-bold text-foreground leading-none">{value}</div>
-      {sub && <div className="text-[11px] text-muted-foreground">{sub}</div>}
+      <div className="metric" style={{ fontSize: 29, marginTop: 12, color: "var(--text-primary)" }}>{value}</div>
+      {sub && <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 4 }}>{sub}</div>}
     </div>
   );
 }

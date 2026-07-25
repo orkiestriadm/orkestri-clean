@@ -201,7 +201,7 @@ export default function CapacityPage() {
           ) : cards.map(c => (
             <div key={c.label} className="card" style={{ padding:"16px 20px" }}>
               <div style={{ fontSize:10, fontFamily:"var(--font-mono)", color:"var(--text-muted)", letterSpacing:"0.08em", marginBottom:6 }}>{c.label}</div>
-              <div style={{ fontFamily:"var(--font-display)", fontSize:28, fontWeight:700, color:c.color }}>{c.value}</div>
+              <div className="metric" style={{ fontSize:28, color:c.color }}>{c.value}</div>
             </div>
           ))}
         </div>

@@ -1,11 +1,11 @@
 import {
   Module, Controller, Get, Post, Put, Patch, Delete,
   Body, Param, Query, UseGuards, Req,
-  NotFoundException, BadRequestException,
+  NotFoundException, BadRequestException, ForbiddenException,
 } from "@nestjs/common";
 import { AuthGuard } from "@nestjs/passport";
 import {
-  IsString, IsOptional, IsNumber, IsBoolean, IsIn, Min, Max,
+  IsString, IsOptional, IsNumber, IsBoolean, IsIn, Min, Max, IsArray,
 } from "class-validator";
 import { PrismaService } from "../../prisma/prisma.service";
 import { Permissions } from "../auth/permissions.decorator";
@@ -16,6 +16,15 @@ import { PermissionsGuard } from "../auth/permissions.guard";
 class CreateCicloDto {
   @IsNumber() ano: number;
   @IsOptional() @IsString() descricao?: string;
+}
+
+class CreateCicloPessoalDto {
+  @IsNumber() ano: number;
+  @IsOptional() @IsString() descricao?: string;
+}
+
+class CompartilharDto {
+  @IsArray() @IsString({ each: true }) userIds: string[];
 }
 
 class CreateCentroCustoDto {
@@ -166,6 +175,71 @@ function mapItem(item: any) {
 class OrcamentoController {
   constructor(private prisma: PrismaService) {}
 
+  // ── Acesso a orçamentos (corporativo / pessoal / compartilhado) ──────────────
+  //
+  // Regra: um ciclo com ownerId null é o orçamento CORPORATIVO da organização
+  // (visível a todos com orcamento:ver, editável conforme orcamento:planejar).
+  // Um ciclo com ownerId preenchido é PESSOAL: visível e editável apenas pelo
+  // dono e por quem ele compartilhar (presença em OrcamentoCompartilhamento).
+
+  private async ciclosPessoaisIds(userId: string, orgId?: string): Promise<string[]> {
+    const orgWhere = orgId ? { organizationId: orgId } : {};
+    const [proprios, compart] = await Promise.all([
+      (this.prisma as any).orcamentoCiclo.findMany({ where: { ownerId: userId, ...orgWhere }, select: { id: true } }),
+      (this.prisma as any).orcamentoCompartilhamento.findMany({ where: { userId, ciclo: { is: orgWhere } }, select: { cicloId: true } }),
+    ]);
+    return Array.from(new Set([
+      ...proprios.map((c: any) => c.id),
+      ...compart.map((c: any) => c.cicloId),
+    ]));
+  }
+
+  // Carrega o ciclo garantindo que o usuário PODE VÊ-LO. Não vaza existência de
+  // orçamentos pessoais de terceiros (responde como inexistente).
+  private async assertPodeVerCiclo(cicloId: string, user: any) {
+    const ciclo = await (this.prisma as any).orcamentoCiclo.findUnique({
+      where: { id: cicloId },
+      select: { id: true, ownerId: true, organizationId: true, ano: true, status: true },
+    });
+    if (!ciclo) throw new NotFoundException("Orçamento não encontrado");
+    if (user?.organizationId && ciclo.organizationId !== user.organizationId) throw new NotFoundException("Orçamento não encontrado");
+    if (ciclo.ownerId == null) return ciclo;             // corporativo
+    if (ciclo.ownerId === user.id) return ciclo;         // dono
+    const shared = await (this.prisma as any).orcamentoCompartilhamento.findFirst({ where: { cicloId, userId: user.id } });
+    if (shared) return ciclo;                            // compartilhado
+    throw new NotFoundException("Orçamento não encontrado");
+  }
+
+  // Carrega o ciclo garantindo que o usuário PODE EDITÁ-LO.
+  // Corporativo exige a permissão indicada; pessoal exige dono ou compartilhado.
+  private async assertPodeEditarCiclo(cicloId: string, user: any, permCorporativa = "orcamento:planejar") {
+    const ciclo = await (this.prisma as any).orcamentoCiclo.findUnique({
+      where: { id: cicloId },
+      select: { id: true, ownerId: true, organizationId: true },
+    });
+    if (!ciclo) throw new NotFoundException("Orçamento não encontrado");
+    if (user?.organizationId && ciclo.organizationId !== user.organizationId) throw new NotFoundException("Orçamento não encontrado");
+    const perms: string[] = user?.permissions || [];
+    if (ciclo.ownerId == null) {
+      if (user?.isMaster || perms.includes("*") || perms.includes(permCorporativa)) return ciclo;
+      throw new ForbiddenException("Sem permissão para editar o orçamento corporativo");
+    }
+    if (ciclo.ownerId === user.id) return ciclo;
+    const shared = await (this.prisma as any).orcamentoCompartilhamento.findFirst({ where: { cicloId, userId: user.id } });
+    if (shared) return ciclo;
+    throw new ForbiddenException("Você não tem acesso a este orçamento");
+  }
+
+  // Resolve o cicloId a usar num endpoint de leitura: se veio explícito, valida
+  // visibilidade; se veio só o ano, resolve para o CORPORATIVO (ownerId null).
+  private async resolveCicloIdLeitura(cicloId: string | undefined, ano: number | undefined, user: any): Promise<string | null> {
+    if (cicloId) { await this.assertPodeVerCiclo(cicloId, user); return cicloId; }
+    const orgWhere = user?.organizationId ? { organizationId: user.organizationId } : {};
+    const anoAlvo = ano || new Date().getFullYear();
+    const c = await (this.prisma as any).orcamentoCiclo.findFirst({ where: { ano: anoAlvo, ownerId: null, ...orgWhere } });
+    return c?.id ?? null;
+  }
+
   // ── Dashboard ──────────────────────────────────────────────────────────────
 
   @Get("dashboard")
@@ -175,15 +249,10 @@ class OrcamentoController {
     @Query("centroCustoId") centroCustoId?: string, @Query("categoriaId") categoriaId?: string,
     @Query("mesIni") mesIniQ?: string, @Query("mesFim") mesFimQ?: string,
   ) {
-    const orgId = req.user?.organizationId;
-    const orgWhere = orgId ? { organizationId: orgId } as any : {};
-    let ciclo: any;
-    if (cicloId) {
-      ciclo = await (this.prisma as any).orcamentoCiclo.findFirst({ where: { id: cicloId, ...orgWhere } });
-    } else {
-      const ano = anoQ ? parseInt(anoQ) : new Date().getFullYear();
-      ciclo = await (this.prisma as any).orcamentoCiclo.findFirst({ where: { ano, ...orgWhere } });
-    }
+    const resolvedId = await this.resolveCicloIdLeitura(cicloId, anoQ ? parseInt(anoQ) : undefined, req.user);
+    const ciclo = resolvedId
+      ? await (this.prisma as any).orcamentoCiclo.findUnique({ where: { id: resolvedId } })
+      : null;
     if (!ciclo) return { ciclo: null, kpis: null, evolucaoMensal: [], topItens: [], alertas: [], distribuicao: [], distribuicaoCategoria: [], distribuicaoCentroCusto: [], capexOpex: [] };
 
     const mesIni = Math.max(1, Math.min(12, parseInt(mesIniQ || "1") || 1));
@@ -296,15 +365,14 @@ class OrcamentoController {
     @Query("cicloA") cicloAId?: string, @Query("cicloB") cicloBId?: string,
     @Query("dimensao") dimQ?: string, @Query("base") baseQ?: string,
   ) {
-    const orgId = req.user?.organizationId;
-    const orgWhere = orgId ? { organizationId: orgId } as any : {};
     if (!cicloAId || !cicloBId) throw new BadRequestException("Selecione dois ciclos para comparar");
     const dim  = ["categoria", "centroCusto", "item"].includes(dimQ || "") ? dimQ! : "categoria";
     const base = baseQ === "previsto" ? "previsto" : "realizado";
 
+    await Promise.all([this.assertPodeVerCiclo(cicloAId, req.user), this.assertPodeVerCiclo(cicloBId, req.user)]);
     const [ca, cb] = await Promise.all([
-      (this.prisma as any).orcamentoCiclo.findFirst({ where: { id: cicloAId, ...orgWhere } }),
-      (this.prisma as any).orcamentoCiclo.findFirst({ where: { id: cicloBId, ...orgWhere } }),
+      (this.prisma as any).orcamentoCiclo.findUnique({ where: { id: cicloAId } }),
+      (this.prisma as any).orcamentoCiclo.findUnique({ where: { id: cicloBId } }),
     ]);
     if (!ca || !cb) throw new BadRequestException("Ciclo não encontrado");
 
@@ -355,9 +423,29 @@ class OrcamentoController {
   @Get("ciclos")
   @Permissions("orcamento:ver")
   async listCiclos(@Req() req: any) {
-    const orgId = req.user?.organizationId;
-    const ciclos = await (this.prisma as any).orcamentoCiclo.findMany({ where: orgId ? { organizationId: orgId } as any : {}, orderBy: { ano: "desc" } });
-    return ciclos.map((c: any) => ({ ...c, _count: undefined }));
+    const user = req.user;
+    const orgId = user?.organizationId;
+    const orgWhere = orgId ? { organizationId: orgId } as any : {};
+    const pessoaisIds = await this.ciclosPessoaisIds(user.id, orgId);
+    const ciclos = await (this.prisma as any).orcamentoCiclo.findMany({
+      where: { ...orgWhere, OR: [{ ownerId: null }, { id: { in: pessoaisIds } }] },
+      include: { owner: { select: { id: true, nome: true } }, _count: { select: { compartilhamentos: true } } },
+      orderBy: [{ ano: "desc" }, { criadoEm: "asc" }],
+    });
+    const perms: string[] = user?.permissions || [];
+    const podePlanejarCorp = user?.isMaster || perms.includes("*") || perms.includes("orcamento:planejar");
+    return ciclos.map((c: any) => {
+      const escopo = c.ownerId == null ? "corporativo" : (c.ownerId === user.id ? "proprio" : "compartilhado");
+      return {
+        id: c.id, ano: c.ano, descricao: c.descricao, status: c.status,
+        escopo, ownerId: c.ownerId,
+        owner: c.owner ? { id: c.owner.id, nome: c.owner.nome } : null,
+        podeEditar: escopo === "corporativo" ? podePlanejarCorp : true,
+        podeCompartilhar: escopo === "proprio",
+        qtdCompartilhado: c._count?.compartilhamentos ?? 0,
+        criadoEm: c.criadoEm,
+      };
+    });
   }
 
   @Post("ciclos")
@@ -365,11 +453,111 @@ class OrcamentoController {
   async createCiclo(@Body() dto: CreateCicloDto, @Req() req: any) {
     const orgId = req.user?.organizationId;
     const orgWhere = orgId ? { organizationId: orgId } as any : {};
-    const exists = await (this.prisma as any).orcamentoCiclo.findFirst({ where: { ano: dto.ano, ...orgWhere } });
+    const exists = await (this.prisma as any).orcamentoCiclo.findFirst({ where: { ano: dto.ano, ownerId: null, ...orgWhere } });
     if (exists) throw new BadRequestException(`Ciclo ${dto.ano} já existe`);
     return (this.prisma as any).orcamentoCiclo.create({
-      data: { id: uuid(), ano: dto.ano, descricao: dto.descricao || null, ...(orgId ? { organizationId: orgId } : {}) } as any,
+      data: { id: uuid(), ano: dto.ano, descricao: dto.descricao || null, ownerId: null, ...(orgId ? { organizationId: orgId } : {}) } as any,
     });
+  }
+
+  // ── Orçamentos pessoais + compartilhamento ───────────────────────────────────
+
+  // Qualquer usuário com acesso ao módulo cria o SEU próprio orçamento.
+  @Post("ciclos/pessoal")
+  @Permissions("orcamento:ver")
+  async createCicloPessoal(@Body() dto: CreateCicloPessoalDto, @Req() req: any) {
+    const orgId = req.user?.organizationId;
+    const orgWhere = orgId ? { organizationId: orgId } as any : {};
+    const exists = await (this.prisma as any).orcamentoCiclo.findFirst({ where: { ano: dto.ano, ownerId: req.user.id, ...orgWhere } });
+    if (exists) throw new BadRequestException(`Você já tem um orçamento para ${dto.ano}`);
+    return (this.prisma as any).orcamentoCiclo.create({
+      data: {
+        id: uuid(), ano: dto.ano,
+        descricao: dto.descricao || `Meu orçamento ${dto.ano}`,
+        ownerId: req.user.id,
+        ...(orgId ? { organizationId: orgId } : {}),
+      } as any,
+    });
+  }
+
+  // Lista de usuários da organização para escolher com quem compartilhar.
+  @Get("usuarios-disponiveis")
+  @Permissions("orcamento:ver")
+  async usuariosDisponiveis(@Req() req: any, @Query("q") q?: string) {
+    const orgId = req.user?.organizationId;
+    const where: any = { ativo: true, ...(orgId ? { organizationId: orgId } : {}), id: { not: req.user.id } };
+    if (q && q.trim()) {
+      where.OR = [
+        { nome: { contains: q, mode: "insensitive" } },
+        { email: { contains: q, mode: "insensitive" } },
+      ];
+    }
+    const users = await (this.prisma as any).user.findMany({
+      where, select: { id: true, nome: true, email: true }, orderBy: { nome: "asc" }, take: 30,
+    });
+    return users;
+  }
+
+  // Quem tem acesso a um orçamento pessoal (somente o dono consulta/gerencia).
+  @Get("ciclos/:id/compartilhamentos")
+  @Permissions("orcamento:ver")
+  async listCompartilhamentos(@Param("id") id: string, @Req() req: any) {
+    const ciclo = await this.assertPodeVerCiclo(id, req.user);
+    if (ciclo.ownerId == null) return []; // corporativo não usa compartilhamento
+    const shares = await (this.prisma as any).orcamentoCompartilhamento.findMany({
+      where: { cicloId: id },
+      include: { user: { select: { id: true, nome: true, email: true } } },
+      orderBy: { criadoEm: "asc" },
+    });
+    return shares.map((s: any) => ({ id: s.id, user: s.user, criadoEm: s.criadoEm }));
+  }
+
+  // Compartilha o orçamento com pessoas específicas. Só o dono compartilha.
+  @Post("ciclos/:id/compartilhar")
+  @Permissions("orcamento:ver")
+  async compartilhar(@Param("id") id: string, @Body() dto: CompartilharDto, @Req() req: any) {
+    const ciclo = await this.assertPodeVerCiclo(id, req.user);
+    if (ciclo.ownerId == null) throw new BadRequestException("O orçamento corporativo não é compartilhável");
+    if (ciclo.ownerId !== req.user.id) throw new ForbiddenException("Apenas o dono pode compartilhar");
+    const orgId = req.user?.organizationId;
+    const ids = Array.from(new Set((dto.userIds || []).filter(Boolean))).filter((x) => x !== ciclo.ownerId);
+    if (!ids.length) throw new BadRequestException("Selecione ao menos uma pessoa");
+    // Só usuários válidos da mesma organização (o dono já foi excluído da lista).
+    const validos = await (this.prisma as any).user.findMany({
+      where: { id: { in: ids }, ...(orgId ? { organizationId: orgId } : {}) },
+      select: { id: true },
+    });
+    const validIds = validos.map((u: any) => u.id);
+    for (const userId of validIds) {
+      await (this.prisma as any).orcamentoCompartilhamento.upsert({
+        where: { cicloId_userId: { cicloId: id, userId } },
+        create: { id: uuid(), cicloId: id, userId, criadoPorId: req.user.id },
+        update: {},
+      });
+    }
+    return { ok: true, adicionados: validIds.length };
+  }
+
+  // Remove o acesso de uma pessoa. Só o dono remove.
+  @Delete("ciclos/:id/compartilhar/:userId")
+  @Permissions("orcamento:ver")
+  async descompartilhar(@Param("id") id: string, @Param("userId") userId: string, @Req() req: any) {
+    const ciclo = await this.assertPodeVerCiclo(id, req.user);
+    if (ciclo.ownerId !== req.user.id) throw new ForbiddenException("Apenas o dono pode remover acessos");
+    await (this.prisma as any).orcamentoCompartilhamento.deleteMany({ where: { cicloId: id, userId } });
+    return { ok: true };
+  }
+
+  // Exclui um orçamento pessoal inteiro (itens em cascata). Só o dono.
+  @Delete("ciclos/:id")
+  @Permissions("orcamento:ver")
+  async deleteCicloPessoal(@Param("id") id: string, @Req() req: any) {
+    const ciclo = await this.assertPodeVerCiclo(id, req.user);
+    if (ciclo.ownerId == null) throw new ForbiddenException("O orçamento corporativo não pode ser excluído aqui");
+    if (ciclo.ownerId !== req.user.id) throw new ForbiddenException("Apenas o dono pode excluir");
+    await (this.prisma as any).itemOrcamento.deleteMany({ where: { cicloId: id } });
+    await (this.prisma as any).orcamentoCiclo.delete({ where: { id } });
+    return { ok: true };
   }
 
   @Patch("ciclos/:id/ativar")
@@ -529,16 +717,12 @@ class OrcamentoController {
     @Query("categoriaId") categoriaId?: string,
     @Query("ano") anoQ?: string,
   ) {
-    const orgId = req.user?.organizationId;
-    const orgWhere = orgId ? { organizationId: orgId } as any : {};
-    let resolvedCicloId = cicloId;
-    if (!resolvedCicloId && anoQ) {
-      const ciclo = await (this.prisma as any).orcamentoCiclo.findFirst({ where: { ano: parseInt(anoQ), ...orgWhere } });
-      resolvedCicloId = ciclo?.id;
-    }
-    if (!resolvedCicloId) {
-      const cicloAtivo = await (this.prisma as any).orcamentoCiclo.findFirst({ where: { status: "ativo", ...orgWhere }, orderBy: { ano: "desc" } });
-      resolvedCicloId = cicloAtivo?.id;
+    let resolvedCicloId = await this.resolveCicloIdLeitura(cicloId, anoQ ? parseInt(anoQ) : undefined, req.user);
+    if (!resolvedCicloId && !cicloId) {
+      // fallback: ciclo corporativo ativo mais recente
+      const orgWhere = req.user?.organizationId ? { organizationId: req.user.organizationId } as any : {};
+      const cicloAtivo = await (this.prisma as any).orcamentoCiclo.findFirst({ where: { status: "ativo", ownerId: null, ...orgWhere }, orderBy: { ano: "desc" } });
+      resolvedCicloId = cicloAtivo?.id ?? null;
     }
     if (!resolvedCicloId) return [];
 
@@ -565,7 +749,7 @@ class OrcamentoController {
 
   @Get("itens/:id")
   @Permissions("orcamento:ver")
-  async getItem(@Param("id") id: string) {
+  async getItem(@Param("id") id: string, @Req() req: any) {
     const item = await (this.prisma as any).itemOrcamento.findUnique({
       where: { id },
       include: {
@@ -577,15 +761,16 @@ class OrcamentoController {
       },
     });
     if (!item) throw new NotFoundException("Item não encontrado");
+    await this.assertPodeVerCiclo(item.cicloId, req.user); // isola pessoal/tenant
     return { ...mapItem(item), timeline: item.timeline, aprovacoes: item.aprovacoes };
   }
 
   @Post("itens")
-  @Permissions("orcamento:planejar")
+  @Permissions("orcamento:ver")
   async createItem(@Body() dto: CreateItemDto, @Req() req: any) {
     if (!dto.nome?.trim()) throw new BadRequestException("Nome obrigatório");
-    const ciclo = await (this.prisma as any).orcamentoCiclo.findUnique({ where: { id: dto.cicloId } });
-    if (!ciclo) throw new NotFoundException("Ciclo não encontrado");
+    // Corporativo exige orcamento:planejar; pessoal exige ser dono ou compartilhado.
+    const ciclo = await this.assertPodeEditarCiclo(dto.cicloId, req.user);
     const categoria = await (this.prisma as any).categoriaOrcamento.findUnique({ where: { id: dto.categoriaId } });
     if (!categoria) throw new NotFoundException("Categoria não encontrada");
 
@@ -687,10 +872,11 @@ class OrcamentoController {
   }
 
   @Put("itens/:id")
-  @Permissions("orcamento:planejar")
+  @Permissions("orcamento:ver")
   async updateItem(@Param("id") id: string, @Body() dto: UpdateItemDto, @Req() req: any) {
-    const exists = await (this.prisma as any).itemOrcamento.findUnique({ where: { id } });
+    const exists = await (this.prisma as any).itemOrcamento.findUnique({ where: { id }, select: { id: true, cicloId: true } });
     if (!exists) throw new NotFoundException("Item não encontrado");
+    await this.assertPodeEditarCiclo(exists.cicloId, req.user);
     const { centroCustoId, fornecedorId, ...rest } = dto;
     const updated = await (this.prisma as any).itemOrcamento.update({
       where: { id },
@@ -706,22 +892,22 @@ class OrcamentoController {
   }
 
   @Delete("itens/:id")
-  @Permissions("orcamento:planejar")
+  @Permissions("orcamento:ver")
   async deleteItem(@Param("id") id: string, @Req() req: any) {
-    const orgWhere = req.user?.organizationId ? {} : {};
-    const item = await (this.prisma as any).itemOrcamento.findUnique({ where: { id }, include: { ciclo: true } });
+    const item = await (this.prisma as any).itemOrcamento.findUnique({ where: { id }, select: { id: true, nome: true, cicloId: true } });
     if (!item) throw new NotFoundException("Item não encontrado");
-    if (req.user?.organizationId && item.ciclo?.organizationId && item.ciclo.organizationId !== req.user.organizationId) {
-      throw new NotFoundException("Item não encontrado");
-    }
+    await this.assertPodeEditarCiclo(item.cicloId, req.user);
     // meses e timeline têm onDelete cascade — o item é removido inteiro.
     await (this.prisma as any).itemOrcamento.delete({ where: { id } });
     return { ok: true, nome: item.nome };
   }
 
   @Patch("itens/:id/previsto")
-  @Permissions("orcamento:planejar")
+  @Permissions("orcamento:ver")
   async updatePrevisto(@Param("id") id: string, @Body() dto: UpdatePrevistoDto, @Req() req: any) {
+    const item = await (this.prisma as any).itemOrcamento.findUnique({ where: { id }, select: { cicloId: true } });
+    if (!item) throw new NotFoundException("Item não encontrado");
+    await this.assertPodeEditarCiclo(item.cicloId, req.user);
     const mes = await (this.prisma as any).itemOrcamentoMes.findFirst({ where: { itemId: id, mes: dto.mes } });
     if (!mes) throw new NotFoundException("Mês não encontrado");
     const updated = await (this.prisma as any).itemOrcamentoMes.update({
@@ -733,8 +919,11 @@ class OrcamentoController {
   }
 
   @Patch("itens/:id/lancar")
-  @Permissions("orcamento:lancar")
+  @Permissions("orcamento:ver")
   async lancarRealizado(@Param("id") id: string, @Body() dto: LancarValorDto, @Req() req: any) {
+    const item = await (this.prisma as any).itemOrcamento.findUnique({ where: { id }, select: { cicloId: true } });
+    if (!item) throw new NotFoundException("Item não encontrado");
+    const ciclo = await this.assertPodeEditarCiclo(item.cicloId, req.user, "orcamento:lancar");
     const mes = await (this.prisma as any).itemOrcamentoMes.findFirst({ where: { itemId: id, mes: dto.mes } });
     if (!mes) throw new NotFoundException("Mês não encontrado");
 
@@ -749,8 +938,9 @@ class OrcamentoController {
       },
     });
 
-    // Verifica estouro e cria aprovação se necessário
-    if (mes.valorPrevisto > 0) {
+    // Estouro gera aprovação apenas no orçamento corporativo (fluxo de gestão).
+    // Orçamentos pessoais não abrem aprovação — são do próprio dono.
+    if (ciclo.ownerId == null && mes.valorPrevisto > 0) {
       const exec = calcExecucao(mes.valorPrevisto, dto.valorRealizado);
       if (exec > 100) {
         await (this.prisma as any).aprovacaoOrcamento.create({
@@ -769,7 +959,10 @@ class OrcamentoController {
 
   @Get("itens/:id/timeline")
   @Permissions("orcamento:ver")
-  async getTimeline(@Param("id") id: string) {
+  async getTimeline(@Param("id") id: string, @Req() req: any) {
+    const item = await (this.prisma as any).itemOrcamento.findUnique({ where: { id }, select: { cicloId: true } });
+    if (!item) throw new NotFoundException("Item não encontrado");
+    await this.assertPodeVerCiclo(item.cicloId, req.user);
     return (this.prisma as any).orcamentoTimeline.findMany({
       where: { itemId: id },
       include: { user: { select: { id: true, nome: true } } },
@@ -844,7 +1037,7 @@ class OrcamentoController {
   async relatorioPrevReal(@Req() req: any, @Query("ano") anoQ?: string, @Query("tipo") tipo?: string) {
     const ano = anoQ ? parseInt(anoQ) : new Date().getFullYear();
     const orgId = req.user?.organizationId;
-    const ciclo = await (this.prisma as any).orcamentoCiclo.findFirst({ where: { ano, ...(orgId ? { organizationId: orgId } as any : {}) } });
+    const ciclo = await (this.prisma as any).orcamentoCiclo.findFirst({ where: { ano, ownerId: null, ...(orgId ? { organizationId: orgId } as any : {}) } });
     if (!ciclo) return { ciclo: null, itens: [] };
 
     const itens = await (this.prisma as any).itemOrcamento.findMany({

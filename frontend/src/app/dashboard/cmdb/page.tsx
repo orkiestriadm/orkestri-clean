@@ -301,7 +301,7 @@ export default function CMDBPage() {
                     {selected.categoria && <span style={{ fontSize:10, color:selected.categoria.cor, background:selected.categoria.cor+"18", border:`1px solid ${selected.categoria.cor}30`, borderRadius:4, padding:"1px 6px" }}>{selected.categoria.nome}</span>}
                     <span style={{ fontSize:10, color:SC[selected.status]||"var(--text-muted)", background:(SC[selected.status]||"var(--text-muted)")+"15", borderRadius:4, padding:"1px 6px", fontFamily:"var(--font-mono)" }}>{SL[selected.status]||selected.status}</span>
                   </div>
-                  <div style={{ fontSize:16, fontWeight:700, color:"var(--text-primary)", fontFamily:"var(--font-display)" }}>{selected.nome}</div>
+                  <div style={{ fontSize:16, fontWeight:700, color:"var(--text-primary)", fontFamily:"var(--font-display)" }}> {/* ds-ok: titulo */}{selected.nome}</div>
                   {selected.responsavel && <div style={{ fontSize:12, color:"var(--text-muted)", marginTop:2 }}>Responsável: <span style={{ color:"var(--accent-cyan)", fontWeight:500 }}>{selected.responsavel.nome}</span></div>}
                   {selected.dataGarantiaFim && <div style={{ fontSize:11, color:"var(--text-muted)", marginTop:2, fontFamily:"var(--font-mono)" }}>Garantia até: {fmtDate(selected.dataGarantiaFim)}</div>}
                 </div>

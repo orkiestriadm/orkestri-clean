@@ -2,106 +2,16 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import {
-  LayoutDashboard, CalendarDays, Layers, StickyNote, MessageCircle,
-  Building2, GanttChart, BarChart2, Users, History, Settings, LogOut,
-  Headphones, PiggyBank, Truck, BookOpen, Package, Zap, Clock, FileText, Activity, CheckSquare,
-  SmilePlus, TrendingUp, UserCircle, Receipt, ChevronDown, Shield, Star, LayoutGrid, CreditCard, Brain,
-  LayoutGrid as Grid3x3, GitBranch, Network, ShoppingBag, Radio, Wallet, FileSpreadsheet, Wrench,
-} from "lucide-react";
+import { LogOut, ChevronDown, Shield, Star } from "lucide-react";
 import { useAuthStore } from "@/lib/store";
 import { authApi } from "@/lib/api";
 import UserStatus from "@/components/ui/UserStatus";
 import { BrandLogo } from "@/components/ui/logo";
 import { cn } from "@/lib/utils";
+import { NAV, type NavGroup, type NavItem as NavItemT } from "@/lib/modules";
 
-type NavItem  = { href: string; label: string; icon: any; permission: string | null };
-type NavGroup = { id: string; label: string | null; items: NavItem[] };
-
-const NAV: NavGroup[] = [
-  {
-    id: "pinned", label: null,
-    items: [
-      { href: "/dashboard",            label: "Visão Geral", icon: LayoutDashboard, permission: null },
-      { href: "/dashboard/executivo",  label: "Executivo",   icon: TrendingUp,      permission: null },
-      { href: "/dashboard/ia",         label: "IA Operacional", icon: Brain,        permission: null },
-      { href: "/dashboard/relatorios", label: "Relatórios",  icon: BarChart2,       permission: "relatorios:ver" },
-    ],
-  },
-  {
-    id: "servicedesk", label: "Service Desk",
-    items: [
-      { href: "/dashboard/catalogo",      label: "Catálogo",     icon: ShoppingBag,  permission: null },
-      { href: "/dashboard/chamados",     label: "Chamados",     icon: Headphones,   permission: "chamados:ver" },
-      { href: "/dashboard/apontamentos", label: "Horas",        icon: Clock,        permission: "chamados:ver" },
-      { href: "/dashboard/csat",         label: "CSAT",         icon: SmilePlus,    permission: "chamados:ver" },
-      { href: "/dashboard/conhecimento", label: "Conhecimento", icon: BookOpen,     permission: "conhecimento:ver" },
-    ],
-  },
-  {
-    id: "operacoes", label: "Operações",
-    items: [
-      { href: "/dashboard/projetos",  label: "Projetos",       icon: Layers,       permission: "projetos:ver" },
-      { href: "/dashboard/gantt",     label: "Linha do Tempo", icon: GanttChart,   permission: "gantt:ver" },
-      { href: "/dashboard/agenda",    label: "Agenda",         icon: CalendarDays, permission: "agenda:ver" },
-      { href: "/dashboard/ativos",    label: "Ativos",         icon: Package,      permission: "ativos:ver" },
-      { href: "/dashboard/monitoramento", label: "Monitoramento Operacional", icon: Radio, permission: "monitoramento:ver" },
-      { href: "/dashboard/cmdb",      label: "CMDB",           icon: Network,      permission: "ativos:ver" },
-      { href: "/dashboard/processos", label: "Processos",      icon: GitBranch,    permission: null },
-      { href: "/dashboard/workforce", label: "Workforce",      icon: LayoutGrid,   permission: null },
-      { href: "/dashboard/capacity",  label: "Capacidade",     icon: Activity,     permission: null },
-      { href: "/dashboard/aprovacoes",label: "Aprovações",     icon: CheckSquare,  permission: null },
-      { href: "/dashboard/keep",      label: "Keep",           icon: StickyNote,   permission: "keep:ver" },
-    ],
-  },
-  {
-    id: "financeiro", label: "Financeiro",
-    items: [
-      { href: "/dashboard/financeiro",                  label: "Dashboard",      icon: Wallet,          permission: "financeiro:ver" },
-      { href: "/dashboard/financeiro/contas-a-pagar",   label: "Contas a Pagar", icon: FileSpreadsheet,  permission: "financeiro:ver" },
-      { href: "/dashboard/orcamento",                   label: "Orçamento",      icon: PiggyBank,        permission: "orcamento:ver" },
-    ],
-  },
-  {
-    id: "frota", label: "Gestão de Frotas",
-    items: [
-      { href: "/dashboard/frota",                label: "Dashboard",      icon: LayoutDashboard, permission: "frota:ver" },
-      { href: "/dashboard/frota/veiculos",       label: "Veículos",       icon: Truck,           permission: "frota:ver" },
-      { href: "/dashboard/frota/motoristas",     label: "Motoristas",     icon: Users,           permission: "frota:ver" },
-      { href: "/dashboard/frota/pneus",          label: "Pneus",          icon: Package,         permission: "frota:ver" },
-      { href: "/dashboard/frota/revisoes",       label: "Revisões",       icon: CalendarDays,    permission: "frota:ver" },
-      { href: "/dashboard/frota/manutencoes",    label: "Manutenções",    icon: Wrench,          permission: "frota:ver" },
-      { href: "/dashboard/frota/documentacoes",  label: "Documentações",  icon: FileText,        permission: "frota:ver" },
-      { href: "/dashboard/frota/abastecimentos", label: "Abastecimentos", icon: Zap,             permission: "frota:ver" },
-      { href: "/reservas",                       label: "Reserva de Carros", icon: CalendarDays, permission: "frota:ver" },
-      { href: "/dashboard/frota/relatorios",     label: "Relatórios",     icon: BarChart2,       permission: "frota:relatorios" },
-      { href: "/dashboard/frota/configuracoes",  label: "Configurações",  icon: Settings,        permission: "frota:configurar" },
-    ],
-  },
-  {
-    id: "crm", label: "CRM",
-    items: [
-      { href: "/dashboard/clientes",  label: "Clientes",  icon: Building2, permission: "crm:ver" },
-      { href: "/dashboard/contratos", label: "Contratos", icon: FileText,  permission: "crm:ver" },
-      { href: "/dashboard/faturas",   label: "Faturas",   icon: Receipt,   permission: "crm:ver" },
-    ],
-  },
-  {
-    id: "admin", label: "Admin",
-    items: [
-      { href: "/dashboard/cadastros",              label: "Cadastros",     icon: Users,         permission: "usuarios:ver" },
-      { href: "/dashboard/cadastros/fornecedores", label: "Fornecedores",  icon: Truck,         permission: "fornecedores:ver" },
-      { href: "/dashboard/automacoes",             label: "Automações",    icon: Zap,           permission: "automacoes:ver" },
-      { href: "/dashboard/whatsapp-config",        label: "WhatsApp",      icon: MessageCircle, permission: "whatsapp:ver" },
-      { href: "/dashboard/historico",              label: "Histórico",     icon: History,       permission: "historico:ver" },
-      { href: "/dashboard/configuracoes",          label: "Configurações", icon: Settings,      permission: "configuracoes:ver" },
-      { href: "/dashboard/billing/me",             label: "Assinatura",    icon: CreditCard,    permission: "configuracoes:ver" },
-    ],
-  },
-];
-
-const SUPERADMIN_ITEM: NavItem = { href: "/dashboard/superadmin", label: "Organizações", icon: Shield, permission: null };
-const ALL_ITEMS: NavItem[] = [SUPERADMIN_ITEM, ...NAV.flatMap(g => g.items)];
+const SUPERADMIN_ITEM: NavItemT = { href: "/dashboard/superadmin", label: "Organizações", icon: Shield, permission: null };
+const ALL_ITEMS: NavItemT[] = [SUPERADMIN_ITEM, ...NAV.flatMap(g => g.items)];
 
 function useFavorites() {
   const [favorites, setFavorites] = useState<string[]>(() => {
@@ -131,7 +41,7 @@ function groupHasActive(group: NavGroup, path: string) {
 }
 
 function NavItem({ item, path, isFav, onToggleFav }: {
-  item: NavItem;
+  item: NavItemT;
   path: string;
   isFav?: boolean;
   onToggleFav?: (href: string) => void;
@@ -206,12 +116,12 @@ export default function Sidebar() {
     }
     const init: Record<string, boolean> = {};
     for (const g of NAV) {
-      if (!g.label) continue;
-      // Se há estado salvo usa ele; caso contrário expande grupo ativo ou "financeiro"/"operacoes"
+      if (!g.produto) continue;
+      // Se há estado salvo usa ele; caso contrário expande grupo ativo ou "projects"/"finance"
       if (g.id in saved) {
         init[g.id] = saved[g.id];
       } else {
-        init[g.id] = groupHasActive(g, path) || g.id === "financeiro" || g.id === "operacoes";
+        init[g.id] = groupHasActive(g, path) || g.id === "projects" || g.id === "finance";
       }
     }
     return init;
@@ -295,7 +205,7 @@ export default function Sidebar() {
           const visible = group.items.filter(i => can(i.permission));
           if (!visible.length) return null;
 
-          if (!group.label) {
+          if (!group.produto) {
             return (
               <div key={group.id} className="pb-4 mb-2 border-b border-[var(--sidebar-border)] space-y-0.5">
                 {visible.map(item => (
@@ -313,22 +223,49 @@ export default function Sidebar() {
 
           const open   = expanded[group.id] ?? false;
           const active = groupHasActive(group, path);
+          const GroupIcon = group.icon;
 
           return (
             <div key={group.id} className="mb-1">
               <button
                 onClick={() => toggle(group.id)}
                 className={cn(
-                  "w-full flex items-center justify-between px-3 py-2 rounded-lg text-[11px] font-semibold tracking-wider uppercase transition-all duration-200",
-                  active
-                    ? "text-[var(--sidebar-active-text)]"
-                    : "text-[var(--text-muted)] hover:text-[var(--sidebar-text-hi)] hover:bg-[var(--sidebar-hover)]"
+                  "group/head w-full flex items-center justify-between px-3 py-2 rounded-lg transition-all duration-200",
+                  !active && "hover:bg-[var(--sidebar-hover)]"
                 )}
               >
-                {group.label}
+                {/* Ícone do produto + nome (marca) + descritor em português */}
+                <span className="flex items-center gap-2 min-w-0">
+                  <GroupIcon
+                    size={15}
+                    className={cn(
+                      "shrink-0 transition-all duration-200 group-hover/head:scale-110",
+                      active
+                        ? "text-[var(--sidebar-active-text)]"
+                        : "text-[var(--text-muted)] group-hover/head:text-[var(--sidebar-text-hi)]"
+                    )}
+                  />
+                  <span className="flex items-baseline gap-1.5 min-w-0">
+                    <span className={cn(
+                      "text-[13px] font-semibold tracking-tight transition-colors duration-200",
+                      active
+                        ? "text-[var(--sidebar-active-text)]"
+                        : "text-[var(--sidebar-text-hi)]"
+                    )}>
+                      {group.produto}
+                    </span>
+                    <span className="text-[9px] font-mono uppercase tracking-widest text-[var(--text-muted)] truncate">
+                      {group.descritor}
+                    </span>
+                  </span>
+                </span>
                 <ChevronDown
                   size={12}
-                  className={cn("transition-transform duration-200 shrink-0", open && "rotate-180")}
+                  className={cn(
+                    "transition-transform duration-200 shrink-0",
+                    active ? "text-[var(--sidebar-active-text)]" : "text-[var(--text-muted)]",
+                    open && "rotate-180"
+                  )}
                 />
               </button>
 

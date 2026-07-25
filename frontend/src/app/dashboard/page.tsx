@@ -14,8 +14,9 @@ import {
   CheckCircle2, XCircle, Check, Plus, Loader2, ChevronRight,
   BarChart3, Users, Receipt, StickyNote, Calendar,
   Brain, Activity, CircleCheckBig, SmilePlus, Settings2, RefreshCw,
-  LayoutDashboard, Building2, PiggyBank, Eye, EyeOff,
+  LayoutDashboard, Building2, PiggyBank, Eye, EyeOff, LayoutGrid, X, Search,
 } from "lucide-react";
+import { NAV, canAccessModule } from "@/lib/modules";
 
 /* ═══════════════════════════════════════════════
    TYPES
@@ -263,6 +264,8 @@ export default function CommandCenter() {
     try { return JSON.parse(localStorage.getItem("cc-hidden") || "{}"); } catch { return {}; }
   });
   const [showSettings, setShowSettings] = useState(false);
+  const [showModules, setShowModules] = useState(false);
+  const [moduleQuery, setModuleQuery] = useState("");
   const toggleWidget = (id: string) => {
     setHidden(prev => {
       const next = { ...prev, [id]: !prev[id] };
@@ -373,13 +376,22 @@ export default function CommandCenter() {
                 {today.toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
               </p>
             </div>
-            <button onClick={() => setShowSettings(s => !s)}
-              className={cn("flex items-center gap-2 px-3.5 py-2 rounded-xl border text-[12px] font-medium transition-all",
-                showSettings ? "border-violet-500/40 bg-violet-500/10 text-violet-400" : "border-[var(--border-subtle)] bg-[var(--bg-secondary)] text-[var(--text-muted)] hover:text-[var(--text-primary)]"
-              )}>
-              <Settings2 size={13} />
-              Widgets
-            </button>
+            <div className="flex items-center gap-2">
+              <button onClick={() => { setShowModules(s => { if (!s) setModuleQuery(""); return !s; }); setShowSettings(false); }}
+                className={cn("flex items-center gap-2 px-3.5 py-2 rounded-xl border text-[12px] font-medium transition-all",
+                  showModules ? "border-violet-500/40 bg-violet-500/10 text-violet-400" : "border-[var(--border-subtle)] bg-[var(--bg-secondary)] text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+                )}>
+                <LayoutGrid size={13} />
+                Módulos
+              </button>
+              <button onClick={() => { setShowSettings(s => !s); setShowModules(false); }}
+                className={cn("flex items-center gap-2 px-3.5 py-2 rounded-xl border text-[12px] font-medium transition-all",
+                  showSettings ? "border-violet-500/40 bg-violet-500/10 text-violet-400" : "border-[var(--border-subtle)] bg-[var(--bg-secondary)] text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+                )}>
+                <Settings2 size={13} />
+                Widgets
+              </button>
+            </div>
           </div>
 
           {/* ── Widget settings panel ── */}
@@ -399,6 +411,79 @@ export default function CommandCenter() {
               </div>
             </div>
           )}
+
+          {/* ── Módulos launcher — só os que o usuário tem acesso ── */}
+          {showModules && (() => {
+            const q = moduleQuery.trim().toLowerCase();
+            const grupos = NAV.map(group => ({
+              group,
+              items: group.items.filter(it =>
+                canAccessModule(user, it.permission) &&
+                (!q
+                  || it.label.toLowerCase().includes(q)
+                  || (group.produto || "").toLowerCase().includes(q)
+                  || (group.descritor || "").toLowerCase().includes(q))
+              ),
+            })).filter(g => g.items.length);
+            const total = grupos.reduce((s, g) => s + g.items.length, 0);
+            return (
+              <div className="card-premium p-5 animate-fade-in">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-[11px] font-bold text-[var(--text-muted)] uppercase tracking-widest">Módulos</span>
+                    <span className="text-[11px] font-mono text-[var(--text-muted)] opacity-70">{total}</span>
+                  </div>
+                  <button onClick={() => setShowModules(false)} className="p-1 rounded-lg hover:bg-[var(--bg-hover)] text-[var(--text-muted)]"><X size={14} /></button>
+                </div>
+
+                {/* Busca ao vivo — filtra por nome do módulo ou do produto */}
+                <div className="relative mb-4">
+                  <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)] pointer-events-none" />
+                  <input
+                    autoFocus
+                    value={moduleQuery}
+                    onChange={e => setModuleQuery(e.target.value)}
+                    onKeyDown={e => { if (e.key === "Escape") { setModuleQuery(""); setShowModules(false); } }}
+                    placeholder="Buscar módulo…"
+                    className="w-full pl-9 pr-3 py-2 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-subtle)] text-[13px] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] outline-none focus:border-violet-500/40 transition-colors"
+                  />
+                </div>
+
+                {total === 0 ? (
+                  <div className="text-[13px] text-[var(--text-muted)] py-8 text-center">Nenhum módulo encontrado para “{moduleQuery}”.</div>
+                ) : (
+                  <div className="space-y-4">
+                    {grupos.map(({ group, items }) => {
+                      const GroupIcon = group.icon;
+                      return (
+                        <div key={group.id}>
+                          <div className="flex items-center gap-2 mb-2">
+                            <GroupIcon size={13} className="text-[var(--text-muted)] shrink-0" />
+                            <div className="flex items-baseline gap-1.5">
+                              <span className="text-[12px] font-semibold text-[var(--text-primary)] tracking-tight">{group.produto || "Início"}</span>
+                              {group.descritor && <span className="text-[9px] font-mono uppercase tracking-widest text-[var(--text-muted)]">{group.descritor}</span>}
+                            </div>
+                          </div>
+                          <div className="flex flex-wrap gap-1.5">
+                            {items.map(it => {
+                              const Icon = it.icon;
+                              return (
+                                <Link key={it.href} href={it.href} onClick={() => setShowModules(false)}
+                                  className="group inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-secondary)] hover:border-violet-500/40 hover:bg-violet-500/[0.06] hover:-translate-y-0.5 transition-all">
+                                  <Icon size={15} className="text-[var(--text-muted)] group-hover:text-violet-400 shrink-0 transition-colors" />
+                                  <span className="text-[12px] font-medium text-[var(--text-secondary)] group-hover:text-[var(--text-primary)] whitespace-nowrap">{it.label}</span>
+                                </Link>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
 
           {/* ── Status Bar ── */}
           <StatusBar status={sysStatus} alerts={alerts} lastUpdated={lastUpdated} onRefresh={loadAll} loading={loading} />

@@ -484,7 +484,7 @@ function NewOrgModal({ onClose, onCreated }: { onClose: () => void; onCreated: (
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100 }}>
       <div className="surface-elevated" style={{ width: 420, padding: 24, display: "flex", flexDirection: "column", gap: 16 }}>
-        <div style={{ fontFamily: "var(--font-display)", fontSize: 16, fontWeight: 700 }}>Nova Organização</div>
+        <div style={{ fontFamily: "var(--font-display)", fontSize: 16, fontWeight: 700 }}> {/* ds-ok: titulo */}Nova Organização</div>
         {err && <div style={{ fontSize: 12, color: "var(--accent-red)" }}>{err}</div>}
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           <input className="input-o" placeholder="Nome da organização" value={form.nome}
@@ -749,7 +749,7 @@ function BillingPanel() {
         {statCards.map(s => (
           <div key={s.label} style={{ background: "var(--bg-card)", border: "1px solid var(--border-subtle)", borderRadius: 12, padding: "12px 14px" }}>
             <div style={{ fontSize: 10, color: "var(--text-muted)", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>{s.label}</div>
-            <div style={{ fontSize: 20, fontWeight: 700, color: s.color, fontFamily: "var(--font-display)" }}>{s.value}</div>
+            <div className="metric" style={{ fontSize: 21, color: s.color }}>{s.value}</div>
           </div>
         ))}
       </div>
@@ -862,7 +862,7 @@ export default function SuperAdminPage() {
         <div style={{ maxWidth: 800, margin: "0 auto", display: "flex", flexDirection: "column", gap: 16 }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <div>
-              <div style={{ fontFamily: "var(--font-display)", fontSize: 20, fontWeight: 700, color: "var(--text-primary)" }}>Super Admin</div>
+              <div style={{ fontFamily: "var(--font-display)", fontSize: 20, fontWeight: 700, color: "var(--text-primary)" }}> {/* ds-ok: titulo */}Super Admin</div>
               <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2 }}>{orgs.length} organização{orgs.length !== 1 ? "s" : ""} cadastrada{orgs.length !== 1 ? "s" : ""}</div>
             </div>
           </div>

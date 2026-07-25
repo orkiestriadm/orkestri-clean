@@ -564,7 +564,7 @@ export default function AprovacoesPage() {
                       <Icon size={13} style={{ color: s.color }} />
                     </div>
                   </div>
-                  <div className="font-display text-[30px] font-bold leading-none" style={{ color: s.color }}>
+                  <div className="metric text-[30px]" style={{ color: s.color }}>
                     {loading ? <Sk w={40} h={28} /> : s.value}
                   </div>
                   {s.urgent && s.value > 0 && (

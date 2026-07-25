@@ -40,7 +40,7 @@ function Section({ title, href, children }: { title: string; href?: string; chil
 function MiniStat({ label, value, color, sufix }: { label: string; value: number|string; color: string; sufix?: string }) {
   return (
     <div style={{ flex:1 }}>
-      <div style={{ fontFamily:"var(--font-display)", fontSize:24, fontWeight:700, color }}>{value}{sufix}</div>
+      <div className="metric" style={{ fontSize:24, color }}>{value}{sufix}</div>
       <div style={{ fontSize:10, fontFamily:"var(--font-mono)", letterSpacing:"0.06em", color:"var(--text-muted)" }}>{label}</div>
     </div>
   );
@@ -85,7 +85,7 @@ export default function WorkforcePage() {
               </Section>
 
               <Section title="CAPACIDADE (PLANEJADO)" href="/dashboard/capacity">
-                <div style={{ fontFamily:"var(--font-display)", fontSize:32, fontWeight:700, color:utilColor(data.capacity.utilPlanejado) }}>
+                <div className="metric" style={{ fontSize:32, color:utilColor(data.capacity.utilPlanejado) }}>
                   {data.capacity.utilPlanejado}%
                 </div>
                 <div style={{ fontSize:11, color:"var(--text-muted)", fontFamily:"var(--font-mono)" }}>

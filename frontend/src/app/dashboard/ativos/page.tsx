@@ -50,11 +50,21 @@ const hasPerms = (user: any, ...perms: string[]) =>
 
 // ── StatCard ──────────────────────────────────────────────────────────────────
 function StatCard({ label, value, color, onClick, active }: { label:string; value:number|string; color:string; onClick?:()=>void; active?:boolean; }) {
+  const conteudo = (
+    <>
+      <span className="kpi-card__halo" />
+      <div className="metric kpi-card__value" style={{ fontSize: 26 }}>
+        {typeof value === "number" ? value.toLocaleString("pt-BR") : value}
+      </div>
+      <div className="kpi-card__label">{label}</div>
+    </>
+  );
+  if (!onClick) return <div className="kpi-card" style={{ ["--sc" as any]: color }}>{conteudo}</div>;
   return (
-    <div className="card" onClick={onClick} style={{ padding:"16px 18px", borderLeft:`3px solid ${color}`, cursor:onClick?"pointer":"default", background:active?"var(--bg-hover)":"" }}>
-      <div style={{ fontSize:22, fontWeight:800, color, fontFamily:"var(--font-mono)" }}>{value}</div>
-      <div style={{ fontSize:11, color:"var(--text-muted)", marginTop:2 }}>{label}</div>
-    </div>
+    <button type="button" onClick={onClick} className="kpi-card" data-active={active ? "true" : "false"}
+      aria-pressed={active} style={{ ["--sc" as any]: color, textAlign: "left", cursor: "pointer", width: "100%" }}>
+      {conteudo}
+    </button>
   );
 }
 

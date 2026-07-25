@@ -72,7 +72,7 @@ export class ReservasService {
       observacoes: data.observacoes,
       status: data.status || "CONFIRMADA",
       projetoId: data.projetoId,
-      centroCustoId: data.centroCustoId,
+      centroCusto: data.centroCusto,
     };
 
     const reserva = await this.prisma.reservaVeiculo.create({ data: reservaData });

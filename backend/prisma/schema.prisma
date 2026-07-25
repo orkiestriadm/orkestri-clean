@@ -243,6 +243,8 @@ model User {
   clientesResponsavel        Cliente[]                @relation("ClienteResponsavel")
   clienteTimelines           ClienteTimeline[]
   ciclosAprovados            OrcamentoCiclo[]         @relation("CicloAprovador")
+  orcamentosProprios         OrcamentoCiclo[]         @relation("CicloOwner")
+  orcamentosCompartilhados   OrcamentoCompartilhamento[] @relation("OrcCompartilhadoCom")
   centrosCustoResponsavel    CentroCusto[]            @relation("CentroCustoResp")
   itensOrcamentoCriados      ItemOrcamento[]          @relation("ItemCriador")
   lancamentosOrcamento       ItemOrcamentoMes[]       @relation("LancadoPor")
@@ -295,15 +297,37 @@ model OrcamentoCiclo {
   ano            Int
   descricao      String?
   status         String          @default("rascunho")
+  // Dono do orçamento: null = corporativo (o orçamento único da organização),
+  // preenchido = orçamento pessoal, visível só ao dono e a quem ele compartilhar.
+  ownerId        String?         @map("owner_id")
+  owner          User?           @relation("CicloOwner", fields: [ownerId], references: [id], onDelete: Cascade)
   aprovadoPorId  String?         @map("aprovado_por_id")
   aprovadoPor    User?           @relation("CicloAprovador", fields: [aprovadoPorId], references: [id], onDelete: SetNull)
   organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   itens          ItemOrcamento[]
+  compartilhamentos OrcamentoCompartilhamento[]
   criadoEm       DateTime        @default(now()) @map("criado_em")
   atualizadoEm   DateTime        @updatedAt @map("atualizado_em")
 
-  @@unique([organizationId, ano])
+  // Um orçamento por dono por ano (corporativo = owner null; pessoais por owner).
+  @@unique([organizationId, ownerId, ano])
+  @@index([organizationId])
   @@map("orcamento_ciclos")
+}
+
+// Quem tem acesso a um orçamento pessoal. Presença na tabela = ver e editar.
+model OrcamentoCompartilhamento {
+  id        String         @id @default(uuid())
+  cicloId   String         @map("ciclo_id")
+  ciclo     OrcamentoCiclo @relation(fields: [cicloId], references: [id], onDelete: Cascade)
+  userId    String         @map("user_id")
+  user      User           @relation("OrcCompartilhadoCom", fields: [userId], references: [id], onDelete: Cascade)
+  criadoPorId String?      @map("criado_por_id")
+  criadoEm  DateTime       @default(now()) @map("criado_em")
+
+  @@unique([cicloId, userId])
+  @@index([userId])
+  @@map("orcamento_compartilhamentos")
 }
 
 model CentroCusto {
@@ -318,9 +342,7 @@ model CentroCusto {
   responsavel    User?            @relation("CentroCustoResp", fields: [responsavelId], references: [id], onDelete: SetNull)
   organization   Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   itens          ItemOrcamento[]
-  veiculos       Veiculo[]
   criadoEm       DateTime         @default(now()) @map("criado_em")
-  ReservaVeiculo ReservaVeiculo[]
 
   @@unique([organizationId, codigo])
   @@map("centros_custo")
@@ -1695,7 +1717,7 @@ model Veiculo {
   capacidadeTanque Float?              @map("capacidade_tanque")
   motoristaId      String?             @map("motorista_id")
   responsavelId    String?             @map("responsavel_id")
-  centroCustoId    String?             @map("centro_custo_id")
+  centroCusto      String?             @map("centro_custo")
   unidade          String?
   setorId          String?             @map("setor_id")
   ativoId          String?             @unique @map("ativo_id")
@@ -1712,7 +1734,6 @@ model Veiculo {
   categoria        CategoriaVeiculo?   @relation(fields: [categoriaId], references: [id], onDelete: SetNull)
   motorista        Motorista?          @relation("VeiculoMotoristaPadrao", fields: [motoristaId], references: [id], onDelete: SetNull)
   responsavel      User?               @relation("VeiculoResponsavel", fields: [responsavelId], references: [id], onDelete: SetNull)
-  centroCusto      CentroCusto?        @relation(fields: [centroCustoId], references: [id], onDelete: SetNull)
   setor            Setor?              @relation(fields: [setorId], references: [id], onDelete: SetNull)
   ativo            Ativo?              @relation(fields: [ativoId], references: [id], onDelete: SetNull)
   pneus            Pneu[]
@@ -2944,7 +2965,7 @@ model ReservaVeiculo {
   destino        String
   motivo         String
   projetoId      String?  @map("projeto_id")
-  centroCustoId  String?  @map("centro_custo_id")
+  centroCusto    String?  @map("centro_custo")
   observacoes    String?  @db.Text
   status         String   @default("SOLICITADA") // SOLICITADA | CONFIRMADA | EM_ANDAMENTO | FINALIZADA | CANCELADA
   kmInicial      Int?     @map("km_inicial")
@@ -2952,11 +2973,10 @@ model ReservaVeiculo {
   criadoEm       DateTime @default(now()) @map("criado_em")
   atualizadoEm   DateTime @updatedAt @map("atualizado_em")
 
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  veiculo      Veiculo      @relation(fields: [veiculoId], references: [id], onDelete: Cascade)
-  solicitante  User         @relation("ReservaVeiculoSolicitante", fields: [solicitanteId], references: [id])
-  projeto      Project?     @relation(fields: [projetoId], references: [id], onDelete: SetNull)
-  centroCusto  CentroCusto? @relation(fields: [centroCustoId], references: [id], onDelete: SetNull)
+  organization  Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  veiculo       Veiculo      @relation(fields: [veiculoId], references: [id], onDelete: Cascade)
+  solicitante   User         @relation("ReservaVeiculoSolicitante", fields: [solicitanteId], references: [id])
+  projeto       Project?     @relation(fields: [projetoId], references: [id], onDelete: SetNull)
 
   @@index([organizationId])
   @@index([veiculoId])

@@ -5,7 +5,8 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "check:ds": "node scripts/check-design-system.js"
   },
   "dependencies": {
     "@radix-ui/react-slot": "^1.2.4",

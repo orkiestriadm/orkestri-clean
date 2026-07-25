@@ -255,14 +255,15 @@ export default function FinanceiroDashboard() {
 
 function KpiCard({ label, valor, icon, cor, sub }: { label: string; valor: string; icon: React.ReactNode; cor: string; sub?: string }) {
   return (
-    <div className="card-premium" style={{ padding: "14px 18px", display: "flex", alignItems: "center", gap: 12 }}>
-      <div style={{ width: 38, height: 38, borderRadius: 10, background: "var(--bg-secondary)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-        <span style={{ color: cor }}>{icon}</span>
-      </div>
-      <div style={{ minWidth: 0 }}>
-        <div style={{ fontSize: 20, fontWeight: 800, color: cor, lineHeight: 1.1, letterSpacing: "-0.02em", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{valor}</div>
-        <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{label}</div>
-        {sub && <div style={{ fontSize: 10, color: "var(--text-muted)", marginTop: 1, opacity: 0.8 }}>{sub}</div>}
+    <div className="kpi-card" style={{ ["--sc" as any]: cor }}>
+      <span className="kpi-card__halo" />
+      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+        <span className="kpi-card__icon">{icon}</span>
+        <div style={{ minWidth: 0 }}>
+          <div className="metric kpi-card__value">{valor}</div>
+          <div className="kpi-card__label">{label}</div>
+          {sub && <div style={{ fontSize: 10, color: "var(--text-faint)", marginTop: 1 }}>{sub}</div>}
+        </div>
       </div>
     </div>
   );

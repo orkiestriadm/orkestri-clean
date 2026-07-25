@@ -393,6 +393,401 @@
 @keyframes fadeIn    { from { opacity:0 } to { opacity:1 } }
 @keyframes scaleIn   { from { opacity:0; transform:scale(0.97) } to { opacity:1; transform:scale(1) } }
 
+/* ══════════════════════════════════════════════════════════════
+   Data UI — primitivas compartilhadas de painéis e listagens
+   ══════════════════════════════════════════════════════════════ */
+
+/* ── Números ──────────────────────────────────────────────────
+   O display (Syne) tem numerais decorativos de largura irregular:
+   em métrica grande as colunas "dançam" e o zero vira uma elipse.
+   Métrica é DADO — usa o corpo com figuras tabulares. */
+.metric {
+  font-family: var(--font-body);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1, "lnum" 1;
+  font-weight: 700;
+  letter-spacing: -0.045em;
+  line-height: 0.95;
+}
+/* Figuras tabulares em qualquer número dentro de tabela/inline. */
+.num { font-variant-numeric: tabular-nums; font-feature-settings: "tnum" 1, "lnum" 1; }
+
+/* Rótulo micro em versalete mono — a "voz" de instrumentação do sistema. */
+.mono-cap {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+/* ── Cartão-métrica clicável (filtro) ───────────────────────── */
+.stat-card {
+  --sc: var(--accent-violet);
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  padding: 15px 17px 17px;
+  border-radius: 16px;
+  text-align: left;
+  cursor: pointer;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  box-shadow: var(--shadow-card);
+  transition: transform .22s cubic-bezier(.2,.7,.3,1), box-shadow .22s ease, border-color .22s ease;
+  animation: statIn .45s cubic-bezier(.2,.7,.3,1) both;
+}
+/* Véu de cor: some no repouso, acende no hover/ativo. */
+.stat-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: radial-gradient(120% 120% at 100% 0%, var(--sc), transparent 62%);
+  opacity: .07;
+  transition: opacity .22s ease;
+}
+/* Fio superior que corre da esquerda no hover/ativo. */
+.stat-card::after {
+  content: "";
+  position: absolute;
+  inset: 0 auto auto 0;
+  height: 2px;
+  width: 100%;
+  background: linear-gradient(90deg, var(--sc), transparent);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform .3s cubic-bezier(.2,.7,.3,1);
+}
+.stat-card:hover {
+  transform: translateY(-3px);
+  border-color: color-mix(in srgb, var(--sc) 40%, transparent);
+  box-shadow: var(--shadow-elevated), 0 16px 40px -28px var(--sc);
+}
+.stat-card:hover::before { opacity: .13; }
+.stat-card:hover::after  { transform: scaleX(1); }
+.stat-card:focus-visible {
+  outline: none;
+  border-color: var(--sc);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--sc) 22%, transparent);
+}
+.stat-card[data-active="true"] {
+  border-color: var(--sc);
+  box-shadow: 0 0 0 1px var(--sc), var(--shadow-elevated), 0 18px 44px -26px var(--sc);
+}
+.stat-card[data-active="true"]::before { opacity: .16; }
+.stat-card[data-active="true"]::after  { transform: scaleX(1); }
+.stat-card[data-critical="true"] { animation: statIn .45s cubic-bezier(.2,.7,.3,1) both, criticalGlow 2.8s ease-in-out 1s infinite; }
+
+.stat-card__head { display: flex; align-items: center; gap: 8px; }
+.stat-card__dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--sc);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--sc) 18%, transparent);
+  flex-shrink: 0;
+}
+.stat-card__value {
+  font-size: 34px;
+  color: var(--sc);
+  /* Sem text-shadow: no tema claro virava borrão colorido. */
+}
+.stat-card__foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 2px; }
+/* Barra de participação no total — dá contexto ao número. */
+.stat-card__bar { position: relative; height: 3px; flex: 1; border-radius: 3px; background: var(--bg-hover); overflow: hidden; }
+.stat-card__bar > i {
+  position: absolute; inset: 0 auto 0 0; display: block; border-radius: 3px;
+  background: var(--sc); opacity: .75;
+  transform-origin: left;
+  animation: barGrow .7s cubic-bezier(.2,.7,.3,1) .15s both;
+}
+.stat-card__hint {
+  font-family: var(--font-mono); font-size: 8.5px; letter-spacing: .09em;
+  text-transform: uppercase; color: var(--text-muted); white-space: nowrap;
+  transition: color .2s ease;
+}
+.stat-card:hover .stat-card__hint,
+.stat-card[data-active="true"] .stat-card__hint { color: var(--sc); }
+
+@keyframes statIn      { from { opacity: 0; transform: translateY(10px) } to { opacity: 1; transform: none } }
+@keyframes barGrow     { from { transform: scaleX(0) } }
+@keyframes criticalGlow{
+  0%, 100% { box-shadow: 0 0 0 1px color-mix(in srgb, var(--sc) 45%, transparent), var(--shadow-card); }
+  50%      { box-shadow: 0 0 0 1px var(--sc), 0 0 30px -8px var(--sc); }
+}
+
+/* ── Barra de ferramentas / busca ───────────────────────────── */
+.toolbar {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 10px;
+  padding: 10px;
+  border-radius: 16px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  box-shadow: var(--shadow-card);
+}
+.search-field { position: relative; flex: 1; min-width: 240px; display: flex; align-items: center; }
+.search-field > svg:first-child {
+  position: absolute; left: 12px; color: var(--text-muted);
+  pointer-events: none; transition: color .2s ease;
+}
+.search-field:focus-within > svg:first-child { color: var(--accent-violet); }
+.search-field input {
+  width: 100%;
+  padding: 10px 34px 10px 34px;
+  font-size: 13px;
+  color: var(--text-primary);
+  background: var(--bg-primary);
+  border: 1px solid transparent;
+  border-radius: 11px;
+  outline: none;
+  transition: border-color .2s ease, box-shadow .2s ease, background .2s ease;
+}
+.search-field input::placeholder { color: var(--text-muted); }
+.search-field input:focus {
+  background: var(--bg-card);
+  border-color: color-mix(in srgb, var(--accent-violet) 45%, transparent);
+  box-shadow: var(--shadow-input);
+}
+.search-field__clear {
+  position: absolute; right: 8px; display: grid; place-items: center;
+  width: 20px; height: 20px; border-radius: 6px; border: none;
+  background: transparent; color: var(--text-muted); cursor: pointer;
+  transition: color .15s ease, background .15s ease;
+}
+.search-field__clear:hover { color: var(--text-primary); background: var(--bg-hover); }
+
+.select-field {
+  padding: 10px 12px; font-size: 13px; min-width: 150px;
+  color: var(--text-primary); background: var(--bg-primary);
+  border: 1px solid transparent; border-radius: 11px; outline: none; cursor: pointer;
+  transition: border-color .2s ease, box-shadow .2s ease;
+}
+.select-field:focus { border-color: color-mix(in srgb, var(--accent-violet) 45%, transparent); box-shadow: var(--shadow-input); }
+
+/* ── Tabela de dados ────────────────────────────────────────── */
+.table-card {
+  border-radius: 16px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
+}
+/* O wrapper precisa de altura máxima para o `position: sticky` do cabeçalho ter
+   efeito — sem ela o contêiner cresce com o conteúdo, nunca rola por dentro e
+   a regra fica inerte. Em lista curta o max-height não é atingido e nada muda. */
+.table-card > .table-scroll-wrapper {
+  max-height: calc(100dvh - 320px);
+  min-height: 120px;
+  overflow: auto;
+}
+.data-table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 13px; text-align: left; white-space: nowrap; }
+.data-table thead th {
+  position: sticky; top: 0; z-index: 2;
+  padding: 12px 16px;
+  font-family: var(--font-mono);
+  font-size: 9.5px; font-weight: 500; letter-spacing: .12em; text-transform: uppercase;
+  color: var(--text-muted);
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-subtle);
+  user-select: none;
+}
+.data-table tbody td {
+  padding: 12px 16px;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border-subtle);
+  transition: background .16s ease;
+}
+.data-table tbody tr { position: relative; }
+.data-table tbody tr:last-child td { border-bottom: none; }
+.data-table tbody tr:hover td { background: var(--bg-hover); }
+/* Marcador de leitura na borda esquerda da linha sob o cursor. */
+.data-table tbody tr td:first-child { box-shadow: inset 2px 0 0 transparent; transition: box-shadow .16s ease, background .16s ease; }
+.data-table tbody tr:hover td:first-child { box-shadow: inset 2px 0 0 var(--accent-violet); }
+
+/* Ações da linha: discretas em repouso, nítidas no hover. */
+.row-actions { display: flex; gap: 2px; justify-content: flex-end; opacity: .45; transition: opacity .18s ease; }
+.data-table tbody tr:hover .row-actions,
+.row-actions:focus-within { opacity: 1; }
+.row-action {
+  display: grid; place-items: center;
+  width: 28px; height: 28px; border-radius: 8px;
+  border: none; background: transparent; color: var(--text-muted); cursor: pointer;
+  transition: color .15s ease, background .15s ease, transform .15s ease;
+}
+.row-action:hover { transform: translateY(-1px); background: var(--bg-hover); }
+.row-action[data-tone="view"]   :where(svg) { }
+.row-action[data-tone="view"]:hover   { color: var(--accent-cyan);   background: rgba(2,132,199,.1); }
+.row-action[data-tone="edit"]:hover   { color: var(--accent-green);  background: rgba(5,150,105,.1); }
+.row-action[data-tone="danger"]:hover { color: var(--accent-red);    background: rgba(220,38,38,.1); }
+.row-action[data-tone="hist"]:hover   { color: var(--accent-amber);  background: rgba(217,119,6,.1); }
+
+/* ── Cabeçalho de página ────────────────────────────────────── */
+.page-head { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-bottom: 22px; }
+.page-head__icon {
+  position: relative;
+  width: 46px; height: 46px; border-radius: 14px;
+  display: grid; place-items: center; flex-shrink: 0;
+  color: #fff;
+  background: linear-gradient(145deg, color-mix(in srgb, var(--sc, var(--accent-violet)) 88%, #fff), var(--sc, var(--accent-violet)));
+  /* O brilho acompanha a cor do ícone (antes era um halo índigo fixo sob um ícone vermelho). */
+  box-shadow: 0 8px 22px -10px var(--sc, var(--accent-violet)), inset 0 1px 0 rgba(255,255,255,.25);
+}
+.page-head__title { font-family: var(--font-display); font-size: 23px; font-weight: 800; letter-spacing: -0.025em; margin: 0; }
+.page-head__sub { margin: 3px 0 0; font-size: 12.5px; color: var(--text-muted); }
+
+.back-link {
+  display: inline-flex; align-items: center; gap: 5px; margin-bottom: 14px;
+  font-family: var(--font-mono); font-size: 10.5px; letter-spacing: .06em; text-transform: uppercase;
+  color: var(--text-muted); transition: color .18s ease, gap .18s ease;
+}
+.back-link:hover { color: var(--accent-violet); gap: 9px; }
+
+/* ── Utilitários de superfície ───────────────────────────────
+   Substituem os pares `bg-white dark:bg-slate-950` espalhados pelas telas.
+   O problema não era estético e sim de tema: slate-950 é #020617, enquanto
+   o token de card no escuro é #141417 — telas lado a lado não batiam. */
+.surface-card   { background: var(--bg-card); }
+.surface-sunken { background: var(--bg-primary); }
+.surface-raised { background: var(--bg-secondary); }
+.border-subtle-o { border-color: var(--border-subtle); }
+.divide-subtle-o > * + * { border-color: var(--border-subtle); }
+.text-primary-o { color: var(--text-primary); }
+.text-secondary-o { color: var(--text-secondary); }
+.text-muted-o   { color: var(--text-muted); }
+.text-faint-o   { color: var(--text-faint); }
+.hover-surface:hover { background: var(--bg-hover); }
+.card-o {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: 16px;
+  box-shadow: var(--shadow-card);
+}
+/* Foco no acento da marca — substitui os `focus:ring-indigo-500/50` herdados. */
+.focus-accent:focus {
+  outline: none;
+  border-color: color-mix(in srgb, var(--accent-violet) 45%, transparent);
+  box-shadow: var(--shadow-input);
+}
+/* Acento da marca. O sistema é vermelho (#dc2626); havia índigo espalhado por
+   várias telas, de outra paleta — botão primário e link ficavam de cores
+   diferentes dependendo do módulo. */
+.accent-text   { color: var(--accent-violet); }
+.accent-soft   { background: var(--accent-violet-dim); }
+.border-accent-o { border-color: color-mix(in srgb, var(--accent-violet) 22%, transparent); }
+.accent-solid  { background: var(--accent-violet); color: #fff; }
+.accent-solid:hover { filter: brightness(1.08); }
+.hover\:accent-text:hover { color: var(--accent-violet); }
+.hover\:accent-soft:hover { background: var(--accent-violet-dim); }
+
+/* Variantes de estado das classes acima.
+   O prefixo `hover:` do Tailwind só gera CSS para utilitários do próprio
+   Tailwind — em classe custom ele não produz nada e o estado some em silêncio.
+   Por isso cada variante precisa existir escrita. */
+.hover\:text-primary-o:hover   { color: var(--text-primary); }
+.hover\:text-secondary-o:hover { color: var(--text-secondary); }
+.hover\:text-muted-o:hover     { color: var(--text-muted); }
+.hover\:surface-card:hover     { background: var(--bg-card); }
+.hover\:surface-sunken:hover   { background: var(--bg-primary); }
+.hover\:border-subtle-o:hover  { border-color: var(--border-subtle); }
+.group:hover .group-hover\:accent-text   { color: var(--accent-violet); }
+.group:hover .group-hover\:accent-soft   { background: var(--accent-violet-dim); }
+.group:hover .group-hover\:border-accent-o { border-color: color-mix(in srgb, var(--accent-violet) 22%, transparent); }
+
+/* ── Cartão de KPI (leitura, não clicável) ──────────────────── */
+.kpi-card {
+  --sc: var(--accent-violet);
+  position: relative;
+  overflow: hidden;
+  padding: 15px 16px;
+  border-radius: 16px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  box-shadow: var(--shadow-card);
+  transition: transform .22s cubic-bezier(.2,.7,.3,1), box-shadow .22s ease, border-color .22s ease;
+  animation: statIn .45s cubic-bezier(.2,.7,.3,1) both;
+}
+.kpi-card__halo {
+  position: absolute; right: -26px; top: -26px;
+  width: 96px; height: 96px; border-radius: 50%;
+  background: var(--sc); filter: blur(30px); opacity: .10;
+  transition: opacity .25s ease, transform .25s ease;
+  pointer-events: none;
+}
+.kpi-card:hover {
+  transform: translateY(-3px);
+  border-color: color-mix(in srgb, var(--sc) 35%, transparent);
+  box-shadow: var(--shadow-elevated), 0 16px 40px -30px var(--sc);
+}
+.kpi-card:hover .kpi-card__halo { opacity: .2; transform: scale(1.12); }
+/* Variante clicável (usada como filtro em alguns módulos). */
+.kpi-card[data-active="true"] {
+  border-color: var(--sc);
+  box-shadow: 0 0 0 1px var(--sc), var(--shadow-elevated), 0 18px 44px -26px var(--sc);
+}
+.kpi-card[data-active="true"] .kpi-card__halo { opacity: .22; }
+.kpi-card:focus-visible {
+  outline: none;
+  border-color: var(--sc);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--sc) 22%, transparent);
+}
+.kpi-card__icon {
+  display: grid; place-items: center; flex-shrink: 0;
+  width: 40px; height: 40px; border-radius: 12px;
+  color: var(--sc);
+  background: color-mix(in srgb, var(--sc) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--sc) 16%, transparent);
+}
+.kpi-card__value { font-size: 23px; color: var(--sc); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.kpi-card__label { margin-top: 3px; font-size: 11.5px; font-weight: 500; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+@media (prefers-reduced-motion: reduce) {
+  .kpi-card { animation: none !important; }
+  .kpi-card:hover { transform: none; }
+}
+
+/* ── Abas ───────────────────────────────────────────────────── */
+.tab-bar { display: flex; gap: 2px; margin-bottom: 18px; border-bottom: 1px solid var(--border-subtle); }
+.tab-btn {
+  position: relative;
+  padding: 9px 16px;
+  font-size: 13px; font-weight: 500;
+  color: var(--text-muted);
+  background: none; border: none; cursor: pointer;
+  border-radius: 9px 9px 0 0;
+  transition: color .18s ease, background .18s ease;
+}
+.tab-btn::after {
+  content: ""; position: absolute; left: 12px; right: 12px; bottom: -1px; height: 2px;
+  border-radius: 2px; background: var(--accent-violet);
+  transform: scaleX(0); transform-origin: center;
+  transition: transform .25s cubic-bezier(.2,.7,.3,1);
+}
+.tab-btn:hover { color: var(--text-secondary); background: var(--bg-hover); }
+.tab-btn[data-active="true"] { color: var(--text-primary); font-weight: 700; }
+.tab-btn[data-active="true"]::after { transform: scaleX(1); }
+
+/* ── Estados vazios / carregando ────────────────────────────── */
+.empty-state { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 56px 20px; color: var(--text-muted); }
+.empty-state__icon {
+  display: grid; place-items: center; width: 46px; height: 46px; border-radius: 14px;
+  background: var(--bg-hover); color: var(--text-faint);
+}
+.empty-state__title { font-size: 13px; font-weight: 600; color: var(--text-secondary); }
+.empty-state__hint { font-size: 12px; }
+
+/* Entrada escalonada das linhas/cartões. */
+.stagger > * { animation: statIn .4s cubic-bezier(.2,.7,.3,1) both; }
+
+@media (prefers-reduced-motion: reduce) {
+  .stat-card, .stat-card__bar > i, .stagger > * { animation: none !important; }
+  .stat-card:hover { transform: none; }
+  .row-action:hover { transform: none; }
+}
+
 /* ── Responsive ────────────────────────────────────────────── */
 @media (max-width: 768px) {
   :root { --sidebar-w: 0px; }

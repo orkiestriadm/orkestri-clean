@@ -11,19 +11,19 @@ const fmtCustoKm = (v: any) => v != null ? Number(v).toLocaleString("pt-BR", { s
 
 function ModernCard({ label, value, icon, colorClass, bgClass, textClass }: { label: string; value: string; icon: React.ReactNode; colorClass: string; bgClass: string; textClass: string }) {
   return (
-    <div className={`flex-1 min-w-[180px] rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 p-5 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group`}>
+    <div className={`flex-1 min-w-[180px] rounded-2xl border border-subtle-o surface-card p-5 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group`}>
       {/* Background glow effect */}
       <div className={`absolute -right-6 -top-6 w-24 h-24 rounded-full opacity-10 group-hover:opacity-20 transition-opacity blur-2xl ${colorClass}`} />
       
       <div className="flex justify-between items-start mb-4">
-        <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+        <div className="text-[11px] font-bold uppercase tracking-wider text-muted-o">
           {label}
         </div>
         <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${bgClass} ${textClass}`}>
           {icon}
         </div>
       </div>
-      <div className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">
+      <div className="text-2xl font-black text-primary-o tracking-tight">
         {value}
       </div>
     </div>
@@ -39,8 +39,8 @@ function AnaliseConsumo() {
   return (
     <div className="mb-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="flex items-center gap-2 mb-4">
-        <Activity className="w-4 h-4 text-slate-400" />
-        <h2 className="text-sm font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400">Análise de Consumo</h2>
+        <Activity className="w-4 h-4 text-muted-o" />
+        <h2 className="text-sm font-bold uppercase tracking-widest text-muted-o">Análise de Consumo</h2>
       </div>
       
       <div className="flex flex-wrap gap-4 mb-6">
@@ -81,29 +81,29 @@ function AnaliseConsumo() {
       {d.veiculos?.length > 0 && (
         <div className={`grid grid-cols-1 ${d.desvios?.length ? "xl:grid-cols-12 gap-6" : ""}`}>
           <div className={`${d.desvios?.length ? "xl:col-span-7" : ""}`}>
-            <h3 className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-3">Consumo por Veículo</h3>
-            <div className="bg-white dark:bg-slate-950 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
+            <h3 className="text-[11px] font-bold uppercase tracking-wider text-muted-o mb-3">Consumo por Veículo</h3>
+            <div className="surface-card rounded-xl border border-subtle-o shadow-sm overflow-hidden">
               <div className="overflow-x-auto max-h-[300px]">
                 <table className="w-full text-left text-sm whitespace-nowrap">
-                  <thead className="bg-slate-50 dark:bg-slate-900/50 sticky top-0 z-10 backdrop-blur-sm">
+                  <thead className="surface-sunken sticky top-0 z-10 backdrop-blur-sm">
                     <tr>
                       {["Veículo", "Abast.", "Litros", "Gasto", "km/L", "Custo/km"].map((h, i) => (
-                        <th key={h} className={`px-4 py-3 font-semibold text-xs uppercase tracking-wider text-slate-500 dark:text-slate-400 ${i > 0 ? "text-right" : ""}`}>
+                        <th key={h} className={`px-4 py-3 font-semibold text-xs uppercase tracking-wider text-muted-o ${i > 0 ? "text-right" : ""}`}>
                           {h}
                         </th>
                       ))}
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                  <tbody className="divide-y divide-subtle-o">
                     {d.veiculos.map((v: any) => (
-                      <tr key={v.veiculoId} className="hover:bg-slate-50/50 dark:hover:bg-slate-900/50 transition-colors">
+                      <tr key={v.veiculoId} className="hover-surface transition-colors">
                         <td className="px-4 py-3">
-                          <span className="font-mono font-bold text-xs text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded">
+                          <span className="font-mono font-bold text-xs text-secondary-o surface-sunken px-2 py-1 rounded">
                             {v.placa}
                           </span>
                         </td>
-                        <td className="px-4 py-3 text-right text-slate-600 dark:text-slate-400">{v.count}</td>
-                        <td className="px-4 py-3 text-right font-medium text-slate-700 dark:text-slate-300">{(v.litros || 0).toLocaleString("pt-BR")}</td>
+                        <td className="px-4 py-3 text-right text-secondary-o">{v.count}</td>
+                        <td className="px-4 py-3 text-right font-medium text-secondary-o">{(v.litros || 0).toLocaleString("pt-BR")}</td>
                         <td className="px-4 py-3 text-right text-emerald-600 dark:text-emerald-400 font-medium">{fmtMoney(v.gasto)}</td>
                         <td className="px-4 py-3 text-right text-violet-600 dark:text-violet-400 font-bold">{fmtKmL(v.mediaKmL)}</td>
                         <td className="px-4 py-3 text-right text-amber-600 dark:text-amber-400 font-medium">{fmtCustoKm(v.custoKmMedio)}</td>
@@ -120,30 +120,30 @@ function AnaliseConsumo() {
               <h3 className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-red-500 mb-3">
                 <AlertTriangle className="w-3.5 h-3.5" /> Desvios de Consumo
               </h3>
-              <div className="bg-white dark:bg-slate-950 rounded-xl border border-red-200 dark:border-red-900/30 shadow-sm overflow-hidden">
+              <div className="surface-card rounded-xl border border-red-200 dark:border-red-900/30 shadow-sm overflow-hidden">
                 <div className="overflow-x-auto max-h-[300px]">
                   <table className="w-full text-left text-sm whitespace-nowrap">
                     <thead className="bg-red-50/50 dark:bg-red-900/10 sticky top-0 z-10 backdrop-blur-sm">
                       <tr>
                         {["Data", "Veículo", "km/L", "Desvio"].map((h, i) => (
-                          <th key={h} className={`px-4 py-3 font-semibold text-xs uppercase tracking-wider text-slate-500 dark:text-slate-400 ${i > 1 ? "text-right" : ""}`}>
+                          <th key={h} className={`px-4 py-3 font-semibold text-xs uppercase tracking-wider text-muted-o ${i > 1 ? "text-right" : ""}`}>
                             {h}
                           </th>
                         ))}
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                    <tbody className="divide-y divide-subtle-o">
                       {d.desvios.slice(0, 20).map((x: any) => (
                         <tr key={x.id} className="hover:bg-red-50/30 dark:hover:bg-red-900/20 transition-colors">
-                          <td className="px-4 py-3 text-xs text-slate-500">{fmtDate(x.data)}</td>
+                          <td className="px-4 py-3 text-xs text-muted-o">{fmtDate(x.data)}</td>
                           <td className="px-4 py-3">
-                            <span className="font-mono font-bold text-xs text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded">
+                            <span className="font-mono font-bold text-xs text-secondary-o surface-sunken px-2 py-1 rounded">
                               {x.placa}
                             </span>
                           </td>
                           <td className="px-4 py-3 text-right">
-                            <span className="font-semibold text-slate-700 dark:text-slate-300">{x.consumoKmL}</span>
-                            <span className="text-[10px] text-slate-400 ml-1 block sm:inline">(méd {x.mediaKmL})</span>
+                            <span className="font-semibold text-secondary-o">{x.consumoKmL}</span>
+                            <span className="text-[10px] text-muted-o ml-1 block sm:inline">(méd {x.mediaKmL})</span>
                           </td>
                           <td className="px-4 py-3 text-right">
                             <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-bold ${x.desvioPct < 0 ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400" : "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"}`}>
@@ -289,7 +289,7 @@ function AbastecimentoIntro() {
       <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 12 }}>
         <button 
           onClick={() => setImportOpen(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-sm font-medium text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 shadow-sm transition-colors"
+          className="flex items-center gap-2 px-4 py-2 surface-card border border-subtle-o text-sm font-medium text-secondary-o rounded-lg hover-surface shadow-sm transition-colors"
         >
           <FileText className="w-4 h-4" /> Importar planilha
         </button>
@@ -306,10 +306,10 @@ const config: CrudConfig = {
   searchPlaceholder: "Pesquisar por placa...",
   columns: [
     { key: "data", label: "Data", render: r => fmtDate(r.data) },
-    { key: "veiculo", label: "Veículo", render: r => <span className="font-mono font-bold bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded text-xs">{r.veiculo?.placa || "—"}</span> },
+    { key: "veiculo", label: "Veículo", render: r => <span className="font-mono font-bold surface-sunken px-1.5 py-0.5 rounded text-xs">{r.veiculo?.placa || "—"}</span> },
     { key: "motorista", label: "Motorista", render: r => r.motorista?.nome || "—" },
     { key: "kmAtual", label: "KM", align: "right", render: r => r.kmAtual != null ? r.kmAtual.toLocaleString("pt-BR") : "—" },
-    { key: "litros", label: "Litros", align: "right", render: r => r.litros != null ? <span className="font-medium text-slate-700 dark:text-slate-300">{r.litros.toLocaleString("pt-BR")}</span> : "—" },
+    { key: "litros", label: "Litros", align: "right", render: r => r.litros != null ? <span className="font-medium text-secondary-o">{r.litros.toLocaleString("pt-BR")}</span> : "—" },
     { key: "valorTotal", label: "Total", align: "right", render: r => <span className="text-emerald-600 dark:text-emerald-400 font-medium">{fmtMoney(r.valorTotal)}</span> },
     { key: "consumoKmL", label: "km/L", align: "right", render: r => r.consumoKmL != null ? <span className="text-violet-600 dark:text-violet-400 font-bold">{r.consumoKmL.toLocaleString("pt-BR")}</span> : "—" },
     { key: "custoKm", label: "Custo/km", align: "right", render: r => <span className="text-amber-600 dark:text-amber-400 font-medium">{fmtCustoKm(r.custoKm)}</span> },

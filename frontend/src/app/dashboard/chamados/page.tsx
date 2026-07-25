@@ -46,14 +46,14 @@ type Cliente = { id: string; nome: string; empresa?: string };
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 const STATUS_COLS = [
-  { key: "aberto",         label: "Aberto",         color: "#94a3b8", bg: "bg-slate-500/10",   border: "border-slate-500/30"  },
+  { key: "aberto",         label: "Aberto",         color: "#94a3b8", bg: "surface-sunken",   border: "border-subtle-o"  },
   { key: "em_atendimento", label: "Em Atendimento", color: "#60a5fa", bg: "bg-blue-500/10",    border: "border-blue-500/30"   },
   { key: "aguardando",     label: "Aguardando",     color: "#fbbf24", bg: "bg-yellow-500/10",  border: "border-yellow-500/30" },
   { key: "resolvido",      label: "Resolvido",      color: "#34d399", bg: "bg-emerald-500/10", border: "border-emerald-500/30"},
   { key: "fechado",        label: "Fechado",        color: "#a78bfa", bg: "bg-violet-500/10",  border: "border-violet-500/30" },
 ];
 const PRIORIDADE_MAP: Record<string, { label: string; color: string; dot: string }> = {
-  baixa:   { label: "Baixa",   color: "text-slate-400",  dot: "bg-slate-400"  },
+  baixa:   { label: "Baixa",   color: "text-muted-o",  dot: "bg-[var(--text-muted)]"  },
   media:   { label: "Média",   color: "text-blue-400",   dot: "bg-blue-400"   },
   alta:    { label: "Alta",    color: "text-orange-400", dot: "bg-orange-400" },
   critica: { label: "Crítica", color: "text-red-400",    dot: "bg-red-400"    },
@@ -134,9 +134,12 @@ function exportCSV(chamados: Chamado[]) {
 // ── Sub-components ─────────────────────────────────────────────────────────────
 function StatCard({ label, value, color }: { label: string; value: number; color?: string }) {
   return (
-    <div className="card-premium rounded-xl p-4 flex flex-col gap-1.5 shadow-premium-sm transition-all hover:-translate-y-0.5 hover:shadow-premium-md">
-      <span className="text-xs text-[var(--text-muted)] font-medium tracking-wide uppercase">{label}</span>
-      <span className={`text-2xl font-bold font-display ${color || "text-[var(--text-primary)]"}`}>{value}</span>
+    <div className="kpi-card">
+      <span className="kpi-card__halo" />
+      <span className="mono-cap">{label}</span>
+      <div className={`metric kpi-card__value ${color || ""}`} style={{ marginTop: 8 }}>
+        {Number(value || 0).toLocaleString("pt-BR")}
+      </div>
     </div>
   );
 }
@@ -1132,7 +1135,7 @@ export default function ChamadosPage() {
         <div className="px-6 py-3 border-b border-border flex-shrink-0">
           <div className="grid grid-cols-4 lg:grid-cols-8 gap-3">
             <StatCard label="Total"        value={stats.total} />
-            <StatCard label="Abertos"      value={stats.aberto}          color="text-slate-400" />
+            <StatCard label="Abertos"      value={stats.aberto}          color="text-muted-o" />
             <StatCard label="Em Atend."    value={stats.em_atendimento}  color="text-blue-400" />
             <StatCard label="Aguardando"   value={stats.aguardando}      color="text-yellow-400" />
             <StatCard label="Resolvidos"   value={stats.resolvido}       color="text-emerald-400" />

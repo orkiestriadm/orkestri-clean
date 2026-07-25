@@ -27,7 +27,7 @@ function statusBadge(s: string) {
     case "vigente":    return "bg-emerald-500/10 text-emerald-400 border-emerald-500/20";
     case "vencendo":   return "bg-amber-500/10 text-amber-400 border-amber-500/20";
     case "vencido":    return "bg-red-500/10 text-red-400 border-red-500/20";
-    case "suspenso":   return "bg-slate-500/10 text-slate-400 border-slate-500/20";
+    case "suspenso":   return "surface-sunken text-muted-o border-slate-500/20";
     case "rescindido": return "bg-rose-500/10 text-rose-400 border-rose-500/20";
     default:           return "bg-muted text-muted-foreground border-border";
   }
@@ -38,7 +38,7 @@ function statusIcon(s: string) {
     case "vigente":    return <CheckCircle size={12} className="text-emerald-400" />;
     case "vencendo":   return <AlertTriangle size={12} className="text-amber-400" />;
     case "vencido":    return <XCircle size={12} className="text-red-400" />;
-    case "suspenso":   return <Clock size={12} className="text-slate-400" />;
+    case "suspenso":   return <Clock size={12} className="text-muted-o" />;
     case "rescindido": return <XCircle size={12} className="text-rose-400" />;
     default: return null;
   }
@@ -63,14 +63,15 @@ function diasRestantes(vigenciaFim: string | null) {
 // ── StatCard ──────────────────────────────────────────────────────────────────
 function StatCard({ icon: Icon, label, value, color, sub }: any) {
   return (
-    <div className="bg-card border border-border rounded-xl p-4 flex items-center gap-3 hover:bg-accent/50 transition-colors">
-      <div className={cn("w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 border", color)}>
-        <Icon size={18} />
-      </div>
-      <div>
-        <div className="text-xl font-bold text-foreground font-display">{value}</div>
-        <div className="text-[11px] text-muted-foreground font-mono tracking-[0.08em] uppercase">{label}</div>
-        {sub && <div className="text-[10px] text-muted-foreground/70">{sub}</div>}
+    <div className="kpi-card">
+      <span className="kpi-card__halo" />
+      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+        <span className={cn("kpi-card__icon", color)}><Icon size={18} /></span>
+        <div style={{ minWidth: 0 }}>
+          <div className="metric kpi-card__value">{value}</div>
+          <div className="kpi-card__label">{label}</div>
+          {sub && <div style={{ fontSize: 10, color: "var(--text-faint)" }}>{sub}</div>}
+        </div>
       </div>
     </div>
   );

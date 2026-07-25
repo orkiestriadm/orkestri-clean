@@ -206,12 +206,11 @@ export default function MonitoramentoDashboard() {
         </div>
 
         {/* ── KPI principal + secundarios ───────────────────────────────────── */}
-        <div style={{ display: "grid", gridTemplateColumns: "minmax(280px, 380px) 1fr", gap: 14, marginBottom: 22 }}>
+        <div className="grid grid-cols-1 lg:grid-cols-[380px_1fr] gap-4 mb-6">
           {/* Disponibilidade — destaque com ring */}
           <motion.div
             initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
-            className="card"
-            style={{ padding: 22, display: "flex", alignItems: "center", gap: 18, background: "linear-gradient(135deg, var(--bg-card), var(--bg-secondary))", border: "1px solid rgba(211,47,47,0.18)" }}
+            className="rounded-2xl border border-subtle-o shadow-sm surface-card p-6 flex items-center gap-6 relative overflow-hidden group"
           >
             <svg width="84" height="84" viewBox="0 0 80 80">
               <circle cx="40" cy="40" r="30" stroke="var(--border-subtle)" strokeWidth="6" fill="none" />
@@ -227,7 +226,7 @@ export default function MonitoramentoDashboard() {
             </svg>
             <div>
               <div style={{ fontSize: 10, color: "var(--text-muted)", fontFamily: "var(--font-mono)", textTransform: "uppercase", letterSpacing: 1.5 }}>Disponibilidade geral</div>
-              <div style={{ fontSize: 36, fontWeight: 800, fontFamily: "var(--font-display)", lineHeight: 1, marginTop: 2, color: "#D32F2F" }}>
+              <div className="metric" style={{ fontSize: 34, marginTop: 2, color: "var(--accent-red)" }}>
                 {disponPct.toFixed(1)}<span style={{ fontSize: 18, color: "var(--text-muted)" }}>%</span>
               </div>
               <div style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 4 }}>
@@ -237,16 +236,16 @@ export default function MonitoramentoDashboard() {
           </motion.div>
 
           {/* KPIs secundarios em strip */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10 }}>
-            <KpiTile clickable active={statusFilter==="ONLINE"}        label="Online"           value={summary?.online ?? 0}   color="#22c55e" icon={<CheckCircle2 size={16}/>} onClick={() => setStat(statusFilter==="ONLINE"?"":"ONLINE")} />
-            <KpiTile clickable active={statusFilter==="OFFLINE"}       label="Offline"          value={summary?.offline ?? 0}  color="#ef4444" icon={<CircleSlash size={16}/>}  onClick={() => setStat(statusFilter==="OFFLINE"?"":"OFFLINE")} />
-            <KpiTile clickable active={statusFilter==="INSTAVEL"}      label="Instáveis"        value={summary?.instavel ?? 0} color="#f59e0b" icon={<AlertTriangle size={16}/>} onClick={() => setStat(statusFilter==="INSTAVEL"?"":"INSTAVEL")} />
-            <KpiTile clickable active={statusFilter==="NAO_MONITORADO"} label="Não monitorado"  value={summary?.naoMon ?? 0}   color="#94a3b8" icon={<Radio size={16}/>}        onClick={() => setStat(statusFilter==="NAO_MONITORADO"?"":"NAO_MONITORADO")} />
+          <div className="grid grid-cols-4 gap-3">
+            <KpiTile clickable active={statusFilter==="ONLINE"}        label="Online"           value={summary?.online ?? 0}   colorName="emerald" icon={<CheckCircle2 size={18}/>} onClick={() => setStat(statusFilter==="ONLINE"?"":"ONLINE")} />
+            <KpiTile clickable active={statusFilter==="OFFLINE"}       label="Offline"          value={summary?.offline ?? 0}  colorName="red"     icon={<CircleSlash size={18}/>}  onClick={() => setStat(statusFilter==="OFFLINE"?"":"OFFLINE")} />
+            <KpiTile clickable active={statusFilter==="INSTAVEL"}      label="Instáveis"        value={summary?.instavel ?? 0} colorName="amber"   icon={<AlertTriangle size={18}/>} onClick={() => setStat(statusFilter==="INSTAVEL"?"":"INSTAVEL")} />
+            <KpiTile clickable active={statusFilter==="NAO_MONITORADO"} label="Não monitorado"  value={summary?.naoMon ?? 0}   colorName="slate"   icon={<Radio size={18}/>}        onClick={() => setStat(statusFilter==="NAO_MONITORADO"?"":"NAO_MONITORADO")} />
           </div>
         </div>
 
         {/* ── Chips de categoria (horizontal, scroll suave) ─────────────────── */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 10, marginBottom: 18 }}>
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-3 mb-6">
           {CATEGORIAS.map(c => {
             const r = porCategoria[c.v] || { online: 0, offline: 0, instavel: 0, total: 0 };
             const Icon = c.icon;
@@ -255,28 +254,27 @@ export default function MonitoramentoDashboard() {
               <motion.button
                 key={c.v}
                 whileHover={{ y: -2 }}
+                whileTap={{ scale: 0.98 }}
                 onClick={() => setCat(active ? "" : c.v)}
-                className="card"
-                style={{
-                  padding: "14px 14px", cursor: "pointer", textAlign: "left", border: 0,
-                  background: active ? "linear-gradient(135deg, rgba(211,47,47,0.06), var(--bg-card))" : "var(--bg-card)",
-                  borderLeft: `3px solid ${active ? "#D32F2F" : "transparent"}`,
-                  transition: "all 0.2s",
-                }}
+                className={`rounded-2xl border shadow-sm p-4 transition-all relative overflow-hidden group w-full text-left cursor-pointer
+                  ${active ? 'border-accent-o ring-1 ring-[var(--accent-violet)] accent-text accent-soft' : 'border-subtle-o surface-card'}`}
               >
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <span style={{ width: 28, height: 28, borderRadius: 8, background: active ? "rgba(211,47,47,0.10)" : "var(--bg-hover)", display: "inline-flex", alignItems: "center", justifyContent: "center", color: active ? "#D32F2F" : "var(--text-secondary)" }}>
-                      <Icon size={14} />
-                    </span>
-                    <span style={{ fontSize: 12, fontWeight: 700, color: active ? "#D32F2F" : "var(--text-primary)" }}>{c.label}</span>
+                <div className="absolute -right-6 -top-6 w-24 h-24 rounded-full opacity-10 group-hover:opacity-20 transition-opacity blur-2xl bg-[var(--accent-violet)]" />
+                <div className="flex items-center justify-between mb-3 relative z-10">
+                  <div className="flex items-center gap-3">
+                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${active ? 'accent-solid' : 'surface-sunken text-muted-o'}`}>
+                      <Icon size={16} />
+                    </div>
+                    <div>
+                      <div className={`text-sm font-bold ${active ? '' : 'text-primary-o'}`}>{c.label}</div>
+                    </div>
                   </div>
-                  <span style={{ fontSize: 18, fontWeight: 800, fontFamily: "var(--font-display)", color: active ? "#D32F2F" : "var(--text-primary)" }}>{r.total}</span>
+                  <div className="metric" style={{ fontSize: 22, color: active ? "inherit" : "var(--text-primary)" }}>{r.total}</div>
                 </div>
-                <div style={{ display: "flex", gap: 10, fontSize: 10, fontFamily: "var(--font-mono)" }}>
-                  <span style={{ color: "#22c55e" }}>● {r.online}</span>
-                  <span style={{ color: "#ef4444" }}>● {r.offline}</span>
-                  <span style={{ color: "#f59e0b" }}>● {r.instavel}</span>
+                <div className="flex gap-3 text-[11px] font-bold uppercase tracking-wider relative z-10" style={{ fontFamily: "var(--font-mono)" }}>
+                  <span className="text-emerald-500">● {r.online}</span>
+                  <span className="text-red-500">● {r.offline}</span>
+                  <span className="text-amber-500">● {r.instavel}</span>
                 </div>
               </motion.button>
             );
@@ -405,9 +403,7 @@ export default function MonitoramentoDashboard() {
                 <b style={{ color: "var(--text-primary)" }}>{visiveis.length}</b> de {assets.length}
               </span>
               {(q || statusFilter || catFilter) && (
-                <button onClick={() => { setQ(""); setStat(""); setCat(""); }} className="btn btn-ghost" style={{ fontSize: 11 }}>
-                  <X size={12} style={{ marginRight: 4 }} /> Limpar filtros
-                </button>
+                <button onClick={() => { setQ(""); setStat(""); setCat(""); }} style={{ border: "1px solid var(--border-subtle)", borderRadius: 8, padding: "6px 12px", background: "var(--bg-primary)", fontSize: 11, cursor: "pointer", color: "var(--text-primary)" }}>Limpar filtros</button>
               )}
             </div>
           </div>
@@ -455,28 +451,36 @@ export default function MonitoramentoDashboard() {
 // ──────────────────────────────────────────────────────────────────────────────
 // Sub-componentes
 // ──────────────────────────────────────────────────────────────────────────────
-function KpiTile({ label, value, color, icon, onClick, active, clickable }: {
-  label: string; value: any; color: string; icon: React.ReactNode;
+function KpiTile({ label, value, colorName, onClick, active, clickable }: {
+  label: string; value: any; colorName: string; icon?: React.ReactNode;
   onClick?: () => void; active?: boolean; clickable?: boolean;
 }) {
+  const c = {
+    emerald: "#22c55e",
+    red: "#ef4444",
+    amber: "#f59e0b",
+    slate: "var(--text-muted)"
+  }[colorName] || "var(--text-muted)";
+  
   const Comp: any = clickable ? motion.button : "div";
   return (
     <Comp
-      {...(clickable ? { whileHover: { y: -2 }, whileTap: { scale: 0.98 }, onClick, style: { textAlign: "left", border: 0 } } : {})}
-      className="card"
-      style={{
-        padding: "14px 16px", cursor: clickable ? "pointer" : "default",
-        background: active ? `linear-gradient(135deg, ${color}10, var(--bg-card))` : undefined,
-        borderTop: `3px solid ${active ? color : "transparent"}`,
-        transition: "all 0.2s",
-        ...(clickable ? {} : {}),
-      }}
+      {...(clickable ? { whileHover: { y: -2 }, whileTap: { scale: 0.98 }, onClick } : {})}
+      className="stat-card flex-1 min-w-[150px]"
+      data-active={active ? "true" : "false"}
+      style={{ ["--sc" as any]: c, cursor: clickable ? "pointer" : "default" }}
     >
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-        <span style={{ fontSize: 10, color: "var(--text-muted)", fontFamily: "var(--font-mono)", textTransform: "uppercase", letterSpacing: 1, fontWeight: 600 }}>{label}</span>
-        <span style={{ color, opacity: 0.7 }}>{icon}</span>
-      </div>
-      <div style={{ fontSize: 26, fontWeight: 800, fontFamily: "var(--font-display)", color, lineHeight: 1 }}>{value}</div>
+      <span className="stat-card__head">
+        <span className="stat-card__dot" />
+        <span className="mono-cap">{label}</span>
+      </span>
+      <span className="metric stat-card__value">{value}</span>
+      {clickable && (
+        <span className="stat-card__foot">
+          <span style={{ flex: 1 }} />
+          <span className="stat-card__hint">{active ? "● filtrando" : "filtrar"}</span>
+        </span>
+      )}
     </Comp>
   );
 }

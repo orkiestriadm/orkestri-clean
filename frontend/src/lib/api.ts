@@ -1,6 +1,29 @@
 import axios, { AxiosError } from "axios";
 import { useToastStore } from "./toast";
 
+/**
+ * Opção `silent` — para chamadas de segundo plano.
+ *
+ * Listas de apoio (combos de veículo, motorista, setor, usuário) são carregadas
+ * sem o usuário pedir. Quando uma delas falha — normalmente 403, porque o perfil
+ * não tem permissão naquele cadastro — a tela continua utilizável, só o combo
+ * fica vazio. Um alerta vermelho ali é ruído: culpa o usuário por algo que ele
+ * não fez e não pode resolver.
+ *
+ * `silent` suprime apenas o AVISO VISUAL. Nunca suprime efeito colateral:
+ * expiração de sessão e assinatura suspensa continuam redirecionando, porque são
+ * eventos de sessão e não "esta chamada falhou".
+ *
+ * Uso — no nível da configuração, NÃO em `params`:
+ *     api.get("/users/picklist", { silent: true })            // ✓
+ *     api.get("/users/picklist", { params: { silent: true } }) // ✗ vira ?silent=true
+ */
+declare module "axios" {
+  export interface AxiosRequestConfig {
+    silent?: boolean;
+  }
+}
+
 const BASE = typeof window !== "undefined"
   ? window.location.origin + "/api"
   : "http://localhost/api";
@@ -27,6 +50,29 @@ api.interceptors.response.use(
 
     const status = err.response?.status;
     const message = err.response?.data?.message;
+
+    // Lê a opção da configuração da requisição. A versão anterior testava
+    // `config.url.includes("silent=true")` — que nunca casava, porque o axios
+    // mantém os params em `config.params` e não os concatena em `config.url`.
+    const silent = err.config?.silent === true;
+
+    /** Aviso visual, exceto em chamada silenciosa. Silenciado não é invisível:
+     *  em desenvolvimento a falha vai para o console. */
+    const avisar = (
+      tipo: "error" | "warning",
+      titulo: string,
+      texto: string,
+    ) => {
+      if (silent) {
+        if (process.env.NODE_ENV !== "production") {
+          console.warn(
+            `[api:silent] ${status ?? "sem resposta"} ${err.config?.method?.toUpperCase() ?? ""} ${err.config?.url ?? ""} — ${titulo}: ${texto}`,
+          );
+        }
+        return;
+      }
+      useToastStore.getState()[tipo](titulo, texto);
+    };
 
     // 401 — billing suspenso (hard block)
     if (status === 401) {
@@ -62,31 +108,31 @@ api.interceptors.response.use(
         }
         return Promise.reject(err);
       }
-      useToastStore.getState().error("Sem permissao", message || "Voce nao tem acesso a este recurso.");
+      avisar("error", "Sem permissao", message || "Voce nao tem acesso a este recurso.");
       return Promise.reject(err);
     }
 
     // 429 — rate limit
     if (status === 429) {
-      useToastStore.getState().warning("Muitas tentativas", message || "Aguarde antes de tentar novamente.");
+      avisar("warning", "Muitas tentativas", message || "Aguarde antes de tentar novamente.");
       return Promise.reject(err);
     }
 
     // 409 — conflito (ex: email duplicado)
     if (status === 409) {
-      useToastStore.getState().error("Conflito", message || "O recurso ja existe.");
+      avisar("error", "Conflito", message || "O recurso ja existe.");
       return Promise.reject(err);
     }
 
     // 500+ — erro do servidor
     if (status && status >= 500) {
-      useToastStore.getState().error("Erro no servidor", "Tente novamente em alguns instantes.");
+      avisar("error", "Erro no servidor", "Tente novamente em alguns instantes.");
       return Promise.reject(err);
     }
 
     // Erro de rede (sem resposta do servidor)
     if (!err.response) {
-      useToastStore.getState().error("Sem conexao", "Verifique sua conexao com a internet.");
+      avisar("error", "Sem conexao", "Verifique sua conexao com a internet.");
       return Promise.reject(err);
     }
 

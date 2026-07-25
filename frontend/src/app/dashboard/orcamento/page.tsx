@@ -4,8 +4,10 @@ import {
   PiggyBank, Plus, RefreshCw, TrendingUp, TrendingDown, AlertTriangle,
   CheckCircle, Clock, ChevronDown, ChevronRight, Edit2, Trash2, X,
   BarChart3, DollarSign, Target, Zap, Filter, Download, Settings,
-  Building, Tag, Truck, Package, Eye, EyeOff, Search, Upload, Loader2
+  Building, Tag, Truck, Package, Eye, EyeOff, Search, Upload, Loader2,
+  Users, Share2, User as UserIcon, Building2
 } from "lucide-react";
+import { useAuthStore } from "@/lib/store";
 import {
   BarChart, Bar, AreaChart, Area, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
@@ -15,7 +17,12 @@ import { api } from "@/lib/api";
 import Topbar from "@/components/layout/Topbar";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
-interface Ciclo { id:string; ano:number; descricao?:string; status:string }
+type EscopoCiclo = "corporativo" | "proprio" | "compartilhado";
+interface Ciclo {
+  id:string; ano:number; descricao?:string; status:string;
+  escopo?:EscopoCiclo; ownerId?:string|null; owner?:{ id:string; nome:string }|null;
+  podeEditar?:boolean; podeCompartilhar?:boolean; qtdCompartilhado?:number;
+}
 interface Categoria { id:string; tipo:string; codigo:string; nome:string; cor:string; icone?:string; paiId?:string; filhos?:Categoria[] }
 interface CentroCusto { id:string; codigo:string; nome:string; cor:string; ativo:boolean }
 interface Fornecedor { id:string; nome:string; cnpj?:string; segmento?:string; ativo:boolean }
@@ -501,9 +508,10 @@ function LancarModal({ item, mes, onClose, onSaved }:{ item:Item; mes:number; on
   );
 }
 
-function TabItens({ tipo, cicloId, categorias, centrosCusto, fornecedores }:{
-  tipo:"OPEX"|"CAPEX"; cicloId:string; categorias:Categoria[]; centrosCusto:CentroCusto[]; fornecedores:Fornecedor[];
+function TabItens({ tipo, cicloId, categorias, centrosCusto, fornecedores, podeEditar=true }:{
+  tipo:"OPEX"|"CAPEX"; cicloId:string; categorias:Categoria[]; centrosCusto:CentroCusto[]; fornecedores:Fornecedor[]; podeEditar?:boolean;
 }) {
+  const readOnly = !podeEditar;
   const [items, setItems] = useState<Item[]>([]);
   const [loading, setLoading] = useState(true);
   const [showNew, setShowNew] = useState(false);
@@ -552,10 +560,12 @@ function TabItens({ tipo, cicloId, categorias, centrosCusto, fornecedores }:{
           <option value="">Todas as categorias</option>
           {cats.map(c=><option key={c.id} value={c.id}>{c.nome}</option>)}
         </select>
-        <button onClick={()=>setShowNew(true)}
-          className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90">
-          <Plus size={14}/> Novo Item
-        </button>
+        {!readOnly && (
+          <button onClick={()=>setShowNew(true)}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90">
+            <Plus size={14}/> Novo Item
+          </button>
+        )}
       </div>
 
       {/* Totals strip */}
@@ -615,22 +625,15 @@ function TabItens({ tipo, cicloId, categorias, centrosCusto, fornecedores }:{
                       const prev = mesData?.valorPrevisto||0;
                       const real = mesData?.valorRealizado;
                       const isEstouro = real!=null && real > prev;
+                      const cor = real!=null ? (isEstouro?"text-red-400":"text-cyan-400") : prev>0 ? "text-violet-400/60" : "text-muted-foreground/30";
+                      const txt = real!=null ? fmtBRL(real).replace("R$","").trim() : prev>0 ? fmtBRL(prev).replace("R$","").trim() : "—";
                       return (
                         <div key={mi} className="py-3 text-center">
-                          {real!=null ? (
-                            <button onClick={()=>setLancar({item,mes:mi+1})}
-                              className={cn("text-[10px] font-mono w-full px-1 hover:opacity-80 transition-opacity",
-                                isEstouro?"text-red-400":"text-cyan-400")}>
-                              {fmtBRL(real).replace("R$","").trim()}
-                            </button>
-                          ) : prev > 0 ? (
-                            <button onClick={()=>setLancar({item,mes:mi+1})}
-                              className="text-[10px] font-mono text-violet-400/60 hover:text-violet-400 transition-colors w-full px-1">
-                              {fmtBRL(prev).replace("R$","").trim()}
-                            </button>
+                          {readOnly ? (
+                            <span className={cn("text-[10px] font-mono w-full px-1 inline-block", cor)}>{txt}</span>
                           ) : (
                             <button onClick={()=>setLancar({item,mes:mi+1})}
-                              className="text-[10px] text-muted-foreground/30 hover:text-muted-foreground transition-colors w-full">—</button>
+                              className={cn("text-[10px] font-mono w-full px-1 transition-opacity hover:opacity-80", cor)}>{txt}</button>
                           )}
                         </div>
                       );
@@ -641,12 +644,16 @@ function TabItens({ tipo, cicloId, categorias, centrosCusto, fornecedores }:{
                       <div className={cn("text-[10px] font-mono text-center mb-1", execColor(item.totais.execucao))}>{fmtPct(item.totais.execucao)}</div>
                       <ExecBar pct={item.totais.execucao} height="h-1" />
                     </div>
-                    <div className="py-3 flex justify-center gap-0.5">
-                      <button onClick={()=>setEditItem(item)} title="Editar"
-                        className="p-1 rounded hover:bg-accent text-muted-foreground hover:text-foreground"><Edit2 size={11}/></button>
-                      <button onClick={()=>setDeleting(item)} title="Excluir"
-                        className="p-1 rounded hover:bg-red-500/15 text-muted-foreground hover:text-red-400"><Trash2 size={11}/></button>
-                    </div>
+                    {readOnly ? (
+                      <div className="py-3"/>
+                    ) : (
+                      <div className="py-3 flex justify-center gap-0.5">
+                        <button onClick={()=>setEditItem(item)} title="Editar"
+                          className="p-1 rounded hover:bg-accent text-muted-foreground hover:text-foreground"><Edit2 size={11}/></button>
+                        <button onClick={()=>setDeleting(item)} title="Excluir"
+                          className="p-1 rounded hover:bg-red-500/15 text-muted-foreground hover:text-red-400"><Trash2 size={11}/></button>
+                      </div>
+                    )}
                   </div>
 
                   {/* Expanded detail */}
@@ -1096,11 +1103,129 @@ function TabComparacao({ ciclos, cicloId }:{ ciclos:Ciclo[]; cicloId:string }) {
   );
 }
 
+// ─── Compartilhar orçamento pessoal ───────────────────────────────────────────
+interface UserLite { id:string; nome:string; email?:string }
+interface ShareRow { id:string; user:UserLite; criadoEm:string }
+
+function ShareModal({ ciclo, onClose, onChanged }:{ ciclo:Ciclo; onClose:()=>void; onChanged:()=>void }) {
+  const [shares, setShares] = useState<ShareRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [q, setQ] = useState("");
+  const [results, setResults] = useState<UserLite[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  const loadShares = useCallback(()=>{
+    setLoading(true);
+    api.get(`/orcamento/ciclos/${ciclo.id}/compartilhamentos`)
+      .then(r=>setShares(r.data)).catch(()=>{}).finally(()=>setLoading(false));
+  },[ciclo.id]);
+  useEffect(()=>{ loadShares(); },[loadShares]);
+
+  // Busca de pessoas com debounce simples
+  useEffect(()=>{
+    const t = setTimeout(()=>{
+      setSearching(true);
+      api.get(`/orcamento/usuarios-disponiveis${q.trim()?`?q=${encodeURIComponent(q.trim())}`:""}`)
+        .then(r=>setResults(r.data)).catch(()=>setResults([])).finally(()=>setSearching(false));
+    }, 250);
+    return ()=>clearTimeout(t);
+  },[q]);
+
+  const jaTem = (id:string) => shares.some(s=>s.user.id===id);
+
+  async function add(userId:string) {
+    setBusy(true);
+    try { await api.post(`/orcamento/ciclos/${ciclo.id}/compartilhar`, { userIds:[userId] }); loadShares(); onChanged(); }
+    catch {} finally { setBusy(false); }
+  }
+  async function remove(userId:string) {
+    setBusy(true);
+    try { await api.delete(`/orcamento/ciclos/${ciclo.id}/compartilhar/${userId}`); loadShares(); onChanged(); }
+    catch {} finally { setBusy(false); }
+  }
+
+  const disponiveis = results.filter(u=>!jaTem(u.id));
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={onClose}>
+      <div className="bg-card border border-border rounded-2xl w-full max-w-md shadow-2xl max-h-[85vh] flex flex-col" onClick={e=>e.stopPropagation()}>
+        <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
+          <div>
+            <div className="text-sm font-semibold text-foreground">Compartilhar orçamento</div>
+            <div className="text-[11px] text-muted-foreground">{ciclo.ano}{ciclo.descricao?` — ${ciclo.descricao}`:""} · quem tiver acesso pode editar</div>
+          </div>
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-accent"><X size={16}/></button>
+        </div>
+
+        <div className="p-6 space-y-4 overflow-y-auto">
+          {/* Busca de pessoas */}
+          <div>
+            <FL l="Adicionar pessoa" />
+            <div className="relative">
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <input value={q} onChange={e=>setQ(e.target.value)} placeholder="Buscar por nome ou e-mail..."
+                className="w-full bg-input border border-border rounded-lg pl-9 pr-3 py-2 text-sm text-foreground outline-none focus:border-primary" autoFocus />
+            </div>
+            {(q.trim() || disponiveis.length>0) && (
+              <div className="mt-2 border border-border rounded-lg divide-y divide-border max-h-48 overflow-y-auto">
+                {searching ? (
+                  <div className="px-3 py-3 text-xs text-muted-foreground flex items-center gap-2"><Loader2 size={12} className="animate-spin"/>Buscando...</div>
+                ) : disponiveis.length===0 ? (
+                  <div className="px-3 py-3 text-xs text-muted-foreground">Ninguém encontrado</div>
+                ) : disponiveis.map(u=>(
+                  <button key={u.id} onClick={()=>add(u.id)} disabled={busy}
+                    className="w-full flex items-center justify-between gap-2 px-3 py-2 text-left hover:bg-white/3 disabled:opacity-50">
+                    <div className="min-w-0">
+                      <div className="text-xs font-medium text-foreground truncate">{u.nome}</div>
+                      {u.email && <div className="text-[10px] text-muted-foreground truncate">{u.email}</div>}
+                    </div>
+                    <Plus size={13} className="text-primary shrink-0"/>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Quem já tem acesso */}
+          <div>
+            <FL l={`Com acesso (${shares.length})`} />
+            {loading ? (
+              <div className="text-xs text-muted-foreground py-2">Carregando...</div>
+            ) : shares.length===0 ? (
+              <div className="text-xs text-muted-foreground py-3 text-center border border-dashed border-border rounded-lg">
+                Só você tem acesso. Adicione pessoas acima.
+              </div>
+            ) : (
+              <div className="space-y-1.5">
+                {shares.map(s=>(
+                  <div key={s.id} className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-white/3 border border-border">
+                    <div className="min-w-0">
+                      <div className="text-xs font-medium text-foreground truncate">{s.user.nome}</div>
+                      {s.user.email && <div className="text-[10px] text-muted-foreground truncate">{s.user.email}</div>}
+                    </div>
+                    <button onClick={()=>remove(s.user.id)} disabled={busy} title="Remover acesso"
+                      className="p-1 rounded hover:bg-red-500/15 text-muted-foreground hover:text-red-400 shrink-0 disabled:opacity-50"><X size={13}/></button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 const TABS = ["Dashboard","OPEX","CAPEX","Comparação","Configurações"] as const;
 type Tab = typeof TABS[number];
 
 export default function OrcamentoPage() {
+  const { user } = useAuthStore();
+  const perms: string[] = (user as any)?.permissions || [];
+  const podeCriarCorporativo = !!(user as any)?.isMaster || perms.includes("*") || perms.includes("orcamento:admin");
+
   const [tab, setTab] = useState<Tab>("Dashboard");
   const [ciclos, setCiclos] = useState<Ciclo[]>([]);
   const [cicloId, setCicloId] = useState("");
@@ -1111,8 +1236,10 @@ export default function OrcamentoPage() {
   const [loadError, setLoadError] = useState("");
   const [showNovoCiclo, setShowNovoCiclo] = useState(false);
   const [novoCicloAno, setNovoCicloAno] = useState(String(new Date().getFullYear()));
+  const [novoCicloTipo, setNovoCicloTipo] = useState<"pessoal"|"corporativo">("pessoal");
   const [criandoCiclo, setCriandoCiclo] = useState(false);
   const [cicloError, setCicloError] = useState("");
+  const [showShare, setShowShare] = useState(false);
   const [importing, setImporting] = useState(false);
   const [importMsg, setImportMsg] = useState("");
   const opexFileRef = useRef<HTMLInputElement>(null);
@@ -1142,17 +1269,24 @@ export default function OrcamentoPage() {
 
   useEffect(()=>{ loadConfig(); },[]);
 
+  function abrirNovoCiclo() {
+    // Padrão: pessoal (todos podem). Corporativo só aparece para quem tem permissão.
+    setNovoCicloTipo(podeCriarCorporativo ? novoCicloTipo : "pessoal");
+    setShowNovoCiclo(true);
+  }
+
   async function criarCiclo() {
     if(!novoCicloAno) return;
     setCriandoCiclo(true);
     setCicloError("");
     try {
-      const r = await api.post("/orcamento/ciclos", { ano:parseInt(novoCicloAno) });
+      const endpoint = novoCicloTipo==="corporativo" ? "/orcamento/ciclos" : "/orcamento/ciclos/pessoal";
+      const r = await api.post(endpoint, { ano:parseInt(novoCicloAno) });
       setShowNovoCiclo(false);
       setNovoCicloAno(String(new Date().getFullYear()));
       await loadConfig(r.data.id);
     } catch(e:any) {
-      setCicloError(e?.response?.data?.message || "Erro ao criar ciclo");
+      setCicloError(e?.response?.data?.message || "Erro ao criar orçamento");
     } finally { setCriandoCiclo(false); }
   }
 
@@ -1189,24 +1323,57 @@ export default function OrcamentoPage() {
         {importing ? "Importando..." : "Importar OPEX"}
       </button>
       {loading ? (
-        <span className="text-xs text-muted-foreground font-mono">Carregando ciclos...</span>
+        <span className="text-xs text-muted-foreground font-mono">Carregando orçamentos...</span>
       ) : ciclos.length === 0 ? (
-        <button onClick={()=>setShowNovoCiclo(true)}
+        <button onClick={abrirNovoCiclo}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border text-xs text-muted-foreground hover:bg-accent transition-colors">
-          <Plus size={13}/> Criar Ciclo {new Date().getFullYear()}
+          <Plus size={13}/> Criar orçamento
         </button>
       ) : (
         <>
           <select value={cicloId} onChange={e=>setCicloId(e.target.value)}
-            className="bg-background border border-border rounded-lg px-3 py-1.5 text-xs text-foreground outline-none focus:border-primary font-mono">
-            {ciclos.map(c=><option key={c.id} value={c.id}>{c.ano}{c.descricao?` — ${c.descricao}`:""}</option>)}
+            className="bg-background border border-border rounded-lg px-3 py-1.5 text-xs text-foreground outline-none focus:border-primary font-mono max-w-[280px]">
+            {(() => {
+              const opt = (c:Ciclo)=>(
+                <option key={c.id} value={c.id}>
+                  {c.ano}{c.descricao?` — ${c.descricao}`:""}{c.escopo==="compartilhado"&&c.owner?` · ${c.owner.nome}`:""}
+                </option>
+              );
+              const corp = ciclos.filter(c=>!c.escopo||c.escopo==="corporativo");
+              const meus = ciclos.filter(c=>c.escopo==="proprio");
+              const comp = ciclos.filter(c=>c.escopo==="compartilhado");
+              return (<>
+                {corp.length>0 && <optgroup label="Corporativo">{corp.map(opt)}</optgroup>}
+                {meus.length>0 && <optgroup label="Meus orçamentos">{meus.map(opt)}</optgroup>}
+                {comp.length>0 && <optgroup label="Compartilhados comigo">{comp.map(opt)}</optgroup>}
+              </>);
+            })()}
           </select>
+          {cicloAtual && (!cicloAtual.escopo || cicloAtual.escopo==="corporativo") ? (
+            <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-white/10 text-muted-foreground">
+              <Building2 size={10}/> Corporativo
+            </span>
+          ) : cicloAtual?.escopo==="proprio" ? (
+            <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-primary/15 text-primary">
+              <UserIcon size={10}/> Pessoal
+            </span>
+          ) : cicloAtual?.escopo==="compartilhado" ? (
+            <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-cyan-500/15 text-cyan-400">
+              <Users size={10}/> Compartilhado
+            </span>
+          ) : null}
           {cicloAtual && (
             <span className={cn("px-2 py-0.5 rounded-full text-[10px] font-medium", STATUS_BADGE[cicloAtual.status]||"bg-white/10 text-muted-foreground")}>
               {cicloAtual.status}
             </span>
           )}
-          <button onClick={()=>setShowNovoCiclo(true)}
+          {cicloAtual?.podeCompartilhar && (
+            <button onClick={()=>setShowShare(true)} title="Compartilhar orçamento"
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-border text-xs text-muted-foreground hover:bg-accent hover:text-foreground transition-colors">
+              <Share2 size={13}/>{cicloAtual.qtdCompartilhado?` ${cicloAtual.qtdCompartilhado}`:" Compartilhar"}
+            </button>
+          )}
+          <button onClick={abrirNovoCiclo} title="Novo orçamento"
             className="p-1.5 rounded-lg border border-border hover:bg-accent text-muted-foreground hover:text-foreground">
             <Plus size={13}/>
           </button>
@@ -1243,8 +1410,8 @@ export default function OrcamentoPage() {
 
           <div>
             {tab==="Dashboard" && <TabDashboard cicloId={cicloId} ano={ciclos.find(c=>c.id===cicloId)?.ano} categorias={categorias} centrosCusto={centrosCusto}/>}
-            {tab==="OPEX" && <TabItens tipo="OPEX" cicloId={cicloId} categorias={categorias} centrosCusto={centrosCusto} fornecedores={fornecedores}/>}
-            {tab==="CAPEX" && <TabItens tipo="CAPEX" cicloId={cicloId} categorias={categorias} centrosCusto={centrosCusto} fornecedores={fornecedores}/>}
+            {tab==="OPEX" && <TabItens tipo="OPEX" cicloId={cicloId} categorias={categorias} centrosCusto={centrosCusto} fornecedores={fornecedores} podeEditar={cicloAtual?.podeEditar!==false}/>}
+            {tab==="CAPEX" && <TabItens tipo="CAPEX" cicloId={cicloId} categorias={categorias} centrosCusto={centrosCusto} fornecedores={fornecedores} podeEditar={cicloAtual?.podeEditar!==false}/>}
             {tab==="Comparação" && <TabComparacao ciclos={ciclos} cicloId={cicloId}/>}
             {tab==="Configurações" && <TabConfiguracoes categorias={categorias} centrosCusto={centrosCusto} fornecedores={fornecedores} reload={loadConfig}/>}
           </div>
@@ -1254,11 +1421,11 @@ export default function OrcamentoPage() {
       {!cicloId && !loading && !loadError && (
         <div className="flex flex-col items-center justify-center h-64 text-center">
           <PiggyBank size={40} className="text-muted-foreground/30 mb-4"/>
-          <div className="text-muted-foreground text-sm mb-1">Nenhum ciclo orçamentário criado</div>
-          <div className="text-muted-foreground/60 text-xs mb-4">Crie o ciclo do ano corrente para começar a planejar</div>
-          <button onClick={()=>setShowNovoCiclo(true)}
+          <div className="text-muted-foreground text-sm mb-1">Nenhum orçamento ainda</div>
+          <div className="text-muted-foreground/60 text-xs mb-4">Crie o seu orçamento pessoal para começar a planejar</div>
+          <button onClick={abrirNovoCiclo}
             className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90">
-            <Plus size={14}/> Criar Ciclo {new Date().getFullYear()}
+            <Plus size={14}/> Criar orçamento
           </button>
         </div>
       )}
@@ -1282,10 +1449,36 @@ export default function OrcamentoPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
           <div className="bg-card border border-border rounded-2xl w-full max-w-sm shadow-2xl p-6">
             <div className="flex items-center justify-between mb-4">
-              <div className="text-sm font-semibold text-foreground">Novo Ciclo Orçamentário</div>
+              <div className="text-sm font-semibold text-foreground">Novo orçamento</div>
               <button onClick={()=>{ setShowNovoCiclo(false); setCicloError(""); }} className="p-1.5 rounded-lg hover:bg-accent"><X size={16}/></button>
             </div>
             <div className="space-y-4">
+              {podeCriarCorporativo ? (
+                <div>
+                  <FL l="Tipo" />
+                  <div className="grid grid-cols-2 gap-2">
+                    <button type="button" onClick={()=>setNovoCicloTipo("pessoal")}
+                      className={cn("flex items-center justify-center gap-2 px-3 py-2 rounded-lg border text-xs transition-colors",
+                        novoCicloTipo==="pessoal"?"border-primary bg-primary/10 text-foreground":"border-border text-muted-foreground hover:bg-accent")}>
+                      <UserIcon size={13}/> Pessoal
+                    </button>
+                    <button type="button" onClick={()=>setNovoCicloTipo("corporativo")}
+                      className={cn("flex items-center justify-center gap-2 px-3 py-2 rounded-lg border text-xs transition-colors",
+                        novoCicloTipo==="corporativo"?"border-primary bg-primary/10 text-foreground":"border-border text-muted-foreground hover:bg-accent")}>
+                      <Building2 size={13}/> Corporativo
+                    </button>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground mt-1.5">
+                    {novoCicloTipo==="pessoal"
+                      ? "Só você vê — e quem você compartilhar, que também pode editar."
+                      : "Orçamento único da organização, visível a todos com acesso ao módulo."}
+                  </p>
+                </div>
+              ) : (
+                <p className="text-[11px] text-muted-foreground flex items-center gap-1.5">
+                  <UserIcon size={12} className="text-primary"/> Seu orçamento pessoal — só você e quem você compartilhar.
+                </p>
+              )}
               <div>
                 <FL l="Ano" req />
                 <input type="number" value={novoCicloAno} onChange={e=>{ setNovoCicloAno(e.target.value); setCicloError(""); }}
@@ -1301,12 +1494,21 @@ export default function OrcamentoPage() {
                 <button onClick={()=>{ setShowNovoCiclo(false); setCicloError(""); }} className="px-4 py-2 text-sm rounded-lg border border-border text-muted-foreground hover:bg-accent">Cancelar</button>
                 <button onClick={criarCiclo} disabled={criandoCiclo||!novoCicloAno}
                   className="px-4 py-2 text-sm rounded-lg bg-primary text-primary-foreground font-medium hover:bg-primary/90 disabled:opacity-50">
-                  {criandoCiclo?"Criando...":"Criar Ciclo"}
+                  {criandoCiclo?"Criando...":"Criar orçamento"}
                 </button>
               </div>
             </div>
           </div>
         </div>
+      )}
+
+      {/* Modal compartilhar (apenas orçamento pessoal do próprio dono) */}
+      {showShare && cicloAtual?.podeCompartilhar && (
+        <ShareModal
+          ciclo={cicloAtual}
+          onClose={()=>setShowShare(false)}
+          onChanged={()=>loadConfig(cicloId)}
+        />
       )}
       </div>
     </div>

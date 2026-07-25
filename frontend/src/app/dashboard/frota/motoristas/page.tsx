@@ -7,6 +7,10 @@ import Topbar from "@/components/layout/Topbar";
 import { useAuthStore } from "@/lib/store";
 import { api } from "@/lib/api";
 import { Badge, cnhStatus } from "../_components/crud";
+import {
+  PageBody, BackLink, PageHeader, StatGrid, StatCard,
+  Toolbar, SearchInput, TableCard, RowActions, RowAction, EmptyState, LoadingRows,
+} from "../_components/ui";
 import { Plus, Pencil, Trash2, Eye, X, Search, User, Download, Filter, ChevronLeft, Users, CheckCircle2 } from "lucide-react";
 
 type Motorista = any;
@@ -40,7 +44,7 @@ function MotoristaForm({ motorista, onSaved, onClose }: { motorista?: Motorista;
 
   useEffect(() => {
     if (linkUser && users.length === 0)
-      api.get("/users").then(r => setUsers(r.data?.users || r.data || [])).catch(() => {});
+      api.get("/users/picklist", { silent: true }).then(r => setUsers(r.data?.users || r.data || [])).catch(() => {});
   }, [linkUser, users.length]);
 
   const selectUser = async (u: { id: string; nome: string }) => {
@@ -153,29 +157,6 @@ function MotoristaForm({ motorista, onSaved, onClose }: { motorista?: Motorista;
   );
 }
 
-// ── Página ──────────────────────────────────────────────────────────────────────
-function ModernFilterCard({ label, value, colorClass, textClass, ringClass, active, onClick }: { label: string; value: number; colorClass: string; textClass: string; ringClass: string; active: boolean; onClick: () => void }) {
-  return (
-    <button 
-      onClick={onClick}
-      className={`flex-1 min-w-[100px] rounded-2xl border transition-all relative overflow-hidden group text-left p-3.5
-        ${active ? `ring-2 ring-offset-2 dark:ring-offset-slate-950 border-transparent shadow-md ${ringClass}` : 'border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md'} 
-        bg-white dark:bg-slate-950`}
-    >
-      <div className={`absolute -right-4 -top-4 w-16 h-16 rounded-full opacity-10 group-hover:opacity-20 transition-opacity blur-xl ${colorClass}`} />
-      
-      {active && <CheckCircle2 className={`absolute top-3 right-3 w-4 h-4 ${textClass} opacity-80`} />}
-
-      <div className={`text-2xl font-black tracking-tight mb-0.5 ${active ? textClass : 'text-slate-900 dark:text-white'}`}>
-        {value}
-      </div>
-      <div className="text-[10px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400">
-        {label}
-      </div>
-    </button>
-  );
-}
-
 export default function MotoristasPage() {
   const router = useRouter();
   const { user } = useAuthStore();
@@ -183,12 +164,10 @@ export default function MotoristasPage() {
   const [dash, setDash] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [q, setQ] = useState("");
-  const [fStatus, setFStatus] = useState("");
-  const [cnhFilter, setCnhFilter] = useState<string | null>(null);
+  const [activeFilter, setActiveFilter] = useState("");
   const [editing, setEditing] = useState<Motorista | null>(null);
   const [creating, setCreating] = useState(false);
   const [msg, setMsg] = useState("");
-  const [showFilters, setShowFilters] = useState(false);
   
   const canCreate = hasPerms(user, "frota:criar");
   const canEdit = hasPerms(user, "frota:editar");
@@ -199,26 +178,37 @@ export default function MotoristasPage() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const { data } = await api.get("/frota/motoristas", { params: { q, status: fStatus, limit: 100 } });
+      const { data } = await api.get("/frota/motoristas", { params: { limit: 500 } });
       setItems(data.items || []);
     } catch { setItems([]); } finally { setLoading(false); }
-  }, [q, fStatus]);
+  }, []);
 
   const loadDash = useCallback(() => { api.get("/frota/motoristas/cnh/dashboard").then(r => setDash(r.data)).catch(() => {}); }, []);
   useEffect(() => { load(); }, [load]);
   useEffect(() => { loadDash(); }, [loadDash]);
 
-  const onSaved = () => { setCreating(false); setEditing(null); load(); loadDash(); showMsg("Motorista salvo!"); };
+  const onSaved = () => { setCreating(false); setEditing(null); load(); showMsg("Motorista salvo!"); };
   const remove = async (m: Motorista) => {
     if (!confirm("Excluir este motorista? (exclusão lógica)")) return;
-    try { await api.delete(`/frota/motoristas/${m.id}`); load(); loadDash(); showMsg("Motorista excluído"); }
+    try { await api.delete(`/frota/motoristas/${m.id}`); load(); showMsg("Motorista excluído"); }
     catch { showMsg("Erro ao excluir"); }
   };
 
   const filteredItems = items.filter(m => {
-    if (!cnhFilter) return true;
-    return getMotoristaCnhGroup(m.validadeCnh) === cnhFilter;
+    if (q && !`${m.nome} ${m.matricula} ${m.cnh}`.toLowerCase().includes(q.toLowerCase())) return false;
+    if (activeFilter === "vencidas") return getMotoristaCnhGroup(m.validadeCnh) === "vencida";
+    if (activeFilter === "validas") return getMotoristaCnhGroup(m.validadeCnh) === "validas";
+    if (activeFilter === "ativos") return m.status === "ativo";
+    if (activeFilter === "inativos") return m.status === "inativo";
+    return true;
   });
+
+  const counts = {
+    vencidas: items.filter(m => getMotoristaCnhGroup(m.validadeCnh) === "vencida").length,
+    validas: items.filter(m => getMotoristaCnhGroup(m.validadeCnh) === "validas").length,
+    ativos: items.filter(m => m.status === "ativo").length,
+    inativos: items.filter(m => m.status === "inativo").length,
+  };
 
   const exportCSV = () => {
     if (!filteredItems.length) return;
@@ -241,9 +231,6 @@ export default function MotoristasPage() {
     document.body.removeChild(link);
   };
 
-  const toggleCnhFilter = (val: string) => {
-    setCnhFilter(prev => prev === val ? null : val);
-  };
 
   return (
     <div className="flex flex-col h-full bg-[var(--bg-primary)] text-[var(--text-primary)] animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -252,28 +239,14 @@ export default function MotoristasPage() {
       </Topbar>
 
       <main className="flex-1 overflow-y-auto page-content">
-        <div style={{ maxWidth: 1400, margin: "0 auto", padding: "20px 24px 60px" }}>
-          
-          {/* Back link */}
-          <Link href="/dashboard/frota" className="flex items-center gap-1 text-[11px] font-medium text-slate-500 hover:text-slate-900 dark:hover:text-white mb-4 transition-colors">
-            <ChevronLeft size={14} /> Voltar para o Dashboard de Frota
-          </Link>
+        <PageBody>
+          <BackLink href="/dashboard/frota" label="Voltar para o Dashboard de Frota" />
 
-          {/* Header Row */}
-          <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", marginBottom: 24 }}>
-            <div style={{ width: 44, height: 44, borderRadius: 12, background: "var(--accent-violet)", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 6px 16px -6px rgba(99,102,241,0.6)", flexShrink: 0 }}>
-              <Users size={22} color="#fff" />
-            </div>
-            <div style={{ flex: 1 }}>
-              <h1 style={{ fontSize: 22, fontWeight: 800, margin: 0, letterSpacing: "-0.02em" }}>Motoristas</h1>
-              <p style={{ color: "var(--text-muted)", margin: "2px 0 0", fontSize: 13 }}>
-                {filteredItems.length} motorista(s) encontrado(s)
-              </p>
-            </div>
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              <button onClick={() => setShowFilters(s => !s)} className={`btn ${showFilters ? 'btn-violet' : 'btn-ghost'}`} style={{ fontSize: 12, gap: 6 }}>
-                <Filter size={14} /> Filtros
-              </button>
+          <PageHeader
+            icon={<Users size={22} />}
+            title="Motoristas"
+            subtitle={<><span className="num">{filteredItems.length}</span> de <span className="num">{items.length}</span> motorista(s)</>}
+            actions={<>
               <button onClick={exportCSV} className="btn btn-ghost" style={{ fontSize: 12, gap: 6 }}>
                 <Download size={14} /> Exportar CSV
               </button>
@@ -282,113 +255,79 @@ export default function MotoristasPage() {
                   <Plus size={14} /> Novo motorista
                 </button>
               )}
-            </div>
-          </div>
+            </>}
+          />
 
-          {/* CNH Dashboard stats */}
-          {dash && (
-            <div className="mb-8">
-              <div className="text-[11px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-3 flex items-center justify-between">
-                <span>Dashboard da CNH</span>
-                {cnhFilter && (
-                  <button onClick={() => setCnhFilter(null)} className="flex items-center gap-1 text-red-500 hover:text-red-600 transition-colors">
-                    <X size={12} /> Limpar filtro de CNH
-                  </button>
-                )}
-              </div>
-              <div className="flex gap-3 flex-wrap">
-                <ModernFilterCard label="Vencidas" value={dash.vencida} 
-                  colorClass="bg-red-500" textClass="text-red-600 dark:text-red-400" ringClass="ring-red-500"
-                  active={cnhFilter === "vencida"} onClick={() => toggleCnhFilter("vencida")} />
-                <ModernFilterCard label="≤ 7 dias" value={dash.vence7} 
-                  colorClass="bg-red-500" textClass="text-red-600 dark:text-red-400" ringClass="ring-red-500"
-                  active={cnhFilter === "vence7"} onClick={() => toggleCnhFilter("vence7")} />
-                <ModernFilterCard label="≤ 15 dias" value={dash.vence15} 
-                  colorClass="bg-orange-500" textClass="text-orange-600 dark:text-orange-400" ringClass="ring-orange-500"
-                  active={cnhFilter === "vence15"} onClick={() => toggleCnhFilter("vence15")} />
-                <ModernFilterCard label="≤ 30 dias" value={dash.vence30} 
-                  colorClass="bg-amber-500" textClass="text-amber-600 dark:text-amber-400" ringClass="ring-amber-500"
-                  active={cnhFilter === "vence30"} onClick={() => toggleCnhFilter("vence30")} />
-                <ModernFilterCard label="≤ 60 dias" value={dash.vence60} 
-                  colorClass="bg-yellow-500" textClass="text-yellow-600 dark:text-yellow-400" ringClass="ring-yellow-500"
-                  active={cnhFilter === "vence60"} onClick={() => toggleCnhFilter("vence60")} />
-                <ModernFilterCard label="≤ 90 dias" value={dash.vence90} 
-                  colorClass="bg-yellow-500" textClass="text-yellow-600 dark:text-yellow-400" ringClass="ring-yellow-500"
-                  active={cnhFilter === "vence90"} onClick={() => toggleCnhFilter("vence90")} />
-                <ModernFilterCard label="Válidas" value={dash.validas} 
-                  colorClass="bg-emerald-500" textClass="text-emerald-600 dark:text-emerald-400" ringClass="ring-emerald-500"
-                  active={cnhFilter === "validas"} onClick={() => toggleCnhFilter("validas")} />
-                <ModernFilterCard label="Sem CNH" value={dash.semCnh} 
-                  colorClass="bg-slate-400" textClass="text-slate-600 dark:text-slate-400" ringClass="ring-slate-400"
-                  active={cnhFilter === "semCnh"} onClick={() => toggleCnhFilter("semCnh")} />
-              </div>
-            </div>
-          )}
-
-          {/* Search + Filter Row */}
-          <div className="bg-white dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-3 mb-5 flex flex-wrap gap-3 items-center">
-            <div className="flex-1 min-w-[260px] relative">
-              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-              <input 
-                className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl text-sm pl-9 pr-3 py-2.5 focus:ring-2 focus:ring-indigo-500/50 outline-none transition-all" 
-                placeholder="Pesquisar por motorista, matrícula ou CNH..." 
-                value={q} 
-                onChange={e => setQ(e.target.value)} 
+          <StatGrid>
+            {[
+              { key: "vencidas", label: "Vencidas", color: "var(--accent-red)", critical: true },
+              { key: "validas", label: "Válidas", color: "var(--accent-green)" },
+              { key: "ativos", label: "Ativos", color: "var(--accent-cyan)" },
+              { key: "inativos", label: "Inativos", color: "var(--text-muted)" },
+            ].map((f, i) => (
+              <StatCard
+                key={f.key}
+                index={i}
+                label={f.label}
+                value={counts[f.key as keyof typeof counts] || 0}
+                color={f.color}
+                total={items.length}
+                critical={f.critical}
+                active={activeFilter === f.key}
+                onClick={() => setActiveFilter(activeFilter === f.key ? "" : f.key)}
               />
-            </div>
-            {showFilters && (
-              <select 
-                className="bg-slate-50 dark:bg-slate-900 border-none rounded-xl text-sm px-3 py-2.5 min-w-[160px] focus:ring-2 focus:ring-indigo-500/50 outline-none transition-all" 
-                value={fStatus} 
-                onChange={e => setFStatus(e.target.value)}
-              >
-                <option value="">Status: todos</option>
-                {STATUS_OPTS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
-              </select>
-            )}
-          </div>
+            ))}
+          </StatGrid>
 
-          {/* Table Card */}
-          <div className="bg-white dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm whitespace-nowrap">
-                <thead className="bg-slate-50 dark:bg-slate-900/50">
-                  <tr>
-                    {["Nome", "Matrícula", "CNH", "Validade CNH", "Vínculo", "Status", ""].map((h, i) => (
-                      <th key={i} className="px-4 py-3.5 font-semibold text-xs uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                        {h}
-                      </th>
-                    ))}
+          <Toolbar>
+            <SearchInput value={q} onChange={setQ} placeholder="Pesquisar por motorista, matrícula ou CNH..." />
+            {(q || activeFilter) && (
+              <button className="btn btn-ghost" style={{ fontSize: 11 }} onClick={() => { setQ(""); setActiveFilter(""); }}>
+                Limpar filtros
+              </button>
+            )}
+          </Toolbar>
+
+          <TableCard>
+            <thead>
+              <tr>
+                {["Nome", "Matrícula", "CNH", "Validade CNH", "Vínculo", "Status"].map(h => <th key={h}>{h}</th>)}
+                <th style={{ textAlign: "right" }}>Ações</th>
+              </tr>
+            </thead>
+            <tbody className="stagger">
+              {loading && <LoadingRows colSpan={7} />}
+              {!loading && filteredItems.length === 0 && (
+                <EmptyState
+                  colSpan={7}
+                  icon={<Users size={20} />}
+                  title="Nenhum motorista encontrado"
+                  hint={q || activeFilter ? "Ajuste a busca ou remova os filtros ativos." : "Cadastre o primeiro motorista para começar."}
+                />
+              )}
+              {!loading && filteredItems.map(m => {
+                const cnh = cnhStatus(m.validadeCnh, bloqueio);
+                return (
+                  <tr key={m.id}>
+                    <td style={{ fontWeight: 600, color: "var(--text-primary)" }}>{m.nome}</td>
+                    <td className="font-mono num" style={{ color: "var(--text-muted)" }}>{m.matricula || "—"}</td>
+                    <td className="font-mono num">{m.cnh ? `${m.cnh}${m.categoriaCnh ? " · " + m.categoriaCnh : ""}` : "—"}</td>
+                    <td><Badge color={cnh.color}>{cnh.label}</Badge></td>
+                    <td>{m.userId ? <Badge color="var(--accent-cyan)">Usuário</Badge> : <span style={{ color: "var(--text-faint)" }}>Externo</span>}</td>
+                    <td>{STATUS_OPTS.find(s => s.value === m.status)?.label || m.status}</td>
+                    <td style={{ textAlign: "right" }}>
+                      <RowActions>
+                        <RowAction tone="view" title="Detalhe" onClick={() => router.push(`/dashboard/frota/motoristas/${m.id}`)}><Eye size={15} /></RowAction>
+                        {canEdit && <RowAction tone="edit" title="Editar" onClick={() => setEditing(m)}><Pencil size={15} /></RowAction>}
+                        {canDelete && <RowAction tone="danger" title="Excluir" onClick={() => remove(m)}><Trash2 size={15} /></RowAction>}
+                      </RowActions>
+                    </td>
                   </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
-                  {loading && <tr><td colSpan={7} className="px-4 py-8 text-center text-slate-500">Carregando...</td></tr>}
-                  {!loading && filteredItems.length === 0 && <tr><td colSpan={7} className="px-4 py-8 text-center text-slate-500">Nenhum motorista encontrado com os filtros selecionados.</td></tr>}
-                  {!loading && filteredItems.map(m => {
-                    const cnh = cnhStatus(m.validadeCnh, bloqueio);
-                    return (
-                      <tr key={m.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-900/50 transition-colors">
-                        <td className="px-4 py-3 font-semibold text-slate-800 dark:text-slate-200">{m.nome}</td>
-                        <td className="px-4 py-3 font-mono text-slate-500">{m.matricula || "—"}</td>
-                        <td className="px-4 py-3 text-slate-700 dark:text-slate-300">{m.cnh ? `${m.cnh}${m.categoriaCnh ? " · " + m.categoriaCnh : ""}` : "—"}</td>
-                        <td className="px-4 py-3"><Badge color={cnh.color}>{cnh.label}</Badge></td>
-                        <td className="px-4 py-3">{m.userId ? <Badge color="var(--accent-cyan)">Usuário</Badge> : <span className="text-slate-400">Externo</span>}</td>
-                        <td className="px-4 py-3">{STATUS_OPTS.find(s => s.value === m.status)?.label || m.status}</td>
-                        <td className="px-4 py-3 text-right">
-                          <div className="flex gap-1 justify-end">
-                            <button className="p-1.5 text-slate-400 hover:text-indigo-600 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition-colors" title="Detalhe" onClick={() => router.push(`/dashboard/frota/motoristas/${m.id}`)}><Eye size={16} /></button>
-                            {canEdit && <button className="p-1.5 text-slate-400 hover:text-emerald-600 rounded-lg hover:bg-emerald-50 dark:hover:bg-emerald-900/30 transition-colors" title="Editar" onClick={() => setEditing(m)}><Pencil size={16} /></button>}
-                            {canDelete && <button className="p-1.5 text-slate-400 hover:text-red-600 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors" title="Excluir" onClick={() => remove(m)}><Trash2 size={16} /></button>}
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
+                );
+              })}
+            </tbody>
+          </TableCard>
+        </PageBody>
       </main>
 
       {(creating || editing) && <MotoristaForm motorista={editing || undefined} onSaved={onSaved} onClose={() => { setCreating(false); setEditing(null); }} />}

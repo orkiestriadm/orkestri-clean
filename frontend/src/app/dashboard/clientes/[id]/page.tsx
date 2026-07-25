@@ -485,7 +485,7 @@ function TabVisaoGeral({ ws, onAddNota, onReload }: { ws: Workspace; onAddNota: 
           ].map(k => (
             <div key={k.label} className="card" style={{ padding: "14px 16px", textAlign: "center" }}>
               <div style={{ fontSize: 11, fontFamily: "var(--font-mono)", color: "var(--text-muted)", letterSpacing: "0.08em", marginBottom: 6 }}>{k.label}</div>
-              <div style={{ fontFamily: "var(--font-display)", fontSize: 20, fontWeight: 700, color: k.color }}>{k.value}</div>
+              <div className="metric" style={{ fontSize: 21, color: k.color }}>{k.value}</div>
             </div>
           ))}
         </div>
@@ -1067,7 +1067,7 @@ export default function ClienteWorkspacePage({ params }: { params: Promise<{ id:
                 { label: "MRR", value: fmtMrr(stats.mrr) || "—", color: stats.mrr > 0 ? "#34d399" : "var(--text-muted)" },
               ].map(s => (
                 <div key={s.label} style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
-                  <span style={{ fontFamily: "var(--font-display)", fontSize: 16, fontWeight: 700, color: s.color }}>{s.value}</span>
+                  <span className="metric" style={{ fontSize: 16, color: s.color }}>{s.value}</span>
                   <span style={{ fontSize: 11, color: "var(--text-muted)" }}>{s.label}</span>
                 </div>
               ))}

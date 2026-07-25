@@ -21,21 +21,15 @@ const MANUT_LABEL: Record<string, string> = { aberta: "Aberta", em_andamento: "E
 const REV_LABEL: Record<string, string> = { agendada: "Agendada", realizada: "Realizada", atrasada: "Atrasada", cancelada: "Cancelada" };
 const PNEU_LABEL: Record<string, string> = { instalacao: "Instalação", remocao: "Remoção", rodizio: "Rodízio", recapagem: "Recapagem", descarte: "Descarte" };
 
-function KpiCard({ label, valor, icon, colorClass, textClass, ringClass }: { label: string; valor: string; icon: React.ReactNode; colorClass: string; textClass: string; ringClass: string }) {
+function KpiCard({ label, valor, icon, color, index = 0 }: { label: string; valor: string; icon: React.ReactNode; color: string; index?: number }) {
   return (
-    <div className={`flex-1 min-w-[180px] rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm bg-white dark:bg-slate-950 p-4 transition-all relative overflow-hidden group`}>
-      <div className={`absolute -right-6 -top-6 w-24 h-24 rounded-full opacity-10 group-hover:opacity-20 transition-opacity blur-2xl ${colorClass}`} />
-      <div className="flex items-center gap-3">
-        <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 bg-slate-50 dark:bg-slate-900 ${textClass}`}>
-          {icon}
-        </div>
-        <div className="min-w-0">
-          <div className={`text-2xl font-black tracking-tight leading-tight ${textClass} truncate`}>
-            {valor}
-          </div>
-          <div className="text-xs font-medium text-slate-500 dark:text-slate-400 mt-0.5 truncate">
-            {label}
-          </div>
+    <div className="kpi-card" style={{ ["--sc" as any]: color, animationDelay: `${index * 40}ms` }}>
+      <span className="kpi-card__halo" />
+      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+        <span className="kpi-card__icon">{icon}</span>
+        <div style={{ minWidth: 0 }}>
+          <div className="metric kpi-card__value">{valor}</div>
+          <div className="kpi-card__label">{label}</div>
         </div>
       </div>
     </div>
@@ -48,7 +42,7 @@ export default function FrotaDashboardPage() {
   const [veiculos, setVeiculos] = useState<any[]>([]);
   const [centros, setCentros] = useState<any[]>([]);
   const [motoristas, setMotoristas] = useState<any[]>([]);
-  const [f, setF] = useState<any>({ from: "", to: "", unidade: "", centroCustoId: "", tipo: "", veiculoId: "", motoristaId: "" });
+  const [f, setF] = useState<any>({ from: "", to: "", unidade: "", centroCusto: "", tipo: "", veiculoId: "", motoristaId: "" });
   const [showFilters, setShowFilters] = useState(false);
 
   const setFilter = (k: string, v: string) => setF((p: any) => ({ ...p, [k]: v }));
@@ -80,74 +74,69 @@ export default function FrotaDashboardPage() {
         <div style={{ maxWidth: 1400, margin: "0 auto", padding: "20px 24px 60px" }}>
 
           {/* Header Row */}
-          <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", marginBottom: 24 }}>
-            <div style={{ width: 44, height: 44, borderRadius: 12, background: "var(--accent-violet)", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 6px 16px -6px rgba(109,40,217,0.6)", flexShrink: 0 }}>
-              <Truck size={22} color="#fff" />
-            </div>
-            <div style={{ flex: 1 }}>
-              <h1 style={{ fontSize: 22, fontWeight: 800, margin: 0, letterSpacing: "-0.02em" }}>Dashboard de Frota</h1>
-              <p style={{ color: "var(--text-muted)", margin: "2px 0 0", fontSize: 13 }}>Visão geral e custos da frota de veículos</p>
+          <header className="page-head">
+            <div className="page-head__icon"><Truck size={22} /></div>
+            <div style={{ flex: 1, minWidth: 180 }}>
+              <h1 className="page-head__title">Dashboard de Frota</h1>
+              <p className="page-head__sub">Visão geral e custos da frota de veículos</p>
             </div>
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
               <button onClick={() => setShowFilters(s => !s)} className={`btn ${showFilters ? 'btn-violet' : 'btn-ghost'}`} style={{ fontSize: 12, gap: 6 }}>
                 <Filter size={14} /> Filtros
               </button>
-              <button onClick={load} className="btn btn-ghost" style={{ fontSize: 12 }}><RefreshCw size={14} /></button>
+              <button onClick={load} className="btn btn-ghost" style={{ fontSize: 12 }} title="Recarregar"><RefreshCw size={14} className={loading ? "animate-spin" : ""} /></button>
               <Link href="/dashboard/frota/relatorios" className="btn btn-violet" style={{ fontSize: 12, textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 6 }}>
                 Central de Relatórios <ChevronRight size={14} />
               </Link>
             </div>
-          </div>
+          </header>
 
           {/* Filters Area */}
           {showFilters && (
-            <div className="bg-white dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-4 mb-6">
+            <div className="surface-card rounded-2xl border border-subtle-o shadow-sm p-4 mb-6">
               <div className="flex items-center justify-between mb-4">
-                <span className="text-sm font-semibold text-slate-800 dark:text-slate-200">Filtros do Dashboard</span>
-                <button onClick={() => setF({ from: "", to: "", unidade: "", centroCustoId: "", tipo: "", veiculoId: "", motoristaId: "" })} className="text-xs text-red-500 hover:text-red-600 transition-colors flex items-center gap-1">
+                <span className="text-sm font-semibold text-primary-o">Filtros do Dashboard</span>
+                <button onClick={() => setF({ from: "", to: "", unidade: "", centroCusto: "", tipo: "", veiculoId: "", motoristaId: "" })} className="text-xs text-red-500 hover:text-red-600 transition-colors flex items-center gap-1">
                   <X size={12} /> Limpar
                 </button>
               </div>
               <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
                 <div>
-                  <label className="text-[11px] font-medium text-slate-500 mb-1.5 block">Início</label>
-                  <input type="date" value={f.from} onChange={e => setFilter("from", e.target.value)} className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl text-xs px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500/50" />
+                  <label className="text-[11px] font-medium text-muted-o mb-1.5 block">Início</label>
+                  <input type="date" value={f.from} onChange={e => setFilter("from", e.target.value)} className="w-full surface-sunken border-none rounded-xl text-xs px-3 py-2 outline-none focus-accent" />
                 </div>
                 <div>
-                  <label className="text-[11px] font-medium text-slate-500 mb-1.5 block">Fim</label>
-                  <input type="date" value={f.to} onChange={e => setFilter("to", e.target.value)} className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl text-xs px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500/50" />
+                  <label className="text-[11px] font-medium text-muted-o mb-1.5 block">Fim</label>
+                  <input type="date" value={f.to} onChange={e => setFilter("to", e.target.value)} className="w-full surface-sunken border-none rounded-xl text-xs px-3 py-2 outline-none focus-accent" />
                 </div>
                 <div>
-                  <label className="text-[11px] font-medium text-slate-500 mb-1.5 block">Unidade</label>
-                  <select value={f.unidade} onChange={e => setFilter("unidade", e.target.value)} className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl text-xs px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500/50">
+                  <label className="text-[11px] font-medium text-muted-o mb-1.5 block">Unidade</label>
+                  <select value={f.unidade} onChange={e => setFilter("unidade", e.target.value)} className="w-full surface-sunken border-none rounded-xl text-xs px-3 py-2 outline-none focus-accent">
                     <option value="">Todas</option>
                     {unidades.map(u => <option key={String(u)} value={String(u)}>{String(u)}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="text-[11px] font-medium text-slate-500 mb-1.5 block">Centro de Custo</label>
-                  <select value={f.centroCustoId} onChange={e => setFilter("centroCustoId", e.target.value)} className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl text-xs px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500/50">
-                    <option value="">Todos</option>
-                    {centros.map((x: any) => <option key={x.id} value={x.id}>{x.nome}</option>)}
-                  </select>
+                  <span className="text-[10px] font-semibold text-muted-o uppercase tracking-wider mb-1 block">Centro de Custo</span>
+                  <input type="text" value={f.centroCusto} onChange={e => setFilter("centroCusto", e.target.value)} placeholder="Ex: CC-01" className="w-full surface-sunken border-none rounded-xl text-xs px-3 py-2 outline-none focus-accent" />
                 </div>
                 <div>
-                  <label className="text-[11px] font-medium text-slate-500 mb-1.5 block">Tipo Veículo</label>
-                  <select value={f.tipo} onChange={e => setFilter("tipo", e.target.value)} className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl text-xs px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500/50">
+                  <label className="text-[11px] font-medium text-muted-o mb-1.5 block">Tipo Veículo</label>
+                  <select value={f.tipo} onChange={e => setFilter("tipo", e.target.value)} className="w-full surface-sunken border-none rounded-xl text-xs px-3 py-2 outline-none focus-accent">
                     <option value="">Todos</option>
                     {TIPO_OPTS.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="text-[11px] font-medium text-slate-500 mb-1.5 block">Veículo</label>
-                  <select value={f.veiculoId} onChange={e => setFilter("veiculoId", e.target.value)} className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl text-xs px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500/50">
+                  <label className="text-[11px] font-medium text-muted-o mb-1.5 block">Veículo</label>
+                  <select value={f.veiculoId} onChange={e => setFilter("veiculoId", e.target.value)} className="w-full surface-sunken border-none rounded-xl text-xs px-3 py-2 outline-none focus-accent">
                     <option value="">Todos</option>
                     {veiculos.map((v: any) => <option key={v.id} value={v.id}>{v.placa}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="text-[11px] font-medium text-slate-500 mb-1.5 block">Motorista</label>
-                  <select value={f.motoristaId} onChange={e => setFilter("motoristaId", e.target.value)} className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl text-xs px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500/50">
+                  <label className="text-[11px] font-medium text-muted-o mb-1.5 block">Motorista</label>
+                  <select value={f.motoristaId} onChange={e => setFilter("motoristaId", e.target.value)} className="w-full surface-sunken border-none rounded-xl text-xs px-3 py-2 outline-none focus-accent">
                     <option value="">Todos</option>
                     {motoristas.map((m: any) => <option key={m.id} value={m.id}>{m.nome}</option>)}
                   </select>
@@ -160,22 +149,22 @@ export default function FrotaDashboardPage() {
             <>
               {/* KPIs Grid */}
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-6">
-                <KpiCard label="Total de Veículos" valor={k.totalVeiculos.toString()} icon={<Truck size={18} />} colorClass="bg-red-500" textClass="text-red-600 dark:text-red-400" ringClass="ring-red-500" />
-                <KpiCard label="Veículos Ativos" valor={k.ativos.toString()} icon={<CheckCircle2 size={18} />} colorClass="bg-emerald-500" textClass="text-emerald-600 dark:text-emerald-400" ringClass="ring-emerald-500" />
-                <KpiCard label="Em Manutenção" valor={k.emManutencao.toString()} icon={<Wrench size={18} />} colorClass="bg-amber-500" textClass="text-amber-600 dark:text-amber-400" ringClass="ring-amber-500" />
-                <KpiCard label="Próximas Revisões" valor={k.proximasRevisoes.toString()} icon={<CalendarDays size={18} />} colorClass="bg-cyan-500" textClass="text-cyan-600 dark:text-cyan-400" ringClass="ring-cyan-500" />
-                <KpiCard label="CNHs a Vencer" valor={k.cnhVencer.toString()} icon={<CreditCard size={18} />} colorClass="bg-orange-500" textClass="text-orange-600 dark:text-orange-400" ringClass="ring-orange-500" />
-                <KpiCard label="Pneus em Estoque" valor={k.pneusEstoque.toString()} icon={<Package size={18} />} colorClass="bg-violet-500" textClass="text-violet-600 dark:text-violet-400" ringClass="ring-violet-500" />
-                <KpiCard label="Pneus em Uso" valor={k.pneusUso.toString()} icon={<Activity size={18} />} colorClass="bg-teal-500" textClass="text-teal-600 dark:text-teal-400" ringClass="ring-teal-500" />
-                <KpiCard label="Custos do Mês" valor={R(k.custoMes)} icon={<DollarSign size={18} />} colorClass="bg-emerald-500" textClass="text-emerald-600 dark:text-emerald-400" ringClass="ring-emerald-500" />
-                <KpiCard label="Custo por Veículo" valor={R(k.custoPorVeiculo)} icon={<BarChart2 size={18} />} colorClass="bg-amber-500" textClass="text-amber-600 dark:text-amber-400" ringClass="ring-amber-500" />
-                <KpiCard label="Disponibilidade" valor={`${k.disponibilidade}%`} icon={<TrendingUp size={18} />} colorClass={k.disponibilidade >= 70 ? "bg-emerald-500" : "bg-red-500"} textClass={k.disponibilidade >= 70 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"} ringClass={k.disponibilidade >= 70 ? "ring-emerald-500" : "ring-red-500"} />
+                <KpiCard index={0} label="Total de Veículos" valor={k.totalVeiculos.toLocaleString("pt-BR")} icon={<Truck size={18} />} color="var(--accent-red)" />
+                <KpiCard index={1} label="Veículos Ativos" valor={k.ativos.toLocaleString("pt-BR")} icon={<CheckCircle2 size={18} />} color="var(--accent-green)" />
+                <KpiCard index={2} label="Em Manutenção" valor={k.emManutencao.toLocaleString("pt-BR")} icon={<Wrench size={18} />} color="var(--accent-amber)" />
+                <KpiCard index={3} label="Próximas Revisões" valor={k.proximasRevisoes.toLocaleString("pt-BR")} icon={<CalendarDays size={18} />} color="var(--accent-cyan)" />
+                <KpiCard index={4} label="CNHs a Vencer" valor={k.cnhVencer.toLocaleString("pt-BR")} icon={<CreditCard size={18} />} color="#f97316" />
+                <KpiCard index={5} label="Pneus em Estoque" valor={k.pneusEstoque.toLocaleString("pt-BR")} icon={<Package size={18} />} color="#8b5cf6" />
+                <KpiCard index={6} label="Pneus em Uso" valor={k.pneusUso.toLocaleString("pt-BR")} icon={<Activity size={18} />} color="#0d9488" />
+                <KpiCard index={7} label="Custos do Mês" valor={R(k.custoMes)} icon={<DollarSign size={18} />} color="var(--accent-green)" />
+                <KpiCard index={8} label="Custo por Veículo" valor={R(k.custoPorVeiculo)} icon={<BarChart2 size={18} />} color="var(--accent-amber)" />
+                <KpiCard index={9} label="Disponibilidade" valor={`${k.disponibilidade}%`} icon={<TrendingUp size={18} />} color={k.disponibilidade >= 70 ? "var(--accent-green)" : "var(--accent-red)"} />
               </div>
 
               {/* Charts row 1 */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
-                <div className="bg-white dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-4 relative transition-all duration-300 hover:scale-105 hover:-translate-y-1 hover:shadow-2xl hover:z-10">
-                  <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200 mb-3">Custos Mensais</h3>
+                <div className="surface-card rounded-2xl border border-subtle-o shadow-sm p-4 relative transition-all duration-300 hover:scale-105 hover:-translate-y-1 hover:shadow-2xl hover:z-10">
+                  <h3 className="text-sm font-bold text-primary-o mb-3">Custos Mensais</h3>
                   <div className="w-full h-[220px]">
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart data={c.custosMensais || []}>
@@ -193,8 +182,8 @@ export default function FrotaDashboardPage() {
                   </div>
                 </div>
 
-                <div className="bg-white dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-4 relative transition-all duration-300 hover:scale-105 hover:-translate-y-1 hover:shadow-2xl hover:z-10">
-                  <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200 mb-3">Custos por Veículo (top 10)</h3>
+                <div className="surface-card rounded-2xl border border-subtle-o shadow-sm p-4 relative transition-all duration-300 hover:scale-105 hover:-translate-y-1 hover:shadow-2xl hover:z-10">
+                  <h3 className="text-sm font-bold text-primary-o mb-3">Custos por Veículo (top 10)</h3>
                   <div className="w-full h-[220px]">
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart data={c.custosPorVeiculo || []} layout="vertical">
@@ -211,8 +200,8 @@ export default function FrotaDashboardPage() {
 
               {/* Charts row 2 */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
-                <div className="bg-white dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-4 relative transition-all duration-300 hover:scale-105 hover:-translate-y-1 hover:shadow-2xl hover:z-10">
-                  <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200 mb-3">Custos por Unidade</h3>
+                <div className="surface-card rounded-2xl border border-subtle-o shadow-sm p-4 relative transition-all duration-300 hover:scale-105 hover:-translate-y-1 hover:shadow-2xl hover:z-10">
+                  <h3 className="text-sm font-bold text-primary-o mb-3">Custos por Unidade</h3>
                   <div className="w-full h-[220px]">
                     <ResponsiveContainer width="100%" height="100%">
                       <PieChart>
@@ -225,8 +214,8 @@ export default function FrotaDashboardPage() {
                   </div>
                 </div>
 
-                <div className="bg-white dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-4 relative transition-all duration-300 hover:scale-105 hover:-translate-y-1 hover:shadow-2xl hover:z-10">
-                  <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200 mb-3">Consumo de Combustível</h3>
+                <div className="surface-card rounded-2xl border border-subtle-o shadow-sm p-4 relative transition-all duration-300 hover:scale-105 hover:-translate-y-1 hover:shadow-2xl hover:z-10">
+                  <h3 className="text-sm font-bold text-primary-o mb-3">Consumo de Combustível</h3>
                   <div className="w-full h-[220px]">
                     <ResponsiveContainer width="100%" height="100%">
                       <ComposedChart data={c.consumo || []}>
@@ -246,8 +235,8 @@ export default function FrotaDashboardPage() {
 
               {/* Charts row 3 */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="bg-white dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-4 relative transition-all duration-300 hover:scale-[1.15] hover:-translate-y-2 hover:shadow-2xl hover:z-20">
-                  <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200 mb-3">Manutenções (status)</h3>
+                <div className="surface-card rounded-2xl border border-subtle-o shadow-sm p-4 relative transition-all duration-300 hover:scale-[1.15] hover:-translate-y-2 hover:shadow-2xl hover:z-20">
+                  <h3 className="text-sm font-bold text-primary-o mb-3">Manutenções (status)</h3>
                   <div className="w-full h-[180px]">
                     <ResponsiveContainer width="100%" height="100%">
                       <PieChart>
@@ -260,8 +249,8 @@ export default function FrotaDashboardPage() {
                   </div>
                 </div>
 
-                <div className="bg-white dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-4 relative transition-all duration-300 hover:scale-[1.15] hover:-translate-y-2 hover:shadow-2xl hover:z-20">
-                  <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200 mb-3">Revisões (status)</h3>
+                <div className="surface-card rounded-2xl border border-subtle-o shadow-sm p-4 relative transition-all duration-300 hover:scale-[1.15] hover:-translate-y-2 hover:shadow-2xl hover:z-20">
+                  <h3 className="text-sm font-bold text-primary-o mb-3">Revisões (status)</h3>
                   <div className="w-full h-[180px]">
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart data={(c.revisoes || []).map((x: any) => ({ ...x, label: REV_LABEL[x.status] || x.status }))}>
@@ -275,8 +264,8 @@ export default function FrotaDashboardPage() {
                   </div>
                 </div>
 
-                <div className="bg-white dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-4 relative transition-all duration-300 hover:scale-[1.15] hover:-translate-y-2 hover:shadow-2xl hover:z-20">
-                  <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200 mb-3">Trocas de Pneus</h3>
+                <div className="surface-card rounded-2xl border border-subtle-o shadow-sm p-4 relative transition-all duration-300 hover:scale-[1.15] hover:-translate-y-2 hover:shadow-2xl hover:z-20">
+                  <h3 className="text-sm font-bold text-primary-o mb-3">Trocas de Pneus</h3>
                   <div className="w-full h-[180px]">
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart data={(c.trocasPneus || []).map((x: any) => ({ ...x, label: PNEU_LABEL[x.tipo] || x.tipo }))}>
@@ -290,8 +279,8 @@ export default function FrotaDashboardPage() {
                   </div>
                 </div>
 
-                <div className="bg-white dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-4 relative transition-all duration-300 hover:scale-[1.15] hover:-translate-y-2 hover:shadow-2xl hover:z-20">
-                  <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200 mb-3">Vencimentos (Docs)</h3>
+                <div className="surface-card rounded-2xl border border-subtle-o shadow-sm p-4 relative transition-all duration-300 hover:scale-[1.15] hover:-translate-y-2 hover:shadow-2xl hover:z-20">
+                  <h3 className="text-sm font-bold text-primary-o mb-3">Vencimentos (Docs)</h3>
                   <div className="w-full h-[180px]">
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart data={c.vencimentos || []}>
@@ -319,7 +308,7 @@ function LoadingSkeleton() {
   return (
     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
       {[...Array(10)].map((_, i) => (
-        <div key={i} className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 h-[88px] animate-pulse" />
+        <div key={i} className="rounded-2xl border border-subtle-o surface-sunken h-[88px] animate-pulse" />
       ))}
     </div>
   );

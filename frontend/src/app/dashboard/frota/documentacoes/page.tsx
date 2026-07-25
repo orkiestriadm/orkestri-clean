@@ -7,6 +7,10 @@ import Topbar from "@/components/layout/Topbar";
 import { useAuthStore } from "@/lib/store";
 import { api } from "@/lib/api";
 import { FormModal, HistoricoDrawer, CrudConfig, Badge, fmtDate, fmtMoney, Option, Lookups, SourceKey } from "../_components/crud";
+import {
+  PageBody, BackLink, PageHeader, StatGrid, StatCard,
+  Toolbar, SearchInput, SelectFilter, TableCard, RowActions, RowAction, EmptyState, LoadingRows,
+} from "../_components/ui";
 import { Plus, Pencil, Trash2, Eye, Search, Download, Filter, ChevronLeft, FileText, CheckCircle2, History, X } from "lucide-react";
 
 const STATUS: Record<string, string> = { vigente: "var(--accent-green)", vencido: "var(--accent-red)", cancelado: "var(--text-muted)" };
@@ -77,39 +81,18 @@ const config: CrudConfig = {
   ],
 };
 
-function ModernFilterCard({ label, value, colorClass, textClass, ringClass, active, onClick }: { label: string; value: number; colorClass: string; textClass: string; ringClass: string; active: boolean; onClick: () => void }) {
-  return (
-    <button 
-      onClick={onClick}
-      className={`flex-1 min-w-[100px] rounded-2xl border transition-all relative overflow-hidden group text-left p-3.5
-        ${active ? `ring-2 ring-offset-2 dark:ring-offset-slate-950 border-transparent shadow-md ${ringClass}` : 'border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md'} 
-        bg-white dark:bg-slate-950`}
-    >
-      <div className={`absolute -right-4 -top-4 w-16 h-16 rounded-full opacity-10 group-hover:opacity-20 transition-opacity blur-xl ${colorClass}`} />
-      
-      {active && <CheckCircle2 className={`absolute top-3 right-3 w-4 h-4 ${textClass} opacity-80`} />}
 
-      <div className={`text-2xl font-black tracking-tight mb-0.5 ${active ? textClass : 'text-slate-900 dark:text-white'}`}>
-        {value}
-      </div>
-      <div className="text-[10px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400">
-        {label}
-      </div>
-    </button>
-  );
-}
 
 const SOURCE_EP: Record<SourceKey, string> = {
   veiculos:     "/frota/veiculos",
   motoristas:   "/frota/motoristas",
   categorias:   "/frota/categorias",
   setores:      "/setores",
-  users:        "/users",
-  centrosCusto: "/orcamento/centros-custo",
+  users:        "/users/picklist",
+
 };
 function sourceLabel(key: SourceKey, row: any): string {
   if (key === "veiculos")     return `${row.placa || row.codigo}${row.modelo ? " — " + row.modelo : ""}${row.descricao ? " · " + String(row.descricao).slice(0, 30) : ""}`;
-  if (key === "centrosCusto") return `${row.codigo ? row.codigo + " — " : ""}${row.nome}`;
   return row.nome || row.placa || row.id;
 }
 
@@ -126,8 +109,7 @@ export default function DocumentacoesPage() {
   const [creating, setCreating] = useState(false);
   const [histId, setHistId] = useState<string | null>(null);
   const [msg, setMsg] = useState("");
-  const [showFilters, setShowFilters] = useState(false);
-  const [lookups, setLookups] = useState<Lookups>({ veiculos: [], motoristas: [], categorias: [], setores: [], users: [], centrosCusto: [] });
+  const [lookups, setLookups] = useState<Lookups>({ veiculos: [], motoristas: [], categorias: [], setores: [], users: [] });
   
   const canCreate = hasPerms(user, "frota:criar");
   const canEdit = hasPerms(user, "frota:editar");
@@ -138,7 +120,7 @@ export default function DocumentacoesPage() {
     const used = new Set<SourceKey>();
     config.fields.forEach(f => f.source && used.add(f.source));
     used.forEach((key) => {
-      api.get(SOURCE_EP[key], { params: { limit: 200 } })
+      api.get(SOURCE_EP[key], { params: { limit: 200 }, silent: true })
         .then(r => {
           const rows = r.data?.items ?? r.data?.users ?? r.data ?? [];
           setLookups(prev => ({ ...prev, [key]: rows.map((row: any) => ({ value: row.id, label: sourceLabel(key, row) })) }));
@@ -170,6 +152,17 @@ export default function DocumentacoesPage() {
     if (!vencFilter) return true;
     return getVencimentoGroup(m.dataVencimento) === vencFilter;
   });
+
+  const counts = {
+    vencido: items.filter(m => getVencimentoGroup(m.dataVencimento) === "vencido").length,
+    vence7: items.filter(m => getVencimentoGroup(m.dataVencimento) === "vence7").length,
+    vence15: items.filter(m => getVencimentoGroup(m.dataVencimento) === "vence15").length,
+    vence30: items.filter(m => getVencimentoGroup(m.dataVencimento) === "vence30").length,
+    vence60: items.filter(m => getVencimentoGroup(m.dataVencimento) === "vence60").length,
+    vence90: items.filter(m => getVencimentoGroup(m.dataVencimento) === "vence90").length,
+    vigentes: items.filter(m => getVencimentoGroup(m.dataVencimento) === "vigentes").length,
+    semData: items.filter(m => getVencimentoGroup(m.dataVencimento) === "semData").length,
+  };
 
   const exportCSV = () => {
     if (!filteredItems.length) return;
@@ -206,28 +199,14 @@ export default function DocumentacoesPage() {
       </Topbar>
 
       <main className="flex-1 overflow-y-auto page-content">
-        <div style={{ maxWidth: 1400, margin: "0 auto", padding: "20px 24px 60px" }}>
-          
-          {/* Back link */}
-          <Link href="/dashboard/frota" className="flex items-center gap-1 text-[11px] font-medium text-slate-500 hover:text-slate-900 dark:hover:text-white mb-4 transition-colors">
-            <ChevronLeft size={14} /> Voltar para o Dashboard de Frota
-          </Link>
+        <PageBody>
+          <BackLink href="/dashboard/frota" label="Voltar para o Dashboard de Frota" />
 
-          {/* Header Row */}
-          <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", marginBottom: 24 }}>
-            <div style={{ width: 44, height: 44, borderRadius: 12, background: "var(--accent-violet)", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 6px 16px -6px rgba(99,102,241,0.6)", flexShrink: 0 }}>
-              <FileText size={22} color="#fff" />
-            </div>
-            <div style={{ flex: 1 }}>
-              <h1 style={{ fontSize: 22, fontWeight: 800, margin: 0, letterSpacing: "-0.02em" }}>Documentações</h1>
-              <p style={{ color: "var(--text-muted)", margin: "2px 0 0", fontSize: 13 }}>
-                {filteredItems.length} documento(s) encontrado(s)
-              </p>
-            </div>
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              <button onClick={() => setShowFilters(s => !s)} className={`btn ${showFilters ? 'btn-violet' : 'btn-ghost'}`} style={{ fontSize: 12, gap: 6 }}>
-                <Filter size={14} /> Filtros
-              </button>
+          <PageHeader
+            icon={<FileText size={22} />}
+            title="Documentações"
+            subtitle={<><span className="num">{filteredItems.length}</span> de <span className="num">{items.length}</span> documento(s)</>}
+            actions={<>
               <button onClick={exportCSV} className="btn btn-ghost" style={{ fontSize: 12, gap: 6 }}>
                 <Download size={14} /> Exportar CSV
               </button>
@@ -236,121 +215,94 @@ export default function DocumentacoesPage() {
                   <Plus size={14} /> Novo documento
                 </button>
               )}
-            </div>
-          </div>
+            </>}
+          />
 
-          {/* Dashboard stats */}
-          {dash && (
-            <div className="mb-8">
-              <div className="text-[11px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-3 flex items-center justify-between">
-                <span>Dashboard de Vencimentos</span>
-                {vencFilter && (
-                  <button onClick={() => setVencFilter(null)} className="flex items-center gap-1 text-red-500 hover:text-red-600 transition-colors">
-                    <X size={12} /> Limpar filtro de vencimento
-                  </button>
-                )}
-              </div>
-              <div className="flex gap-3 flex-wrap">
-                <ModernFilterCard label="Vencidos" value={dash.vencido} 
-                  colorClass="bg-red-500" textClass="text-red-600 dark:text-red-400" ringClass="ring-red-500"
-                  active={vencFilter === "vencido"} onClick={() => toggleVencFilter("vencido")} />
-                <ModernFilterCard label="≤ 7 dias" value={dash.vence7} 
-                  colorClass="bg-red-500" textClass="text-red-600 dark:text-red-400" ringClass="ring-red-500"
-                  active={vencFilter === "vence7"} onClick={() => toggleVencFilter("vence7")} />
-                <ModernFilterCard label="≤ 15 dias" value={dash.vence15} 
-                  colorClass="bg-orange-500" textClass="text-orange-600 dark:text-orange-400" ringClass="ring-orange-500"
-                  active={vencFilter === "vence15"} onClick={() => toggleVencFilter("vence15")} />
-                <ModernFilterCard label="≤ 30 dias" value={dash.vence30} 
-                  colorClass="bg-amber-500" textClass="text-amber-600 dark:text-amber-400" ringClass="ring-amber-500"
-                  active={vencFilter === "vence30"} onClick={() => toggleVencFilter("vence30")} />
-                <ModernFilterCard label="≤ 60 dias" value={dash.vence60} 
-                  colorClass="bg-yellow-500" textClass="text-yellow-600 dark:text-yellow-400" ringClass="ring-yellow-500"
-                  active={vencFilter === "vence60"} onClick={() => toggleVencFilter("vence60")} />
-                <ModernFilterCard label="≤ 90 dias" value={dash.vence90} 
-                  colorClass="bg-yellow-500" textClass="text-yellow-600 dark:text-yellow-400" ringClass="ring-yellow-500"
-                  active={vencFilter === "vence90"} onClick={() => toggleVencFilter("vence90")} />
-                <ModernFilterCard label="Vigentes" value={dash.vigentes} 
-                  colorClass="bg-emerald-500" textClass="text-emerald-600 dark:text-emerald-400" ringClass="ring-emerald-500"
-                  active={vencFilter === "vigentes"} onClick={() => toggleVencFilter("vigentes")} />
-                <ModernFilterCard label="Sem data" value={dash.semData} 
-                  colorClass="bg-slate-400" textClass="text-slate-600 dark:text-slate-400" ringClass="ring-slate-400"
-                  active={vencFilter === "semData"} onClick={() => toggleVencFilter("semData")} />
-              </div>
-            </div>
-          )}
-
-          {/* Search + Filter Row */}
-          <div className="bg-white dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-3 mb-5 flex flex-wrap gap-3 items-center">
-            <div className="flex-1 min-w-[260px] relative">
-              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-              <input 
-                className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl text-sm pl-9 pr-3 py-2.5 focus:ring-2 focus:ring-indigo-500/50 outline-none transition-all" 
-                placeholder="Pesquisar por documento ou veículo..." 
-                value={q} 
-                onChange={e => setQ(e.target.value)} 
+          <StatGrid min={144}>
+            {[
+              { key: "vencido", label: "Vencidos", color: "var(--accent-red)", critical: true },
+              { key: "vence7", label: "≤ 7 dias", color: "#ef4444" },
+              { key: "vence15", label: "≤ 15 dias", color: "#f97316" },
+              { key: "vence30", label: "≤ 30 dias", color: "var(--accent-amber)" },
+              { key: "vence60", label: "≤ 60 dias", color: "#ca8a04" },
+              { key: "vence90", label: "≤ 90 dias", color: "#a16207" },
+              { key: "vigentes", label: "Vigentes", color: "var(--accent-green)" },
+              { key: "semData", label: "Sem data", color: "var(--text-muted)" },
+            ].map((f, i) => (
+              <StatCard
+                key={f.key}
+                index={i}
+                label={f.label}
+                value={counts[f.key as keyof typeof counts] || 0}
+                color={f.color}
+                total={items.length}
+                critical={f.critical}
+                active={vencFilter === f.key}
+                onClick={() => setVencFilter(vencFilter === f.key ? null : f.key)}
               />
-            </div>
-            {showFilters && (
-              <>
-                <select 
-                  className="bg-slate-50 dark:bg-slate-900 border-none rounded-xl text-sm px-3 py-2.5 min-w-[160px] focus:ring-2 focus:ring-indigo-500/50 outline-none transition-all" 
-                  value={filterVals["tipo"] || ""} 
-                  onChange={e => setFilterVals(v => ({ ...v, tipo: e.target.value }))}
-                >
-                  <option value="">Tipo: todos</option>
-                  {TIPO_OPTS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
-                </select>
-                <select 
-                  className="bg-slate-50 dark:bg-slate-900 border-none rounded-xl text-sm px-3 py-2.5 min-w-[160px] focus:ring-2 focus:ring-indigo-500/50 outline-none transition-all" 
-                  value={filterVals["status"] || ""} 
-                  onChange={e => setFilterVals(v => ({ ...v, status: e.target.value }))}
-                >
-                  <option value="">Status: todos</option>
-                  {STATUS_OPTS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
-                </select>
-              </>
-            )}
-          </div>
+            ))}
+          </StatGrid>
 
-          {/* Table Card */}
-          <div className="bg-white dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm whitespace-nowrap">
-                <thead className="bg-slate-50 dark:bg-slate-900/50">
-                  <tr>
-                    {config.columns.map((c) => (
-                      <th key={c.key} className={`px-4 py-3.5 font-semibold text-xs uppercase tracking-wider text-slate-500 dark:text-slate-400 ${c.align === 'right' ? 'text-right' : ''}`}>
-                        {c.label}
-                      </th>
-                    ))}
-                    <th className="w-1"></th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
-                  {loading && <tr><td colSpan={config.columns.length + 1} className="px-4 py-8 text-center text-slate-500">Carregando...</td></tr>}
-                  {!loading && filteredItems.length === 0 && <tr><td colSpan={config.columns.length + 1} className="px-4 py-8 text-center text-slate-500">Nenhum documento encontrado.</td></tr>}
-                  {!loading && filteredItems.map(row => (
-                    <tr key={row.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-900/50 transition-colors">
-                      {config.columns.map(c => (
-                        <td key={c.key} className={`px-4 py-3 ${c.align === 'right' ? 'text-right' : ''}`}>
-                          {c.render ? c.render(row, lookups) : (row[c.key] ?? "—")}
-                        </td>
-                      ))}
-                      <td className="px-4 py-3 text-right">
-                        <div className="flex gap-1 justify-end">
-                          {config.detailHref && <button className="p-1.5 text-slate-400 hover:text-indigo-600 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition-colors" title="Detalhe" onClick={() => router.push(config.detailHref!(row))}><Eye size={16} /></button>}
-                          <button className="p-1.5 text-slate-400 hover:text-indigo-600 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition-colors" title="Histórico" onClick={() => setHistId(row.id)}><History size={16} /></button>
-                          {canEdit && <button className="p-1.5 text-slate-400 hover:text-emerald-600 rounded-lg hover:bg-emerald-50 dark:hover:bg-emerald-900/30 transition-colors" title="Editar" onClick={() => setEditing(row)}><Pencil size={16} /></button>}
-                          {canDelete && <button className="p-1.5 text-slate-400 hover:text-red-600 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors" title="Excluir" onClick={() => remove(row)}><Trash2 size={16} /></button>}
-                        </div>
-                      </td>
-                    </tr>
+          <Toolbar>
+            <SearchInput value={q} onChange={setQ} placeholder="Pesquisar por documento ou veículo..." />
+            <SelectFilter
+              value={filterVals["tipo"] || ""}
+              onChange={v => setFilterVals(prev => ({ ...prev, tipo: v }))}
+              options={TIPO_OPTS}
+              placeholder="Tipo: todos"
+            />
+            <SelectFilter
+              value={filterVals["status"] || ""}
+              onChange={v => setFilterVals(prev => ({ ...prev, status: v }))}
+              options={STATUS_OPTS}
+              placeholder="Status: todos"
+            />
+            {(q || Object.keys(filterVals).length > 0 || vencFilter) && (
+              <button className="btn btn-ghost" style={{ fontSize: 11 }} onClick={() => { setQ(""); setFilterVals({}); setVencFilter(null); }}>
+                Limpar filtros
+              </button>
+            )}
+          </Toolbar>
+
+          <TableCard>
+            <thead>
+              <tr>
+                {config.columns.map(c => (
+                  <th key={c.key} style={c.align === "right" ? { textAlign: "right" } : undefined}>{c.label}</th>
+                ))}
+                <th style={{ textAlign: "right" }}>Ações</th>
+              </tr>
+            </thead>
+            <tbody className="stagger">
+              {loading && <LoadingRows colSpan={config.columns.length + 1} />}
+              {!loading && filteredItems.length === 0 && (
+                <EmptyState
+                  colSpan={config.columns.length + 1}
+                  icon={<FileText size={20} />}
+                  title="Nenhum documento encontrado"
+                  hint={q || vencFilter || Object.keys(filterVals).length ? "Ajuste a busca ou remova os filtros ativos." : "Cadastre CRLV, seguro, IPVA ou licenciamento para acompanhar os vencimentos."}
+                />
+              )}
+              {!loading && filteredItems.map(row => (
+                <tr key={row.id}>
+                  {config.columns.map(c => (
+                    <td key={c.key} style={c.align === "right" ? { textAlign: "right" } : undefined} className={c.align === "right" ? "num" : undefined}>
+                      {c.render ? c.render(row, lookups) : (row[c.key] ?? "—")}
+                    </td>
                   ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
+                  <td style={{ textAlign: "right" }}>
+                    <RowActions>
+                      {config.detailHref && <RowAction tone="view" title="Detalhe" onClick={() => router.push(config.detailHref!(row))}><Eye size={15} /></RowAction>}
+                      <RowAction tone="hist" title="Histórico" onClick={() => setHistId(row.id)}><History size={15} /></RowAction>
+                      {canEdit && <RowAction tone="edit" title="Editar" onClick={() => setEditing(row)}><Pencil size={15} /></RowAction>}
+                      {canDelete && <RowAction tone="danger" title="Excluir" onClick={() => remove(row)}><Trash2 size={15} /></RowAction>}
+                    </RowActions>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </TableCard>
+        </PageBody>
       </main>
 
       {(creating || editing) && (

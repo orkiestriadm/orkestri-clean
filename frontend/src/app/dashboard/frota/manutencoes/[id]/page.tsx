@@ -36,27 +36,41 @@ function MaoObraModal({ manutencaoId, onSaved, onClose }: { manutencaoId: string
     catch (e: any) { setErr(e?.response?.data?.message || "Erro"); setSaving(false); }
   };
   const L = ({ label, children }: { label: string; children: React.ReactNode }) => (
-    <div><label style={{ fontSize: 11, color: "var(--text-muted)", fontFamily: "var(--font-mono)", letterSpacing: "0.08em", display: "block", marginBottom: 6 }}>{label}</label>{children}</div>
+    <div className="mb-4"><label className="block text-[11px] font-semibold text-muted-o uppercase tracking-wider mb-1.5">{label}</label>{children}</div>
   );
 
   return (
-    <div className="modal-overlay" onClick={e => { if ((e.target as HTMLElement).classList.contains("modal-overlay")) onClose(); }}>
-      <div className="modal-box" style={{ maxWidth: 440, display: "flex", flexDirection: "column", gap: 14 }} onClick={e => e.stopPropagation()}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <h3 style={{ fontFamily: "var(--font-display)", fontSize: 16, fontWeight: 700 }}>Apontar mão de obra</h3>
-          <button className="btn-icon" onClick={onClose}><X size={16} /></button>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4 animate-in fade-in duration-200" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="surface-card w-full max-w-md rounded-2xl shadow-xl overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col">
+        <div className="flex items-center justify-between p-5 border-b border-subtle-o">
+          <h3 className="font-display text-lg font-bold text-primary-o">Apontar Mão de Obra</h3>
+          <button className="p-1.5 text-muted-o hover:text-secondary-o hover-surface rounded-lg transition-colors" onClick={onClose}><X size={18} /></button>
         </div>
-        {err && <div style={{ fontSize: 12, color: "var(--accent-red)" }}>{err}</div>}
-        <L label="DESCRIÇÃO *"><input className="input-o" value={d.descricao || ""} onChange={e => set("descricao", e.target.value)} placeholder="Ex: Troca de pastilhas" /></L>
-        <L label="RESPONSÁVEL / MECÂNICO"><input className="input-o" value={d.responsavel || ""} onChange={e => set("responsavel", e.target.value)} /></L>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
-          <L label="HORAS"><input className="input-o" type="number" step={0.5} value={d.horas ?? ""} onChange={e => set("horas", e.target.value === "" ? null : Number(e.target.value))} /></L>
-          <L label="R$/HORA"><input className="input-o" type="number" step={0.01} value={d.valorHora ?? ""} onChange={e => set("valorHora", e.target.value === "" ? null : Number(e.target.value))} /></L>
-          <L label="CUSTO"><input className="input-o" type="number" step={0.01} value={d.custo ?? (custoAuto ?? "")} onChange={e => set("custo", e.target.value === "" ? null : Number(e.target.value))} /></L>
+        
+        <div className="p-5 flex-1 overflow-y-auto">
+          {err && <div className="mb-4 p-3 bg-red-50 text-red-600 rounded-xl text-sm">{err}</div>}
+          <L label="DESCRIÇÃO *">
+            <input className="w-full surface-sunken border border-subtle-o rounded-xl px-4 py-2.5 text-sm focus-accent outline-none transition-all" value={d.descricao || ""} onChange={e => set("descricao", e.target.value)} placeholder="Ex: Troca de pastilhas" />
+          </L>
+          <L label="RESPONSÁVEL / MECÂNICO">
+            <input className="w-full surface-sunken border border-subtle-o rounded-xl px-4 py-2.5 text-sm focus-accent outline-none transition-all" value={d.responsavel || ""} onChange={e => set("responsavel", e.target.value)} placeholder="Nome do responsável" />
+          </L>
+          <div className="grid grid-cols-3 gap-4">
+            <L label="HORAS">
+              <input className="w-full surface-sunken border border-subtle-o rounded-xl px-4 py-2.5 text-sm focus-accent outline-none transition-all" type="number" step={0.5} value={d.horas ?? ""} onChange={e => set("horas", e.target.value === "" ? null : Number(e.target.value))} />
+            </L>
+            <L label="R$/HORA">
+              <input className="w-full surface-sunken border border-subtle-o rounded-xl px-4 py-2.5 text-sm focus-accent outline-none transition-all" type="number" step={0.01} value={d.valorHora ?? ""} onChange={e => set("valorHora", e.target.value === "" ? null : Number(e.target.value))} />
+            </L>
+            <L label="CUSTO">
+              <input className="w-full surface-sunken border border-subtle-o rounded-xl px-4 py-2.5 text-sm focus-accent outline-none transition-all font-semibold" type="number" step={0.01} value={d.custo ?? (custoAuto ?? "")} onChange={e => set("custo", e.target.value === "" ? null : Number(e.target.value))} />
+            </L>
+          </div>
         </div>
-        <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
-          <button className="btn btn-ghost" onClick={onClose}>Cancelar</button>
-          <button className="btn btn-violet" onClick={save} disabled={saving}>{saving ? "Salvando..." : "Adicionar"}</button>
+        
+        <div className="p-5 border-t border-subtle-o flex justify-end gap-3 surface-sunken/50 /20">
+          <button className="px-4 py-2 text-sm font-medium text-secondary-o  hover:text-primary-o surface-card border border-subtle-o  rounded-xl shadow-sm hover:surface-sunken  transition-all" onClick={onClose}>Cancelar</button>
+          <button className="px-5 py-2 text-sm font-medium text-white accent-solid rounded-xl shadow-sm shadow-none dark:shadow-none  transition-all" onClick={save} disabled={saving}>{saving ? "Salvando..." : "Adicionar Apontamento"}</button>
         </div>
       </div>
     </div>
@@ -77,26 +91,37 @@ function AnexoCat({ tipo, label, anexos, manutencaoId, canEdit, onChange }: { ti
   const remove = async (anexoId: string) => { if (!confirm("Remover anexo?")) return; try { await api.delete(`/frota/manutencoes/${manutencaoId}/anexos/${anexoId}`); onChange(); } catch {} };
 
   return (
-    <div className="card" style={{ padding: "14px 16px" }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-        <span style={{ fontSize: 12, fontWeight: 600 }}>{label}</span>
+    <div className="surface-card rounded-2xl border border-subtle-o shadow-sm p-5">
+      <div className="flex items-center justify-between mb-4">
+        <span className="text-sm font-semibold text-primary-o">{label}</span>
         {canEdit && (<>
-          <input ref={inputRef} type="file" accept="image/*,application/pdf" style={{ display: "none" }} onChange={e => e.target.files?.[0] && upload(e.target.files[0])} />
-          <button className="btn btn-ghost" style={{ fontSize: 11, padding: "5px 10px" }} disabled={busy} onClick={() => inputRef.current?.click()}><Plus size={12} /> {busy ? "Enviando..." : "Anexar"}</button>
+          <input ref={inputRef} type="file" accept="image/*,application/pdf" className="hidden" onChange={e => e.target.files?.[0] && upload(e.target.files[0])} />
+          <button className="flex items-center gap-1.5 text-xs font-medium accent-text   accent-soft    py-1.5 px-3 rounded-lg transition-colors" disabled={busy} onClick={() => inputRef.current?.click()}>
+            <Plus size={14} /> {busy ? "Enviando..." : "Anexar"}
+          </button>
         </>)}
       </div>
-      {itens.length === 0 && <div style={{ fontSize: 12, color: "var(--text-muted)" }}>Nenhum arquivo.</div>}
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+      {itens.length === 0 && <div className="text-sm text-muted-o py-6 text-center border-2 border-dashed border-subtle-o/60 rounded-xl">Nenhum arquivo.</div>}
+      <div className="grid grid-cols-2 gap-4">
         {itens.map(a => {
           const isImg = (a.mime || "").startsWith("image/");
+          const fileUrl = a.url || "";
           return (
-            <div key={a.id} style={{ width: 120, border: "1px solid var(--border-subtle)", borderRadius: 8, overflow: "hidden", position: "relative" }}>
-              <a href={a.url} target="_blank" rel="noreferrer" style={{ display: "block" }}>
-                {isImg ? <img src={a.url} alt={a.nomeOriginal} style={{ width: "100%", height: 80, objectFit: "cover" }} />
-                  : <div style={{ height: 80, display: "flex", alignItems: "center", justifyContent: "center", background: "var(--bg-hover)" }}><FileText size={28} style={{ color: "var(--text-muted)" }} /></div>}
+            <div key={a.id} className="relative group border border-subtle-o rounded-xl overflow-hidden surface-sunken hover:border-subtle-o transition-colors">
+              <a href={fileUrl} target="_blank" rel="noreferrer" download={a.nomeOriginal} className="block relative z-10">
+                <div className="block aspect-[4/3] overflow-hidden">
+                  {isImg ? <img src={fileUrl} alt={a.nomeOriginal} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
+                    : <div className="w-full h-full flex items-center justify-center surface-sunken"><FileText size={32} className="text-faint-o" /></div>}
+                </div>
+                <div className="p-2.5 surface-card border-t border-subtle-o">
+                  <div className="text-[10px] text-secondary-o font-medium truncate" title={a.nomeOriginal}>{a.nomeOriginal}</div>
+                </div>
               </a>
-              <div style={{ padding: "4px 6px", fontSize: 10, color: "var(--text-muted)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{a.nomeOriginal}</div>
-              {canEdit && <button className="btn-icon" style={{ position: "absolute", top: 2, right: 2, width: 22, height: 22, background: "rgba(0,0,0,0.4)", color: "#fff" }} onClick={() => remove(a.id)}><Trash2 size={11} /></button>}
+              {canEdit && (
+                <button className="absolute top-2 right-2 p-1.5 bg-black/60 hover:bg-red-600 text-white rounded-lg opacity-0 group-hover:opacity-100 transition-all shadow-sm backdrop-blur-sm z-20" onClick={(e) => { e.preventDefault(); e.stopPropagation(); remove(a.id); }}>
+                  <Trash2 size={12} />
+                </button>
+              )}
             </div>
           );
         })}
@@ -107,9 +132,11 @@ function AnexoCat({ tipo, label, anexos, manutencaoId, canEdit, onChange }: { ti
 
 function CustoCard({ label, value, color }: { label: string; value: number; color: string }) {
   return (
-    <div className="card" style={{ padding: "14px 16px", borderLeft: `3px solid ${color}`, minWidth: 130 }}>
-      <div style={{ fontSize: 10, color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>{label}</div>
-      <div style={{ fontSize: 18, fontWeight: 800, color }}>{fmtMoney(value)}</div>
+    <div className="surface-card rounded-2xl border border-subtle-o shadow-sm p-5 relative overflow-hidden group">
+      <div className="absolute left-0 top-0 bottom-0 w-1" style={{ backgroundColor: color }}></div>
+      <div className="text-[10px] uppercase tracking-wider text-muted-o font-semibold mb-2">{label}</div>
+      <div className="metric text-[19px]" style={{ color }}>{fmtMoney(value)}</div>
+      <div className="absolute -right-4 -bottom-4 w-16 h-16 rounded-full opacity-10 group-hover:scale-150 transition-transform duration-700" style={{ backgroundColor: color }}></div>
     </div>
   );
 }
@@ -134,8 +161,8 @@ export default function ManutencaoDetailPage() {
 
   const delMo = async (moId: string) => { if (!confirm("Remover apontamento?")) return; try { await api.delete(`/frota/manutencoes/${id}/mao-obra/${moId}`); load(); } catch {} };
 
-  if (loading) return <div className="flex flex-col h-full"><Topbar /><main className="flex-1 p-6 text-[var(--text-muted)] text-sm">Carregando...</main></div>;
-  if (!m) return <div className="flex flex-col h-full"><Topbar /><main className="flex-1 p-6 text-[var(--text-muted)] text-sm">Ordem de serviço não encontrada.</main></div>;
+  if (loading) return <div className="flex flex-col h-full surface-sunken/50 "><Topbar /><main className="flex-1 p-6 text-muted-o text-sm">Carregando...</main></div>;
+  if (!m) return <div className="flex flex-col h-full surface-sunken/50 "><Topbar /><main className="flex-1 p-6 text-muted-o text-sm">Ordem de serviço não encontrada.</main></div>;
 
   const st = STATUS[m.status] || { label: m.status, color: "var(--text-muted)" };
   const maoObra = m.maoObra || [];
@@ -148,64 +175,94 @@ export default function ManutencaoDetailPage() {
   ];
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full surface-sunken/50  text-primary-o animate-in fade-in slide-in-from-bottom-4 duration-500">
       <Topbar>
-        {canEdit && <button className="btn btn-violet text-xs" onClick={() => setMoOpen(true)} style={{ display: "flex", alignItems: "center", gap: 6 }}><Plus size={14} /> Mão de obra</button>}
+        {canEdit && (
+          <button className="flex items-center gap-1.5 text-xs font-medium text-white accent-solid py-1.5 px-3 rounded-lg shadow-sm shadow-none dark:shadow-none transition-all" onClick={() => setMoOpen(true)}>
+            <Plus size={14} /> Mão de obra
+          </button>
+        )}
       </Topbar>
-      <main className="flex-1 overflow-y-auto p-6">
-        <button className="btn btn-ghost text-xs" onClick={() => router.push("/dashboard/frota/manutencoes")} style={{ display: "inline-flex", alignItems: "center", gap: 6, marginBottom: 16 }}><ArrowLeft size={14} /> Voltar</button>
+      <main className="flex-1 overflow-y-auto page-content">
+        <div className="max-w-7xl mx-auto px-6 py-6 pb-16">
+          <button className="flex items-center gap-1.5 text-xs font-medium text-muted-o hover:text-primary-o mb-6 transition-colors" onClick={() => router.push("/dashboard/frota/manutencoes")}>
+            <ArrowLeft size={14} /> Voltar
+          </button>
 
-        {/* Header */}
-        <div className="card" style={{ padding: "20px 24px", marginBottom: 18, borderLeft: `3px solid ${st.color}` }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6, flexWrap: "wrap" }}>
-            <h2 style={{ fontSize: 22, fontWeight: 800, fontFamily: "var(--font-display)" }}>{m.numeroOs || "OS"}</h2>
-            <Badge color={st.color}>{st.label}</Badge>
-          </div>
-          {m.descricao && <div style={{ fontSize: 13, color: "var(--text-secondary)", marginBottom: 12 }}>{m.descricao}</div>}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 12 }}>
-            {INFO.filter(([, v]) => v).map(([k, v]) => (
-              <div key={k}><div style={{ fontSize: 10, color: "var(--text-muted)", fontFamily: "var(--font-mono)", marginBottom: 2 }}>{k}</div><div style={{ fontSize: 13, color: "var(--text-primary)", fontWeight: 500 }}>{v}</div></div>
-            ))}
-          </div>
-        </div>
-
-        {/* Custos */}
-        <div style={{ fontSize: 11, color: "var(--text-muted)", fontFamily: "var(--font-mono)", fontWeight: 600, marginBottom: 8 }}>CUSTOS DA MANUTENÇÃO</div>
-        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 22 }}>
-          <CustoCard label="PEÇAS" value={m.custoPecas || 0} color="var(--accent-cyan)" />
-          <CustoCard label="SERVIÇOS" value={m.custoServicos || 0} color="var(--accent-amber)" />
-          <CustoCard label="TERCEIROS" value={m.custoTerceiros || 0} color="#f97316" />
-          <CustoCard label="MÃO DE OBRA" value={custoMo} color="#8b5cf6" />
-          <CustoCard label="TOTAL" value={total} color="var(--accent-green)" />
-        </div>
-
-        {/* Mão de obra */}
-        <div style={{ fontSize: 11, color: "var(--text-muted)", fontFamily: "var(--font-mono)", fontWeight: 600, marginBottom: 8 }}>APONTAMENTO DE MÃO DE OBRA</div>
-        <div className="card" style={{ overflow: "hidden", marginBottom: 22 }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
-            <thead><tr style={{ borderBottom: "1px solid var(--border-subtle)" }}>
-              {["Descrição", "Responsável", "Horas", "R$/h", "Custo", ""].map(h => <th key={h} style={{ textAlign: "left", padding: "10px 14px", fontSize: 10, fontFamily: "var(--font-mono)", color: "var(--text-muted)", fontWeight: 600, textTransform: "uppercase", whiteSpace: "nowrap" }}>{h}</th>)}
-            </tr></thead>
-            <tbody>
-              {maoObra.length === 0 && <tr><td colSpan={6} style={{ padding: 18, textAlign: "center", color: "var(--text-muted)" }}>Nenhum apontamento.</td></tr>}
-              {maoObra.map((x: any) => (
-                <tr key={x.id} style={{ borderBottom: "1px solid var(--border-subtle)" }}>
-                  <td style={{ padding: "10px 14px" }}>{x.descricao}</td>
-                  <td style={{ padding: "10px 14px", color: "var(--text-muted)" }}>{x.responsavel || "—"}</td>
-                  <td style={{ padding: "10px 14px" }}>{x.horas ?? "—"}</td>
-                  <td style={{ padding: "10px 14px" }}>{fmtMoney(x.valorHora)}</td>
-                  <td style={{ padding: "10px 14px", fontWeight: 600 }}>{fmtMoney(x.custo)}</td>
-                  <td style={{ padding: "8px 12px", textAlign: "right" }}>{canEdit && <button className="btn-icon" onClick={() => delMo(x.id)} style={{ color: "var(--accent-red)" }}><Trash2 size={13} /></button>}</td>
-                </tr>
+          {/* Header */}
+          <div className="surface-card rounded-2xl border border-subtle-o shadow-sm p-6 mb-8 relative overflow-hidden">
+            <div className="absolute left-0 top-0 bottom-0 w-1.5" style={{ backgroundColor: st.color }}></div>
+            
+            <div className="flex items-center gap-4 mb-3 flex-wrap">
+              <h2 className="text-2xl font-bold font-display tracking-tight text-primary-o">
+                {m.numeroOs || "OS"}
+              </h2>
+              <Badge color={st.color}>{st.label}</Badge>
+            </div>
+            {m.descricao && <div className="text-sm text-secondary-o mb-6 max-w-3xl leading-relaxed">{m.descricao}</div>}
+            
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-y-6 gap-x-4">
+              {INFO.filter(([, v]) => v).map(([k, v]) => (
+                <div key={k}>
+                  <div className="text-[10px] uppercase tracking-wider text-muted-o font-semibold mb-1">{k}</div>
+                  <div className="text-sm font-medium text-primary-o">{v}</div>
+                </div>
               ))}
-            </tbody>
-          </table>
-        </div>
+            </div>
+          </div>
 
-        {/* Anexos */}
-        <div style={{ fontSize: 11, color: "var(--text-muted)", fontFamily: "var(--font-mono)", fontWeight: 600, marginBottom: 8 }}>ANEXOS</div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 12 }}>
-          {ANEXO_CATS.map(c => <AnexoCat key={c.tipo} tipo={c.tipo} label={c.label} anexos={anexos} manutencaoId={id} canEdit={canEdit} onChange={loadAnexos} />)}
+          {/* Custos */}
+          <div className="text-xs uppercase tracking-widest text-muted-o font-bold mb-3 pl-1">Custos da Manutenção</div>
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-10">
+            <CustoCard label="Peças" value={m.custoPecas || 0} color="var(--accent-cyan)" />
+            <CustoCard label="Serviços" value={m.custoServicos || 0} color="var(--accent-amber)" />
+            <CustoCard label="Terceiros" value={m.custoTerceiros || 0} color="#f97316" />
+            <CustoCard label="Mão de Obra" value={custoMo} color="#8b5cf6" />
+            <CustoCard label="Total" value={total} color="var(--accent-green)" />
+          </div>
+
+          {/* Mão de obra */}
+          <div className="text-xs uppercase tracking-widest text-muted-o font-bold mb-3 pl-1">Apontamento de Mão de Obra</div>
+          <div className="surface-card rounded-2xl border border-subtle-o shadow-sm overflow-hidden mb-10">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm whitespace-nowrap">
+                <thead className="surface-sunken">
+                  <tr>
+                    {["Descrição", "Responsável", "Horas", "R$/h", "Custo", ""].map(h => (
+                      <th key={h} className="px-5 py-4 font-semibold text-[11px] uppercase tracking-wider text-muted-o">
+                        {h}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-subtle-o">
+                  {maoObra.length === 0 && <tr><td colSpan={6} className="px-5 py-10 text-center text-muted-o">Nenhum apontamento registrado.</td></tr>}
+                  {maoObra.map((x: any) => (
+                    <tr key={x.id} className="hover-surface transition-colors">
+                      <td className="px-5 py-4 text-primary-o font-medium">{x.descricao}</td>
+                      <td className="px-5 py-4 text-muted-o">{x.responsavel || "—"}</td>
+                      <td className="px-5 py-4 text-primary-o">{x.horas ?? "—"}</td>
+                      <td className="px-5 py-4 text-muted-o">{fmtMoney(x.valorHora)}</td>
+                      <td className="px-5 py-4 font-semibold text-primary-o">{fmtMoney(x.custo)}</td>
+                      <td className="px-5 py-4 text-right">
+                        {canEdit && (
+                          <button className="p-1.5 text-muted-o hover:text-red-600 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors" onClick={() => delMo(x.id)} title="Excluir apontamento">
+                            <Trash2 size={16} />
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Anexos */}
+          <div className="text-xs uppercase tracking-widest text-muted-o font-bold mb-3 pl-1">Anexos</div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {ANEXO_CATS.map(c => <AnexoCat key={c.tipo} tipo={c.tipo} label={c.label} anexos={anexos} manutencaoId={id} canEdit={canEdit} onChange={loadAnexos} />)}
+          </div>
         </div>
       </main>
 

@@ -7,6 +7,7 @@ import {
   Clock, Printer, Eye, Filter, X
 } from "lucide-react";
 import ReservaModal from "../components/ReservaModal";
+import { useAuthStore } from "@/lib/store";
 
 /* ── helpers ── */
 const DAYS = ["D", "S", "T", "Q", "Q", "S", "S"];
@@ -56,11 +57,14 @@ export default function CalendarioReservas() {
   const [viewMode, setViewMode] = useState<ViewMode>("month");
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const { user } = useAuthStore();
+  const canReserve = user?.isMaster || user?.permissions?.includes("*") || user?.permissions?.includes("reservas:criar");
 
   // Modal
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalStart, setModalStart] = useState<Date | undefined>();
   const [modalEnd, setModalEnd] = useState<Date | undefined>();
+  const [modalInitialVeiculo, setModalInitialVeiculo] = useState<string>("");
 
   const today = useMemo(() => new Date(), []);
 
@@ -88,6 +92,13 @@ export default function CalendarioReservas() {
         }))
       );
       setVeiculos(veiculosArr);
+      
+      const searchParams = new URLSearchParams(window.location.search);
+      const vId = searchParams.get("veiculo");
+      if (vId) {
+        setModalInitialVeiculo(vId);
+        setIsModalOpen(true);
+      }
     } catch {
       setEvents([]);
       setVeiculos([]);
@@ -100,8 +111,8 @@ export default function CalendarioReservas() {
     try {
       await api.post("/frota/reservas", {
         veiculoId: d.veiculoId,
-        titulo: d.title,
-        descricao: d.descricao,
+        motivo: d.title,
+        observacoes: d.descricao,
         destino: d.destino,
         dataInicio: d.start.toISOString(),
         dataFim: d.end.toISOString(),
@@ -114,11 +125,12 @@ export default function CalendarioReservas() {
     }
   };
 
-  const openNewReserva = (start?: Date) => {
+  const openNewReserva = (start?: Date, veiculoId?: string) => {
     const s = start || new Date();
     const e = new Date(s.getTime() + 2 * 60 * 60 * 1000);
     setModalStart(s);
     setModalEnd(e);
+    if (veiculoId) setModalInitialVeiculo(veiculoId);
     setIsModalOpen(true);
   };
 
@@ -156,7 +168,7 @@ export default function CalendarioReservas() {
     if (s === "CONFIRMADA") return "bg-red-500";
     if (s === "EM_ANDAMENTO") return "bg-emerald-500";
     if (s === "SOLICITADA") return "bg-amber-500";
-    if (s === "FINALIZADA") return "bg-slate-400";
+    if (s === "FINALIZADA") return "bg-[var(--text-muted)]";
     if (s === "CANCELADA") return "bg-rose-400";
     return "bg-red-500";
   };
@@ -196,86 +208,93 @@ export default function CalendarioReservas() {
 
   /* ══════════════════════════════════════════════════════════════════════ */
   return (
-    <div className="flex flex-col h-[calc(100vh-2rem)] w-full -m-2 md:-m-4">
+    <div className="flex flex-col h-[calc(100vh-2rem)] w-full -m-2 md:-m-4 animate-in fade-in duration-500">
       {/* ── TOP HEADER ── */}
-      <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950">
-        <div>
-          <h1 className="text-xl font-bold text-slate-900 dark:text-white">Agenda</h1>
-          <p className="text-xs text-slate-400 dark:text-slate-500">eventos e compromissos</p>
+      <div className="flex flex-col md:flex-row md:items-center justify-between px-6 py-5 border-b border-subtle-o surface-card gap-4">
+        <div className="flex items-center gap-4">
+          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-red-500 to-red-600 flex items-center justify-center shadow-lg shadow-red-500/20 shrink-0">
+            <CalendarIcon className="w-7 h-7 text-white" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-extrabold text-primary-o tracking-tight">Agenda</h1>
+            <p className="text-sm font-medium text-muted-o mt-0.5">Visão geral dos eventos e compromissos</p>
+          </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
           {/* Disponibilidade */}
-          <button className="hidden md:flex items-center gap-2 px-3 py-2 text-sm font-medium text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
+          <button className="hidden md:flex items-center gap-2 px-4 py-2 surface-card border border-subtle-o rounded-xl text-sm font-semibold text-secondary-o hover-surface hover:text-primary-o transition-all shadow-sm">
             <Eye className="w-4 h-4" /> Disponibilidade
           </button>
           {/* Print */}
-          <button className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
+          <button className="p-2 text-muted-o hover:text-secondary-o dark:hover:text-primary-o border border-subtle-o rounded-xl hover-surface transition-all shadow-sm">
             <Printer className="w-4 h-4" />
           </button>
           {/* Novo evento */}
-          <button
-            onClick={() => openNewReserva()}
-            className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-semibold rounded-lg transition-colors shadow-sm"
-          >
-            <Plus className="w-4 h-4" /> Novo evento
-          </button>
+          {canReserve && (
+            <button
+              onClick={() => openNewReserva()}
+              className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white text-sm font-bold rounded-xl transition-all shadow-md shadow-red-600/20 hover:shadow-lg hover:shadow-red-600/30 hover:-translate-y-0.5"
+            >
+              <Plus className="w-4 h-4" /> Novo evento
+            </button>
+          )}
           {/* Search */}
           <div className="relative">
             <button
               onClick={() => setSearchOpen(!searchOpen)}
-              className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+              className="flex items-center gap-2 px-4 py-2 surface-card border border-subtle-o rounded-xl text-sm font-semibold text-secondary-o hover-surface hover:text-primary-o transition-all shadow-sm"
             >
               <Search className="w-4 h-4" /> Buscar
             </button>
             {searchOpen && (
-              <div className="absolute right-0 top-12 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl p-3 w-72 z-50">
-                <div className="flex items-center gap-2">
-                  <Search className="w-4 h-4 text-slate-400 shrink-0" />
+              <div className="absolute right-0 top-14 surface-card border border-subtle-o rounded-2xl shadow-xl shadow-slate-200/50 dark:shadow-none p-3 w-80 z-50 animate-in fade-in slide-in-from-top-2">
+                <div className="flex items-center gap-3">
+                  <Search className="w-5 h-5 text-muted-o shrink-0" />
                   <input
                     autoFocus
                     type="text"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    placeholder="Buscar evento..."
-                    className="flex-1 text-sm bg-transparent outline-none text-slate-900 dark:text-white placeholder:text-slate-400"
+                    placeholder="Buscar evento por título ou veículo..."
+                    className="flex-1 text-sm bg-transparent outline-none text-primary-o placeholder:text-muted-o font-medium"
                   />
                   <button onClick={() => { setSearchOpen(false); setSearchTerm(""); }}>
-                    <X className="w-4 h-4 text-slate-400 hover:text-slate-600" />
+                    <X className="w-4 h-4 text-muted-o hover:text-secondary-o" />
                   </button>
                 </div>
               </div>
             )}
           </div>
           {/* Filter */}
-          <button className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
+          <button className="p-2 text-muted-o hover:text-secondary-o dark:hover:text-primary-o border border-subtle-o  rounded-lg hover-surface transition-colors">
             <Filter className="w-4 h-4" />
           </button>
         </div>
       </div>
 
       {/* ── BODY ── */}
-      <div className="flex flex-1 overflow-hidden bg-white dark:bg-slate-950">
+      <div className="flex flex-1 overflow-hidden surface-card">
         {/* ── LEFT SIDEBAR ── */}
-        <aside className="w-44 lg:w-52 flex-shrink-0 border-r border-slate-200 dark:border-slate-800 flex flex-col overflow-y-auto hidden md:flex">
+        <aside className="w-44 lg:w-52 flex-shrink-0 border-r border-subtle-o flex flex-col overflow-y-auto hidden md:flex">
           {/* Mini calendar */}
           <div className="p-4">
             <div className="flex items-center justify-between mb-3">
-              <button onClick={prevMonth} className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded transition-colors">
-                <ChevronLeft className="w-4 h-4 text-slate-500" />
+              <button onClick={prevMonth} className="p-1 hover-surface rounded transition-colors">
+                <ChevronLeft className="w-4 h-4 text-muted-o" />
               </button>
-              <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+              <span className="text-sm font-semibold text-secondary-o">
                 {MONTHS[month]} {year}
               </span>
-              <button onClick={nextMonth} className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded transition-colors">
-                <ChevronRight className="w-4 h-4 text-slate-500" />
+              <button onClick={nextMonth} className="p-1 hover-surface rounded transition-colors">
+                <ChevronRight className="w-4 h-4 text-muted-o" />
               </button>
             </div>
 
             {/* Day headers */}
             <div className="grid grid-cols-7 gap-0 mb-1">
               {DAYS.map((d, i) => (
-                <div key={i} className="text-center text-[10px] font-semibold text-slate-400 dark:text-slate-500 py-1">
+                <div key={i} className="text-center text-[10px] font-semibold text-muted-o py-1">
                   {d}
                 </div>
               ))}
@@ -297,7 +316,7 @@ export default function CalendarioReservas() {
                     }}
                     className={`
                       relative w-full aspect-square flex items-center justify-center text-xs rounded-full transition-all
-                      ${cell.current ? "text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800" : "text-slate-300 dark:text-slate-600"}
+                      ${cell.current ? "text-secondary-o hover-surface" : "text-faint-o"}
                       ${isToday ? "bg-red-600 text-white hover:bg-red-700 font-bold" : ""}
                     `}
                   >
@@ -312,13 +331,13 @@ export default function CalendarioReservas() {
           </div>
 
           {/* Próximos Eventos */}
-          <div className="border-t border-slate-200 dark:border-slate-800 p-4 flex-1">
-            <h3 className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-3">
+          <div className="border-t border-subtle-o p-4 flex-1">
+            <h3 className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-muted-o mb-3">
               <CalendarIcon className="w-3.5 h-3.5 text-red-500" />
               Próximos Eventos
             </h3>
             {upcomingEvents.length === 0 ? (
-              <p className="text-xs text-slate-400 dark:text-slate-500 italic">Nenhum evento próximo</p>
+              <p className="text-xs text-muted-o italic">Nenhum evento próximo</p>
             ) : (
               <div className="space-y-2.5">
                 {upcomingEvents.map((ev) => (
@@ -326,10 +345,10 @@ export default function CalendarioReservas() {
                     <div className="flex items-start gap-2">
                       <span className={`mt-1.5 w-2 h-2 rounded-full shrink-0 ${statusColor(ev.status)}`} />
                       <div className="min-w-0">
-                        <p className="text-xs font-medium text-slate-700 dark:text-slate-300 truncate group-hover:text-red-600 dark:group-hover:text-red-400 transition-colors">
+                        <p className="text-xs font-medium text-secondary-o truncate group-hover:text-red-600 dark:group-hover:text-red-400 transition-colors">
                           {ev.veiculoPlaca ? `${ev.veiculoPlaca} — ` : ""}{ev.title}
                         </p>
-                        <p className="text-[10px] text-slate-400 dark:text-slate-500">
+                        <p className="text-[10px] text-muted-o">
                           {formatDateShort(ev.start)} • {formatTime(ev.start)}
                         </p>
                       </div>
@@ -344,33 +363,33 @@ export default function CalendarioReservas() {
         {/* ── MAIN CALENDAR ── */}
         <div className="flex-1 flex flex-col overflow-hidden">
           {/* Calendar header */}
-          <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-800">
+          <div className="flex items-center justify-between px-6 py-4 border-b border-subtle-o">
             <div className="flex items-center gap-3">
-              <button onClick={prevMonth} className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors">
-                <ChevronLeft className="w-5 h-5 text-slate-500" />
+              <button onClick={prevMonth} className="p-1.5 hover-surface rounded-lg transition-colors">
+                <ChevronLeft className="w-5 h-5 text-muted-o" />
               </button>
-              <h2 className="text-lg font-bold text-slate-800 dark:text-white flex items-center gap-2">
+              <h2 className="text-lg font-bold text-primary-o dark:text-white flex items-center gap-2">
                 {MONTHS[month]} {year}
-                <CalendarIcon className="w-4 h-4 text-slate-400" />
+                <CalendarIcon className="w-4 h-4 text-muted-o" />
               </h2>
-              <button onClick={nextMonth} className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors">
-                <ChevronRight className="w-5 h-5 text-slate-500" />
+              <button onClick={nextMonth} className="p-1.5 hover-surface rounded-lg transition-colors">
+                <ChevronRight className="w-5 h-5 text-muted-o" />
               </button>
             </div>
 
             {/* View toggles */}
-            <div className="flex items-center bg-slate-100 dark:bg-slate-800 rounded-lg p-0.5">
-              <button onClick={goToday} className="px-3 py-1.5 text-xs font-medium text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white rounded-md transition-colors">
+            <div className="flex items-center surface-sunken rounded-lg p-0.5">
+              <button onClick={goToday} className="px-3 py-1.5 text-xs font-medium text-secondary-o  hover:text-primary-o rounded-md transition-colors">
                 Hoje
               </button>
               {(["month", "week", "day"] as ViewMode[]).map((v) => (
                 <button
                   key={v}
                   onClick={() => setViewMode(v)}
-                  className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all ${
+                  className={`px-4 py-2 text-xs font-bold rounded-lg transition-all ${
                     viewMode === v
-                      ? "bg-red-600 text-white shadow-sm"
-                      : "text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white"
+                      ? "bg-red-600 text-white shadow-md shadow-red-500/20"
+                      : "text-muted-o hover:text-primary-o dark:hover:text-primary-o hover:bg-slate-200 "
                   }`}
                 >
                   {v === "month" ? "Mês" : v === "week" ? "Semana" : "Dia"}
@@ -384,9 +403,9 @@ export default function CalendarioReservas() {
             {viewMode === "month" && (
               <div className="h-full flex flex-col">
                 {/* Day of week headers */}
-                <div className="grid grid-cols-7 border-b border-slate-200 dark:border-slate-800">
+                <div className="grid grid-cols-7 border-b border-subtle-o">
                   {["DOM", "SEG", "TER", "QUA", "QUI", "SEX", "SÁB"].map((d) => (
-                    <div key={d} className="py-2.5 text-center text-[11px] font-semibold tracking-wider text-slate-400 dark:text-slate-500">
+                    <div key={d} className="py-2.5 text-center text-[11px] font-semibold tracking-wider text-muted-o">
                       {d}
                     </div>
                   ))}
@@ -406,18 +425,18 @@ export default function CalendarioReservas() {
                           }
                         }}
                         className={`
-                          border-b border-r border-slate-100 dark:border-slate-800 p-1.5 min-h-[80px] cursor-pointer
-                          hover:bg-slate-50 dark:hover:bg-slate-900/50 transition-colors
-                          ${!cell.current ? "bg-slate-50/50 dark:bg-slate-900/30" : ""}
+                          group border-b border-r border-subtle-o/60 p-2 min-h-[90px] cursor-pointer
+                          hover:bg-white dark:hover:bg-slate-900 transition-all hover:shadow-[inset_0_0_15px_rgba(0,0,0,0.03)] dark:hover:shadow-[inset_0_0_15px_rgba(255,255,255,0.02)]
+                          ${!cell.current ? "surface-sunken/50 /50" : "bg-transparent"}
                         `}
                       >
-                        <div className="flex justify-between items-start">
+                        <div className="flex justify-between items-start mb-1">
                           <span
                             className={`
-                              inline-flex items-center justify-center w-7 h-7 text-xs font-medium rounded-full
-                              ${isToday ? "bg-red-600 text-white font-bold" : ""}
-                              ${cell.current && !isToday ? "text-slate-700 dark:text-slate-300" : ""}
-                              ${!cell.current ? "text-slate-300 dark:text-slate-600" : ""}
+                              inline-flex items-center justify-center w-7 h-7 text-xs font-medium rounded-full transition-transform
+                              ${isToday ? "bg-red-600 text-white font-bold shadow-md shadow-red-500/30 scale-110" : ""}
+                              ${cell.current && !isToday ? "text-secondary-o hover:bg-slate-200 " : ""}
+                              ${!cell.current ? "text-faint-o" : ""}
                             `}
                           >
                             {cell.day}
@@ -429,13 +448,13 @@ export default function CalendarioReservas() {
                             <div
                               key={ev.id}
                               onClick={(e) => { e.stopPropagation(); alert(`${ev.title}\n${formatTime(ev.start)} - ${formatTime(ev.end)}\nStatus: ${ev.status}`); }}
-                              className={`text-[10px] font-medium text-white px-1.5 py-0.5 rounded truncate cursor-pointer hover:opacity-80 transition-opacity ${statusColor(ev.status)}`}
+                              className={`text-[10px] font-medium text-white px-2 py-0.5 rounded-md shadow-sm truncate cursor-pointer hover:scale-[1.02] hover:shadow-md hover:brightness-110 transition-all ring-1 ring-black/5 ${statusColor(ev.status)}`}
                             >
                               {ev.veiculoPlaca ? `${ev.veiculoPlaca} ` : ""}{ev.title}
                             </div>
                           ))}
                           {dayEvents.length > 2 && (
-                            <div className="text-[10px] text-slate-400 font-medium pl-1">
+                            <div className="text-[10px] text-muted-o font-medium pl-1">
                               +{dayEvents.length - 2} mais
                             </div>
                           )}
@@ -450,7 +469,7 @@ export default function CalendarioReservas() {
             {/* WEEK / DAY — simplified view */}
             {(viewMode === "week" || viewMode === "day") && (
               <div className="p-6">
-                <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">
+                <p className="text-sm text-muted-o mb-4">
                   {viewMode === "week" ? "Semana de" : "Dia"}{" "}
                   {viewDate.toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" })}
                 </p>
@@ -465,19 +484,25 @@ export default function CalendarioReservas() {
                   })
                   .sort((a, b) => a.start.getTime() - b.start.getTime())
                   .map((ev) => (
-                    <div key={ev.id} className="flex items-center gap-4 p-3 mb-2 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 hover:shadow-md transition-shadow">
-                      <span className={`w-3 h-3 rounded-full shrink-0 ${statusColor(ev.status)}`} />
+                    <div key={ev.id} className="group flex items-start gap-3 p-2.5 mb-2 surface-card rounded-xl border border-subtle-o shadow-sm hover:shadow-md hover:border-red-200 dark:hover:border-red-900/50 transition-all">
+                      <div className="flex flex-col items-center mt-1">
+                        <span className={`w-2.5 h-2.5 rounded-full shrink-0 shadow-sm ${statusColor(ev.status)} ring-[3px] ring-white dark:ring-slate-950 z-10`} />
+                        <div className="w-0.5 h-7 surface-sunken -my-0.5 -z-0 group-last:hidden" />
+                      </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold text-slate-800 dark:text-white truncate">
-                          {ev.veiculoPlaca ? `${ev.veiculoPlaca} — ` : ""}{ev.title}
-                        </p>
-                        <p className="text-xs text-slate-400">
-                          {ev.start.toLocaleDateString("pt-BR")} • {formatTime(ev.start)} — {formatTime(ev.end)}
+                        <div className="flex items-center justify-between mb-0.5">
+                          <p className="text-sm font-bold text-primary-o dark:text-white truncate group-hover:text-red-600 dark:group-hover:text-red-400 transition-colors">
+                            {ev.veiculoPlaca ? `${ev.veiculoPlaca} — ` : ""}{ev.title}
+                          </p>
+                          <span className={`text-[9px] font-bold tracking-wide uppercase px-1.5 py-0.5 rounded text-white shadow-sm ${statusColor(ev.status)}`}>
+                            {ev.status}
+                          </span>
+                        </div>
+                        <p className="text-xs font-medium text-muted-o flex items-center gap-1.5">
+                          <Clock className="w-3.5 h-3.5 text-muted-o" />
+                          {ev.start.toLocaleDateString("pt-BR", { weekday: 'short', day: '2-digit', month: 'short' })} • {formatTime(ev.start)} às {formatTime(ev.end)}
                         </p>
                       </div>
-                      <span className={`text-[10px] font-bold uppercase px-2 py-1 rounded-full text-white ${statusColor(ev.status)}`}>
-                        {ev.status}
-                      </span>
                     </div>
                   ))}
                 {events.filter((e) => {
@@ -492,18 +517,20 @@ export default function CalendarioReservas() {
                     <div className="w-16 h-16 bg-red-50 dark:bg-red-900/20 rounded-2xl flex items-center justify-center mb-4">
                       <CalendarIcon className="w-8 h-8 text-red-400" />
                     </div>
-                    <p className="text-base font-semibold text-slate-700 dark:text-slate-200">
+                    <p className="text-base font-semibold text-secondary-o ">
                       Nenhum evento {viewMode === "day" ? "neste dia" : "nesta semana"}
                     </p>
-                    <p className="text-sm text-slate-400 mt-1">
-                      Comece criando seu primeiro evento — clique em qualquer dia ou no botão acima.
+                    <p className="text-sm text-muted-o mt-1">
+                      {canReserve ? "Comece criando seu primeiro evento — clique em qualquer dia ou no botão acima." : ""}
                     </p>
-                    <button
-                      onClick={() => openNewReserva()}
-                      className="mt-5 flex items-center gap-2 px-5 py-2.5 bg-red-600 hover:bg-red-700 text-white text-sm font-semibold rounded-lg transition-colors shadow-sm"
-                    >
-                      <Plus className="w-4 h-4" /> Criar evento agora
-                    </button>
+                    {canReserve && (
+                      <button
+                        onClick={() => openNewReserva()}
+                        className="mt-5 flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white text-sm font-bold rounded-xl transition-all shadow-md shadow-red-600/20 hover:shadow-lg hover:-translate-y-0.5"
+                      >
+                        <Plus className="w-5 h-5" /> Criar evento agora
+                      </button>
+                    )}
                   </div>
                 )}
               </div>
@@ -516,18 +543,20 @@ export default function CalendarioReservas() {
                   <div className="w-20 h-20 bg-red-50 dark:bg-red-900/20 rounded-2xl flex items-center justify-center mb-5">
                     <CalendarIcon className="w-10 h-10 text-red-400" />
                   </div>
-                  <p className="text-lg font-bold text-slate-700 dark:text-slate-200">
+                  <p className="text-lg font-bold text-secondary-o ">
                     Nenhum evento neste mês
                   </p>
-                  <p className="text-sm text-slate-400 mt-1 text-center max-w-sm">
-                    Comece criando seu primeiro evento — clique em qualquer dia ou no botão acima.
+                  <p className="text-sm text-muted-o mt-1 text-center max-w-sm">
+                    {canReserve ? "Comece criando seu primeiro evento — clique em qualquer dia ou no botão acima." : ""}
                   </p>
-                  <button
-                    onClick={() => openNewReserva()}
-                    className="mt-5 flex items-center gap-2 px-5 py-2.5 bg-red-600 hover:bg-red-700 text-white text-sm font-semibold rounded-lg transition-colors shadow-sm"
-                  >
-                    <Plus className="w-4 h-4" /> Criar evento agora
-                  </button>
+                  {canReserve && (
+                    <button
+                      onClick={() => openNewReserva()}
+                      className="mt-6 flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white text-sm font-bold rounded-xl transition-all shadow-md shadow-red-600/20 hover:shadow-lg hover:-translate-y-0.5"
+                    >
+                      <Plus className="w-5 h-5" /> Criar evento agora
+                    </button>
+                  )}
                 </div>
               </div>
             )}
@@ -542,6 +571,7 @@ export default function CalendarioReservas() {
         onSave={handleSaveReserva}
         initialStart={modalStart}
         initialEnd={modalEnd}
+        initialVeiculoId={modalInitialVeiculo}
         veiculos={veiculos}
       />
     </div>

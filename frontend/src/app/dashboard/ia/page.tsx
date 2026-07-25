@@ -379,7 +379,7 @@ function InsightCard({ icon: Icon, label, value, color, sub }: { icon: any; labe
           <Icon size={13} style={{ color }} />
         </div>
       </div>
-      <div className="font-display text-[26px] font-bold leading-none" style={{ color }}>{value}</div>
+      <div className="metric text-[26px]" style={{ color }}>{value}</div>
       {sub && <div className="text-[10px] text-[var(--text-muted)]">{sub}</div>}
     </div>
   );

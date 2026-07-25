@@ -271,7 +271,7 @@ export default function ExecutivoPage() {
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 8 }}>
               {reincidentes.map((r, i) => (
                 <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", borderRadius: 8, background: "var(--bg-hover)" }}>
-                  <span style={{ fontSize: 18, fontWeight: 800, fontFamily: "var(--font-display)", color: i < 3 ? "#ef4444" : "var(--text-muted)", minWidth: 28 }}>{r.n}×</span>
+                  <span className="metric" style={{ fontSize: 17, color: i < 3 ? "var(--accent-red)" : "var(--text-muted)", minWidth: 28 }}>{r.n}×</span>
                   <div style={{ minWidth: 0 }}>
                     <div style={{ fontSize: 13, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.nome}</div>
                     <div style={{ fontSize: 11, color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>{r.ip}</div>
@@ -331,7 +331,7 @@ function Kpi({ label, value, color, sub }: { label: string; value: any; color: s
   return (
     <div className="card" style={{ padding: 16, borderLeft: `3px solid ${color}` }}>
       <div style={{ fontSize: 10, color: "var(--text-muted)", fontFamily: "var(--font-mono)", textTransform: "uppercase", letterSpacing: 1 }}>{label}</div>
-      <div style={{ fontSize: 28, fontWeight: 800, fontFamily: "var(--font-display)", color, lineHeight: 1.1, marginTop: 4 }}>{value}</div>
+      <div className="metric" style={{ fontSize: 27, color, marginTop: 4 }}>{value}</div>
       {sub && <div style={{ fontSize: 10, color: "var(--text-muted)", marginTop: 2 }}>{sub}</div>}
     </div>
   );

@@ -92,12 +92,15 @@ function Spin() {
 
 function StatCard({ label, value, color, sub }: { label:string; value:number; color:string; sub?:string }) {
   return (
-    <div className="card" style={{ padding:"16px 20px", display:"flex", alignItems:"center", gap:16 }}>
-      <div>
-        <div style={{ fontFamily:"var(--font-display)", fontSize:28, fontWeight:700, color, lineHeight:1 }}>{value.toLocaleString("pt-BR")}</div>
-        {sub && <div style={{ fontSize:10, color:"var(--text-muted)", fontFamily:"var(--font-mono)", marginTop:2 }}>{sub}</div>}
+    <div className="kpi-card" style={{ ["--sc" as any]: color }}>
+      <span className="kpi-card__halo" />
+      <div style={{ display:"flex", alignItems:"center", gap:16 }}>
+        <div>
+          <div className="metric kpi-card__value" style={{ fontSize: 27 }}>{value.toLocaleString("pt-BR")}</div>
+          {sub && <div className="mono-cap" style={{ marginTop: 2 }}>{sub}</div>}
+        </div>
+        <div className="mono-cap">{label}</div>
       </div>
-      <div style={{ fontSize:11, fontFamily:"var(--font-mono)", letterSpacing:"0.08em", color:"var(--text-muted)", textTransform:"uppercase" }}>{label}</div>
     </div>
   );
 }
