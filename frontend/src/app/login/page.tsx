@@ -5,23 +5,7 @@ import Link from "next/link";
 import { useAuthStore } from "@/lib/store";
 import { authApi } from "@/lib/api";
 import { Eye, EyeOff, ArrowRight, Loader2, ShieldCheck, Cloud, Sparkles, Network } from "lucide-react";
-
-/* Marca — mesmo wordmark do site institucional (vetorial, nítido em qualquer DPI). */
-function OrkiestriMark({ className = "" }: { className?: string }) {
-  return (
-    <span className={`inline-flex items-center gap-2.5 ${className}`}>
-      <svg width="34" height="34" viewBox="0 0 28 28" fill="none" aria-hidden>
-        <rect width="28" height="28" rx="7" fill="#F97316" />
-        <circle cx="14" cy="14" r="3" fill="white" />
-        <circle cx="14" cy="14" r="7" stroke="white" strokeWidth="1.75" strokeOpacity="0.55" />
-        <circle cx="14" cy="5.5" r="1.6" fill="white" />
-        <circle cx="22.5" cy="14" r="1.6" fill="white" />
-        <circle cx="5.5" cy="14" r="1.6" fill="white" />
-      </svg>
-      <span className="text-[22px] font-bold tracking-tight text-white">Orkiestri</span>
-    </span>
-  );
-}
+import { BrandLogo } from "@/components/ui/logo";
 
 const pilares = [
   { icon: ShieldCheck, label: "Segurança", text: "MFA, criptografia e auditoria" },
@@ -85,7 +69,7 @@ export default function LoginPage() {
 
       {/* ── Painel da marca (desktop) ───────────────────────────────────────── */}
       <aside className="relative z-10 hidden flex-1 flex-col justify-between p-12 xl:p-16 lg:flex">
-        <OrkiestriMark />
+        <BrandLogo size="lg" tone="light" />
 
         <div className="max-w-lg">
           <h2 className="text-[2.6rem] font-bold leading-[1.08] tracking-[-0.035em] xl:text-[3.1rem]">
@@ -131,7 +115,7 @@ export default function LoginPage() {
         <div className="w-full max-w-[400px]">
           {/* Marca no mobile (o painel lateral fica oculto) */}
           <div className="mb-10 lg:hidden">
-            <OrkiestriMark />
+            <BrandLogo size="lg" tone="light" />
           </div>
 
           <div className="rounded-[24px] border border-white/[0.08] bg-white/[0.035] p-7 shadow-[0_24px_60px_-15px_rgba(0,0,0,0.6)] backdrop-blur-xl sm:p-8">

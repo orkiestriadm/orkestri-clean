@@ -1,28 +1,26 @@
 import React from "react";
 
+/**
+ * Símbolo da marca — mesmo desenho do site institucional (orkiestri.com),
+ * para sistema e site compartilharem a mesma identidade.
+ * Vetorial: nítido em qualquer DPI e sem depender de arquivo estático.
+ */
 export function OrkestriIcon({ size = 32, className = "" }: { size?: number; className?: string }) {
   return (
     <svg
       width={size}
       height={size}
-      viewBox="0 0 120 120"
+      viewBox="0 0 28 28"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
-      className={className}
+      className={`shrink-0 ${className}`}
     >
-      <defs>
-        <linearGradient id="ok-grad" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#7C3AED" />
-          <stop offset="55%" stopColor="#a855f7" />
-          <stop offset="100%" stopColor="#C026D3" />
-        </linearGradient>
-      </defs>
-      <rect width="120" height="120" rx="28" fill="url(#ok-grad)" />
-      <g stroke="white" strokeWidth="13" strokeLinecap="round" strokeLinejoin="round" fill="none">
-        <circle cx="44" cy="60" r="18" />
-        <path d="M 72 36 L 72 78" />
-        <path d="M 91 46 L 72 60 L 91 76" />
-      </g>
+      <rect width="28" height="28" rx="7" fill="#F97316" />
+      <circle cx="14" cy="14" r="3" fill="white" />
+      <circle cx="14" cy="14" r="7" stroke="white" strokeWidth="1.75" strokeOpacity="0.55" />
+      <circle cx="14" cy="5.5" r="1.6" fill="white" />
+      <circle cx="22.5" cy="14" r="1.6" fill="white" />
+      <circle cx="5.5" cy="14" r="1.6" fill="white" />
     </svg>
   );
 }
@@ -33,18 +31,21 @@ export const OrkestriLogo = OrkestriIcon;
 type BrandSize = "sm" | "md" | "lg" | "xl" | "xxl";
 
 const SIZE: Record<BrandSize, { icon: number; text: string; gap: string }> = {
-  sm:  { icon: 26, text: "text-[15px]", gap: "gap-2" },
-  md:  { icon: 30, text: "text-[17px]", gap: "gap-2.5" },
-  lg:  { icon: 36, text: "text-[20px]", gap: "gap-3" },
-  xl:  { icon: 52, text: "text-[28px]", gap: "gap-3.5" },
-  xxl: { icon: 68, text: "text-[36px]", gap: "gap-4" },
+  sm:  { icon: 30, text: "text-[17px]", gap: "gap-2" },
+  md:  { icon: 36, text: "text-[20px]", gap: "gap-2.5" },
+  lg:  { icon: 42, text: "text-[24px]", gap: "gap-3" },
+  xl:  { icon: 58, text: "text-[32px]", gap: "gap-3.5" },
+  xxl: { icon: 76, text: "text-[41px]", gap: "gap-4" },
 };
 
 export function BrandLogo({
   size = "md",
+  tone = "auto",
   className = "",
 }: {
   size?: BrandSize;
+  /** "light" força o wordmark branco (uso sobre fundo escuro). */
+  tone?: "auto" | "light";
   className?: string;
 }) {
   const s = SIZE[size];
@@ -52,7 +53,9 @@ export function BrandLogo({
     <span className={`inline-flex items-center ${s.gap} ${className}`}>
       <OrkestriIcon size={s.icon} />
       <span
-        className={`font-display font-bold tracking-tight text-[var(--text-primary)] leading-none ${s.text}`}
+        className={`font-display font-bold tracking-tight leading-none ${s.text} ${
+          tone === "light" ? "text-white" : "text-[var(--text-primary)]"
+        }`}
         style={{ letterSpacing: "-0.02em" }}
       >
         Orkiestri
