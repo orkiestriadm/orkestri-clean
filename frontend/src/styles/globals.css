@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Syne:wght@400;500;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&family=JetBrains+Mono:wght@300;400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&family=JetBrains+Mono:wght@300;400;500&display=swap');
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -14,7 +14,7 @@
   --card-foreground: 240 10% 4%;
   --popover: 0 0% 100%;
   --popover-foreground: 240 10% 4%;
-  --primary: 263 70% 50%;
+  --primary: 25 95% 53%;
   --primary-foreground: 0 0% 100%;
   --secondary: 0 0% 96%;
   --secondary-foreground: 0 0% 10%;
@@ -26,11 +26,11 @@
   --destructive-foreground: 0 0% 100%;
   --border: 0 0% 92%;
   --input: 0 0% 92%;
-  --ring: 263 70% 50%;
+  --ring: 25 95% 53%;
   --radius: 0.75rem;
 
   /* Font stacks */
-  --font-display: "Syne", sans-serif;
+  --font-display: "Inter", sans-serif;
   --font-body: "Inter", "DM Sans", sans-serif;
   --font-mono: "JetBrains Mono", monospace;
   --sidebar-w: 240px;
@@ -41,7 +41,7 @@
   --bg-card:      #ffffff;
   --bg-glass:     rgba(255, 255, 255, 0.75);
   --bg-hover:     rgba(0, 0, 0, 0.03);
-  --bg-active:    rgba(109, 40, 217, 0.05);
+  --bg-active:    rgba(249, 115, 22, 0.05);
   --modal-bg:     var(--bg-card);
 
   /* Borders (Ultrafine, subtle) */
@@ -56,8 +56,8 @@
   --text-faint:     #c1c1ca;
 
   /* Brand accents */
-  --accent-violet:     #dc2626;
-  --accent-violet-dim: rgba(220, 38, 38, 0.05);
+  --accent-violet:     #f97316;
+  --accent-violet-dim: rgba(249, 115, 22, 0.05);
   --accent-cyan:       #0284c7;
   --accent-green:      #059669;
   --accent-amber:      #d97706;
@@ -66,7 +66,7 @@
   /* Shadows (Multi-layered physical blur) */
   --shadow-card:     0 1px 2px rgba(0,0,0,0.02), 0 4px 16px rgba(0,0,0,0.02);
   --shadow-elevated: 0 1px 2px rgba(0,0,0,0.02), 0 8px 24px rgba(0,0,0,0.04), 0 16px 40px rgba(0,0,0,0.03);
-  --shadow-input:    0 0 0 3px rgba(220, 38, 38, 0.1);
+  --shadow-input:    0 0 0 3px rgba(249, 115, 22, 0.1);
 
   /* Sidebar (Adaptive - Light) */
   --sidebar-bg:          #ffffff;
@@ -74,8 +74,8 @@
   --sidebar-text:        #57575e;
   --sidebar-text-hi:     #111113;
   --sidebar-hover:       rgba(0, 0, 0, 0.03);
-  --sidebar-active-bg:   rgba(220, 38, 38, 0.06);
-  --sidebar-active-text: #dc2626;
+  --sidebar-active-bg:   rgba(249, 115, 22, 0.08);
+  --sidebar-active-text: #f97316;
 }
 
 /* ── Design Tokens — Dark Mode ──────────────────────────────── */
@@ -89,7 +89,7 @@
   --card-foreground: 0 0% 98%;
   --popover: 240 10% 6%;
   --popover-foreground: 0 0% 98%;
-  --primary: 263 70% 65%;
+  --primary: 25 95% 60%;
   --primary-foreground: 0 0% 100%;
   --secondary: 240 5% 12%;
   --secondary-foreground: 0 0% 90%;
@@ -101,7 +101,7 @@
   --destructive-foreground: 0 0% 100%;
   --border: 240 5% 14%;
   --input: 240 5% 14%;
-  --ring: 263 70% 65%;
+  --ring: 25 95% 60%;
 
   /* Premium Surfaces (Linear/Vercel inspired, deep contrast) */
   --bg-primary:   #09090b;
@@ -124,8 +124,8 @@
   --text-faint:     rgba(240, 240, 245, 0.15);
 
   /* Brand accents (Softer for dark mode) */
-  --accent-violet:     #ef4444;
-  --accent-violet-dim: rgba(239, 68, 68, 0.08);
+  --accent-violet:     #fb923c;
+  --accent-violet-dim: rgba(251, 146, 60, 0.10);
   --accent-cyan:       #38bdf8;
   --accent-green:      #34d399;
   --accent-amber:      #fbbf24;
@@ -142,8 +142,8 @@
   --sidebar-text:        rgba(240, 240, 245, 0.5);
   --sidebar-text-hi:     rgba(255, 255, 255, 0.9);
   --sidebar-hover:       rgba(255, 255, 255, 0.03);
-  --sidebar-active-bg:   rgba(239, 68, 68, 0.08);
-  --sidebar-active-text: #ef4444;
+  --sidebar-active-bg:   rgba(251, 146, 60, 0.10);
+  --sidebar-active-text: #fb923c;
 }
 
 /* ── Base ──────────────────────────────────────────────────── */
@@ -286,17 +286,17 @@
   background: var(--accent-violet);
   color: #fff;
   border-color: rgba(0,0,0,0.05);
-  box-shadow: 0 2px 8px rgba(220, 38, 38, 0.15), inset 0 1px 0 rgba(255,255,255,0.1);
+  box-shadow: 0 2px 8px rgba(249, 115, 22, 0.20), inset 0 1px 0 rgba(255,255,255,0.15);
 }
 .btn-primary:hover,
 .btn-violet:hover {
-  background: #b91c1c;
+  background: #ea580c;
   color: #fff;
-  box-shadow: 0 6px 16px rgba(220, 38, 38, 0.25), inset 0 1px 0 rgba(255,255,255,0.15);
+  box-shadow: 0 6px 16px rgba(249, 115, 22, 0.30), inset 0 1px 0 rgba(255,255,255,0.2);
   transform: translateY(-1.5px);
 }
 .btn-primary:active,
-.btn-violet:active { transform: translateY(0); box-shadow: 0 2px 4px rgba(220, 38, 38, 0.15); }
+.btn-violet:active { transform: translateY(0); box-shadow: 0 2px 4px rgba(249, 115, 22, 0.2); }
 .btn-primary:disabled,
 .btn-violet:disabled { opacity: 0.55; cursor: not-allowed; transform: none; }
 
@@ -354,7 +354,7 @@
   font-size: 11px; font-weight: 500; font-family: var(--font-body); letter-spacing: 0.02em; 
   white-space: nowrap; border: 1px solid transparent;
 }
-.badge-violet { background: var(--accent-violet-dim); color: var(--accent-violet); border-color: rgba(220, 38, 38, 0.1); }
+.badge-violet { background: var(--accent-violet-dim); color: var(--accent-violet); border-color: rgba(249, 115, 22, 0.15); }
 .badge-cyan   { background: rgba(2, 132, 199, 0.1); color: var(--accent-cyan); border-color: rgba(2, 132, 199, 0.15); }
 .badge-green  { background: rgba(5, 150, 105, 0.1); color: var(--accent-green); border-color: rgba(5, 150, 105, 0.15); }
 .badge-amber  { background: rgba(217, 119, 6, 0.1); color: var(--accent-amber); border-color: rgba(217, 119, 6, 0.15); }
@@ -398,9 +398,8 @@
    ══════════════════════════════════════════════════════════════ */
 
 /* ── Números ──────────────────────────────────────────────────
-   O display (Syne) tem numerais decorativos de largura irregular:
-   em métrica grande as colunas "dançam" e o zero vira uma elipse.
-   Métrica é DADO — usa o corpo com figuras tabulares. */
+   Métrica é DADO: sempre com figuras tabulares, para as colunas não
+   "dançarem" ao atualizar e o alinhamento se manter em listagens. */
 .metric {
   font-family: var(--font-body);
   font-variant-numeric: tabular-nums;
