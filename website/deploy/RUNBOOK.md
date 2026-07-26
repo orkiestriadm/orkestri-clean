@@ -1,44 +1,33 @@
-# Deploy Runbook — Novo site institucional + migração da plataforma
+# Deploy Runbook — Novo site institucional (MESMO domínio)
 
-Objetivo final:
-- `orkiestri.com` + `www.orkiestri.com` → **novo site institucional** (container `orkestri_website`)
-- `app.orkiestri.com` → **plataforma SaaS** (containers `orkestri_frontend` + `orkestri_api`, hoje na raiz)
+Objetivo:
+- `orkiestri.com` + `www.orkiestri.com` **continuam iguais** (mesmo domínio, mesmo cert).
+- As **rotas públicas** (`/`, `/products`, `/services`, `/company`, `/technology`,
+  `/cases`, `/blog`, `/contact`, `/demo`, `/privacy`, `/terms`) passam a servir o
+  **novo site** (container `orkestri_website`).
+- O **SISTEMA/plataforma** continua no mesmo domínio, nas rotas dele
+  (`/login`, `/dashboard`, `/signup`, `/portal`, `/kb`, `/reservas`,
+  `/primeiro-acesso`, `/recuperar-senha`, `/solicitar-acesso`, `/suspended`,
+  `/entenda-orkiestri`, `/api/*`, `/_next/*`) → containers `orkestri_frontend` + `orkestri_api`.
 
-Servidor: AWS Lightsail `54.159.107.250` · deploy dir `/opt/orkestri` · acesso `ssh orkestri-prod`.
+SEM mudança de DNS. SEM novo certificado. Usuários logados **não** precisam relogar.
 
-Princípio: a plataforma **nunca** fica fora do ar. Cada passo é validado antes do próximo.
-
----
-
-## PRÉ-REQUISITO (ação do cliente) — bloqueia todo o resto
-
-Criar no provedor de DNS um registro A:
-
-```
-app.orkiestri.com   A   54.159.107.250   (TTL baixo, ex. 300)
-```
-
-Verificar propagação:
-```bash
-getent hosts app.orkiestri.com    # deve retornar 54.159.107.250
-```
-
-Enquanto `app.orkiestri.com` não resolver, o cutover NÃO pode ocorrer (sem cert TLS).
+Servidor: AWS Lightsail `54.159.107.250` · `/opt/orkestri` · `ssh orkestri-prod`.
+Princípio: sistema nunca sai do ar; cada passo validado; rollback em segundos.
 
 ---
 
-## PASSO 1 — Enviar o código do site para o servidor
+## PASSO 1 — Código no servidor
 
 ```bash
-# no servidor: garantir que o branch com website/ está presente em /opt/orkestri
 cd /opt/orkestri
 git fetch origin
-git checkout claude/orkiestri-site-redesign-8e4b21   # ou o commit de merge em main
+git checkout claude/orkiestri-site-redesign-8e4b21    # ou o merge em main
 git pull
-ls website/                                            # confirmar que existe
+ls website/                                             # confirmar
 ```
 
-## PASSO 2 — Build da imagem do site (não afeta produção ainda)
+## PASSO 2 — Build da imagem do site (não afeta produção)
 
 ```bash
 cd /opt/orkestri
@@ -46,29 +35,17 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml \
   -f website/deploy/docker-compose.website.yml build website
 ```
 
-## PASSO 3 — Emitir certificado TLS para app.orkiestri.com
-
-O bloco :80 default já serve o desafio ACME via webroot `/var/www/certbot`.
-
-```bash
-docker compose run --rm --entrypoint "" certbot \
-  certbot certonly --webroot -w /var/www/certbot \
-  -d app.orkiestri.com --email <email> --agree-tos --no-eff-email
-# confirmar:
-sudo ls /opt/orkestri/ssl/letsencrypt/live/app.orkiestri.com/
-```
-
-## PASSO 4 — Subir o container do site
+## PASSO 3 — Subir o container do site
 
 ```bash
 docker compose -f docker-compose.yml -f docker-compose.prod.yml \
   -f website/deploy/docker-compose.website.yml up -d website
 docker ps | grep orkestri_website
-# validar internamente (via rede docker), sem depender do nginx ainda:
-docker exec orkestri_nginx wget -qO- http://orkestri_website:3000/ | head -c 200
+# validar internamente (rede docker), antes de tocar no nginx:
+docker exec orkestri_nginx wget -qO- http://orkestri_website:3000/ | grep -o "organizes businesses"
 ```
 
-## PASSO 5 — Trocar a config do nginx (o cutover)
+## PASSO 4 — Cutover do nginx (o único passo que afeta o tráfego)
 
 ```bash
 cd /opt/orkestri
@@ -78,37 +55,42 @@ docker exec orkestri_nginx nginx -t                             # testar sintaxe
 docker exec orkestri_nginx nginx -s reload                     # aplicar (zero downtime)
 ```
 
-## PASSO 6 — Validação
+## PASSO 5 — Validação
 
 ```bash
-curl -sI https://app.orkiestri.com/login   | head -1   # 200 → plataforma OK no subdomínio
-curl -s  https://www.orkiestri.com/ | grep -o "organizes businesses"   # site novo no ar
-curl -sI https://www.orkiestri.com/products | head -1  # 200
-curl -sI https://orkiestri.com/login | head -1         # 301 → redireciona p/ app
+# SITE novo nas rotas públicas:
+curl -s  https://www.orkiestri.com/ | grep -o "organizes businesses"
+curl -sI https://www.orkiestri.com/products | head -1        # 200
+curl -sI https://www.orkiestri.com/_site/_next/static/ | head -1
+# SISTEMA intacto no mesmo domínio:
+curl -sI https://www.orkiestri.com/login | head -1           # 200 (plataforma)
+curl -sI https://www.orkiestri.com/dashboard | head -1       # 200/302 (plataforma)
 ```
 
 Checklist:
-- [ ] `app.orkiestri.com` abre a plataforma e o login funciona
-- [ ] `www.orkiestri.com` mostra o novo site
-- [ ] `www.orkiestri.com/products`, `/services`, `/contact` OK
+- [ ] `/` mostra o novo site
+- [ ] `/products`, `/services`, `/contact` OK
+- [ ] CSS/JS do site carregam (via /_site/_next/…)
+- [ ] `/login` abre a plataforma e o login funciona
+- [ ] `/dashboard` acessível para usuário logado (sessão preservada)
 - [ ] Formulário de contato/demo envia (POST /api/contact → 200)
-- [ ] `orkiestri.com/login` redireciona para `app.orkiestri.com/login`
+- [ ] `/api/*` do sistema continua funcionando
 
-## ROLLBACK (se algo falhar)
+## ROLLBACK (segundos)
 
 ```bash
 cd /opt/orkestri
 cp nginx/nginx-ssl.conf.bak.<timestamp> nginx/nginx-ssl.conf
 docker exec orkestri_nginx nginx -t && docker exec orkestri_nginx nginx -s reload
-# a plataforma volta a responder na raiz orkiestri.com imediatamente
+# tudo volta ao estado anterior (sistema servindo tudo na raiz)
 ```
 
 ---
 
 ## Observações
 
-- A plataforma usa API same-origin (`/api`), então funciona igual em qualquer domínio.
-  Cookies host-only: usuários logados hoje em `orkiestri.com` precisarão logar de novo
-  em `app.orkiestri.com` (esperado numa migração de domínio).
-- Recomenda-se comunicar aos usuários o novo endereço da plataforma (`app.orkiestri.com`).
-- Memória: `orkestri_website` limitado a 256MB (heap 192MB). Monitorar `docker stats`.
+- **Assets:** os dois são Next.js; a plataforma é dona de `/_next/`, o site usa
+  `assetPrefix=/_site` → nginx roteia `/_site/` para o site. Sem colisão.
+- **Memória:** `orkestri_website` limitado a 256MB. O build (`next build`) usa até
+  ~1GB de heap; em host de 2GB, rodar em janela de baixo tráfego. Monitorar `docker stats`.
+- **Botão "Entrar"** no site aponta para `/login` (mesmo domínio) → leva à plataforma.

@@ -122,11 +122,13 @@ export function MobileNav({ onClose }: { onClose: () => void }) {
               Solicitar demonstração
             </Link>
           </Button>
-          <Button asChild variant="secondary" className="w-full">
-            <Link href="/contact" onClick={onClose}>
-              Falar com especialista
-            </Link>
-          </Button>
+          <a
+            href="/login"
+            onClick={onClose}
+            className="inline-flex h-[52px] w-full items-center justify-center rounded-[--radius-button] border border-gray-200 bg-white font-medium text-dark transition-colors hover:bg-gray-50"
+          >
+            Entrar
+          </a>
         </div>
       </motion.aside>
     </div>

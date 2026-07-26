@@ -73,9 +73,12 @@ export function Navbar() {
         </nav>
 
         <div className="hidden items-center gap-2 lg:flex">
-          <Button asChild variant="ghost" size="sm">
-            <Link href="/contact">Falar com especialista</Link>
-          </Button>
+          <a
+            href="/login"
+            className="rounded-lg px-3.5 py-2 text-[0.9375rem] font-medium text-gray-700 transition-colors hover:text-primary"
+          >
+            Entrar
+          </a>
           <Button asChild size="sm">
             <Link href="/demo">Solicitar demonstração</Link>
           </Button>

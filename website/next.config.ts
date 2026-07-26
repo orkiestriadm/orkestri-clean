@@ -4,6 +4,10 @@ const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
   output: "standalone",
+  // Namespaced assets so the site can share the orkiestri.com origin with the
+  // existing platform (both are Next.js apps and would otherwise collide on
+  // /_next/). nginx routes /_site/ to this container.
+  assetPrefix: "/_site",
   images: {
     formats: ["image/avif", "image/webp"],
   },
