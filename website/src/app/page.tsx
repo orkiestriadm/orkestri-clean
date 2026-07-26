@@ -80,10 +80,10 @@ export default function HomePage() {
         </div>
       </Section>
 
-      {/* Serviços */}
+      {/* Soluções */}
       <Section muted>
         <SectionHeader
-          eyebrow="Serviços"
+          eyebrow="Soluções"
           title="Tecnologia para cada etapa da sua transformação digital."
           description="Unimos estratégia, engenharia e inovação para desenvolver soluções completas que impulsionam o crescimento das empresas."
         />

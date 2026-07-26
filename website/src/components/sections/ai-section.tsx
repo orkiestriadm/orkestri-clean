@@ -9,6 +9,7 @@ import {
   TrendingUp,
 } from "lucide-react";
 import { Section, SectionHeader } from "@/components/ui/section";
+import { IconTile } from "@/components/ui/icon-tile";
 import { Reveal } from "@/components/animations/reveal";
 
 const applications = [
@@ -32,19 +33,14 @@ export function AISection() {
         description="Utilizamos IA para automatizar processos, analisar informações, reduzir tarefas repetitivas e apoiar decisões estratégicas — como uma capacidade nativa, presente em toda a plataforma."
       />
       <div className="mt-12 grid grid-cols-2 gap-4 md:grid-cols-4">
-        {applications.map((a, i) => {
-          const Icon = a.icon;
-          return (
-            <Reveal key={a.label} delay={(i % 4) * 0.05}>
-              <div className="flex flex-col items-center gap-3 rounded-[--radius-card] border border-gray-200 bg-white p-6 text-center transition-all duration-200 hover:-translate-y-1 hover:border-primary/40 motion-reduce:hover:translate-y-0">
-                <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary-soft text-primary-hover">
-                  <Icon className="h-5 w-5" aria-hidden />
-                </span>
-                <span className="text-sm font-medium text-dark">{a.label}</span>
-              </div>
-            </Reveal>
-          );
-        })}
+        {applications.map((a, i) => (
+          <Reveal key={a.label} delay={(i % 4) * 0.05}>
+            <div className="flex flex-col items-center gap-3 rounded-[--radius-card] border border-gray-200 bg-white p-6 text-center transition-all duration-200 hover:-translate-y-1 hover:border-primary/40 motion-reduce:hover:translate-y-0">
+              <IconTile icon={a.icon} size="lg" />
+              <span className="text-sm font-medium text-dark">{a.label}</span>
+            </div>
+          </Reveal>
+        ))}
       </div>
     </Section>
   );

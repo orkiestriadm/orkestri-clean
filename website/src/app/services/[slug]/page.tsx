@@ -63,7 +63,7 @@ export default async function ServicePage({
         title={service.name}
         description={service.description}
         breadcrumb={[
-          { label: "Serviços", href: "/services" },
+          { label: "Soluções", href: "/services" },
           { label: service.name, href: `/services/${service.slug}` },
         ]}
       >
@@ -92,8 +92,8 @@ export default async function ServicePage({
         <div className="flex items-end justify-between gap-4">
           <SectionHeader
             align="left"
-            eyebrow="Serviços"
-            title="Outros serviços"
+            eyebrow="Soluções"
+            title="Outras soluções"
           />
           <Button asChild variant="ghost" className="hidden shrink-0 sm:inline-flex">
             <Link href="/services">

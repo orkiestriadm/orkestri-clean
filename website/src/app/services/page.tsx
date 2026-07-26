@@ -6,7 +6,7 @@ import { CTA } from "@/components/sections/cta";
 import { buildMetadata } from "@/lib/seo";
 
 export const metadata = buildMetadata({
-  title: "Serviços",
+  title: "Soluções",
   description:
     "Da estratégia ao desenvolvimento. Atuamos em todas as etapas da transformação digital, desde a concepção até a evolução contínua da solução.",
   path: "/services",
@@ -16,10 +16,10 @@ export default function ServicesPage() {
   return (
     <>
       <PageHero
-        eyebrow="Serviços"
+        eyebrow="Soluções"
         title="Da estratégia ao desenvolvimento."
         description="Nossa equipe atua em todas as etapas da transformação digital, desde a concepção até a evolução contínua da solução."
-        breadcrumb={[{ label: "Serviços", href: "/services" }]}
+        breadcrumb={[{ label: "Soluções", href: "/services" }]}
       />
       <Section>
         <ServicesGrid />

@@ -30,8 +30,9 @@ export function Hero() {
         aria-hidden
         className="pointer-events-none absolute inset-0 -z-10"
       >
-        <div className="absolute left-1/2 top-0 h-[600px] w-[900px] -translate-x-1/2 rounded-full bg-primary/[0.06] blur-3xl" />
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(249,115,22,0.05),transparent_55%)]" />
+        <div className="absolute left-1/2 top-0 h-[600px] w-[900px] -translate-x-1/2 rounded-full bg-primary/[0.09] blur-[120px]" />
+        <div className="absolute right-0 top-40 h-[380px] w-[520px] rounded-full bg-[#fb923c]/[0.07] blur-[110px]" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(249,115,22,0.06),transparent_55%)]" />
       </div>
 
       <Container>
@@ -47,9 +48,10 @@ export function Hero() {
 
             <motion.h1
               {...item(1)}
-              className="mt-6 text-[2.75rem] font-bold leading-[1.05] tracking-tight text-dark sm:text-[3.5rem] lg:text-[4.25rem]"
+              className="mt-6 text-[2.75rem] font-bold leading-[1.02] tracking-[-0.035em] text-dark sm:text-[3.5rem] lg:text-[4.5rem]"
             >
-              Technology that <span className="text-gradient-primary">organizes businesses</span>.
+              Enterprise software,{" "}
+              <span className="text-gradient-primary">engineered for growth</span>.
             </motion.h1>
 
             <motion.p

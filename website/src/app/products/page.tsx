@@ -62,7 +62,7 @@ export default function ProductsPage() {
 
       <div className="flex justify-center pb-4">
         <Button asChild variant="secondary" size="lg">
-          <Link href="/services">Conheça também nossos serviços</Link>
+          <Link href="/services">Conheça também nossas soluções</Link>
         </Button>
       </div>
 

@@ -3,6 +3,7 @@ import Link from "next/link";
 import Script from "next/script";
 import { Check, Sparkles, Plug, ArrowRight } from "lucide-react";
 import { PageHero } from "@/components/sections/page-hero";
+import { IconTile } from "@/components/ui/icon-tile";
 import { Section, SectionHeader } from "@/components/ui/section";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -105,9 +106,7 @@ export default async function ProductPage({
       <Section muted>
         <div className="grid gap-8 lg:grid-cols-2">
           <div className="rounded-[--radius-card] border border-gray-200 bg-white p-8">
-            <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary-soft text-primary-hover">
-              <Sparkles className="h-5 w-5" aria-hidden />
-            </span>
+            <IconTile icon={Sparkles} />
             <h3 className="mt-5 text-xl font-semibold text-dark">
               Inteligência Artificial
             </h3>
@@ -125,9 +124,7 @@ export default async function ProductPage({
 
           {product.integrations && product.integrations.length > 0 && (
             <div className="rounded-[--radius-card] border border-gray-200 bg-white p-8">
-              <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-dark text-white">
-                <Plug className="h-5 w-5" aria-hidden />
-              </span>
+              <IconTile icon={Plug} tone="dark" />
               <h3 className="mt-5 text-xl font-semibold text-dark">
                 Integrações
               </h3>

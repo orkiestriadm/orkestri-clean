@@ -21,7 +21,7 @@ import type { Product } from "@/types";
 export const products: Product[] = [
   {
     slug: "one-desk",
-    name: "One Desk",
+    name: "Orkiestri Desk",
     category: "Service Management",
     tagline: "Centralize chamados, solicitações e atendimento.",
     description:
@@ -46,7 +46,7 @@ export const products: Product[] = [
   },
   {
     slug: "one-projects",
-    name: "One Projects",
+    name: "Orkiestri Projects",
     category: "Project Management",
     tagline: "Planeje, acompanhe e entregue projetos com eficiência.",
     description:
@@ -70,7 +70,7 @@ export const products: Product[] = [
   },
   {
     slug: "one-fleet",
-    name: "One Fleet",
+    name: "Orkiestri Fleet",
     category: "Fleet Management",
     tagline: "Gerencie veículos, reservas, abastecimentos e manutenção.",
     description:
@@ -93,7 +93,7 @@ export const products: Product[] = [
   },
   {
     slug: "one-assets",
-    name: "One Assets",
+    name: "Orkiestri Assets",
     category: "Asset Management",
     tagline: "Controle ativos, patrimônio e inventário.",
     description:
@@ -111,7 +111,7 @@ export const products: Product[] = [
   },
   {
     slug: "one-finance",
-    name: "One Finance",
+    name: "Orkiestri Finance",
     category: "Financial Management",
     tagline: "Organize receitas, despesas e indicadores financeiros.",
     description:
@@ -133,7 +133,7 @@ export const products: Product[] = [
   },
   {
     slug: "one-budget",
-    name: "One Budget",
+    name: "Orkiestri Budget",
     category: "Budget Planning",
     tagline: "Planeje e acompanhe o orçamento da empresa.",
     description:
@@ -151,7 +151,7 @@ export const products: Product[] = [
   },
   {
     slug: "one-crm",
-    name: "One CRM",
+    name: "Orkiestri CRM",
     category: "Customer Relationship",
     tagline: "Fortaleça o relacionamento com seus clientes.",
     description:
@@ -169,7 +169,7 @@ export const products: Product[] = [
   },
   {
     slug: "one-flow",
-    name: "One Flow",
+    name: "Orkiestri Flow",
     category: "Workflow Automation",
     tagline: "Automatize processos internos sem complexidade.",
     description:
@@ -187,7 +187,7 @@ export const products: Product[] = [
   },
   {
     slug: "one-supply",
-    name: "One Supply",
+    name: "Orkiestri Supply",
     category: "Procurement",
     tagline: "Gerencie compras, fornecedores e suprimentos.",
     description:
@@ -205,7 +205,7 @@ export const products: Product[] = [
   },
   {
     slug: "one-observe",
-    name: "One Observe",
+    name: "Orkiestri Observe",
     category: "Observability",
     tagline: "Monitore indicadores operacionais em tempo real.",
     description:
@@ -227,7 +227,7 @@ export const products: Product[] = [
   },
   {
     slug: "one-core",
-    name: "One Core",
+    name: "Orkiestri Core",
     category: "Platform Administration",
     tagline: "Administre usuários, permissões e integrações.",
     description:

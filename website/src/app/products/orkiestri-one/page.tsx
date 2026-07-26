@@ -10,6 +10,7 @@ import {
   Check,
 } from "lucide-react";
 import { PageHero } from "@/components/sections/page-hero";
+import { IconTile } from "@/components/ui/icon-tile";
 import { Section, SectionHeader } from "@/components/ui/section";
 import { Container } from "@/components/ui/container";
 import { Button } from "@/components/ui/button";
@@ -114,9 +115,7 @@ export default function OrkiestriOnePage() {
             return (
               <Reveal key={l.title} delay={(i % 3) * 0.05}>
                 <div className="h-full rounded-[--radius-card] border border-gray-200 bg-white p-6">
-                  <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary-soft text-primary-hover">
-                    <Icon className="h-5 w-5" aria-hidden />
-                  </span>
+                  <IconTile icon={Icon} />
                   <h3 className="mt-5 text-lg font-semibold text-dark">
                     {l.title}
                   </h3>

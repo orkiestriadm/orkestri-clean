@@ -54,7 +54,7 @@ export function Navbar() {
             <ProductsMenu onNavigate={() => setOpenMenu(null)} />
           </MenuTrigger>
           <MenuTrigger
-            label="Serviços"
+            label="Soluções"
             open={openMenu === "services"}
             onOpen={() => setOpenMenu("services")}
           >

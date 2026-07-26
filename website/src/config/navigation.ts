@@ -7,7 +7,7 @@ import type { NavItem } from "@/types";
 export const mainNav: NavItem[] = [
   { label: "Empresa", href: "/company" },
   { label: "Produtos", href: "/products" },
-  { label: "Serviços", href: "/services" },
+  { label: "Soluções", href: "/services" },
   { label: "Tecnologia", href: "/technology" },
   { label: "Cases", href: "/cases" },
   { label: "Blog", href: "/blog" },
@@ -19,14 +19,14 @@ export const footerNav: { title: string; items: NavItem[] }[] = [
     title: "Produtos",
     items: [
       { label: "Orkiestri One", href: "/products/orkiestri-one" },
-      { label: "One Desk", href: "/products/one-desk" },
-      { label: "One Projects", href: "/products/one-projects" },
-      { label: "One Fleet", href: "/products/one-fleet" },
+      { label: "Orkiestri Desk", href: "/products/one-desk" },
+      { label: "Orkiestri Projects", href: "/products/one-projects" },
+      { label: "Orkiestri Fleet", href: "/products/one-fleet" },
       { label: "Ver todos", href: "/products" },
     ],
   },
   {
-    title: "Serviços",
+    title: "Soluções",
     items: [
       { label: "Software Factory", href: "/services/software-factory" },
       { label: "AI Solutions", href: "/services/ai-solutions" },

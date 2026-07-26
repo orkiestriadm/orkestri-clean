@@ -10,6 +10,7 @@ import {
   BrainCircuit,
 } from "lucide-react";
 import { PageHero } from "@/components/sections/page-hero";
+import { IconTile } from "@/components/ui/icon-tile";
 import { Section } from "@/components/ui/section";
 import { Technologies } from "@/components/sections/technologies";
 import { Reveal } from "@/components/animations/reveal";
@@ -52,9 +53,7 @@ export default function TechnologyPage() {
             return (
               <Reveal key={p.title} delay={(i % 3) * 0.05}>
                 <div className="h-full rounded-[--radius-card] border border-gray-200 bg-white p-6">
-                  <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-dark text-white">
-                    <Icon className="h-5 w-5" aria-hidden />
-                  </span>
+                  <IconTile icon={Icon} tone="dark" />
                   <h3 className="mt-5 text-lg font-semibold text-dark">
                     {p.title}
                   </h3>

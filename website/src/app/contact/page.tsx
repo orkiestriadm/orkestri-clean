@@ -1,5 +1,6 @@
 import { Mail, Linkedin } from "lucide-react";
 import { PageHero } from "@/components/sections/page-hero";
+import { IconTile } from "@/components/ui/icon-tile";
 import { Container } from "@/components/ui/container";
 import { ContactForm } from "@/components/forms/contact-form";
 import { buildMetadata } from "@/lib/seo";
@@ -36,9 +37,7 @@ export default function ContactPage() {
               href={`mailto:${siteConfig.contact.email}`}
               className="flex items-center gap-3 rounded-2xl border border-gray-200 bg-white p-5 transition-colors hover:border-primary/40"
             >
-              <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary-soft text-primary-hover">
-                <Mail className="h-5 w-5" aria-hidden />
-              </span>
+              <IconTile icon={Mail} />
               <span>
                 <span className="block text-sm text-gray-400">E-mail</span>
                 <span className="font-medium text-dark">
@@ -52,9 +51,7 @@ export default function ContactPage() {
               rel="noopener noreferrer"
               className="flex items-center gap-3 rounded-2xl border border-gray-200 bg-white p-5 transition-colors hover:border-primary/40"
             >
-              <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary-soft text-primary-hover">
-                <Linkedin className="h-5 w-5" aria-hidden />
-              </span>
+              <IconTile icon={Linkedin} />
               <span>
                 <span className="block text-sm text-gray-400">LinkedIn</span>
                 <span className="font-medium text-dark">/orkiestri</span>

@@ -5,6 +5,7 @@ import { motion, type Variants } from "framer-motion";
 import { ArrowRight } from "lucide-react";
 import { products } from "@/config/products";
 import { services } from "@/config/services";
+import { IconTile } from "@/components/ui/icon-tile";
 import { EASE_OUT } from "@/lib/motion";
 
 const panel: Variants = {
@@ -55,9 +56,7 @@ export function ProductsMenu({ onNavigate }: { onNavigate?: () => void }) {
               onClick={onNavigate}
               className="group flex items-start gap-3 rounded-2xl p-3 transition-colors hover:bg-gray-50"
             >
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary-soft text-primary-hover">
-                <Icon className="h-[18px] w-[18px]" aria-hidden />
-              </span>
+              <IconTile icon={Icon} size="sm" />
               <span className="min-w-0">
                 <span className="block text-sm font-semibold text-dark group-hover:text-primary">
                   {p.name}
@@ -93,9 +92,7 @@ export function ServicesMenu({ onNavigate }: { onNavigate?: () => void }) {
               onClick={onNavigate}
               className="group flex items-start gap-3 rounded-2xl p-3 transition-colors hover:bg-gray-50"
             >
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary-soft text-primary-hover">
-                <Icon className="h-[18px] w-[18px]" aria-hidden />
-              </span>
+              <IconTile icon={Icon} size="sm" />
               <span className="min-w-0">
                 <span className="block text-sm font-semibold text-dark group-hover:text-primary">
                   {s.name}
