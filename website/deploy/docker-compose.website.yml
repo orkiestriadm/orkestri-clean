@@ -1,0 +1,34 @@
+# Website service overlay.
+# Deploy on the server with:
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml \
+#     -f website/deploy/docker-compose.website.yml up -d --build website
+#
+# The website is a Next.js standalone container (mostly static + 2 form API
+# routes). Conservative memory footprint for the Lightsail 2GB host.
+services:
+  website:
+    build:
+      context: ./website
+      dockerfile: Dockerfile
+    image: orkestri/website:latest
+    container_name: orkestri_website
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      HOSTNAME: "0.0.0.0"
+      NEXT_TELEMETRY_DISABLED: "1"
+      NODE_OPTIONS: "--max-old-space-size=192"
+      NEXT_PUBLIC_SITE_URL: "https://www.orkiestri.com"
+    mem_limit: 256m
+    memswap_limit: 256m
+    networks:
+      - orkestri_net
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "3"
