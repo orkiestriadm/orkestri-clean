@@ -7,13 +7,18 @@ import {
   Headphones, PiggyBank, Truck, BookOpen, Package, Zap, Clock, FileText, Activity, CheckSquare,
   SmilePlus, TrendingUp, Receipt, LayoutGrid, CreditCard, Brain,
   GitBranch, Network, ShoppingBag, Radio, Wallet, FileSpreadsheet, Wrench,
-  ClipboardCheck, FolderKanban, Boxes,
+  ClipboardCheck, FolderKanban, Boxes, ShieldCheck, HeartPulse, Bell,
 } from "lucide-react";
 
 export type NavItem  = { href: string; label: string; icon: any; permission: string | null };
+// access controla a visibilidade do grupo INTEIRO (além das permissões por item):
+//   undefined  → visível a todos (respeitando a permissão de cada item)
+//   "sa"       → só Super Admin global (infra/plataforma)
+//   "adminOrg" → só master ou papel "administrador" (área administrativa da empresa)
+export type GroupAccess = "sa" | "adminOrg";
 // Cada grupo é um "produto": nome de marca (produto) + descritor em português + um
 // ícone que representa o produto (usado no cabeçalho do menu e no launcher).
-export type NavGroup = { id: string; produto: string | null; descritor: string | null; icon: any; items: NavItem[] };
+export type NavGroup = { id: string; produto: string | null; descritor: string | null; icon: any; access?: GroupAccess; items: NavItem[] };
 
 export const NAV: NavGroup[] = [
   {
@@ -116,16 +121,34 @@ export const NAV: NavGroup[] = [
     ],
   },
   {
-    id: "core", produto: "Core", descritor: "Administração", icon: Settings,
+    id: "core", produto: "Core", descritor: "Administração", icon: Settings, access: "adminOrg",
     items: [
-      { href: "/dashboard/cadastros",              label: "Cadastros",     icon: Users,         permission: "usuarios:ver" },
-      { href: "/dashboard/whatsapp-config",        label: "WhatsApp",      icon: MessageCircle, permission: "whatsapp:ver" },
+      { href: "/dashboard/cadastros",              label: "Cadastros",         icon: Users,         permission: "usuarios:ver" },
+      { href: "/dashboard/alertas",                label: "Regras de Alertas", icon: Bell,          permission: null },
+      { href: "/dashboard/whatsapp-config",        label: "WhatsApp",          icon: MessageCircle, permission: "whatsapp:ver" },
       { href: "/dashboard/historico",              label: "Histórico",     icon: History,       permission: "historico:ver" },
       { href: "/dashboard/configuracoes",          label: "Configurações", icon: Settings,      permission: "configuracoes:ver" },
       { href: "/dashboard/billing/me",             label: "Assinatura",    icon: CreditCard,    permission: "configuracoes:ver" },
     ],
   },
+  {
+    id: "platform", produto: "Plataforma", descritor: "Super Admin", icon: ShieldCheck, access: "sa",
+    items: [
+      { href: "/dashboard/plataforma", label: "Saúde da Plataforma", icon: HeartPulse, permission: null },
+      { href: "/dashboard/superadmin", label: "Organizações",        icon: Building2,  permission: null },
+    ],
+  },
 ];
+
+// Um grupo é acessível se o access bater com o nível do usuário.
+export function canAccessGroup(user: any, group: NavGroup): boolean {
+  if (!group.access) return true;
+  if (group.access === "sa") return !!user?.isSuperAdmin;
+  if (group.access === "adminOrg") {
+    return !!user?.isMaster || (user?.roles ?? []).includes("administrador");
+  }
+  return true;
+}
 
 // Um item é acessível se não exige permissão, se o usuário é master,
 // ou se possui o coringa "*" ou a permissão específica.

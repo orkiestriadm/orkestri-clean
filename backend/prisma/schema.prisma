@@ -98,6 +98,7 @@ model Organization {
   noteLabels        NoteLabel[]
   eventos           Event[]
   automacoes        Automacao[]
+  alertaRegras      AlertaRegra[]
   ativos            Ativo[]
   categoriasAtivo   CategoriaAtivo[]
   artigos           ArtigoConhecimento[]
@@ -328,6 +329,22 @@ model OrcamentoCompartilhamento {
   @@unique([cicloId, userId])
   @@index([userId])
   @@map("orcamento_compartilhamentos")
+}
+
+// Regras de alerta por organização: o admin escolhe se um tipo de alerta está
+// ativo, por quais canais chega e para quem. Uma regra por (organização, tipo).
+model AlertaRegra {
+  id             String       @id @default(uuid())
+  organizationId String       @map("organization_id")
+  tipo           String       // orcamento_estouro | sla_risco | garantia_vencendo | documento_vencendo
+  ativo          Boolean      @default(true)
+  canais         String       @default("[\"sistema\"]")  // JSON: ["sistema","email","whatsapp"]
+  destinatarios  String       @default("[]")             // JSON: user ids e/ou e-mails
+  atualizadoEm   DateTime     @updatedAt @map("atualizado_em")
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, tipo])
+  @@map("alerta_regras")
 }
 
 model CentroCusto {

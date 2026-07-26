@@ -2,16 +2,15 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { LogOut, ChevronDown, Shield, Star } from "lucide-react";
+import { LogOut, ChevronDown, Star } from "lucide-react";
 import { useAuthStore } from "@/lib/store";
 import { authApi } from "@/lib/api";
 import UserStatus from "@/components/ui/UserStatus";
 import { BrandLogo } from "@/components/ui/logo";
 import { cn } from "@/lib/utils";
-import { NAV, type NavGroup, type NavItem as NavItemT } from "@/lib/modules";
+import { NAV, canAccessGroup, type NavGroup, type NavItem as NavItemT } from "@/lib/modules";
 
-const SUPERADMIN_ITEM: NavItemT = { href: "/dashboard/superadmin", label: "Organizações", icon: Shield, permission: null };
-const ALL_ITEMS: NavItemT[] = [SUPERADMIN_ITEM, ...NAV.flatMap(g => g.items)];
+const ALL_ITEMS: NavItemT[] = NAV.flatMap(g => g.items);
 
 function useFavorites() {
   const [favorites, setFavorites] = useState<string[]>(() => {
@@ -160,22 +159,6 @@ export default function Sidebar() {
       {/* ── Navigation ── */}
       <nav className="flex-1 overflow-y-auto px-4 py-6 space-y-1 scrollbar-thin">
 
-        {/* Gestão Global — exclusivo do Super Admin global */}
-        {user?.isSuperAdmin && (
-          <div className="mb-6 pb-4 border-b border-[var(--sidebar-border)]">
-            <div className="px-3 py-1 text-[11px] font-semibold tracking-widest uppercase mb-1 flex items-center gap-2" style={{ color: "var(--sidebar-active-text)", opacity: 0.8 }}>
-              <Shield size={12} />
-              Super Admin
-            </div>
-            <NavItem
-              item={SUPERADMIN_ITEM}
-              path={path}
-              isFav={isFavorite(SUPERADMIN_ITEM.href)}
-              onToggleFav={toggleFavorite}
-            />
-          </div>
-        )}
-
         {/* ── Favoritos ── */}
         <div className="pb-4 mb-2 border-b border-[var(--sidebar-border)]">
           <div className="px-3 py-1 text-[11px] font-semibold tracking-widest uppercase text-[var(--text-muted)] mb-1 flex items-center gap-1.5">
@@ -202,6 +185,8 @@ export default function Sidebar() {
         </div>
 
         {NAV.map(group => {
+          // Grupo restrito (SA / admin da org) só aparece para quem tem o nível.
+          if (!canAccessGroup(user, group)) return null;
           const visible = group.items.filter(i => can(i.permission));
           if (!visible.length) return null;
 

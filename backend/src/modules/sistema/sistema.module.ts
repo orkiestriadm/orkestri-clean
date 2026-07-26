@@ -1,4 +1,4 @@
-import { Module, Controller, Get, Post, Body, UseGuards, Req, Logger, OnModuleInit, Injectable } from "@nestjs/common";
+import { Module, Controller, Get, Post, Body, UseGuards, Req, Logger, OnModuleInit, Injectable, ForbiddenException } from "@nestjs/common";
 import { AuthGuard } from "@nestjs/passport";
 import { IsString, IsIn, IsOptional, IsBoolean } from "class-validator";
 import { PrismaService } from "../../prisma/prisma.service";
@@ -254,6 +254,52 @@ export class SistemaService implements OnModuleInit {
       });
     } catch {}
   }
+
+  // Saúde da plataforma (visão SA, cross-tenant): backups, banco, contagens.
+  async plataformaSaude() {
+    const cfg = this.getConfig();
+    const backups = await this.listBackups();
+    const agora = Date.now();
+    const idadeHoras = (iso: string | null) => iso ? (agora - new Date(iso).getTime()) / 3600000 : null;
+    const status = (idade: number | null, limiteHoras: number) =>
+      idade === null ? "nunca" : idade <= limiteHoras ? "ok" : "atrasado";
+    const idadeFull = idadeHoras(cfg.ultimoBackupFull);
+    const idadeInc  = idadeHoras(cfg.ultimoBackupIncremental);
+
+    let tamanhoBanco = "—";
+    try {
+      const r: any = await this.prisma.$queryRawUnsafe(
+        "SELECT pg_size_pretty(pg_database_size(current_database())) AS size",
+      );
+      tamanhoBanco = r?.[0]?.size ?? "—";
+    } catch {}
+
+    let organizacoes = 0, usuarios = 0, usuariosAtivos = 0;
+    try {
+      [organizacoes, usuarios, usuariosAtivos] = await Promise.all([
+        (this.prisma as any).organization.count(),
+        (this.prisma as any).user.count(),
+        (this.prisma as any).user.count({ where: { ativo: true } }),
+      ]);
+    } catch {}
+
+    const round1 = (n: number | null) => n === null ? null : Math.round(n * 10) / 10;
+    return {
+      geradoEm: new Date().toISOString(),
+      backups: {
+        full: {
+          ultimo: cfg.ultimoBackupFull, idadeHoras: round1(idadeFull),
+          status: status(idadeFull, 25), ativo: cfg.backupFullAtivo, arquivos: backups.full.length,
+        },
+        incremental: {
+          ultimo: cfg.ultimoBackupIncremental, idadeHoras: round1(idadeInc),
+          status: status(idadeInc, 1.5), ativo: cfg.backupIncrementalAtivo, arquivos: backups.incremental.length,
+        },
+      },
+      banco: { tamanho: tamanhoBanco },
+      plataforma: { organizacoes, usuarios, usuariosAtivos },
+    };
+  }
 }
 
 @Controller("sistema")
@@ -263,14 +309,14 @@ class SistemaController {
   @Get("config")
   @UseGuards(AuthGuard("jwt"))
   async getConfig(@Req() req: any) {
-    if (!req.user.isMaster) throw new Error("Acesso negado");
+    if (!req.user.isMaster && !req.user.isSuperAdmin) throw new Error("Acesso negado");
     return this.sistemaService.getConfig();
   }
 
   @Post("config")
   @UseGuards(AuthGuard("jwt"))
   async updateConfig(@Body() dto: UpdateSistemaConfigDto, @Req() req: any) {
-    if (!req.user.isMaster) throw new Error("Acesso negado");
+    if (!req.user.isMaster && !req.user.isSuperAdmin) throw new Error("Acesso negado");
     const updates: Record<string, string> = {};
     if (dto.logsPath)              updates.logsPath              = dto.logsPath;
     if (dto.logsRetencaoHoras)     updates.logsRetencaoHoras     = dto.logsRetencaoHoras;
@@ -288,30 +334,38 @@ class SistemaController {
   @Post("backup/full")
   @UseGuards(AuthGuard("jwt"))
   async backupFull(@Req() req: any) {
-    if (!req.user.isMaster) throw new Error("Acesso negado");
+    if (!req.user.isMaster && !req.user.isSuperAdmin) throw new Error("Acesso negado");
     return this.sistemaService.runBackupFull();
   }
 
   @Post("backup/incremental")
   @UseGuards(AuthGuard("jwt"))
   async backupIncremental(@Req() req: any) {
-    if (!req.user.isMaster) throw new Error("Acesso negado");
+    if (!req.user.isMaster && !req.user.isSuperAdmin) throw new Error("Acesso negado");
     return this.sistemaService.runBackupIncremental();
   }
 
   @Get("backup/list")
   @UseGuards(AuthGuard("jwt"))
   async listBackups(@Req() req: any) {
-    if (!req.user.isMaster) throw new Error("Acesso negado");
+    if (!req.user.isMaster && !req.user.isSuperAdmin) throw new Error("Acesso negado");
     return this.sistemaService.listBackups();
   }
 
   @Post("logs/limpar")
   @UseGuards(AuthGuard("jwt"))
   async limparLogs(@Req() req: any) {
-    if (!req.user.isMaster) throw new Error("Acesso negado");
+    if (!req.user.isMaster && !req.user.isSuperAdmin) throw new Error("Acesso negado");
     const cfg = this.sistemaService.getConfig();
     return this.sistemaService.cleanLogs(Number(cfg.logsRetencaoHoras) || 24);
+  }
+
+  // Saúde da plataforma — restrito ao Super Admin global.
+  @Get("plataforma/saude")
+  @UseGuards(AuthGuard("jwt"))
+  async plataformaSaude(@Req() req: any) {
+    if (!req.user.isSuperAdmin) throw new ForbiddenException("Acesso restrito ao Super Admin");
+    return this.sistemaService.plataformaSaude();
   }
 }
 

@@ -16,7 +16,7 @@ import {
   Brain, Activity, CircleCheckBig, SmilePlus, Settings2, RefreshCw,
   LayoutDashboard, Building2, PiggyBank, Eye, EyeOff, LayoutGrid, X, Search,
 } from "lucide-react";
-import { NAV, canAccessModule } from "@/lib/modules";
+import { NAV, canAccessModule, canAccessGroup } from "@/lib/modules";
 
 /* ═══════════════════════════════════════════════
    TYPES
@@ -415,7 +415,7 @@ export default function CommandCenter() {
           {/* ── Módulos launcher — só os que o usuário tem acesso ── */}
           {showModules && (() => {
             const q = moduleQuery.trim().toLowerCase();
-            const grupos = NAV.map(group => ({
+            const grupos = NAV.filter(group => canAccessGroup(user, group)).map(group => ({
               group,
               items: group.items.filter(it =>
                 canAccessModule(user, it.permission) &&

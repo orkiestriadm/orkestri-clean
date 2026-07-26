@@ -22,6 +22,7 @@ import { ChamadosModule } from "./modules/chamados/chamados.module";
 import { RbacModule } from "./modules/rbac/rbac.module";
 import { CacheModule } from "./modules/cache/cache.module";
 import { OrcamentoModule } from "./modules/orcamento/orcamento.module";
+import { AlertasModule } from "./modules/alertas/alertas.module";
 import { SuppliersModule } from "./modules/suppliers/suppliers.module";
 import { SlaModule } from "./modules/sla/sla.module";
 import { ConhecimentoModule } from "./modules/conhecimento/conhecimento.module";
@@ -62,6 +63,7 @@ import { JwtModule } from '@nestjs/jwt';
     RelatoriosModule, SistemaModule, TwoFAModule,
     UserWhatsAppModule, ClientesModule, ChamadosModule, RbacModule,
     OrcamentoModule,
+    AlertasModule,
     SuppliersModule,
     SlaModule,
     ConhecimentoModule,

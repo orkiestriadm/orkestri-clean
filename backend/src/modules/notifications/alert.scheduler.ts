@@ -244,8 +244,8 @@ export class AlertScheduler implements OnModuleInit {
       // Limpa cache antigo (exceto chaves sla-violado que tem ciclo proprio de 2h)
       const cutoff = Date.now() - 30 * 60 * 1000;
       for (const [k, t] of this.sent) {
-        // sla-violado e frota-* têm de-dup diário próprio; não limpar para evitar reenvio
-        if (!k.startsWith("sla-violado") && !k.startsWith("frota-") && t < cutoff) this.sent.delete(k);
+        // sla-violado, frota-* e orc-estouro têm de-dup diário próprio; não limpar
+        if (!k.startsWith("sla-violado") && !k.startsWith("frota-") && !k.startsWith("orc-estouro") && t < cutoff) this.sent.delete(k);
       }
 
     } catch (e: any) {
@@ -255,7 +255,84 @@ export class AlertScheduler implements OnModuleInit {
     await this.runSlaCheck();
     await this.runFaturaCheck();
     await this.runFrotaCheck();
+    await this.runOrcamentoAlertCheck();
     await this.runScheduledReports();
+  }
+
+  // Alerta de estouro de orçamento — guiado pelas Regras de Alertas da organização
+  // (tipo "orcamento_estouro"): respeita ativo, canais e destinatários configurados.
+  private async runOrcamentoAlertCheck() {
+    try {
+      const now = getNow();
+      const diaKey = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString().slice(0, 10);
+      const mesAtual = now.getMonth() + 1;
+      const ano = now.getFullYear();
+
+      const regras = await (this.prisma as any).alertaRegra.findMany({
+        where: { tipo: "orcamento_estouro", ativo: true },
+      }).catch(() => [] as any[]);
+      if (!regras.length) return;
+
+      for (const regra of regras) {
+        let destinatarios: string[] = [];
+        let canais: string[] = [];
+        try { destinatarios = JSON.parse(regra.destinatarios || "[]"); } catch {}
+        try { canais = JSON.parse(regra.canais || "[]"); } catch {}
+        if (!destinatarios.length || !canais.length) continue;
+
+        const ciclos = await (this.prisma as any).orcamentoCiclo.findMany({
+          where: { organizationId: regra.organizationId, ano }, select: { id: true },
+        }).catch(() => [] as any[]);
+        if (!ciclos.length) continue;
+        const cicloIds = ciclos.map((c: any) => c.id);
+
+        const meses = await (this.prisma as any).itemOrcamentoMes.findMany({
+          where: {
+            mes: mesAtual,
+            valorPrevisto: { gt: 0 },
+            item: { cicloId: { in: cicloIds }, status: { not: "cancelado" } },
+          },
+          select: { id: true, valorPrevisto: true, valorRealizado: true, item: { select: { id: true, nome: true } } },
+        }).catch(() => [] as any[]);
+        const estourados = meses.filter((m: any) => m.valorRealizado != null && m.valorRealizado > m.valorPrevisto);
+        if (!estourados.length) continue;
+
+        const users = await this.prisma.user.findMany({
+          where: { id: { in: destinatarios }, ativo: true },
+          select: { id: true, nome: true, email: true, profile: { select: { whatsapp: true, whatsappAlertas: true } } },
+        }).catch(() => [] as any[]);
+        if (!users.length) continue;
+        const inst = await this.wa.resolveInstance(regra.organizationId).catch(() => null);
+
+        for (const m of estourados) {
+          const key = `orc-estouro::${m.id}::${diaKey}`;
+          if (this.sent.has(key)) continue;
+          this.sent.set(key, Date.now());
+          const excedente = (m.valorRealizado - m.valorPrevisto);
+          const nomeItem = m.item?.nome || "item";
+          const titulo = `Orçamento estourado — ${nomeItem}`;
+          const mensagem = `O item "${nomeItem}" passou do previsto no mês: previsto R$ ${Number(m.valorPrevisto).toLocaleString("pt-BR")}, realizado R$ ${Number(m.valorRealizado).toLocaleString("pt-BR")} (excedente R$ ${Number(excedente).toLocaleString("pt-BR")}).`;
+
+          for (const u of users) {
+            if (canais.includes("sistema")) {
+              await this.prisma.notification.create({
+                data: { userId: u.id, tipo: "orcamento_estouro", titulo, mensagem, referenciaTipo: "orcamento_item", referenciaId: m.item?.id || m.id },
+              }).catch(() => {});
+            }
+            if (canais.includes("email") && this.email.isEnabled() && (u as any).email) {
+              await this.email.sendGeneric((u as any).email, (u as any).nome, `⚠️ ${titulo}`, mensagem).catch(() => {});
+            }
+            const phone = (u as any).profile?.whatsapp;
+            if (canais.includes("whatsapp") && phone && (u as any).profile?.whatsappAlertas && inst) {
+              await this.wa.sendMessage(phone, `💸 *Orkestri — Orçamento*\n\n${titulo}\n${mensagem}`, inst).catch(() => {});
+            }
+          }
+          this.logger.log(`Alerta orçamento estouro item=${m.item?.id} org=${regra.organizationId}`);
+        }
+      }
+    } catch (e: any) {
+      this.logger.error("Orcamento alert check erro: " + e.message);
+    }
   }
 
   private async runFaturaCheck() {
