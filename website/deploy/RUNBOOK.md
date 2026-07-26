@@ -27,19 +27,20 @@ git pull
 ls website/                                             # confirmar
 ```
 
+O serviço `website` já faz parte de `docker-compose.prod.yml` — entra nos deploys
+padrão da plataforma (comando de 2 arquivos). Não há mais override separado.
+
 ## PASSO 2 — Build da imagem do site (não afeta produção)
 
 ```bash
 cd /opt/orkestri
-docker compose -f docker-compose.yml -f docker-compose.prod.yml \
-  -f website/deploy/docker-compose.website.yml build website
+docker compose -f docker-compose.yml -f docker-compose.prod.yml build website
 ```
 
 ## PASSO 3 — Subir o container do site
 
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.prod.yml \
-  -f website/deploy/docker-compose.website.yml up -d website
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d website
 docker ps | grep orkestri_website
 # validar internamente (rede docker), antes de tocar no nginx:
 docker exec orkestri_nginx wget -qO- http://orkestri_website:3000/ | grep -o "organizes businesses"
