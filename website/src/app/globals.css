@@ -1,0 +1,175 @@
+@import "tailwindcss";
+
+/*
+  ORKIESTRI — Design System v2.0
+  Source of truth: orkiestri-design-system/06-design-system.md
+  Philosophy: "Less Interface. More Experience."
+*/
+
+@theme {
+  /* ---------- Colors: Primary ---------- */
+  --color-primary: #f97316;
+  --color-primary-hover: #ea580c;
+  --color-primary-soft: #ffedd5;
+
+  /* ---------- Colors: Dark ---------- */
+  --color-dark: #0f172a;
+  --color-dark-soft: #1e293b;
+
+  /* ---------- Colors: Gray scale ---------- */
+  --color-gray-50: #f9fafb;
+  --color-gray-100: #f3f4f6;
+  --color-gray-200: #e5e7eb;
+  --color-gray-300: #d1d5db;
+  --color-gray-400: #9ca3af;
+  --color-gray-500: #6b7280;
+  --color-gray-600: #4b5563;
+  --color-gray-700: #374151;
+  --color-gray-800: #1f2937;
+  --color-gray-900: #111827;
+
+  /* ---------- Colors: Semantic ---------- */
+  --color-success: #22c55e;
+  --color-warning: #f59e0b;
+  --color-error: #ef4444;
+  --color-info: #3b82f6;
+
+  /* ---------- Surfaces ---------- */
+  --color-background: #ffffff;
+  --color-surface: #ffffff;
+  --color-surface-muted: #f9fafb;
+
+  /* ---------- Typography ---------- */
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system,
+    "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+
+  /* Type scale (doc 06 — hierarchy) */
+  --text-caption: 0.875rem; /* 14px */
+  --text-small: 1rem; /* 16px */
+  --text-body: 1.125rem; /* 18px */
+  --text-h4: 1.5rem; /* 24px */
+  --text-h3: 2rem; /* 32px */
+  --text-h2: 2.75rem; /* 44px */
+  --text-title: 3.5rem; /* 56px */
+  --text-hero: 4.5rem; /* 72px */
+
+  /* ---------- Radius (doc 06) ---------- */
+  --radius-input: 14px;
+  --radius-button: 14px;
+  --radius-card: 20px;
+  --radius-image: 24px;
+  --radius-modal: 24px;
+
+  /* ---------- Layout ---------- */
+  --container-content: 1280px;
+  --container-max: 1440px;
+
+  /* ---------- Motion (doc 08) ---------- */
+  --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
+  --ease-in-out-quart: cubic-bezier(0.76, 0, 0.24, 1);
+}
+
+/* ---------- Base ---------- */
+@layer base {
+  :root {
+    --font-inter: "Inter";
+  }
+
+  * {
+    border-color: var(--color-gray-200);
+  }
+
+  html {
+    scroll-behavior: smooth;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    background-color: var(--color-background);
+    color: var(--color-dark);
+    font-family: var(--font-sans);
+    font-size: var(--text-body);
+    line-height: 1.4; /* 140% per doc 06 */
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+
+  /* Titles use negative letter spacing only (doc 06) */
+  h1,
+  h2,
+  h3,
+  h4 {
+    letter-spacing: -0.02em;
+    line-height: 1.1;
+    color: var(--color-dark);
+    text-wrap: balance;
+  }
+
+  /* Accessible focus ring — never removed (doc 09, a11y) */
+  :focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  ::selection {
+    background-color: var(--color-primary);
+    color: #ffffff;
+  }
+}
+
+/* ---------- Utilities ---------- */
+@layer utilities {
+  .container-content {
+    width: 100%;
+    max-width: var(--container-content);
+    margin-inline: auto;
+    padding-inline: 1.5rem; /* mobile 24px */
+  }
+
+  @media (min-width: 768px) {
+    .container-content {
+      padding-inline: 3rem; /* tablet 48px */
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .container-content {
+      padding-inline: 6rem; /* desktop 96px */
+    }
+  }
+
+  /* Subtle premium border used across cards (doc 06 — no heavy shadows) */
+  .shadow-soft {
+    box-shadow:
+      0 1px 2px rgba(15, 23, 42, 0.04),
+      0 4px 16px rgba(15, 23, 42, 0.04);
+  }
+
+  .shadow-soft-lg {
+    box-shadow:
+      0 2px 4px rgba(15, 23, 42, 0.04),
+      0 12px 40px rgba(15, 23, 42, 0.08);
+  }
+
+  .text-gradient-primary {
+    background: linear-gradient(135deg, #f97316 0%, #fb923c 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+}
+
+/* ---------- Reduced motion (doc 08) ---------- */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
