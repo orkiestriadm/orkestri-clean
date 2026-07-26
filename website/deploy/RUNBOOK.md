@@ -48,13 +48,16 @@ docker exec orkestri_nginx wget -qO- http://orkestri_website:3000/ | grep -o "or
 
 ## PASSO 4 — Cutover do nginx (o único passo que afeta o tráfego)
 
+A config canônica do nginx (`nginx/nginx-ssl.conf`) já contém as rotas do site +
+sistema. Num deploy via git, ela vem junto. Para aplicar/recarregar:
+
 ```bash
 cd /opt/orkestri
-cp nginx/nginx-ssl.conf nginx/nginx-ssl.conf.bak.$(date +%s)     # backup
-cp website/deploy/nginx-ssl.conf nginx/nginx-ssl.conf            # nova config
-docker exec orkestri_nginx nginx -t                             # testar sintaxe
-docker exec orkestri_nginx nginx -s reload                     # aplicar (zero downtime)
+docker exec orkestri_nginx nginx -t                            # testar sintaxe
+docker exec orkestri_nginx nginx -s reload                    # aplicar (zero downtime)
 ```
+
+Rollback rápido usa o backup salvo no cutover (`nginx/nginx-ssl.conf.bak.<ts>`).
 
 ## PASSO 5 — Validação
 
