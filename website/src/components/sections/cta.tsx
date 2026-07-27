@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Container } from "@/components/ui/container";
+import { VideoBackdrop } from "@/components/ui/video-backdrop";
 import { Reveal } from "@/components/animations/reveal";
 
 /** Final CTA — reused across pages (doc 05). */
@@ -15,6 +16,12 @@ export function CTA({
     <section className="py-20 md:py-28">
       <Container>
         <Reveal className="relative overflow-hidden rounded-[--radius-image] bg-dark px-8 py-16 text-center md:px-16 md:py-20">
+          <VideoBackdrop src="/media/light-streaks.mp4" opacity={0.22} />
+          {/* Véu sobre o vídeo: mantém o contraste do texto em AA */}
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-0 bg-dark/55"
+          />
           <div
             aria-hidden
             className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(249,115,22,0.18),transparent_60%)]"
