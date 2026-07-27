@@ -30,9 +30,16 @@ export function HeroVideo({
   const ref = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    // Só a variante visível toca. Existem duas no DOM (desktop e mobile) e
+    // decodificar a que está em display:none seria gasto puro de CPU.
+    // offsetWidth zera com display:none — e, ao contrário de offsetParent,
+    // não se confunde com ancestrais transformados.
+    if (el.offsetWidth === 0) return;
     // O atributo autoplay sozinho não é confiável: mesmo mudo, parte dos
     // navegadores deixa o vídeo parado até um play() explícito.
-    ref.current?.play().catch(() => {});
+    el.play().catch(() => {});
   }, []);
 
   return (
