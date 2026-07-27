@@ -1,22 +1,27 @@
 "use client";
 
-import { useRef, type MouseEvent } from "react";
+import { useRef, useState, type MouseEvent } from "react";
 import Image from "next/image";
+import * as Dialog from "@radix-ui/react-dialog";
+import { X, ZoomIn, Maximize2, Minimize2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 /**
- * Imagem de produto em card premium.
+ * Imagem de produto em card premium, ampliável em galeria.
  *
  * Segue `image-style.md` (glassmorphism, soft reflections, premium shadows,
- * hover scale + translateY em 250ms) empilhando efeitos discretos:
+ * hover scale + translateY) empilhando efeitos discretos:
  *   1. malha de luz quente atrás do card — a marca vazando para o fundo;
  *   2. trama de pontos, que dá textura técnica sem competir com a imagem;
  *   3. borda em gradiente, acendendo no laranja da marca no topo;
  *   4. holofote que acompanha o cursor sobre a superfície;
  *   5. reflexo curto, que assenta o card no fundo.
  *
- * No hover o card sobe e expande — sem inclinação, para a captura continuar
- * legível de frente.
+ * Clicar abre a captura em tela cheia, onde é possível alternar entre
+ * "caber na tela" e tamanho real — necessário porque a interface do produto
+ * tem texto miúdo que se perde na miniatura.
+ *
+ * O Dialog do Radix cuida de foco preso, Esc e semântica ARIA.
  *
  * width/height obrigatórios: reservam o espaço e evitam layout shift (CLS).
  */
@@ -36,6 +41,7 @@ export function Screenshot({
   className?: string;
 }) {
   const surface = useRef<HTMLDivElement>(null);
+  const [tamanhoReal, setTamanhoReal] = useState(false);
 
   /* Holofote: guarda a posição do cursor em variáveis CSS. Fica só no CSS,
      sem estado React — nada de re-render a cada pixel de movimento. */
@@ -48,99 +54,184 @@ export function Screenshot({
   };
 
   return (
-    <figure
-      onMouseMove={trackPointer}
-      className={cn("group relative", className)}
-    >
-      {/* 1. Malha de luz quente */}
-      <div
-        aria-hidden
-        className={cn(
-          "pointer-events-none absolute -inset-x-10 -bottom-8 -top-6 rounded-[56px] blur-3xl",
-          "bg-[radial-gradient(45%_55%_at_25%_25%,rgba(249,115,22,0.38),transparent_70%),radial-gradient(45%_55%_at_78%_65%,rgba(251,146,60,0.30),transparent_70%)]",
-          "opacity-70 transition-opacity duration-500 group-hover:opacity-100"
-        )}
-      />
-
-      {/* 2. Trama de pontos — textura técnica, some nas bordas */}
-      <div
-        aria-hidden
-        className="pointer-events-none absolute -inset-x-6 -inset-y-4 opacity-[0.18] [mask-image:radial-gradient(ellipse_at_center,#000_35%,transparent_75%)]"
-        style={{
-          backgroundImage:
-            "radial-gradient(rgba(15,23,42,0.5) 1px, transparent 1px)",
-          backgroundSize: "22px 22px",
-        }}
-      />
-
-      {/* 3. Borda em gradiente (1px) envolvendo o card */}
-      <div
-        className={cn(
-          "relative rounded-[25px] p-px",
-          "bg-[linear-gradient(160deg,rgba(249,115,22,0.55),rgba(229,231,235,0.9)_38%,rgba(229,231,235,0.7))]",
-          "shadow-soft transition-[transform,box-shadow] duration-[280ms] ease-[--ease-out-quart]",
-          "group-hover:shadow-soft-lg",
-          /* O `transform` fica no estilo inline e só lê variáveis; as classes
-             abaixo apenas trocam essas variáveis. Assim o hover e o
-             prefers-reduced-motion funcionam sem disputar a propriedade —
-             uma classe utilitária de transform venceria o inline e zeraria
-             tudo (foi o que aconteceu antes). */
-          "[--lift:0px] [--zoom:1] group-hover:[--lift:-10px] group-hover:[--zoom:1.07]",
-          "motion-reduce:[--lift:0px] motion-reduce:[--zoom:1] motion-reduce:transition-none"
-        )}
-        style={
-          {
-            transform:
-              "translateY(var(--lift,0px)) scale(var(--zoom,1))",
-          } as React.CSSProperties
-        }
-      >
-        {/* Superfície do card */}
+    <Dialog.Root onOpenChange={(aberto) => !aberto && setTamanhoReal(false)}>
+      <figure onMouseMove={trackPointer} className={cn("group relative", className)}>
+        {/* 1. Malha de luz quente */}
         <div
-          ref={surface}
-          className="relative overflow-hidden rounded-[24px] bg-white"
-        >
-          {/* Fio de luz na borda superior — acabamento de vidro */}
-          <div
-            aria-hidden
-            className="pointer-events-none absolute inset-x-0 top-0 z-20 h-px bg-gradient-to-r from-transparent via-white to-transparent"
-          />
+          aria-hidden
+          className={cn(
+            "pointer-events-none absolute -inset-x-10 -bottom-8 -top-6 rounded-[56px] blur-3xl",
+            "bg-[radial-gradient(45%_55%_at_25%_25%,rgba(249,115,22,0.38),transparent_70%),radial-gradient(45%_55%_at_78%_65%,rgba(251,146,60,0.30),transparent_70%)]",
+            "opacity-70 transition-opacity duration-500 group-hover:opacity-100"
+          )}
+        />
 
-          <Image
-            src={src}
-            alt={alt}
-            width={width}
-            height={height}
-            priority={priority}
-            /* Capturas de interface são densas em texto miúdo: o padrão (q=75)
-               borra as letras e um `sizes` estreito faria o navegador escolher
-               um candidato pequeno demais. */
-            quality={92}
-            sizes="(max-width: 768px) 100vw, (max-width: 1280px) 95vw, 1280px"
-            className="h-auto w-full"
-          />
+        {/* 2. Trama de pontos — textura técnica, some nas bordas */}
+        <div
+          aria-hidden
+          className="pointer-events-none absolute -inset-x-6 -inset-y-4 opacity-[0.18] [mask-image:radial-gradient(ellipse_at_center,#000_35%,transparent_75%)]"
+          style={{
+            backgroundImage:
+              "radial-gradient(rgba(15,23,42,0.5) 1px, transparent 1px)",
+            backgroundSize: "22px 22px",
+          }}
+        />
 
-          {/* 4. Holofote seguindo o cursor */}
-          <div
-            aria-hidden
+        <Dialog.Trigger asChild>
+          <button
+            type="button"
+            aria-label={`Ampliar imagem: ${alt}`}
             className={cn(
-              "pointer-events-none absolute inset-0 z-10 opacity-0 mix-blend-soft-light",
-              "transition-opacity duration-300 group-hover:opacity-100 motion-reduce:hidden",
-              "bg-[radial-gradient(260px_circle_at_var(--mx,50%)_var(--my,50%),rgba(255,255,255,0.9),transparent_65%)]"
+              "relative block w-full cursor-zoom-in rounded-[25px] p-px text-left",
+              "bg-[linear-gradient(160deg,rgba(249,115,22,0.55),rgba(229,231,235,0.9)_38%,rgba(229,231,235,0.7))]",
+              "shadow-soft transition-[transform,box-shadow] duration-[280ms] ease-[--ease-out-quart]",
+              "group-hover:shadow-soft-lg",
+              "focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary",
+              /* O `transform` fica no estilo inline e só lê variáveis; as classes
+                 abaixo apenas trocam essas variáveis. Assim o hover e o
+                 prefers-reduced-motion funcionam sem disputar a propriedade. */
+              "[--lift:0px] [--zoom:1] group-hover:[--lift:-10px] group-hover:[--zoom:1.07]",
+              "motion-reduce:[--lift:0px] motion-reduce:[--zoom:1] motion-reduce:transition-none"
             )}
-          />
-        </div>
-      </div>
+            style={
+              {
+                transform: "translateY(var(--lift,0px)) scale(var(--zoom,1))",
+              } as React.CSSProperties
+            }
+          >
+            {/* Superfície do card */}
+            <div
+              ref={surface}
+              className="relative overflow-hidden rounded-[24px] bg-white"
+            >
+              {/* Fio de luz na borda superior — acabamento de vidro */}
+              <div
+                aria-hidden
+                className="pointer-events-none absolute inset-x-0 top-0 z-20 h-px bg-gradient-to-r from-transparent via-white to-transparent"
+              />
 
-      {/* 5. Reflexo — assenta o card no fundo */}
-      <div
-        aria-hidden
-        className={cn(
-          "pointer-events-none mx-auto mt-2 h-12 w-[85%] rounded-[50%] blur-2xl",
-          "bg-[radial-gradient(50%_100%_at_50%_0%,rgba(15,23,42,0.22),transparent_72%)]",
-          "transition-all duration-[280ms] group-hover:w-[92%] group-hover:opacity-80"
-        )}
-      />
-    </figure>
+              <Image
+                src={src}
+                alt={alt}
+                width={width}
+                height={height}
+                priority={priority}
+                /* Capturas de interface são densas em texto miúdo: o padrão
+                   (q=75) borra as letras e um `sizes` estreito faria o
+                   navegador escolher um candidato pequeno demais. */
+                quality={92}
+                sizes="(max-width: 768px) 100vw, (max-width: 1280px) 95vw, 1280px"
+                className="h-auto w-full"
+              />
+
+              {/* Holofote seguindo o cursor */}
+              <div
+                aria-hidden
+                className={cn(
+                  "pointer-events-none absolute inset-0 z-10 opacity-0 mix-blend-soft-light",
+                  "transition-opacity duration-300 group-hover:opacity-100 motion-reduce:hidden",
+                  "bg-[radial-gradient(260px_circle_at_var(--mx,50%)_var(--my,50%),rgba(255,255,255,0.9),transparent_65%)]"
+                )}
+              />
+
+              {/* Dica de ampliação — aparece no hover */}
+              <span
+                aria-hidden
+                className={cn(
+                  "pointer-events-none absolute bottom-4 right-4 z-20 inline-flex items-center gap-1.5",
+                  "rounded-full border border-white/15 bg-dark/75 px-3 py-1.5 text-xs font-medium text-white",
+                  "opacity-0 backdrop-blur-sm transition-opacity duration-200 group-hover:opacity-100"
+                )}
+              >
+                <ZoomIn className="h-3.5 w-3.5" />
+                Ampliar
+              </span>
+            </div>
+          </button>
+        </Dialog.Trigger>
+
+        {/* 5. Reflexo — assenta o card no fundo */}
+        <div
+          aria-hidden
+          className={cn(
+            "pointer-events-none mx-auto mt-2 h-12 w-[85%] rounded-[50%] blur-2xl",
+            "bg-[radial-gradient(50%_100%_at_50%_0%,rgba(15,23,42,0.22),transparent_72%)]",
+            "transition-all duration-[280ms] group-hover:w-[92%] group-hover:opacity-80"
+          )}
+        />
+      </figure>
+
+      {/* ── Galeria em tela cheia ─────────────────────────────────────────── */}
+      <Dialog.Portal>
+        <Dialog.Overlay className="fixed inset-0 z-[100] bg-dark/85 backdrop-blur-md data-[state=closed]:opacity-0 data-[state=open]:opacity-100 transition-opacity duration-200" />
+        <Dialog.Content
+          className={cn(
+            "fixed inset-0 z-[100] flex flex-col outline-none",
+            "data-[state=open]:animate-none"
+          )}
+        >
+          <Dialog.Title className="sr-only">{alt}</Dialog.Title>
+
+          {/* Barra de ações */}
+          <div className="flex shrink-0 items-center justify-between gap-4 px-4 py-3 md:px-6">
+            <p className="line-clamp-1 text-sm text-white/70">{alt}</p>
+            <div className="flex shrink-0 items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setTamanhoReal((v) => !v)}
+                className="inline-flex h-10 items-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 text-sm font-medium text-white transition-colors hover:bg-white/20 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+              >
+                {tamanhoReal ? (
+                  <>
+                    <Minimize2 className="h-4 w-4" aria-hidden />
+                    Caber na tela
+                  </>
+                ) : (
+                  <>
+                    <Maximize2 className="h-4 w-4" aria-hidden />
+                    Tamanho real
+                  </>
+                )}
+              </button>
+              <Dialog.Close
+                aria-label="Fechar"
+                className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/15 bg-white/10 text-white transition-colors hover:bg-white/20 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+              >
+                <X className="h-5 w-5" aria-hidden />
+              </Dialog.Close>
+            </div>
+          </div>
+
+          {/* Palco */}
+          <div
+            className={cn(
+              "flex-1 px-4 pb-6 md:px-6",
+              tamanhoReal ? "overflow-auto" : "overflow-hidden"
+            )}
+          >
+            <div
+              className={cn(
+                "mx-auto w-fit overflow-hidden rounded-[20px] border border-white/10 shadow-soft-lg",
+                !tamanhoReal && "flex h-full items-center justify-center"
+              )}
+            >
+              <Image
+                src={src}
+                alt={alt}
+                width={width}
+                height={height}
+                quality={95}
+                sizes="100vw"
+                className={cn(
+                  tamanhoReal
+                    ? "h-auto w-auto max-w-none"
+                    : "max-h-full w-auto object-contain"
+                )}
+              />
+            </div>
+          </div>
+        </Dialog.Content>
+      </Dialog.Portal>
+    </Dialog.Root>
   );
 }
