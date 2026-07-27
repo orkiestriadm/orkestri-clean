@@ -31,11 +31,11 @@ export function VideoBackdrop({
   const ref = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    // Se o CSS escondeu o vídeo (mobile ou reduced-motion), não force a carga.
-    if (el.offsetParent === null) return;
-    if (el.paused) el.play().catch(() => {});
+    // Sem checagem de visibilidade: `offsetParent` é null para elementos
+    // absolutos sob ancestrais transformados, e a guarda acabava impedindo o
+    // play justamente onde ele era necessário. Quando o CSS esconde o vídeo,
+    // o próprio navegador já não renderiza nem baixa o arquivo.
+    ref.current?.play().catch(() => {});
   }, []);
 
   return (
