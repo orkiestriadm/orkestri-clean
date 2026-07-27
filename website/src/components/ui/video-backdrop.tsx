@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 
 /**
@@ -24,6 +24,7 @@ export function VideoBackdrop({
   opacity?: number;
 }) {
   const [enabled, setEnabled] = useState(false);
+  const ref = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
     const motionOk = window.matchMedia("(prefers-reduced-motion: no-preference)");
@@ -39,16 +40,25 @@ export function VideoBackdrop({
     };
   }, []);
 
+  // O atributo autoPlay sozinho é frágil: alguns navegadores só iniciam após
+  // um play() explícito. Se a política de autoplay barrar, o vídeo
+  // simplesmente não aparece — a seção continua íntegra sem ele.
+  useEffect(() => {
+    if (!enabled) return;
+    ref.current?.play().catch(() => {});
+  }, [enabled]);
+
   if (!enabled) return null;
 
   return (
     <video
+      ref={ref}
       src={src}
       autoPlay
       muted
       loop
       playsInline
-      preload="none"
+      preload="metadata"
       aria-hidden
       tabIndex={-1}
       className={cn(
