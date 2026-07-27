@@ -31,6 +31,7 @@ export function Screenshot({
   width,
   height,
   priority = false,
+  zoomOnHover = true,
   className,
 }: {
   src: string;
@@ -38,6 +39,8 @@ export function Screenshot({
   width: number;
   height: number;
   priority?: boolean;
+  /** Desligue dentro de contêineres com rolagem: a ampliação transbordaria. */
+  zoomOnHover?: boolean;
   className?: string;
 }) {
   const surface = useRef<HTMLDivElement>(null);
@@ -90,7 +93,10 @@ export function Screenshot({
               /* O `transform` fica no estilo inline e só lê variáveis; as classes
                  abaixo apenas trocam essas variáveis. Assim o hover e o
                  prefers-reduced-motion funcionam sem disputar a propriedade. */
-              "[--lift:0px] [--zoom:1] group-hover:[--lift:-10px] group-hover:[--zoom:1.07]",
+              "[--lift:0px] [--zoom:1]",
+              zoomOnHover
+                ? "group-hover:[--lift:-10px] group-hover:[--zoom:1.07]"
+                : "group-hover:[--lift:-4px]",
               "motion-reduce:[--lift:0px] motion-reduce:[--zoom:1] motion-reduce:transition-none"
             )}
             style={

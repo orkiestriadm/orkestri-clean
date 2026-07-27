@@ -14,7 +14,7 @@ import { IconTile } from "@/components/ui/icon-tile";
 import { Section, SectionHeader } from "@/components/ui/section";
 import { Container } from "@/components/ui/container";
 import { Button } from "@/components/ui/button";
-import { Screenshot } from "@/components/ui/screenshot";
+import { ScreensCarousel } from "@/components/sections/screens-carousel";
 import { ProductsGrid } from "@/components/sections/products-grid";
 import { Reveal } from "@/components/animations/reveal";
 import { CTA } from "@/components/sections/cta";
@@ -79,13 +79,7 @@ export default function OrkiestriOnePage() {
 
       <Container className="pb-8">
         <Reveal>
-          <Screenshot
-            src="/screenshots/orcamento-dashboard.png"
-            alt="Orkiestri One — dashboard com indicadores consolidados, evolução mensal e distribuição por centro de custo"
-            width={1755}
-            height={999}
-            priority
-          />
+          <ScreensCarousel />
         </Reveal>
       </Container>
 
