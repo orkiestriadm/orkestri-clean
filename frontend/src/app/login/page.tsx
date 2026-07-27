@@ -50,21 +50,20 @@ export default function LoginPage() {
 
   return (
     <div className="relative flex min-h-dvh overflow-hidden bg-[#08090c] text-white">
-      {/* ── Atmosfera: glow quente + malha sutil ────────────────────────────── */}
+      {/* ── Atmosfera ───────────────────────────────────────────────────────
+          O último quadro da abertura em vídeo continua aqui como plano de
+          fundo: quem vem de /entrar sente que a animação apenas congelou. */}
       <div aria-hidden className="pointer-events-none absolute inset-0">
-        <div className="absolute -left-40 -top-40 h-[560px] w-[720px] rounded-full bg-[#f97316]/[0.16] blur-[130px]" />
-        <div className="absolute -bottom-52 left-1/3 h-[460px] w-[620px] rounded-full bg-[#fb923c]/[0.10] blur-[130px]" />
-        <div className="absolute right-0 top-1/4 h-[380px] w-[420px] rounded-full bg-[#ea580c]/[0.08] blur-[120px]" />
-        <div
-          className="absolute inset-0 opacity-[0.16]"
-          style={{
-            backgroundImage:
-              "linear-gradient(rgba(255,255,255,.06) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.06) 1px, transparent 1px)",
-            backgroundSize: "56px 56px",
-            maskImage: "radial-gradient(ellipse at 50% 0%, #000 35%, transparent 78%)",
-            WebkitMaskImage: "radial-gradient(ellipse at 50% 0%, #000 35%, transparent 78%)",
-          }}
+        <img
+          src="/branding/planeta.jpg"
+          alt=""
+          className="absolute inset-0 h-full w-full object-cover"
         />
+        {/* Véus: escurecem o suficiente para o formulário manter contraste AA
+            sem apagar o planeta. */}
+        <div className="absolute inset-0 bg-[#08090c]/55" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,transparent_25%,rgba(8,9,12,0.72)_85%)]" />
+        <div className="absolute inset-0 bg-gradient-to-r from-[#08090c]/70 via-transparent to-[#08090c]/80" />
       </div>
 
       {/* ── Painel da marca (desktop) ───────────────────────────────────────── */}

@@ -89,6 +89,9 @@ export default function EntrarPage() {
     <div className="fixed inset-0 z-50 flex flex-col overflow-hidden bg-[#08090c] text-white">
       {/* Aquece o destino enquanto a animação roda */}
       <link rel="prefetch" href={DESTINO} as="document" />
+      {/* O login usa o último quadro deste vídeo como fundo; carregá-lo aqui
+          faz a passagem parecer que a animação apenas congelou. */}
+      <link rel="prefetch" href="/branding/planeta.jpg" as="image" />
       {/* Última rede: avança mesmo que o JavaScript não execute, para ninguém
           ficar preso na abertura a caminho do login. */}
       <meta httpEquiv="refresh" content="13;url=/login" />
