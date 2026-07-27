@@ -84,10 +84,15 @@ export function Screenshot({
           "relative rounded-[25px] p-px",
           "bg-[linear-gradient(160deg,rgba(249,115,22,0.55),rgba(229,231,235,0.9)_38%,rgba(229,231,235,0.7))]",
           "shadow-soft transition-[transform,box-shadow] duration-[280ms] ease-[--ease-out-quart]",
-          "group-hover:-translate-y-2 group-hover:scale-[1.03] group-hover:shadow-soft-lg",
-          "motion-reduce:!transform-none motion-reduce:transition-none"
+          "group-hover:shadow-soft-lg",
+          /* A inclinação sai de uma variável para que o hover e o
+             prefers-reduced-motion apenas a zerem — evita disputa de
+             `transform` entre classe utilitária e estilo inline. */
+          "[transform:perspective(1600px)_rotateX(var(--tilt))_translateY(var(--lift,0px))_scale(var(--zoom,1))]",
+          "[--lift:0px] [--zoom:1] group-hover:[--tilt:0deg] group-hover:[--lift:-8px] group-hover:[--zoom:1.03]",
+          "motion-reduce:[--tilt:0deg] motion-reduce:[--lift:0px] motion-reduce:[--zoom:1] motion-reduce:transition-none"
         )}
-        style={{ transform: `rotateX(${tilt}deg)` }}
+        style={{ "--tilt": `${tilt}deg` } as React.CSSProperties}
       >
         {/* 4. Superfície do card */}
         <div
