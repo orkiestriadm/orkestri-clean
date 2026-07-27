@@ -1,18 +1,16 @@
-"use client";
-
-import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 
 /**
  * Vídeo decorativo de fundo para seções escuras.
  *
- * Só entra em cena quando não atrapalha:
- * - respeita `prefers-reduced-motion` (doc 08);
- * - não carrega em telas pequenas, onde custaria banda sem ganho;
- * - monta apenas depois da hidratação, para ficar fora do caminho do LCP.
+ * Renderiza no servidor e usa só CSS para se proteger — sem depender de
+ * hidratação, que é justamente onde a versão anterior falhava:
+ * - `hidden md:block` mantém fora de telas pequenas (não baixa o arquivo,
+ *   porque `display:none` impede a carga);
+ * - `motion-reduce:hidden` respeita prefers-reduced-motion (doc 08).
  *
- * Sempre mudo e em loop — o doc 06 veta vídeo com autoplay disputando a
- * atenção do conteúdo, então aqui ele é textura, nunca protagonista.
+ * Sempre mudo e em loop — o doc 06 veta vídeo disputando atenção com o
+ * conteúdo, então aqui ele é textura, nunca protagonista.
  */
 export function VideoBackdrop({
   src,
@@ -23,36 +21,8 @@ export function VideoBackdrop({
   className?: string;
   opacity?: number;
 }) {
-  const [enabled, setEnabled] = useState(false);
-  const ref = useRef<HTMLVideoElement>(null);
-
-  useEffect(() => {
-    const motionOk = window.matchMedia("(prefers-reduced-motion: no-preference)");
-    const wideEnough = window.matchMedia("(min-width: 768px)");
-    const decide = () => setEnabled(motionOk.matches && wideEnough.matches);
-
-    decide();
-    motionOk.addEventListener("change", decide);
-    wideEnough.addEventListener("change", decide);
-    return () => {
-      motionOk.removeEventListener("change", decide);
-      wideEnough.removeEventListener("change", decide);
-    };
-  }, []);
-
-  // O atributo autoPlay sozinho é frágil: alguns navegadores só iniciam após
-  // um play() explícito. Se a política de autoplay barrar, o vídeo
-  // simplesmente não aparece — a seção continua íntegra sem ele.
-  useEffect(() => {
-    if (!enabled) return;
-    ref.current?.play().catch(() => {});
-  }, [enabled]);
-
-  if (!enabled) return null;
-
   return (
     <video
-      ref={ref}
       src={src}
       autoPlay
       muted
@@ -62,7 +32,7 @@ export function VideoBackdrop({
       aria-hidden
       tabIndex={-1}
       className={cn(
-        "pointer-events-none absolute inset-0 h-full w-full object-cover",
+        "pointer-events-none absolute inset-0 hidden h-full w-full object-cover md:block motion-reduce:hidden",
         className
       )}
       style={{ opacity }}

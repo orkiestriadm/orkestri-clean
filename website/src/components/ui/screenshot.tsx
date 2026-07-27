@@ -44,7 +44,11 @@ export function Screenshot({
         width={width}
         height={height}
         priority={priority}
-        sizes="(max-width: 1024px) 100vw, 60vw"
+        /* Capturas de interface são densas em texto miúdo: o padrão (q=75)
+           borra as letras e o `sizes` estreito fazia o navegador escolher um
+           candidato pequeno demais. Pede um recorte grande e alta qualidade. */
+        quality={92}
+        sizes="(max-width: 768px) 100vw, (max-width: 1280px) 95vw, 1280px"
         className="h-auto w-full"
       />
     </figure>
