@@ -141,7 +141,12 @@ export function ScreensCarousel() {
               className="w-full shrink-0 snap-center"
               aria-label={`${i + 1} de ${telas.length}: ${p.name}`}
             >
-              <Screenshot {...p.screenshot!} uniform zoomOnHover={false} />
+              <Screenshot
+                {...p.screenshot!}
+                uniform
+                zoomOnHover={false}
+                bordered={false}
+              />
             </li>
           ))}
         </ul>

@@ -13,13 +13,12 @@ import { cn } from "@/lib/utils";
  * hover scale + translateY) empilhando efeitos discretos:
  *   1. malha de luz quente atrás do card — a marca vazando para o fundo;
  *   2. trama de pontos, que dá textura técnica sem competir com a imagem;
- *   3. borda em gradiente, acendendo no laranja da marca no topo;
+ *   3. borda neutra e fina, opcional (ver `bordered`);
  *   4. holofote que acompanha o cursor sobre a superfície;
  *   5. reflexo curto, que assenta o card no fundo.
  *
- * Clicar abre a captura em tela cheia, onde é possível alternar entre
- * "caber na tela" e tamanho real — necessário porque a interface do produto
- * tem texto miúdo que se perde na miniatura.
+ * Clicar abre a captura em tela cheia, já em tamanho grande e com rolagem —
+ * a interface do produto tem texto miúdo, que se perde na miniatura.
  *
  * O Dialog do Radix cuida de foco preso, Esc e semântica ARIA.
  *
@@ -33,6 +32,7 @@ export function Screenshot({
   priority = false,
   zoomOnHover = true,
   uniform = false,
+  bordered = true,
   className,
 }: {
   src: string;
@@ -49,6 +49,12 @@ export function Screenshot({
    * telas do produto também são brancas.
    */
   uniform?: boolean;
+  /**
+   * Moldura do card: borda e fio de luz no topo. Desligue quando a imagem
+   * precisa se fundir ao fundo — o contorno desenha um retângulo que compete
+   * com a própria tela do produto.
+   */
+  bordered?: boolean;
   className?: string;
 }) {
   const surface = useRef<HTMLDivElement>(null);
@@ -92,11 +98,10 @@ export function Screenshot({
             type="button"
             aria-label={`Ampliar imagem: ${alt}`}
             className={cn(
-              "relative block w-full cursor-zoom-in rounded-[25px] p-px text-left",
-              /* Borda neutra e discreta, no espírito do doc 06 ("border fina").
-                 O contorno em gradiente laranja marcava demais o retângulo e
-                 competia com a própria tela do produto. */
-              "bg-gray-200/60",
+              "relative block w-full cursor-zoom-in rounded-[25px] text-left",
+              /* Sem moldura a imagem se funde ao fundo; com ela, uma borda
+                 neutra e fina, no espírito do doc 06. */
+              bordered ? "bg-gray-200/60 p-px" : "",
               "shadow-soft transition-[transform,box-shadow] duration-[280ms] ease-[--ease-out-quart]",
               "group-hover:shadow-soft-lg",
               "focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary",
@@ -121,10 +126,12 @@ export function Screenshot({
               className="relative overflow-hidden rounded-[24px] bg-white"
             >
               {/* Fio de luz na borda superior — acabamento de vidro */}
-              <div
-                aria-hidden
-                className="pointer-events-none absolute inset-x-0 top-0 z-20 h-px bg-gradient-to-r from-transparent via-white to-transparent"
-              />
+              {bordered && (
+                <div
+                  aria-hidden
+                  className="pointer-events-none absolute inset-x-0 top-0 z-20 h-px bg-gradient-to-r from-transparent via-white to-transparent"
+                />
+              )}
 
               <div
                 className={cn(
