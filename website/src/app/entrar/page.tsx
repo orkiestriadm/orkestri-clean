@@ -5,51 +5,83 @@ import { ArrowRight } from "lucide-react";
 import { Logo } from "@/components/layout/logo";
 
 const DESTINO = "/login";
-/** Teto de espera. Se o vídeo travar ou demorar, ninguém fica preso aqui. */
-const ESPERA_MAXIMA_MS = 9000;
-/** Se o vídeo não começar a tocar até aqui, seguimos direto. */
-const PACIENCIA_INICIAL_MS = 2000;
+/** Marca que a abertura já rolou nesta aba — quem entra todo dia não repete. */
+const CHAVE_SESSAO = "orkiestri:intro-vista";
+/** Espera máxima por buffer. Passou disso, o login vale mais que a animação. */
+const PACIENCIA_BUFFER_MS = 2500;
+/** Folga sobre a duração do vídeo, caso o evento "ended" não dispare. */
+const FOLGA_APOS_FIM_MS = 1500;
 
 /**
- * Abertura antes da tela de login.
+ * Abertura em vídeo antes da tela de login.
  *
- * O vídeo é uma passagem, não um pedágio: em qualquer imprevisto — erro,
- * demora para carregar, `prefers-reduced-motion` — o usuário vai direto para
- * o login. O botão de pular fica visível o tempo todo, e o /login é
- * pré-carregado enquanto a animação roda, para a troca ser imediata.
+ * A animação é passagem, não pedágio: erro, autoplay barrado, buffer lento ou
+ * `prefers-reduced-motion` levam direto ao login, e o botão de pular fica
+ * sempre à mão. O /login é pré-carregado enquanto o vídeo roda.
+ *
+ * Só toca quando há buffer suficiente (`canplaythrough`) — começar antes disso
+ * fazia a animação engasgar. E aparece uma vez por sessão: encanta na primeira
+ * visita sem virar pedágio para quem usa o sistema todo dia.
  */
 export default function EntrarPage() {
   const video = useRef<HTMLVideoElement>(null);
   const jaSeguiu = useRef(false);
-  const [comecou, setComecou] = useState(false);
+  const temporizadores = useRef<number[]>([]);
+  const comecou = useRef(false);
+  const [tocando, setTocando] = useState(false);
 
   const seguir = useCallback(() => {
     if (jaSeguiu.current) return;
     jaSeguiu.current = true;
+    temporizadores.current.forEach(window.clearTimeout);
     window.location.assign(DESTINO);
   }, []);
 
   useEffect(() => {
-    // Quem pediu menos animação não deve esperar por uma.
     const reduzir = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    if (reduzir) {
+    let jaViu = false;
+    try {
+      jaViu = sessionStorage.getItem(CHAVE_SESSAO) === "1";
+      sessionStorage.setItem(CHAVE_SESSAO, "1");
+    } catch {
+      /* modo privado/armazenamento bloqueado: apenas exibe a abertura */
+    }
+
+    if (reduzir || jaViu) {
       seguir();
       return;
     }
 
     const el = video.current;
-    el?.play().catch(() => seguir()); // autoplay barrado: não faz sentido segurar
+    if (!el) return;
 
-    // Duas redes de segurança: uma para o vídeo que nunca começa,
-    // outra para o que começa e não termina.
-    const semInicio = window.setTimeout(() => {
-      if (!jaSeguiu.current && (video.current?.currentTime ?? 0) === 0) seguir();
-    }, PACIENCIA_INICIAL_MS);
-    const tetoGeral = window.setTimeout(seguir, ESPERA_MAXIMA_MS);
+    // Só toca com buffer suficiente para ir até o fim sem engasgar.
+    const tocarQuandoPronto = () => {
+      el.play().catch(seguir); // autoplay barrado: não faz sentido segurar
+    };
+    if (el.readyState >= 4) tocarQuandoPronto();
+    else el.addEventListener("canplaythrough", tocarQuandoPronto, { once: true });
 
+    // Rede 1: buffer demorou demais.
+    temporizadores.current.push(
+      window.setTimeout(() => {
+        if (!comecou.current) seguir();
+      }, PACIENCIA_BUFFER_MS)
+    );
+
+    // Rede 2: teto pela duração real, medida quando os metadados chegam.
+    const agendarTeto = () => {
+      const ms = (el.duration || 10) * 1000 + FOLGA_APOS_FIM_MS;
+      temporizadores.current.push(window.setTimeout(seguir, ms));
+    };
+    if (el.readyState >= 1) agendarTeto();
+    else el.addEventListener("loadedmetadata", agendarTeto, { once: true });
+
+    const limpar = temporizadores.current;
     return () => {
-      window.clearTimeout(semInicio);
-      window.clearTimeout(tetoGeral);
+      limpar.forEach(window.clearTimeout);
+      el.removeEventListener("canplaythrough", tocarQuandoPronto);
+      el.removeEventListener("loadedmetadata", agendarTeto);
     };
   }, [seguir]);
 
@@ -58,7 +90,6 @@ export default function EntrarPage() {
       {/* Aquece o destino enquanto a animação roda */}
       <link rel="prefetch" href={DESTINO} as="document" />
 
-      {/* Vídeo */}
       <video
         ref={video}
         src="/media/globe-intro.mp4"
@@ -66,11 +97,15 @@ export default function EntrarPage() {
         playsInline
         preload="auto"
         aria-hidden
-        onPlaying={() => setComecou(true)}
+        onPlaying={() => {
+          comecou.current = true;
+          setTocando(true);
+        }}
         onEnded={seguir}
         onError={seguir}
-        className="absolute inset-0 h-full w-full object-cover opacity-0 transition-opacity duration-700 data-[visivel=true]:opacity-100"
-        data-visivel={comecou}
+        className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-700 ${
+          tocando ? "opacity-100" : "opacity-0"
+        }`}
       />
 
       {/* Véu: mantém o texto legível sobre qualquer quadro do vídeo */}
@@ -92,15 +127,8 @@ export default function EntrarPage() {
         </button>
       </div>
 
-      {/* Base — mensagem de contexto */}
       <div className="relative mt-auto p-8 text-center md:p-12">
-        <p
-          className={`text-sm text-white/50 transition-opacity duration-500 ${
-            comecou ? "opacity-100" : "opacity-0"
-          }`}
-        >
-          Preparando seu acesso…
-        </p>
+        <p className="text-sm text-white/50">Preparando seu acesso…</p>
       </div>
 
       {/* Rota acessível sem JavaScript */}
