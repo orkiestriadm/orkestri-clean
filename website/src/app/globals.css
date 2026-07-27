@@ -158,6 +158,45 @@
     background-clip: text;
     color: transparent;
   }
+
+  /* Funde as bordas da mídia no fundo da página — evita o retângulo duro de
+     um vídeo com fundo próprio. */
+  .media-feather {
+    -webkit-mask-image: radial-gradient(
+      ellipse 76% 76% at 50% 48%,
+      #000 52%,
+      transparent 100%
+    );
+    mask-image: radial-gradient(
+      ellipse 76% 76% at 50% 48%,
+      #000 52%,
+      transparent 100%
+    );
+  }
+}
+
+/* ── Parallax por rolagem ─────────────────────────────────────────────────
+   Usa scroll-driven animations: quem cuida é o compositor, então não há
+   listener de scroll nem trabalho por quadro na thread principal. Onde o
+   navegador não suporta, a mídia simplesmente fica parada. */
+@keyframes media-parallax {
+  from {
+    transform: translate3d(0, 22px, 0) scale(1.01);
+  }
+  to {
+    transform: translate3d(0, -22px, 0) scale(1.05);
+  }
+}
+
+@supports (animation-timeline: view()) {
+  @media (prefers-reduced-motion: no-preference) {
+    .media-parallax {
+      animation: media-parallax linear both;
+      animation-timeline: view();
+      animation-range: entry 5% exit 95%;
+      will-change: transform;
+    }
+  }
 }
 
 /* ---------- Reduced motion (doc 08) ---------- */
