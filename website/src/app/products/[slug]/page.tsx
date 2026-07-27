@@ -65,7 +65,7 @@ export default async function ProductPage({
       />
 
       <PageHero
-        eyebrow={product.category}
+        eyebrow={product.comingSoon ? `${product.category} · Em breve` : product.category}
         title={product.name}
         description={product.description}
         breadcrumb={[
@@ -73,14 +73,32 @@ export default async function ProductPage({
           { label: product.name, href: `/products/${product.slug}` },
         ]}
       >
-        <div className="flex flex-wrap gap-3">
-          <Button asChild size="lg">
-            <Link href="/demo">Solicitar demonstração</Link>
-          </Button>
-          <Button asChild variant="secondary" size="lg">
-            <Link href="/products/orkiestri-one">Ver a plataforma</Link>
-          </Button>
-        </div>
+        {product.comingSoon ? (
+          <div className="flex flex-col items-start gap-4">
+            <p className="rounded-[--radius-card] border border-gray-200 bg-gray-50 px-5 py-4 text-[0.9375rem] text-gray-600">
+              Este módulo está em desenvolvimento. Fale com nosso time para
+              acompanhar o lançamento ou avaliar uma solução sob medida enquanto
+              isso.
+            </p>
+            <div className="flex flex-wrap gap-3">
+              <Button asChild size="lg">
+                <Link href="/contact">Falar com especialista</Link>
+              </Button>
+              <Button asChild variant="secondary" size="lg">
+                <Link href="/products/orkiestri-one">Ver a plataforma</Link>
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <div className="flex flex-wrap gap-3">
+            <Button asChild size="lg">
+              <Link href="/demo">Solicitar demonstração</Link>
+            </Button>
+            <Button asChild variant="secondary" size="lg">
+              <Link href="/products/orkiestri-one">Ver a plataforma</Link>
+            </Button>
+          </div>
+        )}
       </PageHero>
 
       {/* Captura real do módulo (doc 06: imagens reais, nunca mockups) */}

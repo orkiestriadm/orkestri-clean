@@ -20,6 +20,8 @@ export interface Product {
   audience?: string[];
   /** Captura real da aplicação. Ausente enquanto não houver imagem do módulo. */
   screenshot?: Screenshot;
+  /** Módulo ainda não disponível: a página vira vitrine, sem CTA de demonstração. */
+  comingSoon?: boolean;
 }
 
 export interface Service {

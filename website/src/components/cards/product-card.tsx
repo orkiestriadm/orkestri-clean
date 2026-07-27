@@ -20,8 +20,13 @@ export function ProductCard({ product }: { product: Product }) {
           aria-hidden
         />
       </div>
-      <span className="mt-5 text-xs font-semibold uppercase tracking-wider text-gray-400">
+      <span className="mt-5 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-gray-400">
         {product.category}
+        {product.comingSoon && (
+          <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[0.6875rem] font-semibold normal-case tracking-normal text-gray-500">
+            Em breve
+          </span>
+        )}
       </span>
       <h3 className="mt-1 text-xl font-semibold text-dark">{product.name}</h3>
       <p className="mt-2 text-[0.9375rem] leading-relaxed text-gray-500">

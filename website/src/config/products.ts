@@ -217,6 +217,7 @@ export const products: Product[] = [
   },
   {
     slug: "one-supply",
+    comingSoon: true,
     name: "Orkiestri Supply",
     category: "Procurement",
     tagline: "Gerencie compras, fornecedores e suprimentos.",
