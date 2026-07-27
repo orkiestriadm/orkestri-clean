@@ -10,6 +10,10 @@ const nextConfig: NextConfig = {
   assetPrefix: "/_site",
   images: {
     formats: ["image/avif", "image/webp"],
+    // O assetPrefix NÃO se aplica ao endpoint do otimizador. Sem isto o
+    // <img> pede /_next/image, que o nginx entrega à plataforma (dona de
+    // /_next/) e a imagem quebra. Namespaceia junto com o resto do site.
+    path: "/_site/_next/image",
   },
   async headers() {
     const securityHeaders = [
