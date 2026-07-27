@@ -103,7 +103,6 @@ export function Hero() {
               width={1698}
               height={1028}
               priority
-              tilt={7}
             />
           </motion.div>
         </div>

@@ -12,13 +12,11 @@ import { cn } from "@/lib/utils";
  *   1. malha de luz quente atrás do card — a marca vazando para o fundo;
  *   2. trama de pontos, que dá textura técnica sem competir com a imagem;
  *   3. borda em gradiente, acendendo no laranja da marca no topo;
- *   4. perspectiva: o card nasce levemente inclinado e se endireita no hover;
- *   5. holofote que acompanha o cursor sobre a superfície;
- *   6. reflexo curto, que assenta o card no fundo.
+ *   4. holofote que acompanha o cursor sobre a superfície;
+ *   5. reflexo curto, que assenta o card no fundo.
  *
- * `tilt` controla a inclinação. Nas páginas de produto a captura precisa ser
- * lida, então usa-se um valor baixo; no hero, onde a imagem é sobretudo
- * vitrine, vale um ângulo maior.
+ * No hover o card sobe e expande — sem inclinação, para a captura continuar
+ * legível de frente.
  *
  * width/height obrigatórios: reservam o espaço e evitam layout shift (CLS).
  */
@@ -28,7 +26,6 @@ export function Screenshot({
   width,
   height,
   priority = false,
-  tilt = 4,
   className,
 }: {
   src: string;
@@ -36,8 +33,6 @@ export function Screenshot({
   width: number;
   height: number;
   priority?: boolean;
-  /** Graus de rotação em X quando em repouso. 0 desliga a perspectiva. */
-  tilt?: number;
   className?: string;
 }) {
   const surface = useRef<HTMLDivElement>(null);
@@ -55,7 +50,7 @@ export function Screenshot({
   return (
     <figure
       onMouseMove={trackPointer}
-      className={cn("group relative [perspective:1600px]", className)}
+      className={cn("group relative", className)}
     >
       {/* 1. Malha de luz quente */}
       <div
@@ -90,18 +85,17 @@ export function Screenshot({
              prefers-reduced-motion funcionam sem disputar a propriedade —
              uma classe utilitária de transform venceria o inline e zeraria
              tudo (foi o que aconteceu antes). */
-          "[--lift:0px] [--zoom:1] group-hover:[--tilt:0deg] group-hover:[--lift:-8px] group-hover:[--zoom:1.03]",
-          "motion-reduce:[--tilt:0deg] motion-reduce:[--lift:0px] motion-reduce:[--zoom:1] motion-reduce:transition-none"
+          "[--lift:0px] [--zoom:1] group-hover:[--lift:-10px] group-hover:[--zoom:1.07]",
+          "motion-reduce:[--lift:0px] motion-reduce:[--zoom:1] motion-reduce:transition-none"
         )}
         style={
           {
-            "--tilt": `${tilt}deg`,
             transform:
-              "perspective(1600px) rotateX(var(--tilt)) translateY(var(--lift,0px)) scale(var(--zoom,1))",
+              "translateY(var(--lift,0px)) scale(var(--zoom,1))",
           } as React.CSSProperties
         }
       >
-        {/* 4. Superfície do card */}
+        {/* Superfície do card */}
         <div
           ref={surface}
           className="relative overflow-hidden rounded-[24px] bg-white"
@@ -126,7 +120,7 @@ export function Screenshot({
             className="h-auto w-full"
           />
 
-          {/* 5. Holofote seguindo o cursor */}
+          {/* 4. Holofote seguindo o cursor */}
           <div
             aria-hidden
             className={cn(
@@ -138,7 +132,7 @@ export function Screenshot({
         </div>
       </div>
 
-      {/* 6. Reflexo — assenta o card no fundo */}
+      {/* 5. Reflexo — assenta o card no fundo */}
       <div
         aria-hidden
         className={cn(
