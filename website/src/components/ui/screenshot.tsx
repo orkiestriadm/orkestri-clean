@@ -1,9 +1,9 @@
 "use client";
 
-import { useRef, useState, type MouseEvent } from "react";
+import { useRef, type MouseEvent } from "react";
 import Image from "next/image";
 import * as Dialog from "@radix-ui/react-dialog";
-import { X, ZoomIn, Maximize2, Minimize2 } from "lucide-react";
+import { X, ZoomIn } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 /**
@@ -52,7 +52,6 @@ export function Screenshot({
   className?: string;
 }) {
   const surface = useRef<HTMLDivElement>(null);
-  const [tamanhoReal, setTamanhoReal] = useState(false);
 
   /* Holofote: guarda a posição do cursor em variáveis CSS. Fica só no CSS,
      sem estado React — nada de re-render a cada pixel de movimento. */
@@ -65,7 +64,7 @@ export function Screenshot({
   };
 
   return (
-    <Dialog.Root onOpenChange={(aberto) => !aberto && setTamanhoReal(false)}>
+    <Dialog.Root>
       <figure onMouseMove={trackPointer} className={cn("group relative", className)}>
         {/* 1. Malha de luz quente */}
         <div
@@ -94,7 +93,10 @@ export function Screenshot({
             aria-label={`Ampliar imagem: ${alt}`}
             className={cn(
               "relative block w-full cursor-zoom-in rounded-[25px] p-px text-left",
-              "bg-[linear-gradient(160deg,rgba(249,115,22,0.55),rgba(229,231,235,0.9)_38%,rgba(229,231,235,0.7))]",
+              /* Borda neutra e discreta, no espírito do doc 06 ("border fina").
+                 O contorno em gradiente laranja marcava demais o retângulo e
+                 competia com a própria tela do produto. */
+              "bg-gray-200/60",
               "shadow-soft transition-[transform,box-shadow] duration-[280ms] ease-[--ease-out-quart]",
               "group-hover:shadow-soft-lg",
               "focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary",
@@ -125,7 +127,10 @@ export function Screenshot({
               />
 
               <div
-                className={cn(uniform && "aspect-[16/9] w-full bg-white")}
+                className={cn(
+                  "relative",
+                  uniform && "aspect-[16/9] w-full bg-white"
+                )}
               >
                 <Image
                   src={src}
@@ -143,6 +148,13 @@ export function Screenshot({
                   )}
                 />
               </div>
+
+              {/* Dissolve a base no branco da seção: sem isto a aresta do card
+                  desenha um risco separando a imagem do conteúdo abaixo. */}
+              <div
+                aria-hidden
+                className="pointer-events-none absolute inset-x-0 bottom-0 z-20 h-16 bg-gradient-to-t from-white via-white/70 to-transparent"
+              />
 
               {/* Holofote seguindo o cursor */}
               <div
@@ -192,49 +204,22 @@ export function Screenshot({
         >
           <Dialog.Title className="sr-only">{alt}</Dialog.Title>
 
-          {/* Barra de ações */}
+          {/* Barra de ações — só o fechar. A imagem já abre grande, então o
+              alternador de tamanho virava um passo extra sem ganho. */}
           <div className="flex shrink-0 items-center justify-between gap-4 px-4 py-3 md:px-6">
             <p className="line-clamp-1 text-sm text-white/70">{alt}</p>
-            <div className="flex shrink-0 items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setTamanhoReal((v) => !v)}
-                className="inline-flex h-10 items-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 text-sm font-medium text-white transition-colors hover:bg-white/20 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-              >
-                {tamanhoReal ? (
-                  <>
-                    <Minimize2 className="h-4 w-4" aria-hidden />
-                    Caber na tela
-                  </>
-                ) : (
-                  <>
-                    <Maximize2 className="h-4 w-4" aria-hidden />
-                    Tamanho real
-                  </>
-                )}
-              </button>
-              <Dialog.Close
-                aria-label="Fechar"
-                className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/15 bg-white/10 text-white transition-colors hover:bg-white/20 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-              >
-                <X className="h-5 w-5" aria-hidden />
-              </Dialog.Close>
-            </div>
+            <Dialog.Close
+              aria-label="Fechar"
+              className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/15 bg-white/10 text-white transition-colors hover:bg-white/20 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+            >
+              <X className="h-5 w-5" aria-hidden />
+            </Dialog.Close>
           </div>
 
-          {/* Palco */}
-          <div
-            className={cn(
-              "flex-1 px-4 pb-6 md:px-6",
-              tamanhoReal ? "overflow-auto" : "overflow-hidden"
-            )}
-          >
-            <div
-              className={cn(
-                "mx-auto w-fit overflow-hidden rounded-[20px] border border-white/10 shadow-soft-lg",
-                !tamanhoReal && "flex h-full items-center justify-center"
-              )}
-            >
+          {/* Palco — a imagem ocupa toda a área livre; se for maior que a tela,
+              a rolagem permite percorrer os detalhes. */}
+          <div className="flex-1 overflow-auto px-4 pb-6 md:px-6">
+            <div className="mx-auto w-fit overflow-hidden rounded-[20px] border border-white/10 shadow-soft-lg">
               <Image
                 src={src}
                 alt={alt}
@@ -242,11 +227,7 @@ export function Screenshot({
                 height={height}
                 quality={95}
                 sizes="100vw"
-                className={cn(
-                  tamanhoReal
-                    ? "h-auto w-auto max-w-none"
-                    : "max-h-full w-auto object-contain"
-                )}
+                className="h-auto w-auto max-w-none"
               />
             </div>
           </div>

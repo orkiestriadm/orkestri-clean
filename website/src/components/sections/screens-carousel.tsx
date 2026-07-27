@@ -6,6 +6,9 @@ import { Screenshot } from "@/components/ui/screenshot";
 import { products } from "@/config/products";
 import { cn } from "@/lib/utils";
 
+/** Tempo em cada tela. Curto demais atropela a leitura. */
+const INTERVALO_MS = 5000;
+
 /**
  * Carrossel das telas da plataforma.
  *
@@ -18,8 +21,10 @@ import { cn } from "@/lib/utils";
  * o conteúdo para baixo. Ficam fora do card — dentro dele seriam botões
  * aninhados, já que o card inteiro abre a galeria.
  *
- * O avanço é sempre do usuário — setas, indicadores, arrastar ou teclado. O
- * doc 06 veta carrossel automático: girar sozinho rouba a atenção de quem lê.
+ * Gira sozinho a cada 5s, por decisão do cliente. O doc 06 veta carrossel
+ * automático, então o comportamento vem com freios: pausa ao passar o mouse,
+ * ao focar, ao tocar; não roda sob prefers-reduced-motion nem com a aba em
+ * segundo plano. Setas, indicadores, arrastar e teclado seguem valendo.
  *
  * A rolagem é nativa, com `scroll-snap`, então arrasto e inércia saem de
  * graça; ao JavaScript resta mover para um índice e saber qual slide está
@@ -29,6 +34,7 @@ export function ScreensCarousel() {
   const telas = products.filter((p) => p.screenshot);
   const trilho = useRef<HTMLUListElement>(null);
   const [atual, setAtual] = useState(0);
+  const [pausado, setPausado] = useState(false);
 
   const irPara = useCallback((i: number) => {
     const slide = trilho.current?.children[i] as HTMLElement | undefined;
@@ -62,14 +68,33 @@ export function ScreensCarousel() {
     return () => obs.disconnect();
   }, [telas.length]);
 
+  // Avanço automático. Pausa enquanto o usuário interage — e não roda para
+  // quem pediu menos animação, nem com a aba em segundo plano, onde só
+  // gastaria bateria.
+  useEffect(() => {
+    if (pausado) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+
+    const tique = window.setInterval(() => {
+      if (document.hidden) return;
+      setAtual((i) => {
+        const proximo = (i + 1) % telas.length;
+        irPara(proximo);
+        return i; // quem manda no índice é o IntersectionObserver
+      });
+    }, INTERVALO_MS);
+
+    return () => window.clearInterval(tique);
+  }, [pausado, telas.length, irPara]);
+
   const navegarPorTeclado = (e: React.KeyboardEvent) => {
     if (e.key === "ArrowRight") {
       e.preventDefault();
-      irPara(Math.min(atual + 1, telas.length - 1));
+      irPara((atual + 1) % telas.length);
     }
     if (e.key === "ArrowLeft") {
       e.preventDefault();
-      irPara(Math.max(atual - 1, 0));
+      irPara((atual - 1 + telas.length) % telas.length);
     }
   };
 
@@ -80,8 +105,7 @@ export function ScreensCarousel() {
     "pointer-events-auto inline-flex h-11 w-11 items-center justify-center rounded-full " +
     "border border-white/40 bg-white/70 text-dark shadow-soft backdrop-blur-md " +
     "transition-all hover:bg-white hover:text-primary " +
-    "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary " +
-    "disabled:pointer-events-none disabled:opacity-0";
+    "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary";
 
   return (
     <div
@@ -90,6 +114,11 @@ export function ScreensCarousel() {
       aria-roledescription="carrossel"
       aria-label="Telas da plataforma Orkiestri One"
       onKeyDown={navegarPorTeclado}
+      onMouseEnter={() => setPausado(true)}
+      onMouseLeave={() => setPausado(false)}
+      onFocusCapture={() => setPausado(true)}
+      onBlurCapture={() => setPausado(false)}
+      onTouchStart={() => setPausado(true)}
     >
       {/* Área da imagem: as sobreposições se posicionam por ela, não pelo
           bloco inteiro — senão as setas centralizariam contando a legenda. */}
@@ -133,8 +162,7 @@ export function ScreensCarousel() {
         <div className="pointer-events-none absolute inset-y-0 left-0 right-0 z-10 flex items-center justify-between px-4 sm:px-6">
           <button
             type="button"
-            onClick={() => irPara(Math.max(atual - 1, 0))}
-            disabled={atual === 0}
+            onClick={() => irPara((atual - 1 + telas.length) % telas.length)}
             aria-label="Tela anterior"
             className={seta}
           >
@@ -142,8 +170,7 @@ export function ScreensCarousel() {
           </button>
           <button
             type="button"
-            onClick={() => irPara(Math.min(atual + 1, telas.length - 1))}
-            disabled={atual === telas.length - 1}
+            onClick={() => irPara((atual + 1) % telas.length)}
             aria-label="Próxima tela"
             className={seta}
           >
