@@ -82,8 +82,8 @@ export default function OrkiestriOnePage() {
           <Screenshot
             src="/screenshots/orcamento-dashboard.png"
             alt="Orkiestri One — dashboard com indicadores consolidados, evolução mensal e distribuição por centro de custo"
-            width={1688}
-            height={970}
+            width={1755}
+            height={999}
             priority
           />
         </Reveal>

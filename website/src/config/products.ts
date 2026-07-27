@@ -10,6 +10,7 @@ import {
   ShoppingCart,
   Activity,
   ShieldCheck,
+  CalendarDays,
 } from "lucide-react";
 import type { Product } from "@/types";
 
@@ -24,8 +25,8 @@ export const products: Product[] = [
     screenshot: {
       src: "/screenshots/chamados.png",
       alt: "Orkiestri Desk — quadro de chamados por status, com indicadores de SLA e fila pública",
-      width: 1676,
-      height: 1029,
+      width: 1743,
+      height: 1016,
     },
     name: "Orkiestri Desk",
     category: "Service Management",
@@ -81,7 +82,42 @@ export const products: Product[] = [
     integrations: ["GitHub", "Azure DevOps", "Jira", "Microsoft Project"],
   },
   {
+    slug: "one-space",
+    screenshot: {
+      src: "/screenshots/agenda.png",
+      alt: "Orkiestri Space — agenda corporativa com eventos do mês, próximos compromissos e disponibilidade do time",
+      width: 1702,
+      height: 1031,
+    },
+    name: "Orkiestri Space",
+    category: "Agenda & Colaboração",
+    tagline: "Organize a agenda e os compromissos do time.",
+    description:
+      "Agenda corporativa conectada à operação: eventos, reuniões, treinamentos e disponibilidade das equipes no mesmo ambiente dos projetos e chamados.",
+    icon: CalendarDays,
+    features: [
+      "Agenda compartilhada",
+      "Visões de mês, semana e dia",
+      "Disponibilidade do time",
+      "Convites e participantes",
+      "Lembretes e notificações",
+      "Compromissos vinculados a projetos",
+    ],
+    ai: [
+      "Sugestão de melhor horário",
+      "Resumo de reuniões",
+      "Detecção de conflitos de agenda",
+    ],
+    integrations: ["Google Agenda", "Microsoft 365", "Google Meet", "Teams"],
+  },
+  {
     slug: "one-fleet",
+    screenshot: {
+      src: "/screenshots/frota.png",
+      alt: "Orkiestri Fleet — frota com placa, modelo, categoria, responsável, hodômetro e status de cada veículo",
+      width: 920,
+      height: 608,
+    },
     name: "Orkiestri Fleet",
     category: "Fleet Management",
     tagline: "Gerencie veículos, reservas, abastecimentos e manutenção.",
@@ -105,6 +141,12 @@ export const products: Product[] = [
   },
   {
     slug: "one-assets",
+    screenshot: {
+      src: "/screenshots/ativos.png",
+      alt: "Orkiestri Assets — inventário de equipamentos por categoria, com responsável e status",
+      width: 1742,
+      height: 599,
+    },
     name: "Orkiestri Assets",
     category: "Asset Management",
     tagline: "Controle ativos, patrimônio e inventário.",
@@ -154,8 +196,8 @@ export const products: Product[] = [
     screenshot: {
       src: "/screenshots/orcamento-dashboard.png",
       alt: "Orkiestri Budget — dashboard orçamentário com CAPEX, OPEX, evolução mensal e distribuição por centro de custo",
-      width: 1688,
-      height: 970,
+      width: 1755,
+      height: 999,
     },
     name: "Orkiestri Budget",
     category: "Budget Planning",
@@ -236,6 +278,12 @@ export const products: Product[] = [
   },
   {
     slug: "one-observe",
+    screenshot: {
+      src: "/screenshots/monitoramento.png",
+      alt: "Orkiestri Observe — monitoramento operacional em tempo real com disponibilidade e estado de cada ativo",
+      width: 1058,
+      height: 623,
+    },
     name: "Orkiestri Observe",
     category: "Observability",
     tagline: "Monitore indicadores operacionais em tempo real.",
