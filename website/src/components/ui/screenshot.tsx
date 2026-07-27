@@ -102,8 +102,8 @@ export function Screenshot({
               /* Sem moldura a imagem se funde ao fundo; com ela, uma borda
                  neutra e fina, no espírito do doc 06. */
               bordered ? "bg-gray-200/60 p-px" : "",
-              "shadow-soft transition-[transform,box-shadow] duration-[280ms] ease-[--ease-out-quart]",
-              "group-hover:shadow-soft-lg",
+              "transition-[transform,box-shadow] duration-[280ms] ease-[--ease-out-quart]",
+              bordered ? "shadow-soft group-hover:shadow-soft-lg" : "",
               "focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary",
               /* O `transform` fica no estilo inline e só lê variáveis; as classes
                  abaixo apenas trocam essas variáveis. Assim o hover e o
@@ -151,17 +151,23 @@ export function Screenshot({
                   quality={92}
                   sizes="(max-width: 768px) 100vw, (max-width: 1280px) 95vw, 1280px"
                   className={cn(
-                    uniform ? "h-full w-full object-contain" : "h-auto w-full"
+                    uniform ? "h-full w-full object-contain" : "h-auto w-full",
+                    // Sem moldura, a própria imagem precisa dissolver: o fundo
+                    // cinza da interface desenharia um bloco sobre o branco.
+                    !bordered && "screen-feather"
                   )}
                 />
               </div>
 
-              {/* Dissolve a base no branco da seção: sem isto a aresta do card
-                  desenha um risco separando a imagem do conteúdo abaixo. */}
-              <div
-                aria-hidden
-                className="pointer-events-none absolute inset-x-0 bottom-0 z-20 h-16 bg-gradient-to-t from-white via-white/70 to-transparent"
-              />
+              {/* Com moldura, a base ganha um degradê para não cortar reto
+                  contra a seção. Sem moldura, a máscara da imagem já cuida
+                  das quatro bordas. */}
+              {bordered && (
+                <div
+                  aria-hidden
+                  className="pointer-events-none absolute inset-x-0 bottom-0 z-20 h-16 bg-gradient-to-t from-white via-white/70 to-transparent"
+                />
+              )}
 
               {/* Holofote seguindo o cursor */}
               <div
