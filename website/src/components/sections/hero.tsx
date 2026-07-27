@@ -55,21 +55,22 @@ export function Hero() {
         className="pointer-events-none absolute inset-y-0 left-0 right-0 hidden lg:block"
       >
         <div className="mx-auto flex h-full w-full max-w-(--container-max) justify-end">
-          <div className="h-full w-[58%] xl:w-[56%]">
+          <div className="h-full w-[64%] xl:w-[62%]">
             <HeroVideo fill />
           </div>
         </div>
       </div>
 
       <Container className="relative">
-        <div className="grid items-center gap-12 lg:grid-cols-[1fr_0.85fr]">
+        {/* A coluna de texto cede parte da grade para a vitrine crescer. */}
+        <div className="grid items-center gap-12 lg:grid-cols-[0.92fr_1fr]">
           {/* Left */}
           <div className="flex flex-col items-start">
             {/* A manchete abre a seção. O selo que havia aqui saiu: repetia o
                 que a chamada já diz e dava ao topo um ar de template. */}
             <motion.h1
               {...item(1)}
-              className="text-[2rem] font-bold leading-[1.06] tracking-[-0.035em] text-dark sm:text-[2.5rem] lg:text-[2.875rem] xl:text-[3.25rem]"
+              className="text-[1.875rem] font-bold leading-[1.08] tracking-[-0.035em] text-dark sm:text-[2.25rem] lg:text-[2.5rem] xl:text-[2.75rem]"
             >
               Nós não desenvolvemos apenas software.{" "}
               <span className="text-gradient-primary">
@@ -80,7 +81,7 @@ export function Hero() {
 
             <motion.p
               {...item(2)}
-              className="mt-6 max-w-xl text-lg leading-relaxed text-gray-600"
+              className="mt-6 max-w-lg text-[1.0625rem] leading-relaxed text-gray-600"
             >
               Desenvolvemos plataformas empresariais, soluções com Inteligência
               Artificial capazes de reduzir custos operacionais, acelerar
