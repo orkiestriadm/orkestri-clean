@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { motion, useReducedMotion } from "framer-motion";
-import { Sparkles, ArrowRight, Check } from "lucide-react";
+import { ArrowRight, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Container } from "@/components/ui/container";
 import { HeroVideo } from "./hero-video";
@@ -24,7 +24,11 @@ export function Hero() {
   });
 
   return (
-    <section className="relative overflow-hidden pt-32 pb-20 md:pt-40 md:pb-28 lg:flex lg:min-h-[40rem] lg:items-center xl:min-h-[44rem]">
+    /* No desktop a seção ocupa a altura útil da janela (descontado o cabeçalho
+       fixo) e centraliza o conteúdo — antes o bloco assentava acima do meio e
+       sobrava uma faixa branca embaixo. `svh` em vez de `vh` para não pular
+       quando a barra do navegador móvel recolhe. */
+    <section className="relative overflow-hidden pt-32 pb-20 md:pt-36 md:pb-24 lg:flex lg:min-h-[calc(100svh-5rem)] lg:items-center lg:py-20">
       {/* Soft background accent (doc 06 — gradientes suaves) */}
       <div
         aria-hidden
@@ -48,28 +52,27 @@ export function Hero() {
         <div className="grid items-center gap-12 lg:grid-cols-[1fr_0.85fr]">
           {/* Left */}
           <div className="flex flex-col items-start">
-            <motion.span {...item(0)}>
-              <span className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-3.5 py-1.5 text-sm font-medium text-gray-600 shadow-soft">
-                <Sparkles className="h-4 w-4 text-primary" aria-hidden />
-                Conheça o Orkiestri One
-              </span>
-            </motion.span>
-
+            {/* A manchete abre a seção. O selo que havia aqui saiu: repetia o
+                que a chamada já diz e dava ao topo um ar de template. */}
             <motion.h1
               {...item(1)}
-              className="mt-6 text-[2.75rem] font-bold leading-[1.02] tracking-[-0.035em] text-dark sm:text-[3.5rem] lg:text-[4.5rem]"
+              className="text-[2.25rem] font-bold leading-[1.04] tracking-[-0.035em] text-dark sm:text-[2.875rem] lg:text-[3.5rem]"
             >
-              Enterprise software,{" "}
-              <span className="text-gradient-primary">engineered for growth</span>.
+              Nós não desenvolvemos apenas software.{" "}
+              <span className="text-gradient-primary">
+                Construímos vantagem competitiva
+              </span>
+              .
             </motion.h1>
 
             <motion.p
               {...item(2)}
               className="mt-6 max-w-xl text-lg leading-relaxed text-gray-600"
             >
-              Desenvolvemos plataformas empresariais, soluções em Inteligência
-              Artificial e softwares sob medida para empresas que desejam crescer
-              com eficiência, inovação e segurança.
+              Desenvolvemos plataformas empresariais, soluções com Inteligência
+              Artificial capazes de reduzir custos operacionais, acelerar
+              processos e preparar empresas para crescerem com eficiência,
+              inovação e segurança.
             </motion.p>
 
             <motion.div {...item(3)} className="mt-8 flex flex-wrap gap-3">
