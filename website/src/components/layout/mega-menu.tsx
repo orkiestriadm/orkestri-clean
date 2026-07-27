@@ -25,7 +25,7 @@ export function ProductsMenu({ onNavigate }: { onNavigate?: () => void }) {
       variants={panel}
       initial="hidden"
       animate="show"
-      className="w-[720px] rounded-[--radius-card] border border-gray-200 bg-white p-3 shadow-soft-lg"
+      className="w-[720px] rounded-(--radius-card) border border-gray-200 bg-white p-3 shadow-soft-lg"
     >
       <div className="grid grid-cols-2 gap-1">
         <Link
@@ -80,7 +80,7 @@ export function ServicesMenu({ onNavigate }: { onNavigate?: () => void }) {
       variants={panel}
       initial="hidden"
       animate="show"
-      className="w-[380px] rounded-[--radius-card] border border-gray-200 bg-white p-3 shadow-soft-lg"
+      className="w-[380px] rounded-(--radius-card) border border-gray-200 bg-white p-3 shadow-soft-lg"
     >
       <div className="flex flex-col gap-1">
         {services.map((s) => {

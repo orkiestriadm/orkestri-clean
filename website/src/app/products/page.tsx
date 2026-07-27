@@ -28,7 +28,7 @@ export default function ProductsPage() {
       <Container>
         <Link
           href="/products/orkiestri-one"
-          className="group flex flex-col items-start justify-between gap-6 rounded-[--radius-image] bg-dark p-8 text-white md:flex-row md:items-center md:p-12"
+          className="group flex flex-col items-start justify-between gap-6 rounded-(--radius-image) bg-dark p-8 text-white md:flex-row md:items-center md:p-12"
         >
           <div>
             <span className="text-sm font-semibold uppercase tracking-wider text-primary">
@@ -42,7 +42,7 @@ export default function ProductsPage() {
               Ative apenas os módulos necessários.
             </p>
           </div>
-          <span className="inline-flex items-center gap-2 rounded-[--radius-button] bg-primary px-6 py-3 font-medium text-white transition-transform group-hover:scale-[1.03] motion-reduce:group-hover:scale-100">
+          <span className="inline-flex items-center gap-2 rounded-(--radius-button) bg-primary px-6 py-3 font-medium text-white transition-transform group-hover:scale-[1.03] motion-reduce:group-hover:scale-100">
             Conhecer a plataforma
             <ArrowRight className="h-5 w-5" aria-hidden />
           </span>

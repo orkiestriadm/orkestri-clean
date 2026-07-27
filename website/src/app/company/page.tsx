@@ -50,7 +50,7 @@ export default function CompanyPage() {
       <Section>
         <div className="grid gap-6 lg:grid-cols-2">
           <Reveal>
-            <div className="h-full rounded-[--radius-card] border border-gray-200 bg-white p-8">
+            <div className="h-full rounded-(--radius-card) border border-gray-200 bg-white p-8">
               <span className="text-sm font-semibold uppercase tracking-wider text-primary">
                 Missão
               </span>
@@ -62,7 +62,7 @@ export default function CompanyPage() {
             </div>
           </Reveal>
           <Reveal delay={0.1}>
-            <div className="h-full rounded-[--radius-card] border border-gray-200 bg-white p-8">
+            <div className="h-full rounded-(--radius-card) border border-gray-200 bg-white p-8">
               <span className="text-sm font-semibold uppercase tracking-wider text-primary">
                 Visão
               </span>
@@ -89,7 +89,7 @@ export default function CompanyPage() {
             const Icon = v.icon;
             return (
               <Reveal key={v.title} delay={(i % 4) * 0.05}>
-                <div className="h-full rounded-[--radius-card] border border-gray-200 bg-white p-6">
+                <div className="h-full rounded-(--radius-card) border border-gray-200 bg-white p-6">
                   <IconTile icon={Icon} />
                   <h3 className="mt-5 text-lg font-semibold text-dark">
                     {v.title}

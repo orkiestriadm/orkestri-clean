@@ -10,7 +10,7 @@ export const Input = React.forwardRef<
     ref={ref}
     type={type}
     className={cn(
-      "h-[52px] w-full rounded-[--radius-input] border border-gray-200 bg-white px-4 text-base text-dark placeholder:text-gray-400 transition-colors focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/10 disabled:opacity-50 aria-[invalid=true]:border-error",
+      "h-[52px] w-full rounded-(--radius-input) border border-gray-200 bg-white px-4 text-base text-dark placeholder:text-gray-400 transition-colors focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/10 disabled:opacity-50 aria-[invalid=true]:border-error",
       className
     )}
     {...props}
@@ -26,7 +26,7 @@ export const Textarea = React.forwardRef<
     ref={ref}
     rows={rows}
     className={cn(
-      "w-full rounded-[--radius-input] border border-gray-200 bg-white px-4 py-3 text-base text-dark placeholder:text-gray-400 transition-colors focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/10 disabled:opacity-50 aria-[invalid=true]:border-error resize-y",
+      "w-full rounded-(--radius-input) border border-gray-200 bg-white px-4 py-3 text-base text-dark placeholder:text-gray-400 transition-colors focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/10 disabled:opacity-50 aria-[invalid=true]:border-error resize-y",
       className
     )}
     {...props}

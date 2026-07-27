@@ -125,7 +125,7 @@ export function MobileNav({ onClose }: { onClose: () => void }) {
           <a
             href="/entrar"
             onClick={onClose}
-            className="inline-flex h-[52px] w-full items-center justify-center rounded-[--radius-button] border border-gray-200 bg-white font-medium text-dark transition-colors hover:bg-gray-50"
+            className="inline-flex h-[52px] w-full items-center justify-center rounded-(--radius-button) border border-gray-200 bg-white font-medium text-dark transition-colors hover:bg-gray-50"
           >
             Entrar
           </a>

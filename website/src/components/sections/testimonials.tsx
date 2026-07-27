@@ -37,7 +37,7 @@ export function Testimonials() {
       <div className="mt-12 grid gap-4 md:grid-cols-3">
         {testimonials.map((t, i) => (
           <Reveal key={i} delay={(i % 3) * 0.05}>
-            <figure className="flex h-full flex-col rounded-[--radius-card] border border-gray-200 bg-white p-8">
+            <figure className="flex h-full flex-col rounded-(--radius-card) border border-gray-200 bg-white p-8">
               <blockquote className="flex-1 text-lg leading-relaxed text-dark">
                 “{t.quote}”
               </blockquote>

@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
  * Primary: laranja sólido, texto branco, radius 14px, height 52px.
  */
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-[--radius-button] font-medium transition-all duration-200 ease-[--ease-out-quart] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:pointer-events-none disabled:opacity-50 active:scale-[0.98] motion-reduce:active:scale-100 cursor-pointer",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-(--radius-button) font-medium transition-all duration-200 ease-(--ease-out-quart) focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:pointer-events-none disabled:opacity-50 active:scale-[0.98] motion-reduce:active:scale-100 cursor-pointer",
   {
     variants: {
       variant: {

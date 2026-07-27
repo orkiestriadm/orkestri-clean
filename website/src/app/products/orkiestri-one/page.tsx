@@ -114,7 +114,7 @@ export default function OrkiestriOnePage() {
             const Icon = l.icon;
             return (
               <Reveal key={l.title} delay={(i % 3) * 0.05}>
-                <div className="h-full rounded-[--radius-card] border border-gray-200 bg-white p-6">
+                <div className="h-full rounded-(--radius-card) border border-gray-200 bg-white p-6">
                   <IconTile icon={Icon} />
                   <h3 className="mt-5 text-lg font-semibold text-dark">
                     {l.title}

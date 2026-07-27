@@ -41,7 +41,7 @@ export function ContactForm({ endpoint = "/api/contact" }: { endpoint?: string }
 
   if (status === "success") {
     return (
-      <div className="flex flex-col items-center gap-4 rounded-[--radius-card] border border-gray-200 bg-white p-10 text-center">
+      <div className="flex flex-col items-center gap-4 rounded-(--radius-card) border border-gray-200 bg-white p-10 text-center">
         <CheckCircle2 className="h-12 w-12 text-success" aria-hidden />
         <h3 className="text-xl font-semibold text-dark">
           Recebemos sua solicitação
@@ -60,7 +60,7 @@ export function ContactForm({ endpoint = "/api/contact" }: { endpoint?: string }
     <form
       onSubmit={handleSubmit(onSubmit)}
       noValidate
-      className="flex flex-col gap-5 rounded-[--radius-card] border border-gray-200 bg-white p-6 md:p-8"
+      className="flex flex-col gap-5 rounded-(--radius-card) border border-gray-200 bg-white p-6 md:p-8"
     >
       <div className="grid gap-5 sm:grid-cols-2">
         <Field id="name" label="Nome" error={errors.name?.message} required>

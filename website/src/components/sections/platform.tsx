@@ -50,7 +50,7 @@ export function Platform() {
         <div className="mt-14 grid gap-4 md:grid-cols-3 lg:grid-cols-4">
           {/* Lead cell — the platform itself */}
           <Reveal className="md:col-span-2 lg:col-span-2 lg:row-span-2">
-            <div className="flex h-full flex-col justify-between rounded-[--radius-card] border border-white/10 bg-gradient-to-br from-white/[0.07] to-white/[0.02] p-8">
+            <div className="flex h-full flex-col justify-between rounded-(--radius-card) border border-white/10 bg-gradient-to-br from-white/[0.07] to-white/[0.02] p-8">
               <div>
                 <IconTile icon={Boxes} size="lg" tone="on-dark" />
                 <h3 className="mt-6 text-2xl font-semibold">
@@ -105,7 +105,7 @@ export function Platform() {
 
           {/* Wide cell — security */}
           <Reveal delay={0.25} className="md:col-span-3 lg:col-span-4">
-            <div className="flex flex-col items-start justify-between gap-6 rounded-[--radius-card] border border-white/10 bg-white/[0.03] p-8 md:flex-row md:items-center">
+            <div className="flex flex-col items-start justify-between gap-6 rounded-(--radius-card) border border-white/10 bg-white/[0.03] p-8 md:flex-row md:items-center">
               <div className="flex items-start gap-5">
                 <IconTile icon={ShieldCheck} size="lg" tone="on-dark" />
                 <div>
@@ -145,7 +145,7 @@ function BentoCell({
 }) {
   return (
     <Reveal delay={delay}>
-      <div className="h-full rounded-[--radius-card] border border-white/10 bg-white/[0.03] p-6 transition-colors duration-200 hover:border-primary/30 hover:bg-white/[0.05]">
+      <div className="h-full rounded-(--radius-card) border border-white/10 bg-white/[0.03] p-6 transition-colors duration-200 hover:border-primary/30 hover:bg-white/[0.05]">
         <IconTile icon={icon} tone="on-dark" />
         <h3 className="mt-5 text-lg font-semibold">{title}</h3>
         <p className="mt-2 text-[0.9375rem] leading-relaxed text-gray-400">

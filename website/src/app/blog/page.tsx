@@ -35,7 +35,7 @@ export default function BlogPage() {
           ))}
         </div>
 
-        <div className="mx-auto mt-16 max-w-xl rounded-[--radius-card] border border-gray-200 bg-gray-50 p-10 text-center">
+        <div className="mx-auto mt-16 max-w-xl rounded-(--radius-card) border border-gray-200 bg-gray-50 p-10 text-center">
           <h2 className="text-2xl font-semibold text-dark">Em breve</h2>
           <p className="mt-3 text-gray-600">
             Estamos construindo um espaço de conteúdo técnico e de negócios. Quer

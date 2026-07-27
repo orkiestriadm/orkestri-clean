@@ -8,7 +8,7 @@ export function ServiceCard({ service }: { service: Service }) {
   return (
     <Link
       href={`/services/${service.slug}`}
-      className="group flex h-full flex-col rounded-[--radius-card] border border-gray-200 bg-white p-8 transition-all duration-200 ease-[--ease-out-quart] hover:-translate-y-1 hover:border-primary/40 hover:shadow-soft motion-reduce:hover:translate-y-0"
+      className="group flex h-full flex-col rounded-(--radius-card) border border-gray-200 bg-white p-8 transition-all duration-200 ease-(--ease-out-quart) hover:-translate-y-1 hover:border-primary/40 hover:shadow-soft motion-reduce:hover:translate-y-0"
     >
       <IconTile
         icon={service.icon}

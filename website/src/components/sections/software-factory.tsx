@@ -17,7 +17,7 @@ export function SoftwareFactory() {
       <ol className="mt-14 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {softwareFactoryProcess.map((step, i) => (
           <Reveal key={step.title} delay={(i % 4) * 0.05} as="li">
-            <div className="h-full rounded-[--radius-card] border border-gray-200 bg-white p-6">
+            <div className="h-full rounded-(--radius-card) border border-gray-200 bg-white p-6">
               <span className="text-sm font-bold text-primary">
                 {String(i + 1).padStart(2, "0")}
               </span>

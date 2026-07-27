@@ -102,7 +102,7 @@ export function Screenshot({
               /* Sem moldura a imagem se funde ao fundo; com ela, uma borda
                  neutra e fina, no espírito do doc 06. */
               bordered ? "bg-gray-200/60 p-px" : "",
-              "transition-[transform,box-shadow] duration-[280ms] ease-[--ease-out-quart]",
+              "transition-[transform,box-shadow] duration-[280ms] ease-(--ease-out-quart)",
               bordered ? "shadow-soft group-hover:shadow-soft-lg" : "",
               "focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary",
               /* O `transform` fica no estilo inline e só lê variáveis; as classes

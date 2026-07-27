@@ -15,7 +15,7 @@ export function CTA({
   return (
     <section className="py-20 md:py-28">
       <Container>
-        <Reveal className="relative overflow-hidden rounded-[--radius-image] bg-dark px-8 py-16 text-center md:px-16 md:py-20">
+        <Reveal className="relative overflow-hidden rounded-(--radius-image) bg-dark px-8 py-16 text-center md:px-16 md:py-20">
           <VideoBackdrop src="/media/light-streaks.mp4" opacity={0.22} />
           {/* Véu sobre o vídeo: mantém o contraste do texto em AA */}
           <div

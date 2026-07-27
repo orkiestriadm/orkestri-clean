@@ -22,7 +22,7 @@ export function FAQ({
   return (
     <Section muted>
       <SectionHeader eyebrow={eyebrow} title={title} />
-      <div className="mx-auto mt-12 max-w-3xl rounded-[--radius-card] border border-gray-200 bg-white px-6 md:px-8">
+      <div className="mx-auto mt-12 max-w-3xl rounded-(--radius-card) border border-gray-200 bg-white px-6 md:px-8">
         <Accordion type="single" collapsible>
           {items.map((item, i) => (
             <AccordionItem key={i} value={`item-${i}`}>

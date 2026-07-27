@@ -75,7 +75,7 @@ export default async function ProductPage({
       >
         {product.comingSoon ? (
           <div className="flex flex-col items-start gap-4">
-            <p className="rounded-[--radius-card] border border-gray-200 bg-gray-50 px-5 py-4 text-[0.9375rem] text-gray-600">
+            <p className="rounded-(--radius-card) border border-gray-200 bg-gray-50 px-5 py-4 text-[0.9375rem] text-gray-600">
               Este módulo está em desenvolvimento. Fale com nosso time para
               acompanhar o lançamento ou avaliar uma solução sob medida enquanto
               isso.
@@ -134,7 +134,7 @@ export default async function ProductPage({
       {/* AI + Integrations */}
       <Section muted>
         <div className="grid gap-8 lg:grid-cols-2">
-          <div className="rounded-[--radius-card] border border-gray-200 bg-white p-8">
+          <div className="rounded-(--radius-card) border border-gray-200 bg-white p-8">
             <IconTile icon={Sparkles} />
             <h3 className="mt-5 text-xl font-semibold text-dark">
               Inteligência Artificial
@@ -152,7 +152,7 @@ export default async function ProductPage({
           </div>
 
           {product.integrations && product.integrations.length > 0 && (
-            <div className="rounded-[--radius-card] border border-gray-200 bg-white p-8">
+            <div className="rounded-(--radius-card) border border-gray-200 bg-white p-8">
               <IconTile icon={Plug} tone="dark" />
               <h3 className="mt-5 text-xl font-semibold text-dark">
                 Integrações

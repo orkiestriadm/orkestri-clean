@@ -24,11 +24,14 @@ export function Hero() {
   });
 
   return (
-    /* No desktop a seção ocupa a altura útil da janela (descontado o cabeçalho
-       fixo) e centraliza o conteúdo — antes o bloco assentava acima do meio e
-       sobrava uma faixa branca embaixo. `svh` em vez de `vh` para não pular
-       quando a barra do navegador móvel recolhe. */
-    <section className="relative overflow-hidden pt-32 pb-20 md:pt-36 md:pb-24 lg:flex lg:min-h-[calc(100svh-5rem)] lg:items-center lg:py-20">
+    /* No desktop a seção ocupa a janela inteira e centraliza o conteúdo.
+       O cabeçalho é fixo (h-20) e cobre o topo da seção, então centralizar
+       pelo box inteiro deixaria o bloco alto: os 5rem escondidos contam como
+       espaço livre. Daí a diferença de 5rem entre pt e pb — ela desloca o
+       eixo para o meio da área de fato visível.
+       `svh` em vez de `vh` para não pular quando a barra do navegador móvel
+       recolhe. */
+    <section className="relative overflow-hidden pt-32 pb-20 md:pt-36 md:pb-24 lg:flex lg:min-h-svh lg:items-center lg:pt-30 lg:pb-10">
       {/* Soft background accent (doc 06 — gradientes suaves) */}
       <div
         aria-hidden
@@ -51,7 +54,7 @@ export function Hero() {
         aria-hidden
         className="pointer-events-none absolute inset-y-0 left-0 right-0 hidden lg:block"
       >
-        <div className="mx-auto flex h-full w-full max-w-[--container-max] justify-end">
+        <div className="mx-auto flex h-full w-full max-w-(--container-max) justify-end">
           <div className="h-full w-[58%] xl:w-[56%]">
             <HeroVideo fill />
           </div>
