@@ -27,10 +27,16 @@ export function ScreensCarousel() {
   const [atual, setAtual] = useState(0);
 
   const irPara = useCallback((i: number) => {
-    const t = trilho.current;
-    if (!t) return;
-    const slide = t.children[i] as HTMLElement | undefined;
-    if (slide) t.scrollTo({ left: slide.offsetLeft, behavior: "smooth" });
+    const slide = trilho.current?.children[i] as HTMLElement | undefined;
+    // `scrollIntoView` em vez de calcular a partir de offsetLeft: aquele valor
+    // é relativo ao ancestral posicionado, o que dá margem a erro conforme o
+    // layout ao redor muda. `block: "nearest"` impede que a página role na
+    // vertical junto.
+    slide?.scrollIntoView({
+      behavior: "smooth",
+      inline: "center",
+      block: "nearest",
+    });
   }, []);
 
   // Qual slide está à vista — sem listener de scroll.
