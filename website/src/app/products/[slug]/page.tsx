@@ -4,6 +4,8 @@ import Script from "next/script";
 import { Check, Sparkles, Plug, ArrowRight } from "lucide-react";
 import { PageHero } from "@/components/sections/page-hero";
 import { IconTile } from "@/components/ui/icon-tile";
+import { Screenshot } from "@/components/ui/screenshot";
+import { Container } from "@/components/ui/container";
 import { Section, SectionHeader } from "@/components/ui/section";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -80,6 +82,15 @@ export default async function ProductPage({
           </Button>
         </div>
       </PageHero>
+
+      {/* Captura real do módulo (doc 06: imagens reais, nunca mockups) */}
+      {product.screenshot && (
+        <Container className="pb-4">
+          <Reveal>
+            <Screenshot {...product.screenshot} />
+          </Reveal>
+        </Container>
+      )}
 
       {/* Features */}
       <Section>

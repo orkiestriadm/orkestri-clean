@@ -21,6 +21,12 @@ import type { Product } from "@/types";
 export const products: Product[] = [
   {
     slug: "one-desk",
+    screenshot: {
+      src: "/screenshots/chamados.png",
+      alt: "Orkiestri Desk — quadro de chamados por status, com indicadores de SLA e fila pública",
+      width: 1676,
+      height: 1029,
+    },
     name: "Orkiestri Desk",
     category: "Service Management",
     tagline: "Centralize chamados, solicitações e atendimento.",
@@ -46,6 +52,12 @@ export const products: Product[] = [
   },
   {
     slug: "one-projects",
+    screenshot: {
+      src: "/screenshots/projetos.png",
+      alt: "Orkiestri Projects — quadro kanban de um projeto com progresso, tarefas e responsáveis",
+      width: 1698,
+      height: 1028,
+    },
     name: "Orkiestri Projects",
     category: "Project Management",
     tagline: "Planeje, acompanhe e entregue projetos com eficiência.",
@@ -111,6 +123,12 @@ export const products: Product[] = [
   },
   {
     slug: "one-finance",
+    screenshot: {
+      src: "/screenshots/contratos.png",
+      alt: "Orkiestri Finance — contratos com vigência, status e valores consolidados",
+      width: 1692,
+      height: 991,
+    },
     name: "Orkiestri Finance",
     category: "Financial Management",
     tagline: "Organize receitas, despesas e indicadores financeiros.",
@@ -133,6 +151,12 @@ export const products: Product[] = [
   },
   {
     slug: "one-budget",
+    screenshot: {
+      src: "/screenshots/orcamento-dashboard.png",
+      alt: "Orkiestri Budget — dashboard orçamentário com CAPEX, OPEX, evolução mensal e distribuição por centro de custo",
+      width: 1688,
+      height: 970,
+    },
     name: "Orkiestri Budget",
     category: "Budget Planning",
     tagline: "Planeje e acompanhe o orçamento da empresa.",
@@ -151,6 +175,12 @@ export const products: Product[] = [
   },
   {
     slug: "one-crm",
+    screenshot: {
+      src: "/screenshots/clientes.png",
+      alt: "Orkiestri CRM — carteira de clientes com health score, MRR e responsável por conta",
+      width: 1687,
+      height: 876,
+    },
     name: "Orkiestri CRM",
     category: "Customer Relationship",
     tagline: "Fortaleça o relacionamento com seus clientes.",

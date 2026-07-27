@@ -5,7 +5,7 @@ import { motion, useReducedMotion } from "framer-motion";
 import { Sparkles, ArrowRight, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Container } from "@/components/ui/container";
-import { DashboardPreview } from "./dashboard-preview";
+import { Screenshot } from "@/components/ui/screenshot";
 import { EASE_OUT } from "@/lib/motion";
 
 const indicators = ["99.9% Uptime", "Cloud Native", "AI Ready", "API First"];
@@ -97,7 +97,13 @@ export function Hero() {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             transition={{ duration: 0.5, ease: EASE_OUT, delay: 0.3 }}
           >
-            <DashboardPreview />
+            <Screenshot
+              src="/screenshots/projetos.png"
+              alt="Orkiestri One — gestão de projetos com quadro kanban, progresso e tarefas por responsável"
+              width={1698}
+              height={1028}
+              priority
+            />
           </motion.div>
         </div>
       </Container>

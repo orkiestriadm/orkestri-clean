@@ -1,5 +1,12 @@
 import type { LucideIcon } from "lucide-react";
 
+export interface Screenshot {
+  src: string;
+  alt: string;
+  width: number;
+  height: number;
+}
+
 export interface Product {
   slug: string;
   name: string;
@@ -11,6 +18,8 @@ export interface Product {
   ai: string[];
   integrations?: string[];
   audience?: string[];
+  /** Captura real da aplicação. Ausente enquanto não houver imagem do módulo. */
+  screenshot?: Screenshot;
 }
 
 export interface Service {
