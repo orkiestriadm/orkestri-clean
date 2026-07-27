@@ -39,13 +39,23 @@ export function Hero() {
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(249,115,22,0.06),transparent_55%)]" />
       </div>
 
-      {/* Vitrine ocupando a altura da seção, à direita. Fica atrás do texto e
-          fora do fluxo, para o conteúdo respirar sem disputar espaço. */}
+      {/* Vitrine à direita, atrás do texto e fora do fluxo, para o conteúdo
+          respirar sem disputar espaço.
+
+          Ela se alinha a uma faixa centrada — não à borda da seção. Ancorada em
+          `right-0` da seção, numa tela larga a vitrine fugia para o canto: o
+          texto ficava de um lado, o vídeo do outro e um vão no meio, além de o
+          painel da direita ser cortado pela borda. Presa a esta faixa, ela
+          acompanha o mesmo eixo do conteúdo em qualquer largura. */}
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-y-0 right-0 hidden w-[60%] xl:w-[58%] lg:block"
+        className="pointer-events-none absolute inset-y-0 left-0 right-0 hidden lg:block"
       >
-        <HeroVideo fill />
+        <div className="mx-auto flex h-full w-full max-w-[--container-max] justify-end">
+          <div className="h-full w-[58%] xl:w-[56%]">
+            <HeroVideo fill />
+          </div>
+        </div>
       </div>
 
       <Container className="relative">
@@ -56,7 +66,7 @@ export function Hero() {
                 que a chamada já diz e dava ao topo um ar de template. */}
             <motion.h1
               {...item(1)}
-              className="text-[2.25rem] font-bold leading-[1.04] tracking-[-0.035em] text-dark sm:text-[2.875rem] lg:text-[3.5rem]"
+              className="text-[2rem] font-bold leading-[1.06] tracking-[-0.035em] text-dark sm:text-[2.5rem] lg:text-[2.875rem] xl:text-[3.25rem]"
             >
               Nós não desenvolvemos apenas software.{" "}
               <span className="text-gradient-primary">
