@@ -46,7 +46,12 @@ export function HeroVideo({
     <div
       className={cn(
         "media-parallax relative",
-        fill ? "h-full w-full" : "",
+        // Centraliza sem esticar: o elemento fica com a altura natural do
+        // vídeo. Se ele fosse esticado (h-full + object-contain), sobrariam
+        // faixas vazias e as bordas reais do vídeo cairiam no meio do
+        // elemento, onde a máscara ainda é opaca — era o que desenhava as
+        // linhas em cima e embaixo.
+        fill ? "flex h-full w-full items-center" : "",
         className
       )}
     >
@@ -63,10 +68,9 @@ export function HeroVideo({
         className={cn(
           "select-none mix-blend-multiply",
           fill
-            ? // `contain` preserva a composição inteira dos painéis; `cover`
-              // num contêiner alto e estreito ampliava tanto que sobrava um
-              // único painel gigante.
-              "hero-side-mask h-full w-full object-contain object-center"
+            ? // Altura natural (16:9), sem esticar: assim as bordas do vídeo
+              // coincidem com as do elemento e a máscara dissolve todas elas.
+              "hero-side-mask h-auto w-full"
             : "media-feather h-auto w-full"
         )}
       />
