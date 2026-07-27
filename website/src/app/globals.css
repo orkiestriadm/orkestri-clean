@@ -166,24 +166,28 @@
   .hero-side-mask {
     /* Máscara radial em vez de retangular: só a área dos painéis fica opaca e
        tudo ao redor dissolve, de modo que não sobra retângulo nem aresta —
-       os painéis parecem emergir da página. */
+       os painéis parecem emergir da página.
+       Os raios (58%/56%) são menores que a distância do centro às bordas, e a
+       máscara zera em 76%: assim os quatro lados chegam de fato ao
+       transparente. Com raios maiores, a borda direita terminava perto de 35%
+       de opacidade e virava um corte reto. */
     -webkit-mask-image: radial-gradient(
-      ellipse 68% 60% at 56% 50%,
-      #000 34%,
-      rgba(0, 0, 0, 0.6) 58%,
-      transparent 84%
+      ellipse 58% 56% at 52% 50%,
+      #000 26%,
+      rgba(0, 0, 0, 0.5) 50%,
+      transparent 76%
     );
     mask-image: radial-gradient(
-      ellipse 68% 60% at 56% 50%,
-      #000 34%,
-      rgba(0, 0, 0, 0.6) 58%,
-      transparent 84%
+      ellipse 58% 56% at 52% 50%,
+      #000 26%,
+      rgba(0, 0, 0, 0.5) 50%,
+      transparent 76%
     );
 
     /* O fundo do vídeo é um cinza-quente, e `multiply` só apaga o branco puro.
        Clarear empurra esse cinza para perto do branco — aí o multiply o
        elimina — enquanto os painéis, bem mais escuros, resistem. */
-    filter: brightness(1.13) contrast(1.04);
+    filter: brightness(1.18) contrast(1.05);
   }
 
   /* Funde as bordas da mídia no fundo da página — evita o retângulo duro de
