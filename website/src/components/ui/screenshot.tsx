@@ -136,27 +136,45 @@ export function Screenshot({
               <div
                 className={cn(
                   "relative",
-                  uniform && "aspect-[16/9] w-full bg-white"
+                  uniform && "flex aspect-[16/9] w-full items-center justify-center bg-white"
                 )}
               >
-                <Image
-                  src={src}
-                  alt={alt}
-                  width={width}
-                  height={height}
-                  priority={priority}
-                  /* Capturas de interface são densas em texto miúdo: o padrão
-                     (q=75) borra as letras e um `sizes` estreito faria o
-                     navegador escolher um candidato pequeno demais. */
-                  quality={92}
-                  sizes="(max-width: 768px) 100vw, (max-width: 1280px) 95vw, 1280px"
+                {/* Caixa na proporção real da captura.
+                    Ela existe por causa da máscara: as telas variam de 1,5 a
+                    2,9 de proporção, então dentro da moldura 16:9 o `<img>`
+                    ocupa a caixa inteira mas os pixels ficam num retângulo
+                    menor, com faixas brancas em volta. Uma máscara no `<img>`
+                    dissolveria a borda das faixas — invisíveis — e passaria
+                    longe das arestas de verdade. Aqui ela cai sobre o
+                    conteúdo. */}
+                <div
                   className={cn(
-                    uniform ? "h-full w-full object-contain" : "h-auto w-full",
-                    // Sem moldura, a própria imagem precisa dissolver: o fundo
-                    // cinza da interface desenharia um bloco sobre o branco.
+                    "relative",
+                    uniform ? "max-h-full max-w-full" : "w-full",
                     !bordered && "screen-feather"
                   )}
-                />
+                  style={
+                    uniform
+                      ? { aspectRatio: `${width} / ${height}` }
+                      : undefined
+                  }
+                >
+                  <Image
+                    src={src}
+                    alt={alt}
+                    width={width}
+                    height={height}
+                    priority={priority}
+                    /* Capturas de interface são densas em texto miúdo: o padrão
+                       (q=75) borra as letras e um `sizes` estreito faria o
+                       navegador escolher um candidato pequeno demais. */
+                    quality={92}
+                    sizes="(max-width: 768px) 100vw, (max-width: 1280px) 95vw, 1280px"
+                    className={cn(
+                      uniform ? "h-full w-full object-contain" : "h-auto w-full"
+                    )}
+                  />
+                </div>
               </div>
 
               {/* Com moldura, a base ganha um degradê para não cortar reto
