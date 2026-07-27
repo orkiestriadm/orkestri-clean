@@ -32,6 +32,7 @@ export function Screenshot({
   height,
   priority = false,
   zoomOnHover = true,
+  uniform = false,
   className,
 }: {
   src: string;
@@ -41,6 +42,13 @@ export function Screenshot({
   priority?: boolean;
   /** Desligue dentro de contêineres com rolagem: a ampliação transbordaria. */
   zoomOnHover?: boolean;
+  /**
+   * Enquadra em 16:9, como pede o image-style.md. As capturas variam de 1,5 a
+   * 2,9 de proporção; sem isto, cada uma teria uma altura, e lado a lado o
+   * conjunto fica desalinhado. O fundo branco esconde as faixas, porque as
+   * telas do produto também são brancas.
+   */
+  uniform?: boolean;
   className?: string;
 }) {
   const surface = useRef<HTMLDivElement>(null);
@@ -116,19 +124,25 @@ export function Screenshot({
                 className="pointer-events-none absolute inset-x-0 top-0 z-20 h-px bg-gradient-to-r from-transparent via-white to-transparent"
               />
 
-              <Image
-                src={src}
-                alt={alt}
-                width={width}
-                height={height}
-                priority={priority}
-                /* Capturas de interface são densas em texto miúdo: o padrão
-                   (q=75) borra as letras e um `sizes` estreito faria o
-                   navegador escolher um candidato pequeno demais. */
-                quality={92}
-                sizes="(max-width: 768px) 100vw, (max-width: 1280px) 95vw, 1280px"
-                className="h-auto w-full"
-              />
+              <div
+                className={cn(uniform && "aspect-[16/9] w-full bg-white")}
+              >
+                <Image
+                  src={src}
+                  alt={alt}
+                  width={width}
+                  height={height}
+                  priority={priority}
+                  /* Capturas de interface são densas em texto miúdo: o padrão
+                     (q=75) borra as letras e um `sizes` estreito faria o
+                     navegador escolher um candidato pequeno demais. */
+                  quality={92}
+                  sizes="(max-width: 768px) 100vw, (max-width: 1280px) 95vw, 1280px"
+                  className={cn(
+                    uniform ? "h-full w-full object-contain" : "h-auto w-full"
+                  )}
+                />
+              </div>
 
               {/* Holofote seguindo o cursor */}
               <div
