@@ -2,8 +2,11 @@ import Image from "next/image";
 import { cn } from "@/lib/utils";
 
 /**
- * Captura real da plataforma dentro de uma moldura discreta.
- * Doc 06 exige imagens reais — nunca mockups genéricos.
+ * Imagem de produto em card premium.
+ *
+ * Segue `image-style.md`: cantos de 24px, borda fina, sombra suave que
+ * intensifica no hover, scale(1.04) + translateY(-4px) em 250ms. A moldura
+ * imitando janela de navegador saiu — o guia pede ausência de ruído visual.
  *
  * width/height obrigatórios: reservam o espaço e evitam layout shift (CLS).
  */
@@ -23,34 +26,29 @@ export function Screenshot({
   className?: string;
 }) {
   return (
-    <figure
-      className={cn(
-        "overflow-hidden rounded-[--radius-image] border border-gray-200 bg-white shadow-soft-lg",
-        className
-      )}
-    >
-      {/* Barra superior — dá contexto de "aplicação" sem imitar um navegador real */}
-      <div className="flex items-center gap-1.5 border-b border-gray-100 bg-gray-50/80 px-4 py-2.5">
-        <span className="h-2.5 w-2.5 rounded-full bg-gray-200" />
-        <span className="h-2.5 w-2.5 rounded-full bg-gray-200" />
-        <span className="h-2.5 w-2.5 rounded-full bg-gray-200" />
-        <span className="ml-3 select-none text-[11px] font-medium text-gray-400">
-          Orkiestri One
-        </span>
+    <figure className={cn("group", className)}>
+      <div
+        className={cn(
+          "overflow-hidden rounded-[24px] border border-gray-200/70 bg-white",
+          "shadow-soft transition-[transform,box-shadow] duration-[250ms] ease-[--ease-out-quart]",
+          "group-hover:-translate-y-1 group-hover:scale-[1.04] group-hover:shadow-soft-lg",
+          "motion-reduce:transition-none motion-reduce:group-hover:transform-none"
+        )}
+      >
+        <Image
+          src={src}
+          alt={alt}
+          width={width}
+          height={height}
+          priority={priority}
+          /* Capturas de interface são densas em texto miúdo: o padrão (q=75)
+             borra as letras e um `sizes` estreito faria o navegador escolher
+             um candidato pequeno demais. */
+          quality={92}
+          sizes="(max-width: 768px) 100vw, (max-width: 1280px) 95vw, 1280px"
+          className="h-auto w-full"
+        />
       </div>
-      <Image
-        src={src}
-        alt={alt}
-        width={width}
-        height={height}
-        priority={priority}
-        /* Capturas de interface são densas em texto miúdo: o padrão (q=75)
-           borra as letras e o `sizes` estreito fazia o navegador escolher um
-           candidato pequeno demais. Pede um recorte grande e alta qualidade. */
-        quality={92}
-        sizes="(max-width: 768px) 100vw, (max-width: 1280px) 95vw, 1280px"
-        className="h-auto w-full"
-      />
     </figure>
   );
 }

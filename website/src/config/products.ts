@@ -23,10 +23,10 @@ export const products: Product[] = [
   {
     slug: "one-desk",
     screenshot: {
-      src: "/screenshots/chamados.png",
-      alt: "Orkiestri Desk — quadro de chamados por status, com indicadores de SLA e fila pública",
-      width: 1743,
-      height: 1016,
+      src: "/screenshots/orkiestridesk.png",
+      alt: "Orkiestri Desk — fila de chamados por status, com indicadores de SLA e atendimento em andamento",
+      width: 1671,
+      height: 825,
     },
     name: "Orkiestri Desk",
     category: "Service Management",
@@ -84,10 +84,10 @@ export const products: Product[] = [
   {
     slug: "one-space",
     screenshot: {
-      src: "/screenshots/agenda.png",
-      alt: "Orkiestri Space — agenda corporativa com eventos do mês, próximos compromissos e disponibilidade do time",
-      width: 1702,
-      height: 1031,
+      src: "/screenshots/orkiestrispace.png",
+      alt: "Orkiestri Space — agenda corporativa do mês com eventos, próximos compromissos e disponibilidade do time",
+      width: 1683,
+      height: 711,
     },
     name: "Orkiestri Space",
     category: "Agenda & Colaboração",
