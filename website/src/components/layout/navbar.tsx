@@ -74,7 +74,7 @@ export function Navbar() {
 
         <div className="hidden items-center gap-2 lg:flex">
           <a
-            href="/login"
+            href="/entrar"
             className="rounded-lg px-3.5 py-2 text-[0.9375rem] font-medium text-gray-700 transition-colors hover:text-primary"
           >
             Entrar
