@@ -159,6 +159,41 @@
     color: transparent;
   }
 
+  /* Dissolve a vitrine lateral do hero nas quatro bordas.
+     É máscara, e não um degradê branco por cima: a máscara apaga os pixels
+     de verdade, então funde com qualquer fundo — inclusive o glow laranja do
+     hero, onde uma sobreposição branca deixava emenda visível. */
+  .hero-side-mask {
+    -webkit-mask-image: linear-gradient(
+        to right,
+        transparent 0%,
+        rgba(0, 0, 0, 0.5) 12%,
+        #000 32%
+      ),
+      linear-gradient(
+        to bottom,
+        transparent 0%,
+        #000 16%,
+        #000 82%,
+        transparent 100%
+      );
+    -webkit-mask-composite: source-in;
+    mask-image: linear-gradient(
+        to right,
+        transparent 0%,
+        rgba(0, 0, 0, 0.5) 12%,
+        #000 32%
+      ),
+      linear-gradient(
+        to bottom,
+        transparent 0%,
+        #000 16%,
+        #000 82%,
+        transparent 100%
+      );
+    mask-composite: intersect;
+  }
+
   /* Funde as bordas da mídia no fundo da página — evita o retângulo duro de
      um vídeo com fundo próprio. */
   .media-feather {

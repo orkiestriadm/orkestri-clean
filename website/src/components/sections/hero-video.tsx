@@ -63,30 +63,13 @@ export function HeroVideo({
         className={cn(
           "select-none mix-blend-multiply",
           fill
-            ? "h-full w-full object-cover object-center"
+            ? // `contain` preserva a composição inteira dos painéis; `cover`
+              // num contêiner alto e estreito ampliava tanto que sobrava um
+              // único painel gigante.
+              "hero-side-mask h-full w-full object-contain object-center"
             : "media-feather h-auto w-full"
         )}
       />
-
-      {fill && (
-        <>
-          {/* Dissolve a borda esquerda no fundo, para o vídeo não terminar em
-              linha reta sobre a coluna de texto. */}
-          <div
-            aria-hidden
-            className="pointer-events-none absolute inset-y-0 left-0 w-1/3 bg-gradient-to-r from-white via-white/60 to-transparent"
-          />
-          {/* Suaviza topo e base contra o limite da seção. */}
-          <div
-            aria-hidden
-            className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-white to-transparent"
-          />
-          <div
-            aria-hidden
-            className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-white to-transparent"
-          />
-        </>
-      )}
     </div>
   );
 }
