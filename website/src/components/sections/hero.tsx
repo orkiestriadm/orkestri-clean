@@ -39,7 +39,7 @@ export function Hero() {
           fora do fluxo, para o conteúdo respirar sem disputar espaço. */}
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-y-0 right-0 hidden w-[56%] xl:w-[52%] lg:block"
+        className="pointer-events-none absolute inset-y-0 right-0 hidden w-[60%] xl:w-[58%] lg:block"
       >
         <HeroVideo fill />
       </div>

@@ -164,34 +164,26 @@
      de verdade, então funde com qualquer fundo — inclusive o glow laranja do
      hero, onde uma sobreposição branca deixava emenda visível. */
   .hero-side-mask {
-    -webkit-mask-image: linear-gradient(
-        to right,
-        transparent 0%,
-        rgba(0, 0, 0, 0.5) 12%,
-        #000 32%
-      ),
-      linear-gradient(
-        to bottom,
-        transparent 0%,
-        #000 16%,
-        #000 82%,
-        transparent 100%
-      );
-    -webkit-mask-composite: source-in;
-    mask-image: linear-gradient(
-        to right,
-        transparent 0%,
-        rgba(0, 0, 0, 0.5) 12%,
-        #000 32%
-      ),
-      linear-gradient(
-        to bottom,
-        transparent 0%,
-        #000 16%,
-        #000 82%,
-        transparent 100%
-      );
-    mask-composite: intersect;
+    /* Máscara radial em vez de retangular: só a área dos painéis fica opaca e
+       tudo ao redor dissolve, de modo que não sobra retângulo nem aresta —
+       os painéis parecem emergir da página. */
+    -webkit-mask-image: radial-gradient(
+      ellipse 68% 60% at 56% 50%,
+      #000 34%,
+      rgba(0, 0, 0, 0.6) 58%,
+      transparent 84%
+    );
+    mask-image: radial-gradient(
+      ellipse 68% 60% at 56% 50%,
+      #000 34%,
+      rgba(0, 0, 0, 0.6) 58%,
+      transparent 84%
+    );
+
+    /* O fundo do vídeo é um cinza-quente, e `multiply` só apaga o branco puro.
+       Clarear empurra esse cinza para perto do branco — aí o multiply o
+       elimina — enquanto os painéis, bem mais escuros, resistem. */
+    filter: brightness(1.13) contrast(1.04);
   }
 
   /* Funde as bordas da mídia no fundo da página — evita o retângulo duro de
