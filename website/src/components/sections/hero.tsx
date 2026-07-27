@@ -24,7 +24,7 @@ export function Hero() {
   });
 
   return (
-    <section className="relative overflow-hidden pt-32 pb-20 md:pt-40 md:pb-28">
+    <section className="relative overflow-hidden pt-32 pb-20 md:pt-40 md:pb-28 lg:flex lg:min-h-[40rem] lg:items-center xl:min-h-[44rem]">
       {/* Soft background accent (doc 06 — gradientes suaves) */}
       <div
         aria-hidden
@@ -35,8 +35,17 @@ export function Hero() {
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(249,115,22,0.06),transparent_55%)]" />
       </div>
 
-      <Container>
-        <div className="grid items-center gap-12 lg:grid-cols-[1.05fr_1fr]">
+      {/* Vitrine ocupando a altura da seção, à direita. Fica atrás do texto e
+          fora do fluxo, para o conteúdo respirar sem disputar espaço. */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-y-0 right-0 hidden w-[56%] xl:w-[52%] lg:block"
+      >
+        <HeroVideo fill />
+      </div>
+
+      <Container className="relative">
+        <div className="grid items-center gap-12 lg:grid-cols-[1fr_0.85fr]">
           {/* Left */}
           <div className="flex flex-col items-start">
             <motion.span {...item(0)}>
@@ -91,8 +100,10 @@ export function Hero() {
             </motion.ul>
           </div>
 
-          {/* Right — dashboard */}
+          {/* No mobile a vitrine entra no fluxo, abaixo do texto — sobreposta
+              à esquerda ela roubaria a leitura. */}
           <motion.div
+            className="lg:hidden"
             initial={reduce ? { opacity: 0 } : { opacity: 0, y: 24, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             transition={{ duration: 0.5, ease: EASE_OUT, delay: 0.3 }}
