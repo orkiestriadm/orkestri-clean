@@ -5,7 +5,7 @@ import dynamic from "next/dynamic";
 
 const ToastContainer = dynamic(() => import("@/components/ui/ToastContainer"), { ssr: false });
 
-export const metadata: Metadata = { title: "HUB", description: "HUB Operacional - Triunfo TBR" };
+export const metadata: Metadata = { title: "Orkiestri", description: "Sistema de Organizacao de Demandas" };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
