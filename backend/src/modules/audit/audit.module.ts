@@ -1,16 +1,32 @@
 import {
-  Module, Controller, Get, Injectable,
+  Module, Controller, Get, Injectable, Logger,
   UseGuards, Req, Query, ForbiddenException,
 } from "@nestjs/common";
+import { randomUUID } from "crypto";
 import { AuthGuard } from "@nestjs/passport";
 import { PrismaService } from "../../prisma/prisma.service";
 
 // ── Serviço de Auditoria (exportável para outros módulos) ──────────────────────
 @Injectable()
 export class AuditService {
+  private readonly logger = new Logger(AuditService.name);
+
   constructor(private prisma: PrismaService) {}
 
+  /**
+   * Grava um evento na trilha de auditoria.
+   *
+   * `organizationId` é OBRIGATÓRIO: a coluna é NOT NULL. Até 2026-07-28 o
+   * método não o enviava, então todo insert falhava por violação de not-null —
+   * e o `catch {}` vazio engolia o erro. A trilha ficou vazia sem ninguém
+   * perceber, inclusive a de Frota, que é a que mais chamava este método.
+   *
+   * A falha continua não derrubando a operação de negócio que a originou, mas
+   * agora é registrada. Auditoria que falha em silêncio é pior que auditoria
+   * ausente: passa a impressão de que existe.
+   */
   async log(data: {
+    organizationId: string;
     userId?: string | null;
     modulo?: string;
     tabela: string;
@@ -20,10 +36,18 @@ export class AuditService {
     dados?: Record<string, any> | null;
     ip?: string | null;
   }) {
+    if (!data.organizationId) {
+      this.logger.error(
+        `Auditoria sem organizationId — evento descartado: ${data.acao} em ${data.tabela}/${data.registroId}`,
+      );
+      return;
+    }
+
     try {
       await (this.prisma.auditLog.create as any)({
         data: {
-          id: require("crypto").randomUUID(),
+          id: randomUUID(),
+          organizationId: data.organizationId,
           userId: data.userId || null,
           modulo: data.modulo || null,
           tabela: data.tabela,
@@ -34,7 +58,12 @@ export class AuditService {
           ip: data.ip || null,
         },
       });
-    } catch {}
+    } catch (erro) {
+      this.logger.error(
+        `Falha ao gravar auditoria: ${data.acao} em ${data.tabela}/${data.registroId}`,
+        erro as Error,
+      );
+    }
   }
 }
 

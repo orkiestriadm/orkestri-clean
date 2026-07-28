@@ -78,6 +78,7 @@ export class ReservasService {
     const reserva = await this.prisma.reservaVeiculo.create({ data: reservaData });
 
     await this.audit.log({
+      organizationId,
       userId,
       modulo: "frota",
       tabela: "reservas_veiculo",
@@ -119,6 +120,7 @@ export class ReservasService {
     });
 
     await this.audit.log({
+      organizationId,
       userId,
       modulo: "frota",
       tabela: "reservas_veiculo",

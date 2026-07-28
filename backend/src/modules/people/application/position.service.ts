@@ -191,7 +191,7 @@ export class PositionService {
         registroId,
         acao,
         descricao,
-      } as any);
+      });
     } catch (erro) {
       this.logger.error(`Falha ao auditar ${acao} de ${registroId}`, erro as Error);
     }
