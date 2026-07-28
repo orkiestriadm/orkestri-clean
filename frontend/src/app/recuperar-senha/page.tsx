@@ -1,43 +1,61 @@
 "use client";
 import { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { api } from "@/lib/api";
-import { OrkestriLogo } from "@/components/ui/logo";
+import { BrandLogo } from "@/components/ui/logo";
+import { Loader2, Mail, Check, ArrowLeft } from "lucide-react";
+
+/**
+ * Recuperação de senha.
+ *
+ * A apresentação acompanha o /login — mesmo fundo do planeta, mesma paleta —
+ * para que sair do login e cair aqui não pareça outro produto. A lógica é a
+ * mesma de sempre: 4 etapas, token pela URL, `/auth/esqueci-senha` e
+ * `/auth/redefinir-senha`.
+ */
 
 type Step = "email" | "enviado" | "nova-senha" | "ok";
+
+/** Campo e botão repetem a métrica do login: 52px de altura, raio 14. */
+const INPUT =
+  "h-[52px] w-full rounded-[14px] border border-white/[0.10] bg-white/[0.04] px-4 text-[15px] text-white outline-none transition-all placeholder:text-white/25 focus:border-[#f97316] focus:bg-white/[0.06] focus:ring-4 focus:ring-[#f97316]/15";
+
+const BOTAO =
+  "inline-flex h-[52px] w-full items-center justify-center gap-2 rounded-[14px] bg-[#f97316] text-[15px] font-semibold text-white shadow-[0_8px_24px_-6px_rgba(249,115,22,0.5)] transition-all hover:bg-[#ea580c] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f97316] disabled:cursor-not-allowed disabled:opacity-45 disabled:shadow-none";
 
 function PasswordStrength({ senha }: { senha: string }) {
   const checks = [
     { label: "Mínimo 8 caracteres", ok: senha.length >= 8 },
-    { label: "Letra maiúscula",      ok: /[A-Z]/.test(senha) },
-    { label: "Letra minúscula",      ok: /[a-z]/.test(senha) },
-    { label: "Número",               ok: /[0-9]/.test(senha) },
+    { label: "Letra maiúscula", ok: /[A-Z]/.test(senha) },
+    { label: "Letra minúscula", ok: /[a-z]/.test(senha) },
+    { label: "Número", ok: /[0-9]/.test(senha) },
   ];
   if (!senha) return null;
   return (
-    <div className="flex flex-col gap-1 mt-2">
+    <ul className="mt-2.5 flex flex-col gap-1">
       {checks.map(c => (
-        <div key={c.label} className="flex items-center gap-2 text-[12px]">
-          <span className={c.ok ? "text-green-500" : "text-zinc-400"}>{c.ok ? "✓" : "○"}</span>
-          <span className={c.ok ? "text-green-600 dark:text-green-400" : "text-zinc-400 dark:text-zinc-500"}>{c.label}</span>
-        </div>
+        <li key={c.label} className="flex items-center gap-2 text-[12px]">
+          <span className={c.ok ? "text-emerald-400" : "text-white/25"} aria-hidden>
+            {c.ok ? "✓" : "○"}
+          </span>
+          <span className={c.ok ? "text-emerald-300" : "text-white/40"}>{c.label}</span>
+        </li>
       ))}
-    </div>
+    </ul>
   );
 }
 
 function RecuperarSenhaContent() {
-  const router = useRouter();
   const searchParams = useSearchParams();
 
-  const [step, setStep]           = useState<Step>("email");
-  const [email, setEmail]         = useState("");
+  const [step, setStep] = useState<Step>("email");
+  const [email, setEmail] = useState("");
   const [novaSenha, setNovaSenha] = useState("");
   const [confirmar, setConfirmar] = useState("");
   const [resetToken, setResetToken] = useState("");
-  const [loading, setLoading]     = useState(false);
-  const [error, setError]         = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   // Se vier com ?token=xxx na URL, pula direto para o passo de nova senha
   useEffect(() => {
@@ -47,8 +65,6 @@ function RecuperarSenhaContent() {
       setStep("nova-senha");
     }
   }, [searchParams]);
-
-  const inputClass = "w-full bg-black/5 dark:bg-black/50 border border-zinc-200 dark:border-zinc-800 rounded-xl py-3.5 px-4 text-zinc-900 dark:text-white text-[15px] focus:outline-none focus:border-zinc-400 dark:focus:border-zinc-500 focus:bg-white dark:focus:bg-black transition-colors placeholder:text-zinc-400 dark:placeholder:text-zinc-600";
 
   const handleEnviarEmail = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -62,7 +78,8 @@ function RecuperarSenhaContent() {
     } finally { setLoading(false); }
   };
 
-  const isValid = novaSenha.length >= 8 && /[A-Z]/.test(novaSenha) && /[a-z]/.test(novaSenha) && /[0-9]/.test(novaSenha);
+  const isValid =
+    novaSenha.length >= 8 && /[A-Z]/.test(novaSenha) && /[a-z]/.test(novaSenha) && /[0-9]/.test(novaSenha);
 
   const handleRedefinir = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -77,80 +94,73 @@ function RecuperarSenhaContent() {
     } finally { setLoading(false); }
   };
 
+  const titulo =
+    step === "ok" ? "Senha redefinida"
+      : step === "nova-senha" ? "Defina sua nova senha"
+      : step === "enviado" ? "Verifique seu e-mail"
+      : "Recuperar senha";
+
   return (
-    <div className="relative min-h-screen bg-zinc-50 dark:bg-black flex items-center justify-center font-display">
-      <div className="absolute inset-0 z-0 flex items-center justify-center pointer-events-none overflow-hidden">
-        <div className="w-[800px] h-[800px] bg-black/[0.02] dark:bg-white/[0.02] rounded-full blur-[120px]" />
+    <div className="relative flex min-h-dvh items-center justify-center overflow-hidden bg-[#08090c] px-5 py-10 text-white">
+      {/* Mesma atmosfera do login: o planeta continua ao fundo. */}
+      <div aria-hidden className="pointer-events-none absolute inset-0">
+        <img src="/branding/planeta.jpg" alt="" className="absolute inset-0 h-full w-full object-cover" />
+        <div className="absolute inset-0 bg-[#08090c]/70" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,transparent_20%,rgba(8,9,12,0.85)_80%)]" />
       </div>
 
-      <div className="relative z-10 w-full max-w-[440px] px-8">
-        <div className="flex flex-col items-center mb-10">
-          <div className="mb-5 shadow-xl rounded-[30px] overflow-hidden">
-            <OrkestriLogo size={48} />
-          </div>
-          <h1 className="text-3xl font-semibold tracking-tight text-zinc-900 dark:text-white mb-1">
-            Recuperar senha
-          </h1>
-          {step === "nova-senha" && (
-            <p className="text-[13px] text-zinc-400 dark:text-zinc-500 font-medium">Defina sua nova senha</p>
-          )}
+      <div className="relative z-10 w-full max-w-[430px]">
+        <div className="mb-8 flex flex-col items-center gap-5 text-center">
+          <BrandLogo size="lg" tone="light" />
+          <h1 className="text-[1.75rem] font-bold leading-tight tracking-[-0.03em]">{titulo}</h1>
         </div>
 
-        <div className="bg-white/70 dark:bg-zinc-950/80 backdrop-blur-2xl border border-black/5 dark:border-white/10 rounded-2xl p-8 shadow-2xl">
-
+        <div className="rounded-[20px] border border-white/[0.08] bg-white/[0.03] p-7 backdrop-blur-xl sm:p-8">
           {/* PASSO 1 — digitar email */}
           {step === "email" && (
             <form onSubmit={handleEnviarEmail} className="flex flex-col gap-5">
-              <p className="text-[14px] text-zinc-500 dark:text-zinc-400">
+              <p className="text-[14px] leading-relaxed text-white/55">
                 Informe o e-mail cadastrado na sua conta. Enviaremos um link para redefinir sua senha.
               </p>
               <div>
-                <label className="text-[13px] font-medium text-zinc-500 dark:text-zinc-400 block mb-1.5">E-mail</label>
+                <label htmlFor="email" className="mb-1.5 block text-[13px] font-medium text-white/70">
+                  E-mail
+                </label>
                 <input
+                  id="email"
                   type="email"
                   value={email}
                   onChange={e => setEmail(e.target.value)}
                   placeholder="seu@email.com"
-                  className={inputClass}
+                  className={INPUT}
                   autoFocus
                 />
               </div>
-              {error && (
-                <div className="text-[13px] text-red-600 dark:text-red-400 font-medium text-center bg-red-50 dark:bg-red-950/20 py-2 rounded-lg">{error}</div>
-              )}
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full py-3.5 rounded-xl bg-zinc-900 dark:bg-white text-white dark:text-black font-semibold text-[15px] hover:bg-zinc-800 dark:hover:bg-zinc-200 transition-colors disabled:opacity-50 shadow-md"
-              >
-                {loading ? "Enviando..." : "Enviar link de redefinição"}
+              {error && <Erro texto={error} />}
+              <button type="submit" disabled={loading} className={BOTAO}>
+                {loading ? <><Loader2 className="h-[18px] w-[18px] animate-spin" aria-hidden /> Enviando...</> : "Enviar link de redefinição"}
               </button>
             </form>
           )}
 
           {/* PASSO 2 — aguardar email */}
           {step === "enviado" && (
-            <div className="flex flex-col items-center text-center gap-4 py-2">
-              <div className="w-16 h-16 rounded-full bg-violet-100 dark:bg-violet-900/30 flex items-center justify-center">
-                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-violet-600 dark:text-violet-400">
-                  <rect x="2" y="4" width="20" height="16" rx="2"/>
-                  <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>
-                </svg>
-              </div>
-              <div>
-                <h2 className="text-lg font-semibold text-zinc-900 dark:text-white mb-1">Verifique seu e-mail</h2>
-                <p className="text-[13px] text-zinc-500 dark:text-zinc-400 leading-relaxed">
-                  Se <strong>{email}</strong> estiver cadastrado, você receberá um link para redefinir sua senha.
-                </p>
-              </div>
-              <div className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-4 text-[12px] text-zinc-500 dark:text-zinc-400 text-left">
-                <strong className="text-zinc-700 dark:text-zinc-300">Não recebeu?</strong><br />
-                Verifique a pasta de spam. O link expira em <strong>30 minutos</strong>.
+            <div className="flex flex-col items-center gap-4 py-1 text-center">
+              <span className="flex h-16 w-16 items-center justify-center rounded-full bg-[#f97316]/12 text-[#fb923c]">
+                <Mail size={28} aria-hidden />
+              </span>
+              <p className="text-[13.5px] leading-relaxed text-white/60">
+                Se <strong className="text-white/85">{email}</strong> estiver cadastrado, você receberá um
+                link para redefinir sua senha.
+              </p>
+              <div className="w-full rounded-[14px] border border-white/[0.08] bg-white/[0.03] p-4 text-left text-[12.5px] leading-relaxed text-white/55">
+                <strong className="text-white/80">Não recebeu?</strong><br />
+                Verifique a pasta de spam. O link expira em <strong className="text-white/80">30 minutos</strong>.
               </div>
               <button
                 type="button"
                 onClick={() => { setStep("email"); setError(""); }}
-                className="text-[13px] text-zinc-500 hover:text-zinc-900 dark:hover:text-white transition-colors"
+                className="text-[13px] font-medium text-white/55 transition-colors hover:text-white"
               >
                 ← Usar outro e-mail
               </button>
@@ -160,63 +170,61 @@ function RecuperarSenhaContent() {
           {/* PASSO 3 — nova senha (vindo do link do email) */}
           {step === "nova-senha" && (
             <form onSubmit={handleRedefinir} className="flex flex-col gap-5">
-              <p className="text-[14px] text-zinc-500 dark:text-zinc-400">
+              <p className="text-[14px] leading-relaxed text-white/55">
                 Crie sua nova senha. Escolha algo seguro e fácil de lembrar.
               </p>
               <div>
-                <label className="text-[13px] font-medium text-zinc-500 dark:text-zinc-400 block mb-1.5">Nova senha</label>
+                <label htmlFor="nova" className="mb-1.5 block text-[13px] font-medium text-white/70">
+                  Nova senha
+                </label>
                 <input
+                  id="nova"
                   type="password"
                   value={novaSenha}
                   onChange={e => setNovaSenha(e.target.value)}
                   placeholder="••••••••"
-                  className={inputClass + " tracking-widest"}
+                  className={`${INPUT} tracking-widest`}
                   autoFocus
                 />
                 <PasswordStrength senha={novaSenha} />
               </div>
               <div>
-                <label className="text-[13px] font-medium text-zinc-500 dark:text-zinc-400 block mb-1.5">Confirmar senha</label>
+                <label htmlFor="confirmar" className="mb-1.5 block text-[13px] font-medium text-white/70">
+                  Confirmar senha
+                </label>
                 <input
+                  id="confirmar"
                   type="password"
                   value={confirmar}
                   onChange={e => setConfirmar(e.target.value)}
                   placeholder="••••••••"
-                  className={inputClass + " tracking-widest"}
+                  className={`${INPUT} tracking-widest`}
                 />
                 {confirmar && novaSenha !== confirmar && (
-                  <p className="text-[12px] text-red-500 mt-1.5">As senhas não coincidem.</p>
+                  <p className="mt-1.5 text-[12px] text-red-400">As senhas não coincidem.</p>
                 )}
               </div>
-              {error && (
-                <div className="text-[13px] text-red-600 dark:text-red-400 font-medium text-center bg-red-50 dark:bg-red-950/20 py-2 rounded-lg">{error}</div>
-              )}
+              {error && <Erro texto={error} />}
               <button
                 type="submit"
                 disabled={loading || !isValid || novaSenha !== confirmar}
-                className="w-full py-3.5 rounded-xl bg-zinc-900 dark:bg-white text-white dark:text-black font-semibold text-[15px] hover:bg-zinc-800 dark:hover:bg-zinc-200 transition-colors disabled:opacity-50 shadow-md"
+                className={BOTAO}
               >
-                {loading ? "Salvando..." : "Redefinir senha"}
+                {loading ? <><Loader2 className="h-[18px] w-[18px] animate-spin" aria-hidden /> Salvando...</> : "Redefinir senha"}
               </button>
             </form>
           )}
 
           {/* PASSO 4 — sucesso */}
           {step === "ok" && (
-            <div className="text-center py-4">
-              <div className="w-14 h-14 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center mx-auto mb-5">
-                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-green-600 dark:text-green-400">
-                  <path d="M20 6L9 17l-5-5" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-              </div>
-              <h2 className="text-xl font-semibold text-zinc-900 dark:text-white mb-2">Senha redefinida!</h2>
-              <p className="text-[14px] text-zinc-500 dark:text-zinc-400 mb-8">
+            <div className="flex flex-col items-center gap-4 py-1 text-center">
+              <span className="flex h-14 w-14 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-400">
+                <Check size={26} aria-hidden />
+              </span>
+              <p className="text-[14px] leading-relaxed text-white/60">
                 Sua senha foi alterada com sucesso. Faça login com a nova senha.
               </p>
-              <Link
-                href="/login"
-                className="inline-block w-full py-3.5 rounded-xl bg-zinc-900 dark:bg-white text-white dark:text-black font-semibold text-[15px] hover:bg-zinc-800 dark:hover:bg-zinc-200 transition-colors text-center shadow-md"
-              >
+              <Link href="/login" className={`${BOTAO} mt-1`}>
                 Ir para o login
               </Link>
             </div>
@@ -224,12 +232,26 @@ function RecuperarSenhaContent() {
         </div>
 
         <div className="mt-6 text-center">
-          <Link href="/login" className="text-[14px] font-medium text-zinc-500 hover:text-zinc-900 dark:hover:text-white transition-colors">
-            ← Voltar ao login
+          <Link
+            href="/login"
+            className="inline-flex items-center gap-1.5 rounded text-[13.5px] font-medium text-white/60 transition-colors hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f97316]"
+          >
+            <ArrowLeft size={14} aria-hidden /> Voltar ao login
           </Link>
         </div>
       </div>
     </div>
+  );
+}
+
+function Erro({ texto }: { texto: string }) {
+  return (
+    <p
+      role="alert"
+      className="rounded-[12px] border border-red-500/25 bg-red-500/10 px-4 py-2.5 text-center text-[13px] font-medium text-red-300"
+    >
+      {texto}
+    </p>
   );
 }
 

@@ -3,8 +3,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { api } from "@/lib/api";
 import { BrandLogo } from "@/components/ui/logo";
-import { motion, AnimatePresence } from "framer-motion";
-import { Shield, Zap, BarChart3, ArrowRight, CheckCircle2 } from "lucide-react";
+import { ArrowRight, ArrowLeft, CheckCircle2, Loader2, ShieldCheck, Cloud, Sparkles, Network } from "lucide-react";
 
 interface Organization {
   id: string;
@@ -12,16 +11,12 @@ interface Organization {
   slug: string;
 }
 
-const FEATURES = [
-  { icon: Shield, label: "Segurança enterprise", desc: "Multi-tenant, JWT HttpOnly, OWASP nativo" },
-  { icon: Zap, label: "Automações inteligentes", desc: "Fluxos e notificações via WhatsApp" },
-  { icon: BarChart3, label: "Analytics em tempo real", desc: "KPIs, CSAT, SLA e dashboards executivos" },
-];
-
-const STATS = [
-  { value: "+120", label: "empresas ativas" },
-  { value: "4.9★", label: "satisfação" },
-  { value: "99,9%", label: "disponibilidade" },
+/* Mesmos pilares da tela de login — uma só promessa de marca. */
+const PILARES = [
+  { icon: ShieldCheck, label: "Segurança", text: "MFA, criptografia e auditoria" },
+  { icon: Sparkles, label: "IA nativa", text: "Copilotos em toda a plataforma" },
+  { icon: Cloud, label: "Cloud Native", text: "99,9% de disponibilidade" },
+  { icon: Network, label: "API First", text: "Integrações sem retrabalho" },
 ];
 
 export default function SolicitarAcessoPage() {
@@ -40,7 +35,6 @@ export default function SolicitarAcessoPage() {
     api.get("/auth/organizations")
       .then(r => {
         const orgs: Organization[] = r.data || [];
-        // Procura org Default (slug ou nome)
         const defaultOrg = orgs.find(o =>
           o.slug?.toLowerCase() === "default" || o.nome?.toLowerCase() === "default"
         ) || orgs[0];
@@ -55,14 +49,14 @@ export default function SolicitarAcessoPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.nome || !form.email) { setError("Nome e e-mail são obrigatórios."); return; }
-    if (!form.organizationId) { setError("Erro ao carregar o ambiente de teste. Tente novamente."); return; }
+    if (!form.nome || !form.email) { setError("Informe seu nome e e-mail para continuar."); return; }
+    if (!form.organizationId) { setError("Não foi possível carregar o ambiente. Recarregue a página e tente novamente."); return; }
     setLoading(true); setError("");
     try {
       await api.post("/auth/solicitar-acesso", form);
       setDone(true);
     } catch (err: any) {
-      setError(err.response?.data?.message || "Erro ao enviar solicitação. Tente novamente.");
+      setError(err.response?.data?.message || "Não foi possível enviar sua solicitação. Tente novamente em alguns instantes.");
     } finally {
       setLoading(false);
     }
@@ -70,229 +64,211 @@ export default function SolicitarAcessoPage() {
 
   if (!mounted) return null;
 
-  return (
-    <div className="bg-[var(--bg-primary)] overflow-hidden transition-colors duration-300" style={{ height: '100dvh', display: 'grid', gridTemplateColumns: '1fr 1fr' }}>
+  const inputCls =
+    "h-[52px] w-full rounded-[14px] border border-white/[0.10] bg-white/[0.04] px-4 text-[15px] text-white outline-none transition-all placeholder:text-white/25 focus:border-[#f97316] focus:bg-white/[0.06] focus:ring-4 focus:ring-[#f97316]/15";
 
-      {/* ── Background ── */}
-      <div className="fixed inset-0 pointer-events-none select-none">
-        <div className="absolute top-[-15%] left-[-8%] w-[800px] h-[800px] rounded-full bg-violet-600/10 dark:bg-violet-700/8 blur-[150px]" />
-        <div className="absolute bottom-[-15%] right-[-8%] w-[700px] h-[700px] rounded-full bg-cyan-500/10 dark:bg-cyan-500/6 blur-[130px]" />
-        <div className="absolute top-1/2 right-1/3 w-[300px] h-[300px] rounded-full bg-violet-500/10 dark:bg-violet-500/5 blur-[80px] -translate-y-1/2" />
-        <div className="absolute inset-0 opacity-[0.05] dark:opacity-[0.022]"
-          style={{ backgroundImage: 'radial-gradient(circle, var(--accent-violet) 1px, transparent 1px)', backgroundSize: '32px 32px' }} />
-        <div className="hidden lg:block absolute top-0 bottom-0 left-1/2 w-px bg-gradient-to-b from-transparent via-[var(--border-strong)] to-transparent" />
+  return (
+    <div className="relative flex min-h-dvh overflow-hidden bg-[#08090c] text-white">
+      {/* ── Atmosfera: glow quente + malha sutil (igual ao login) ───────────── */}
+      <div aria-hidden className="pointer-events-none absolute inset-0">
+        <div className="absolute -left-40 -top-40 h-[560px] w-[720px] rounded-full bg-[#f97316]/[0.16] blur-[130px]" />
+        <div className="absolute -bottom-52 left-1/3 h-[460px] w-[620px] rounded-full bg-[#fb923c]/[0.10] blur-[130px]" />
+        <div className="absolute right-0 top-1/4 h-[380px] w-[420px] rounded-full bg-[#ea580c]/[0.08] blur-[120px]" />
+        <div
+          className="absolute inset-0 opacity-[0.16]"
+          style={{
+            backgroundImage:
+              "linear-gradient(rgba(255,255,255,.06) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.06) 1px, transparent 1px)",
+            backgroundSize: "56px 56px",
+            maskImage: "radial-gradient(ellipse at 50% 0%, #000 35%, transparent 78%)",
+            WebkitMaskImage: "radial-gradient(ellipse at 50% 0%, #000 35%, transparent 78%)",
+          }}
+        />
       </div>
 
-      {/* ── Left panel ── */}
-      <motion.div
-        initial={{ opacity: 0, x: -28 }}
-        animate={{ opacity: 1, x: 0 }}
-        transition={{ duration: 0.75, ease: [0.22, 1, 0.36, 1] }}
-        className="hidden lg:flex flex-col justify-between relative z-10 p-14 xl:p-20"
-      >
-        <Link href="/">
-          <BrandLogo size="xxl" />
+      {/* ── Painel da marca (desktop) ───────────────────────────────────────── */}
+      <aside className="relative z-10 hidden flex-1 flex-col justify-between p-12 xl:p-16 lg:flex">
+        <Link href="/" className="w-fit rounded focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#f97316]">
+          <BrandLogo size="lg" tone="light" />
         </Link>
 
-        <div className="space-y-10">
-          <div>
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-[var(--accent-violet)]/20 bg-[var(--accent-violet-dim)] text-[var(--accent-violet)] text-[11px] font-medium mb-6">
-              <span className="w-1.5 h-1.5 rounded-full bg-[var(--accent-green)] animate-pulse" />
-              7 dias grátis · Sem cartão de crédito
-            </div>
-            <h1 className="font-display text-[44px] font-bold leading-[1.08] tracking-tight text-[var(--text-primary)] mb-5">
-              Profundidade
-              <br />
-              <span className="bg-gradient-to-r from-violet-500 via-fuchsia-400 to-violet-500 dark:from-violet-400 dark:via-fuchsia-300 dark:to-violet-400 bg-clip-text text-transparent">
-                corporativa.
-              </span>
-              <br />
-              Experiência
-              <br />
-              <span className="text-[var(--text-muted)]">moderna.</span>
-            </h1>
-            <p className="text-[15px] text-[var(--text-secondary)] leading-relaxed max-w-[340px]">
-              Transforme tarefas, chamados, projetos e indicadores em uma única operação inteligente.
-            </p>
-          </div>
+        <div className="max-w-lg">
+          <h2 className="text-[2.6rem] font-bold leading-[1.08] tracking-[-0.035em] xl:text-[3.1rem]">
+            Uma plataforma.
+            <br />
+            Toda a sua{" "}
+            <span className="bg-gradient-to-r from-[#f97316] to-[#fb923c] bg-clip-text text-transparent">
+              operação
+            </span>
+            .
+          </h2>
+          <p className="mt-5 text-[17px] leading-relaxed text-white/55">
+            Chamados, projetos, frota, ativos e indicadores em um único ambiente —
+            com automação e inteligência artificial nativas.
+          </p>
 
-          <div className="space-y-4">
-            {FEATURES.map(({ icon: Icon, label, desc }, i) => (
-              <motion.div
+          <ul className="mt-10 grid grid-cols-2 gap-3">
+            {PILARES.map(({ icon: Icon, label, text }) => (
+              <li
                 key={label}
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.35 + i * 0.1, duration: 0.5 }}
-                className="flex items-start gap-3.5 group"
+                className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-4 backdrop-blur-sm"
               >
-                <div className="w-9 h-9 rounded-[10px] bg-[var(--bg-hover)] border border-[var(--border-subtle)] flex items-center justify-center shrink-0 mt-0.5 group-hover:bg-[var(--bg-active)] group-hover:border-[var(--border-medium)] transition-all">
-                  <Icon size={16} className="text-[var(--accent-violet)]" />
-                </div>
-                <div>
-                  <div className="text-[13px] font-semibold text-[var(--text-primary)]">{label}</div>
-                  <div className="text-[12px] text-[var(--text-secondary)] mt-0.5">{desc}</div>
-                </div>
-              </motion.div>
+                <span className="inline-flex h-9 w-9 items-center justify-center rounded-[10px] bg-[#f97316]/15 text-[#fb923c] ring-1 ring-inset ring-[#f97316]/20">
+                  <Icon className="h-[18px] w-[18px]" aria-hidden />
+                </span>
+                <p className="mt-3 text-sm font-semibold text-white">{label}</p>
+                <p className="mt-0.5 text-[13px] leading-snug text-white/45">{text}</p>
+              </li>
             ))}
-          </div>
-
-          <div className="grid grid-cols-3 gap-3">
-            {STATS.map((stat, i) => (
-              <motion.div
-                key={stat.label}
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.6 + i * 0.08, duration: 0.4 }}
-                className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-card)]/50 p-3 text-center shadow-premium-sm"
-              >
-                <div className="font-display font-bold text-lg text-[var(--accent-violet)] leading-none">{stat.value}</div>
-                <div className="text-[10px] text-[var(--text-muted)] mt-1 font-mono">{stat.label}</div>
-              </motion.div>
-            ))}
-          </div>
+          </ul>
         </div>
 
-        <div className="flex items-center gap-3">
-          <div className="flex -space-x-1.5">
-            {['G', 'T', 'R', 'M', 'A'].map((l, i) => (
-              <div key={i} className="w-7 h-7 rounded-full border-2 border-[var(--bg-primary)] bg-gradient-to-br from-violet-500/60 to-violet-700/60 flex items-center justify-center text-[9px] font-bold text-white shadow-sm">
-                {l}
-              </div>
-            ))}
-          </div>
-          <p className="text-[12px] text-[var(--text-muted)]">+120 empresas confiam no Orkiestri</p>
-        </div>
-      </motion.div>
+        <p className="text-[13px] text-white/30">
+          &copy; {new Date().getFullYear()} Orkiestri — Enterprise Software Company
+        </p>
+      </aside>
 
-      {/* ── Right panel — Form ── */}
-      <div className="flex items-center justify-center p-6 relative z-10">
-        <motion.div
-          initial={{ opacity: 0, y: 24 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.65, ease: [0.22, 1, 0.36, 1] }}
-          className="w-full max-w-[420px]"
-        >
-          {/* Mobile logo */}
-          <div className="mb-10 lg:hidden flex justify-center">
-            <BrandLogo size="lg" />
+      {/* ── Painel do formulário ────────────────────────────────────────────── */}
+      <main className="relative z-10 flex w-full items-center justify-center px-6 py-12 sm:px-10 lg:w-[560px] lg:px-12">
+        <div className="w-full max-w-[400px]">
+          <div className="mb-10 lg:hidden">
+            <Link href="/">
+              <BrandLogo size="lg" tone="light" />
+            </Link>
           </div>
 
-          {/* Header */}
-          <div className="mb-8">
-            <h2 className="font-display text-[30px] font-bold text-[var(--text-primary)] mb-2 leading-tight tracking-tight">
-              Comece seu Teste Grátis
-            </h2>
-            <p className="text-[14px] text-[var(--text-secondary)]">7 dias grátis · Sem cartão · Acesso liberado em minutos.</p>
-          </div>
-
-          {/* Form card */}
-          <div className="relative rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-glass)] backdrop-blur-2xl p-8 shadow-premium-lg">
-            <div className="absolute top-0 left-8 right-8 h-px bg-gradient-to-r from-transparent via-[var(--accent-violet)]/40 to-transparent" />
-
+          <div className="rounded-[24px] border border-white/[0.08] bg-white/[0.035] p-7 shadow-[0_24px_60px_-15px_rgba(0,0,0,0.6)] backdrop-blur-xl sm:p-8">
             {done ? (
-              <div className="text-center py-6">
-                <div className="w-14 h-14 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center mx-auto mb-5">
-                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-green-600 dark:text-green-400">
-                    <path d="M20 6L9 17l-5-5" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                </div>
-                <h2 className="text-xl font-semibold text-[var(--text-primary)] mb-2">Solicitação enviada!</h2>
-                <p className="text-[14px] text-[var(--text-secondary)] mb-2">
-                  Sua solicitação de teste foi registrada com sucesso.
-                </p>
-                <p className="text-[13px] text-[var(--text-muted)] mb-8">
-                  Você receberá as credenciais de acesso assim que o administrador aprovar — geralmente em poucos minutos.
+              <div className="flex flex-col items-center py-4 text-center">
+                <span className="inline-flex h-14 w-14 items-center justify-center rounded-full bg-emerald-500/12 ring-1 ring-inset ring-emerald-500/25">
+                  <CheckCircle2 className="h-7 w-7 text-emerald-400" aria-hidden />
+                </span>
+                <h1 className="mt-5 text-[22px] font-bold tracking-tight text-white">
+                  Solicitação enviada
+                </h1>
+                <p className="mt-2 text-[15px] leading-relaxed text-white/55">
+                  Recebemos seu pedido de acesso. Assim que for aprovado, você
+                  receberá as credenciais no e-mail informado.
                 </p>
                 <Link
                   href="/login"
-                  className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl btn-primary text-white font-semibold text-[14px]"
+                  className="mt-7 inline-flex h-[52px] w-full items-center justify-center gap-2 rounded-[14px] bg-[#f97316] text-[15px] font-semibold text-white shadow-[0_8px_24px_-6px_rgba(249,115,22,0.5)] transition-all hover:bg-[#ea580c] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f97316]"
                 >
                   Voltar ao login
                 </Link>
               </div>
             ) : (
-              <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+              <>
+                <h1 className="text-[26px] font-bold tracking-tight text-white">
+                  Solicitar acesso
+                </h1>
+                <p className="mt-1.5 text-[15px] text-white/50">
+                  Preencha seus dados. Um administrador libera seu acesso.
+                </p>
 
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-[11px] font-semibold text-[var(--text-muted)] tracking-widest uppercase">Nome completo *</label>
-                  <input
-                    type="text"
-                    value={form.nome}
-                    onChange={e => set("nome", e.target.value)}
-                    placeholder="Seu nome completo"
-                    className="input-o py-3.5"
-                    autoFocus
-                  />
-                </div>
+                <form onSubmit={handleSubmit} className="mt-8 flex flex-col gap-5" noValidate>
+                  <div className="flex flex-col gap-2">
+                    <label htmlFor="nome" className="text-[13px] font-medium text-white/70">
+                      Nome completo <span className="text-[#fb923c]">*</span>
+                    </label>
+                    <input
+                      id="nome"
+                      name="nome"
+                      type="text"
+                      autoComplete="name"
+                      autoFocus
+                      value={form.nome}
+                      onChange={e => set("nome", e.target.value)}
+                      placeholder="Seu nome completo"
+                      aria-invalid={!!error && !form.nome}
+                      className={inputCls}
+                    />
+                  </div>
 
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-[11px] font-semibold text-[var(--text-muted)] tracking-widest uppercase">E-mail *</label>
-                  <input
-                    type="email"
-                    value={form.email}
-                    onChange={e => set("email", e.target.value)}
-                    placeholder="nome@empresa.com"
-                    className="input-o py-3.5"
-                  />
-                </div>
+                  <div className="flex flex-col gap-2">
+                    <label htmlFor="email" className="text-[13px] font-medium text-white/70">
+                      E-mail corporativo <span className="text-[#fb923c]">*</span>
+                    </label>
+                    <input
+                      id="email"
+                      name="email"
+                      type="email"
+                      inputMode="email"
+                      autoComplete="email"
+                      value={form.email}
+                      onChange={e => set("email", e.target.value)}
+                      placeholder="nome@empresa.com"
+                      aria-invalid={!!error && !form.email}
+                      className={inputCls}
+                    />
+                  </div>
 
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-[11px] font-semibold text-[var(--text-muted)] tracking-widest uppercase">WhatsApp</label>
-                  <input
-                    type="tel"
-                    value={form.whatsapp}
-                    onChange={e => set("whatsapp", e.target.value)}
-                    placeholder="(11) 99999-9999"
-                    className="input-o py-3.5"
-                  />
-                </div>
+                  <div className="flex flex-col gap-2">
+                    <label htmlFor="whatsapp" className="text-[13px] font-medium text-white/70">
+                      WhatsApp <span className="text-white/30">(opcional)</span>
+                    </label>
+                    <input
+                      id="whatsapp"
+                      name="whatsapp"
+                      type="tel"
+                      inputMode="tel"
+                      autoComplete="tel"
+                      value={form.whatsapp}
+                      onChange={e => set("whatsapp", e.target.value)}
+                      placeholder="(11) 99999-9999"
+                      className={inputCls}
+                    />
+                  </div>
 
-                <AnimatePresence>
                   {error && (
-                    <motion.div
-                      initial={{ opacity: 0, y: -8, height: 0 }}
-                      animate={{ opacity: 1, y: 0, height: 'auto' }}
-                      exit={{ opacity: 0, y: -8, height: 0 }}
-                      transition={{ duration: 0.22 }}
-                      className="text-[13px] text-[var(--accent-red)] bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-3 text-center"
+                    <p
+                      role="alert"
+                      className="rounded-[14px] border border-red-500/25 bg-red-500/10 px-4 py-3 text-[13px] font-medium text-red-300"
                     >
                       {error}
-                    </motion.div>
+                    </p>
                   )}
-                </AnimatePresence>
 
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl btn-primary text-white font-semibold text-[14px] disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {loading ? (
-                    <>
-                      <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                      </svg>
-                      Enviando...
-                    </>
-                  ) : (
-                    <>Solicitar acesso gratuito <ArrowRight size={16} /></>
-                  )}
-                </button>
-
-                <p className="text-center text-[11px] text-[var(--text-muted)]">
-                  Sem cartão de crédito · Acesso por 7 dias · Cancele quando quiser
-                </p>
-              </form>
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="mt-1 inline-flex h-[52px] w-full items-center justify-center gap-2 rounded-[14px] bg-[#f97316] text-[15px] font-semibold text-white shadow-[0_8px_24px_-6px_rgba(249,115,22,0.5)] transition-all hover:bg-[#ea580c] hover:shadow-[0_12px_32px_-6px_rgba(249,115,22,0.6)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f97316] disabled:cursor-not-allowed disabled:opacity-45 disabled:shadow-none"
+                  >
+                    {loading ? (
+                      <>
+                        <Loader2 className="h-[18px] w-[18px] animate-spin" aria-hidden />
+                        Enviando…
+                      </>
+                    ) : (
+                      <>
+                        Enviar solicitação
+                        <ArrowRight className="h-[18px] w-[18px]" aria-hidden />
+                      </>
+                    )}
+                  </button>
+                </form>
+              </>
             )}
           </div>
 
-          <div className="mt-6 text-center">
-            <Link href="/login" className="text-[13px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors">
-              ← Voltar ao login
-            </Link>
-          </div>
-        </motion.div>
-      </div>
+          {!done && (
+            <p className="mt-7 text-center text-[13px] text-white/35">
+              Já tem acesso?{" "}
+              <Link
+                href="/login"
+                className="inline-flex items-center gap-1 rounded font-medium text-white/70 underline-offset-4 transition-colors hover:text-white hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f97316]"
+              >
+                <ArrowLeft className="h-3.5 w-3.5" aria-hidden />
+                Voltar ao login
+              </Link>
+            </p>
+          )}
+
+          <p className="mt-8 text-center text-[12px] text-white/25 lg:hidden">
+            &copy; {new Date().getFullYear()} Orkiestri
+          </p>
+        </div>
+      </main>
     </div>
   );
 }
