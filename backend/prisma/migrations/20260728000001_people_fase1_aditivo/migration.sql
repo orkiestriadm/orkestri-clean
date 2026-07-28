@@ -179,6 +179,12 @@ CREATE INDEX IF NOT EXISTS "collaborators_excluido_em_idx" ON "collaborators"("e
 -- do perfil 360 não nasça vazia. Usa a data de criação do registro como
 -- aproximação — não temos data de admissão real para os existentes.
 
+-- O INNER JOIN com organizations não é decorativo: existe base com colaborador
+-- apontando para organização inexistente, apesar da FK (constraint adicionada
+-- depois dos dados, ou como NOT VALID). Sem o join, a semente viola
+-- collaborator_history_organization_id_fkey e derruba a migration inteira.
+-- Colaborador órfão fica sem evento de admissão — é o comportamento correto:
+-- o registro dele já está inconsistente e precisa de correção manual.
 INSERT INTO "collaborator_history"
   ("id", "organization_id", "collaborator_id", "evento", "descricao", "registrado_em")
 SELECT
@@ -189,6 +195,7 @@ SELECT
   'Registro anterior ao Orkiestri People (data aproximada pelo cadastro)',
   c."criado_em"
 FROM "collaborators" c
+JOIN "organizations" o ON o."id" = c."organization_id"
 WHERE NOT EXISTS (
   SELECT 1 FROM "collaborator_history" h
    WHERE h."collaborator_id" = c."id" AND h."evento" = 'admissao'
