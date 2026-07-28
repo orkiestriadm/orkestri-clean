@@ -4,33 +4,30 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuthStore } from "@/lib/store";
 import { authApi } from "@/lib/api";
-import { motion, AnimatePresence } from "framer-motion";
-import { ArrowRight, Shield, Zap, BarChart3, Eye, EyeOff, CheckCircle2 } from "lucide-react";
+import { Eye, EyeOff, ArrowRight, Loader2, ShieldCheck, Cloud, Sparkles, Network } from "lucide-react";
 import { BrandLogo } from "@/components/ui/logo";
 
-const FEATURES = [
-  { icon: Shield, label: "Segurança enterprise", desc: "Multi-tenant, JWT HttpOnly, OWASP nativo" },
-  { icon: Zap, label: "Automações inteligentes", desc: "Fluxos e notificações via WhatsApp" },
-  { icon: BarChart3, label: "Analytics em tempo real", desc: "KPIs, CSAT, SLA e dashboards executivos" },
-];
-
-const STATS = [
-  { value: "+120", label: "empresas ativas" },
-  { value: "4.9★", label: "satisfação" },
-  { value: "99,9%", label: "disponibilidade" },
+const pilares = [
+  { icon: ShieldCheck, label: "Segurança", text: "MFA, criptografia e auditoria" },
+  { icon: Sparkles, label: "IA nativa", text: "Copilotos em toda a plataforma" },
+  { icon: Cloud, label: "Cloud Native", text: "99,9% de disponibilidade" },
+  { icon: Network, label: "API First", text: "Integrações sem retrabalho" },
 ];
 
 export default function LoginPage() {
   const router = useRouter();
-  const { loading, error, clearError, user } = useAuthStore();
+  const { user } = useAuthStore();
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
+  const [showSenha, setShowSenha] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [localLoading, setLocalLoading] = useState(false);
   const [localError, setLocalError] = useState("");
 
-  useEffect(() => { setMounted(true); }, []);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   useEffect(() => { if (user) router.replace("/dashboard"); }, [user]);
   useEffect(() => { setLocalError(""); }, [email, senha]);
 
@@ -44,7 +41,7 @@ export default function LoginPage() {
       useAuthStore.setState({ user: result.user, token: result.accessToken, loading: false });
       router.replace(result.primeiroAcesso ? "/primeiro-acesso" : "/dashboard");
     } catch (err: any) {
-      setLocalError(err?.response?.data?.message || "Credenciais inválidas. Verifique seus dados.");
+      setLocalError(err?.response?.data?.message || "Credenciais inválidas. Confira o e-mail e a senha e tente novamente.");
       setLocalLoading(false);
     }
   };
@@ -52,233 +49,192 @@ export default function LoginPage() {
   if (!mounted) return null;
 
   return (
-    <div className="bg-[var(--bg-primary)] overflow-hidden transition-colors duration-300" style={{ height: '100dvh', display: 'grid', gridTemplateColumns: '1fr 1fr' }}>
-
-      {/* ── Background ── */}
-      <div className="fixed inset-0 pointer-events-none select-none">
-        {/* Primary orb */}
-        <div className="absolute top-[-15%] left-[-8%] w-[800px] h-[800px] rounded-full bg-violet-600/10 dark:bg-violet-700/8 blur-[150px]" />
-        {/* Cyan orb */}
-        <div className="absolute bottom-[-15%] right-[-8%] w-[700px] h-[700px] rounded-full bg-cyan-500/10 dark:bg-cyan-500/6 blur-[130px]" />
-        {/* Small accent */}
-        <div className="absolute top-1/2 right-1/3 w-[300px] h-[300px] rounded-full bg-violet-500/10 dark:bg-violet-500/5 blur-[80px] -translate-y-1/2" />
-        {/* Dot grid */}
-        <div className="absolute inset-0 opacity-[0.05] dark:opacity-[0.022]"
-          style={{ backgroundImage: 'radial-gradient(circle, var(--accent-violet) 1px, transparent 1px)', backgroundSize: '32px 32px' }} />
-        {/* Vertical gradient separator */}
-        <div className="hidden lg:block absolute top-0 bottom-0 left-1/2 w-px bg-gradient-to-b from-transparent via-[var(--border-strong)] to-transparent" />
+    <div className="relative flex min-h-dvh overflow-hidden bg-[#08090c] text-white">
+      {/* ── Atmosfera ───────────────────────────────────────────────────────
+          O último quadro da abertura em vídeo continua aqui como plano de
+          fundo: quem vem de /entrar sente que a animação apenas congelou. */}
+      <div aria-hidden className="pointer-events-none absolute inset-0">
+        <img
+          src="/branding/planeta.jpg"
+          alt=""
+          className="absolute inset-0 h-full w-full object-cover"
+        />
+        {/* Véus: escurecem o suficiente para o formulário manter contraste AA
+            sem apagar o planeta. */}
+        <div className="absolute inset-0 bg-[#08090c]/55" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,transparent_25%,rgba(8,9,12,0.72)_85%)]" />
+        <div className="absolute inset-0 bg-gradient-to-r from-[#08090c]/70 via-transparent to-[#08090c]/80" />
       </div>
 
-      {/* ── Left panel ── */}
-      <motion.div
-        initial={{ opacity: 0, x: -28 }}
-        animate={{ opacity: 1, x: 0 }}
-        transition={{ duration: 0.75, ease: [0.22, 1, 0.36, 1] }}
-        className="hidden lg:flex flex-col justify-between relative z-10 p-14 xl:p-20"
-      >
-        {/* Logo */}
-        <Link href="/">
-          <BrandLogo size="xxl" />
-        </Link>
+      {/* ── Painel da marca (desktop) ───────────────────────────────────────── */}
+      <aside className="relative z-10 hidden flex-1 flex-col justify-between p-12 xl:p-16 lg:flex">
+        <BrandLogo size="lg" tone="light" />
 
-        {/* Main statement */}
-        <div className="space-y-10">
-          <div>
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-[var(--accent-violet)]/20 bg-[var(--accent-violet-dim)] text-[var(--accent-violet)] text-[11px] font-medium mb-6">
-              <span className="w-1.5 h-1.5 rounded-full bg-[var(--accent-green)] animate-pulse" />
-              Sistema disponível · 99,9% uptime
-            </div>
-            <h1 className="font-display text-[44px] font-bold leading-[1.08] tracking-tight text-[var(--text-primary)] mb-5">
-              Profundidade
-              <br />
-              <span className="bg-gradient-to-r from-violet-500 via-fuchsia-400 to-violet-500 dark:from-violet-400 dark:via-fuchsia-300 dark:to-violet-400 bg-clip-text text-transparent">
-                corporativa.
-              </span>
-              <br />
-              Experiência
-              <br />
-              <span className="text-[var(--text-muted)]">moderna.</span>
+        <div className="max-w-lg">
+          <h2 className="text-[2.6rem] font-bold leading-[1.08] tracking-[-0.035em] xl:text-[3.1rem]">
+            O sistema operacional
+            <br />
+            da sua{" "}
+            <span className="bg-gradient-to-r from-[#f97316] to-[#fb923c] bg-clip-text text-transparent">
+              empresa
+            </span>
+            .
+          </h2>
+          <p className="mt-5 text-[17px] leading-relaxed text-white/55">
+            Gestão, automação e inteligência artificial em uma única plataforma —
+            conectando pessoas, processos e informações.
+          </p>
+
+          <ul className="mt-10 grid grid-cols-2 gap-3">
+            {pilares.map((p) => {
+              const Icon = p.icon;
+              return (
+                <li
+                  key={p.label}
+                  className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-4 backdrop-blur-sm"
+                >
+                  <span className="inline-flex h-9 w-9 items-center justify-center rounded-[10px] bg-[#f97316]/15 text-[#fb923c] ring-1 ring-inset ring-[#f97316]/20">
+                    <Icon className="h-[18px] w-[18px]" aria-hidden />
+                  </span>
+                  <p className="mt-3 text-sm font-semibold text-white">{p.label}</p>
+                  <p className="mt-0.5 text-[13px] leading-snug text-white/45">{p.text}</p>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+
+        <p className="text-[13px] text-white/30">
+          &copy; {new Date().getFullYear()} Orkiestri — Enterprise Software Company
+        </p>
+      </aside>
+
+      {/* ── Painel de acesso ────────────────────────────────────────────────── */}
+      <main className="relative z-10 flex w-full items-center justify-center px-6 py-12 sm:px-10 lg:w-[560px] lg:px-12">
+        <div className="w-full max-w-[400px]">
+          {/* Marca no mobile (o painel lateral fica oculto) */}
+          <div className="mb-10 lg:hidden">
+            <BrandLogo size="lg" tone="light" />
+          </div>
+
+          <div className="rounded-[24px] border border-white/[0.08] bg-white/[0.035] p-7 shadow-[0_24px_60px_-15px_rgba(0,0,0,0.6)] backdrop-blur-xl sm:p-8">
+            <h1 className="text-[26px] font-bold tracking-tight text-white">
+              Acessar a plataforma
             </h1>
-            <p className="text-[15px] text-[var(--text-secondary)] leading-relaxed max-w-[340px]">
-              Transforme tarefas, chamados, projetos e indicadores em uma única operação inteligente.
+            <p className="mt-1.5 text-[15px] text-white/50">
+              Entre com suas credenciais corporativas.
             </p>
-          </div>
 
-          {/* Feature list */}
-          <div className="space-y-4">
-            {FEATURES.map(({ icon: Icon, label, desc }, i) => (
-              <motion.div
-                key={label}
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.35 + i * 0.1, duration: 0.5 }}
-                className="flex items-start gap-3.5 group"
-              >
-                <div className="w-9 h-9 rounded-[10px] bg-[var(--bg-hover)] border border-[var(--border-subtle)] flex items-center justify-center shrink-0 mt-0.5 group-hover:bg-[var(--bg-active)] group-hover:border-[var(--border-medium)] transition-all">
-                  <Icon size={16} className="text-[var(--accent-violet)]" />
-                </div>
-                <div>
-                  <div className="text-[13px] font-semibold text-[var(--text-primary)]">{label}</div>
-                  <div className="text-[12px] text-[var(--text-secondary)] mt-0.5">{desc}</div>
-                </div>
-              </motion.div>
-            ))}
-          </div>
-
-          {/* Stats strip */}
-          <div className="grid grid-cols-3 gap-3">
-            {STATS.map((stat, i) => (
-              <motion.div
-                key={stat.label}
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.6 + i * 0.08, duration: 0.4 }}
-                className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-card)]/50 p-3 text-center shadow-premium-sm"
-              >
-                <div className="font-display font-bold text-lg text-[var(--accent-violet)] leading-none">{stat.value}</div>
-                <div className="text-[10px] text-[var(--text-muted)] mt-1 font-mono">{stat.label}</div>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-
-        {/* Social proof footer */}
-        <div className="flex items-center gap-3">
-          <div className="flex -space-x-1.5">
-            {['G', 'T', 'R', 'M', 'A'].map((l, i) => (
-              <div key={i} className="w-7 h-7 rounded-full border-2 border-[var(--bg-primary)] bg-gradient-to-br from-violet-500/60 to-violet-700/60 flex items-center justify-center text-[9px] font-bold text-white shadow-sm">
-                {l}
-              </div>
-            ))}
-          </div>
-          <p className="text-[12px] text-[var(--text-muted)]">+120 empresas confiam no Orkiestri</p>
-        </div>
-      </motion.div>
-
-      {/* ── Right panel — Form ── */}
-      <div className="flex items-center justify-center p-6 relative z-10">
-        <motion.div
-          initial={{ opacity: 0, y: 24 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.65, ease: [0.22, 1, 0.36, 1] }}
-          className="w-full max-w-[420px]"
-        >
-          {/* Mobile logo */}
-          <div className="mb-10 lg:hidden flex justify-center">
-            <BrandLogo size="lg" />
-          </div>
-
-          {/* Header */}
-          <div className="mb-8">
-            <h2 className="font-display text-[30px] font-bold text-[var(--text-primary)] mb-2 leading-tight tracking-tight">
-              Bem Vindo ao seu HUB Operacional
-            </h2>
-          </div>
-
-          {/* Form card */}
-          <div className="relative rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-glass)] backdrop-blur-2xl p-8 shadow-premium-lg">
-            {/* Top glow line */}
-            <div className="absolute top-0 left-8 right-8 h-px bg-gradient-to-r from-transparent via-[var(--accent-violet)]/40 to-transparent" />
-
-            <form onSubmit={handleLogin} className="flex flex-col gap-5">
-
-              {/* Email */}
-              <div className="flex flex-col gap-1.5">
-                <label className="text-[11px] font-semibold text-[var(--text-muted)] tracking-widest uppercase">E-mail</label>
+            <form onSubmit={handleLogin} className="mt-8 flex flex-col gap-5" noValidate>
+              <div className="flex flex-col gap-2">
+                <label
+                  htmlFor="email"
+                  className="text-[13px] font-medium text-white/70"
+                >
+                  E-mail
+                </label>
                 <input
+                  id="email"
+                  name="email"
                   type="email"
-                  value={email}
-                  onChange={e => setEmail(e.target.value)}
-                  placeholder="nome@empresa.com"
+                  inputMode="email"
                   autoComplete="email"
-                  className="input-o py-3.5"
+                  autoFocus
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="nome@empresa.com"
+                  aria-invalid={!!localError}
+                  className="h-[52px] w-full rounded-[14px] border border-white/[0.10] bg-white/[0.04] px-4 text-[15px] text-white outline-none transition-all placeholder:text-white/25 focus:border-[#f97316] focus:bg-white/[0.06] focus:ring-4 focus:ring-[#f97316]/15"
                 />
               </div>
 
-              {/* Password */}
-              <div className="flex flex-col gap-1.5">
+              <div className="flex flex-col gap-2">
                 <div className="flex items-center justify-between">
-                  <label className="text-[11px] font-semibold text-[var(--text-muted)] tracking-widest uppercase">Senha</label>
-                  <Link href="/recuperar-senha" className="text-[12px] text-[var(--accent-violet)] opacity-80 hover:opacity-100 transition-opacity">
+                  <label
+                    htmlFor="senha"
+                    className="text-[13px] font-medium text-white/70"
+                  >
+                    Senha
+                  </label>
+                  <Link
+                    href="/recuperar-senha"
+                    className="rounded text-[13px] font-medium text-[#fb923c] transition-colors hover:text-[#f97316] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f97316]"
+                  >
                     Esqueci a senha
                   </Link>
                 </div>
                 <div className="relative">
                   <input
-                    type={showPassword ? "text" : "password"}
-                    value={senha}
-                    onChange={e => setSenha(e.target.value)}
-                    placeholder="••••••••••"
+                    id="senha"
+                    name="senha"
+                    type={showSenha ? "text" : "password"}
                     autoComplete="current-password"
-                    className="input-o py-3.5 pr-11"
+                    value={senha}
+                    onChange={(e) => setSenha(e.target.value)}
+                    placeholder="••••••••"
+                    aria-invalid={!!localError}
+                    className="h-[52px] w-full rounded-[14px] border border-white/[0.10] bg-white/[0.04] px-4 pr-12 text-[15px] text-white outline-none transition-all placeholder:text-white/25 focus:border-[#f97316] focus:bg-white/[0.06] focus:ring-4 focus:ring-[#f97316]/15"
                   />
                   <button
                     type="button"
-                    onClick={() => setShowPassword(s => !s)}
-                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
-                    aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
+                    onClick={() => setShowSenha((v) => !v)}
+                    aria-label={showSenha ? "Ocultar senha" : "Mostrar senha"}
+                    aria-pressed={showSenha}
+                    className="absolute right-1.5 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-[10px] text-white/40 transition-colors hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f97316]"
                   >
-                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    {showSenha ? (
+                      <EyeOff className="h-[18px] w-[18px]" aria-hidden />
+                    ) : (
+                      <Eye className="h-[18px] w-[18px]" aria-hidden />
+                    )}
                   </button>
                 </div>
               </div>
 
-              {/* Error */}
-              <AnimatePresence>
-                {localError && (
-                  <motion.div
-                    initial={{ opacity: 0, y: -8, height: 0 }}
-                    animate={{ opacity: 1, y: 0, height: 'auto' }}
-                    exit={{ opacity: 0, y: -8, height: 0 }}
-                    transition={{ duration: 0.22 }}
-                    className="text-[13px] text-[var(--accent-red)] bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-3 text-center"
-                  >
-                    {localError}
-                  </motion.div>
-                )}
-              </AnimatePresence>
+              {localError && (
+                <p
+                  role="alert"
+                  className="rounded-[14px] border border-red-500/25 bg-red-500/10 px-4 py-3 text-[13px] font-medium text-red-300"
+                >
+                  {localError}
+                </p>
+              )}
 
-              {/* Submit */}
               <button
                 type="submit"
                 disabled={localLoading || !email || !senha}
-                className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl btn-primary text-white font-semibold text-[14px] disabled:opacity-50 disabled:cursor-not-allowed"
+                className="mt-1 inline-flex h-[52px] w-full items-center justify-center gap-2 rounded-[14px] bg-[#f97316] text-[15px] font-semibold text-white shadow-[0_8px_24px_-6px_rgba(249,115,22,0.5)] transition-all hover:bg-[#ea580c] hover:shadow-[0_12px_32px_-6px_rgba(249,115,22,0.6)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f97316] disabled:cursor-not-allowed disabled:opacity-45 disabled:shadow-none"
               >
                 {localLoading ? (
                   <>
-                    <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                    </svg>
-                    Verificando...
+                    <Loader2 className="h-[18px] w-[18px] animate-spin" aria-hidden />
+                    Verificando…
                   </>
                 ) : (
-                  <>Entrar no workspace <ArrowRight size={16} /></>
+                  <>
+                    Entrar
+                    <ArrowRight className="h-[18px] w-[18px]" aria-hidden />
+                  </>
                 )}
               </button>
-
-              {/* Trust signals */}
-              <div className="flex items-center justify-center gap-4 pt-1">
-                {['Dados criptografados', 'LGPD compliant', 'Multi-tenant'].map((t, i) => (
-                  <div key={t} className="flex items-center gap-1">
-                    <CheckCircle2 size={10} className="text-[var(--accent-green)] shrink-0" />
-                    <span className="text-[10px] text-[var(--text-faint)]">{t}</span>
-                  </div>
-                ))}
-              </div>
             </form>
           </div>
 
-          {/* Footer links */}
-          <div className="mt-6 text-center space-y-3">
-            <Link href="/solicitar-acesso" className="text-[13px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors">
-              Quer conhecer o sistema?{' '}
-              <span className="text-[var(--accent-violet)] opacity-80 hover:opacity-100">Teste Grátis por 7 dias →</span>
+          <p className="mt-7 text-center text-[13px] text-white/35">
+            Ainda não tem acesso?{" "}
+            <Link
+              href="/solicitar-acesso"
+              className="rounded font-medium text-white/70 underline-offset-4 transition-colors hover:text-white hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f97316]"
+            >
+              Solicitar acesso
             </Link>
-            <p className="text-[11px] text-[var(--text-faint)] font-mono">Orkiestri Enterprise · v2.0.4</p>
-          </div>
-        </motion.div>
-      </div>
+          </p>
+
+          <p className="mt-8 text-center text-[12px] text-white/25 lg:hidden">
+            &copy; {new Date().getFullYear()} Orkiestri
+          </p>
+        </div>
+      </main>
     </div>
   );
 }
