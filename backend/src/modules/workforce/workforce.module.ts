@@ -3,6 +3,7 @@ import {
 } from "@nestjs/common";
 import { AuthGuard } from "@nestjs/passport";
 import { PrismaService } from "../../prisma/prisma.service";
+import { absenceDaysByCollaborator } from "../../common/collaborator";
 
 function businessDaysBetween(from: Date, to: Date): number {
   let count = 0;
@@ -34,7 +35,9 @@ export class WorkforceService {
 
     // ── Colaboradores ─────────────────────────────────────────────────────
     const collabs = await (this.prisma as any).collaborator.findMany({
-      where: { ...orgScope },
+      // `excluidoEm` só existe em collaborators — por isso o filtro entra aqui
+      // e não no orgScope, que também serve a chamados e apontamentos.
+      where: { ...orgScope, excluidoEm: null },
       include: {
         user:  { select: { id: true, nome: true } },
         setor: { select: { id: true, nome: true, cor: true } },
@@ -66,25 +69,15 @@ export class WorkforceService {
     // Ausências aprovadas do mês
     const ausenciasAprovadas = await (this.prisma as any).ausencia.findMany({
       where: { ...orgScope, status: "APROVADA", dataInicio: { lte: monthEnd }, dataFim: { gte: monthStart } },
-      include: { collaborator: { select: { userId: true } } },
+      include: { collaborator: { select: { id: true } } },
     });
-    const diasAusentesPorUser = new Map<string, number>();
-    ausenciasAprovadas.forEach((a: any) => {
-      const uid = a.collaborator.userId;
-      const start = new Date(Math.max(+monthStart, +new Date(a.dataInicio)));
-      const end   = new Date(Math.min(+monthEnd, +new Date(a.dataFim)));
-      let dias = 0;
-      const cur = new Date(start); cur.setHours(0,0,0,0);
-      const endD = new Date(end);  endD.setHours(0,0,0,0);
-      while (cur <= endD) { const d = cur.getDay(); if (d!==0&&d!==6) dias++; cur.setDate(cur.getDate()+1); }
-      diasAusentesPorUser.set(uid, (diasAusentesPorUser.get(uid) || 0) + dias);
-    });
+    const diasAusentesPorCollab = absenceDaysByCollaborator(ausenciasAprovadas, monthStart, monthEnd);
 
     let totalNominal = 0, totalRealizado = 0, totalPlanejado = 0, sobrecarregados = 0;
     const porSetor = new Map<string, { nome: string; cor: string|null; colaboradores: number; nominal: number; planejado: number }>();
     for (const c of ativos) {
       const jornadaDia = c.jornadaHorasDia || 8;
-      const diasAus = diasAusentesPorUser.get(c.userId) || 0;
+      const diasAus = diasAusentesPorCollab.get(c.id) || 0;
       const nominal = Math.max(0, (bd - diasAus) * jornadaDia);
       const r = realizadoPorUser.get(c.userId) || 0;
       const p = planejadoPorUser.get(c.userId) || 0;

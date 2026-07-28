@@ -15,7 +15,10 @@
 
 import { ReactNode, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { ChevronLeft, Search, X, Inbox } from "lucide-react";
+import {
+  ChevronLeft, ChevronRight, Search, X, Inbox,
+  AlertTriangle, Lock, RotateCw,
+} from "lucide-react";
 
 /* ── Contagem animada ─────────────────────────────────────────
    Sobe até o valor com desaceleração. Respeita prefers-reduced-motion
@@ -304,5 +307,332 @@ export function LoadingRows({ colSpan, rows = 5 }: { colSpan: number; rows?: num
         </tr>
       ))}
     </>
+  );
+}
+
+/* ── Estados obrigatórios ─────────────────────────────────────
+   FRONTEND.md §20 exige loading, vazio, erro, sucesso e sem-permissão
+   em toda tela. Vazio e loading já existem acima; faltavam estes dois,
+   e cada tela improvisava o seu. */
+
+/**
+ * Falha de carregamento — sempre com caminho de saída.
+ *
+ * Erro sem ação deixa o usuário travado; `onRetry` é a diferença entre
+ * informar e resolver.
+ */
+export function ErrorState({
+  title = "Não foi possível carregar",
+  detail,
+  onRetry,
+  colSpan,
+}: { title?: string; detail?: string; onRetry?: () => void; colSpan?: number }) {
+  const conteudo = (
+    <div className="state-block" data-tone="error">
+      <span className="state-block__icon"><AlertTriangle size={20} /></span>
+      <span className="state-block__title">{title}</span>
+      {detail && <span className="state-block__hint">{detail}</span>}
+      {onRetry && (
+        <button type="button" className="state-block__action" onClick={onRetry}>
+          <RotateCw size={13} /> Tentar novamente
+        </button>
+      )}
+    </div>
+  );
+  // Dentro de tabela precisa de <tr>/<td>; fora, é bloco solto.
+  if (colSpan == null) return conteudo;
+  return <tr><td colSpan={colSpan} style={{ padding: 0 }}>{conteudo}</td></tr>;
+}
+
+/**
+ * Acesso negado.
+ *
+ * Estado distinto de "vazio": o dado existe, o usuário é que não alcança.
+ * Confundir os dois faz o usuário procurar um registro que nunca vai ver.
+ */
+export function PermissionDenied({
+  title = "Você não tem acesso a esta informação",
+  hint = "Fale com o administrador da sua organização se precisar deste acesso.",
+  colSpan,
+}: { title?: string; hint?: string; colSpan?: number }) {
+  const conteudo = (
+    <div className="state-block" data-tone="denied">
+      <span className="state-block__icon"><Lock size={20} /></span>
+      <span className="state-block__title">{title}</span>
+      <span className="state-block__hint">{hint}</span>
+    </div>
+  );
+  if (colSpan == null) return conteudo;
+  return <tr><td colSpan={colSpan} style={{ padding: 0 }}>{conteudo}</td></tr>;
+}
+
+/* ── Paginação ────────────────────────────────────────────────
+   Server-side: a lista de colaboradores pode passar de milhares, e
+   trazer tudo para filtrar no cliente não escala. */
+export function Pagination({
+  pagina, paginas, total, onChange,
+}: { pagina: number; paginas: number; total: number; onChange: (p: number) => void }) {
+  if (paginas <= 1) return null;
+
+  return (
+    <nav className="pagination" aria-label="Paginação">
+      <span className="pagination__info num">
+        {total.toLocaleString("pt-BR")} {total === 1 ? "registro" : "registros"}
+        {" · "}página {pagina} de {paginas}
+      </span>
+      <span className="pagination__controls">
+        <button
+          type="button" className="pagination__btn"
+          onClick={() => onChange(pagina - 1)}
+          disabled={pagina <= 1}
+          aria-label="Página anterior"
+        >
+          <ChevronLeft size={14} />
+        </button>
+        <button
+          type="button" className="pagination__btn"
+          onClick={() => onChange(pagina + 1)}
+          disabled={pagina >= paginas}
+          aria-label="Próxima página"
+        >
+          <ChevronRight size={14} />
+        </button>
+      </span>
+    </nav>
+  );
+}
+
+/* ── Selo de situação ─────────────────────────────────────────
+   Cada módulo desenhava o seu; aqui a cor sai de token e o mapa de
+   tons é único. `tone` é semântico, não cor — quem chama não escolhe
+   hexadecimal. */
+export type BadgeTone = "ok" | "neutro" | "atencao" | "critico" | "info";
+
+const TOM_BADGE: Record<BadgeTone, string> = {
+  ok: "var(--accent-green)",
+  neutro: "var(--text-muted)",
+  atencao: "var(--accent-amber)",
+  critico: "var(--accent-red)",
+  info: "var(--accent-cyan)",
+};
+
+export function StatusBadge({ label, tone = "neutro" }: { label: string; tone?: BadgeTone }) {
+  return (
+    <span className="status-badge" style={{ ["--sc" as any]: TOM_BADGE[tone] }}>
+      <span className="status-badge__dot" />
+      {label}
+    </span>
+  );
+}
+
+/* ── Página de detalhe ────────────────────────────────────────
+   DETAIL_PAGE_BLUEPRINT.md: identidade e ações no topo, conteúdo em
+   abas, contexto secundário à direita. */
+
+export function DetailHeader({
+  avatar, titulo, subtitulo, selo, meta, actions,
+}: {
+  avatar?: ReactNode;
+  titulo: string;
+  subtitulo?: ReactNode;
+  selo?: ReactNode;
+  meta?: ReactNode;
+  actions?: ReactNode;
+}) {
+  return (
+    <header className="detail-head">
+      {avatar && <div className="detail-head__avatar">{avatar}</div>}
+      <div style={{ flex: 1, minWidth: 200 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+          <h1 className="detail-head__title">{titulo}</h1>
+          {selo}
+        </div>
+        {subtitulo && <p className="detail-head__sub">{subtitulo}</p>}
+        {meta && <div className="detail-head__meta">{meta}</div>}
+      </div>
+      {actions && <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>{actions}</div>}
+    </header>
+  );
+}
+
+/** Bloco de campos rotulados. Use para dado de leitura, não para formulário. */
+export function FieldGrid({ children, min = 220 }: { children: ReactNode; min?: number }) {
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: `repeat(auto-fit, minmax(${min}px, 1fr))`, gap: 16 }}>
+      {children}
+    </div>
+  );
+}
+
+/** Campo de leitura. Valor ausente vira travessão — nunca string vazia. */
+export function Field({ label, value }: { label: string; value: ReactNode }) {
+  const vazio = value == null || value === "";
+  return (
+    <div className="field">
+      <span className="field__label mono-cap">{label}</span>
+      <span className="field__value" data-empty={vazio ? "true" : "false"}>
+        {vazio ? "—" : value}
+      </span>
+    </div>
+  );
+}
+
+export function Panel({ title, actions, children }: { title?: string; actions?: ReactNode; children: ReactNode }) {
+  return (
+    <section className="panel">
+      {(title || actions) && (
+        <div className="panel__head">
+          {title && <span className="panel__title mono-cap">{title}</span>}
+          {actions}
+        </div>
+      )}
+      <div className="panel__body">{children}</div>
+    </section>
+  );
+}
+
+/* ── Modal ────────────────────────────────────────────────────
+   A casca (.modal-overlay / .modal-box) já existia no globals.css e cada
+   tela reimplementava o comportamento — Esc, clique fora, foco. Aqui é
+   uma vez só. */
+export function Modal({
+  aberto, titulo, subtitulo, onFechar, largura = 560, children,
+}: {
+  aberto: boolean;
+  titulo: string;
+  subtitulo?: string;
+  onFechar: () => void;
+  largura?: number;
+  children: ReactNode;
+}) {
+  const caixa = useRef<HTMLDivElement>(null);
+
+  // Esc fecha, e o scroll do fundo trava: sem isso a página de trás rola
+  // quando o cursor sai da caixa.
+  useEffect(() => {
+    if (!aberto) return;
+    const aoTeclar = (e: KeyboardEvent) => { if (e.key === "Escape") onFechar(); };
+    document.addEventListener("keydown", aoTeclar);
+    const overflowAnterior = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    // Leva o foco para dentro — leitor de tela e teclado ficam presos no
+    // conteúdo certo em vez de continuarem na página de trás.
+    caixa.current?.focus();
+    return () => {
+      document.removeEventListener("keydown", aoTeclar);
+      document.body.style.overflow = overflowAnterior;
+    };
+  }, [aberto, onFechar]);
+
+  if (!aberto) return null;
+
+  return (
+    <div
+      className="modal-overlay"
+      onMouseDown={e => { if (e.target === e.currentTarget) onFechar(); }}
+      role="presentation"
+    >
+      <div
+        ref={caixa}
+        className="modal-box"
+        style={{ maxWidth: largura }}
+        role="dialog"
+        aria-modal="true"
+        aria-label={titulo}
+        tabIndex={-1}
+      >
+        <div className="modal-box__head">
+          <div style={{ minWidth: 0 }}>
+            <h2 className="modal-box__title">{titulo}</h2>
+            {subtitulo && <p className="modal-box__sub">{subtitulo}</p>}
+          </div>
+          <button type="button" className="btn-icon" onClick={onFechar} aria-label="Fechar">
+            <X size={16} />
+          </button>
+        </div>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+/* ── Formulário ───────────────────────────────────────────────
+   Rótulo, obrigatoriedade, dica e erro num lugar só. FORM_BLUEPRINT.md
+   pede que o formulário comunique o que é exigido, o que está inválido
+   e o que aconteceu depois de enviar. */
+export function FormGrid({ children, min = 200 }: { children: ReactNode; min?: number }) {
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: `repeat(auto-fit, minmax(${min}px, 1fr))`, gap: 14 }}>
+      {children}
+    </div>
+  );
+}
+
+export function FormField({
+  label, obrigatorio, erro, dica, children, largura,
+}: {
+  label: string;
+  obrigatorio?: boolean;
+  erro?: string | null;
+  dica?: string;
+  children: ReactNode;
+  /** "total" faz o campo ocupar a linha inteira da grade. */
+  largura?: "total";
+}) {
+  return (
+    <div className="form-field" style={largura === "total" ? { gridColumn: "1 / -1" } : undefined}>
+      <label className="form-field__label">
+        {label}
+        {obrigatorio && <span className="form-field__req" aria-hidden> *</span>}
+      </label>
+      {children}
+      {erro
+        ? <span className="form-field__erro" role="alert">{erro}</span>
+        : dica ? <span className="form-field__dica">{dica}</span> : null}
+    </div>
+  );
+}
+
+export function FormActions({ children }: { children: ReactNode }) {
+  return <div className="form-actions">{children}</div>;
+}
+
+/* ── Linha do tempo ───────────────────────────────────────────
+   Histórico funcional do colaborador. Ordem: mais recente primeiro. */
+export type TimelineItem = {
+  id: string;
+  titulo: string;
+  descricao?: string | null;
+  data: string | Date;
+  tone?: BadgeTone;
+};
+
+export function Timeline({ itens }: { itens: TimelineItem[] }) {
+  if (itens.length === 0) {
+    return (
+      <div className="state-block">
+        <span className="state-block__icon"><Inbox size={20} /></span>
+        <span className="state-block__title">Nenhum evento registrado</span>
+      </div>
+    );
+  }
+
+  return (
+    <ol className="timeline">
+      {itens.map(item => (
+        <li key={item.id} className="timeline__item" style={{ ["--sc" as any]: TOM_BADGE[item.tone ?? "info"] }}>
+          <span className="timeline__dot" />
+          <div style={{ minWidth: 0 }}>
+            <div className="timeline__title">{item.titulo}</div>
+            {item.descricao && <div className="timeline__desc">{item.descricao}</div>}
+            <time className="timeline__date num">
+              {new Date(item.data).toLocaleDateString("pt-BR", {
+                day: "2-digit", month: "short", year: "numeric",
+              })}
+            </time>
+          </div>
+        </li>
+      ))}
+    </ol>
   );
 }

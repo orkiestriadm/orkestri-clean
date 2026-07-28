@@ -4,10 +4,38 @@ import {
   HttpCode, HttpStatus, Injectable,
 } from "@nestjs/common";
 import { AuthGuard } from "@nestjs/passport";
-import { IsString, IsOptional, IsNumber, IsBoolean, IsArray } from "class-validator";
+import { IsString, IsOptional, IsNumber, IsBoolean, IsArray, IsDateString, IsIn } from "class-validator";
 import { PrismaService } from "../../prisma/prisma.service";
 import { PermissionsGuard } from "../auth/permissions.guard";
 import { Permissions } from "../auth/permissions.decorator";
+
+/**
+ * Situação funcional do colaborador (People, Fase 1).
+ * `ativo: boolean` é derivado deste campo e mantido em sincronia para os
+ * consumidores legados. Ver docs/people/ADR-001.
+ */
+export const STATUS_COLABORADOR = ["ATIVO", "INATIVO", "AFASTADO", "DESLIGADO", "SUSPENSO"] as const;
+
+/** `ativo` legado a partir do status canônico. */
+export function ativoFromStatus(status?: string | null): boolean {
+  return (status ?? "ATIVO") === "ATIVO";
+}
+
+/**
+ * Mantém `ativo` e `status` coerentes em qualquer sentido de escrita.
+ *
+ * `status` é a fonte de verdade e ganha quando os dois vêm. Quando só `ativo`
+ * vem — caminho do cliente legado — derivamos um status.
+ *
+ * Ao reativar (`ativo: true`) o status volta para ATIVO. Ao desativar, vira
+ * INATIVO e não DESLIGADO: desligamento é decisão explícita, com data, feita
+ * pelo endpoint próprio do People.
+ */
+export function sincronizarSituacao(dto: { status?: string; ativo?: boolean }): Record<string, unknown> {
+  if (dto.status) return { status: dto.status, ativo: ativoFromStatus(dto.status) };
+  if (dto.ativo !== undefined) return { ativo: dto.ativo, status: dto.ativo ? "ATIVO" : "INATIVO" };
+  return {};
+}
 
 // ─── DTOs ────────────────────────────────────────────────────────────────────
 
@@ -17,6 +45,18 @@ class CreateCollaboratorDto {
   @IsOptional() @IsString() fotoUrl?: string;
   @IsOptional() @IsString() emailCorporativo?: string;
   @IsOptional() @IsString() telefone?: string;
+  // ── Identidade própria (People, Fase 1) ────────────────────────────────
+  @IsOptional() @IsString() nomeCompleto?: string;
+  @IsOptional() @IsString() emailPessoal?: string;
+  @IsOptional() @IsString() celular?: string;
+  @IsOptional() @IsDateString() dataNascimento?: string;
+  @IsOptional() @IsString() genero?: string;
+  @IsOptional() @IsString() estadoCivil?: string;
+  @IsOptional() @IsString() nacionalidade?: string;
+  @IsOptional() @IsDateString() dataAdmissao?: string;
+  @IsOptional() @IsDateString() dataDesligamento?: string;
+  @IsOptional() @IsIn(STATUS_COLABORADOR) status?: string;
+  @IsOptional() @IsString() positionId?: string;
   @IsOptional() @IsString() cargo?: string;
   @IsOptional() @IsString() departamento?: string;
   @IsOptional() @IsString() setorId?: string;
@@ -39,6 +79,18 @@ class UpdateCollaboratorDto {
   @IsOptional() @IsString() fotoUrl?: string;
   @IsOptional() @IsString() emailCorporativo?: string;
   @IsOptional() @IsString() telefone?: string;
+  // ── Identidade própria (People, Fase 1) ────────────────────────────────
+  @IsOptional() @IsString() nomeCompleto?: string;
+  @IsOptional() @IsString() emailPessoal?: string;
+  @IsOptional() @IsString() celular?: string;
+  @IsOptional() @IsDateString() dataNascimento?: string;
+  @IsOptional() @IsString() genero?: string;
+  @IsOptional() @IsString() estadoCivil?: string;
+  @IsOptional() @IsString() nacionalidade?: string;
+  @IsOptional() @IsDateString() dataAdmissao?: string;
+  @IsOptional() @IsDateString() dataDesligamento?: string;
+  @IsOptional() @IsIn(STATUS_COLABORADOR) status?: string;
+  @IsOptional() @IsString() positionId?: string;
   @IsOptional() @IsString() cargo?: string;
   @IsOptional() @IsString() departamento?: string;
   @IsOptional() @IsString() setorId?: string;
@@ -62,8 +114,18 @@ class UpdateCollaboratorDto {
 export class CollaboratorsService {
   constructor(private prisma: PrismaService) {}
 
+  /**
+   * Escopo do módulo legado.
+   *
+   * `excluidoEm: null` porque o People passou a usar exclusão lógica: sem esse
+   * filtro, colaborador excluído continuaria aparecendo aqui e nos seletores de
+   * Squad e Ausência — a exclusão pareceria não ter efeito.
+   */
   private scope(user: any) {
-    return user?.organizationId ? { organizationId: user.organizationId } : {};
+    return {
+      ...(user?.organizationId ? { organizationId: user.organizationId } : {}),
+      excluidoEm: null,
+    };
   }
 
   /** Gera a próxima matrícula: 3 letras da organização + sequencial 4 dígitos (ex: DEF0001). */
@@ -125,21 +187,39 @@ export class CollaboratorsService {
   }
 
   async create(dto: CreateCollaboratorDto, user: any) {
-    if (!dto.userId) throw new BadRequestException("userId obrigatório");
     const orgId = user.organizationId;
-    // Verifica que o User pertence à mesma org
-    const u = await this.prisma.user.findFirst({ where: { id: dto.userId, organizationId: orgId } as any });
-    if (!u) throw new BadRequestException("Usuário não encontrado nesta organização");
-    // Verifica que ainda não existe Collaborator para este User
-    const exists = await (this.prisma as any).collaborator.findUnique({ where: { userId: dto.userId } });
-    if (exists) throw new BadRequestException("Usuário já é colaborador");
+
+    // O vínculo com User é opcional: nem todo colaborador tem acesso ao sistema.
+    // Mas então precisa de nome próprio, senão não há como exibi-lo em lugar
+    // nenhum. Ver docs/people/ADR-001.
+    if (!dto.userId && !dto.nomeCompleto?.trim()) {
+      throw new BadRequestException("Informe o nome completo ou vincule um usuário");
+    }
+
+    if (dto.userId) {
+      // Verifica que o User pertence à mesma org
+      const u = await this.prisma.user.findFirst({ where: { id: dto.userId, organizationId: orgId } as any });
+      if (!u) throw new BadRequestException("Usuário não encontrado nesta organização");
+      // Verifica que ainda não existe Collaborator para este User
+      const exists = await (this.prisma as any).collaborator.findUnique({ where: { userId: dto.userId } });
+      if (exists) throw new BadRequestException("Usuário já é colaborador");
+    }
+
     // Verifica matrícula única na org
     if (dto.matricula) {
       const dup = await (this.prisma as any).collaborator.findFirst({ where: { organizationId: orgId, matricula: dto.matricula } });
       if (dup) throw new BadRequestException("Matrícula já existe nesta organização");
     }
     return (this.prisma as any).collaborator.create({
-      data: { ...dto, organizationId: orgId, ativo: dto.ativo ?? true },
+      data: {
+        ...dto,
+        organizationId: orgId,
+        status: "ATIVO",
+        ativo: true,
+        // Sobrepõe os defaults acima mantendo os dois campos coerentes.
+        ...sincronizarSituacao(dto),
+        criadoPorId: user.id ?? null,
+      },
       include: { user: { select: { id: true, nome: true, email: true } } },
     });
   }
@@ -153,9 +233,23 @@ export class CollaboratorsService {
       if (dup) throw new BadRequestException("Matrícula já existe nesta organização");
     }
     if (dto.gestorId === id) throw new BadRequestException("Colaborador não pode ser gestor de si mesmo");
+
+    // Colaborador sem usuário depende do nome próprio para ser exibido —
+    // não deixar apagá-lo. Ver docs/people/ADR-001.
+    if (dto.nomeCompleto !== undefined && !dto.nomeCompleto?.trim() && !c.userId) {
+      throw new BadRequestException("Colaborador sem usuário vinculado precisa de nome completo");
+    }
+
     return (this.prisma as any).collaborator.update({
       where: { id },
-      data: dto,
+      data: {
+        ...dto,
+        // Os dois campos nunca podem divergir: o perfil mostraria "Ativo"
+        // enquanto Capacidade exclui a pessoa. `status` manda; se vier só
+        // `ativo`, derivamos o status a partir dele.
+        ...sincronizarSituacao(dto),
+        atualizadoPorId: user.id ?? null,
+      },
       include: {
         user:  { select: { id: true, nome: true, email: true } },
         setor: { select: { id: true, nome: true, cor: true } },
@@ -171,9 +265,12 @@ export class CollaboratorsService {
 
   async toggleAtivo(id: string, user: any) {
     const c = await this.findOne(id, user);
+    const ativo = !c.ativo;
     return (this.prisma as any).collaborator.update({
       where: { id },
-      data: { ativo: !c.ativo },
+      // Mantém os dois campos coerentes. Alternar para inativo não presume
+      // desligamento: para DESLIGADO/AFASTADO/SUSPENSO use update com status.
+      data: { ativo, status: ativo ? "ATIVO" : "INATIVO", atualizadoPorId: user.id ?? null },
     });
   }
 }

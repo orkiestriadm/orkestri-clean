@@ -117,6 +117,9 @@ model Organization {
   whatsappConfig    OrgWhatsappConfig?
   cadastroRequests  CadastroRequest[]       @relation("CadReqOrg")
   collaborators     Collaborator[]          @relation("OrgCollaborators")
+  positions         Position[]              @relation("OrgPositions")
+  collabHistory     CollaboratorHistory[]   @relation("OrgCollaboratorHistory")
+  collabDocuments   CollaboratorDocument[]  @relation("OrgCollaboratorDocuments")
   skills            Skill[]                 @relation("OrgSkills")
   ausencias         Ausencia[]              @relation("OrgAusencias")
   workflowRequests  WorkflowRequest[]       @relation("OrgWorkflowRequests")
@@ -728,13 +731,32 @@ model CollaboratorSkill {
 model Collaborator {
   id               String   @id @default(uuid())
   organizationId   String   @map("organization_id")
-  userId           String   @unique @map("user_id")
+  // Opcional: nem todo colaborador tem acesso ao sistema. Continua único —
+  // um usuário está vinculado a no máximo um colaborador. Ver docs/people/ADR-001.
+  userId           String?  @unique @map("user_id")
   matricula        String?
   fotoUrl          String?  @map("foto_url")
   emailCorporativo String?  @map("email_corporativo")
   telefone         String?
+  // ── Identidade própria (People) ────────────────────────────────────────
+  // O colaborador precisa existir sem depender de um User: nem todo funcionário
+  // tem login. Backfill inicial: nomeCompleto = user.nome. Ver docs/people/ADR-001.
+  nomeCompleto     String?   @map("nome_completo")
+  emailPessoal     String?   @map("email_pessoal")
+  celular          String?
+  dataNascimento   DateTime? @map("data_nascimento")
+  genero           String?
+  estadoCivil      String?   @map("estado_civil")
+  nacionalidade    String?
+  dataAdmissao     DateTime? @map("data_admissao")
+  dataDesligamento DateTime? @map("data_desligamento")
+  // Situação funcional. Fonte de verdade a partir do People Hub.
+  // ATIVO | INATIVO | AFASTADO | DESLIGADO | SUSPENSO
+  // `ativo` (abaixo) é mantido em sincronia para os consumidores legados.
+  status           String    @default("ATIVO")
   // Estrutura organizacional
   cargo            String?
+  positionId       String?  @map("position_id")
   departamento     String?
   setorId          String?  @map("setor_id")
   squad            String?
@@ -747,28 +769,179 @@ model Collaborator {
   turno            String?
   escala           String?
   tipoVinculo      String?  @map("tipo_vinculo")
-  // Futuro
+  // Legado: redundante com CollaboratorSkill. Não usado pelo People Hub;
+  // removido na Fase 6, quando Treinamentos absorver as certificações.
   skills           Json?
   certificacoes    Json?
+  // Derivado de `status`, mantido para os consumidores legados (Capacity, Squads).
   ativo            Boolean  @default(true)
-  criadoEm         DateTime @default(now()) @map("criado_em")
-  atualizadoEm     DateTime @updatedAt @map("atualizado_em")
+  criadoEm         DateTime  @default(now()) @map("criado_em")
+  criadoPorId      String?   @map("criado_por_id")
+  atualizadoEm     DateTime  @updatedAt @map("atualizado_em")
+  atualizadoPorId  String?   @map("atualizado_por_id")
+  excluidoEm       DateTime? @map("excluido_em")
 
   organization     Organization        @relation("OrgCollaborators", fields: [organizationId], references: [id], onDelete: Cascade)
-  user             User                @relation("UserCollaborator", fields: [userId], references: [id], onDelete: Cascade)
+  // SetNull, não Cascade: excluir o login de alguém não pode apagar o registro
+  // funcional da pessoa, que tem retenção legal.
+  user             User?               @relation("UserCollaborator", fields: [userId], references: [id], onDelete: SetNull)
   setor            Setor?              @relation("SetorCollaborators", fields: [setorId], references: [id], onDelete: SetNull)
+  position         Position?           @relation("PositionCollaborators", fields: [positionId], references: [id], onDelete: SetNull)
   gestor           Collaborator?       @relation("CollabHierarchy", fields: [gestorId], references: [id], onDelete: SetNull)
   liderados        Collaborator[]      @relation("CollabHierarchy")
   collabSkills     CollaboratorSkill[]
   ausencias        Ausencia[]
   squadsLiderados  Squad[]             @relation("SquadLider")
   squadMemberships SquadMember[]
+  enderecos        CollaboratorAddress[]
+  contatos         CollaboratorContact[]
+  historico        CollaboratorHistory[]
+  documentos       CollaboratorDocument[]
 
   @@unique([organizationId, matricula])
   @@index([organizationId])
   @@index([setorId])
   @@index([gestorId])
+  @@index([positionId])
+  @@index([status])
+  @@index([excluidoEm])
   @@map("collaborators")
+}
+
+// ── People: Cargos ─────────────────────────────────────────────────────────
+// Hoje `cargo` é string livre em 6 tabelas. Sem entidade não há análise de
+// cargos nem distribuição organizacional. Ver docs/people/MIGRATION_MATRIX.md.
+model Position {
+  id             String   @id @default(uuid())
+  organizationId String   @map("organization_id")
+  titulo         String
+  codigo         String?
+  descricao      String?
+  nivel          String?
+  ativo          Boolean  @default(true)
+  criadoEm       DateTime  @default(now()) @map("criado_em")
+  criadoPorId    String?   @map("criado_por_id")
+  atualizadoEm   DateTime  @updatedAt @map("atualizado_em")
+  atualizadoPorId String?  @map("atualizado_por_id")
+  excluidoEm     DateTime? @map("excluido_em")
+
+  organization  Organization   @relation("OrgPositions", fields: [organizationId], references: [id], onDelete: Cascade)
+  collaborators Collaborator[] @relation("PositionCollaborators")
+
+  @@unique([organizationId, titulo])
+  @@index([organizationId])
+  @@map("positions")
+}
+
+// ── People: Endereços do colaborador ───────────────────────────────────────
+model CollaboratorAddress {
+  id             String   @id @default(uuid())
+  collaboratorId String   @map("collaborator_id")
+  tipo           String   @default("residencial")
+  cep            String?
+  logradouro     String?
+  numero         String?
+  complemento    String?
+  bairro         String?
+  cidade         String?
+  estado         String?
+  pais           String   @default("BR")
+  principal      Boolean  @default(false)
+  criadoEm       DateTime @default(now()) @map("criado_em")
+  atualizadoEm   DateTime @updatedAt @map("atualizado_em")
+
+  collaborator Collaborator @relation(fields: [collaboratorId], references: [id], onDelete: Cascade)
+
+  @@index([collaboratorId])
+  @@map("collaborator_addresses")
+}
+
+// ── People: Contatos do colaborador (emergência e adicionais) ──────────────
+model CollaboratorContact {
+  id             String   @id @default(uuid())
+  collaboratorId String   @map("collaborator_id")
+  nome           String
+  parentesco     String?
+  telefone       String?
+  email          String?
+  emergencia     Boolean  @default(false)
+  observacoes    String?
+  criadoEm       DateTime @default(now()) @map("criado_em")
+  atualizadoEm   DateTime @updatedAt @map("atualizado_em")
+
+  collaborator Collaborator @relation(fields: [collaboratorId], references: [id], onDelete: Cascade)
+
+  @@index([collaboratorId])
+  @@index([collaboratorId, emergencia])
+  @@map("collaborator_contacts")
+}
+
+// ── People: Documentos do colaborador ──────────────────────────────────────
+// Dado RESTRITO (PEOPLE_PERMISSIONS.md §21): atestado médico, documento
+// pessoal, contrato. Por isso o arquivo NÃO vai para UPLOAD_DIR, que é servido
+// estaticamente sem autenticação — vai para um diretório próprio, acessível só
+// pelo endpoint de download que valida escopo e permissão.
+model CollaboratorDocument {
+  id             String   @id @default(uuid())
+  organizationId String   @map("organization_id")
+  collaboratorId String   @map("collaborator_id")
+  // identidade | contrato | certificado | medico | formacao | outro
+  categoria      String
+  titulo         String
+  descricao      String?
+  // Caminho relativo à raiz segura. Nunca uma URL: o acesso é sempre mediado.
+  arquivoRef     String   @map("arquivo_ref")
+  nomeArquivo    String   @map("nome_arquivo")
+  mimeType       String?  @map("mime_type")
+  tamanhoBytes   Int?     @map("tamanho_bytes")
+  dataEmissao    DateTime? @map("data_emissao")
+  dataValidade   DateTime? @map("data_validade")
+  // PENDENTE | APROVADO | REJEITADO | ARQUIVADO
+  aprovacao      String   @default("PENDENTE")
+  aprovadoPorId  String?  @map("aprovado_por_id")
+  aprovadoEm     DateTime? @map("aprovado_em")
+  motivoRejeicao String?  @map("motivo_rejeicao")
+  enviadoPorId   String?  @map("enviado_por_id")
+  criadoEm       DateTime  @default(now()) @map("criado_em")
+  atualizadoEm   DateTime  @updatedAt @map("atualizado_em")
+  atualizadoPorId String?  @map("atualizado_por_id")
+  excluidoEm     DateTime? @map("excluido_em")
+
+  organization Organization @relation("OrgCollaboratorDocuments", fields: [organizationId], references: [id], onDelete: Cascade)
+  collaborator Collaborator @relation(fields: [collaboratorId], references: [id], onDelete: Cascade)
+
+  @@index([collaboratorId, excluidoEm])
+  @@index([organizationId, dataValidade])
+  @@index([aprovacao])
+  @@map("collaborator_documents")
+}
+
+// ── People: Linha do tempo funcional ───────────────────────────────────────
+// Conteúdo de produto (aba "Histórico" do perfil 360), lido pelo RH.
+// Não confundir com AuditLog, que é trilha técnica. Ver docs/people/ADR-004.
+// Absorve também o papel de `employee_assignments` da especificação.
+model CollaboratorHistory {
+  id             String   @id @default(uuid())
+  organizationId String   @map("organization_id")
+  collaboratorId String   @map("collaborator_id")
+  // admissao | mudanca_setor | mudanca_cargo | mudanca_gestor |
+  // mudanca_status | promocao | desligamento | outro
+  evento         String
+  campo          String?
+  valorAnterior  String?  @map("valor_anterior")
+  valorNovo      String?  @map("valor_novo")
+  descricao      String?
+  vigenciaEm     DateTime? @map("vigencia_em")
+  registradoPorId String?  @map("registrado_por_id")
+  registradoEm   DateTime @default(now()) @map("registrado_em")
+
+  organization Organization @relation("OrgCollaboratorHistory", fields: [organizationId], references: [id], onDelete: Cascade)
+  collaborator Collaborator @relation(fields: [collaboratorId], references: [id], onDelete: Cascade)
+
+  @@index([collaboratorId, registradoEm(sort: Desc)])
+  @@index([organizationId])
+  @@index([evento])
+  @@map("collaborator_history")
 }
 
 model PasswordResetOtp {

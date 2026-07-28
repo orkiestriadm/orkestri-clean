@@ -6,6 +6,9 @@ import { CacheService } from "../cache/cache.service";
 import { WhatsAppService } from "../notifications/whatsapp.service";
 import { EmailService } from "../notifications/email.service";
 import { AutomacaoService } from "../automacoes/automacoes.module";
+import {
+  PEOPLE_PERMISSION_CATALOG, PEOPLE_PERMISSOES_LEITURA, PEOPLE_PERMISSOES_AUDITOR,
+} from "../people/people.permissions";
 import * as bcrypt from "bcryptjs";
 
 // Todas as permissões do sistema no formato "recurso:acao"
@@ -111,6 +114,9 @@ const ALL_PERMISSIONS: { recurso: string; acao: string; descricao: string }[] = 
   { recurso: "reservas",      acao: "editar",      descricao: "Editar reservas de carros" },
   { recurso: "reservas",      acao: "cancelar",    descricao: "Cancelar reservas de carros" },
   { recurso: "reservas",      acao: "admin",       descricao: "Gerenciar todas as reservas e aprovações" },
+  // Orkiestri People — catálogo mantido no próprio módulo, para que o dono da
+  // regra e o dono da lista sejam o mesmo arquivo.
+  ...PEOPLE_PERMISSION_CATALOG,
 ];
 
 // Permissões base — todo usuário recebe automaticamente, independente do papel
@@ -149,6 +155,8 @@ const ROLE_DEFAULTS: Record<string, { nivel: number; descricao: string; permisso
       "ativos:ver","ativos:criar","ativos:editar","ativos:mover",
       "solicitacoes:ver","solicitacoes:criar","solicitacoes:editar","solicitacoes:aprovar",
       "colaboradores:ver","colaboradores:criar","colaboradores:editar","colaboradores:excluir",
+      // People: gestor enxerga a própria equipe — sem `ver_todos` de propósito.
+      ...PEOPLE_PERMISSOES_LEITURA,
       "conhecimento:ver","conhecimento:criar","conhecimento:editar","conhecimento:publicar",
       "sla:ver","sla:gerenciar",
       "automacoes:ver","automacoes:criar","automacoes:editar","automacoes:excluir",
@@ -219,6 +227,7 @@ const ROLE_DEFAULTS: Record<string, { nivel: number; descricao: string; permisso
       "fornecedores:ver",
       "solicitacoes:ver","solicitacoes:criar","solicitacoes:editar","solicitacoes:aprovar",
       "colaboradores:ver","colaboradores:criar","colaboradores:editar",
+      ...PEOPLE_PERMISSOES_LEITURA,
       "conhecimento:ver","conhecimento:criar","conhecimento:editar",
       "sla:ver",
       "ativos:ver","ativos:criar","ativos:editar",
@@ -249,6 +258,8 @@ const ROLE_DEFAULTS: Record<string, { nivel: number; descricao: string; permisso
     permissoes: [
       ...ALL_PERMISSIONS.filter(p => p.acao === "ver").map(p => `${p.recurso}:${p.acao}`),
       "relatorios:exportar",
+      // Conformidade exige enxergar a organização inteira, não só a própria equipe.
+      ...PEOPLE_PERMISSOES_AUDITOR,
     ],
   },
   cliente_portal: {

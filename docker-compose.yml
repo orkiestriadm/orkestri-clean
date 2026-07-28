@@ -8,6 +8,11 @@ volumes:
   postgres_data:
   redis_data:
   uploads_data:
+  # Documentos de colaborador (Orkiestri People). Volume separado de
+  # uploads_data porque aquele é publicado estaticamente pelo nginx; este só é
+  # alcançável pelo endpoint autenticado de download. Ver
+  # backend/src/modules/people/infrastructure/document-storage.service.ts
+  people_docs_data:
   evolution_data:
 
 services:
@@ -116,6 +121,9 @@ services:
       N1_DB_NAME: ${N1_DB_NAME:-SGA_N1}
     volumes:
       - uploads_data:/app/uploads
+      # Fora de /app/uploads de propósito: aquele caminho é servido
+      # estaticamente, e documento de colaborador é dado restrito.
+      - people_docs_data:/app/secure/people-docs
     networks:
       - orkestri_net
     depends_on:

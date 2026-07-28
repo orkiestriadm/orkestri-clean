@@ -32,6 +32,16 @@ export const NAV: NavGroup[] = [
     ],
   },
   {
+    // Orkiestri People — gestão de pessoas. As abas de colaboradores, ausências,
+    // skills e organograma saem de Cadastros e passam a viver aqui (Fase 3).
+    // Permissão legada `colaboradores:ver` continua valendo: o guard do backend
+    // a traduz para `people.employee.view`.
+    id: "people", produto: "People", descritor: "Pessoas", icon: Users,
+    items: [
+      { href: "/dashboard/people",               label: "Colaboradores", icon: Users, permission: "colaboradores:ver" },
+    ],
+  },
+  {
     id: "service", produto: "Service", descritor: "Chamados", icon: Headphones,
     items: [
       { href: "/dashboard/catalogo",      label: "Catálogo",     icon: ShoppingBag,  permission: "chamados:criar" },
