@@ -25,8 +25,8 @@ export const products: Product[] = [
     screenshot: {
       src: "/screenshots/orkiestridesk.png",
       alt: "Orkiestri Desk — fila de chamados por status, com indicadores de SLA e atendimento em andamento",
-      width: 1671,
-      height: 825,
+      width: 2200,
+      height: 1086,
     },
     name: "Orkiestri Desk",
     category: "Service Management",
@@ -56,8 +56,8 @@ export const products: Product[] = [
     screenshot: {
       src: "/screenshots/projetos.png",
       alt: "Orkiestri Projects — quadro kanban de um projeto com progresso, tarefas e responsáveis",
-      width: 1698,
-      height: 1028,
+      width: 2200,
+      height: 1332,
     },
     name: "Orkiestri Projects",
     category: "Project Management",
@@ -196,8 +196,8 @@ export const products: Product[] = [
     screenshot: {
       src: "/screenshots/orcamento-dashboard.png",
       alt: "Orkiestri Budget — dashboard orçamentário com CAPEX, OPEX, evolução mensal e distribuição por centro de custo",
-      width: 1755,
-      height: 999,
+      width: 2200,
+      height: 1265,
     },
     name: "Orkiestri Budget",
     category: "Budget Planning",
