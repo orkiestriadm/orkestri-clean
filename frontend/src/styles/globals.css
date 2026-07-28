@@ -8,7 +8,14 @@
   color-scheme: light;
 
   /* shadcn/ui base tokens */
-  --background: 0 0% 98%;
+  /* Precisa valer o mesmo que --bg-primary (#f4f4f7), o fundo pintado por
+     .app-shell. Os dois descrevem a mesma superfície por sistemas diferentes:
+     páginas escritas em Tailwind usam `bg-background`, e as escritas no CSS
+     próprio herdam a casca. Enquanto este token valia 0 0% 98% (#fafafa), a
+     mesma tela mudava de cor conforme o sistema em que foi escrita — Chamados
+     e Contratos saíam quase brancos, Ativos e Agenda cinza. No modo escuro os
+     dois já coincidiam; só o claro estava fora. */
+  --background: 240 16% 96.3%;
   --foreground: 240 10% 4%;
   --card: 0 0% 100%;
   --card-foreground: 240 10% 4%;
@@ -36,7 +43,10 @@
   --sidebar-w: 240px;
 
   /* Premium Surfaces */
-  --bg-primary:   #f4f4f7;
+  /* Deriva de --background em vez de repetir o valor: são a mesma superfície
+     descrita por dois sistemas (Tailwind e o CSS próprio), e enquanto eram
+     dois números soltos divergiram — #f4f4f7 aqui contra #fafafa lá. */
+  --bg-primary:   hsl(var(--background));
   --bg-secondary: #ffffff;
   --bg-card:      #ffffff;
   --bg-glass:     rgba(255, 255, 255, 0.75);
@@ -104,7 +114,9 @@
   --ring: 25 95% 60%;
 
   /* Premium Surfaces (Linear/Vercel inspired, deep contrast) */
-  --bg-primary:   #09090b;
+  /* Deriva de --background, como no modo claro — aqui os dois já valiam o
+     mesmo (#09090b), e derivar impede que voltem a divergir. */
+  --bg-primary:   hsl(var(--background));
   --bg-secondary: #0f0f12;
   --bg-card:      #141417;
   --bg-glass:     rgba(20, 20, 23, 0.75);
