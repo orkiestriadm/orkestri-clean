@@ -8,9 +8,6 @@ import { Button } from "@/components/ui/button";
 import { products } from "@/config/products";
 import { cn } from "@/lib/utils";
 
-/** Tempo em cada tela. Curto demais atropela a leitura. */
-const INTERVALO_MS = 6000;
-
 /**
  * Carrossel das telas da plataforma, em cards de história.
  *
@@ -30,10 +27,8 @@ const INTERVALO_MS = 6000;
  * Os controles ficam FORA do card, embaixo à esquerda — com texto e imagem
  * dividindo o card, sobrepô-los à imagem cobriria conteúdo.
  *
- * Gira sozinho, por decisão do cliente — a referência é manual, e o doc 06
- * veta carrossel automático. A exceção vem com freios: pausa no hover, no
- * foco e no toque; não roda sob prefers-reduced-motion nem com a aba em
- * segundo plano.
+ * A navegação é manual, como na referência e como pede o doc 06, que veta
+ * carrossel automático: quem lê decide quando avançar.
  *
  * A rolagem é nativa com `scroll-snap`, então arrasto e inércia saem de
  * graça; ao JavaScript resta mover para um índice e saber qual card está
@@ -43,7 +38,6 @@ export function ScreensCarousel() {
   const telas = products.filter((p) => p.screenshot);
   const trilho = useRef<HTMLUListElement>(null);
   const [atual, setAtual] = useState(0);
-  const [pausado, setPausado] = useState(false);
 
   const irPara = useCallback((i: number) => {
     const card = trilho.current?.children[i] as HTMLElement | undefined;
@@ -76,22 +70,6 @@ export function ScreensCarousel() {
     return () => obs.disconnect();
   }, [telas.length]);
 
-  // Avanço automático, com os freios descritos acima.
-  useEffect(() => {
-    if (pausado) return;
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-
-    const tique = window.setInterval(() => {
-      if (document.hidden) return;
-      setAtual((i) => {
-        irPara((i + 1) % telas.length);
-        return i; // quem manda no índice é o IntersectionObserver
-      });
-    }, INTERVALO_MS);
-
-    return () => window.clearInterval(tique);
-  }, [pausado, telas.length, irPara]);
-
   const navegarPorTeclado = (e: React.KeyboardEvent) => {
     if (e.key === "ArrowRight") {
       e.preventDefault();
@@ -116,11 +94,6 @@ export function ScreensCarousel() {
       aria-roledescription="carrossel"
       aria-label="Telas da plataforma Orkiestri One"
       onKeyDown={navegarPorTeclado}
-      onMouseEnter={() => setPausado(true)}
-      onMouseLeave={() => setPausado(false)}
-      onFocusCapture={() => setPausado(true)}
-      onBlurCapture={() => setPausado(false)}
-      onTouchStart={() => setPausado(true)}
     >
       <ul
         ref={trilho}
