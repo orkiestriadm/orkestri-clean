@@ -1,0 +1,109 @@
+# PEOPLE_NOTIFICATION_RULES.md
+
+# Regras de Notificações Humanas - Orkiestri Platform
+
+## Objetivo
+
+Este documento define os padrões, regras e comportamentos para notificações direcionadas às pessoas dentro do ecossistema Orkiestri.
+
+O objetivo é garantir que todas as comunicações realizadas pela plataforma sejam:
+
+- Relevantes.
+- Não invasivas.
+- Contextuais.
+- Rastreadas.
+- Personalizadas.
+- Orientadas à ação.
+
+A plataforma deve evitar excesso de notificações e priorizar informações que realmente geram valor operacional.
+
+---
+
+# Princípio fundamental
+
+## "A pessoa certa, no momento certo, pelo canal certo."
+
+Toda notificação deve responder:
+
+1. Quem precisa saber?
+2. Por que essa pessoa precisa saber?
+3. Qual ação ela deve executar?
+4. Qual canal é mais adequado?
+5. Qual prioridade possui?
+
+---
+
+# Tipos de notificações
+
+As notificações são divididas em:
+
+## 1. Informativas
+
+Comunicações sem necessidade de ação imediata.
+
+Exemplos:
+
+- Novo registro criado.
+- Atualização concluída.
+- Processo finalizado.
+- Relatório disponível.
+
+Prioridade:
+
+LOW
+
+---
+
+## 2. Operacionais
+
+Eventos que impactam atividades do dia a dia.
+
+Exemplos:
+
+- Novo chamado atribuído.
+- Aprovação pendente.
+- Tarefa vencendo.
+- Equipamento offline.
+
+Prioridade:
+
+MEDIUM
+
+---
+
+## 3. Críticas
+
+Eventos que precisam de intervenção rápida.
+
+Exemplos:
+
+- Indisponibilidade de serviço.
+- Falha de integração.
+- Violação de SLA.
+- Perda de comunicação.
+
+Prioridade:
+
+HIGH
+
+---
+
+## 4. Emergenciais
+
+Eventos que representam risco operacional ou financeiro.
+
+Exemplos:
+
+- Sistema indisponível.
+- Falha generalizada.
+- Incidente de segurança.
+
+Prioridade:
+
+CRITICAL
+
+---
+
+# Modelo de prioridade
+
+Toda notificação deve possuir:
