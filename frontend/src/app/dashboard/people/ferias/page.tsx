@@ -51,6 +51,9 @@ export default function PassivoFeriasPage() {
 
   const vencidos = itens.filter(i => i.diasParaVencer < 0);
   const diasVencidos = vencidos.reduce((s, i) => s + i.saldo, 0);
+  // Pessoas, não linhas: uma mesma pessoa acumula vários períodos vencidos, e
+  // contar linhas dizia "5 colaboradores" para 5 períodos de uma só.
+  const pessoasVencidas = new Set(vencidos.map(i => i.colaborador.id)).size;
   const COLUNAS = ["Colaborador", "Limite para gozar", "Prazo", "Saldo", "Situação"];
 
   return (
@@ -83,8 +86,8 @@ export default function PassivoFeriasPage() {
                     <strong style={{ color: "var(--text-primary)" }}>
                       <span className="metric">{diasVencidos}</span> dias já vencidos
                     </strong>{" "}
-                    em {vencidos.length}{" "}
-                    {vencidos.length === 1 ? "colaborador" : "colaboradores"}. Esses
+                    em {pessoasVencidas}{" "}
+                    {pessoasVencidas === 1 ? "colaborador" : "colaboradores"}. Esses
                     dias são devidos em dobro — agendar as férias agora não desfaz
                     o valor já acumulado, mas impede que ele cresça.
                   </div>
@@ -125,9 +128,10 @@ export default function PassivoFeriasPage() {
                             className="num"
                             style={{ color: vencido ? "var(--accent-red)" : "var(--text-secondary)" }}
                           >
+                            {/* Singular importa: "há 1 dias" denuncia texto montado sem cuidado. */}
                             {vencido
-                              ? `há ${Math.abs(item.diasParaVencer)} dias`
-                              : `em ${item.diasParaVencer} dias`}
+                              ? `há ${Math.abs(item.diasParaVencer)} ${Math.abs(item.diasParaVencer) === 1 ? "dia" : "dias"}`
+                              : `em ${item.diasParaVencer} ${item.diasParaVencer === 1 ? "dia" : "dias"}`}
                           </td>
                           <td className="num" style={{ fontWeight: 600 }}>{item.saldo}</td>
                           <td>
