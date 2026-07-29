@@ -30,12 +30,15 @@ depois da v1.0, replanejados com o aprendizado do piloto.
 | Fase | Situação |
 |---|---|
 | 0 · Fundação documental | Concluída — ADRs e matriz de migração |
-| 1 · Modelo de dados | Concluída — migrations `20260728000001` e `...002`, **ainda não aplicadas** |
+| 1 · Modelo de dados | Concluída — migrations `20260728000001` a `...004` |
 | 2 · Backend `people` | Base entregue — colaborador (CRUD, status, histórico), escopo ABAC, eventos |
-| 3 · Navegação e perfil 360 | Entregue — lista, perfil, cadastro, edição e mudança de situação. **Sem verificação visual** |
-| 3b · Consolidar aba Colaboradores | Concluída — as outras 4 abas aguardam suas telas |
+| 3 · Navegação e perfil 360 | Entregue — lista, perfil, cadastro, edição e mudança de situação |
+| 3b · Consolidar aba Colaboradores | Concluída — as outras abas aguardam suas telas |
 | 4 · Documentos | Completa — backend, aba no perfil, envio, aprovação e download |
-| 5 · Férias e autosserviço | Não iniciada |
+| 5 · Férias | Completa — período aquisitivo, saldo, solicitação e passivo |
+
+**Aplicado em produção:** migrations `...001` a `...003`.
+A `20260728000004` (férias) está só no banco local — a Fase 5 ainda não subiu.
 
 ### O que já existe no backend
 
@@ -48,7 +51,14 @@ backend/src/modules/people/
 ```
 
 Rotas ativas: `GET|POST /api/v1/people/employees`, `GET|PUT|DELETE .../:id`,
-`PATCH .../:id/status`, `GET .../:id/historico`.
+`PATCH .../:id/status`, `GET .../:id/historico`,
+`GET|POST .../:id/documentos`, `GET|POST .../:id/ferias`,
+`GET /api/v1/people/ferias/passivo`.
+
+Aprovar, rejeitar e cancelar **férias** continuam em `/api/ausencias`: o fluxo é
+genérico e serve atestado e licença também. `diasGozados` é derivado das ausências
+a cada consulta, então o fluxo antigo reflete no saldo sem integração entre os
+módulos.
 
 O módulo legado `/api/collaborators` continua no ar. Só será aposentado na Fase 3,
 quando o frontend do People assumir.
