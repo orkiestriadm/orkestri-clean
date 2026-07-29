@@ -115,12 +115,22 @@ export class WhatsAppService {
     }
   }
 
-  /** Resolve a instância WhatsApp de uma organização (ou a default se não houver). */
+  /**
+   * Resolve a instância WhatsApp de uma organização (ou a default se não houver).
+   *
+   * Só o NOME importa aqui. A flag `conectado` é cache, e cache envelhece: em
+   * produção ela ficou `false` enquanto a instância estava `open`, e o
+   * resultado foi cair na default `orkestri` — que não existe — e derrubar
+   * silenciosamente todo envio da organização, inclusive o OTP de recuperação
+   * de senha. Quem decide se dá para enviar é `getStatus`, que pergunta ao
+   * Evolution na hora do envio; consultar o cache antes só acrescenta um jeito
+   * de errar.
+   */
   async resolveInstance(orgId?: string): Promise<string> {
     if (this.prisma && orgId) {
       try {
         const cfg = await (this.prisma as any).orgWhatsappConfig.findUnique({ where: { organizationId: orgId } });
-        if (cfg?.instanceName && cfg?.conectado) return cfg.instanceName;
+        if (cfg?.instanceName) return cfg.instanceName;
       } catch {}
     }
     return this.defaultInstance;
@@ -227,6 +237,11 @@ export class WhatsAppService {
     const tempo = restanteMins >= 60 ? `${Math.floor(restanteMins / 60)}h ${restanteMins % 60}min` : `${restanteMins}min`;
     const msg = `*Orkestri - SLA em Risco*\n\nChamado *#${numero}* esta proximo do prazo!\n*${titulo}*\n*Restam:* ${tempo}\n\nAcesse agora: ${appUrl}/dashboard/chamados`;
     return this.sendMessage(phone, msg, instanceName);
+  }
+
+  /** OTP pela instância da organização do usuário — ver `sendOtpForOrg`. */
+  async sendOtpForOrg(orgId: string | undefined, phone: string, code: string): Promise<boolean> {
+    return this.sendOtp(phone, code, await this.resolveInstance(orgId));
   }
 
   async sendOtp(phone: string, code: string, instanceName?: string): Promise<boolean> {
