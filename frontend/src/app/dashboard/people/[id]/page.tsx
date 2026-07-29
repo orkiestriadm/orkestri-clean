@@ -1,7 +1,7 @@
 "use client";
 export const dynamic = "force-dynamic";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import Topbar from "@/components/layout/Topbar";
@@ -110,7 +110,27 @@ export default function PerfilColaboradorPage() {
   const [editando, setEditando] = useState(false);
   const [mudandoSituacao, setMudandoSituacao] = useState(false);
 
-  const { colaborador, historico, carregando, erro, semPermissao, naoEncontrado, recarregar } = useEmployee(id);
+  const {
+    colaborador, historico, carregando, erro, semPermissao, naoEncontrado,
+    recarregar, recarregarHistorico,
+  } = useEmployee(id);
+
+  /**
+   * Revalida a linha do tempo ao entrar nas abas que a mostram.
+   *
+   * As demais abas gravam evento funcional; sem isto o histórico ficava
+   * congelado no estado da abertura da página e uma mudança salarial recém
+   * registrada aparecia como "nenhum evento registrado".
+   *
+   * O `useRef` evita a busca redundante da primeira renderização: "visao" já é
+   * a aba inicial e o hook acabou de carregar o histórico junto do perfil.
+   */
+  const abaAnterior = useRef<Aba | null>(null);
+  useEffect(() => {
+    const mudou = abaAnterior.current !== null && abaAnterior.current !== aba;
+    abaAnterior.current = aba;
+    if (mudou && (aba === "historico" || aba === "visao")) recarregarHistorico();
+  }, [aba, recarregarHistorico]);
 
   const podeEditar = pode(user, "people.colaborador:editar", "colaboradores:editar");
   const podeMudarSituacao = pode(user, "people.colaborador:mudar_situacao", "colaboradores:editar");

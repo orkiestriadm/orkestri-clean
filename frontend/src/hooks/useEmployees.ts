@@ -92,5 +92,30 @@ export function useEmployee(id: string | null) {
 
   useEffect(() => { carregar(); }, [carregar]);
 
-  return { colaborador, historico, naoEncontrado, ...estado, recarregar: carregar };
+  /**
+   * Recarrega só a linha do tempo.
+   *
+   * Quase toda ação do perfil grava evento funcional — salário, benefício,
+   * documento, férias, mudança de situação —, e cada uma acontece numa aba
+   * diferente. Sem isto, o histórico continuava mostrando o estado do momento
+   * em que a página abriu: o usuário registrava um aumento e a linha do tempo
+   * dizia "nenhum evento registrado", o que parece perda de dado.
+   *
+   * Separado do `recarregar`: buscar o perfil inteiro para atualizar uma lista
+   * secundária pisca a tela toda sem necessidade.
+   */
+  const recarregarHistorico = useCallback(async () => {
+    if (!id) return;
+    try {
+      const hist = await employeesService.historico(id);
+      setHistorico(hist.data);
+      // Silencioso de propósito: é revalidação de fundo, e o histórico que já
+      // está na tela continua válido. Erro aqui não merece interromper nada.
+    } catch { /* mantém o que já estava */ }
+  }, [id]);
+
+  return {
+    colaborador, historico, naoEncontrado, ...estado,
+    recarregar: carregar, recarregarHistorico,
+  };
 }
