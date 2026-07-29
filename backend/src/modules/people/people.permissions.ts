@@ -65,6 +65,14 @@ export const PEOPLE_PERMISSION_CATALOG: readonly Permissao[] = [
   p("people.avaliacao",   "ver",       "Ver avaliações de desempenho"),
   p("people.avaliacao",   "gerenciar", "Criar e finalizar avaliações"),
 
+  // Salário é o dado mais sensível do módulo. Fica fora de qualquer perfil
+  // padrão: ver remuneração é decisão explícita, não consequência de ser gestor.
+  p("people.salario",     "ver",       "Ver remuneração e histórico salarial"),
+  p("people.salario",     "gerenciar", "Registrar mudança salarial e faixa de cargo"),
+
+  p("people.feedback",    "ver",       "Ver feedbacks do colaborador"),
+  p("people.feedback",    "registrar", "Registrar feedback e ver anotação privada"),
+
   p("people.relatorio",   "ver",       "Ver indicadores de pessoas"),
   p("people.relatorio",   "exportar",  "Exportar relatórios de pessoas"),
 ];
@@ -108,6 +116,14 @@ export const PEOPLE_PERMISSIONS = {
     ver:       str("people.avaliacao", "ver"),
     gerenciar: str("people.avaliacao", "gerenciar"),
   },
+  salario: {
+    ver:       str("people.salario", "ver"),
+    gerenciar: str("people.salario", "gerenciar"),
+  },
+  feedback: {
+    ver:       str("people.feedback", "ver"),
+    registrar: str("people.feedback", "registrar"),
+  },
   relatorio: {
     ver:      str("people.relatorio", "ver"),
     exportar: str("people.relatorio", "exportar"),
@@ -121,7 +137,7 @@ export const PEOPLE_PERMISSOES_LEITURA: readonly string[] = [
   PEOPLE_PERMISSIONS.cargo.ver,
   PEOPLE_PERMISSIONS.treinamento.ver,
   PEOPLE_PERMISSIONS.relatorio.ver,
-  // `beneficio.ver` e `avaliacao.ver` ficam de fora de propósito: salário
+  // `beneficio.ver`, `avaliacao.ver` e `salario.ver` ficam de fora: salário
   // indireto e nota de desempenho não são leitura de rotina de quem apenas
   // consulta o quadro. Quem precisar recebe explicitamente.
 ];

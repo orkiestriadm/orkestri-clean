@@ -127,6 +127,8 @@ model Organization {
   collabTrainings   CollaboratorTraining[]       @relation("OrgCollabTrainings")
   perfReviews       PerformanceReview[]          @relation("OrgPerfReviews")
   perfGoals         PerformanceGoal[]            @relation("OrgPerfGoals")
+  salarios          CollaboratorSalary[]         @relation("OrgSalaries")
+  feedbacks         PerformanceFeedback[]        @relation("OrgFeedbacks")
   skills            Skill[]                      @relation("OrgSkills")
   ausencias         Ausencia[]                   @relation("OrgAusencias")
   workflowRequests  WorkflowRequest[]            @relation("OrgWorkflowRequests")
@@ -814,6 +816,9 @@ model Collaborator {
   treinamentos     CollaboratorTraining[]
   avaliacoes       PerformanceReview[]          @relation("ReviewAvaliado")
   avaliacoesFeitas PerformanceReview[]          @relation("ReviewAvaliador")
+  salarios         CollaboratorSalary[]
+  feedbacks        PerformanceFeedback[]        @relation("FeedbackSobre")
+  feedbacksDados   PerformanceFeedback[]        @relation("FeedbackAutor")
 
   @@unique([organizationId, matricula])
   @@index([organizationId])
@@ -836,14 +841,20 @@ model Position {
   descricao       String?
   nivel           String?
   ativo           Boolean   @default(true)
+  /// Faixa salarial do cargo. Sem histórico próprio: quando muda, vale para
+  /// todo mundo dali em diante.
+  salarioMinimo   Decimal?  @map("salario_minimo") @db.Decimal(12, 2)
+  salarioMedio    Decimal?  @map("salario_medio") @db.Decimal(12, 2)
+  salarioMaximo   Decimal?  @map("salario_maximo") @db.Decimal(12, 2)
   criadoEm        DateTime  @default(now()) @map("criado_em")
   criadoPorId     String?   @map("criado_por_id")
   atualizadoEm    DateTime  @updatedAt @map("atualizado_em")
   atualizadoPorId String?   @map("atualizado_por_id")
   excluidoEm      DateTime? @map("excluido_em")
 
-  organization  Organization   @relation("OrgPositions", fields: [organizationId], references: [id], onDelete: Cascade)
-  collaborators Collaborator[] @relation("PositionCollaborators")
+  organization  Organization         @relation("OrgPositions", fields: [organizationId], references: [id], onDelete: Cascade)
+  collaborators Collaborator[]       @relation("PositionCollaborators")
+  salarios      CollaboratorSalary[]
 
   @@unique([organizationId, titulo])
   @@index([organizationId])
@@ -3355,10 +3366,11 @@ model PerformanceReview {
   atualizadoEm    DateTime  @updatedAt @map("atualizado_em")
   atualizadoPorId String?   @map("atualizado_por_id")
 
-  organization Organization      @relation("OrgPerfReviews", fields: [organizationId], references: [id], onDelete: Cascade)
-  collaborator Collaborator      @relation("ReviewAvaliado", fields: [collaboratorId], references: [id], onDelete: Cascade)
-  avaliador    Collaborator?     @relation("ReviewAvaliador", fields: [avaliadorId], references: [id], onDelete: SetNull)
+  organization Organization          @relation("OrgPerfReviews", fields: [organizationId], references: [id], onDelete: Cascade)
+  collaborator Collaborator          @relation("ReviewAvaliado", fields: [collaboratorId], references: [id], onDelete: Cascade)
+  avaliador    Collaborator?         @relation("ReviewAvaliador", fields: [avaliadorId], references: [id], onDelete: SetNull)
   metas        PerformanceGoal[]
+  feedbacks    PerformanceFeedback[]
 
   @@unique([collaboratorId, ciclo])
   @@index([organizationId, ciclo])
@@ -3383,4 +3395,64 @@ model PerformanceGoal {
 
   @@index([reviewId])
   @@map("performance_goals")
+}
+
+// ── People: Remuneração ────────────────────────────────────────────────────
+// Registro salarial, NÃO folha de pagamento — cálculo, imposto e eSocial
+// seguem fora de escopo. Ver a migration 20260729100000.
+
+model CollaboratorSalary {
+  id             String   @id @default(uuid())
+  organizationId String   @map("organization_id")
+  collaboratorId String   @map("collaborator_id")
+  valor          Decimal  @db.Decimal(12, 2)
+  vigenciaInicio DateTime @map("vigencia_inicio")
+  /// admissao | merito | promocao | dissidio | enquadramento | reducao | outro
+  motivo         String   @default("outro")
+  /// Cargo na data da mudança — o cargo atual muda depois e faria o histórico
+  /// mentir sobre o passado.
+  positionId     String?  @map("position_id")
+  observacoes    String?
+  criadoEm       DateTime @default(now()) @map("criado_em")
+  criadoPorId    String?  @map("criado_por_id")
+
+  organization Organization @relation("OrgSalaries", fields: [organizationId], references: [id], onDelete: Cascade)
+  collaborator Collaborator @relation(fields: [collaboratorId], references: [id], onDelete: Cascade)
+  position     Position?    @relation(fields: [positionId], references: [id], onDelete: SetNull)
+
+  @@unique([collaboratorId, vigenciaInicio])
+  @@index([organizationId])
+  @@index([collaboratorId, vigenciaInicio(sort: Desc)])
+  @@map("collaborator_salaries")
+}
+
+// ── People: Feedback contínuo ──────────────────────────────────────────────
+
+model PerformanceFeedback {
+  id             String   @id @default(uuid())
+  organizationId String   @map("organization_id")
+  collaboratorId String   @map("collaborator_id")
+  /// Autor é colaborador, não usuário: gestor pode não ter login.
+  autorId        String?  @map("autor_id")
+  /// elogio | correcao | um_a_um | reconhecimento | outro
+  tipo           String   @default("outro")
+  /// privado | compartilhado — padrão compartilhado: feedback que a pessoa
+  /// não lê não muda comportamento.
+  visibilidade   String   @default("compartilhado")
+  conteudo       String
+  ocorridoEm     DateTime @map("ocorrido_em")
+  /// Amarra opcional ao ciclo, para a avaliação abrir com o que foi registrado.
+  reviewId       String?  @map("review_id")
+  criadoEm       DateTime @default(now()) @map("criado_em")
+  criadoPorId    String?  @map("criado_por_id")
+
+  organization Organization       @relation("OrgFeedbacks", fields: [organizationId], references: [id], onDelete: Cascade)
+  collaborator Collaborator       @relation("FeedbackSobre", fields: [collaboratorId], references: [id], onDelete: Cascade)
+  autor        Collaborator?      @relation("FeedbackAutor", fields: [autorId], references: [id], onDelete: SetNull)
+  review       PerformanceReview? @relation(fields: [reviewId], references: [id], onDelete: SetNull)
+
+  @@index([collaboratorId, ocorridoEm(sort: Desc)])
+  @@index([organizationId])
+  @@index([reviewId])
+  @@map("performance_feedbacks")
 }

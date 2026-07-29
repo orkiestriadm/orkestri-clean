@@ -21,6 +21,8 @@ import AbaFerias from "../_components/AbaFerias";
 import AbaBeneficios from "../_components/AbaBeneficios";
 import AbaDesenvolvimento from "../_components/AbaDesenvolvimento";
 import AbaCompetencias from "../_components/AbaCompetencias";
+import AbaRemuneracao from "../_components/AbaRemuneracao";
+import SecaoFeedback from "../_components/SecaoFeedback";
 
 /**
  * Perfil 360 do colaborador.
@@ -55,7 +57,8 @@ const ROTULO_EVENTO: Record<string, { titulo: string; tone: BadgeTone }> = {
 
 type Aba =
   | "visao" | "pessoal" | "vinculo" | "documentos" | "ferias"
-  | "beneficios" | "desenvolvimento" | "competencias" | "equipe" | "historico";
+  | "beneficios" | "remuneracao" | "desenvolvimento" | "competencias"
+  | "equipe" | "historico";
 
 const ABAS: { id: Aba; label: string }[] = [
   { id: "visao",      label: "Visão geral" },
@@ -64,6 +67,7 @@ const ABAS: { id: Aba; label: string }[] = [
   { id: "documentos", label: "Documentos" },
   { id: "ferias",     label: "Férias" },
   { id: "beneficios", label: "Benefícios" },
+  { id: "remuneracao", label: "Remuneração" },
   { id: "desenvolvimento", label: "Desenvolvimento" },
   { id: "competencias", label: "Competências" },
   { id: "equipe",     label: "Equipe" },
@@ -117,6 +121,10 @@ export default function PerfilColaboradorPage() {
   const podeGerenciarTreinamento = pode(user, "people.treinamento:gerenciar");
   const podeVerAvaliacao = pode(user, "people.avaliacao:ver", "people.avaliacao:gerenciar");
   const podeGerenciarAvaliacao = pode(user, "people.avaliacao:gerenciar");
+  // Salario e o dado mais sensivel: nenhuma permissao legada o alcanca.
+  const podeVerSalario = pode(user, "people.salario:ver", "people.salario:gerenciar");
+  const podeGerenciarSalario = pode(user, "people.salario:gerenciar");
+  const podeRegistrarFeedback = pode(user, "people.feedback:registrar");
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
@@ -183,6 +191,16 @@ export default function PerfilColaboradorPage() {
                   podeGerenciar={podeGerenciarBeneficio}
                 />
               )}
+              {aba === "remuneracao" && (
+                podeVerSalario ? (
+                  <AbaRemuneracao
+                    collaboratorId={colaborador.id}
+                    podeGerenciar={podeGerenciarSalario}
+                  />
+                ) : (
+                  <PermissionDenied hint="Você não tem permissão para ver a remuneração deste colaborador." />
+                )
+              )}
               {aba === "desenvolvimento" && (
                 <AbaDesenvolvimento
                   collaboratorId={colaborador.id}
@@ -190,6 +208,14 @@ export default function PerfilColaboradorPage() {
                   podeVerAvaliacao={podeVerAvaliacao}
                   podeGerenciarAvaliacao={podeGerenciarAvaliacao}
                 />
+              )}
+              {aba === "desenvolvimento" && (
+                <div style={{ marginTop: 16 }}>
+                  <SecaoFeedback
+                    collaboratorId={colaborador.id}
+                    podeRegistrar={podeRegistrarFeedback}
+                  />
+                </div>
               )}
               {aba === "competencias" && (
                 <AbaCompetencias

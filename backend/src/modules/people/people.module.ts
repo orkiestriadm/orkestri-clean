@@ -10,6 +10,7 @@ import { VacationController } from "./presentation/vacation.controller";
 import { BenefitController } from "./presentation/benefit.controller";
 import { DevelopmentController } from "./presentation/development.controller";
 import { ReportController } from "./presentation/report.controller";
+import { SalaryController } from "./presentation/salary.controller";
 import { EmployeeService } from "./application/employee.service";
 import { DocumentService } from "./application/document.service";
 import { PositionService } from "./application/position.service";
@@ -17,6 +18,8 @@ import { VacationService } from "./application/vacation.service";
 import { BenefitService } from "./application/benefit.service";
 import { DevelopmentService } from "./application/development.service";
 import { ReportService } from "./application/report.service";
+import { SalaryService } from "./application/salary.service";
+import { FeedbackService } from "./application/feedback.service";
 import { PeopleNotificationsService } from "./application/people-notifications.service";
 import { PeopleScopeService } from "./application/people-scope.service";
 import { EmployeeRepository } from "./infrastructure/employee.repository";
@@ -27,6 +30,7 @@ import { VacationRepository } from "./infrastructure/vacation.repository";
 import { BenefitRepository } from "./infrastructure/benefit.repository";
 import { DevelopmentRepository } from "./infrastructure/development.repository";
 import { ReportRepository } from "./infrastructure/report.repository";
+import { SalaryRepository } from "./infrastructure/salary.repository";
 import { DocumentStorageService } from "./infrastructure/document-storage.service";
 import { PeopleEventsPublisher } from "./domain/people-events.publisher";
 
@@ -52,7 +56,7 @@ import { PeopleEventsPublisher } from "./domain/people-events.publisher";
   imports: [PrismaModule, AuditModule, ScheduleModule.forRoot()],
   controllers: [
     EmployeeController, DocumentController, PositionController, VacationController,
-    BenefitController, DevelopmentController, ReportController,
+    BenefitController, DevelopmentController, ReportController, SalaryController,
   ],
   providers: [
     EmployeeService,
@@ -62,6 +66,8 @@ import { PeopleEventsPublisher } from "./domain/people-events.publisher";
     BenefitService,
     DevelopmentService,
     ReportService,
+    SalaryService,
+    FeedbackService,
     PeopleNotificationsService,
     PeopleScopeService,
     EmployeeRepository,
@@ -72,6 +78,7 @@ import { PeopleEventsPublisher } from "./domain/people-events.publisher";
     BenefitRepository,
     DevelopmentRepository,
     ReportRepository,
+    SalaryRepository,
     DocumentStorageService,
     PeopleEventsPublisher,
   ],

@@ -11,6 +11,8 @@ import { VacationService } from "./application/vacation.service";
 import { BenefitService } from "./application/benefit.service";
 import { DevelopmentService } from "./application/development.service";
 import { ReportService } from "./application/report.service";
+import { SalaryService } from "./application/salary.service";
+import { FeedbackService } from "./application/feedback.service";
 
 /**
  * Teste de integração do Orkiestri People — serviços reais contra banco real.
@@ -36,6 +38,8 @@ descreve("People — integração", () => {
   let benefits: BenefitService;
   let development: DevelopmentService;
   let reports: ReportService;
+  let salarios: SalaryService;
+  let feedbacks: FeedbackService;
   let raizDocs: string;
 
   const orgId = `it-org-${randomUUID()}`;
@@ -64,6 +68,8 @@ descreve("People — integração", () => {
     benefits = modulo.get(BenefitService);
     development = modulo.get(DevelopmentService);
     reports = modulo.get(ReportService);
+    salarios = modulo.get(SalaryService);
+    feedbacks = modulo.get(FeedbackService);
 
     await (prisma as any).organization.create({
       data: { id: orgId, nome: "IT People", slug: `it-${randomUUID().slice(0, 8)}` },
@@ -551,6 +557,166 @@ descreve("People — integração", () => {
       const r = await reports.desenvolvimentoGeral(rh());
       const ciclo = r.data.desempenhoPorCiclo.find((c: any) => c.ciclo === "2026.1");
       expect(ciclo?.media).toBe(4.5);
+    });
+  });
+
+  // ── Remuneração ──────────────────────────────────────────────────────────
+  describe("remuneração", () => {
+    let pessoaId: string;
+    let cargoId: string;
+
+    beforeAll(async () => {
+      const cargo = await (prisma as any).position.create({
+        data: {
+          id: `it-pos-${randomUUID()}`, organizationId: orgId,
+          titulo: `Analista Sal ${randomUUID().slice(0, 6)}`,
+          salarioMinimo: 5000, salarioMedio: 7000, salarioMaximo: 9000,
+        },
+      });
+      cargoId = cargo.id;
+
+      const p = await employees.criar(rh(), {
+        nomeCompleto: "Salário Teste", dataAdmissao: "2023-01-10",
+      } as any);
+      pessoaId = p.data.id;
+      await (prisma as any).collaborator.update({
+        where: { id: pessoaId }, data: { positionId: cargoId },
+      });
+    });
+
+    it("registra a admissão e calcula posição na faixa", async () => {
+      await salarios.registrar(rh(), pessoaId, {
+        valor: 6000, vigenciaInicio: "2023-01-10", motivo: "admissao",
+      } as any);
+
+      const s = await salarios.situacao(rh(), pessoaId);
+      expect(s.data.vigente?.valor).toBe(6000);
+      expect(s.data.faixa?.posicao).toBe("dentro");
+      // 6000 numa faixa 5000–9000 é 25% do caminho.
+      expect(s.data.faixa?.percentual).toBe(25);
+    });
+
+    it("calcula a variação entre registros", async () => {
+      await salarios.registrar(rh(), pessoaId, {
+        valor: 7200, vigenciaInicio: "2024-06-01", motivo: "merito",
+      } as any);
+
+      const s = await salarios.situacao(rh(), pessoaId);
+      expect(s.data.vigente?.valor).toBe(7200);
+      expect(s.data.historico[0].variacaoPercentual).toBe(20);
+      // A admissão não tem com o que comparar.
+      expect(s.data.historico[1].variacaoPercentual).toBeNull();
+    });
+
+    it("recusa duas mudanças na mesma vigência", async () => {
+      await expect(
+        salarios.registrar(rh(), pessoaId, {
+          valor: 7500, vigenciaInicio: "2024-06-01", motivo: "merito",
+        } as any),
+      ).rejects.toThrow(/vigência|já existe/i);
+    });
+
+    // Redução tem restrição legal: o sistema exige que fique declarada.
+    it("recusa redução disfarçada de mérito", async () => {
+      await expect(
+        salarios.registrar(rh(), pessoaId, {
+          valor: 6500, vigenciaInicio: "2025-01-01", motivo: "merito",
+        } as any),
+      ).rejects.toThrow(/redução/i);
+    });
+
+    it("aceita vigência futura sem mudar o salário de hoje", async () => {
+      const futuro = new Date();
+      futuro.setFullYear(futuro.getFullYear() + 1);
+      await salarios.registrar(rh(), pessoaId, {
+        valor: 9500, vigenciaInicio: futuro.toISOString().slice(0, 10), motivo: "promocao",
+      } as any);
+
+      const s = await salarios.situacao(rh(), pessoaId);
+      // O combinado para o ano que vem não pode subir o custo agora.
+      expect(s.data.vigente?.valor).toBe(7200);
+      expect(s.data.historico[0].valor).toBe(9500);
+    });
+
+    it("registra a mudança na linha do tempo funcional", async () => {
+      const hist = await employees.historicoDe(rh(), pessoaId);
+      expect(hist.data.some((e: any) => /Salário/.test(e.descricao))).toBe(true);
+      // Promoção usa o evento próprio, não "outro".
+      expect(hist.data.some((e: any) => e.evento === "promocao")).toBe(true);
+    });
+
+    it("acusa quem está fora da faixa do cargo", async () => {
+      const fora = await employees.criar(rh(), { nomeCompleto: "Acima da Faixa" } as any);
+      await (prisma as any).collaborator.update({
+        where: { id: fora.data.id }, data: { positionId: cargoId },
+      });
+      await salarios.registrar(rh(), fora.data.id, {
+        valor: 12000, vigenciaInicio: "2024-01-01", motivo: "enquadramento",
+      } as any);
+
+      const painel = await salarios.painel(rh());
+      const achado = painel.data.foraDaFaixa.find((f: any) => f.collaboratorId === fora.data.id);
+      expect(achado?.posicao).toBe("acima");
+      expect(painel.data.massaSalarial).toBeGreaterThan(0);
+    });
+
+    it("recusa faixa incoerente", async () => {
+      await expect(
+        salarios.definirFaixa(rh(), cargoId, { minimo: 9000, maximo: 5000 } as any),
+      ).rejects.toThrow(/faixa|incoerente/i);
+    });
+  });
+
+  // ── Feedback ─────────────────────────────────────────────────────────────
+  describe("feedback", () => {
+    let pessoaId: string;
+    let autorId: string;
+
+    beforeAll(async () => {
+      const p = await employees.criar(rh(), { nomeCompleto: "Recebe Feedback" } as any);
+      pessoaId = p.data.id;
+      const a = await employees.criar(rh(), { nomeCompleto: "Dá Feedback" } as any);
+      autorId = a.data.id;
+    });
+
+    it("registra e devolve o feedback compartilhado", async () => {
+      await feedbacks.criar(rh(), pessoaId, {
+        tipo: "elogio", conteudo: "Conduziu bem a virada do plantão.", autorId,
+      } as any);
+
+      const r = await feedbacks.listar(rh(), pessoaId, false);
+      expect(r.data).toHaveLength(1);
+      expect(r.data[0].autorNome).toBe("Dá Feedback");
+    });
+
+    // A anotação privada não pode sair no JSON de quem não pode vê-la.
+    it("esconde o privado de quem não registra feedback", async () => {
+      await feedbacks.criar(rh(), pessoaId, {
+        tipo: "um_a_um", conteudo: "Anotação a tratar na próxima conversa.",
+        visibilidade: "privado", autorId,
+      } as any);
+
+      const comPrivado = await feedbacks.listar(rh(), pessoaId, true);
+      const semPrivado = await feedbacks.listar(rh(), pessoaId, false);
+      expect(comPrivado.data).toHaveLength(2);
+      expect(semPrivado.data).toHaveLength(1);
+      expect(semPrivado.data.some((f: any) => f.visibilidade === "privado")).toBe(false);
+    });
+
+    it("recusa feedback do avaliado sobre si mesmo", async () => {
+      await expect(
+        feedbacks.criar(rh(), pessoaId, {
+          tipo: "elogio", conteudo: "Fui muito bem.", autorId: pessoaId,
+        } as any),
+      ).rejects.toThrow(/próprio avaliado/i);
+    });
+
+    it("usa a data de hoje quando nenhuma é informada", async () => {
+      const r = await feedbacks.criar(rh(), pessoaId, {
+        tipo: "reconhecimento", conteudo: "Ajudou o time novo.",
+      } as any);
+      const hoje = new Date().toDateString();
+      expect(new Date(r.data.ocorridoEm).toDateString()).toBe(hoje);
     });
   });
 

@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "1.1.0";
+export const VERSAO = "1.2.0";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -26,7 +26,7 @@ export const VERSAO = "1.1.0";
 export const VERSAO_DATA = "2026-07-29";
 
 /** Nome da entrega, para dar contexto ao número. */
-export const VERSAO_NOME = "Orkiestri People";
+export const VERSAO_NOME = "People — Remuneração";
 
 /**
  * Histórico exibido na tela Sobre, do mais recente para o mais antigo.
@@ -35,6 +35,18 @@ export const VERSAO_NOME = "Orkiestri People";
  * esta lista quer saber o que mudou para ele.
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
+  {
+    versao: "1.2.0",
+    data: "2026-07-29",
+    titulo: "People — Remuneração e feedback",
+    itens: [
+      "Remuneração: salário vigente, histórico com variação e motivo da mudança",
+      "Faixa salarial por cargo, com posição de cada pessoa dentro dela",
+      "Painel de massa salarial, quem está fora da faixa e quem está sem reajuste",
+      "Feedback contínuo — elogio, correção e 1:1 — com anotação privada do gestor",
+      "Aba Remuneração no perfil, sob permissão própria e fora dos perfis padrão",
+    ],
+  },
   {
     versao: "1.1.0",
     data: "2026-07-29",
