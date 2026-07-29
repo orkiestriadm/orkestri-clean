@@ -53,6 +53,18 @@ export const PEOPLE_PERMISSION_CATALOG: readonly Permissao[] = [
   p("people.ferias",      "ver",       "Ver saldo e períodos de férias"),
   p("people.ferias",      "solicitar", "Solicitar férias"),
 
+  p("people.beneficio",   "ver",       "Ver benefícios de colaboradores"),
+  p("people.beneficio",   "gerenciar", "Manter o catálogo e conceder benefícios"),
+
+  p("people.treinamento", "ver",       "Ver treinamentos e certificações"),
+  p("people.treinamento", "gerenciar", "Manter cursos e registrar participações"),
+
+  // Avaliação é separada de treinamento apesar de conviverem na mesma aba:
+  // desempenho é dado sensível de carreira, e quem cuida de capacitação não
+  // necessariamente pode ler a nota que o gestor deu.
+  p("people.avaliacao",   "ver",       "Ver avaliações de desempenho"),
+  p("people.avaliacao",   "gerenciar", "Criar e finalizar avaliações"),
+
   p("people.relatorio",   "ver",       "Ver indicadores de pessoas"),
   p("people.relatorio",   "exportar",  "Exportar relatórios de pessoas"),
 ];
@@ -84,6 +96,18 @@ export const PEOPLE_PERMISSIONS = {
     ver:       str("people.ferias", "ver"),
     solicitar: str("people.ferias", "solicitar"),
   },
+  beneficio: {
+    ver:       str("people.beneficio", "ver"),
+    gerenciar: str("people.beneficio", "gerenciar"),
+  },
+  treinamento: {
+    ver:       str("people.treinamento", "ver"),
+    gerenciar: str("people.treinamento", "gerenciar"),
+  },
+  avaliacao: {
+    ver:       str("people.avaliacao", "ver"),
+    gerenciar: str("people.avaliacao", "gerenciar"),
+  },
   relatorio: {
     ver:      str("people.relatorio", "ver"),
     exportar: str("people.relatorio", "exportar"),
@@ -95,7 +119,11 @@ export const PEOPLE_PERMISSOES_LEITURA: readonly string[] = [
   PEOPLE_PERMISSIONS.colaborador.ver,
   PEOPLE_PERMISSIONS.documento.ver,
   PEOPLE_PERMISSIONS.cargo.ver,
+  PEOPLE_PERMISSIONS.treinamento.ver,
   PEOPLE_PERMISSIONS.relatorio.ver,
+  // `beneficio.ver` e `avaliacao.ver` ficam de fora de propósito: salário
+  // indireto e nota de desempenho não são leitura de rotina de quem apenas
+  // consulta o quadro. Quem precisar recebe explicitamente.
 ];
 
 /** Auditor: leitura ampla, sem escrita (PEOPLE_PERMISSIONS.md §11). */

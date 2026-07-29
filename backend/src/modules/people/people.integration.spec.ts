@@ -8,6 +8,9 @@ import { PeopleModule } from "./people.module";
 import { EmployeeService } from "./application/employee.service";
 import { DocumentService } from "./application/document.service";
 import { VacationService } from "./application/vacation.service";
+import { BenefitService } from "./application/benefit.service";
+import { DevelopmentService } from "./application/development.service";
+import { ReportService } from "./application/report.service";
 
 /**
  * Teste de integração do Orkiestri People — serviços reais contra banco real.
@@ -30,6 +33,9 @@ descreve("People — integração", () => {
   let employees: EmployeeService;
   let documents: DocumentService;
   let vacations: VacationService;
+  let benefits: BenefitService;
+  let development: DevelopmentService;
+  let reports: ReportService;
   let raizDocs: string;
 
   const orgId = `it-org-${randomUUID()}`;
@@ -55,6 +61,9 @@ descreve("People — integração", () => {
     employees = modulo.get(EmployeeService);
     documents = modulo.get(DocumentService);
     vacations = modulo.get(VacationService);
+    benefits = modulo.get(BenefitService);
+    development = modulo.get(DevelopmentService);
+    reports = modulo.get(ReportService);
 
     await (prisma as any).organization.create({
       data: { id: orgId, nome: "IT People", slug: `it-${randomUUID().slice(0, 8)}` },
@@ -341,6 +350,207 @@ descreve("People — integração", () => {
       const s = await vacations.situacao(rh(), r.data.id);
       expect(s.data.semDataAdmissao).toBe(true);
       expect(s.data.periodos).toHaveLength(0);
+    });
+  });
+
+  // ── Fase 6: benefícios ───────────────────────────────────────────────────
+  describe("benefícios", () => {
+    let beneficioId: string;
+    let pessoaId: string;
+
+    beforeAll(async () => {
+      const b = await benefits.criarBeneficio(rh(), {
+        nome: `Vale-refeição ${randomUUID().slice(0, 6)}`,
+        categoria: "alimentacao",
+        valorReferencia: 800,
+      } as any);
+      beneficioId = b.data.id;
+
+      const p = await employees.criar(rh(), {
+        nomeCompleto: "Beneficiária Teste", dataAdmissao: "2024-01-10",
+      } as any);
+      pessoaId = p.data.id;
+    });
+
+    it("concede herdando o valor de referência do catálogo", async () => {
+      const r = await benefits.conceder(rh(), pessoaId, {
+        benefitId: beneficioId, inicio: "2026-01-01",
+      } as any);
+      // Sem valor informado, grava o de referência — mudar o catálogo depois
+      // não pode reescrever concessão antiga.
+      expect(r.data.valor).toBe(800);
+    });
+
+    it("recusa conceder o mesmo benefício sobrepondo o vigente", async () => {
+      await expect(
+        benefits.conceder(rh(), pessoaId, { benefitId: beneficioId, inicio: "2026-06-01" } as any),
+      ).rejects.toThrow(/sobrep|já existe/i);
+    });
+
+    it("soma o custo mensal apenas do que está vigente", async () => {
+      const r = await benefits.listarDoColaborador(rh(), pessoaId);
+      expect(r.data.custoMensalVigente).toBe(800);
+      expect(r.data.itens[0].vigente).toBe(true);
+    });
+
+    it("encerra preenchendo a data, sem apagar o histórico", async () => {
+      const lista = await benefits.listarDoColaborador(rh(), pessoaId);
+      const concessaoId = lista.data.itens[0].id;
+
+      await benefits.encerrar(rh(), concessaoId, { fim: "2026-03-31" } as any);
+
+      const depois = await benefits.listarDoColaborador(rh(), pessoaId);
+      expect(depois.data.itens).toHaveLength(1);      // a linha continua lá
+      expect(depois.data.itens[0].fim).not.toBeNull();
+      expect(depois.data.itens[0].vigente).toBe(false);
+      expect(depois.data.custoMensalVigente).toBe(0);
+    });
+
+    it("aceita nova concessão depois da anterior encerrada", async () => {
+      const r = await benefits.conceder(rh(), pessoaId, {
+        benefitId: beneficioId, inicio: "2026-04-01", valor: 950,
+      } as any);
+      expect(r.data.valor).toBe(950);
+    });
+
+    it("recusa excluir benefício que já foi concedido", async () => {
+      await expect(benefits.excluirBeneficio(rh(), beneficioId))
+        .rejects.toThrow(/histórico|desative/i);
+    });
+
+    it("registra a concessão na linha do tempo do colaborador", async () => {
+      const hist = await employees.historicoDe(rh(), pessoaId);
+      expect(hist.data.some((e: any) => /Benefício concedido/.test(e.descricao))).toBe(true);
+    });
+  });
+
+  // ── Fase 7: treinamentos e desempenho ────────────────────────────────────
+  describe("desenvolvimento", () => {
+    let cursoId: string;
+    let pessoaId: string;
+
+    beforeAll(async () => {
+      const c = await development.criarCurso(rh(), {
+        nome: `NR-10 ${randomUUID().slice(0, 6)}`,
+        categoria: "seguranca",
+        cargaHoraria: 40,
+        validadeMeses: 24,
+      } as any);
+      cursoId = c.data.id;
+
+      const p = await employees.criar(rh(), {
+        nomeCompleto: "Treinando Teste", dataAdmissao: "2024-01-10",
+      } as any);
+      pessoaId = p.data.id;
+    });
+
+    it("calcula e grava a validade ao concluir", async () => {
+      const r = await development.registrarTreinamento(rh(), pessoaId, {
+        trainingId: cursoId, status: "CONCLUIDO", conclusao: "2026-03-10",
+      } as any);
+      expect(r.data.validade).toEqual(new Date("2028-03-10T00:00:00.000Z"));
+    });
+
+    it("mudar a validade do curso não reescreve certificado já emitido", async () => {
+      await development.atualizarCurso(rh(), cursoId, { validadeMeses: 6 } as any);
+
+      const lista = await development.listarTreinamentos(rh(), pessoaId);
+      // Continua 2028: a validade foi gravada na conclusão, não é derivada.
+      expect(new Date(lista.data[0].validade).getFullYear()).toBe(2028);
+    });
+
+    it("recusa concluir sem data de conclusão", async () => {
+      await expect(
+        development.registrarTreinamento(rh(), pessoaId, {
+          trainingId: cursoId, status: "CONCLUIDO",
+        } as any),
+      ).rejects.toThrow(/conclusão/i);
+    });
+
+    it("treinamento concluído é final — não reabre", async () => {
+      const lista = await development.listarTreinamentos(rh(), pessoaId);
+      await expect(
+        development.atualizarTreinamento(rh(), lista.data[0].id, { status: "EM_ANDAMENTO" } as any),
+      ).rejects.toThrow(/final|não é possível/i);
+    });
+
+    it("salva avaliação como rascunho sem nota e recusa finalizar assim", async () => {
+      const a = await development.salvarAvaliacao(rh(), pessoaId, {
+        ciclo: "2026.1", pontosFortes: "Autonomia",
+      } as any);
+      expect(a.data.status).toBe("RASCUNHO");
+
+      await expect(development.finalizarAvaliacao(rh(), a.data.id))
+        .rejects.toThrow(/nota/i);
+    });
+
+    it("finaliza com nota e trava edição posterior", async () => {
+      await development.salvarAvaliacao(rh(), pessoaId, { ciclo: "2026.1", nota: 4.5 } as any);
+
+      const lista = await development.listarAvaliacoes(rh(), pessoaId);
+      const avaliacao = lista.data.find((a: any) => a.ciclo === "2026.1");
+      const finalizada = await development.finalizarAvaliacao(rh(), avaliacao.id);
+      expect(finalizada.data.status).toBe("FINALIZADA");
+
+      // Reescrever o que o colaborador já viu não é correção, é reescrita.
+      await expect(
+        development.salvarAvaliacao(rh(), pessoaId, { ciclo: "2026.1", nota: 2 } as any),
+      ).rejects.toThrow(/finalizada/i);
+    });
+
+    it("pondera o progresso das metas pelo peso", async () => {
+      const a = await development.salvarAvaliacao(rh(), pessoaId, { ciclo: "2026.2" } as any);
+      const m1 = await development.criarMeta(rh(), a.data.id, { titulo: "Entregar projeto", peso: 5 } as any);
+      await development.criarMeta(rh(), a.data.id, { titulo: "Curso interno", peso: 1 } as any);
+      await development.atualizarMeta(rh(), m1.data.id, { progresso: 100 } as any);
+
+      const lista = await development.listarAvaliacoes(rh(), pessoaId);
+      const ciclo = lista.data.find((x: any) => x.ciclo === "2026.2");
+      // Média simples daria 50; o peso 5 leva a 83.
+      expect(ciclo.progressoMetas).toBe(83);
+    });
+
+    it("recusa o avaliado como próprio avaliador", async () => {
+      await expect(
+        development.salvarAvaliacao(rh(), pessoaId, {
+          ciclo: "2027", avaliadorId: pessoaId,
+        } as any),
+      ).rejects.toThrow(/avaliador/i);
+    });
+  });
+
+  // ── Fase 8: relatórios ───────────────────────────────────────────────────
+  describe("relatórios", () => {
+    it("responde a visão geral com quadro, movimentação e distribuições", async () => {
+      const r = await reports.visaoGeral(rh());
+      expect(r.data.quadro.total).toBeGreaterThan(0);
+      expect(r.data.escopoOrganizacional).toBe(true);
+      expect(Array.isArray(r.data.distribuicoes.porSetor)).toBe(true);
+      // Turnover é número, não Infinity nem NaN.
+      expect(Number.isFinite(r.data.movimentacao.turnoverPercentual)).toBe(true);
+    });
+
+    it("exporta CSV com BOM, cabeçalho e uma linha por colaborador", async () => {
+      const { nome, conteudo } = await reports.exportarQuadro(rh());
+      expect(nome).toMatch(/^colaboradores-\d{4}-\d{2}-\d{2}\.csv$/);
+      expect(conteudo.startsWith("﻿")).toBe(true);
+      expect(conteudo).toContain("Matrícula;Nome;");
+
+      const linhas = conteudo.trim().split("\r\n");
+      const quadro = await reports.visaoGeral(rh());
+      expect(linhas.length - 1).toBe(quadro.data.quadro.total);
+    });
+
+    it("soma o custo dos benefícios vigentes no painel", async () => {
+      const r = await reports.beneficiosGeral(rh());
+      expect(r.data.custoMensalTotal).toBeGreaterThan(0);
+      expect(r.data.pessoasCobertas).toBeGreaterThan(0);
+    });
+
+    it("traz a média de desempenho por ciclo", async () => {
+      const r = await reports.desenvolvimentoGeral(rh());
+      const ciclo = r.data.desempenhoPorCiclo.find((c: any) => c.ciclo === "2026.1");
+      expect(ciclo?.media).toBe(4.5);
     });
   });
 
