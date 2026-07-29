@@ -15,7 +15,9 @@ import {
   TableCard, EmptyState, LoadingRows, ErrorState, PermissionDenied,
   Pagination, StatusBadge, BadgeTone,
 } from "@/components/data-ui";
-import { Users, ArrowUpDown, UserX, Plus, CalendarClock, Briefcase } from "lucide-react";
+import {
+  Users, ArrowUpDown, UserX, Plus, CalendarClock, Briefcase, Library, BarChart3,
+} from "lucide-react";
 import { useAuthStore } from "@/lib/store";
 import ColaboradorForm from "./_components/ColaboradorForm";
 
@@ -59,6 +61,21 @@ function podeCriar(user: any): boolean {
   return perms.includes("*")
     || perms.includes("people.colaborador:criar")
     || perms.includes("colaboradores:criar");
+}
+
+/** Benefícios e cursos moram na mesma tela; ver qualquer um a justifica. */
+function podeVerCatalogos(user: any): boolean {
+  if (user?.isMaster) return true;
+  const perms: string[] = user?.permissions ?? [];
+  return perms.includes("*")
+    || perms.includes("people.beneficio:ver")
+    || perms.includes("people.treinamento:ver");
+}
+
+function podeVerRelatorio(user: any): boolean {
+  if (user?.isMaster) return true;
+  const perms: string[] = user?.permissions ?? [];
+  return perms.includes("*") || perms.includes("people.relatorio:ver");
 }
 
 /** O catálogo de cargos é da organização — basta poder consultá-lo. */
@@ -147,6 +164,16 @@ export default function ColaboradoresPage() {
             subtitle="Quadro de pessoas da organização"
             actions={
               <>
+                {podeVerRelatorio(user) && (
+                  <Link href="/dashboard/people/indicadores" className="btn btn-ghost">
+                    <BarChart3 size={14} /> Indicadores
+                  </Link>
+                )}
+                {podeVerCatalogos(user) && (
+                  <Link href="/dashboard/people/catalogos" className="btn btn-ghost">
+                    <Library size={14} /> Catálogos
+                  </Link>
+                )}
                 {podeVerCargos(user) && (
                   <Link href="/dashboard/people/cargos" className="btn btn-ghost">
                     <Briefcase size={14} /> Cargos

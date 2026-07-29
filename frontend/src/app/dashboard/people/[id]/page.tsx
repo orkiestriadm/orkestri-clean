@@ -18,12 +18,19 @@ import ColaboradorForm from "../_components/ColaboradorForm";
 import MudarSituacao from "../_components/MudarSituacao";
 import AbaDocumentos from "../_components/AbaDocumentos";
 import AbaFerias from "../_components/AbaFerias";
+import AbaBeneficios from "../_components/AbaBeneficios";
+import AbaDesenvolvimento from "../_components/AbaDesenvolvimento";
 
 /**
  * Perfil 360 do colaborador.
  *
  * DETAIL_PAGE_BLUEPRINT.md e PEOPLE_HUB_BLUEPRINT.md §8: o perfil é o espaço de
- * trabalho central. Benefícios entram na fase seguinte, e a aba já reserva o lugar.
+ * trabalho central — nove abas cobrindo o ciclo inteiro, de dados pessoais a
+ * desempenho.
+ *
+ * Cada aba checa a própria permissão em vez de sumir da lista: uma aba que
+ * desaparece faz o usuário achar que o recurso não existe, enquanto uma que
+ * diz "sem permissão" ensina o que pedir ao administrador.
  */
 
 const SITUACAO: Record<StatusColaborador, { label: string; tone: BadgeTone }> = {
@@ -45,7 +52,9 @@ const ROTULO_EVENTO: Record<string, { titulo: string; tone: BadgeTone }> = {
   outro:          { titulo: "Registro",            tone: "neutro" },
 };
 
-type Aba = "visao" | "pessoal" | "vinculo" | "documentos" | "ferias" | "equipe" | "historico";
+type Aba =
+  | "visao" | "pessoal" | "vinculo" | "documentos" | "ferias"
+  | "beneficios" | "desenvolvimento" | "equipe" | "historico";
 
 const ABAS: { id: Aba; label: string }[] = [
   { id: "visao",      label: "Visão geral" },
@@ -53,6 +62,8 @@ const ABAS: { id: Aba; label: string }[] = [
   { id: "vinculo",    label: "Vínculo" },
   { id: "documentos", label: "Documentos" },
   { id: "ferias",     label: "Férias" },
+  { id: "beneficios", label: "Benefícios" },
+  { id: "desenvolvimento", label: "Desenvolvimento" },
   { id: "equipe",     label: "Equipe" },
   { id: "historico",  label: "Histórico" },
 ];
@@ -100,6 +111,10 @@ export default function PerfilColaboradorPage() {
   const podeAprovarDoc = pode(user, "people.documento:aprovar");
   const podeExcluirDoc = pode(user, "people.documento:excluir");
   const podeSolicitarFerias = pode(user, "people.ferias:solicitar");
+  const podeGerenciarBeneficio = pode(user, "people.beneficio:gerenciar");
+  const podeGerenciarTreinamento = pode(user, "people.treinamento:gerenciar");
+  const podeVerAvaliacao = pode(user, "people.avaliacao:ver", "people.avaliacao:gerenciar");
+  const podeGerenciarAvaliacao = pode(user, "people.avaliacao:gerenciar");
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
@@ -158,6 +173,20 @@ export default function PerfilColaboradorPage() {
                   collaboratorId={colaborador.id}
                   nome={colaborador.nomeExibicao}
                   podeSolicitar={podeSolicitarFerias && colaborador.status === "ATIVO"}
+                />
+              )}
+              {aba === "beneficios" && (
+                <AbaBeneficios
+                  collaboratorId={colaborador.id}
+                  podeGerenciar={podeGerenciarBeneficio}
+                />
+              )}
+              {aba === "desenvolvimento" && (
+                <AbaDesenvolvimento
+                  collaboratorId={colaborador.id}
+                  podeGerenciarTreinamento={podeGerenciarTreinamento}
+                  podeVerAvaliacao={podeVerAvaliacao}
+                  podeGerenciarAvaliacao={podeGerenciarAvaliacao}
                 />
               )}
               {aba === "equipe"    && <AbaEquipe colaborador={colaborador} />}
