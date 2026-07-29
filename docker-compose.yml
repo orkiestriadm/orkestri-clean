@@ -1,5 +1,18 @@
 version: "3.8"
 
+# ATENÇÃO — este arquivo sozinho NÃO serve para produção.
+#
+# O bloco `nginx` daqui monta `nginx/nginx.conf` (HTTP puro, porta 80). A
+# configuração com TLS está em `docker-compose.prod.yml`, que sobrepõe o mount
+# por `nginx/nginx-ssl.conf` e publica a 443. Subir produção com
+# `docker compose up -d` sem o overlay derruba o HTTPS silenciosamente: o site
+# continua respondendo em HTTP e nada acusa erro.
+#
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+#
+# Copiar este arquivo por cima do de um servidor de produção tem o mesmo
+# efeito. Já aconteceu (29/07/2026, HTTPS fora por ~4 min).
+
 networks:
   orkestri_net:
     driver: bridge
@@ -199,7 +212,11 @@ services:
       PORT: 3001
       SA_TOKEN: ${SA_TOKEN:?SA_TOKEN obrigatorio}
     ports:
-      - "8080:3001"
+      # Só no loopback. O acesso normal é https://orkiestri.com/sa/ via nginx,
+      # que alcança o container pela rede interna. Publicar em 0.0.0.0 deixava
+      # o login de super admin exposto em HTTP puro na internet; isto aqui
+      # continua servindo de escotilha via túnel SSH se o nginx cair.
+      - "127.0.0.1:8080:3001"
     volumes:
       - ./saas:/saas
       - /var/run/docker.sock:/var/run/docker.sock:ro
