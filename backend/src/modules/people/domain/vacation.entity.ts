@@ -178,16 +178,20 @@ export const MINIMO_DIAS_FRACIONAMENTO = 5;
 export type IntervaloOcupado = { dataInicio: Date | string; dataFim: Date | string };
 
 /**
- * Valida uma solicitação de férias.
+ * Valida a janela pedida — datas, fracionamento e conflito de agenda.
+ *
+ * Separada da checagem de saldo de propósito: saldo depende de QUAL período
+ * aquisitivo vai ser debitado, e essa escolha é do serviço, que conhece os
+ * períodos. Misturar as duas fazia um pedido sobreposto ser recusado por
+ * "sem saldo" — mensagem errada para o usuário corrigir.
  *
  * Conta dias CORRIDOS, não úteis: férias remuneram o período inteiro, incluindo
  * fim de semana. Isso difere de `absenceDaysByCollaborator`, que conta dias
  * úteis porque ali o objetivo é descontar capacidade de trabalho.
  */
-export function validarSolicitacao(params: {
+export function validarJanela(params: {
   inicio: Date;
   fim: Date;
-  saldo: number;
   ocupados?: IntervaloOcupado[];
   minimoFracionamento?: number;
 }): ResultadoValidacao {
@@ -209,14 +213,6 @@ export function validarSolicitacao(params: {
     };
   }
 
-  if (dias > params.saldo) {
-    return {
-      valido: false,
-      motivo: "sem_saldo",
-      detalhe: `Solicitação de ${dias} dias, saldo disponível de ${params.saldo}.`,
-    };
-  }
-
   const conflito = (params.ocupados ?? []).find(o => {
     const oi = inicioDoDia(new Date(o.dataInicio));
     const of = inicioDoDia(new Date(o.dataFim));
@@ -232,4 +228,27 @@ export function validarSolicitacao(params: {
   }
 
   return { valido: true, dias };
+}
+
+/**
+ * Escolhe de qual período aquisitivo os dias serão debitados.
+ *
+ * Regra: o mais antigo que comporte a solicitação INTEIRA. Debitar do mais
+ * antigo é o que evita o vencimento; exigir que comporte tudo é o que impede
+ * um pedido de 11 dias ser recusado porque o período mais antigo tem 5, mesmo
+ * havendo 60 no total.
+ *
+ * Não fatiamos entre períodos: dividir um pedido em dois debitos produz duas
+ * "férias" no histórico onde o colaborador pediu uma, e ninguém entende o
+ * extrato depois.
+ */
+export function escolherPeriodoParaDebito(
+  periodos: PeriodoAquisitivo[],
+  dias: number,
+  hoje: Date = new Date(),
+): PeriodoAquisitivo | null {
+  return periodos
+    .filter(p => statusDoPeriodo(p, hoje) === VACATION_PERIOD_STATUS.ADQUIRIDO)
+    .filter(p => saldoDoPeriodo(p) >= dias)
+    .sort((a, b) => +a.inicio - +b.inicio)[0] ?? null;
 }

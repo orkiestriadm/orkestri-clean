@@ -1,7 +1,7 @@
 import {
   DIAS_POR_PERIODO, VACATION_PERIOD_STATUS,
   periodosAquisitivos, statusDoPeriodo, saldoDoPeriodo, saldoDisponivel,
-  periodosVencendo, validarSolicitacao, diffEmDias, MINIMO_DIAS_FRACIONAMENTO,
+  periodosVencendo, validarJanela, escolherPeriodoParaDebito, diffEmDias, MINIMO_DIAS_FRACIONAMENTO,
 } from "./vacation.entity";
 
 const d = (iso: string) => new Date(`${iso}T00:00:00`);
@@ -115,10 +115,10 @@ describe("alerta de vencimento", () => {
 });
 
 describe("validação da solicitação", () => {
-  const ok = { inicio: d("2026-08-03"), fim: d("2026-08-17"), saldo: 30 };
+  const ok = { inicio: d("2026-08-03"), fim: d("2026-08-17") };
 
   it("aceita período dentro do saldo", () => {
-    const r = validarSolicitacao(ok);
+    const r = validarJanela(ok);
     expect(r.valido).toBe(true);
     expect(r.dias).toBe(15); // inclusivo nas duas pontas
   });
@@ -126,32 +126,29 @@ describe("validação da solicitação", () => {
   // Férias remuneram dias corridos, incluindo fim de semana — diferente da
   // contagem de capacidade, que usa dias úteis.
   it("conta dias corridos, não úteis", () => {
-    const r = validarSolicitacao({ ...ok, inicio: d("2026-08-01"), fim: d("2026-08-30") });
+    const r = validarJanela({ ...ok, inicio: d("2026-08-01"), fim: d("2026-08-30") });
     expect(r.dias).toBe(30);
   });
 
-  it("recusa quando passa do saldo", () => {
-    const r = validarSolicitacao({ ...ok, saldo: 10 });
-    expect(r.valido).toBe(false);
-      expect(r.motivo).toBe("sem_saldo");
-      expect(r.detalhe).toContain("10");
-  });
+  // Saldo saiu daqui de propósito: depende de QUAL período será debitado, e a
+  // escolha é de escolherPeriodoParaDebito. Antes, misturado, um pedido
+  // sobreposto era recusado por "sem saldo" — mensagem errada para corrigir.
 
   it("recusa data final anterior à inicial", () => {
-    const r = validarSolicitacao({ ...ok, inicio: d("2026-08-17"), fim: d("2026-08-03") });
+    const r = validarJanela({ ...ok, inicio: d("2026-08-17"), fim: d("2026-08-03") });
     expect(r.valido).toBe(false);
     expect(r.motivo).toBe("periodo_invertido");
   });
 
   it("recusa fracionamento abaixo do mínimo", () => {
-    const r = validarSolicitacao({ ...ok, inicio: d("2026-08-03"), fim: d("2026-08-05") });
+    const r = validarJanela({ ...ok, inicio: d("2026-08-03"), fim: d("2026-08-05") });
     expect(r.valido).toBe(false);
       expect(r.motivo).toBe("fracionamento_minimo");
       expect(r.detalhe).toContain(String(MINIMO_DIAS_FRACIONAMENTO));
   });
 
   it("recusa sobreposição com ausência existente", () => {
-    const r = validarSolicitacao({
+    const r = validarJanela({
       ...ok,
       ocupados: [{ dataInicio: "2026-08-10", dataFim: "2026-08-12" }],
     });
@@ -160,7 +157,7 @@ describe("validação da solicitação", () => {
   });
 
   it("aceita quando a ausência existente não encosta no período", () => {
-    const r = validarSolicitacao({
+    const r = validarJanela({
       ...ok,
       ocupados: [{ dataInicio: "2026-09-01", dataFim: "2026-09-05" }],
     });
@@ -169,11 +166,50 @@ describe("validação da solicitação", () => {
 
   // Encostar é sobrepor: terminar no mesmo dia que outra começa é conflito.
   it("trata borda coincidente como sobreposição", () => {
-    const r = validarSolicitacao({
+    const r = validarJanela({
       ...ok,
       ocupados: [{ dataInicio: "2026-08-17", dataFim: "2026-08-20" }],
     });
     expect(r.valido).toBe(false);
+  });
+});
+
+describe("escolha do período a debitar", () => {
+  const periodo = (inicio: string, fim: string, limite: string, gozados: number) => ({
+    inicio: d(inicio), fim: d(fim), limiteConcessivo: d(limite),
+    diasDireito: 30, diasGozados: gozados,
+  });
+  const hoje = d("2026-07-28");
+
+  it("prefere o período mais antigo — é o que vence primeiro", () => {
+    const antigo = periodo("2024-01-01", "2024-12-31", "2026-12-31", 0);
+    const novo = periodo("2025-01-01", "2025-12-31", "2027-12-31", 0);
+    expect(escolherPeriodoParaDebito([novo, antigo], 10, hoje)).toBe(antigo);
+  });
+
+  // O defeito que a integração encontrou: pedir 11 dias era recusado porque o
+  // período mais antigo tinha 5, mesmo havendo saldo de sobra no seguinte.
+  it("pula o mais antigo quando ele não comporta o pedido inteiro", () => {
+    const quaseVazio = periodo("2024-01-01", "2024-12-31", "2026-12-31", 25); // saldo 5
+    const cheio = periodo("2025-01-01", "2025-12-31", "2027-12-31", 0);
+    expect(escolherPeriodoParaDebito([quaseVazio, cheio], 11, hoje)).toBe(cheio);
+  });
+
+  it("ignora período vencido mesmo com saldo", () => {
+    const vencido = periodo("2023-01-01", "2023-12-31", "2025-12-31", 0);
+    expect(escolherPeriodoParaDebito([vencido], 10, hoje)).toBeNull();
+  });
+
+  it("ignora período ainda em aquisição", () => {
+    const emCurso = periodo("2026-01-01", "2026-12-31", "2027-12-31", 0);
+    expect(escolherPeriodoParaDebito([emCurso], 10, hoje)).toBeNull();
+  });
+
+  it("devolve null quando nenhum período comporta o pedido", () => {
+    const p1 = periodo("2024-01-01", "2024-12-31", "2026-12-31", 25);
+    const p2 = periodo("2025-01-01", "2025-12-31", "2027-12-31", 26);
+    // Saldo total 9, mas nenhum período isolado comporta 8.
+    expect(escolherPeriodoParaDebito([p1, p2], 8, hoje)).toBeNull();
   });
 });
 

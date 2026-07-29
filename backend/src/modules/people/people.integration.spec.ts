@@ -7,6 +7,7 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { PeopleModule } from "./people.module";
 import { EmployeeService } from "./application/employee.service";
 import { DocumentService } from "./application/document.service";
+import { VacationService } from "./application/vacation.service";
 
 /**
  * Teste de integração do Orkiestri People — serviços reais contra banco real.
@@ -28,6 +29,7 @@ descreve("People — integração", () => {
   let prisma: PrismaService;
   let employees: EmployeeService;
   let documents: DocumentService;
+  let vacations: VacationService;
   let raizDocs: string;
 
   const orgId = `it-org-${randomUUID()}`;
@@ -52,6 +54,7 @@ descreve("People — integração", () => {
     prisma = modulo.get(PrismaService);
     employees = modulo.get(EmployeeService);
     documents = modulo.get(DocumentService);
+    vacations = modulo.get(VacationService);
 
     await (prisma as any).organization.create({
       data: { id: orgId, nome: "IT People", slug: `it-${randomUUID().slice(0, 8)}` },
@@ -214,6 +217,130 @@ descreve("People — integração", () => {
       await documents.excluir(rh(), documentoId);
       const depois = fs.readdirSync(path.join(raizDocs, orgId, colaboradorId)).length;
       expect(depois).toBe(antes - 1);
+    });
+  });
+
+  // ── Férias: período aquisitivo e saldo ───────────────────────────────────
+  describe("férias", () => {
+    let veterano: string;
+    let novato: string;
+
+    beforeAll(async () => {
+      // Admitido há ~3 anos: tem períodos adquiridos com saldo.
+      const tresAnosAtras = new Date();
+      tresAnosAtras.setFullYear(tresAnosAtras.getFullYear() - 3);
+      const v = await employees.criar(rh(), {
+        nomeCompleto: "Ana Veterana",
+        dataAdmissao: tresAnosAtras.toISOString().slice(0, 10),
+      } as any);
+      veterano = v.data.id;
+
+      // Admitido há 2 meses: ainda não completou o primeiro aquisitivo.
+      const doisMesesAtras = new Date();
+      doisMesesAtras.setMonth(doisMesesAtras.getMonth() - 2);
+      const n = await employees.criar(rh(), {
+        nomeCompleto: "Beto Novato",
+        dataAdmissao: doisMesesAtras.toISOString().slice(0, 10),
+      } as any);
+      novato = n.data.id;
+    });
+
+    // Quem tem 3 anos de casa sem tirar férias acumulou PASSIVO, não saldo: os
+    // períodos mais antigos já passaram do concessivo. Só o último ciclo
+    // fechado ainda é utilizável — os anteriores viraram pagamento em dobro.
+    it("períodos além do concessivo aparecem como VENCIDO, não como saldo", async () => {
+      const r = await vacations.situacao(rh(), veterano);
+      expect(r.data.semDataAdmissao).toBe(false);
+      expect(r.data.periodos.length).toBeGreaterThanOrEqual(3);
+
+      expect(r.data.periodos.some((p: any) => p.status === "VENCIDO")).toBe(true);
+      expect(r.data.periodos.some((p: any) => p.status === "ADQUIRIDO")).toBe(true);
+
+      // Saldo conta apenas o que ainda dá para gozar.
+      const adquiridos = r.data.periodos.filter((p: any) => p.status === "ADQUIRIDO");
+      const esperado = adquiridos.reduce((s: number, p: any) => s + p.saldo, 0);
+      expect(r.data.saldoDisponivel).toBe(esperado);
+    });
+
+    it("quem não fechou 12 meses tem período em aquisição e saldo zero", async () => {
+      const r = await vacations.situacao(rh(), novato);
+      expect(r.data.periodos).toHaveLength(1);
+      expect(r.data.periodos[0].status).toBe("EM_AQUISICAO");
+      expect(r.data.saldoDisponivel).toBe(0);
+    });
+
+    it("sincronizar duas vezes não duplica período", async () => {
+      const antes = (await vacations.situacao(rh(), veterano)).data.periodos.length;
+      const depois = (await vacations.situacao(rh(), veterano)).data.periodos.length;
+      expect(depois).toBe(antes);
+    });
+
+    it("recusa solicitação de quem não tem saldo", async () => {
+      await expect(
+        vacations.solicitar(rh(), novato, { dataInicio: "2027-01-04", dataFim: "2027-01-18" } as any),
+      ).rejects.toThrow(/saldo/i);
+    });
+
+    it("cria solicitação vinculada a um período adquirido e debita dele", async () => {
+      const r = await vacations.solicitar(rh(), veterano, {
+        dataInicio: "2027-03-01", dataFim: "2027-03-15",
+      } as any);
+
+      expect(r.data.tipo).toBe("ferias");
+      expect(r.data.status).toBe("PENDENTE");
+      expect(r.data.dias).toBe(15);
+      expect(r.data.vacationPeriodId).toBeTruthy();
+
+      const situacao = await vacations.situacao(rh(), veterano);
+      const debitado = situacao.data.periodos.find((p: any) => p.id === r.data.vacationPeriodId);
+      expect(debitado.diasGozados).toBe(15);
+      expect(debitado.saldo).toBe(15);
+      // Nunca debita de período vencido — aquele saldo não é mais utilizável.
+      expect(debitado.status).toBe("ADQUIRIDO");
+    });
+
+    // Pendente conta contra o saldo: sem isso, várias solicitações simultâneas
+    // estourariam o período e o erro só apareceria na aprovação.
+    it("solicitação pendente já reduz o saldo disponível", async () => {
+      const antes = (await vacations.situacao(rh(), veterano)).data.saldoDisponivel;
+      await vacations.solicitar(rh(), veterano, {
+        dataInicio: "2027-06-01", dataFim: "2027-06-10",
+      } as any);
+      const depois = (await vacations.situacao(rh(), veterano)).data.saldoDisponivel;
+      expect(depois).toBe(antes - 10);
+    });
+
+    it("recusa período que se sobrepõe a uma solicitação existente", async () => {
+      await expect(
+        vacations.solicitar(rh(), veterano, { dataInicio: "2027-03-10", dataFim: "2027-03-20" } as any),
+      ).rejects.toThrow(/sobre/i);
+    });
+
+    it("recusa fracionamento abaixo de 5 dias", async () => {
+      await expect(
+        vacations.solicitar(rh(), veterano, { dataInicio: "2027-09-01", dataFim: "2027-09-03" } as any),
+      ).rejects.toThrow(/5 dias/);
+    });
+
+    it("colaborador desligado não solicita férias", async () => {
+      const r = await employees.criar(rh(), {
+        nomeCompleto: "Carlos Desligado",
+        dataAdmissao: "2020-01-01",
+      } as any);
+      await employees.mudarStatus(rh(), r.data.id, {
+        status: "DESLIGADO", dataDesligamento: "2026-01-01",
+      } as any);
+
+      await expect(
+        vacations.solicitar(rh(), r.data.id, { dataInicio: "2027-04-01", dataFim: "2027-04-10" } as any),
+      ).rejects.toThrow(/DESLIGADO/);
+    });
+
+    it("colaborador sem data de admissão não trava a tela", async () => {
+      const r = await employees.criar(rh(), { nomeCompleto: "Sem Admissão" } as any);
+      const s = await vacations.situacao(rh(), r.data.id);
+      expect(s.data.semDataAdmissao).toBe(true);
+      expect(s.data.periodos).toHaveLength(0);
     });
   });
 

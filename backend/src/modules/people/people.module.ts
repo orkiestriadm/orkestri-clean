@@ -5,14 +5,17 @@ import { AuditModule } from "../audit/audit.module";
 import { EmployeeController } from "./presentation/employee.controller";
 import { DocumentController } from "./presentation/document.controller";
 import { PositionController } from "./presentation/position.controller";
+import { VacationController } from "./presentation/vacation.controller";
 import { EmployeeService } from "./application/employee.service";
 import { DocumentService } from "./application/document.service";
 import { PositionService } from "./application/position.service";
+import { VacationService } from "./application/vacation.service";
 import { PeopleScopeService } from "./application/people-scope.service";
 import { EmployeeRepository } from "./infrastructure/employee.repository";
 import { EmployeeHistoryRepository } from "./infrastructure/employee-history.repository";
 import { DocumentRepository } from "./infrastructure/document.repository";
 import { PositionRepository } from "./infrastructure/position.repository";
+import { VacationRepository } from "./infrastructure/vacation.repository";
 import { DocumentStorageService } from "./infrastructure/document-storage.service";
 import { PeopleEventsPublisher } from "./domain/people-events.publisher";
 
@@ -36,16 +39,18 @@ import { PeopleEventsPublisher } from "./domain/people-events.publisher";
  */
 @Module({
   imports: [PrismaModule, AuditModule],
-  controllers: [EmployeeController, DocumentController, PositionController],
+  controllers: [EmployeeController, DocumentController, PositionController, VacationController],
   providers: [
     EmployeeService,
     DocumentService,
     PositionService,
+    VacationService,
     PeopleScopeService,
     EmployeeRepository,
     EmployeeHistoryRepository,
     DocumentRepository,
     PositionRepository,
+    VacationRepository,
     DocumentStorageService,
     PeopleEventsPublisher,
   ],

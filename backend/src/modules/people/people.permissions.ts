@@ -50,6 +50,9 @@ export const PEOPLE_PERMISSION_CATALOG: readonly Permissao[] = [
   p("people.cargo",       "ver",       "Ver cargos"),
   p("people.cargo",       "gerenciar", "Criar e editar cargos"),
 
+  p("people.ferias",      "ver",       "Ver saldo e períodos de férias"),
+  p("people.ferias",      "solicitar", "Solicitar férias"),
+
   p("people.relatorio",   "ver",       "Ver indicadores de pessoas"),
   p("people.relatorio",   "exportar",  "Exportar relatórios de pessoas"),
 ];
@@ -76,6 +79,10 @@ export const PEOPLE_PERMISSIONS = {
   cargo: {
     ver:       str("people.cargo", "ver"),
     gerenciar: str("people.cargo", "gerenciar"),
+  },
+  ferias: {
+    ver:       str("people.ferias", "ver"),
+    solicitar: str("people.ferias", "solicitar"),
   },
   relatorio: {
     ver:      str("people.relatorio", "ver"),

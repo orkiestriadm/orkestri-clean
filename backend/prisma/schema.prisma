@@ -120,6 +120,7 @@ model Organization {
   positions         Position[]              @relation("OrgPositions")
   collabHistory     CollaboratorHistory[]   @relation("OrgCollaboratorHistory")
   collabDocuments   CollaboratorDocument[]  @relation("OrgCollaboratorDocuments")
+  vacationPeriods   CollaboratorVacationPeriod[] @relation("OrgVacationPeriods")
   skills            Skill[]                 @relation("OrgSkills")
   ausencias         Ausencia[]              @relation("OrgAusencias")
   workflowRequests  WorkflowRequest[]       @relation("OrgWorkflowRequests")
@@ -667,6 +668,10 @@ model Ausencia {
   descricao       String?
   documentoUrl    String?   @map("documento_url")
   status          String    @default("PENDENTE") // PENDENTE | APROVADA | REJEITADA | CANCELADA
+  // Só para tipo=ferias: a qual período aquisitivo estes dias são debitados.
+  // Atribuição explícita em vez de inferida por data — férias podem cruzar a
+  // virada de período, e adivinhar produziria saldo errado.
+  vacationPeriodId String?  @map("vacation_period_id")
   solicitadaPorId String?   @map("solicitada_por_id")
   aprovadaPorId   String?   @map("aprovada_por_id")
   aprovadaEm      DateTime? @map("aprovada_em")
@@ -676,6 +681,7 @@ model Ausencia {
 
   organization  Organization @relation("OrgAusencias", fields: [organizationId], references: [id], onDelete: Cascade)
   collaborator  Collaborator @relation(fields: [collaboratorId], references: [id], onDelete: Cascade)
+  vacationPeriod CollaboratorVacationPeriod? @relation(fields: [vacationPeriodId], references: [id], onDelete: SetNull)
   solicitadaPor User?        @relation("AusenciaSolicitante", fields: [solicitadaPorId], references: [id], onDelete: SetNull)
   aprovadaPor   User?        @relation("AusenciaAprovador", fields: [aprovadaPorId], references: [id], onDelete: SetNull)
 
@@ -793,6 +799,7 @@ model Collaborator {
   ausencias        Ausencia[]
   squadsLiderados  Squad[]             @relation("SquadLider")
   squadMemberships SquadMember[]
+  periodosFerias   CollaboratorVacationPeriod[]
   enderecos        CollaboratorAddress[]
   contatos         CollaboratorContact[]
   historico        CollaboratorHistory[]
@@ -914,6 +921,40 @@ model CollaboratorDocument {
   @@index([organizationId, dataValidade])
   @@index([aprovacao])
   @@map("collaborator_documents")
+}
+
+// ── People: Períodos aquisitivos de férias ─────────────────────────────────
+// Persistido, e não derivado a cada consulta, por dois motivos: `diasDireito`
+// admite ajuste manual (faltas reduzem o direito, abono pecuniário vende dias)
+// e `diasGozados` precisa ser agregável em relatório de passivo.
+// As datas em si são determinísticas a partir da admissão — ver
+// domain/vacation.entity.ts, que é quem sabe a regra.
+model CollaboratorVacationPeriod {
+  id               String   @id @default(uuid())
+  organizationId   String   @map("organization_id")
+  collaboratorId   String   @map("collaborator_id")
+  inicio           DateTime
+  fim              DateTime
+  // Prazo final para gozar. Passar daqui com saldo gera pagamento em dobro.
+  limiteConcessivo DateTime @map("limite_concessivo")
+  diasDireito      Int      @default(30) @map("dias_direito")
+  diasGozados      Int      @default(0)  @map("dias_gozados")
+  // EM_AQUISICAO | ADQUIRIDO | GOZADO | VENCIDO — derivado, materializado para
+  // permitir filtro e índice sem recalcular a regra em SQL.
+  status           String   @default("EM_AQUISICAO")
+  observacoes      String?
+  criadoEm         DateTime @default(now()) @map("criado_em")
+  atualizadoEm     DateTime @updatedAt @map("atualizado_em")
+
+  organization Organization @relation("OrgVacationPeriods", fields: [organizationId], references: [id], onDelete: Cascade)
+  collaborator Collaborator @relation(fields: [collaboratorId], references: [id], onDelete: Cascade)
+  ausencias    Ausencia[]
+
+  // Um período por colaborador por data de início — a regeneração é idempotente.
+  @@unique([collaboratorId, inicio])
+  @@index([organizationId, status])
+  @@index([organizationId, limiteConcessivo])
+  @@map("collaborator_vacation_periods")
 }
 
 // ── People: Linha do tempo funcional ───────────────────────────────────────

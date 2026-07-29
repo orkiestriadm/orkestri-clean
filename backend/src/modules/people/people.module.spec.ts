@@ -19,6 +19,8 @@ describe("PeopleModule", () => {
   const prismaFake = {
     collaborator: { findFirst: jest.fn(), findMany: jest.fn(), count: jest.fn() },
     collaboratorHistory: { create: jest.fn(), createMany: jest.fn(), findMany: jest.fn() },
+    collaboratorVacationPeriod: { findMany: jest.fn(), findFirst: jest.fn(), createMany: jest.fn(), update: jest.fn() },
+    ausencia: { findMany: jest.fn(), create: jest.fn() },
     position: { findFirst: jest.fn(), findMany: jest.fn(), create: jest.fn(), update: jest.fn() },
     collaboratorDocument: { findFirst: jest.fn(), findMany: jest.fn(), create: jest.fn(), update: jest.fn(), groupBy: jest.fn() },
     auditLog: { create: jest.fn(), findMany: jest.fn() },
