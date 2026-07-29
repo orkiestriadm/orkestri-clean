@@ -15,7 +15,7 @@ import {
   TableCard, EmptyState, LoadingRows, ErrorState, PermissionDenied,
   Pagination, StatusBadge, BadgeTone,
 } from "@/components/data-ui";
-import { Users, ArrowUpDown, UserX, Plus } from "lucide-react";
+import { Users, ArrowUpDown, UserX, Plus, CalendarClock } from "lucide-react";
 import { useAuthStore } from "@/lib/store";
 import ColaboradorForm from "./_components/ColaboradorForm";
 
@@ -59,6 +59,17 @@ function podeCriar(user: any): boolean {
   return perms.includes("*")
     || perms.includes("people.colaborador:criar")
     || perms.includes("colaboradores:criar");
+}
+
+/**
+ * O passivo é uma visão sobre o quadro inteiro, não sobre uma pessoa — por isso
+ * o backend o protege com `people.relatorio:ver` e não com `people.ferias:ver`.
+ * Espelhar exatamente evita oferecer um link que responderia 403.
+ */
+function podeVerPassivo(user: any): boolean {
+  if (user?.isMaster) return true;
+  const perms: string[] = user?.permissions ?? [];
+  return perms.includes("*") || perms.includes("people.relatorio:ver");
 }
 
 export default function ColaboradoresPage() {
@@ -128,11 +139,18 @@ export default function ColaboradoresPage() {
             title="Colaboradores"
             subtitle="Quadro de pessoas da organização"
             actions={
-              podeCriar(user) && (
-                <button type="button" className="btn btn-primary" onClick={() => setFormAberto(true)}>
-                  <Plus size={14} /> Novo colaborador
-                </button>
-              )
+              <>
+                {podeVerPassivo(user) && (
+                  <Link href="/dashboard/people/ferias" className="btn btn-ghost">
+                    <CalendarClock size={14} /> Passivo de férias
+                  </Link>
+                )}
+                {podeCriar(user) && (
+                  <button type="button" className="btn btn-primary" onClick={() => setFormAberto(true)}>
+                    <Plus size={14} /> Novo colaborador
+                  </button>
+                )}
+              </>
             }
           />
 

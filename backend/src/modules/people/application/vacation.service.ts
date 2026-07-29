@@ -66,7 +66,9 @@ export class VacationService {
           semDataAdmissao: true,
           saldoDisponivel: 0,
           periodos: [],
-          vencendo: [],
+          // Número, igual ao outro ramo: o mesmo campo não pode mudar de tipo
+          // conforme o caminho — o consumidor não tem como saber qual recebeu.
+          vencendo: 0,
         },
       };
     }

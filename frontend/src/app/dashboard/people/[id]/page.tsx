@@ -17,13 +17,13 @@ import { useAuthStore } from "@/lib/store";
 import ColaboradorForm from "../_components/ColaboradorForm";
 import MudarSituacao from "../_components/MudarSituacao";
 import AbaDocumentos from "../_components/AbaDocumentos";
+import AbaFerias from "../_components/AbaFerias";
 
 /**
  * Perfil 360 do colaborador.
  *
  * DETAIL_PAGE_BLUEPRINT.md e PEOPLE_HUB_BLUEPRINT.md §8: o perfil é o espaço de
- * trabalho central. Nesta entrega é somente leitura — edição, documentos,
- * benefícios e férias entram nas fases seguintes, e as abas já reservam o lugar.
+ * trabalho central. Benefícios entram na fase seguinte, e a aba já reserva o lugar.
  */
 
 const SITUACAO: Record<StatusColaborador, { label: string; tone: BadgeTone }> = {
@@ -45,13 +45,14 @@ const ROTULO_EVENTO: Record<string, { titulo: string; tone: BadgeTone }> = {
   outro:          { titulo: "Registro",            tone: "neutro" },
 };
 
-type Aba = "visao" | "pessoal" | "vinculo" | "documentos" | "equipe" | "historico";
+type Aba = "visao" | "pessoal" | "vinculo" | "documentos" | "ferias" | "equipe" | "historico";
 
 const ABAS: { id: Aba; label: string }[] = [
   { id: "visao",      label: "Visão geral" },
   { id: "pessoal",    label: "Dados pessoais" },
   { id: "vinculo",    label: "Vínculo" },
   { id: "documentos", label: "Documentos" },
+  { id: "ferias",     label: "Férias" },
   { id: "equipe",     label: "Equipe" },
   { id: "historico",  label: "Histórico" },
 ];
@@ -98,6 +99,7 @@ export default function PerfilColaboradorPage() {
   const podeEnviarDoc = pode(user, "people.documento:enviar");
   const podeAprovarDoc = pode(user, "people.documento:aprovar");
   const podeExcluirDoc = pode(user, "people.documento:excluir");
+  const podeSolicitarFerias = pode(user, "people.ferias:solicitar");
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
@@ -149,6 +151,13 @@ export default function PerfilColaboradorPage() {
                   podeEnviar={podeEnviarDoc}
                   podeAprovar={podeAprovarDoc}
                   podeExcluir={podeExcluirDoc}
+                />
+              )}
+              {aba === "ferias" && (
+                <AbaFerias
+                  collaboratorId={colaborador.id}
+                  nome={colaborador.nomeExibicao}
+                  podeSolicitar={podeSolicitarFerias && colaborador.status === "ATIVO"}
                 />
               )}
               {aba === "equipe"    && <AbaEquipe colaborador={colaborador} />}
