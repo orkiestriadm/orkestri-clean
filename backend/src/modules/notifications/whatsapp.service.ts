@@ -2,6 +2,9 @@ import { Injectable, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { PrismaService } from "../../prisma/prisma.service";
 
+/** Marca do produto, com o "i". Ver o comentário em email.service.ts. */
+const MARCA = "Orkiestri";
+
 @Injectable()
 export class WhatsAppService {
   private readonly logger = new Logger(WhatsAppService.name);
@@ -196,20 +199,20 @@ export class WhatsAppService {
   // ── Typed message helpers ──────────────────────────────────────────────────
 
   async sendTest(phone: string, instanceName?: string): Promise<boolean> {
-    const msg = "*Orkestri* - Teste de conexao\n\nSeu WhatsApp esta configurado corretamente!\nVoce recebera alertas de eventos por aqui.";
+    const msg = `*${MARCA}* - Teste de conexao\n\nSeu WhatsApp esta configurado corretamente!\nVoce recebera alertas de eventos por aqui.`;
     return this.sendMessage(phone, msg, instanceName);
   }
 
   async sendEventAlert(phone: string, eventName: string, minutosRestantes: number, appUrl: string, instanceName?: string): Promise<boolean> {
     const tempo = minutosRestantes <= 0 ? "agora" : `em ${minutosRestantes} minuto${minutosRestantes > 1 ? "s" : ""}`;
-    const msg = `*Orkestri - Lembrete*\n\nVoce tem um evento *${tempo}*:\n\n- ${eventName}\n\nAcesse: ${appUrl}/dashboard/agenda`;
+    const msg = `*${MARCA} - Lembrete*\n\nVoce tem um evento *${tempo}*:\n\n- ${eventName}\n\nAcesse: ${appUrl}/dashboard/agenda`;
     return this.sendMessage(phone, msg, instanceName);
   }
 
   async sendChamadoAberto(phone: string, numero: number, titulo: string, prioridade: string, slaHoras: number | null, appUrl: string, instanceName?: string): Promise<boolean> {
     const slaText = slaHoras ? `\n*SLA:* Resposta em ate ${slaHoras}h` : "";
     const prio = { baixa: "Baixa", media: "Media", alta: "Alta", critica: "CRITICA" }[prioridade] ?? prioridade;
-    const msg = `*Orkestri - Chamado #${numero} aberto*\n\nSeu chamado foi registrado com sucesso.\n*Assunto:* ${titulo}\n*Prioridade:* ${prio}${slaText}\n\nAcompanhe: ${appUrl}/dashboard/chamados`;
+    const msg = `*${MARCA} - Chamado #${numero} aberto*\n\nSeu chamado foi registrado com sucesso.\n*Assunto:* ${titulo}\n*Prioridade:* ${prio}${slaText}\n\nAcompanhe: ${appUrl}/dashboard/chamados`;
     return this.sendMessage(phone, msg, instanceName);
   }
 
@@ -218,24 +221,24 @@ export class WhatsAppService {
     const prazoText = deadline
       ? `\n*Prazo SLA:* ${deadline.toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", dateStyle: "short", timeStyle: "short" })}`
       : "";
-    const msg = `*Orkestri - Chamado #${numero} atribuido a voce*\n\n*Assunto:* ${titulo}\n*Prioridade:* ${prio}${prazoText}\n\nAcesse: ${appUrl}/dashboard/chamados`;
+    const msg = `*${MARCA} - Chamado #${numero} atribuido a voce*\n\n*Assunto:* ${titulo}\n*Prioridade:* ${prio}${prazoText}\n\nAcesse: ${appUrl}/dashboard/chamados`;
     return this.sendMessage(phone, msg, instanceName);
   }
 
   async sendChamadoStatus(phone: string, numero: number, titulo: string, status: string, appUrl: string, instanceName?: string): Promise<boolean> {
     const labels: Record<string, string> = { em_atendimento: "Em atendimento", aguardando: "Aguardando sua resposta", resolvido: "Resolvido", fechado: "Fechado" };
-    const msg = `*Orkestri - Chamado #${numero} atualizado*\n\nNovo status: *${labels[status] || status}*\n*Assunto:* ${titulo}\n\nAcompanhe: ${appUrl}/dashboard/chamados`;
+    const msg = `*${MARCA} - Chamado #${numero} atualizado*\n\nNovo status: *${labels[status] || status}*\n*Assunto:* ${titulo}\n\nAcompanhe: ${appUrl}/dashboard/chamados`;
     return this.sendMessage(phone, msg, instanceName);
   }
 
   async sendChamadoResolvido(phone: string, numero: number, titulo: string, appUrl: string, instanceName?: string): Promise<boolean> {
-    const msg = `*Orkestri - Chamado #${numero} resolvido*\n\nSeu chamado foi resolvido!\n*Assunto:* ${titulo}\n\nAvalie o atendimento de 1 a 5 acessando:\n${appUrl}/dashboard/chamados`;
+    const msg = `*${MARCA} - Chamado #${numero} resolvido*\n\nSeu chamado foi resolvido!\n*Assunto:* ${titulo}\n\nAvalie o atendimento de 1 a 5 acessando:\n${appUrl}/dashboard/chamados`;
     return this.sendMessage(phone, msg, instanceName);
   }
 
   async sendSlaRisco(phone: string, numero: number, titulo: string, restanteMins: number, appUrl: string, instanceName?: string): Promise<boolean> {
     const tempo = restanteMins >= 60 ? `${Math.floor(restanteMins / 60)}h ${restanteMins % 60}min` : `${restanteMins}min`;
-    const msg = `*Orkestri - SLA em Risco*\n\nChamado *#${numero}* esta proximo do prazo!\n*${titulo}*\n*Restam:* ${tempo}\n\nAcesse agora: ${appUrl}/dashboard/chamados`;
+    const msg = `*${MARCA} - SLA em Risco*\n\nChamado *#${numero}* esta proximo do prazo!\n*${titulo}*\n*Restam:* ${tempo}\n\nAcesse agora: ${appUrl}/dashboard/chamados`;
     return this.sendMessage(phone, msg, instanceName);
   }
 
@@ -245,23 +248,23 @@ export class WhatsAppService {
   }
 
   async sendOtp(phone: string, code: string, instanceName?: string): Promise<boolean> {
-    const msg = `*Orquestrador de Demandas*\n\nSeu código de recuperação de senha é:\n\n*${code}*\n\nEsse código expira em 5 minutos.\nNão compartilhe com ninguém.`;
+    const msg = `*${MARCA}*\n\nSeu código de recuperação de senha é:\n\n*${code}*\n\nEsse código expira em 5 minutos.\nNão compartilhe com ninguém.`;
     return this.sendMessage(phone, msg, instanceName);
   }
 
   async sendAccountApproved(phone: string, nome: string, email: string, senha: string, appUrl: string, instanceName?: string): Promise<boolean> {
-    const msg = `Olá, *${nome}*!\n\nSeu cadastro no *Orkestri* foi concluído com sucesso.\n\nAcesse com suas credenciais:\n*E-mail:* ${email}\n*Senha temporária:* ${senha}\n\nAcesse: ${appUrl}/login\n\nVocê deverá alterar sua senha no primeiro acesso.`;
+    const msg = `Olá, *${nome}*!\n\nSeu cadastro no *${MARCA}* foi concluído com sucesso.\n\nAcesse com suas credenciais:\n*E-mail:* ${email}\n*Senha temporária:* ${senha}\n\nAcesse: ${appUrl}/login\n\nVocê deverá alterar sua senha no primeiro acesso.`;
     return this.sendMessage(phone, msg, instanceName);
   }
 
   async sendAccountRejected(phone: string, nome: string, instanceName?: string): Promise<boolean> {
-    const msg = `Olá, *${nome}*!\n\nInfelizmente, seu pedido de acesso ao *Orkestri* foi recusado.\n\nPara mais informações, entre em contato com o administrador do sistema.`;
+    const msg = `Olá, *${nome}*!\n\nInfelizmente, seu pedido de acesso ao *${MARCA}* foi recusado.\n\nPara mais informações, entre em contato com o administrador do sistema.`;
     return this.sendMessage(phone, msg, instanceName);
   }
 
   async sendSlaViolado(phone: string, numero: number, titulo: string, atrasadoMins: number, appUrl: string, instanceName?: string): Promise<boolean> {
     const tempo = atrasadoMins >= 60 ? `${Math.floor(atrasadoMins / 60)}h ${atrasadoMins % 60}min` : `${atrasadoMins}min`;
-    const msg = `*Orkestri - SLA VIOLADO*\n\nChamado *#${numero}* esta em atraso!\n*${titulo}*\n*Atraso:* ${tempo}\n\nAcesse: ${appUrl}/dashboard/chamados`;
+    const msg = `*${MARCA} - SLA VIOLADO*\n\nChamado *#${numero}* esta em atraso!\n*${titulo}*\n*Atraso:* ${tempo}\n\nAcesse: ${appUrl}/dashboard/chamados`;
     return this.sendMessage(phone, msg, instanceName);
   }
 }
