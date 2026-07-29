@@ -4,6 +4,7 @@ import {
   BadRequestException, NotFoundException, ForbiddenException,
 } from "@nestjs/common";
 import { AuthGuard } from "@nestjs/passport";
+import { IsString, IsOptional, IsNumber, IsObject, MaxLength } from "class-validator";
 import { ConfigService } from "@nestjs/config";
 import { PrismaService } from "../../prisma/prisma.service";
 import { WhatsAppService } from "../notifications/whatsapp.service";
@@ -11,32 +12,50 @@ import { NotificationsModule } from "../notifications/notifications.module";
 import { AutomacaoService } from "../automacoes/automacoes.module";
 import { AutomacoesModule } from "../automacoes/automacoes.module";
 
-const TIPOS_VALIDOS = ["despesa", "horas_extra", "alteracao_cadastral", "folga_compensatoria", "compra", "viagem", "outro"];
+// Os tipos com prefixo `people.` vêm do autosserviço do módulo de pessoas e
+// rodam neste mesmo motor de aprovação, em vez de um segundo motor só para o
+// RH. Ver docs/people/README.md.
+const TIPOS_VALIDOS = [
+  "despesa", "horas_extra", "alteracao_cadastral", "folga_compensatoria",
+  "compra", "viagem", "outro",
+  "people.alteracao_cadastral", "people.documento", "people.outro",
+];
 
+/**
+ * DTOs deste módulo estavam SEM decoradores de validação.
+ *
+ * O ValidationPipe global roda com `whitelist` e `forbidNonWhitelisted`: sem
+ * decorador, nenhuma propriedade é reconhecida e a requisição inteira é
+ * recusada com "property tipo should not exist". Ou seja, criar solicitação
+ * respondia 400 para qualquer payload — descoberto ao validar a tela pelo
+ * navegador, porque nenhum teste exercia este endpoint.
+ */
 class CreateWfRequestDto {
-  tipo: string;
-  titulo: string;
-  descricao?: string;
-  payload?: any;
-  valor?: number;
+  @IsString() tipo: string;
+  @IsString() @MaxLength(160) titulo: string;
+  @IsOptional() @IsString() @MaxLength(2000) descricao?: string;
+  // Estrutura livre por desenho: cada tipo carrega o próprio formato — na
+  // alteração cadastral, o de/para que o RH precisa ver lado a lado.
+  @IsOptional() @IsObject() payload?: any;
+  @IsOptional() @IsNumber() valor?: number;
 }
 
 class DecisionDto {
-  observacoes?: string;
+  @IsOptional() @IsString() @MaxLength(2000) observacoes?: string;
 }
 
 class RejectDto {
-  motivo: string;
-  observacoes?: string;
+  @IsString() @MaxLength(2000) motivo: string;
+  @IsOptional() @IsString() @MaxLength(2000) observacoes?: string;
 }
 
 class DelegarDto {
-  novoAprovadorId: string;
-  motivo?: string;
+  @IsString() novoAprovadorId: string;
+  @IsOptional() @IsString() @MaxLength(2000) motivo?: string;
 }
 
 class AjustesDto {
-  mensagem: string;
+  @IsString() @MaxLength(2000) mensagem: string;
 }
 
 @Injectable()

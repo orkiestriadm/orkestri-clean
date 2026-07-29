@@ -207,11 +207,33 @@ export function montarArvore(linhas: LinhaColaborador[]): NoOrganograma[] {
   return raizes;
 }
 
+/** Teto do backend por página (`@Max(200)` no DTO). Pedir mais devolve 400. */
+const TAMANHO_MAXIMO_PAGINA = 200;
+
 export const orgService = {
+  /**
+   * Monta o organograma buscando TODAS as páginas.
+   *
+   * A árvore precisa do quadro inteiro: um gestor que ficasse de fora levaria
+   * junto todos os subordinados dele, e o organograma mostraria menos gente do
+   * que existe sem avisar. Antes isto pedia 1000 de uma vez e o backend
+   * respondia 400 — a tela não abria.
+   */
   async organograma(): Promise<NoOrganograma[]> {
-    const { data } = await api.get("/v1/people/employees", {
-      params: { tamanho: 1000, status: "ATIVO" },
-    });
-    return montarArvore(data?.data ?? []);
+    const linhas: any[] = [];
+    let pagina = 1;
+    let paginas = 1;
+
+    do {
+      const { data } = await api.get("/v1/people/employees", {
+        params: { tamanho: TAMANHO_MAXIMO_PAGINA, pagina, status: "ATIVO" },
+      });
+      linhas.push(...(data?.data ?? []));
+      paginas = data?.meta?.paginas ?? 1;
+      pagina += 1;
+      // Trava de segurança: meta corrompida não pode virar laço infinito.
+    } while (pagina <= paginas && pagina <= 50);
+
+    return montarArvore(linhas);
   },
 };
