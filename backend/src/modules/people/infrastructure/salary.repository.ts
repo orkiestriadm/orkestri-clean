@@ -75,6 +75,28 @@ export class SalaryRepository {
     };
   }
 
+  /** Faixa de todos os cargos ativos, para a tela de administração de faixas. */
+  async faixasDoCatalogo(organizationId: string) {
+    const cargos = await this.db.position.findMany({
+      where: { organizationId, ativo: true },
+      select: {
+        id: true, titulo: true, nivel: true,
+        salarioMinimo: true, salarioMedio: true, salarioMaximo: true,
+        _count: { select: { collaborators: true } },
+      },
+      orderBy: { titulo: "asc" },
+    });
+    return cargos.map((p: any) => ({
+      id: p.id,
+      titulo: p.titulo,
+      nivel: p.nivel,
+      colaboradores: p._count?.collaborators ?? 0,
+      minimo: p.salarioMinimo === null ? null : this.paraNumero(p.salarioMinimo),
+      medio: p.salarioMedio === null ? null : this.paraNumero(p.salarioMedio),
+      maximo: p.salarioMaximo === null ? null : this.paraNumero(p.salarioMaximo),
+    }));
+  }
+
   definirFaixa(
     positionId: string,
     faixa: { minimo: number | null; medio: number | null; maximo: number | null },

@@ -68,6 +68,27 @@ export class PeopleNotificationsService implements OnModuleInit {
         (nome) => `${nome} solicitou ${p.dias} dias de férias.`, p.ausenciaId));
 
     this.logger.log("Assinantes de notificação do People registrados");
+
+    // Sincroniza os períodos de férias uma vez na subida, além do cron das 07:00.
+    //
+    // Sem isto o painel de passivo e o indicador de férias ficam mostrando zero
+    // desde o deploy até a manhã seguinte — e passivo vencido é dinheiro devido
+    // em dobro, não é informação que pode esperar o próximo dia.
+    //
+    // Fora da cadeia do onModuleInit de propósito: o Nest espera o onModuleInit
+    // antes de abrir a porta, e uma varredura de milhares de colaboradores
+    // atrasaria a subida da API inteira por causa de um painel.
+    const timer = setTimeout(() => {
+      Promise.resolve()
+        .then(() => this.ferias.sincronizarQuadro())
+        .then(r => this.logger.log(
+          `Férias sincronizadas na subida: ${r.sincronizados} colaborador(es), ${r.falhas} falha(s)`,
+        ))
+        .catch(erro => this.logger.error("Sincronização de férias na subida falhou", erro as Error));
+    }, 15_000);
+    // Não segura o processo: em teste ou em desligamento, o timer pendente não
+    // pode impedir o Node de encerrar.
+    if (typeof (timer as any).unref === "function") (timer as any).unref();
   }
 
   /* ── Reativas ───────────────────────────────────────────────────────────── */

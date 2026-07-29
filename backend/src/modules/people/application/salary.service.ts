@@ -26,6 +26,13 @@ import { collaboratorDisplayName } from "../../../common/collaborator";
  * escopo (PEOPLE_HUB_BLUEPRINT.md §4).
  */
 
+/** Rótulo do motivo para a linha do tempo funcional. */
+const ROTULO_MOTIVO: Record<string, string> = {
+  admissao: "admissão", merito: "mérito", promocao: "promoção",
+  dissidio: "dissídio", enquadramento: "enquadramento",
+  reducao: "redução", outro: "outro",
+};
+
 export class RegistrarSalarioDto {
   @IsNumber() @Min(0.01) valor!: number;
   @IsDateString() vigenciaInicio!: string;
@@ -129,10 +136,13 @@ export class SalaryService {
       collaboratorId,
       // `promocao` tem evento próprio na linha do tempo; o resto é registro.
       evento: dto.motivo === "promocao" ? "promocao" : "outro",
+      // SEM valor em reais, pela mesma razão que a auditoria não leva: a linha
+      // do tempo funcional é lida com `people.colaborador:ver`, enquanto o
+      // salário exige `people.salario:ver`. Escrever o número aqui contornava a
+      // permissão restrita usando a permissão ampla. O motivo pode ficar: diz
+      // que houve mérito ou promoção sem revelar quanto.
       descricao:
-        `Salário ${anterior ? "alterado" : "registrado"}: ` +
-        `${this.moeda(dto.valor)} (${dto.motivo})` +
-        (anterior ? ` — antes ${this.moeda(anterior.valor)}` : ""),
+        `Salário ${anterior ? "alterado" : "registrado"} (${ROTULO_MOTIVO[dto.motivo] ?? dto.motivo})`,
       registradoPorId: user.id ?? null,
     });
 
@@ -195,6 +205,21 @@ export class SalaryService {
     await this.auditar(user, positionId, "editar", `Faixa salarial de "${atual.titulo}" definida`);
 
     return { success: true, data: { positionId, ...faixa } };
+  }
+
+  /** Faixa de todos os cargos do catálogo. */
+  async faixas(user: UsuarioContexto) {
+    const organizationId = this.exigirOrganizacao(user);
+    const itens = await this.repo.faixasDoCatalogo(organizationId);
+    return {
+      success: true,
+      data: itens.map((c: any) => ({
+        ...c,
+        // Faixa incompleta não é erro — o cargo pode ter só o teto definido.
+        // Mas a tela precisa distinguir "sem faixa" de "faixa pela metade".
+        definida: c.minimo !== null || c.medio !== null || c.maximo !== null,
+      })),
+    };
   }
 
   /**
@@ -281,10 +306,6 @@ export class SalaryService {
   }
 
   /* ── Auxiliares ───────────────────────────────────────────────────────── */
-
-  private moeda(v: number): string {
-    return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-  }
 
   private exigirOrganizacao(user: UsuarioContexto): string {
     if (!user?.organizationId) throw new ForbiddenException("Contexto de organização ausente");

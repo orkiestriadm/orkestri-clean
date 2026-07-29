@@ -67,6 +67,18 @@ export type PainelSalarial = {
   }[];
 };
 
+export type FaixaCargo = {
+  id: string;
+  titulo: string;
+  nivel: string | null;
+  colaboradores: number;
+  minimo: number | null;
+  medio: number | null;
+  maximo: number | null;
+  /** Falso quando o cargo não tem nenhum dos três valores. */
+  definida: boolean;
+};
+
 export const salaryService = {
   async situacao(collaboratorId: string): Promise<{ success: boolean; data: SituacaoSalarial }> {
     const { data } = await api.get(`${BASE}/employees/${collaboratorId}/salario`);
@@ -89,6 +101,11 @@ export const salaryService = {
 
   async excluir(id: string) {
     const { data } = await api.delete(`${BASE}/salarios/${id}`);
+    return data;
+  },
+
+  async faixas(): Promise<{ success: boolean; data: FaixaCargo[] }> {
+    const { data } = await api.get(`${BASE}/cargos/faixas`, { silent: true });
     return data;
   },
 

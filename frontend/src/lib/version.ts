@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "1.2.0";
+export const VERSAO = "1.3.0";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -26,7 +26,7 @@ export const VERSAO = "1.2.0";
 export const VERSAO_DATA = "2026-07-29";
 
 /** Nome da entrega, para dar contexto ao número. */
-export const VERSAO_NOME = "People — Remuneração";
+export const VERSAO_NOME = "People — Faixas salariais";
 
 /**
  * Histórico exibido na tela Sobre, do mais recente para o mais antigo.
@@ -35,6 +35,19 @@ export const VERSAO_NOME = "People — Remuneração";
  * esta lista quer saber o que mudou para ele.
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
+  {
+    versao: "1.3.0",
+    data: "2026-07-29",
+    titulo: "Faixas salariais e correções da validação",
+    itens: [
+      "Faixa salarial por cargo tem tela própria, em Cargos › Faixas salariais",
+      "Aviso de quantos cargos estão sem faixa — sem faixa, o alerta de fora da faixa fica cego",
+      "Linha do tempo do colaborador não mostra mais valor de salário nem nota de avaliação a quem não tem a permissão",
+      "Passivo de férias passa a ser calculado na subida do sistema, não só às 07:00",
+      "Abas do perfil roláveis: Desenvolvimento, Competências, Equipe e Histórico estavam inalcançáveis",
+      "Cargo do catálogo aparece no organograma, na equipe e nos indicadores no lugar de traço",
+    ],
+  },
   {
     versao: "1.2.0",
     data: "2026-07-29",

@@ -65,6 +65,19 @@ export class SalaryController {
     return this.service.definirFaixa(req.user, positionId, dto);
   }
 
+  /**
+   * Faixas do catálogo inteiro.
+   *
+   * Separado da listagem de cargos de propósito: aquela responde a
+   * `cargo:ver`, e devolver a faixa junto entregaria referência salarial a
+   * quem só pode organizar o catálogo.
+   */
+  @Get("cargos/faixas")
+  @Permissions(PEOPLE_PERMISSIONS.salario.ver)
+  faixas(@Req() req: any) {
+    return this.service.faixas(req.user);
+  }
+
   /* ── Feedback ─────────────────────────────────────────────────────────── */
 
   @Get("employees/:collaboratorId/feedbacks")

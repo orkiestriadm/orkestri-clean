@@ -9,11 +9,12 @@ import { usePositions } from "@/hooks/usePositions";
 import { positionsService, Cargo } from "@/lib/people/positions.service";
 import {
   PageBody, BackLink, PageHeader, TableCard, EmptyState, LoadingRows,
-  ErrorState, PermissionDenied, StatusBadge, RowActions, RowAction,
+  ErrorState, PermissionDenied, StatusBadge, RowActions, RowAction, Tabs,
 } from "@/components/data-ui";
 import { Briefcase, Plus, Pencil, Trash2, Power, PowerOff } from "lucide-react";
 import CargoForm from "../_components/CargoForm";
 import ImportarCargos from "../_components/ImportarCargos";
+import AbaFaixas from "../_components/AbaFaixas";
 
 /**
  * Catálogo de cargos.
@@ -30,8 +31,11 @@ function pode(user: any, perm: string): boolean {
   return perms.includes("*") || perms.includes(perm);
 }
 
+type AbaCargos = "cargos" | "faixas";
+
 export default function CargosPage() {
   const user = useAuthStore(s => s.user);
+  const [aba, setAba] = useState<AbaCargos>("cargos");
   const [incluirInativos, setIncluirInativos] = useState(false);
   const { cargos, soltos, carregando, erro, semPermissao, recarregar } = usePositions(incluirInativos);
   const [editando, setEditando] = useState<Cargo | null>(null);
@@ -39,6 +43,10 @@ export default function CargosPage() {
   const [importando, setImportando] = useState(false);
 
   const podeGerenciar = pode(user, "people.cargo:gerenciar");
+  // Faixa é dado de remuneração, não de catálogo: quem organiza os cargos não
+  // vê nem define quanto cada um vale sem a permissão de salário.
+  const podeVerFaixa = pode(user, "people.salario:ver");
+  const podeGerirFaixa = pode(user, "people.salario:gerenciar");
 
   async function excluir(cargo: Cargo) {
     if (!confirm(`Excluir o cargo "${cargo.titulo}"?`)) return;
@@ -71,7 +79,7 @@ export default function CargosPage() {
             title="Cargos"
             subtitle="Catálogo de cargos da organização"
             actions={
-              podeGerenciar && (
+              podeGerenciar && aba === "cargos" && (
                 <button type="button" className="btn btn-primary" onClick={() => setCriando(true)}>
                   <Plus size={14} /> Novo cargo
                 </button>
@@ -83,6 +91,23 @@ export default function CargosPage() {
             <PermissionDenied hint="Você não tem permissão para ver o catálogo de cargos." />
           ) : (
             <>
+              {/* Uma aba só não é aba: sem permissão de salário, a tela continua
+                  sendo a lista de cargos, sem barra nenhuma. */}
+              {podeVerFaixa && (
+                <Tabs<AbaCargos>
+                  tabs={[
+                    { id: "cargos", label: "Cargos" },
+                    { id: "faixas", label: "Faixas salariais" },
+                  ]}
+                  active={aba}
+                  onChange={setAba}
+                />
+              )}
+
+              {aba === "faixas" && podeVerFaixa ? (
+                <AbaFaixas podeGerenciar={podeGerirFaixa} />
+              ) : (
+                <>
               {podeGerenciar && soltos.length > 0 && (
                 <PainelSoltos soltos={soltos} onAbrir={() => setImportando(true)} />
               )}
@@ -166,6 +191,8 @@ export default function CargosPage() {
                   )}
                 </tbody>
               </TableCard>
+                </>
+              )}
             </>
           )}
         </PageBody>

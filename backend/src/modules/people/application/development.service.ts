@@ -419,7 +419,10 @@ export class DevelopmentService {
       organizationId,
       collaboratorId: atual.collaboratorId,
       evento: "outro",
-      descricao: `Avaliação de desempenho ${atual.ciclo} finalizada — nota ${atual.nota}`,
+      // Sem a nota: a linha do tempo exige `people.colaborador:ver` e a nota
+      // exige `people.avaliacao:ver`. Que o ciclo foi finalizado é fato
+      // funcional; o resultado é dado restrito.
+      descricao: `Avaliação de desempenho ${atual.ciclo} finalizada`,
       registradoPorId: user.id ?? null,
     });
     await this.auditar(

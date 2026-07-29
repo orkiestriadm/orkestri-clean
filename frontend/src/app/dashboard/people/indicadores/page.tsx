@@ -297,7 +297,9 @@ function Numeros({ geral }: { geral: VisaoGeral }) {
     {
       rotulo: "Turnover",
       valor: `${movimentacao.turnoverPercentual}%`,
-      nota: `${movimentacao.admissoes} entradas · ${movimentacao.desligamentos} saídas`,
+      nota:
+        `${movimentacao.admissoes} ${movimentacao.admissoes === 1 ? "entrada" : "entradas"} · ` +
+        `${movimentacao.desligamentos} ${movimentacao.desligamentos === 1 ? "saída" : "saídas"}`,
       icone: <TrendingUp size={14} />,
     },
     {
