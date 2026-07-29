@@ -23,6 +23,7 @@ import AbaDesenvolvimento from "../_components/AbaDesenvolvimento";
 import AbaCompetencias from "../_components/AbaCompetencias";
 import AbaRemuneracao from "../_components/AbaRemuneracao";
 import SecaoFeedback from "../_components/SecaoFeedback";
+import AbaAusenciasPerfil from "../_components/AbaAusenciasPerfil";
 
 /**
  * Perfil 360 do colaborador.
@@ -57,7 +58,7 @@ const ROTULO_EVENTO: Record<string, { titulo: string; tone: BadgeTone }> = {
 
 type Aba =
   | "visao" | "pessoal" | "vinculo" | "documentos" | "ferias"
-  | "beneficios" | "remuneracao" | "desenvolvimento" | "competencias"
+  | "beneficios" | "remuneracao" | "ausencias" | "desenvolvimento" | "competencias"
   | "equipe" | "historico";
 
 const ABAS: { id: Aba; label: string }[] = [
@@ -66,6 +67,7 @@ const ABAS: { id: Aba; label: string }[] = [
   { id: "vinculo",    label: "Vínculo" },
   { id: "documentos", label: "Documentos" },
   { id: "ferias",     label: "Férias" },
+  { id: "ausencias",  label: "Ausências" },
   { id: "beneficios", label: "Benefícios" },
   { id: "remuneracao", label: "Remuneração" },
   { id: "desenvolvimento", label: "Desenvolvimento" },
@@ -189,6 +191,12 @@ export default function PerfilColaboradorPage() {
                 <AbaBeneficios
                   collaboratorId={colaborador.id}
                   podeGerenciar={podeGerenciarBeneficio}
+                />
+              )}
+              {aba === "ausencias" && (
+                <AbaAusenciasPerfil
+                  collaboratorId={colaborador.id}
+                  userId={colaborador.userId ?? null}
                 />
               )}
               {aba === "remuneracao" && (
