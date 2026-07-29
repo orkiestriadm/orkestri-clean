@@ -36,9 +36,14 @@ depois da v1.0, replanejados com o aprendizado do piloto.
 | 3b · Consolidar aba Colaboradores | Concluída — as outras abas aguardam suas telas |
 | 4 · Documentos | Completa — backend, aba no perfil, envio, aprovação e download |
 | 5 · Férias | Completa — período aquisitivo, saldo, solicitação e passivo |
+| 5b · Cargos | Completa — catálogo, importação dos textos livres, cadastro pelo catálogo |
 
-**Aplicado em produção:** migrations `...001` a `...003`.
-A `20260728000004` (férias) está só no banco local — a Fase 5 ainda não subiu.
+**Tudo aplicado em produção** (migrations `...001` a `...004`, backend e frontend).
+
+Limitação conhecida herdada do formulário: campos opcionais em branco são
+omitidos do payload (`employees.service.ts`), e o DTO do backend só aceita
+`string`. Na prática **não dá para remover** um cargo, setor ou gestor já
+atribuído — só trocar. Vale para todos os campos opcionais, não só cargo.
 
 ### O que já existe no backend
 
