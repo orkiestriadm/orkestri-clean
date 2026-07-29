@@ -41,21 +41,49 @@ depois da v1.0, replanejados com o aprendizado do piloto.
 | 7 · Desenvolvimento | Completa — cursos, certificações com validade, avaliações e metas |
 | 8 · Relatórios | Completa — indicadores, turnover, distribuições e exportação CSV |
 
+| 4 · Autosserviço | Completa — solicitações sobre o `WorkflowRequest` existente |
+| 9 · Notificações | Completa — assinantes de evento + varredura diária de prazos |
+| 10 · Migração | Completa — ausências, organograma, squads e competências saíram de Cadastros |
+
 **Tudo aplicado em produção** (migrations `...0728000001` a `...0729000002`,
 backend e frontend). 23 permissões `people.*` semeadas.
 
-### Fora de escopo, e por quê
+### Telas
 
-O plano original tinha uma "Fase 4 — Employee Services" (central de
-solicitações, pedido de documento, alteração cadastral). **Não foi
-implementada como tabela nova**: `WorkflowRequest` já existe no produto, com
-`tipo` incluindo `alteracao_cadastral`, além de fluxo de aprovação, escalonamento
-e lembrete. Criar `employee_requests` ao lado seria um segundo motor de
-aprovação para o mesmo problema. O caminho certo é acrescentar tipos
-`people.*` ao workflow existente — trabalho de integração, não de modelagem.
+Dez rotas sob `/dashboard/people`: lista, perfil 360 (10 abas), cargos,
+ausências, organograma, equipes, solicitações, férias (passivo), catálogos e
+indicadores. Todas no menu lateral.
+
+### Decisões que divergem da especificação
+
+**Sem tabela `employee_requests`.** `WorkflowRequest` já existe com aprovador
+por setor, delegação, escalonamento, lembrete e histórico. Criar outra ao lado
+seria um segundo motor de aprovação para o mesmo problema. As solicitações de
+RH usam tipos `people.*` no motor existente, e a decisão acontece em
+Aprovações — quem aprova não acompanha duas filas.
+
+**Organograma pela hierarquia de gestor, não por setor.** Setor diz onde a
+pessoa está lotada; gestor diz a quem ela responde, que é a pergunta que o
+organograma existe para responder.
+
+**Notificações vão para o gestor.** Resolver "quem é o RH" em tempo de execução
+exigiria varrer permissões, e notificar todo mundo vira ruído que ninguém lê.
+O colaborador recebe apenas o que é decisão sobre ele.
 
 IA e analytics preditivo (`PEOPLE_AI_SPECIFICATION.md`) seguem fora: dependem
 de massa histórica que a base ainda não tem.
+
+### Carga de demonstração
+
+Há 8 colaboradores de teste em produção, com matrícula `TESTE****`, cobrindo
+período de férias em aquisição, adquirido e vencido, certificação vencendo e
+vencida, avaliações finalizadas com metas, squad, competências, ausências
+pendentes e documento a vencer. Para remover:
+
+```sql
+DELETE FROM collaborators WHERE matricula LIKE 'TESTE%';
+DELETE FROM squads       WHERE nome      LIKE 'TESTE%';
+```
 
 Limitação conhecida herdada do formulário: campos opcionais em branco são
 omitidos do payload (`employees.service.ts`), e o DTO do backend só aceita
