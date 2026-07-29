@@ -1,7 +1,6 @@
 "use client";
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
 import { api } from "@/lib/api";
 import { BrandLogo } from "@/components/ui/logo";
 import { Loader2, Mail, Check, ArrowLeft, MessageCircle } from "lucide-react";
@@ -50,9 +49,7 @@ function PasswordStrength({ senha }: { senha: string }) {
   );
 }
 
-function RecuperarSenhaContent() {
-  const searchParams = useSearchParams();
-
+export default function RecuperarSenhaPage() {
   const [step, setStep] = useState<Step>("escolha");
   const [email, setEmail] = useState("");
   const [whatsapp, setWhatsapp] = useState("");
@@ -63,14 +60,25 @@ function RecuperarSenhaContent() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  // Se vier com ?token=xxx na URL, pula direto para o passo de nova senha
+  /**
+   * Token pela URL lido de `window.location`, e não de `useSearchParams()`.
+   *
+   * `useSearchParams()` tira a página do render estático e joga a árvore
+   * inteira para dentro de um Suspense do lado do cliente. O `<Suspense>` aqui
+   * estava sem `fallback`, então o HTML servido vinha VAZIO e a tela ficava
+   * branca até o JS executar — e branca para sempre se ele não executasse.
+   * Nenhum esqueleto, nenhum erro, nada em que se agarrar para diagnosticar.
+   *
+   * Lendo de `window.location` a página volta a ser pré-renderizada: o HTML já
+   * chega com a moldura e o formulário. O JS só decide qual passo mostrar.
+   */
   useEffect(() => {
-    const token = searchParams.get("token");
+    const token = new URLSearchParams(window.location.search).get("token");
     if (token) {
       setResetToken(token);
       setStep("nova-senha");
     }
-  }, [searchParams]);
+  }, []);
 
   const handleEnviarEmail = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -415,13 +423,5 @@ function Erro({ texto }: { texto: string }) {
     >
       {texto}
     </p>
-  );
-}
-
-export default function RecuperarSenhaPage() {
-  return (
-    <Suspense>
-      <RecuperarSenhaContent />
-    </Suspense>
   );
 }
