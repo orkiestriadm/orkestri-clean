@@ -232,7 +232,10 @@ export class VacationService {
     let falhas = 0;
     for (const p of pessoas as any[]) {
       try {
-        await this.repo.sincronizar(p.organizationId, p.id, periodosAquisitivos(p.dataAdmissao));
+        // Usa o MESMO caminho da tela: criar o periodo sem materializar
+        // status deixava tudo como EM_AQUISICAO, e o painel de passivo — que
+        // consulta por status — continuava vazio mesmo com periodo vencido.
+        await this.sincronizarEResolver(p.organizationId, p.id, p.dataAdmissao);
         sincronizados += 1;
       } catch (erro) {
         // Uma pessoa com dado inconsistente nao pode derrubar a varredura das

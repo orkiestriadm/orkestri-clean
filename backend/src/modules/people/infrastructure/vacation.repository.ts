@@ -124,7 +124,12 @@ export class VacationRepository {
     return this.db.collaboratorVacationPeriod.findMany({
       where: {
         organizationId,
-        status: "ADQUIRIDO",
+        // VENCIDO precisa entrar: filtrar só ADQUIRIDO fazia a tela de passivo
+        // esconder exatamente o que ela existe para mostrar — período que já
+        // passou do prazo concessivo e virou pagamento em dobro.
+        // EM_AQUISICAO fica fora (ainda não é direito) e GOZADO também (não
+        // tem saldo).
+        status: { in: ["ADQUIRIDO", "VENCIDO"] },
         limiteConcessivo: { lte: limite },
         ...(collaboratorIds ? { collaboratorId: { in: collaboratorIds } } : {}),
       },
