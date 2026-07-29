@@ -44,6 +44,8 @@ depois da v1.0, replanejados com o aprendizado do piloto.
 | 4 · Autosserviço | Completa — solicitações sobre o `WorkflowRequest` existente |
 | 9 · Notificações | Completa — assinantes de evento + varredura diária de prazos |
 | 10 · Migração | Completa — ausências, organograma, squads e competências saíram de Cadastros |
+| 11 · Remuneração | Completa — histórico salarial, faixa por cargo e painel de massa |
+| 12 · Feedback | Completa — feedback contínuo com anotação privada (fecha §14) |
 
 **Tudo aplicado em produção** (migrations `...0728000001` a `...0729000002`,
 backend e frontend). 23 permissões `people.*` semeadas.
@@ -53,6 +55,26 @@ backend e frontend). 23 permissões `people.*` semeadas.
 Dez rotas sob `/dashboard/people`: lista, perfil 360 (10 abas), cargos,
 ausências, organograma, equipes, solicitações, férias (passivo), catálogos e
 indicadores. Todas no menu lateral.
+
+### Remuneração — o que entra e o que não entra
+
+**Entra:** salário vigente, histórico com variação e motivo, faixa por cargo,
+posição na faixa, massa salarial, quem está fora da faixa e quem está sem
+reajuste há 18+ meses.
+
+**Não entra, e continua fora:** cálculo de folha, imposto, encargo, proporcional
+e eSocial. O blueprint §4 exclui isso explicitamente, e a exclusão vale — o que
+faltava era o *registro*, que é outra coisa.
+
+Três regras que valem conhecer:
+
+- **Vigência futura não conta no custo de hoje.** Aumento combinado e lançado
+  antes de valer é caso real; tratá-lo como atual inflaria a massa salarial.
+- **Redução exige o motivo `reducao`.** O sistema não julga o caso — art. 468 da
+  CLT é assunto jurídico — mas exige que fique registrado.
+- **`people.salario:*` fica fora de todo perfil padrão.** Ver remuneração é
+  decisão explícita, não consequência de ser gestor. O valor também não vai
+  para a descrição da auditoria, que é lida por quem administra o sistema.
 
 ### Decisões que divergem da especificação
 
