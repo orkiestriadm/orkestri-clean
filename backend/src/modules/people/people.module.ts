@@ -1,4 +1,5 @@
 import { Module } from "@nestjs/common";
+import { ScheduleModule } from "@nestjs/schedule";
 import { PrismaModule } from "../../prisma/prisma.module";
 import { AuditModule } from "../audit/audit.module";
 
@@ -16,6 +17,7 @@ import { VacationService } from "./application/vacation.service";
 import { BenefitService } from "./application/benefit.service";
 import { DevelopmentService } from "./application/development.service";
 import { ReportService } from "./application/report.service";
+import { PeopleNotificationsService } from "./application/people-notifications.service";
 import { PeopleScopeService } from "./application/people-scope.service";
 import { EmployeeRepository } from "./infrastructure/employee.repository";
 import { EmployeeHistoryRepository } from "./infrastructure/employee-history.repository";
@@ -47,7 +49,7 @@ import { PeopleEventsPublisher } from "./domain/people-events.publisher";
  * problema que ele resolve.
  */
 @Module({
-  imports: [PrismaModule, AuditModule],
+  imports: [PrismaModule, AuditModule, ScheduleModule.forRoot()],
   controllers: [
     EmployeeController, DocumentController, PositionController, VacationController,
     BenefitController, DevelopmentController, ReportController,
@@ -60,6 +62,7 @@ import { PeopleEventsPublisher } from "./domain/people-events.publisher";
     BenefitService,
     DevelopmentService,
     ReportService,
+    PeopleNotificationsService,
     PeopleScopeService,
     EmployeeRepository,
     EmployeeHistoryRepository,

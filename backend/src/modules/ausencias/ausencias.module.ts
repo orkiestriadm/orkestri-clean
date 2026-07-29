@@ -63,7 +63,10 @@ export class AusenciasService {
     });
     if (!a) throw new NotFoundException("Ausência não encontrada");
     const isMaster = !!user?.isMaster;
-    const isOwn = a.collaborator.user.id === user.id;
+    // `user` é opcional no colaborador desde a Fase 1 do People: quem não tem
+    // login (motorista, operador de campo) tem ausência registrada pelo RH.
+    // Sem o `?.` isto lançava TypeError e a aprovação respondia 500.
+    const isOwn = !!a.collaborator.user?.id && a.collaborator.user.id === user.id;
     const isGestor = a.collaborator.gestor?.userId === user.id;
     return { ausencia: a, isOwn, isGestor, isMaster };
   }

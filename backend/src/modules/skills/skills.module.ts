@@ -6,6 +6,7 @@ import { AuthGuard } from "@nestjs/passport";
 import { PrismaService } from "../../prisma/prisma.service";
 import { PermissionsGuard } from "../auth/permissions.guard";
 import { Permissions } from "../auth/permissions.decorator";
+import { collaboratorDisplayName } from "../../common/collaborator";
 
 class CreateSkillDto {
   nome: string;
@@ -244,9 +245,11 @@ export class SkillsService {
         collaborator: {
           id: c.id,
           userId: c.userId,
-          nome: c.user.nome,
-          email: c.user.email,
-          avatar: c.user.avatar,
+          // Colaborador sem login existe desde a Fase 1 do People. Sem os `?.`
+          // esta sugestão de alocação lançava TypeError ao encontrar um.
+          nome: collaboratorDisplayName(c),
+          email: c.user?.email ?? c.emailCorporativo ?? null,
+          avatar: c.user?.avatar ?? null,
           cargo: c.cargo,
           setor: c.setor,
           senioridade: c.senioridade,

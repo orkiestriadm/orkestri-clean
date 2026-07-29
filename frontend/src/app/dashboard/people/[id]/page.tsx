@@ -20,6 +20,7 @@ import AbaDocumentos from "../_components/AbaDocumentos";
 import AbaFerias from "../_components/AbaFerias";
 import AbaBeneficios from "../_components/AbaBeneficios";
 import AbaDesenvolvimento from "../_components/AbaDesenvolvimento";
+import AbaCompetencias from "../_components/AbaCompetencias";
 
 /**
  * Perfil 360 do colaborador.
@@ -54,7 +55,7 @@ const ROTULO_EVENTO: Record<string, { titulo: string; tone: BadgeTone }> = {
 
 type Aba =
   | "visao" | "pessoal" | "vinculo" | "documentos" | "ferias"
-  | "beneficios" | "desenvolvimento" | "equipe" | "historico";
+  | "beneficios" | "desenvolvimento" | "competencias" | "equipe" | "historico";
 
 const ABAS: { id: Aba; label: string }[] = [
   { id: "visao",      label: "Visão geral" },
@@ -64,6 +65,7 @@ const ABAS: { id: Aba; label: string }[] = [
   { id: "ferias",     label: "Férias" },
   { id: "beneficios", label: "Benefícios" },
   { id: "desenvolvimento", label: "Desenvolvimento" },
+  { id: "competencias", label: "Competências" },
   { id: "equipe",     label: "Equipe" },
   { id: "historico",  label: "Histórico" },
 ];
@@ -187,6 +189,12 @@ export default function PerfilColaboradorPage() {
                   podeGerenciarTreinamento={podeGerenciarTreinamento}
                   podeVerAvaliacao={podeVerAvaliacao}
                   podeGerenciarAvaliacao={podeGerenciarAvaliacao}
+                />
+              )}
+              {aba === "competencias" && (
+                <AbaCompetencias
+                  collaboratorId={colaborador.id}
+                  podeGerenciar={podeEditar}
                 />
               )}
               {aba === "equipe"    && <AbaEquipe colaborador={colaborador} />}
