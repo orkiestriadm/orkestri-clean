@@ -8,9 +8,11 @@ import {
   SmilePlus, TrendingUp, Receipt, LayoutGrid, CreditCard, Brain,
   GitBranch, Network, ShoppingBag, Radio, Wallet, FileSpreadsheet, Wrench,
   ClipboardCheck, FolderKanban, Boxes, ShieldCheck, HeartPulse, Bell,
+  Briefcase, CalendarClock, Library, BarChart3,
 } from "lucide-react";
 
-export type NavItem  = { href: string; label: string; icon: any; permission: string | null };
+// `permission` como lista significa OU — ver canAccessModule.
+export type NavItem  = { href: string; label: string; icon: any; permission: string | string[] | null };
 // access controla a visibilidade do grupo INTEIRO (além das permissões por item):
 //   undefined  → visível a todos (respeitando a permissão de cada item)
 //   "sa"       → só Super Admin global (infra/plataforma)
@@ -38,7 +40,13 @@ export const NAV: NavGroup[] = [
     // a traduz para `people.employee.view`.
     id: "people", produto: "People", descritor: "Pessoas", icon: Users,
     items: [
-      { href: "/dashboard/people",               label: "Colaboradores", icon: Users, permission: "colaboradores:ver" },
+      { href: "/dashboard/people",             label: "Colaboradores", icon: Users,         permission: "colaboradores:ver" },
+      { href: "/dashboard/people/cargos",      label: "Cargos",        icon: Briefcase,     permission: "people.cargo:ver" },
+      // O passivo é visão do quadro inteiro: o backend o protege com
+      // relatorio:ver, não com ferias:ver. Espelhar evita um link que dá 403.
+      { href: "/dashboard/people/ferias",      label: "Férias",        icon: CalendarClock, permission: "people.relatorio:ver" },
+      { href: "/dashboard/people/catalogos",   label: "Catálogos",     icon: Library,       permission: ["people.beneficio:ver", "people.treinamento:ver"] },
+      { href: "/dashboard/people/indicadores", label: "Indicadores",   icon: BarChart3,     permission: "people.relatorio:ver" },
     ],
   },
   {
@@ -162,9 +170,19 @@ export function canAccessGroup(user: any, group: NavGroup): boolean {
 
 // Um item é acessível se não exige permissão, se o usuário é master,
 // ou se possui o coringa "*" ou a permissão específica.
-export function canAccessModule(user: any, permission: string | null): boolean {
+/**
+ * Uma lista de permissões vale como OU: basta uma para o item aparecer.
+ *
+ * Existe porque há telas que reúnem assuntos com concessões distintas —
+ * Catálogos junta benefícios e cursos. Exigir as duas esconderia a tela de
+ * quem legitimamente administra só uma metade, e a própria tela já resolve o
+ * resto: abre na aba que a pessoa pode ver.
+ */
+export function canAccessModule(user: any, permission: string | string[] | null): boolean {
   if (!permission) return true;
   if (user?.isMaster) return true;
   const perms: string[] = user?.permissions ?? [];
-  return perms.includes("*") || perms.includes(permission);
+  if (perms.includes("*")) return true;
+  const exigidas = Array.isArray(permission) ? permission : [permission];
+  return exigidas.some(p => perms.includes(p));
 }

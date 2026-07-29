@@ -132,11 +132,14 @@ export default function Sidebar() {
     return next;
   });
 
-  const can = (permission: string | null) => {
+  const can = (permission: string | string[] | null) => {
     if (!permission || user?.isMaster) return true;
     // freshPerms: permissões buscadas direto da API ao montar (evita store desatualizado)
     const perms: string[] = freshPerms ?? user?.permissions ?? [];
-    return perms.includes("*") || perms.includes(permission);
+    if (perms.includes("*")) return true;
+    // Lista = OU: basta uma. Ver canAccessModule em lib/modules.
+    const exigidas = Array.isArray(permission) ? permission : [permission];
+    return exigidas.some(p => perms.includes(p));
   };
 
   const initials = (user?.nome || "U").split(" ").map((n: string) => n[0]).slice(0, 2).join("").toUpperCase();
