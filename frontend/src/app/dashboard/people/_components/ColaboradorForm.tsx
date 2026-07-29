@@ -50,6 +50,7 @@ export default function ColaboradorForm({ aberto, colaborador, onFechar, onSalvo
   const [usuarios, setUsuarios] = useState<Opcao[]>([]);
   const [setores, setSetores] = useState<Opcao[]>([]);
   const [gestores, setGestores] = useState<{ id: string; nomeExibicao: string }[]>([]);
+  const [cargos, setCargos] = useState<{ id: string; titulo: string; ativo: boolean }[]>([]);
 
   // Repovoa a cada abertura: reaproveitar estado entre aberturas já vazou
   // dado de um registro para o outro em telas parecidas.
@@ -71,6 +72,7 @@ export default function ColaboradorForm({ aberto, colaborador, onFechar, onSalvo
         estadoCivil: colaborador.estadoCivil ?? "",
         nacionalidade: colaborador.nacionalidade ?? "",
         cargo: colaborador.cargo ?? "",
+        positionId: colaborador.position?.id ?? "",
         setorId: colaborador.setor?.id ?? "",
         gestorId: colaborador.gestor?.id ?? "",
         senioridade: colaborador.senioridade ?? "",
@@ -94,6 +96,8 @@ export default function ColaboradorForm({ aberto, colaborador, onFechar, onSalvo
       .then(r => setSetores(r.data ?? [])).catch(() => setSetores([]));
     api.get("/v1/people/employees", { params: { tamanho: 200, status: "ATIVO" }, silent: true })
       .then(r => setGestores(r.data?.data ?? [])).catch(() => setGestores([]));
+    api.get("/v1/people/cargos", { silent: true })
+      .then(r => setCargos(r.data?.data ?? [])).catch(() => setCargos([]));
     if (!editando) {
       // `picklist` e não `/users`: aquele exige `usuarios:ver`, permissão de
       // administrar contas que um analista de RH não precisa ter para escolher
@@ -106,6 +110,15 @@ export default function ColaboradorForm({ aberto, colaborador, onFechar, onSalvo
   const gestoresDisponiveis = useMemo(
     () => gestores.filter(g => g.id !== colaborador?.id),
     [gestores, colaborador?.id],
+  );
+
+  /**
+   * Cargo desativado some da lista, menos se for o do próprio colaborador —
+   * senão editar o telefone de alguém apagaria o cargo dele sem querer.
+   */
+  const cargosAtivos = useMemo(
+    () => cargos.filter(c => c.ativo || c.id === colaborador?.position?.id),
+    [cargos, colaborador?.position?.id],
   );
 
   function alterar<K extends keyof DadosColaborador>(campo: K, valor: DadosColaborador[K]) {
@@ -253,8 +266,30 @@ export default function ColaboradorForm({ aberto, colaborador, onFechar, onSalvo
             <input type="date" className="input-o" value={form.dataAdmissao ?? ""} onChange={e => alterar("dataAdmissao", e.target.value)} />
           </FormField>
 
-          <FormField label="Cargo">
-            <input className="input-o" value={form.cargo ?? ""} onChange={e => alterar("cargo", e.target.value)} placeholder="Analista de Sistemas" />
+          {/* Com catálogo, escolher. Sem catálogo, digitar — exigir o select
+              antes de existir cargo cadastrado travaria o cadastro inteiro, e
+              o que for digitado agora entra pela importação depois. */}
+          <FormField
+            label="Cargo"
+            dica={cargosAtivos.length === 0 ? "Cadastre cargos para padronizar" : undefined}
+          >
+            {cargosAtivos.length > 0 ? (
+              <select
+                className="input-o"
+                value={form.positionId ?? ""}
+                onChange={e => alterar("positionId", e.target.value)}
+              >
+                <option value="">—</option>
+                {cargosAtivos.map(c => <option key={c.id} value={c.id}>{c.titulo}</option>)}
+              </select>
+            ) : (
+              <input
+                className="input-o"
+                value={form.cargo ?? ""}
+                onChange={e => alterar("cargo", e.target.value)}
+                placeholder="Analista de Sistemas"
+              />
+            )}
           </FormField>
 
           <FormField label="Senioridade">

@@ -15,7 +15,7 @@ import {
   TableCard, EmptyState, LoadingRows, ErrorState, PermissionDenied,
   Pagination, StatusBadge, BadgeTone,
 } from "@/components/data-ui";
-import { Users, ArrowUpDown, UserX, Plus, CalendarClock } from "lucide-react";
+import { Users, ArrowUpDown, UserX, Plus, CalendarClock, Briefcase } from "lucide-react";
 import { useAuthStore } from "@/lib/store";
 import ColaboradorForm from "./_components/ColaboradorForm";
 
@@ -59,6 +59,13 @@ function podeCriar(user: any): boolean {
   return perms.includes("*")
     || perms.includes("people.colaborador:criar")
     || perms.includes("colaboradores:criar");
+}
+
+/** O catálogo de cargos é da organização — basta poder consultá-lo. */
+function podeVerCargos(user: any): boolean {
+  if (user?.isMaster) return true;
+  const perms: string[] = user?.permissions ?? [];
+  return perms.includes("*") || perms.includes("people.cargo:ver");
 }
 
 /**
@@ -140,6 +147,11 @@ export default function ColaboradoresPage() {
             subtitle="Quadro de pessoas da organização"
             actions={
               <>
+                {podeVerCargos(user) && (
+                  <Link href="/dashboard/people/cargos" className="btn btn-ghost">
+                    <Briefcase size={14} /> Cargos
+                  </Link>
+                )}
                 {podeVerPassivo(user) && (
                   <Link href="/dashboard/people/ferias" className="btn btn-ghost">
                     <CalendarClock size={14} /> Passivo de férias
