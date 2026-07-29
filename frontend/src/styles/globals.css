@@ -750,7 +750,23 @@
 }
 
 /* ── Abas ───────────────────────────────────────────────────── */
-.tab-bar { display: flex; gap: 2px; margin-bottom: 18px; border-bottom: 1px solid var(--border-subtle); }
+/* O perfil 360 do People tem 12 abas: 1173px de conteúdo em ~713px de área.
+   Sem rolagem, as quatro últimas renderizavam fora da tela e NÃO eram
+   clicáveis — existiam no DOM sem dar acesso a nada.
+   `flex-shrink: 0` no botão impede o navegador de comprimir os rótulos até
+   ficarem ilegíveis em vez de rolar. */
+.tab-bar {
+  display: flex;
+  gap: 2px;
+  margin-bottom: 18px;
+  border-bottom: 1px solid var(--border-subtle);
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+}
+.tab-bar::-webkit-scrollbar { height: 3px; }
+.tab-bar::-webkit-scrollbar-thumb { background: var(--border-medium); border-radius: 2px; }
+.tab-bar > .tab-btn { flex-shrink: 0; }
 .tab-btn {
   position: relative;
   padding: 9px 16px;

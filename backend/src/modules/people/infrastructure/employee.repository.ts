@@ -76,7 +76,14 @@ export class EmployeeRepository {
         gestor: { select: { id: true, nomeCompleto: true, user: { select: { nome: true } } } },
         liderados: {
           where: { excluidoEm: null },
-          select: { id: true, nomeCompleto: true, cargo: true, user: { select: { nome: true } } },
+          select: {
+            id: true, nomeCompleto: true, cargo: true,
+            // `position` junto de `cargo`: depois da migração para o catálogo,
+            // `cargo` (texto livre) fica nulo e a aba Equipe mostrava "—" no
+            // cargo de todo mundo. Mesmo defeito que a distribuição por vínculo.
+            position: { select: { titulo: true } },
+            user: { select: { nome: true } },
+          },
         },
         enderecos: true,
         contatos: true,

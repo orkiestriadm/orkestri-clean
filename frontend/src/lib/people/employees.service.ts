@@ -51,7 +51,14 @@ export type ColaboradorDetalhe = ColaboradorLista & {
   turno: string | null;
   escala: string | null;
   tipoVinculo: string | null;
-  liderados: { id: string; nomeCompleto: string | null; cargo: string | null; user: { nome: string } | null }[];
+  liderados: {
+    id: string;
+    nomeCompleto: string | null;
+    /** Texto livre do cadastro antigo — nulo em quem já usa o catálogo. */
+    cargo: string | null;
+    position: { titulo: string } | null;
+    user: { nome: string } | null;
+  }[];
   enderecos: EnderecoColaborador[];
   contatos: ContatoColaborador[];
 };

@@ -170,7 +170,9 @@ export type NoOrganograma = {
 type LinhaColaborador = {
   id: string;
   nomeExibicao: string;
+  /** Texto livre do cadastro antigo; nulo em quem já usa o catálogo. */
   cargo: string | null;
+  position?: { titulo: string } | null;
   setor: { nome: string } | null;
   gestor: { id: string } | null;
 };
@@ -186,8 +188,14 @@ export function montarArvore(linhas: LinhaColaborador[]): NoOrganograma[] {
   const porId = new Map<string, NoOrganograma>();
   for (const l of linhas) {
     porId.set(l.id, {
-      id: l.id, nomeExibicao: l.nomeExibicao, cargo: l.cargo,
-      setor: l.setor, gestorId: l.gestor?.id ?? null, filhos: [],
+      id: l.id,
+      nomeExibicao: l.nomeExibicao,
+      // Catálogo primeiro: `cargo` é o texto livre do cadastro antigo e fica
+      // nulo em quem já usa o catálogo — a árvore aparecia só com o setor.
+      cargo: l.position?.titulo ?? l.cargo,
+      setor: l.setor,
+      gestorId: l.gestor?.id ?? null,
+      filhos: [],
     });
   }
 

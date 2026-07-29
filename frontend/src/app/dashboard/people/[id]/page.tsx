@@ -462,7 +462,9 @@ function AbaEquipe({ colaborador }: { colaborador: ColaboradorDetalhe }) {
                       {l.nomeCompleto || l.user?.nome || "—"}
                     </Link>
                   </td>
-                  <td>{l.cargo || "—"}</td>
+                  {/* Catálogo primeiro: quando os dois existem, o texto livre
+                      é resquício do cadastro antigo. */}
+                  <td>{l.position?.titulo || l.cargo || "—"}</td>
                 </tr>
               ))}
             </tbody>

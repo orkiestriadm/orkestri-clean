@@ -3,7 +3,9 @@
 import { useEffect, useState } from "react";
 import { useToastStore } from "@/lib/toast";
 import { useBenefits } from "@/hooks/usePeopleExtras";
-import { benefitsService, Beneficio, Concessao } from "@/lib/people/benefits.service";
+import {
+  benefitsService, Beneficio, Concessao, CATEGORIAS_BENEFICIO,
+} from "@/lib/people/benefits.service";
 import {
   Panel, TableCard, EmptyState, LoadingRows, ErrorState, PermissionDenied,
   StatusBadge, RowActions, RowAction, Modal, FormGrid, FormField, FormActions,
@@ -23,6 +25,15 @@ const fmtData = (d: string | null) =>
 
 const fmtMoeda = (v: number | null) =>
   v === null ? "—" : v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+
+/**
+ * `string` e não a união de categorias: a concessão traz `benefit.categoria`
+ * como texto do banco, e um valor gravado antes de a lista atual existir tem
+ * de cair no próprio nome, não quebrar a tipagem.
+ */
+const ROTULO_CATEGORIA = new Map<string, string>(
+  CATEGORIAS_BENEFICIO.map(c => [c.value as string, c.label]),
+);
 
 type Props = {
   collaboratorId: string;
@@ -89,7 +100,10 @@ export default function AbaBeneficios({ collaboratorId, podeGerenciar }: Props) 
                 dados.itens.map(c => (
                   <tr key={c.id} style={{ opacity: c.vigente ? 1 : 0.55 }}>
                     <td style={{ fontWeight: 600 }}>{c.benefit.nome}</td>
-                    <td>{c.benefit.categoria}</td>
+                    {/* Mesmo rótulo de Catálogos: a categoria crua ("saude")
+                        aparecia aqui enquanto lá aparecia "Saúde" — a mesma
+                        informação com dois nomes em duas telas. */}
+                    <td>{ROTULO_CATEGORIA.get(c.benefit.categoria) ?? c.benefit.categoria}</td>
                     <td className="num">{fmtData(c.inicio)}</td>
                     <td className="num">{fmtData(c.fim)}</td>
                     <td className="num">{fmtMoeda(c.valor)}</td>
