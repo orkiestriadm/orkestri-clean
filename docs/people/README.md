@@ -37,8 +37,25 @@ depois da v1.0, replanejados com o aprendizado do piloto.
 | 4 · Documentos | Completa — backend, aba no perfil, envio, aprovação e download |
 | 5 · Férias | Completa — período aquisitivo, saldo, solicitação e passivo |
 | 5b · Cargos | Completa — catálogo, importação dos textos livres, cadastro pelo catálogo |
+| 6 · Benefícios | Completa — catálogo, concessão com vigência, custo mensal |
+| 7 · Desenvolvimento | Completa — cursos, certificações com validade, avaliações e metas |
+| 8 · Relatórios | Completa — indicadores, turnover, distribuições e exportação CSV |
 
-**Tudo aplicado em produção** (migrations `...001` a `...004`, backend e frontend).
+**Tudo aplicado em produção** (migrations `...0728000001` a `...0729000002`,
+backend e frontend). 23 permissões `people.*` semeadas.
+
+### Fora de escopo, e por quê
+
+O plano original tinha uma "Fase 4 — Employee Services" (central de
+solicitações, pedido de documento, alteração cadastral). **Não foi
+implementada como tabela nova**: `WorkflowRequest` já existe no produto, com
+`tipo` incluindo `alteracao_cadastral`, além de fluxo de aprovação, escalonamento
+e lembrete. Criar `employee_requests` ao lado seria um segundo motor de
+aprovação para o mesmo problema. O caminho certo é acrescentar tipos
+`people.*` ao workflow existente — trabalho de integração, não de modelagem.
+
+IA e analytics preditivo (`PEOPLE_AI_SPECIFICATION.md`) seguem fora: dependem
+de massa histórica que a base ainda não tem.
 
 Limitação conhecida herdada do formulário: campos opcionais em branco são
 omitidos do payload (`employees.service.ts`), e o DTO do backend só aceita
@@ -55,10 +72,17 @@ backend/src/modules/people/
 └── presentation/      controller /api/v1/people/employees
 ```
 
-Rotas ativas: `GET|POST /api/v1/people/employees`, `GET|PUT|DELETE .../:id`,
-`PATCH .../:id/status`, `GET .../:id/historico`,
-`GET|POST .../:id/documentos`, `GET|POST .../:id/ferias`,
-`GET /api/v1/people/ferias/passivo`.
+Rotas ativas, todas sob `/api/v1/people`:
+
+| Recurso | Rotas |
+|---|---|
+| Colaboradores | `GET\|POST /employees`, `GET\|PUT\|DELETE /employees/:id`, `PATCH /employees/:id/status`, `GET /employees/:id/historico` |
+| Documentos | `GET\|POST /employees/:id/documentos`, download e decisão |
+| Cargos | `GET\|POST /cargos`, `PUT\|DELETE /cargos/:id`, `GET /cargos/soltos`, `POST /cargos/importar` |
+| Férias | `GET\|POST /employees/:id/ferias`, `GET /ferias/passivo` |
+| Benefícios | `GET\|POST /beneficios`, `PUT\|DELETE /beneficios/:id`, `GET\|POST /employees/:id/beneficios`, `PUT /beneficios/concessoes/:id/encerrar` |
+| Desenvolvimento | `GET\|POST /treinamentos`, `GET /treinamentos/vencendo`, `GET\|POST /employees/:id/treinamentos`, `GET\|POST /employees/:id/avaliacoes`, `PUT /avaliacoes/:id/finalizar`, metas |
+| Relatórios | `GET /relatorios/visao-geral`, `/desenvolvimento`, `/beneficios`, `/colaboradores.csv` |
 
 Aprovar, rejeitar e cancelar **férias** continuam em `/api/ausencias`: o fluxo é
 genérico e serve atestado e licença também. `diasGozados` é derivado das ausências
