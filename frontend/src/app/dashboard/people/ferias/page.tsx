@@ -10,6 +10,7 @@ import {
   ErrorState, PermissionDenied, StatusBadge,
 } from "@/components/data-ui";
 import { CalendarClock, CheckCircle2 } from "lucide-react";
+import { formatarDataBR } from "@/lib/datas";
 
 /**
  * Passivo de férias.
@@ -21,7 +22,7 @@ import { CalendarClock, CheckCircle2 } from "lucide-react";
  */
 
 const fmtData = (d: string) =>
-  new Date(d).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
+  formatarDataBR(d);
 
 export default function PassivoFeriasPage() {
   const [itens, setItens] = useState<ItemPassivo[]>([]);

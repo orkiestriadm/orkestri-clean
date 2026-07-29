@@ -16,6 +16,7 @@ import { PEOPLE_EVENTS } from "../domain/employee.events";
 import {
   CriarColaboradorDto, AtualizarColaboradorDto, MudarStatusDto, ListarColaboradoresQuery,
 } from "./dto/employee.dto";
+import { dataBR } from "../../../common/datas";
 
 /**
  * Casos de uso de colaborador.
@@ -146,7 +147,7 @@ export class EmployeeService {
         collaboratorId: id,
         evento: "admissao",
         descricao: dto.dataAdmissao
-          ? `Admissão registrada para ${new Date(dto.dataAdmissao).toLocaleDateString("pt-BR")}`
+          ? `Admissão registrada para ${dataBR(dto.dataAdmissao)}`
           : "Colaborador cadastrado",
         vigenciaEm: dto.dataAdmissao ? new Date(dto.dataAdmissao) : null,
         registradoPorId: user.id ?? null,

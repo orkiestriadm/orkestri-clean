@@ -7,6 +7,8 @@
  * da tabela (folha, rescisão e auditoria trabalhista dependem dele).
  */
 
+import { dataBR } from "../../../common/datas";
+
 export const BENEFIT_CATEGORIES = [
   "saude", "alimentacao", "transporte", "educacao", "previdencia", "bem_estar", "outro",
 ] as const;
@@ -93,8 +95,8 @@ export function validarConcessao(params: {
       motivo: "sobreposicao",
       detalhe:
         `Já existe concessão deste benefício a partir de ` +
-        `${conflito.inicio.toLocaleDateString("pt-BR")}` +
-        `${conflito.fim ? ` até ${conflito.fim.toLocaleDateString("pt-BR")}` : " (vigente)"}. ` +
+        `${dataBR(conflito.inicio)}` +
+        `${conflito.fim ? ` até ${dataBR(conflito.fim)}` : " (vigente)"}. ` +
         `Encerre a anterior antes de conceder de novo.`,
     };
   }

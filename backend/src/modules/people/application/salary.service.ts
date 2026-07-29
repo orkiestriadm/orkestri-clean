@@ -14,6 +14,7 @@ import {
   MESES_ALERTA_SEM_REAJUSTE,
 } from "../domain/salary.entity";
 import { collaboratorDisplayName } from "../../../common/collaborator";
+import { dataBR } from "../../../common/datas";
 
 /**
  * Remuneração.
@@ -176,7 +177,7 @@ export class SalaryService {
       evento: "outro",
       descricao:
         `Registro salarial removido ` +
-        `(vigência ${registro.vigenciaInicio.toLocaleDateString("pt-BR")})`,
+        `(vigência ${dataBR(registro.vigenciaInicio)})`,
       registradoPorId: user.id ?? null,
     });
     await this.auditar(user, id, "excluir", "Registro salarial removido");

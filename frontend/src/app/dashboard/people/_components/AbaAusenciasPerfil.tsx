@@ -8,6 +8,7 @@ import {
   Panel, TableCard, EmptyState, LoadingRows, ErrorState, StatusBadge, BadgeTone,
 } from "@/components/data-ui";
 import { CalendarX, Inbox, ArrowRight } from "lucide-react";
+import { formatarDataBR } from "@/lib/datas";
 
 /**
  * Ausências e solicitações DESTA pessoa, dentro do perfil.
@@ -40,7 +41,7 @@ const ROTULO_TIPO_AUSENCIA = new Map(TIPOS_AUSENCIA.map(t => [t.value, t.label])
 const ROTULO_TIPO_SOLICITACAO = new Map(TIPOS_SOLICITACAO.map(t => [t.value, t.label]));
 
 const fmtData = (d: string) =>
-  new Date(d).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
+  formatarDataBR(d);
 
 const contarDias = (inicio: string, fim: string) =>
   Math.round((new Date(fim).getTime() - new Date(inicio).getTime()) / 86_400_000) + 1;

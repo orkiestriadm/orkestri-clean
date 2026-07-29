@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import EnviarDocumento from "./EnviarDocumento";
 import DecidirDocumento from "./DecidirDocumento";
+import { formatarDataBR } from "@/lib/datas";
 
 /**
  * Documentos do colaborador.
@@ -44,7 +45,7 @@ const VALIDADE: Record<SituacaoValidade, { label: string; tone: BadgeTone } | nu
 };
 
 const fmtData = (d: string | null) =>
-  d ? new Date(d).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" }) : "—";
+  d ? formatarDataBR(d) : "—";
 
 type Props = {
   collaboratorId: string;

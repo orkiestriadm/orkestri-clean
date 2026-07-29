@@ -16,6 +16,7 @@ import {
   StatusBadge, BadgeTone, RowActions, RowAction, Modal, FormGrid, FormField, FormActions,
 } from "@/components/data-ui";
 import { CalendarX, Plus, Check, X, Ban } from "lucide-react";
+import { formatarDataBR } from "@/lib/datas";
 
 /**
  * Ausências — férias, atestado, folga, licença.
@@ -39,7 +40,7 @@ const STATUS: Record<StatusAusencia, { label: string; tone: BadgeTone }> = {
 const ROTULO_TIPO = new Map(TIPOS_AUSENCIA.map(t => [t.value, t.label]));
 
 const fmtData = (d: string) =>
-  new Date(d).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
+  formatarDataBR(d);
 
 /** Dias corridos, inclusivo — mesma contagem que férias usa. */
 const contarDias = (inicio: string, fim: string) =>

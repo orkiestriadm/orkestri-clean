@@ -13,6 +13,7 @@ import {
   Modal, FormGrid, FormField, FormActions,
 } from "@/components/data-ui";
 import { Inbox, Plus, Ban, ArrowRight } from "lucide-react";
+import { formatarDataBR } from "@/lib/datas";
 
 /**
  * Solicitações ao RH — autosserviço do colaborador.
@@ -33,7 +34,7 @@ const STATUS: Record<StatusSolicitacao, { label: string; tone: BadgeTone }> = {
 const ROTULO_TIPO = new Map(TIPOS_SOLICITACAO.map(t => [t.value, t.label]));
 
 const fmtData = (d: string) =>
-  new Date(d).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
+  formatarDataBR(d);
 
 export default function SolicitacoesPage() {
   const [itens, setItens] = useState<Solicitacao[]>([]);

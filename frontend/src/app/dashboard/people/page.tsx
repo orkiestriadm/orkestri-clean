@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { useAuthStore } from "@/lib/store";
 import ColaboradorForm from "./_components/ColaboradorForm";
+import { formatarDataBR } from "@/lib/datas";
 
 /* ── Vocabulário de situação ───────────────────────────────────
    Rótulo e tom em um lugar só: a mesma situação precisa aparecer
@@ -45,7 +46,7 @@ const COLUNAS: { chave: string; label: string; ordenavel?: boolean }[] = [
 ];
 
 const fmtData = (d: string | null) =>
-  d ? new Date(d).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" }) : null;
+  d ? formatarDataBR(d) : null;
 
 const iniciais = (nome: string) =>
   nome.trim().split(/\s+/).slice(0, 2).map(p => p[0]).join("").toUpperCase();

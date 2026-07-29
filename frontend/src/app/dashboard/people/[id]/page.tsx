@@ -24,6 +24,7 @@ import AbaCompetencias from "../_components/AbaCompetencias";
 import AbaRemuneracao from "../_components/AbaRemuneracao";
 import SecaoFeedback from "../_components/SecaoFeedback";
 import AbaAusenciasPerfil from "../_components/AbaAusenciasPerfil";
+import { formatarDataBR } from "@/lib/datas";
 
 /**
  * Perfil 360 do colaborador.
@@ -77,7 +78,7 @@ const ABAS: { id: Aba; label: string }[] = [
 ];
 
 const fmtData = (d: string | null | undefined) =>
-  d ? new Date(d).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" }) : null;
+  d ? formatarDataBR(d) : null;
 
 const iniciais = (nome: string) =>
   nome.trim().split(/\s+/).slice(0, 2).map(p => p[0]).join("").toUpperCase();

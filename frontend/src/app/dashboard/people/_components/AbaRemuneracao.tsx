@@ -11,6 +11,7 @@ import {
   StatusBadge, BadgeTone, RowActions, RowAction, Modal, FormGrid, FormField, FormActions,
 } from "@/components/data-ui";
 import { Wallet, Plus, Trash2, TrendingUp, TrendingDown, AlertTriangle } from "lucide-react";
+import { formatarDataBR } from "@/lib/datas";
 
 /**
  * Remuneração do colaborador.
@@ -34,7 +35,7 @@ const moeda = (v: number | null) =>
   v === null ? "—" : v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
 const fmtData = (d: string) =>
-  new Date(d).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
+  formatarDataBR(d);
 
 type Props = {
   collaboratorId: string;

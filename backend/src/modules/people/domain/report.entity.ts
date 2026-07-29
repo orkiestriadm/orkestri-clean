@@ -5,6 +5,8 @@
  * e a fórmula precisa ser testável sem banco.
  */
 
+import { dataBR } from "../../../common/datas";
+
 /**
  * Turnover do período, em porcentagem.
  *
@@ -92,9 +94,9 @@ export function distribuicao(
 export function campoCsv(valor: unknown): string {
   if (valor === null || valor === undefined) return "";
 
-  let texto = valor instanceof Date
-    ? valor.toLocaleDateString("pt-BR")
-    : String(valor);
+  // `dataBR` e não `toLocaleDateString`: coluna DATE volta como meia-noite UTC
+  // e o fuso do servidor recuava um dia na planilha exportada.
+  let texto = valor instanceof Date ? dataBR(valor) : String(valor);
 
   if (/^[=+\-@\t\r]/.test(texto)) texto = `'${texto}`;
 

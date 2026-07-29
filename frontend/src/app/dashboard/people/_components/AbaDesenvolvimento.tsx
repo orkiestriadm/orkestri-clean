@@ -12,6 +12,7 @@ import {
   StatusBadge, BadgeTone, RowActions, RowAction, Modal, FormGrid, FormField, FormActions,
 } from "@/components/data-ui";
 import { Plus, GraduationCap, Award, CheckCircle2, Target, Lock } from "lucide-react";
+import { formatarDataBR } from "@/lib/datas";
 
 /**
  * Desenvolvimento: treinamentos e avaliações.
@@ -36,7 +37,7 @@ const CERTIFICACAO: Record<SituacaoCertificacao, { label: string; tone: BadgeTon
 };
 
 const fmtData = (d: string | null) =>
-  d ? new Date(d).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" }) : "—";
+  d ? formatarDataBR(d) : "—";
 
 type Props = {
   collaboratorId: string;

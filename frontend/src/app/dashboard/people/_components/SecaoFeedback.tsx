@@ -9,6 +9,7 @@ import {
   Panel, Modal, FormGrid, FormField, FormActions, StatusBadge, BadgeTone,
 } from "@/components/data-ui";
 import { MessageSquare, Plus, Trash2, Lock } from "lucide-react";
+import { formatarDataBR } from "@/lib/datas";
 
 /**
  * Feedback contínuo.
@@ -32,7 +33,7 @@ const TOM: Record<TipoFeedback, BadgeTone> = {
 };
 
 const fmtData = (d: string) =>
-  new Date(d).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
+  formatarDataBR(d);
 
 type Props = {
   collaboratorId: string;

@@ -11,6 +11,7 @@ import { AuditService } from "../../audit/audit.module";
 import {
   BENEFIT_CATEGORIES, validarConcessao, estaVigente, custoVigente,
 } from "../domain/benefit.entity";
+import { dataBR } from "../../../common/datas";
 
 /**
  * Benefícios — catálogo da organização e concessão à pessoa.
@@ -239,7 +240,7 @@ export class BenefitService {
       evento: "outro",
       descricao:
         `Benefício encerrado: ${concessao.benefit?.nome ?? "—"} ` +
-        `em ${fim.toLocaleDateString("pt-BR")}`,
+        `em ${dataBR(fim)}`,
       registradoPorId: user.id ?? null,
     });
     await this.auditar(

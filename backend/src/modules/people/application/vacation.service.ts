@@ -13,6 +13,7 @@ import {
   VACATION_PERIOD_STATUS, DIAS_ALERTA_VENCIMENTO_FERIAS, PeriodoAquisitivo,
 } from "../domain/vacation.entity";
 import { EMPLOYEE_STATUS } from "../domain/employee.entity";
+import { dataBR } from "../../../common/datas";
 
 /**
  * Férias — períodos aquisitivos e saldo.
@@ -164,8 +165,8 @@ export class VacationService {
       evento: "outro",
       descricao:
         `Férias solicitadas: ${validacao.dias} dias ` +
-        `(${new Date(dto.dataInicio).toLocaleDateString("pt-BR")} a ` +
-        `${new Date(dto.dataFim).toLocaleDateString("pt-BR")})`,
+        `(${dataBR(dto.dataInicio)} a ` +
+        `${dataBR(dto.dataFim)})`,
       registradoPorId: user.id ?? null,
     });
     await this.auditar(user, criada.id, "criar", `Solicitação de férias: ${validacao.dias} dias`);

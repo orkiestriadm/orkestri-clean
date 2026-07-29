@@ -11,6 +11,7 @@ import {
   StatusBadge, RowActions, RowAction, Modal, FormGrid, FormField, FormActions,
 } from "@/components/data-ui";
 import { Plus, Gift, Ban } from "lucide-react";
+import { formatarDataBR } from "@/lib/datas";
 
 /**
  * Benefícios do colaborador.
@@ -21,7 +22,7 @@ import { Plus, Gift, Ban } from "lucide-react";
  */
 
 const fmtData = (d: string | null) =>
-  d ? new Date(d).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" }) : "—";
+  d ? formatarDataBR(d) : "—";
 
 const fmtMoeda = (v: number | null) =>
   v === null ? "—" : v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });

@@ -9,6 +9,7 @@ import {
 } from "@/components/data-ui";
 import { Plus, CalendarOff, AlertTriangle, CalendarDays } from "lucide-react";
 import SolicitarFerias from "./SolicitarFerias";
+import { formatarDataBR } from "@/lib/datas";
 
 /**
  * Férias do colaborador.
@@ -27,7 +28,7 @@ const STATUS: Record<StatusPeriodo, { label: string; tone: BadgeTone }> = {
 };
 
 const fmtData = (d: string) =>
-  new Date(d).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
+  formatarDataBR(d);
 
 /** "em 45 dias" / "há 12 dias" — o prazo importa mais que a data em si. */
 function prazo(dias: number): string {
