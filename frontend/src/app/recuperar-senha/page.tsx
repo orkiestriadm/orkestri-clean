@@ -4,18 +4,22 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { api } from "@/lib/api";
 import { BrandLogo } from "@/components/ui/logo";
-import { Loader2, Mail, Check, ArrowLeft } from "lucide-react";
+import { Loader2, Mail, Check, ArrowLeft, MessageCircle } from "lucide-react";
 
 /**
  * Recuperação de senha.
  *
  * A apresentação acompanha o /login — mesmo fundo do planeta, mesma paleta —
- * para que sair do login e cair aqui não pareça outro produto. A lógica é a
- * mesma de sempre: 4 etapas, token pela URL, `/auth/esqueci-senha` e
- * `/auth/redefinir-senha`.
+ * para que sair do login e cair aqui não pareça outro produto.
+ *
+ * DOIS caminhos, e isso não é enfeite: o link por e-mail depende de SMTP, que
+ * nem todo ambiente tem configurado. Quando falta, o backend engole o erro
+ * (`.catch(() => {})`) e esta tela dizia "verifique seu e-mail" para uma
+ * mensagem que nunca chegava — deixando a conta sem nenhuma saída. O código
+ * por WhatsApp usa a integração que já está no ar e não depende de SMTP.
  */
 
-type Step = "email" | "enviado" | "nova-senha" | "ok";
+type Step = "escolha" | "email" | "enviado" | "whatsapp" | "codigo" | "nova-senha" | "ok";
 
 /** Campo e botão repetem a métrica do login: 52px de altura, raio 14. */
 const INPUT =
@@ -49,8 +53,10 @@ function PasswordStrength({ senha }: { senha: string }) {
 function RecuperarSenhaContent() {
   const searchParams = useSearchParams();
 
-  const [step, setStep] = useState<Step>("email");
+  const [step, setStep] = useState<Step>("escolha");
   const [email, setEmail] = useState("");
+  const [whatsapp, setWhatsapp] = useState("");
+  const [codigo, setCodigo] = useState("");
   const [novaSenha, setNovaSenha] = useState("");
   const [confirmar, setConfirmar] = useState("");
   const [resetToken, setResetToken] = useState("");
@@ -78,6 +84,35 @@ function RecuperarSenhaContent() {
     } finally { setLoading(false); }
   };
 
+  /** Só dígitos: o backend compara o número cru que está no perfil. */
+  const whatsappLimpo = whatsapp.replace(/\D/g, "");
+
+  const handleEnviarOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (whatsappLimpo.length < 10) { setError("Informe o número com DDD."); return; }
+    setLoading(true); setError("");
+    try {
+      await api.post("/auth/enviar-otp", { whatsapp: whatsappLimpo });
+      setStep("codigo");
+    } catch (err: any) {
+      setError(err.response?.data?.message || "Não foi possível enviar o código.");
+    } finally { setLoading(false); }
+  };
+
+  const handleVerificarOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (codigo.length !== 6) { setError("O código tem 6 dígitos."); return; }
+    setLoading(true); setError("");
+    try {
+      const { data } = await api.post("/auth/verificar-otp", { whatsapp: whatsappLimpo, codigo });
+      // O token vale 3 minutos — daí ir direto para a senha, sem tela no meio.
+      setResetToken(data.resetToken);
+      setStep("nova-senha");
+    } catch (err: any) {
+      setError(err.response?.data?.message || "Código inválido ou expirado.");
+    } finally { setLoading(false); }
+  };
+
   const isValid =
     novaSenha.length >= 8 && /[A-Z]/.test(novaSenha) && /[a-z]/.test(novaSenha) && /[0-9]/.test(novaSenha);
 
@@ -98,6 +133,7 @@ function RecuperarSenhaContent() {
     step === "ok" ? "Senha redefinida"
       : step === "nova-senha" ? "Defina sua nova senha"
       : step === "enviado" ? "Verifique seu e-mail"
+      : step === "codigo" ? "Digite o código"
       : "Recuperar senha";
 
   return (
@@ -116,6 +152,116 @@ function RecuperarSenhaContent() {
         </div>
 
         <div className="rounded-[20px] border border-white/[0.08] bg-white/[0.03] p-7 backdrop-blur-xl sm:p-8">
+          {/* PASSO 0 — escolher por onde receber */}
+          {step === "escolha" && (
+            <div className="flex flex-col gap-4">
+              <p className="text-[14px] leading-relaxed text-white/55">
+                Como você prefere receber a instrução para redefinir a senha?
+              </p>
+
+              <button
+                type="button"
+                onClick={() => { setStep("whatsapp"); setError(""); }}
+                className="flex items-center gap-3.5 rounded-[14px] border border-white/[0.10] bg-white/[0.04] p-4 text-left transition-all hover:border-[#f97316]/50 hover:bg-white/[0.06] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f97316]"
+              >
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-500/12 text-emerald-400">
+                  <MessageCircle size={19} aria-hidden />
+                </span>
+                <span className="min-w-0">
+                  <span className="block text-[14px] font-semibold text-white">Código por WhatsApp</span>
+                  <span className="block text-[12.5px] text-white/50">
+                    Chega em segundos no número cadastrado
+                  </span>
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => { setStep("email"); setError(""); }}
+                className="flex items-center gap-3.5 rounded-[14px] border border-white/[0.10] bg-white/[0.04] p-4 text-left transition-all hover:border-[#f97316]/50 hover:bg-white/[0.06] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f97316]"
+              >
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#f97316]/12 text-[#fb923c]">
+                  <Mail size={19} aria-hidden />
+                </span>
+                <span className="min-w-0">
+                  <span className="block text-[14px] font-semibold text-white">Link por e-mail</span>
+                  <span className="block text-[12.5px] text-white/50">
+                    Depende do servidor de e-mail estar ativo
+                  </span>
+                </span>
+              </button>
+            </div>
+          )}
+
+          {/* PASSO 1a — número do WhatsApp */}
+          {step === "whatsapp" && (
+            <form onSubmit={handleEnviarOtp} className="flex flex-col gap-5">
+              <p className="text-[14px] leading-relaxed text-white/55">
+                Informe o WhatsApp cadastrado na sua conta. Enviaremos um código
+                de 6 dígitos, válido por 5 minutos.
+              </p>
+              <div>
+                <label htmlFor="whatsapp" className="mb-1.5 block text-[13px] font-medium text-white/70">
+                  WhatsApp
+                </label>
+                <input
+                  id="whatsapp"
+                  type="tel"
+                  inputMode="numeric"
+                  value={whatsapp}
+                  onChange={e => setWhatsapp(e.target.value)}
+                  placeholder="DDD + número"
+                  className={INPUT}
+                  autoFocus
+                />
+              </div>
+              {error && <Erro texto={error} />}
+              <button type="submit" disabled={loading} className={BOTAO}>
+                {loading
+                  ? <><Loader2 className="h-[18px] w-[18px] animate-spin" aria-hidden /> Enviando...</>
+                  : "Enviar código"}
+              </button>
+              <Voltar onClick={() => { setStep("escolha"); setError(""); }} />
+            </form>
+          )}
+
+          {/* PASSO 2a — digitar o código */}
+          {step === "codigo" && (
+            <form onSubmit={handleVerificarOtp} className="flex flex-col gap-5">
+              <p className="text-[14px] leading-relaxed text-white/55">
+                Digite o código de 6 dígitos enviado para o WhatsApp terminado em{" "}
+                <strong className="text-white/85">{whatsappLimpo.slice(-4)}</strong>.
+              </p>
+              <div>
+                <label htmlFor="codigo" className="mb-1.5 block text-[13px] font-medium text-white/70">
+                  Código
+                </label>
+                <input
+                  id="codigo"
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={6}
+                  value={codigo}
+                  // Só dígitos: colar com espaço ou traço não pode invalidar.
+                  onChange={e => setCodigo(e.target.value.replace(/\D/g, ""))}
+                  placeholder="000000"
+                  className={`${INPUT} text-center text-[22px] tracking-[0.5em]`}
+                  autoFocus
+                />
+              </div>
+              {error && <Erro texto={error} />}
+              <button type="submit" disabled={loading || codigo.length !== 6} className={BOTAO}>
+                {loading
+                  ? <><Loader2 className="h-[18px] w-[18px] animate-spin" aria-hidden /> Verificando...</>
+                  : "Verificar código"}
+              </button>
+              <Voltar
+                rotulo="Enviar outro código"
+                onClick={() => { setStep("whatsapp"); setCodigo(""); setError(""); }}
+              />
+            </form>
+          )}
+
           {/* PASSO 1 — digitar email */}
           {step === "email" && (
             <form onSubmit={handleEnviarEmail} className="flex flex-col gap-5">
@@ -157,13 +303,17 @@ function RecuperarSenhaContent() {
                 <strong className="text-white/80">Não recebeu?</strong><br />
                 Verifique a pasta de spam. O link expira em <strong className="text-white/80">30 minutos</strong>.
               </div>
-              <button
-                type="button"
+              <Voltar
+                rotulo="Usar outro e-mail"
                 onClick={() => { setStep("email"); setError(""); }}
-                className="text-[13px] font-medium text-white/55 transition-colors hover:text-white"
-              >
-                ← Usar outro e-mail
-              </button>
+              />
+              {/* Sem SMTP configurado o e-mail nunca chega, e o backend não
+                  tem como avisar daqui. Oferecer a saída é melhor que deixar
+                  a pessoa esperando por algo que não vem. */}
+              <Voltar
+                rotulo="Receber por WhatsApp"
+                onClick={() => { setStep("whatsapp"); setError(""); }}
+              />
             </div>
           )}
 
@@ -241,6 +391,19 @@ function RecuperarSenhaContent() {
         </div>
       </div>
     </div>
+  );
+}
+
+/** Link discreto de retorno, repetido em várias etapas. */
+function Voltar({ onClick, rotulo = "Voltar" }: { onClick: () => void; rotulo?: string }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="rounded text-[13px] font-medium text-white/55 transition-colors hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f97316]"
+    >
+      ← {rotulo}
+    </button>
   );
 }
 
