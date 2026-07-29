@@ -202,7 +202,10 @@ export class SalaryService {
     if (!atual) throw new NotFoundException("Cargo não encontrado");
 
     await this.repo.definirFaixa(positionId, faixa, user.id ?? null);
-    await this.auditar(user, positionId, "editar", `Faixa salarial de "${atual.titulo}" definida`);
+    await this.auditar(
+      user, positionId, "editar",
+      `Faixa salarial de "${atual.titulo}" definida`, "positions",
+    );
 
     return { success: true, data: { positionId, ...faixa } };
   }
@@ -318,13 +321,27 @@ export class SalaryService {
     }
   }
 
-  private async auditar(user: UsuarioContexto, registroId: string, acao: string, descricao: string) {
+  /**
+   * `tabela` é parâmetro, não constante.
+   *
+   * Fixa em `collaborator_salaries`, a definição de faixa — que altera um CARGO —
+   * era arquivada como alteração de registro salarial: quem procurasse no
+   * histórico do cargo quem mexeu na faixa não achava nada, e quem auditasse
+   * salários via um evento sobre um id que não existe naquela tabela.
+   */
+  private async auditar(
+    user: UsuarioContexto,
+    registroId: string,
+    acao: string,
+    descricao: string,
+    tabela = "collaborator_salaries",
+  ) {
     try {
       await this.audit.log({
         organizationId: user.organizationId,
         userId: user.id ?? null,
         modulo: "people",
-        tabela: "collaborator_salaries",
+        tabela,
         registroId,
         acao,
         descricao,
