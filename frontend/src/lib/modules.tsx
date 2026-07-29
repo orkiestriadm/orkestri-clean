@@ -8,7 +8,7 @@ import {
   SmilePlus, TrendingUp, Receipt, LayoutGrid, CreditCard, Brain,
   GitBranch, Network, ShoppingBag, Radio, Wallet, FileSpreadsheet, Wrench,
   ClipboardCheck, FolderKanban, Boxes, ShieldCheck, HeartPulse, Bell,
-  Briefcase, CalendarClock, Library, BarChart3, CalendarX, UsersRound, Inbox,
+  Briefcase, CalendarClock, Library, BarChart3, CalendarX, UsersRound, Inbox, Info,
 } from "lucide-react";
 
 // `permission` como lista significa OU — ver canAccessModule.
@@ -31,6 +31,9 @@ export const NAV: NavGroup[] = [
       { href: "/dashboard/ia",         label: "IA Operacional", icon: Brain,        permission: "relatorios:ver" },
       { href: "/dashboard/relatorios", label: "Relatórios",  icon: BarChart2,       permission: "relatorios:ver" },
       { href: "/dashboard/workforce",  label: "Workforce",   icon: LayoutGrid,      permission: "colaboradores:ver" },
+      // Sem permissao, e fora do grupo Core (restrito a admin): qualquer pessoa
+      // precisa conseguir informar a versao ao relatar um problema.
+      { href: "/dashboard/sobre",      label: "Sobre",       icon: Info,            permission: null },
     ],
   },
   {
