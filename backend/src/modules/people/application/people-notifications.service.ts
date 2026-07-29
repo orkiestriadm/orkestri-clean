@@ -3,6 +3,7 @@ import { Cron, CronExpression } from "@nestjs/schedule";
 import { randomUUID } from "crypto";
 import { PrismaService } from "../../../prisma/prisma.service";
 import { PeopleEventsPublisher } from "../domain/people-events.publisher";
+import { VacationService } from "./vacation.service";
 import { situacaoCertificacao, diasEntre } from "../domain/development.entity";
 import { DIAS_ALERTA_VENCIMENTO_FERIAS } from "../domain/vacation.entity";
 import { collaboratorDisplayName } from "../../../common/collaborator";
@@ -33,6 +34,7 @@ export class PeopleNotificationsService implements OnModuleInit {
   constructor(
     private readonly prisma: PrismaService,
     private readonly eventos: PeopleEventsPublisher,
+    private readonly ferias: VacationService,
   ) {}
 
   onModuleInit() {
@@ -143,6 +145,12 @@ export class PeopleNotificationsService implements OnModuleInit {
   async varrerPrazos() {
     this.logger.log("Varredura de prazos do People iniciada");
     try {
+      // Materializa os periodos ANTES de varrer: eles so nasciam quando alguem
+      // abria a aba de ferias do colaborador, entao o passivo ficava invisivel
+      // justamente para quem ninguem olhou — que e quem o alerta deveria pegar.
+      const r = await this.ferias.sincronizarQuadro();
+      this.logger.log(`Ferias sincronizadas: ${r.sincronizados} colaborador(es), ${r.falhas} falha(s)`);
+
       await Promise.all([
         this.avisarDocumentosVencendo(),
         this.avisarCertificacoesVencendo(),

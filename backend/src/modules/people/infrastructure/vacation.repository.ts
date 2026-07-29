@@ -17,6 +17,20 @@ export class VacationRepository {
     return this.prisma as any;
   }
 
+  /**
+   * Ativos com data de admissao, de todas as organizacoes.
+   *
+   * Usado pela varredura diaria: os periodos so nasciam quando alguem abria a
+   * aba de ferias do colaborador, entao o painel de passivo e o indicador
+   * liam zero para quem nunca foi visitado — justamente quem o RH esqueceu.
+   */
+  colaboradoresParaSincronizar() {
+    return this.db.collaborator.findMany({
+      where: { excluidoEm: null, status: "ATIVO", dataAdmissao: { not: null } },
+      select: { id: true, organizationId: true, dataAdmissao: true },
+    });
+  }
+
   async listarPeriodos(collaboratorId: string, organizationId: string) {
     return this.db.collaboratorVacationPeriod.findMany({
       where: { collaboratorId, organizationId },

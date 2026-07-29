@@ -248,8 +248,13 @@ export default function IndicadoresPage() {
                           <span className="metric" style={{ fontSize: 20, fontWeight: 600 }}>
                             {fmtMoeda(beneficios.custoMensalTotal)}
                           </span>
+                          {/* Separador explícito: só a margem deixava o valor
+                              colado na contagem quando o texto era copiado ou
+                              lido por leitor de tela. */}
                           <span style={{ fontSize: 11.5, color: "var(--text-muted)", marginLeft: 8 }}>
-                            {beneficios.pessoasCobertas} pessoa(s) coberta(s)
+                            {" · "}
+                            {beneficios.pessoasCobertas}{" "}
+                            {beneficios.pessoasCobertas === 1 ? "pessoa coberta" : "pessoas cobertas"}
                           </span>
                         </div>
                         {beneficios.porBeneficio.map(b => (

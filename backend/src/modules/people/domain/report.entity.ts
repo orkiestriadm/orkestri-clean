@@ -63,7 +63,10 @@ export function distribuicao(
 ): { rotulo: string; total: number; percentual: number }[] {
   const soma = itens.reduce((s, i) => s + i.total, 0);
   const linhas = itens.map(i => ({
-    rotulo: i.chave ? (rotulos.get(i.chave) ?? "—") : rotuloVazio,
+    // Sem tradução conhecida, o rótulo é a própria chave. Antes caía em "—", o
+    // que fazia distribuições de texto livre (tipo de vínculo) mostrarem "CLT"
+    // como se fosse dado ausente — todas as fatias viravam traço.
+    rotulo: i.chave ? (rotulos.get(i.chave) ?? i.chave) : rotuloVazio,
     total: i.total,
     percentual: soma > 0 ? arredondar((i.total / soma) * 100) : 0,
     vazio: !i.chave,

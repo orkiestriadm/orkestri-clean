@@ -86,8 +86,16 @@ describe("distribuição", () => {
     expect(distribuicao([], rotulos)).toEqual([]);
   });
 
-  it("usa traço para chave sem rótulo conhecido", () => {
-    expect(distribuicao([{ chave: "sumiu", total: 1 }], rotulos)[0].rotulo).toBe("—");
+  // Distribuição de texto livre (tipo de vínculo) não tem mapa de rótulos: a
+  // própria chave É o rótulo. Devolver "—" fazia "CLT" parecer dado ausente.
+  it("usa a própria chave quando não há rótulo traduzido", () => {
+    expect(distribuicao([{ chave: "CLT", total: 1 }], new Map())[0].rotulo).toBe("CLT");
+  });
+
+  it("ainda separa o vazio da chave desconhecida", () => {
+    const r = distribuicao([{ chave: null, total: 2 }, { chave: "PJ", total: 5 }], new Map());
+    expect(r[0].rotulo).toBe("PJ");
+    expect(r[1].rotulo).toBe("Sem informação");
   });
 });
 

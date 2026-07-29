@@ -333,11 +333,21 @@ export class AuthService implements OnModuleInit {
       });
       this.logger.log("Usuario master criado: " + masterEmail);
     } else {
-      // Sempre sincroniza hash, desbloqueia e garante ativo
-      const hash = await bcrypt.hash(masterPassword, 12);
+      // NÃO reescreve a senha.
+      //
+      // Isto sincronizava o hash com MASTER_PASSWORD a cada inicialização da
+      // API — ou seja, o administrador nunca conseguia trocar a própria senha:
+      // a troca era desfeita no deploy seguinte, sem aviso e sem log. Custou um
+      // dia inteiro de "a senha parou de funcionar" em 29/07/2026, com o
+      // sintoma aparecendo horas depois da causa.
+      //
+      // O boot continua garantindo que a conta está utilizável — ativa e
+      // desbloqueada, para ninguém ficar trancado fora do próprio sistema —
+      // mas a senha passa a pertencer ao usuário. Para redefinir existe a
+      // recuperação por e-mail e por WhatsApp.
       await this.prisma.user.update({
         where: { id: exists.id },
-        data: { senhaHash: hash, bloqueado: false, tentativasFalhas: 0, ativo: true } as any,
+        data: { bloqueado: false, tentativasFalhas: 0, ativo: true } as any,
       });
       const hasRole = await this.prisma.userRole.findUnique({
         where: { userId_roleId: { userId: exists.id, roleId: masterRole.id } }

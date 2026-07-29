@@ -219,6 +219,31 @@ export class VacationService {
    * `diasGozados` vem das ausências, não da coluna: assim aprovar ou cancelar
    * pelo fluxo antigo de ausências reflete no saldo sem nenhuma integração.
    */
+  /**
+   * Materializa os periodos de todos os ativos.
+   *
+   * Sem isto, periodo so existe depois que alguem abre a aba do colaborador —
+   * e o passivo de ferias, que e a razao de o modulo existir, ficava invisivel
+   * para quem ninguem olhou.
+   */
+  async sincronizarQuadro(): Promise<{ sincronizados: number; falhas: number }> {
+    const pessoas = await this.repo.colaboradoresParaSincronizar();
+    let sincronizados = 0;
+    let falhas = 0;
+    for (const p of pessoas as any[]) {
+      try {
+        await this.repo.sincronizar(p.organizationId, p.id, periodosAquisitivos(p.dataAdmissao));
+        sincronizados += 1;
+      } catch (erro) {
+        // Uma pessoa com dado inconsistente nao pode derrubar a varredura das
+        // outras: o valor esta em cobrir o quadro inteiro.
+        falhas += 1;
+        this.logger.error(`Falha ao sincronizar ferias de ${p.id}`, erro as Error);
+      }
+    }
+    return { sincronizados, falhas };
+  }
+
   private async sincronizarEResolver(
     organizationId: string,
     collaboratorId: string,
