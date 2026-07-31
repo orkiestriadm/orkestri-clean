@@ -4,13 +4,12 @@
  * Data UI — primitivas compartilhadas de painéis e listagens.
  *
  * Cada módulo tinha seu próprio cartão de métrica, sua barra de busca e sua
- * tabela, com cores Tailwind cruas (`slate-`, `indigo-`) e número em Syne — a
- * fonte display, cujos numerais de largura irregular faziam a métrica parecer
- * quebrada. Aqui a definição é única e sai dos tokens: trocar um token muda
- * todas as telas.
+ * tabela, com cores Tailwind cruas (`slate-`, `indigo-`). Aqui a definição é
+ * única e sai dos tokens: trocar um token muda todas as telas.
  *
  * Estilos em `styles/globals.css`, seção "Data UI".
- * Regra de ouro: número usa `.metric` (corpo, tabular) — nunca `--font-display`.
+ * Regra de ouro: número usa `.metric` (figuras tabulares), para as colunas
+ * não "dançarem" ao atualizar.
  */
 
 import { ReactNode, useEffect, useRef, useState } from "react";
