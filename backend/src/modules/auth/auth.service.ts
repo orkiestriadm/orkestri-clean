@@ -6,6 +6,9 @@ import { CacheService } from "../cache/cache.service";
 import { WhatsAppService } from "../notifications/whatsapp.service";
 import { EmailService } from "../notifications/email.service";
 import { AutomacaoService } from "../automacoes/automacoes.module";
+import {
+  PEOPLE_PERMISSION_CATALOG, PEOPLE_PERMISSOES_LEITURA, PEOPLE_PERMISSOES_AUDITOR,
+} from "../people/people.permissions";
 import * as bcrypt from "bcryptjs";
 
 // Todas as permissões do sistema no formato "recurso:acao"
@@ -111,6 +114,9 @@ const ALL_PERMISSIONS: { recurso: string; acao: string; descricao: string }[] = 
   { recurso: "reservas",      acao: "editar",      descricao: "Editar reservas de carros" },
   { recurso: "reservas",      acao: "cancelar",    descricao: "Cancelar reservas de carros" },
   { recurso: "reservas",      acao: "admin",       descricao: "Gerenciar todas as reservas e aprovações" },
+  // Orkiestri People — catálogo mantido no próprio módulo, para que o dono da
+  // regra e o dono da lista sejam o mesmo arquivo.
+  ...PEOPLE_PERMISSION_CATALOG,
 ];
 
 // Permissões base — todo usuário recebe automaticamente, independente do papel
@@ -149,6 +155,8 @@ const ROLE_DEFAULTS: Record<string, { nivel: number; descricao: string; permisso
       "ativos:ver","ativos:criar","ativos:editar","ativos:mover",
       "solicitacoes:ver","solicitacoes:criar","solicitacoes:editar","solicitacoes:aprovar",
       "colaboradores:ver","colaboradores:criar","colaboradores:editar","colaboradores:excluir",
+      // People: gestor enxerga a própria equipe — sem `ver_todos` de propósito.
+      ...PEOPLE_PERMISSOES_LEITURA,
       "conhecimento:ver","conhecimento:criar","conhecimento:editar","conhecimento:publicar",
       "sla:ver","sla:gerenciar",
       "automacoes:ver","automacoes:criar","automacoes:editar","automacoes:excluir",
@@ -219,6 +227,7 @@ const ROLE_DEFAULTS: Record<string, { nivel: number; descricao: string; permisso
       "fornecedores:ver",
       "solicitacoes:ver","solicitacoes:criar","solicitacoes:editar","solicitacoes:aprovar",
       "colaboradores:ver","colaboradores:criar","colaboradores:editar",
+      ...PEOPLE_PERMISSOES_LEITURA,
       "conhecimento:ver","conhecimento:criar","conhecimento:editar",
       "sla:ver",
       "ativos:ver","ativos:criar","ativos:editar",
@@ -249,6 +258,8 @@ const ROLE_DEFAULTS: Record<string, { nivel: number; descricao: string; permisso
     permissoes: [
       ...ALL_PERMISSIONS.filter(p => p.acao === "ver").map(p => `${p.recurso}:${p.acao}`),
       "relatorios:exportar",
+      // Conformidade exige enxergar a organização inteira, não só a própria equipe.
+      ...PEOPLE_PERMISSOES_AUDITOR,
     ],
   },
   cliente_portal: {
@@ -322,11 +333,21 @@ export class AuthService implements OnModuleInit {
       });
       this.logger.log("Usuario master criado: " + masterEmail);
     } else {
-      // Sempre sincroniza hash, desbloqueia e garante ativo
-      const hash = await bcrypt.hash(masterPassword, 12);
+      // NÃO reescreve a senha.
+      //
+      // Isto sincronizava o hash com MASTER_PASSWORD a cada inicialização da
+      // API — ou seja, o administrador nunca conseguia trocar a própria senha:
+      // a troca era desfeita no deploy seguinte, sem aviso e sem log. Custou um
+      // dia inteiro de "a senha parou de funcionar" em 29/07/2026, com o
+      // sintoma aparecendo horas depois da causa.
+      //
+      // O boot continua garantindo que a conta está utilizável — ativa e
+      // desbloqueada, para ninguém ficar trancado fora do próprio sistema —
+      // mas a senha passa a pertencer ao usuário. Para redefinir existe a
+      // recuperação por e-mail e por WhatsApp.
       await this.prisma.user.update({
         where: { id: exists.id },
-        data: { senhaHash: hash, bloqueado: false, tentativasFalhas: 0, ativo: true } as any,
+        data: { bloqueado: false, tentativasFalhas: 0, ativo: true } as any,
       });
       const hasRole = await this.prisma.userRole.findUnique({
         where: { userId_roleId: { userId: exists.id, roleId: masterRole.id } }
@@ -835,7 +856,13 @@ export class AuthService implements OnModuleInit {
     await this.cache.set(`reset:token:${jti}`, "1", 1800);
     const appUrl = this.config.get("APP_URL", "http://localhost");
     const resetUrl = `${appUrl}/recuperar-senha?token=${resetToken}`;
-    this.email.sendPasswordResetLink(user.email, user.nome, resetUrl).catch(() => {});
+    // Mesmo motivo do OTP: sem log, um SMTP ausente vira "verifique seu
+    // e-mail" para uma mensagem que nunca sai, e ninguém descobre.
+    this.email
+      .sendPasswordResetLink(user.email, user.nome, resetUrl)
+      .catch((erro) =>
+        this.logger.error(`Falha ao enviar e-mail de redefinição para ${user.id}`, erro as Error),
+      );
     return { message: "Se o e-mail estiver cadastrado, você receberá o link de redefinição." };
   }
 
@@ -866,7 +893,27 @@ export class AuthService implements OnModuleInit {
         used: false,
       },
     });
-    this.wa.sendOtp(whatsapp, code).catch(() => {});
+    // Instância da organização do usuário, não a default fixa: usar a default
+    // fazia o OTP sair por uma instância inexistente e falhar sempre.
+    //
+    // O `catch` engolia o erro sem log nenhum. Resultado em produção: OTP
+    // gravado no banco, mensagem nunca entregue, e nada em lugar algum
+    // indicando o motivo — a conta ficava sem saída e sem diagnóstico. A
+    // resposta ao cliente continua genérica (não revela se o número existe),
+    // mas a falha agora aparece no log.
+    this.wa
+      .sendOtpForOrg(user.organizationId, whatsapp, code)
+      .then((enviado) => {
+        if (!enviado) {
+          this.logger.error(
+            `OTP gerado mas NÃO entregue para o usuário ${user.id} — verifique a instância WhatsApp da organização ${user.organizationId}.`,
+          );
+        }
+      })
+      .catch((erro) =>
+        this.logger.error(`Falha ao enviar OTP para o usuário ${user.id}`, erro as Error),
+      );
+
     return { message: "Se o número estiver cadastrado, você receberá o código." };
   }
 

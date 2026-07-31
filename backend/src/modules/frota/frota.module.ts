@@ -193,7 +193,7 @@ abstract class BaseFrotaController {
     }
     await this.afterWrite(row, req, "criar");
     await this.audit.log({
-      userId: req.user?.id, modulo: "frota", tabela: this.tabela, registroId: row.id,
+      organizationId: req.user?.organizationId, userId: req.user?.id, modulo: "frota", tabela: this.tabela, registroId: row.id,
       acao: "criar", descricao: `Criou ${this.tabela}`, dados: data, ip: req.ip,
     });
     return row;
@@ -218,7 +218,7 @@ abstract class BaseFrotaController {
     }
     await this.afterWrite(row, req, "editar");
     await this.audit.log({
-      userId: req.user?.id, modulo: "frota", tabela: this.tabela, registroId: id,
+      organizationId: req.user?.organizationId, userId: req.user?.id, modulo: "frota", tabela: this.tabela, registroId: id,
       acao: "editar", descricao: `Editou ${this.tabela}`, dados: data, ip: req.ip,
     });
     return row;
@@ -231,7 +231,7 @@ abstract class BaseFrotaController {
     if (!existing) throw new NotFoundException("Registro não encontrado");
     await this.delegate.update({ where: { id }, data: { deletedAt: new Date(), atualizadoPorId: req.user?.id || null } });
     await this.audit.log({
-      userId: req.user?.id, modulo: "frota", tabela: this.tabela, registroId: id,
+      organizationId: req.user?.organizationId, userId: req.user?.id, modulo: "frota", tabela: this.tabela, registroId: id,
       acao: "excluir", descricao: `Excluiu (lógico) ${this.tabela}`, ip: req.ip,
     });
     return { message: "Registro excluído", id };
@@ -489,7 +489,7 @@ class MotoristasController extends BaseFrotaController {
         atualizadoPorId: req.user?.id || null,
       },
     });
-    await this.audit.log({ userId: req.user?.id, modulo: "frota", tabela: "motoristas", registroId: id, acao: "editar", descricao: "Renovou CNH", ip: req.ip });
+    await this.audit.log({ organizationId: req.user?.organizationId, userId: req.user?.id, modulo: "frota", tabela: "motoristas", registroId: id, acao: "editar", descricao: "Renovou CNH", ip: req.ip });
     return renov;
   }
 
@@ -653,7 +653,7 @@ class PneusController extends BaseFrotaController {
         observacoes: body.observacoes || null, criadoPorId: req.user?.id || null,
       },
     });
-    await this.audit.log({ userId: req.user?.id, modulo: "frota", tabela: "pneus", registroId: id, acao: "editar", descricao: `Pneu: ${tipo}`, ip: req.ip });
+    await this.audit.log({ organizationId: req.user?.organizationId, userId: req.user?.id, modulo: "frota", tabela: "pneus", registroId: id, acao: "editar", descricao: `Pneu: ${tipo}`, ip: req.ip });
     return ev;
   }
 

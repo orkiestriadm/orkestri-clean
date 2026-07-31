@@ -6,6 +6,7 @@ import { AuthGuard } from "@nestjs/passport";
 import { PrismaService } from "../../prisma/prisma.service";
 import { PermissionsGuard } from "../auth/permissions.guard";
 import { Permissions } from "../auth/permissions.decorator";
+import { collaboratorDisplayName } from "../../common/collaborator";
 
 const TIPOS_VALIDOS = ["ferias", "atestado", "folga", "licenca", "banco_horas", "outro"];
 
@@ -62,7 +63,10 @@ export class AusenciasService {
     });
     if (!a) throw new NotFoundException("Ausência não encontrada");
     const isMaster = !!user?.isMaster;
-    const isOwn = a.collaborator.user.id === user.id;
+    // `user` é opcional no colaborador desde a Fase 1 do People: quem não tem
+    // login (motorista, operador de campo) tem ausência registrada pelo RH.
+    // Sem o `?.` isto lançava TypeError e a aprovação respondia 500.
+    const isOwn = !!a.collaborator.user?.id && a.collaborator.user.id === user.id;
     const isGestor = a.collaborator.gestor?.userId === user.id;
     return { ausencia: a, isOwn, isGestor, isMaster };
   }
@@ -144,7 +148,7 @@ export class AusenciasService {
     // Notifica gestor direto
     await this.notify(collab.gestor?.userId, "ausencia_solicitada",
       "Nova solicitação de ausência",
-      `${collab.user.nome} solicitou ${dto.tipo} de ${dInicio.toLocaleDateString("pt-BR")} a ${dFim.toLocaleDateString("pt-BR")}`,
+      `${collaboratorDisplayName(collab)} solicitou ${dto.tipo} de ${dInicio.toLocaleDateString("pt-BR")} a ${dFim.toLocaleDateString("pt-BR")}`,
       ausencia.id);
     return ausencia;
   }

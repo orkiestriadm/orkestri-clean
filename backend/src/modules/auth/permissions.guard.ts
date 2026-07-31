@@ -1,6 +1,7 @@
 import { Injectable, CanActivate, ExecutionContext } from "@nestjs/common";
 import { Reflector } from "@nestjs/core";
 import { PERMISSIONS_KEY } from "./permissions.decorator";
+import { expandLegacyPermissions } from "../../common/permission-aliases";
 
 @Injectable()
 export class PermissionsGuard implements CanActivate {
@@ -20,7 +21,11 @@ export class PermissionsGuard implements CanActivate {
     if (user.isMaster) return true;
     if (Array.isArray(user.permissions) && user.permissions.includes("*")) return true;
 
-    const userPerms: string[] = user.permissions || [];
-    return required.every(p => userPerms.includes(p));
+    // Expande as permissões legadas (`recurso:acao`) para o formato novo
+    // (`module.entity.action`) antes de comparar. Sem isso, quem tem
+    // `colaboradores:ver` perderia acesso às rotas do People, que declaram
+    // `people.employee.view`. Ver common/permission-aliases.ts.
+    const userPerms = expandLegacyPermissions(user.permissions || []);
+    return required.every(p => userPerms.has(p));
   }
 }

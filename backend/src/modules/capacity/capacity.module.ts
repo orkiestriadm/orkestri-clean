@@ -4,6 +4,7 @@ import {
 import { AuthGuard } from "@nestjs/passport";
 import { PrismaService } from "../../prisma/prisma.service";
 import { AusenciasModule, AusenciasService } from "../ausencias/ausencias.module";
+import { collaboratorDisplayName } from "../../common/collaborator";
 
 // Defaults para casos sem estimativa
 const DEFAULT_CHAMADO_HORAS = 2;
@@ -58,8 +59,24 @@ export class CapacityService {
     return { nominal, diasAusentes, horasAusentes: diasAusentes * jornadaDia + horasParciaisAusentes };
   }
 
+  /**
+   * Escopo de organização genérico — vale para apontamentos, chamados e projetos.
+   * NÃO inclui `excluidoEm`: essas tabelas não têm a coluna.
+   */
   private orgScope(user: any) {
     return user?.organizationId ? { organizationId: user.organizationId } : {};
+  }
+
+  /**
+   * Escopo específico de colaborador.
+   *
+   * Separado do genérico porque só `collaborators` tem exclusão lógica —
+   * aplicar `excluidoEm` às outras tabelas faria o Prisma recusar a consulta.
+   * Sem esse filtro, colaborador excluído no People continuaria contando na
+   * capacidade da equipe.
+   */
+  private collabScope(user: any) {
+    return { ...this.orgScope(user), excluidoEm: null };
   }
 
   /** Realizado: minutos apontados por colaborador no período */
@@ -144,7 +161,7 @@ export class CapacityService {
   async getCollaboratorCapacity(user: any, collabId: string, from?: string, to?: string) {
     const { from: f, to: t } = parsePeriod(from, to);
     const collab = await (this.prisma as any).collaborator.findFirst({
-      where: { id: collabId, ...this.orgScope(user) },
+      where: { id: collabId, ...this.collabScope(user) },
       include: { user: { select: { id: true, nome: true, email: true } } },
     });
     if (!collab) throw new BadRequestException("Colaborador não encontrado");
@@ -176,7 +193,7 @@ export class CapacityService {
 
     return {
       collaborator: {
-        id: collab.id, userId: collab.userId, nome: collab.user.nome,
+        id: collab.id, userId: collab.userId, nome: collaboratorDisplayName(collab),
         cargo: collab.cargo, jornadaHorasDia: jornadaDia,
       },
       period: { from: f.toISOString(), to: t.toISOString(), businessDays },
@@ -195,7 +212,7 @@ export class CapacityService {
 
   async getHeatmap(user: any, from?: string, to?: string, setorId?: string) {
     const { from: f, to: t } = parsePeriod(from, to);
-    const collabsWhere: any = { ...this.orgScope(user), ativo: true };
+    const collabsWhere: any = { ...this.collabScope(user), ativo: true };
     if (setorId) collabsWhere.setorId = setorId;
     const collabs = await (this.prisma as any).collaborator.findMany({
       where: collabsWhere,
@@ -239,7 +256,7 @@ export class CapacityService {
         };
       });
       return {
-        collaborator: { id: c.id, userId: c.userId, nome: c.user.nome, cargo: c.cargo, setor: c.setor },
+        collaborator: { id: c.id, userId: c.userId, nome: collaboratorDisplayName(c), cargo: c.cargo, setor: c.setor },
         nominal: Number(nominal.toFixed(2)),
         realizado: Number(r.toFixed(2)),
         planejado: Number(p.toFixed(2)),
@@ -269,7 +286,7 @@ export class CapacityService {
       to   = endOfDay(new Date(now.getFullYear(), now.getMonth() + 1, 0));
     }
     const collabs = await (this.prisma as any).collaborator.findMany({
-      where: { ...this.orgScope(user), ativo: true },
+      where: { ...this.collabScope(user), ativo: true },
       include: { user: { select: { id: true, nome: true } }, setor: { select: { id: true, nome: true } } },
     });
     const userIds = collabs.map((c: any) => c.userId);
@@ -296,7 +313,7 @@ export class CapacityService {
       if (utilR < 50) subutilizados++;
       if (absent?.days.has(hojeISO)) ausentesHoje++;
       detalhes.push({
-        id: c.id, nome: c.user.nome, setor: c.setor?.nome,
+        id: c.id, nome: collaboratorDisplayName(c), setor: c.setor?.nome,
         nominal, realizado: r, planejado: p, diasAusentes,
         utilR: Number(utilR.toFixed(1)), utilP: Number(utilP.toFixed(1)),
       });

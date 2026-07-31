@@ -2,6 +2,14 @@ import { Injectable, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { Resend } from "resend";
 
+/**
+ * Nome da marca, com o "i" — é "Orkiestri", como no logo, no domínio e na
+ * interface. Os e-mails escreviam "Orkestri" em oito lugares diferentes, o que
+ * fazia a mensagem parecer de outro produto (ou de um golpe) para quem
+ * comparasse com o sistema. Constante justamente para não divergir de novo.
+ */
+const MARCA = "Orkiestri";
+
 @Injectable()
 export class EmailService {
   private readonly logger = new Logger(EmailService.name);
@@ -11,7 +19,7 @@ export class EmailService {
 
   constructor(private config: ConfigService) {
     const apiKey = this.config.get<string>("RESEND_API_KEY", "");
-    const fromName = this.config.get<string>("EMAIL_FROM_NAME", "Orkestri");
+    const fromName = this.config.get<string>("EMAIL_FROM_NAME", MARCA);
     const fromAddr = this.config.get<string>("EMAIL_FROM", "onboarding@resend.dev");
     this.from = `${fromName} <${fromAddr}>`;
     this.appUrl = this.config.get<string>("APP_URL", "http://localhost");
@@ -78,6 +86,18 @@ export class EmailService {
 
   // ── Templates base ─────────────────────────────────────────────────────────
 
+  /**
+   * Moldura dos e-mails transacionais.
+   *
+   * A paleta acompanha o produto: fundo grafite e acento laranja (#f97316), o
+   * mesmo do login. Antes era um gradiente roxo/índigo que não existe em lugar
+   * nenhum da interface — quem recebia o e-mail e depois abria o sistema via
+   * duas marcas diferentes.
+   *
+   * Cor vem em `style` inline além do `<style>`: Gmail e Outlook descartam
+   * folhas de estilo em parte dos clientes, e sem o inline o botão de ação
+   * chegaria sem cor nenhuma — que é o único elemento clicável da mensagem.
+   */
   private layout(conteudo: string): string {
     return `<!DOCTYPE html>
 <html lang="pt-BR">
@@ -85,34 +105,34 @@ export class EmailService {
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <style>
-  body{margin:0;padding:0;background:#f4f4f8;font-family:'Segoe UI',Arial,sans-serif;color:#1a1a2e}
-  .wrap{max-width:580px;margin:32px auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,.08)}
-  .header{background:linear-gradient(135deg,#1e1b4b,#4c1d95);padding:28px 32px;text-align:center}
+  body{margin:0;padding:0;background:#eef0f4;font-family:'Segoe UI',Arial,sans-serif;color:#12141a}
+  .wrap{max-width:580px;margin:32px auto;background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 2px 14px rgba(8,9,12,.10)}
+  .header{background:#0f1116;padding:30px 32px;text-align:center;border-bottom:3px solid #f97316}
   .header h1{color:#fff;font-size:22px;font-weight:800;margin:0;letter-spacing:-0.5px}
-  .header span{color:#a78bfa;font-size:13px;font-weight:400}
+  .header span{color:#fb923c;font-size:13px;font-weight:400}
   .body{padding:32px}
   .body p{margin:0 0 16px;font-size:14px;line-height:1.65;color:#374151}
   .badge{display:inline-block;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:600;margin-bottom:16px}
-  .info-box{background:#f9f7ff;border:1px solid #ede9fe;border-radius:8px;padding:16px 20px;margin:16px 0}
+  .info-box{background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;padding:16px 20px;margin:16px 0}
   .info-row{display:flex;gap:8px;margin-bottom:8px;font-size:13px}
   .info-row:last-child{margin-bottom:0}
   .info-label{color:#6b7280;min-width:110px;flex-shrink:0}
-  .info-value{color:#1e1b4b;font-weight:600;word-break:break-all}
-  .btn{display:inline-block;background:linear-gradient(135deg,#7c3aed,#4f46e5);color:#fff;text-decoration:none;padding:13px 28px;border-radius:8px;font-weight:700;font-size:14px;margin:8px 0}
-  .footer{background:#f9f7ff;padding:20px 32px;text-align:center;font-size:11px;color:#9ca3af;border-top:1px solid #ede9fe}
-  .divider{border:none;border-top:1px solid #ede9fe;margin:24px 0}
+  .info-value{color:#12141a;font-weight:600;word-break:break-all}
+  .btn{display:inline-block;background:#f97316;color:#fff;text-decoration:none;padding:13px 28px;border-radius:10px;font-weight:700;font-size:14px;margin:8px 0}
+  .footer{background:#fafafa;padding:20px 32px;text-align:center;font-size:11px;color:#9ca3af;border-top:1px solid #ececf1}
+  .divider{border:none;border-top:1px solid #ececf1;margin:24px 0}
 </style>
 </head>
-<body>
+<body style="margin:0;padding:0;background:#eef0f4;">
 <div class="wrap">
-  <div class="header">
-    <h1>Orkestri</h1>
-    <span>Sistema de Gestão</span>
+  <div class="header" style="background:#0f1116;border-bottom:3px solid #f97316;">
+    <h1 style="color:#fff;">${MARCA}</h1>
+    <span style="color:#fb923c;">Sistema de Gestão</span>
   </div>
   <div class="body">${conteudo}</div>
   <div class="footer">
-    Você está recebendo este email pois possui uma conta no Orkestri.<br>
-    © ${new Date().getFullYear()} Orkestri — Todos os direitos reservados.
+    Você está recebendo este email pois possui uma conta no ${MARCA}.<br>
+    © ${new Date().getFullYear()} ${MARCA} — Todos os direitos reservados.
   </div>
 </div>
 </body>
@@ -124,7 +144,7 @@ export class EmailService {
   async sendPasswordResetLink(toEmail: string, nome: string, resetUrl: string): Promise<void> {
     await this.send(
       toEmail,
-      "Redefinição de senha — Orkestri",
+      `Redefinição de senha — ${MARCA}`,
       this.layout(`
         <p>Olá, <strong>${nome}</strong>!</p>
         <p>Recebemos uma solicitação para redefinir a senha da sua conta. Clique no botão abaixo para criar uma nova senha:</p>
@@ -137,7 +157,7 @@ export class EmailService {
         </div>
         <hr class="divider">
         <p style="font-size:11px;color:#9ca3af;">Se o botão não funcionar, copie e cole este link no navegador:<br>
-        <span style="color:#4f46e5;word-break:break-all;">${resetUrl}</span></p>
+        <span style="color:#c2410c;word-break:break-all;">${resetUrl}</span></p>
       `)
     );
   }
@@ -162,7 +182,7 @@ export class EmailService {
   async sendAccountApproved(toEmail: string, nome: string, senhaTemp: string): Promise<void> {
     await this.send(
       toEmail,
-      "Sua conta foi aprovada — Orkestri",
+      `Sua conta foi aprovada — ${MARCA}`,
       this.layout(`
         <p>Olá, <strong>${nome}</strong>! 🎉</p>
         <p>Sua solicitação de acesso foi <strong style="color:#059669">aprovada</strong>. Você já pode entrar no sistema.</p>
@@ -179,10 +199,10 @@ export class EmailService {
   async sendAccountRejected(toEmail: string, nome: string, motivo?: string): Promise<void> {
     await this.send(
       toEmail,
-      "Solicitação de acesso — Orkestri",
+      `Solicitação de acesso — ${MARCA}`,
       this.layout(`
         <p>Olá, <strong>${nome}</strong>.</p>
-        <p>Infelizmente sua solicitação de acesso ao Orkestri não foi aprovada neste momento.</p>
+        <p>Infelizmente sua solicitação de acesso ao ${MARCA} não foi aprovada neste momento.</p>
         ${motivo ? `<div class="info-box"><p style="margin:0;font-size:13px"><strong>Motivo:</strong> ${motivo}</p></div>` : ""}
         <p>Em caso de dúvidas, entre em contato com o administrador do sistema.</p>
       `)
@@ -192,10 +212,10 @@ export class EmailService {
   async sendUserInvite(toEmail: string, nome: string, senhaTemp: string, orgNome: string, papel = "Usuário"): Promise<boolean> {
     return this.send(
       toEmail,
-      `Você foi convidado para o Orkestri — ${orgNome}`,
+      `Você foi convidado para o ${MARCA} — ${orgNome}`,
       this.layout(`
         <p>Olá, <strong>${nome}</strong>!</p>
-        <p>Você foi adicionado à organização <strong>${orgNome}</strong> no Orkestri como <strong>${papel}</strong>.</p>
+        <p>Você foi adicionado à organização <strong>${orgNome}</strong> no ${MARCA} como <strong>${papel}</strong>.</p>
         <div class="info-box">
           <div class="info-row"><span class="info-label">E-mail:</span><span class="info-value">${toEmail}</span></div>
           <div class="info-row"><span class="info-label">Senha temporária:</span><span class="info-value">${senhaTemp}</span></div>
@@ -322,7 +342,7 @@ export class EmailService {
   async sendNewIpAlert(to: string, ip: string, quando: string): Promise<boolean> {
     return this.send(
       to,
-      "Novo acesso detectado na sua conta Orkestri",
+      `Novo acesso detectado na sua conta ${MARCA}`,
       this.layout(
         `<h2 style="font-size:20px;font-weight:700;color:#1f2937;margin:0 0 16px;">Novo acesso à sua conta</h2>
         <p style="font-size:15px;color:#374151;">Detectamos um login na sua conta a partir de um IP não reconhecido.</p>

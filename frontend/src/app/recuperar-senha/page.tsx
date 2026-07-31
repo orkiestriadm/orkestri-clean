@@ -1,54 +1,84 @@
 "use client";
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
 import { api } from "@/lib/api";
-import { OrkestriLogo } from "@/components/ui/logo";
+import { BrandLogo } from "@/components/ui/logo";
+import { Loader2, Mail, Check, ArrowLeft, MessageCircle } from "lucide-react";
 
-type Step = "email" | "enviado" | "nova-senha" | "ok";
+/**
+ * Recuperação de senha.
+ *
+ * A apresentação acompanha o /login — mesmo fundo do planeta, mesma paleta —
+ * para que sair do login e cair aqui não pareça outro produto.
+ *
+ * DOIS caminhos, e isso não é enfeite: o link por e-mail depende de SMTP, que
+ * nem todo ambiente tem configurado. Quando falta, o backend engole o erro
+ * (`.catch(() => {})`) e esta tela dizia "verifique seu e-mail" para uma
+ * mensagem que nunca chegava — deixando a conta sem nenhuma saída. O código
+ * por WhatsApp usa a integração que já está no ar e não depende de SMTP.
+ */
+
+type Step = "escolha" | "email" | "enviado" | "whatsapp" | "codigo" | "nova-senha" | "ok";
+
+/** Campo e botão repetem a métrica do login: 52px de altura, raio 14. */
+const INPUT =
+  "h-[52px] w-full rounded-[14px] border border-white/[0.10] bg-white/[0.04] px-4 text-[15px] text-white outline-none transition-all placeholder:text-white/25 focus:border-[#f97316] focus:bg-white/[0.06] focus:ring-4 focus:ring-[#f97316]/15";
+
+const BOTAO =
+  "inline-flex h-[52px] w-full items-center justify-center gap-2 rounded-[14px] bg-[#f97316] text-[15px] font-semibold text-white shadow-[0_8px_24px_-6px_rgba(249,115,22,0.5)] transition-all hover:bg-[#ea580c] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f97316] disabled:cursor-not-allowed disabled:opacity-45 disabled:shadow-none";
 
 function PasswordStrength({ senha }: { senha: string }) {
   const checks = [
     { label: "Mínimo 8 caracteres", ok: senha.length >= 8 },
-    { label: "Letra maiúscula",      ok: /[A-Z]/.test(senha) },
-    { label: "Letra minúscula",      ok: /[a-z]/.test(senha) },
-    { label: "Número",               ok: /[0-9]/.test(senha) },
+    { label: "Letra maiúscula", ok: /[A-Z]/.test(senha) },
+    { label: "Letra minúscula", ok: /[a-z]/.test(senha) },
+    { label: "Número", ok: /[0-9]/.test(senha) },
   ];
   if (!senha) return null;
   return (
-    <div className="flex flex-col gap-1 mt-2">
+    <ul className="mt-2.5 flex flex-col gap-1">
       {checks.map(c => (
-        <div key={c.label} className="flex items-center gap-2 text-[12px]">
-          <span className={c.ok ? "text-green-500" : "text-zinc-400"}>{c.ok ? "✓" : "○"}</span>
-          <span className={c.ok ? "text-green-600 dark:text-green-400" : "text-zinc-400 dark:text-zinc-500"}>{c.label}</span>
-        </div>
+        <li key={c.label} className="flex items-center gap-2 text-[12px]">
+          <span className={c.ok ? "text-emerald-400" : "text-white/25"} aria-hidden>
+            {c.ok ? "✓" : "○"}
+          </span>
+          <span className={c.ok ? "text-emerald-300" : "text-white/40"}>{c.label}</span>
+        </li>
       ))}
-    </div>
+    </ul>
   );
 }
 
-function RecuperarSenhaContent() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-
-  const [step, setStep]           = useState<Step>("email");
-  const [email, setEmail]         = useState("");
+export default function RecuperarSenhaPage() {
+  const [step, setStep] = useState<Step>("escolha");
+  const [email, setEmail] = useState("");
+  const [whatsapp, setWhatsapp] = useState("");
+  const [codigo, setCodigo] = useState("");
   const [novaSenha, setNovaSenha] = useState("");
   const [confirmar, setConfirmar] = useState("");
   const [resetToken, setResetToken] = useState("");
-  const [loading, setLoading]     = useState(false);
-  const [error, setError]         = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
-  // Se vier com ?token=xxx na URL, pula direto para o passo de nova senha
+  /**
+   * Token pela URL lido de `window.location`, e não de `useSearchParams()`.
+   *
+   * `useSearchParams()` tira a página do render estático e joga a árvore
+   * inteira para dentro de um Suspense do lado do cliente. O `<Suspense>` aqui
+   * estava sem `fallback`, então o HTML servido vinha VAZIO e a tela ficava
+   * branca até o JS executar — e branca para sempre se ele não executasse.
+   * Nenhum esqueleto, nenhum erro, nada em que se agarrar para diagnosticar.
+   *
+   * Lendo de `window.location` a página volta a ser pré-renderizada: o HTML já
+   * chega com a moldura e o formulário. O JS só decide qual passo mostrar.
+   */
   useEffect(() => {
-    const token = searchParams.get("token");
+    const token = new URLSearchParams(window.location.search).get("token");
     if (token) {
       setResetToken(token);
       setStep("nova-senha");
     }
-  }, [searchParams]);
-
-  const inputClass = "w-full bg-black/5 dark:bg-black/50 border border-zinc-200 dark:border-zinc-800 rounded-xl py-3.5 px-4 text-zinc-900 dark:text-white text-[15px] focus:outline-none focus:border-zinc-400 dark:focus:border-zinc-500 focus:bg-white dark:focus:bg-black transition-colors placeholder:text-zinc-400 dark:placeholder:text-zinc-600";
+  }, []);
 
   const handleEnviarEmail = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -62,7 +92,37 @@ function RecuperarSenhaContent() {
     } finally { setLoading(false); }
   };
 
-  const isValid = novaSenha.length >= 8 && /[A-Z]/.test(novaSenha) && /[a-z]/.test(novaSenha) && /[0-9]/.test(novaSenha);
+  /** Só dígitos: o backend compara o número cru que está no perfil. */
+  const whatsappLimpo = whatsapp.replace(/\D/g, "");
+
+  const handleEnviarOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (whatsappLimpo.length < 10) { setError("Informe o número com DDD."); return; }
+    setLoading(true); setError("");
+    try {
+      await api.post("/auth/enviar-otp", { whatsapp: whatsappLimpo });
+      setStep("codigo");
+    } catch (err: any) {
+      setError(err.response?.data?.message || "Não foi possível enviar o código.");
+    } finally { setLoading(false); }
+  };
+
+  const handleVerificarOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (codigo.length !== 6) { setError("O código tem 6 dígitos."); return; }
+    setLoading(true); setError("");
+    try {
+      const { data } = await api.post("/auth/verificar-otp", { whatsapp: whatsappLimpo, codigo });
+      // O token vale 3 minutos — daí ir direto para a senha, sem tela no meio.
+      setResetToken(data.resetToken);
+      setStep("nova-senha");
+    } catch (err: any) {
+      setError(err.response?.data?.message || "Código inválido ou expirado.");
+    } finally { setLoading(false); }
+  };
+
+  const isValid =
+    novaSenha.length >= 8 && /[A-Z]/.test(novaSenha) && /[a-z]/.test(novaSenha) && /[0-9]/.test(novaSenha);
 
   const handleRedefinir = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -77,146 +137,252 @@ function RecuperarSenhaContent() {
     } finally { setLoading(false); }
   };
 
+  const titulo =
+    step === "ok" ? "Senha redefinida"
+      : step === "nova-senha" ? "Defina sua nova senha"
+      : step === "enviado" ? "Verifique seu e-mail"
+      : step === "codigo" ? "Digite o código"
+      : "Recuperar senha";
+
   return (
-    <div className="relative min-h-screen bg-zinc-50 dark:bg-black flex items-center justify-center font-display">
-      <div className="absolute inset-0 z-0 flex items-center justify-center pointer-events-none overflow-hidden">
-        <div className="w-[800px] h-[800px] bg-black/[0.02] dark:bg-white/[0.02] rounded-full blur-[120px]" />
+    <div className="relative flex min-h-dvh items-center justify-center overflow-hidden bg-[#08090c] px-5 py-10 text-white">
+      {/* Mesma atmosfera do login: o planeta continua ao fundo. */}
+      <div aria-hidden className="pointer-events-none absolute inset-0">
+        <img src="/branding/planeta.jpg" alt="" className="absolute inset-0 h-full w-full object-cover" />
+        <div className="absolute inset-0 bg-[#08090c]/70" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,transparent_20%,rgba(8,9,12,0.85)_80%)]" />
       </div>
 
-      <div className="relative z-10 w-full max-w-[440px] px-8">
-        <div className="flex flex-col items-center mb-10">
-          <div className="mb-5 shadow-xl rounded-[30px] overflow-hidden">
-            <OrkestriLogo size={48} />
-          </div>
-          <h1 className="text-3xl font-semibold tracking-tight text-zinc-900 dark:text-white mb-1">
-            Recuperar senha
-          </h1>
-          {step === "nova-senha" && (
-            <p className="text-[13px] text-zinc-400 dark:text-zinc-500 font-medium">Defina sua nova senha</p>
-          )}
+      <div className="relative z-10 w-full max-w-[430px]">
+        <div className="mb-8 flex flex-col items-center gap-5 text-center">
+          <BrandLogo size="lg" tone="light" />
+          <h1 className="text-[1.75rem] font-bold leading-tight tracking-[-0.03em]">{titulo}</h1>
         </div>
 
-        <div className="bg-white/70 dark:bg-zinc-950/80 backdrop-blur-2xl border border-black/5 dark:border-white/10 rounded-2xl p-8 shadow-2xl">
+        <div className="rounded-[20px] border border-white/[0.08] bg-white/[0.03] p-7 backdrop-blur-xl sm:p-8">
+          {/* PASSO 0 — escolher por onde receber */}
+          {step === "escolha" && (
+            <div className="flex flex-col gap-4">
+              <p className="text-[14px] leading-relaxed text-white/55">
+                Como você prefere receber a instrução para redefinir a senha?
+              </p>
+
+              <button
+                type="button"
+                onClick={() => { setStep("whatsapp"); setError(""); }}
+                className="flex items-center gap-3.5 rounded-[14px] border border-white/[0.10] bg-white/[0.04] p-4 text-left transition-all hover:border-[#f97316]/50 hover:bg-white/[0.06] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f97316]"
+              >
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-500/12 text-emerald-400">
+                  <MessageCircle size={19} aria-hidden />
+                </span>
+                <span className="min-w-0">
+                  <span className="block text-[14px] font-semibold text-white">Código por WhatsApp</span>
+                  <span className="block text-[12.5px] text-white/50">
+                    Chega em segundos no número cadastrado
+                  </span>
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => { setStep("email"); setError(""); }}
+                className="flex items-center gap-3.5 rounded-[14px] border border-white/[0.10] bg-white/[0.04] p-4 text-left transition-all hover:border-[#f97316]/50 hover:bg-white/[0.06] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f97316]"
+              >
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#f97316]/12 text-[#fb923c]">
+                  <Mail size={19} aria-hidden />
+                </span>
+                <span className="min-w-0">
+                  <span className="block text-[14px] font-semibold text-white">Link por e-mail</span>
+                  <span className="block text-[12.5px] text-white/50">
+                    Depende do servidor de e-mail estar ativo
+                  </span>
+                </span>
+              </button>
+            </div>
+          )}
+
+          {/* PASSO 1a — número do WhatsApp */}
+          {step === "whatsapp" && (
+            <form onSubmit={handleEnviarOtp} className="flex flex-col gap-5">
+              <p className="text-[14px] leading-relaxed text-white/55">
+                Informe o WhatsApp cadastrado na sua conta. Enviaremos um código
+                de 6 dígitos, válido por 5 minutos.
+              </p>
+              <div>
+                <label htmlFor="whatsapp" className="mb-1.5 block text-[13px] font-medium text-white/70">
+                  WhatsApp
+                </label>
+                <input
+                  id="whatsapp"
+                  type="tel"
+                  inputMode="numeric"
+                  value={whatsapp}
+                  onChange={e => setWhatsapp(e.target.value)}
+                  placeholder="DDD + número"
+                  className={INPUT}
+                  autoFocus
+                />
+              </div>
+              {error && <Erro texto={error} />}
+              <button type="submit" disabled={loading} className={BOTAO}>
+                {loading
+                  ? <><Loader2 className="h-[18px] w-[18px] animate-spin" aria-hidden /> Enviando...</>
+                  : "Enviar código"}
+              </button>
+              <Voltar onClick={() => { setStep("escolha"); setError(""); }} />
+            </form>
+          )}
+
+          {/* PASSO 2a — digitar o código */}
+          {step === "codigo" && (
+            <form onSubmit={handleVerificarOtp} className="flex flex-col gap-5">
+              <p className="text-[14px] leading-relaxed text-white/55">
+                Digite o código de 6 dígitos enviado para o WhatsApp terminado em{" "}
+                <strong className="text-white/85">{whatsappLimpo.slice(-4)}</strong>.
+              </p>
+              <div>
+                <label htmlFor="codigo" className="mb-1.5 block text-[13px] font-medium text-white/70">
+                  Código
+                </label>
+                <input
+                  id="codigo"
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={6}
+                  value={codigo}
+                  // Só dígitos: colar com espaço ou traço não pode invalidar.
+                  onChange={e => setCodigo(e.target.value.replace(/\D/g, ""))}
+                  placeholder="000000"
+                  className={`${INPUT} text-center text-[22px] tracking-[0.5em]`}
+                  autoFocus
+                />
+              </div>
+              {error && <Erro texto={error} />}
+              <button type="submit" disabled={loading || codigo.length !== 6} className={BOTAO}>
+                {loading
+                  ? <><Loader2 className="h-[18px] w-[18px] animate-spin" aria-hidden /> Verificando...</>
+                  : "Verificar código"}
+              </button>
+              <Voltar
+                rotulo="Enviar outro código"
+                onClick={() => { setStep("whatsapp"); setCodigo(""); setError(""); }}
+              />
+            </form>
+          )}
 
           {/* PASSO 1 — digitar email */}
           {step === "email" && (
             <form onSubmit={handleEnviarEmail} className="flex flex-col gap-5">
-              <p className="text-[14px] text-zinc-500 dark:text-zinc-400">
+              <p className="text-[14px] leading-relaxed text-white/55">
                 Informe o e-mail cadastrado na sua conta. Enviaremos um link para redefinir sua senha.
               </p>
               <div>
-                <label className="text-[13px] font-medium text-zinc-500 dark:text-zinc-400 block mb-1.5">E-mail</label>
+                <label htmlFor="email" className="mb-1.5 block text-[13px] font-medium text-white/70">
+                  E-mail
+                </label>
                 <input
+                  id="email"
                   type="email"
                   value={email}
                   onChange={e => setEmail(e.target.value)}
                   placeholder="seu@email.com"
-                  className={inputClass}
+                  className={INPUT}
                   autoFocus
                 />
               </div>
-              {error && (
-                <div className="text-[13px] text-red-600 dark:text-red-400 font-medium text-center bg-red-50 dark:bg-red-950/20 py-2 rounded-lg">{error}</div>
-              )}
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full py-3.5 rounded-xl bg-zinc-900 dark:bg-white text-white dark:text-black font-semibold text-[15px] hover:bg-zinc-800 dark:hover:bg-zinc-200 transition-colors disabled:opacity-50 shadow-md"
-              >
-                {loading ? "Enviando..." : "Enviar link de redefinição"}
+              {error && <Erro texto={error} />}
+              <button type="submit" disabled={loading} className={BOTAO}>
+                {loading ? <><Loader2 className="h-[18px] w-[18px] animate-spin" aria-hidden /> Enviando...</> : "Enviar link de redefinição"}
               </button>
             </form>
           )}
 
           {/* PASSO 2 — aguardar email */}
           {step === "enviado" && (
-            <div className="flex flex-col items-center text-center gap-4 py-2">
-              <div className="w-16 h-16 rounded-full bg-violet-100 dark:bg-violet-900/30 flex items-center justify-center">
-                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-violet-600 dark:text-violet-400">
-                  <rect x="2" y="4" width="20" height="16" rx="2"/>
-                  <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>
-                </svg>
+            <div className="flex flex-col items-center gap-4 py-1 text-center">
+              <span className="flex h-16 w-16 items-center justify-center rounded-full bg-[#f97316]/12 text-[#fb923c]">
+                <Mail size={28} aria-hidden />
+              </span>
+              <p className="text-[13.5px] leading-relaxed text-white/60">
+                Se <strong className="text-white/85">{email}</strong> estiver cadastrado, você receberá um
+                link para redefinir sua senha.
+              </p>
+              <div className="w-full rounded-[14px] border border-white/[0.08] bg-white/[0.03] p-4 text-left text-[12.5px] leading-relaxed text-white/55">
+                <strong className="text-white/80">Não recebeu?</strong><br />
+                Verifique a pasta de spam. O link expira em <strong className="text-white/80">30 minutos</strong>.
               </div>
-              <div>
-                <h2 className="text-lg font-semibold text-zinc-900 dark:text-white mb-1">Verifique seu e-mail</h2>
-                <p className="text-[13px] text-zinc-500 dark:text-zinc-400 leading-relaxed">
-                  Se <strong>{email}</strong> estiver cadastrado, você receberá um link para redefinir sua senha.
-                </p>
-              </div>
-              <div className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-4 text-[12px] text-zinc-500 dark:text-zinc-400 text-left">
-                <strong className="text-zinc-700 dark:text-zinc-300">Não recebeu?</strong><br />
-                Verifique a pasta de spam. O link expira em <strong>30 minutos</strong>.
-              </div>
-              <button
-                type="button"
+              <Voltar
+                rotulo="Usar outro e-mail"
                 onClick={() => { setStep("email"); setError(""); }}
-                className="text-[13px] text-zinc-500 hover:text-zinc-900 dark:hover:text-white transition-colors"
-              >
-                ← Usar outro e-mail
-              </button>
+              />
+              {/* Sem SMTP configurado o e-mail nunca chega, e o backend não
+                  tem como avisar daqui. Oferecer a saída é melhor que deixar
+                  a pessoa esperando por algo que não vem. */}
+              <Voltar
+                rotulo="Receber por WhatsApp"
+                onClick={() => { setStep("whatsapp"); setError(""); }}
+              />
             </div>
           )}
 
           {/* PASSO 3 — nova senha (vindo do link do email) */}
           {step === "nova-senha" && (
             <form onSubmit={handleRedefinir} className="flex flex-col gap-5">
-              <p className="text-[14px] text-zinc-500 dark:text-zinc-400">
+              <p className="text-[14px] leading-relaxed text-white/55">
                 Crie sua nova senha. Escolha algo seguro e fácil de lembrar.
               </p>
               <div>
-                <label className="text-[13px] font-medium text-zinc-500 dark:text-zinc-400 block mb-1.5">Nova senha</label>
+                <label htmlFor="nova" className="mb-1.5 block text-[13px] font-medium text-white/70">
+                  Nova senha
+                </label>
                 <input
+                  id="nova"
                   type="password"
                   value={novaSenha}
                   onChange={e => setNovaSenha(e.target.value)}
                   placeholder="••••••••"
-                  className={inputClass + " tracking-widest"}
+                  className={`${INPUT} tracking-widest`}
                   autoFocus
                 />
                 <PasswordStrength senha={novaSenha} />
               </div>
               <div>
-                <label className="text-[13px] font-medium text-zinc-500 dark:text-zinc-400 block mb-1.5">Confirmar senha</label>
+                <label htmlFor="confirmar" className="mb-1.5 block text-[13px] font-medium text-white/70">
+                  Confirmar senha
+                </label>
                 <input
+                  id="confirmar"
                   type="password"
                   value={confirmar}
                   onChange={e => setConfirmar(e.target.value)}
                   placeholder="••••••••"
-                  className={inputClass + " tracking-widest"}
+                  className={`${INPUT} tracking-widest`}
                 />
                 {confirmar && novaSenha !== confirmar && (
-                  <p className="text-[12px] text-red-500 mt-1.5">As senhas não coincidem.</p>
+                  <p className="mt-1.5 text-[12px] text-red-400">As senhas não coincidem.</p>
                 )}
               </div>
-              {error && (
-                <div className="text-[13px] text-red-600 dark:text-red-400 font-medium text-center bg-red-50 dark:bg-red-950/20 py-2 rounded-lg">{error}</div>
-              )}
+              {error && <Erro texto={error} />}
               <button
                 type="submit"
                 disabled={loading || !isValid || novaSenha !== confirmar}
-                className="w-full py-3.5 rounded-xl bg-zinc-900 dark:bg-white text-white dark:text-black font-semibold text-[15px] hover:bg-zinc-800 dark:hover:bg-zinc-200 transition-colors disabled:opacity-50 shadow-md"
+                className={BOTAO}
               >
-                {loading ? "Salvando..." : "Redefinir senha"}
+                {loading ? <><Loader2 className="h-[18px] w-[18px] animate-spin" aria-hidden /> Salvando...</> : "Redefinir senha"}
               </button>
             </form>
           )}
 
           {/* PASSO 4 — sucesso */}
           {step === "ok" && (
-            <div className="text-center py-4">
-              <div className="w-14 h-14 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center mx-auto mb-5">
-                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-green-600 dark:text-green-400">
-                  <path d="M20 6L9 17l-5-5" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-              </div>
-              <h2 className="text-xl font-semibold text-zinc-900 dark:text-white mb-2">Senha redefinida!</h2>
-              <p className="text-[14px] text-zinc-500 dark:text-zinc-400 mb-8">
+            <div className="flex flex-col items-center gap-4 py-1 text-center">
+              <span className="flex h-14 w-14 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-400">
+                <Check size={26} aria-hidden />
+              </span>
+              <p className="text-[14px] leading-relaxed text-white/60">
                 Sua senha foi alterada com sucesso. Faça login com a nova senha.
               </p>
-              <Link
-                href="/login"
-                className="inline-block w-full py-3.5 rounded-xl bg-zinc-900 dark:bg-white text-white dark:text-black font-semibold text-[15px] hover:bg-zinc-800 dark:hover:bg-zinc-200 transition-colors text-center shadow-md"
-              >
+              <Link href="/login" className={`${BOTAO} mt-1`}>
                 Ir para o login
               </Link>
             </div>
@@ -224,8 +390,11 @@ function RecuperarSenhaContent() {
         </div>
 
         <div className="mt-6 text-center">
-          <Link href="/login" className="text-[14px] font-medium text-zinc-500 hover:text-zinc-900 dark:hover:text-white transition-colors">
-            ← Voltar ao login
+          <Link
+            href="/login"
+            className="inline-flex items-center gap-1.5 rounded text-[13.5px] font-medium text-white/60 transition-colors hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f97316]"
+          >
+            <ArrowLeft size={14} aria-hidden /> Voltar ao login
           </Link>
         </div>
       </div>
@@ -233,10 +402,26 @@ function RecuperarSenhaContent() {
   );
 }
 
-export default function RecuperarSenhaPage() {
+/** Link discreto de retorno, repetido em várias etapas. */
+function Voltar({ onClick, rotulo = "Voltar" }: { onClick: () => void; rotulo?: string }) {
   return (
-    <Suspense>
-      <RecuperarSenhaContent />
-    </Suspense>
+    <button
+      type="button"
+      onClick={onClick}
+      className="rounded text-[13px] font-medium text-white/55 transition-colors hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f97316]"
+    >
+      ← {rotulo}
+    </button>
+  );
+}
+
+function Erro({ texto }: { texto: string }) {
+  return (
+    <p
+      role="alert"
+      className="rounded-[12px] border border-red-500/25 bg-red-500/10 px-4 py-2.5 text-center text-[13px] font-medium text-red-300"
+    >
+      {texto}
+    </p>
   );
 }

@@ -1,12 +1,25 @@
 #!/bin/bash
-# deploy.sh — Envia o código para o servidor Lightsail
-# Uso: bash deploy.sh <IP_DO_SERVIDOR> [usuario]
-# Exemplo: bash deploy.sh 18.215.185.83
+# deploy.sh — Envia o código para o servidor Lightsail de PRODUÇÃO
+#
+# Uso: bash deploy.sh [IP] [usuario] [caminho_do_pem]
+# Exemplo: bash deploy.sh 54.159.107.250 ubuntu C:/orkestri-clean/lightsail-key.pem
+#
+# O padrão anterior era 18.215.185.83 — endereço antigo. Rodar o script sem
+# argumentos mandava o código para o servidor errado.
 
-SERVER_IP="${1:-18.215.185.83}"
+SERVER_IP="${1:-54.159.107.250}"
 SERVER_USER="${2:-ubuntu}"
 REMOTE_DIR="/opt/orkestri"
 KEY_FILE="${3:-}"  # Opcional: caminho para o .pem
+
+# Confirmação explícita: este script publica em produção, e o rebuild dos
+# containers aplica as migrations pendentes automaticamente (Dockerfile:30).
+echo "PRODUÇÃO — $SERVER_USER@$SERVER_IP:$REMOTE_DIR"
+read -r -p "Confirma o deploy neste servidor? (digite: sim) " CONFIRMA
+if [ "$CONFIRMA" != "sim" ]; then
+  echo "Cancelado."
+  exit 1
+fi
 
 SSH_OPTS="-o StrictHostKeyChecking=no"
 if [ -n "$KEY_FILE" ]; then

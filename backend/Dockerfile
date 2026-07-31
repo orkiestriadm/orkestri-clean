@@ -24,7 +24,15 @@ COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/prisma ./prisma
 COPY package*.json ./
-RUN mkdir -p /app/uploads && chown -R app:app /app
+# Os pontos de montagem precisam existir e pertencer ao usuário `app` ANTES do
+# volume ser montado: o Docker herda dono/permissão do diretório da imagem ao
+# inicializar um volume vazio. Sem isso o volume nasce como root e o processo,
+# que roda como `app`, não consegue escrever.
+#
+# `secure/people-docs` guarda documento de colaborador e fica fora de `uploads`
+# de propósito — aquele é publicado estaticamente pelo nginx, este só sai pelo
+# endpoint autenticado de download.
+RUN mkdir -p /app/uploads /app/secure/people-docs && chown -R app:app /app
 USER app
 EXPOSE 3000
 CMD ["sh", "-c", "npx prisma migrate deploy && node dist/main"]
