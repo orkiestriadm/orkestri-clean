@@ -13,6 +13,7 @@ import { DevelopmentService } from "./application/development.service";
 import { ReportService } from "./application/report.service";
 import { SalaryService } from "./application/salary.service";
 import { FeedbackService } from "./application/feedback.service";
+import { CareerService } from "./application/career.service";
 
 /**
  * Teste de integração do Orkiestri People — serviços reais contra banco real.
@@ -31,6 +32,7 @@ const DB = process.env.PEOPLE_IT_DATABASE_URL;
 const descreve = DB ? describe : describe.skip;
 
 descreve("People — integração", () => {
+  let moduloRef: any;
   let prisma: PrismaService;
   let employees: EmployeeService;
   let documents: DocumentService;
@@ -40,6 +42,7 @@ descreve("People — integração", () => {
   let reports: ReportService;
   let salarios: SalaryService;
   let feedbacks: FeedbackService;
+  let carreira: CareerService;
   let raizDocs: string;
 
   const orgId = `it-org-${randomUUID()}`;
@@ -58,7 +61,8 @@ descreve("People — integração", () => {
     raizDocs = fs.mkdtempSync(path.join(os.tmpdir(), "people-it-"));
     process.env.PEOPLE_DOCS_DIR = raizDocs;
 
-    const modulo = await Test.createTestingModule({ imports: [PeopleModule] }).compile();
+    moduloRef = await Test.createTestingModule({ imports: [PeopleModule] }).compile();
+    const modulo = moduloRef;
     await modulo.init();
 
     prisma = modulo.get(PrismaService);
@@ -70,6 +74,7 @@ descreve("People — integração", () => {
     reports = modulo.get(ReportService);
     salarios = modulo.get(SalaryService);
     feedbacks = modulo.get(FeedbackService);
+    carreira = modulo.get(CareerService);
 
     await (prisma as any).organization.create({
       data: { id: orgId, nome: "IT People", slug: `it-${randomUUID().slice(0, 8)}` },
@@ -89,6 +94,15 @@ descreve("People — integração", () => {
     // Cascata da organização leva colaboradores, histórico e documentos.
     await (prisma as any).organization.deleteMany({ where: { id: orgId } }).catch(() => {});
     fs.rmSync(raizDocs, { recursive: true, force: true });
+
+    // FECHA O MÓDULO, não só o Prisma.
+    //
+    // O PeopleModule importa ScheduleModule.forRoot(), e os cron registrados
+    // mantêm o event loop vivo: sem `close()` o jest terminava os testes e
+    // ficava pendurado para sempre. A saída fácil seria `--forceExit`, que
+    // esconde vazamento de verdade — e uma suíte que trava é uma suíte que
+    // alguém desliga. Esta aqui ficou meses sem rodar.
+    await moduloRef?.close().catch(() => {});
     await (prisma as any).$disconnect?.();
   }, 30_000);
 
@@ -225,6 +239,45 @@ descreve("People — integração", () => {
       expect(item.podeBaixar).toBe(false);
 
       await expect(documents.prepararDownload(gestor, enviado.data.id)).rejects.toThrow();
+    });
+
+    it("acusa o documento cujo arquivo sumiu do armazenamento", async () => {
+      // Não é hipótese: o diretório de documentos ficou sem volume no container
+      // e todo deploy o recriava vazio, deixando as linhas apontando para o
+      // nada. A lista mostrava tudo normal e o erro só vinha no clique.
+      const conteudo = Buffer.from("%PDF-1.4 vai sumir");
+      const enviado = await documents.enviar(
+        rh(), colaboradorId,
+        { categoria: "outro", titulo: "Some do disco" } as any,
+        { originalname: "some.pdf", mimetype: "application/pdf", size: conteudo.length, buffer: conteudo },
+      );
+
+      const antes = (await documents.listar(rh(), colaboradorId))
+        .data.find((d: any) => d.id === enviado.data.id);
+      expect(antes.arquivoDisponivel).toBe(true);
+      expect(antes.podeBaixar).toBe(true);
+      // O caminho no armazenamento NÃO pode sair na resposta: a checagem de
+      // existência é feita com ele, mas ele morre no serviço.
+      expect(antes.arquivoRef).toBeUndefined();
+
+      // Apaga o arquivo por fora, como o deploy fazia.
+      const doc = await (prisma as any).collaboratorDocument.findUnique({
+        where: { id: enviado.data.id }, select: { arquivoRef: true },
+      });
+      fs.rmSync(path.join(raizDocs, doc.arquivoRef));
+
+      const depois = (await documents.listar(rh(), colaboradorId))
+        .data.find((d: any) => d.id === enviado.data.id);
+      expect(depois.arquivoDisponivel).toBe(false);
+      expect(depois.podeBaixar).toBe(false);
+
+      const conf = await documents.conformidade(rh());
+      expect(conf.data.semArquivo.some((d: any) => d.id === enviado.data.id)).toBe(true);
+
+      // E o download continua respondendo 404 com mensagem, não 500.
+      await expect(documents.prepararDownload(rh(), enviado.data.id)).rejects.toThrow();
+
+      await documents.excluir(rh(), enviado.data.id).catch(() => {});
     });
 
     it("exclusão remove o arquivo do disco", async () => {
@@ -717,6 +770,229 @@ descreve("People — integração", () => {
       } as any);
       const hoje = new Date().toDateString();
       expect(new Date(r.data.ocorridoEm).toDateString()).toBe(hoje);
+    });
+  });
+
+  describe("plano de carreira", () => {
+    let trilhaId: string;
+    let cargoJr: string;
+    let cargoPl: string;
+    let cargoSr: string;
+    let skillId: string;
+    let cursoId: string;
+    let degrauPl: string;
+    let pessoaId: string;
+
+    beforeAll(async () => {
+      const sufixo = randomUUID().slice(0, 6);
+      const cargo = async (titulo: string) =>
+        (await (prisma as any).position.create({
+          data: { id: `it-pos-${randomUUID()}`, organizationId: orgId, titulo },
+        })).id;
+
+      cargoJr = await cargo(`Dev Jr ${sufixo}`);
+      cargoPl = await cargo(`Dev Pl ${sufixo}`);
+      cargoSr = await cargo(`Dev Sr ${sufixo}`);
+
+      skillId = (await (prisma as any).skill.create({
+        data: { id: `it-sk-${randomUUID()}`, organizationId: orgId, nome: `Go ${sufixo}` },
+      })).id;
+
+      cursoId = (await (prisma as any).trainingCourse.create({
+        data: { id: `it-tc-${randomUUID()}`, organizationId: orgId, nome: `Arquitetura ${sufixo}` },
+      })).id;
+
+      const t = await carreira.criarTrilha(rh(), { nome: `Engenharia ${sufixo}` });
+      trilhaId = t.data.id;
+
+      await carreira.adicionarDegrau(rh(), trilhaId, { positionId: cargoJr } as any);
+      const pl = await carreira.adicionarDegrau(rh(), trilhaId, {
+        positionId: cargoPl, mesesMinimos: 12, notaMinima: 3.5,
+      } as any);
+      degrauPl = pl.data.id;
+      await carreira.adicionarDegrau(rh(), trilhaId, { positionId: cargoSr } as any);
+
+      const p = await employees.criar(rh(), {
+        nomeCompleto: "Carreira Teste", dataAdmissao: "2024-01-15",
+      } as any);
+      pessoaId = p.data.id;
+      await (prisma as any).collaborator.update({
+        where: { id: pessoaId }, data: { positionId: cargoJr },
+      });
+    });
+
+    it("numera os degraus na ordem em que entram", async () => {
+      const t = await carreira.listarTrilhas(rh(), true);
+      const minha = t.data.find((x: any) => x.id === trilhaId);
+      expect(minha.degraus.map((d: any) => d.ordem)).toEqual([1, 2, 3]);
+    });
+
+    it("recusa o mesmo cargo duas vezes na trilha", async () => {
+      // O degrau atual é descoberto pelo cargo; repetir tornaria isso ambíguo.
+      await expect(
+        carreira.adicionarDegrau(rh(), trilhaId, { positionId: cargoJr } as any),
+      ).rejects.toThrow();
+    });
+
+    it("infere a trilha pelo cargo quando nenhuma foi atribuída", async () => {
+      const r = await carreira.situacao(rh(), pessoaId);
+      expect(r.data.inferida).toBe(true);
+      expect(r.data.trilha.id).toBe(trilhaId);
+      expect(r.data.degrauAtual.ordem).toBe(1);
+      expect(r.data.proximoDegrau.ordem).toBe(2);
+    });
+
+    it("cobra tempo e nota do próximo degrau", async () => {
+      const r = await carreira.situacao(rh(), pessoaId);
+      const p = r.data.prontidao;
+      const tempo = p.criterios.find((c: any) => c.rotulo === "Tempo no cargo");
+      const nota = p.criterios.find((c: any) => c.rotulo === "Desempenho");
+
+      // Admitida em 2024-01-15 e sem mudança de cargo: já passou de 12 meses.
+      expect(tempo.situacao).toBe("atendido");
+      // Nenhuma avaliação finalizada — aqui a ausência É a pendência.
+      expect(nota.situacao).toBe("pendente");
+      expect(p.pronto).toBe(false);
+    });
+
+    it("avalia competência pelo nível alcançado", async () => {
+      await carreira.adicionarRequisito(rh(), degrauPl, {
+        tipo: "competencia", skillId, nivelMinimo: "senior",
+      } as any);
+
+      const antes = await carreira.situacao(rh(), pessoaId);
+      expect(antes.data.prontidao.requisitos[0].situacao).toBe("pendente");
+
+      await (prisma as any).collaboratorSkill.create({
+        data: { id: `it-cs-${randomUUID()}`, collaboratorId: pessoaId, skillId, nivel: "junior" },
+      });
+      const junior = await carreira.situacao(rh(), pessoaId);
+      expect(junior.data.prontidao.requisitos[0].situacao).toBe("pendente");
+      expect(junior.data.prontidao.requisitos[0].nivelAtual).toBe("junior");
+
+      await (prisma as any).collaboratorSkill.updateMany({
+        where: { collaboratorId: pessoaId, skillId }, data: { nivel: "especialista" },
+      });
+      const especialista = await carreira.situacao(rh(), pessoaId);
+      expect(especialista.data.prontidao.requisitos[0].situacao).toBe("atendido");
+    });
+
+    it("só conta treinamento CONCLUÍDO", async () => {
+      const r = await carreira.adicionarRequisito(rh(), degrauPl, {
+        tipo: "treinamento", trainingId: cursoId,
+      } as any);
+      const reqId = r.data.id;
+
+      const participacao = await (prisma as any).collaboratorTraining.create({
+        data: {
+          id: `it-ct-${randomUUID()}`, organizationId: orgId,
+          collaboratorId: pessoaId, trainingId: cursoId, status: "EM_ANDAMENTO",
+        },
+      });
+
+      const andando = await carreira.situacao(rh(), pessoaId);
+      expect(andando.data.prontidao.requisitos.find((q: any) => q.id === reqId).situacao).toBe("pendente");
+
+      await (prisma as any).collaboratorTraining.update({
+        where: { id: participacao.id },
+        data: { status: "CONCLUIDO", conclusao: new Date() },
+      });
+
+      const concluido = await carreira.situacao(rh(), pessoaId);
+      expect(concluido.data.prontidao.requisitos.find((q: any) => q.id === reqId).situacao).toBe("atendido");
+    });
+
+    it("requisito manual nunca é dado como atendido e fica fora do percentual", async () => {
+      const r = await carreira.adicionarRequisito(rh(), degrauPl, {
+        tipo: "manual", descricao: "Conduzir uma entrega crítica",
+      } as any);
+
+      const s = await carreira.situacao(rh(), pessoaId);
+      const item = s.data.prontidao.requisitos.find((q: any) => q.id === r.data.id);
+      expect(item.situacao).toBe("conferencia_manual");
+      expect(s.data.prontidao.conferenciasManuais).toBeGreaterThan(0);
+    });
+
+    it("recusa requisito sem alvo", async () => {
+      await expect(
+        carreira.adicionarRequisito(rh(), degrauPl, { tipo: "competencia" } as any),
+      ).rejects.toThrow();
+      await expect(
+        carreira.adicionarRequisito(rh(), degrauPl, { tipo: "manual", descricao: "  " } as any),
+      ).rejects.toThrow();
+    });
+
+    it("reordena os degraus", async () => {
+      const antes = await carreira.listarTrilhas(rh(), true);
+      const minha = antes.data.find((x: any) => x.id === trilhaId);
+      const ids = [...minha.degraus].sort((a: any, b: any) => a.ordem - b.ordem).map((d: any) => d.id);
+
+      await carreira.reordenarDegraus(rh(), trilhaId, { ids: [ids[2], ids[0], ids[1]] });
+
+      const depois = await carreira.listarTrilhas(rh(), true);
+      const nova = depois.data.find((x: any) => x.id === trilhaId);
+      const porOrdem = [...nova.degraus].sort((a: any, b: any) => a.ordem - b.ordem).map((d: any) => d.id);
+      expect(porOrdem).toEqual([ids[2], ids[0], ids[1]]);
+
+      // Devolve a ordem original para não contaminar os testes seguintes.
+      await carreira.reordenarDegraus(rh(), trilhaId, { ids });
+    });
+
+    it("recusa reordenação que não cubra exatamente os degraus da trilha", async () => {
+      await expect(
+        carreira.reordenarDegraus(rh(), trilhaId, { ids: ["inexistente"] }),
+      ).rejects.toThrow();
+    });
+
+    it("no topo da trilha não há próximo degrau nem prontidão", async () => {
+      await (prisma as any).collaborator.update({
+        where: { id: pessoaId }, data: { positionId: cargoSr },
+      });
+      const r = await carreira.situacao(rh(), pessoaId);
+      expect(r.data.noTopo).toBe(true);
+      expect(r.data.proximoDegrau).toBeNull();
+      expect(r.data.prontidao).toBeNull();
+
+      await (prisma as any).collaborator.update({
+        where: { id: pessoaId }, data: { positionId: cargoJr },
+      });
+    });
+
+    it("cargo fora de qualquer trilha não inventa plano", async () => {
+      const solto = await employees.criar(rh(), { nomeCompleto: "Sem Trilha" } as any);
+      const r = await carreira.situacao(rh(), solto.data.id);
+      expect(r.data.trilha).toBeNull();
+      expect(r.data.motivo).toContain("cargo");
+    });
+
+    it("atribui e desfaz a trilha do colaborador", async () => {
+      await carreira.definirTrilhaDoColaborador(rh(), pessoaId, { careerTrackId: trilhaId });
+      const atribuida = await carreira.situacao(rh(), pessoaId);
+      expect(atribuida.data.inferida).toBe(false);
+
+      await carreira.definirTrilhaDoColaborador(rh(), pessoaId, { careerTrackId: null });
+      const desfeita = await carreira.situacao(rh(), pessoaId);
+      // Volta a ser deduzida pelo cargo, não some.
+      expect(desfeita.data.inferida).toBe(true);
+    });
+
+    it("remover degrau renumera o que sobrou", async () => {
+      const t = await carreira.listarTrilhas(rh(), true);
+      const minha = t.data.find((x: any) => x.id === trilhaId);
+      const doMeio = minha.degraus.find((d: any) => d.ordem === 2);
+
+      await carreira.removerDegrau(rh(), doMeio.id);
+
+      const depois = await carreira.listarTrilhas(rh(), true);
+      const nova = depois.data.find((x: any) => x.id === trilhaId);
+      expect(nova.degraus.map((d: any) => d.ordem).sort()).toEqual([1, 2]);
+    });
+
+    it("não deixa excluir cargo que é degrau de trilha", async () => {
+      // RESTRICT no banco: apagar abriria buraco no meio da progressão.
+      await expect(
+        (prisma as any).position.delete({ where: { id: cargoJr } }),
+      ).rejects.toThrow();
     });
   });
 

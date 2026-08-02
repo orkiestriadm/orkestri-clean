@@ -2,6 +2,7 @@
 export const dynamic = "force-dynamic";
 
 import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import Topbar from "@/components/layout/Topbar";
 import { useAuthStore } from "@/lib/store";
 import { useToastStore } from "@/lib/toast";
@@ -182,6 +183,16 @@ export default function IndicadoresPage() {
                           />
                         </div>
                       )}
+                      {/* O número diz quantos; a conformidade diz quais e de quem,
+                          que é o que permite agir. */}
+                      <div style={{ marginTop: 12 }}>
+                        <Link
+                          href="/dashboard/people/conformidade"
+                          style={{ fontSize: 12, color: "var(--accent-violet)" }}
+                        >
+                          Ver conformidade documental →
+                        </Link>
+                      </div>
                     </Panel>
 
                     <Panel title="FÉRIAS">

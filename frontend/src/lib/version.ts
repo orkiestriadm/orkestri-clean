@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "1.4.0";
+export const VERSAO = "1.5.0";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -23,10 +23,10 @@ export const VERSAO = "1.4.0";
  * Não é gerada no build: `new Date()` no bundle muda a cada compilação, e duas
  * builds do mesmo código pareceriam versões diferentes.
  */
-export const VERSAO_DATA = "2026-07-30";
+export const VERSAO_DATA = "2026-08-02";
 
 /** Nome da entrega, para dar contexto ao número. */
-export const VERSAO_NOME = "People — Plano de carreira";
+export const VERSAO_NOME = "People — Auditoria e conformidade";
 
 /**
  * Histórico exibido na tela Sobre, do mais recente para o mais antigo.
@@ -35,6 +35,16 @@ export const VERSAO_NOME = "People — Plano de carreira";
  * esta lista quer saber o que mudou para ele.
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
+  {
+    versao: "1.5.0",
+    data: "2026-08-02",
+    titulo: "Auditoria do People — conformidade documental",
+    itens: [
+      "Documentos deixam de ser perdidos a cada atualização do sistema",
+      "Tela de conformidade documental: o que falta aprovar, o que vence e o que perdeu o arquivo",
+      "A lista de documentos avisa quando o arquivo não está mais disponível, em vez de falhar só no clique",
+    ],
+  },
   {
     versao: "1.4.0",
     data: "2026-07-30",

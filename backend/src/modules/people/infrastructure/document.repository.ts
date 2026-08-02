@@ -42,6 +42,21 @@ export class DocumentRepository {
     });
   }
 
+  /**
+   * Só `id` e `arquivoRef` dos documentos do colaborador.
+   *
+   * Consulta separada porque `CAMPOS_LISTA` deliberadamente NÃO traz
+   * `arquivoRef`: o caminho no armazenamento não pode sair em resposta JSON.
+   * O serviço usa isto apenas para decidir se o arquivo existe, e descarta a
+   * referência antes de responder.
+   */
+  async refsDoColaborador(collaboratorId: string, organizationId: string) {
+    return this.db.collaboratorDocument.findMany({
+      where: { collaboratorId, organizationId, excluidoEm: null },
+      select: { id: true, arquivoRef: true },
+    });
+  }
+
   /** Inclui `arquivoRef` — só para o download, nunca para resposta JSON. */
   async obterParaDownload(id: string, organizationId: string) {
     return this.db.collaboratorDocument.findFirst({
@@ -128,6 +143,26 @@ export class DocumentRepository {
    * Só aprovados: documento pendente ou rejeitado já aparece como pendência
    * em outro indicador — contá-lo aqui também seria cobrar duas vezes.
    */
+  /**
+   * Só id, título e referência de arquivo — para conferir o que existe em disco.
+   *
+   * Sem `select` enxuto isto carregaria o cadastro inteiro de cada documento da
+   * organização só para checar a presença de um arquivo.
+   */
+  async referenciasDeArquivo(organizationId: string, collaboratorIds?: string[]) {
+    return this.db.collaboratorDocument.findMany({
+      where: {
+        organizationId,
+        excluidoEm: null,
+        ...(collaboratorIds ? { collaboratorId: { in: collaboratorIds } } : {}),
+      },
+      select: {
+        id: true, titulo: true, categoria: true, arquivoRef: true, collaboratorId: true,
+        collaborator: { select: { nomeCompleto: true, user: { select: { nome: true } } } },
+      },
+    });
+  }
+
   async vencendoAte(organizationId: string, limite: Date, collaboratorIds?: string[]) {
     return this.db.collaboratorDocument.findMany({
       where: {

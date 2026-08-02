@@ -60,19 +60,42 @@ export class DocumentService {
     const organizationId = this.exigirOrganizacao(user);
     await this.exigirEscopo(user, collaboratorId);
 
-    const documentos = await this.repo.listarDoColaborador(collaboratorId, organizationId);
+    const [documentos, refs] = await Promise.all([
+      this.repo.listarDoColaborador(collaboratorId, organizationId),
+      this.repo.refsDoColaborador(collaboratorId, organizationId),
+    ]);
     const podeAbrirSensivel = await this.podeVerSensivel(user, collaboratorId);
+
+    // A referência entra só neste mapa e morre aqui: `CAMPOS_LISTA` não a traz
+    // justamente para o caminho no armazenamento não sair em JSON.
+    const porId = new Map<string, string>(refs.map((r: any) => [r.id, r.arquivoRef]));
 
     return {
       success: true,
-      data: documentos.map((d: any) => ({
-        ...d,
-        situacaoValidade: situacaoValidade(d.dataValidade),
-        // O documento sensível aparece na lista (o gestor precisa saber que a
-        // pendência foi resolvida), mas sem permitir abrir.
-        podeBaixar: podeAbrirSensivel || !isCategoriaSensivel(d.categoria),
-        restrito: isCategoriaSensivel(d.categoria),
-      })),
+      data: documentos.map((d: any) => {
+        // O arquivo pode não estar mais lá.
+        //
+        // Aconteceu de verdade: o diretório de documentos vivia na camada
+        // gravável do container, sem volume, e todo deploy o recriava vazio —
+        // as linhas continuavam no banco apontando para o nada. A lista mostrava
+        // tudo normal e o erro só aparecia no clique, sem dizer quais.
+        //
+        // A checagem é um `existsSync` por linha, sobre um punhado de
+        // documentos por perfil: barato perto de descobrir a perda tarde demais.
+        const ref = porId.get(d.id);
+        const arquivoDisponivel = !!ref && this.storage.existe(ref);
+
+        return {
+          ...d,
+          situacaoValidade: situacaoValidade(d.dataValidade),
+          arquivoDisponivel,
+          // O documento sensível aparece na lista (o gestor precisa saber que a
+          // pendência foi resolvida), mas sem permitir abrir.
+          podeBaixar:
+            arquivoDisponivel && (podeAbrirSensivel || !isCategoriaSensivel(d.categoria)),
+          restrito: isCategoriaSensivel(d.categoria),
+        };
+      }),
     };
   }
 
@@ -275,10 +298,29 @@ export class DocumentService {
     const limite = new Date();
     limite.setDate(limite.getDate() + DIAS_ALERTA_VENCIMENTO);
 
-    const [porAprovacao, vencendo] = await Promise.all([
+    const [porAprovacao, vencendo, todos] = await Promise.all([
       this.repo.contarPorAprovacao(organizationId, ids),
       this.repo.vencendoAte(organizationId, limite, ids),
+      this.repo.referenciasDeArquivo(organizationId, ids),
     ]);
+
+    /**
+     * Documento cuja linha existe e cujo arquivo não.
+     *
+     * Não é hipótese: o diretório de documentos ficou sem volume e todo deploy
+     * o recriava vazio. Sem esta contagem a perda só aparecia um clique por
+     * vez, e o RH não tinha como saber o tamanho do estrago nem a quem pedir
+     * reenvio.
+     */
+    const semArquivo = todos
+      .filter((d: any) => !this.storage.existe(d.arquivoRef))
+      .map((d: any) => ({
+        id: d.id,
+        titulo: d.titulo,
+        categoria: d.categoria,
+        colaborador: d.collaborator?.nomeCompleto ?? d.collaborator?.user?.nome ?? null,
+        collaboratorId: d.collaboratorId,
+      }));
 
     const agora = new Date();
     return {
@@ -289,6 +331,7 @@ export class DocumentService {
           ...d,
           situacaoValidade: situacaoValidade(d.dataValidade, agora),
         })),
+        semArquivo,
         janelaDias: DIAS_ALERTA_VENCIMENTO,
       },
     };

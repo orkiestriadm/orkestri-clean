@@ -37,6 +37,24 @@ export type Documento = {
   /** Falso em documento restrito quando quem olha não é RH nem o próprio. */
   podeBaixar: boolean;
   restrito: boolean;
+  /** Falso quando a linha existe mas o arquivo sumiu do armazenamento. */
+  arquivoDisponivel?: boolean;
+};
+
+/** Painel de conformidade documental da organização. */
+export type Conformidade = {
+  porAprovacao: { aprovacao: AprovacaoDocumento; total: number }[];
+  vencendo: {
+    id: string; titulo: string; categoria: string; dataValidade: string | null;
+    situacaoValidade: SituacaoValidade;
+    collaborator: { id: string; nomeCompleto: string | null; user: { nome: string } | null } | null;
+  }[];
+  /** Linha no banco cujo arquivo não está mais no armazenamento. */
+  semArquivo: {
+    id: string; titulo: string; categoria: string;
+    colaborador: string | null; collaboratorId: string;
+  }[];
+  janelaDias: number;
 };
 
 export type DadosEnvio = {
@@ -113,8 +131,8 @@ export const documentsService = {
     return data;
   },
 
-  async conformidade() {
-    const { data } = await api.get(`${BASE}/documents/conformidade`);
+  async conformidade(): Promise<{ success: boolean; data: Conformidade }> {
+    const { data } = await api.get(`${BASE}/documents/conformidade`, { silent: true });
     return data;
   },
 };

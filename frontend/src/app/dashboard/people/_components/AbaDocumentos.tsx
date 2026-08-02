@@ -11,7 +11,7 @@ import {
   StatusBadge, BadgeTone, RowActions, RowAction,
 } from "@/components/data-ui";
 import {
-  Plus, Download, Check, X, Trash2, Lock, FileText,
+  Plus, Download, Check, X, Trash2, Lock, FileText, FileWarning,
 } from "lucide-react";
 import EnviarDocumento from "./EnviarDocumento";
 import DecidirDocumento from "./DecidirDocumento";
@@ -133,6 +133,13 @@ export default function AbaDocumentos({ collaboratorId, podeEnviar, podeAprovar,
                           {doc.motivoRejeicao}
                         </div>
                       )}
+                      {doc.arquivoDisponivel === false && (
+                        // O cadastro existe, o arquivo não. Dizer isso aqui evita
+                        // a descoberta pelo clique, um documento por vez.
+                        <div style={{ fontSize: 11, color: "var(--accent-amber)", marginTop: 2 }}>
+                          Arquivo indisponível — peça o reenvio
+                        </div>
+                      )}
                     </td>
                     <td>{CATEGORIA_LABEL[doc.categoria] ?? doc.categoria}</td>
                     <td className="num">{fmtData(doc.dataEmissao)}</td>
@@ -155,6 +162,16 @@ export default function AbaDocumentos({ collaboratorId, podeEnviar, podeAprovar,
                           >
                             <Download size={13} />
                           </RowAction>
+                        ) : doc.arquivoDisponivel === false ? (
+                          // Não é restrição — é ausência. Mostrar cadeado aqui
+                          // faria o RH pedir permissão para um arquivo que não
+                          // existe mais.
+                          <span
+                            title="O arquivo não está mais no armazenamento"
+                            style={{ display: "inline-flex", padding: 6, color: "var(--accent-amber)" }}
+                          >
+                            <FileWarning size={13} />
+                          </span>
                         ) : (
                           // Restrito: a linha existe para o gestor saber que a
                           // pendência foi resolvida, sem abrir o conteúdo.
