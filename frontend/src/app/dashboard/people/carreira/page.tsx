@@ -336,7 +336,12 @@ function DegrauCard({
   );
 }
 
-export function rotuloRequisito(r: {
+/**
+ * Sem `export`: arquivo de página do App Router só pode exportar `default` e as
+ * configurações de rota. Exportar um auxiliar daqui quebra o build com um erro
+ * que aponta para um arquivo gerado, não para esta linha.
+ */
+function rotuloRequisito(r: {
   tipo: string; skill?: { nome: string } | null; skillNome?: string | null;
   training?: { nome: string } | null; trainingNome?: string | null;
   nivelMinimo?: string | null; descricao?: string | null;
