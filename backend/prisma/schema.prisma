@@ -118,6 +118,9 @@ model Organization {
   cadastroRequests  CadastroRequest[]            @relation("CadReqOrg")
   collaborators     Collaborator[]               @relation("OrgCollaborators")
   positions         Position[]                   @relation("OrgPositions")
+  careerTracks      CareerTrack[]                @relation("OrgCareerTracks")
+  careerSteps       CareerTrackStep[]            @relation("OrgCareerSteps")
+  careerRequisitos  CareerStepRequirement[]      @relation("OrgCareerRequirements")
   collabHistory     CollaboratorHistory[]        @relation("OrgCollaboratorHistory")
   collabDocuments   CollaboratorDocument[]       @relation("OrgCollaboratorDocuments")
   vacationPeriods   CollaboratorVacationPeriod[] @relation("OrgVacationPeriods")
@@ -714,7 +717,8 @@ model Skill {
 
   organization  Organization        @relation("OrgSkills", fields: [organizationId], references: [id], onDelete: Cascade)
   collaborators CollaboratorSkill[]
-  chamados      Chamado[]           @relation("ChamadoSkill")
+  chamados      Chamado[]               @relation("ChamadoSkill")
+  requisitos    CareerStepRequirement[]
 
   @@unique([organizationId, nome])
   @@index([organizationId])
@@ -777,6 +781,9 @@ model Collaborator {
   especialidade    String?
   senioridade      String?
   gestorId         String?   @map("gestor_id")
+  /// Trilha de carreira. Nulo = não definida, e aí a trilha é inferida pelo
+  /// cargo atual quando ele aparece em exatamente uma.
+  careerTrackId    String?   @map("career_track_id")
   // Operacionais
   jornadaHorasDia  Float?    @map("jornada_horas_dia")
   jornadaHorasMes  Float?    @map("jornada_horas_mes")
@@ -819,8 +826,10 @@ model Collaborator {
   salarios         CollaboratorSalary[]
   feedbacks        PerformanceFeedback[]        @relation("FeedbackSobre")
   feedbacksDados   PerformanceFeedback[]        @relation("FeedbackAutor")
+  careerTrack      CareerTrack?                 @relation("TrackCollaborators", fields: [careerTrackId], references: [id], onDelete: SetNull)
 
   @@unique([organizationId, matricula])
+  @@index([careerTrackId])
   @@index([organizationId])
   @@index([setorId])
   @@index([gestorId])
@@ -855,10 +864,92 @@ model Position {
   organization  Organization         @relation("OrgPositions", fields: [organizationId], references: [id], onDelete: Cascade)
   collaborators Collaborator[]       @relation("PositionCollaborators")
   salarios      CollaboratorSalary[]
+  degrausCarreira CareerTrackStep[]
 
   @@unique([organizationId, titulo])
   @@index([organizationId])
   @@map("positions")
+}
+
+// ── People: Plano de carreira ──────────────────────────────────────────────
+// A trilha ORDENA CARGOS. Não há "nível dentro do cargo": o catálogo já carrega
+// o nível e a faixa salarial está amarrada ao cargo, então um segundo eixo
+// criaria duas respostas para "que nível essa pessoa é?" e a faixa não saberia
+// a qual obedecer. Progredir = ocupar o próximo cargo da trilha, o que move
+// faixa, organograma e histórico funcional pelo mesmo campo de sempre.
+model CareerTrack {
+  id              String    @id @default(uuid())
+  organizationId  String    @map("organization_id")
+  nome            String
+  descricao       String?
+  ativo           Boolean   @default(true)
+  criadoEm        DateTime  @default(now()) @map("criado_em")
+  criadoPorId     String?   @map("criado_por_id")
+  atualizadoEm    DateTime  @updatedAt @map("atualizado_em")
+  atualizadoPorId String?   @map("atualizado_por_id")
+
+  organization  Organization      @relation("OrgCareerTracks", fields: [organizationId], references: [id], onDelete: Cascade)
+  degraus       CareerTrackStep[]
+  collaborators Collaborator[]    @relation("TrackCollaborators")
+
+  @@unique([organizationId, nome])
+  @@index([organizationId])
+  @@map("career_tracks")
+}
+
+model CareerTrackStep {
+  id             String   @id @default(uuid())
+  organizationId String   @map("organization_id")
+  trackId        String   @map("track_id")
+  positionId     String   @map("position_id")
+  ordem          Int
+  /// Tempo mínimo NO DEGRAU. Nulo = a trilha não usa tempo como critério, o que
+  /// é diferente de zero ("nenhum tempo exigido").
+  mesesMinimos   Int?     @map("meses_minimos")
+  /// Nota mínima na última avaliação finalizada.
+  notaMinima     Decimal? @map("nota_minima") @db.Decimal(3, 2)
+  observacoes    String?
+  criadoEm       DateTime @default(now()) @map("criado_em")
+  criadoPorId    String?  @map("criado_por_id")
+
+  organization Organization             @relation("OrgCareerSteps", fields: [organizationId], references: [id], onDelete: Cascade)
+  track        CareerTrack              @relation(fields: [trackId], references: [id], onDelete: Cascade)
+  // Restrict: apagar um cargo que é degrau abriria buraco no meio da progressão
+  // e o "próximo degrau" de quem está abaixo passaria a apontar para o errado.
+  position     Position                 @relation(fields: [positionId], references: [id], onDelete: Restrict)
+  requisitos   CareerStepRequirement[]
+
+  @@unique([trackId, ordem])
+  @@unique([trackId, positionId])
+  @@index([organizationId])
+  @@index([positionId])
+  @@map("career_track_steps")
+}
+
+model CareerStepRequirement {
+  id             String   @id @default(uuid())
+  organizationId String   @map("organization_id")
+  stepId         String   @map("step_id")
+  /// competencia | treinamento | manual
+  tipo           String   @default("manual")
+  skillId        String?  @map("skill_id")
+  /// junior | pleno | senior | especialista
+  nivelMinimo    String?  @map("nivel_minimo")
+  trainingId     String?  @map("training_id")
+  descricao      String?
+  /// Não obrigatório = diferencial: conta a favor sem travar a progressão.
+  obrigatorio    Boolean  @default(true)
+  criadoEm       DateTime @default(now()) @map("criado_em")
+  criadoPorId    String?  @map("criado_por_id")
+
+  organization Organization    @relation("OrgCareerRequirements", fields: [organizationId], references: [id], onDelete: Cascade)
+  step         CareerTrackStep @relation(fields: [stepId], references: [id], onDelete: Cascade)
+  skill        Skill?          @relation(fields: [skillId], references: [id], onDelete: Cascade)
+  training     TrainingCourse? @relation(fields: [trainingId], references: [id], onDelete: Cascade)
+
+  @@index([stepId])
+  @@index([organizationId])
+  @@map("career_step_requirements")
 }
 
 // ── People: Endereços do colaborador ───────────────────────────────────────
@@ -3310,8 +3401,9 @@ model TrainingCourse {
   atualizadoPorId String?   @map("atualizado_por_id")
   excluidoEm      DateTime? @map("excluido_em")
 
-  organization  Organization           @relation("OrgTrainingCourses", fields: [organizationId], references: [id], onDelete: Cascade)
+  organization  Organization            @relation("OrgTrainingCourses", fields: [organizationId], references: [id], onDelete: Cascade)
   participacoes CollaboratorTraining[]
+  requisitos    CareerStepRequirement[]
 
   @@unique([organizationId, nome])
   @@index([organizationId, ativo])

@@ -73,6 +73,12 @@ export const PEOPLE_PERMISSION_CATALOG: readonly Permissao[] = [
   p("people.feedback",    "ver",       "Ver feedbacks do colaborador"),
   p("people.feedback",    "registrar", "Registrar feedback e ver anotação privada"),
 
+  // Carreira é leitura ampla de propósito: o plano só muda comportamento se a
+  // pessoa souber o que falta para o próximo degrau. Quem DESENHA a trilha é
+  // que precisa de concessão explícita.
+  p("people.carreira",    "ver",       "Ver trilhas de carreira e prontidão"),
+  p("people.carreira",    "gerenciar", "Desenhar trilhas, degraus e requisitos"),
+
   p("people.relatorio",   "ver",       "Ver indicadores de pessoas"),
   p("people.relatorio",   "exportar",  "Exportar relatórios de pessoas"),
 ];
@@ -124,6 +130,10 @@ export const PEOPLE_PERMISSIONS = {
     ver:       str("people.feedback", "ver"),
     registrar: str("people.feedback", "registrar"),
   },
+  carreira: {
+    ver:       str("people.carreira", "ver"),
+    gerenciar: str("people.carreira", "gerenciar"),
+  },
   relatorio: {
     ver:      str("people.relatorio", "ver"),
     exportar: str("people.relatorio", "exportar"),
@@ -136,6 +146,7 @@ export const PEOPLE_PERMISSOES_LEITURA: readonly string[] = [
   PEOPLE_PERMISSIONS.documento.ver,
   PEOPLE_PERMISSIONS.cargo.ver,
   PEOPLE_PERMISSIONS.treinamento.ver,
+  PEOPLE_PERMISSIONS.carreira.ver,
   PEOPLE_PERMISSIONS.relatorio.ver,
   // `beneficio.ver`, `avaliacao.ver` e `salario.ver` ficam de fora: salário
   // indireto e nota de desempenho não são leitura de rotina de quem apenas

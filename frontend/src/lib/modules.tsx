@@ -8,7 +8,7 @@ import {
   SmilePlus, TrendingUp, Receipt, LayoutGrid, CreditCard, Brain,
   GitBranch, Network, ShoppingBag, Radio, Wallet, FileSpreadsheet, Wrench,
   ClipboardCheck, FolderKanban, Boxes, ShieldCheck, HeartPulse, Bell,
-  Briefcase, CalendarClock, Library, BarChart3, CalendarX, UsersRound, Inbox, Info,
+  Briefcase, CalendarClock, Library, BarChart3, CalendarX, UsersRound, Inbox, Info, Route,
 } from "lucide-react";
 
 // `permission` como lista significa OU — ver canAccessModule.
@@ -53,6 +53,7 @@ export const NAV: NavGroup[] = [
       // O passivo é visão do quadro inteiro: o backend o protege com
       // relatorio:ver, não com ferias:ver. Espelhar evita um link que dá 403.
       { href: "/dashboard/people/ferias",      label: "Férias",        icon: CalendarClock, permission: "people.relatorio:ver" },
+      { href: "/dashboard/people/carreira",    label: "Carreira",      icon: Route,         permission: "people.carreira:ver" },
       { href: "/dashboard/people/catalogos",   label: "Catálogos",     icon: Library,       permission: ["people.beneficio:ver", "people.treinamento:ver"] },
       { href: "/dashboard/people/indicadores", label: "Indicadores",   icon: BarChart3,     permission: "people.relatorio:ver" },
     ],

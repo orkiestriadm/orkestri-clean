@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "1.3.0";
+export const VERSAO = "1.4.0";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -23,10 +23,10 @@ export const VERSAO = "1.3.0";
  * Não é gerada no build: `new Date()` no bundle muda a cada compilação, e duas
  * builds do mesmo código pareceriam versões diferentes.
  */
-export const VERSAO_DATA = "2026-07-29";
+export const VERSAO_DATA = "2026-07-30";
 
 /** Nome da entrega, para dar contexto ao número. */
-export const VERSAO_NOME = "People — Faixas salariais";
+export const VERSAO_NOME = "People — Plano de carreira";
 
 /**
  * Histórico exibido na tela Sobre, do mais recente para o mais antigo.
@@ -35,6 +35,18 @@ export const VERSAO_NOME = "People — Faixas salariais";
  * esta lista quer saber o que mudou para ele.
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
+  {
+    versao: "1.4.0",
+    data: "2026-07-30",
+    titulo: "Plano de carreira",
+    itens: [
+      "Trilhas de carreira: sequência de cargos com requisitos por degrau",
+      "Requisito pode ser competência com nível mínimo, treinamento concluído ou conferência manual",
+      "Tempo mínimo no cargo e nota mínima de avaliação como critérios do degrau",
+      "Aba Carreira no perfil mostra onde a pessoa está e o que falta, item a item, para o próximo degrau",
+      "Requisito marcado como diferencial conta a favor sem travar a progressão",
+    ],
+  },
   {
     versao: "1.3.0",
     data: "2026-07-29",

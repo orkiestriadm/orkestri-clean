@@ -21,6 +21,7 @@ import AbaFerias from "../_components/AbaFerias";
 import AbaBeneficios from "../_components/AbaBeneficios";
 import AbaDesenvolvimento from "../_components/AbaDesenvolvimento";
 import AbaCompetencias from "../_components/AbaCompetencias";
+import AbaCarreira from "../_components/AbaCarreira";
 import AbaRemuneracao from "../_components/AbaRemuneracao";
 import SecaoFeedback from "../_components/SecaoFeedback";
 import AbaAusenciasPerfil from "../_components/AbaAusenciasPerfil";
@@ -59,7 +60,7 @@ const ROTULO_EVENTO: Record<string, { titulo: string; tone: BadgeTone }> = {
 
 type Aba =
   | "visao" | "pessoal" | "vinculo" | "documentos" | "ferias"
-  | "beneficios" | "remuneracao" | "ausencias" | "desenvolvimento" | "competencias"
+  | "beneficios" | "remuneracao" | "ausencias" | "desenvolvimento" | "competencias" | "carreira"
   | "equipe" | "historico";
 
 const ABAS: { id: Aba; label: string }[] = [
@@ -73,6 +74,7 @@ const ABAS: { id: Aba; label: string }[] = [
   { id: "remuneracao", label: "Remuneração" },
   { id: "desenvolvimento", label: "Desenvolvimento" },
   { id: "competencias", label: "Competências" },
+  { id: "carreira",   label: "Carreira" },
   { id: "equipe",     label: "Equipe" },
   { id: "historico",  label: "Histórico" },
 ];
@@ -148,6 +150,7 @@ export default function PerfilColaboradorPage() {
   const podeVerSalario = pode(user, "people.salario:ver", "people.salario:gerenciar");
   const podeGerenciarSalario = pode(user, "people.salario:gerenciar");
   const podeRegistrarFeedback = pode(user, "people.feedback:registrar");
+  const podeGerenciarCarreira = pode(user, "people.carreira:gerenciar");
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
@@ -250,6 +253,12 @@ export default function PerfilColaboradorPage() {
                 <AbaCompetencias
                   collaboratorId={colaborador.id}
                   podeGerenciar={podeEditar}
+                />
+              )}
+              {aba === "carreira" && (
+                <AbaCarreira
+                  collaboratorId={colaborador.id}
+                  podeGerenciar={podeGerenciarCarreira}
                 />
               )}
               {aba === "equipe"    && <AbaEquipe colaborador={colaborador} />}

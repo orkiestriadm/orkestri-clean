@@ -16,7 +16,7 @@ import {
   Pagination, StatusBadge, BadgeTone,
 } from "@/components/data-ui";
 import {
-  Users, ArrowUpDown, UserX, Plus, CalendarClock, Briefcase, Library, BarChart3,
+  Users, ArrowUpDown, UserX, Plus, CalendarClock, Briefcase, Library, BarChart3, Route,
 } from "lucide-react";
 import { useAuthStore } from "@/lib/store";
 import ColaboradorForm from "./_components/ColaboradorForm";
@@ -95,6 +95,12 @@ function podeVerPassivo(user: any): boolean {
   if (user?.isMaster) return true;
   const perms: string[] = user?.permissions ?? [];
   return perms.includes("*") || perms.includes("people.relatorio:ver");
+}
+
+function podeVerCarreira(user: any): boolean {
+  if (user?.isMaster) return true;
+  const perms: string[] = user?.permissions ?? [];
+  return perms.includes("*") || perms.includes("people.carreira:ver");
 }
 
 export default function ColaboradoresPage() {
@@ -178,6 +184,11 @@ export default function ColaboradoresPage() {
                 {podeVerCargos(user) && (
                   <Link href="/dashboard/people/cargos" className="btn btn-ghost">
                     <Briefcase size={14} /> Cargos
+                  </Link>
+                )}
+                {podeVerCarreira(user) && (
+                  <Link href="/dashboard/people/carreira" className="btn btn-ghost">
+                    <Route size={14} /> Carreira
                   </Link>
                 )}
                 {podeVerPassivo(user) && (
