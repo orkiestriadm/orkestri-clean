@@ -9,7 +9,7 @@ import {
   GitBranch, Network, ShoppingBag, Radio, Wallet, FileSpreadsheet, Wrench,
   ClipboardCheck, FolderKanban, Boxes, ShieldCheck, HeartPulse, Bell,
   Briefcase, CalendarClock, Library, BarChart3, CalendarX, UsersRound, Inbox, Info, Route,
-  UserCircle,
+  UserCircle, Scale,
 } from "lucide-react";
 
 // `permission` como lista significa OU — ver canAccessModule.
@@ -61,6 +61,10 @@ export const NAV: NavGroup[] = [
       { href: "/dashboard/people/carreira",    label: "Carreira",      icon: Route,         permission: "people.carreira:ver" },
       { href: "/dashboard/people/catalogos",   label: "Catálogos",     icon: Library,       permission: ["people.beneficio:ver", "people.treinamento:ver"] },
       { href: "/dashboard/people/indicadores", label: "Indicadores",   icon: BarChart3,     permission: "people.relatorio:ver" },
+      // `avaliacao:ver` e não `relatorio:ver`: a tela mostra nota de
+      // desempenho, que é dado de carreira — quem vê indicador de quadro não
+      // necessariamente pode ler a nota que cada gestor deu.
+      { href: "/dashboard/people/calibracao",  label: "Calibração",    icon: Scale,         permission: "people.avaliacao:ver" },
       // Permissão própria, fora de qualquer perfil padrão: eliminar dado
       // pessoal é irreversível, ao contrário de excluir colaborador.
       { href: "/dashboard/people/privacidade", label: "Privacidade",   icon: ShieldCheck,   permission: "people.privacidade:gerenciar" },

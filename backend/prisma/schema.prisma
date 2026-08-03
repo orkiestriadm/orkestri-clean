@@ -133,6 +133,7 @@ model Organization {
   trainingCourses   TrainingCourse[]             @relation("OrgTrainingCourses")
   collabTrainings   CollaboratorTraining[]       @relation("OrgCollabTrainings")
   perfReviews       PerformanceReview[]          @relation("OrgPerfReviews")
+  perfReviewInputs  PerformanceReviewInput[]     @relation("OrgReviewInputs")
   perfGoals         PerformanceGoal[]            @relation("OrgPerfGoals")
   salarios          CollaboratorSalary[]         @relation("OrgSalaries")
   feedbacks         PerformanceFeedback[]        @relation("OrgFeedbacks")
@@ -831,6 +832,7 @@ model Collaborator {
   treinamentos     CollaboratorTraining[]
   avaliacoes       PerformanceReview[]          @relation("ReviewAvaliado")
   avaliacoesFeitas PerformanceReview[]          @relation("ReviewAvaliador")
+  entradas360      PerformanceReviewInput[]     @relation("ReviewInputAvaliador")
   salarios         CollaboratorSalary[]
   feedbacks        PerformanceFeedback[]        @relation("FeedbackSobre")
   feedbacksDados   PerformanceFeedback[]        @relation("FeedbackAutor")
@@ -3563,10 +3565,48 @@ model PerformanceReview {
   avaliador    Collaborator?         @relation("ReviewAvaliador", fields: [avaliadorId], references: [id], onDelete: SetNull)
   metas        PerformanceGoal[]
   feedbacks    PerformanceFeedback[]
+  entradas     PerformanceReviewInput[]
 
   @@unique([collaboratorId, ciclo])
   @@index([organizationId, ciclo])
   @@map("performance_reviews")
+}
+
+/// Autoavaliação e avaliação de pares (360).
+///
+/// A `nota` do PerformanceReview continua sendo a do GESTOR — é ela que vale
+/// para carreira e é dele a responsabilidade. As entradas aqui são INSUMO da
+/// conversa, não votos que entram numa média: diluir a decisão do gestor numa
+/// média com pares tornaria ninguém responsável pela nota.
+model PerformanceReviewInput {
+  id             String    @id @default(uuid())
+  organizationId String    @map("organization_id")
+  reviewId       String    @map("review_id")
+  /// Colaborador, não usuário: convidado pode não ter login (mesma razão do
+  /// `avaliadorId` do review).
+  avaliadorId    String    @map("avaliador_id")
+  /// autoavaliacao | par | lideranca
+  origem         String
+  nota           Float?
+  pontosFortes   String?   @map("pontos_fortes")
+  pontosMelhoria String?   @map("pontos_melhoria")
+  comentarios    String?
+  /// CONVIDADO | RESPONDIDA
+  status         String    @default("CONVIDADO")
+  respondidoEm   DateTime? @map("respondido_em")
+  criadoEm       DateTime  @default(now()) @map("criado_em")
+  criadoPorId    String?   @map("criado_por_id")
+  atualizadoEm   DateTime  @updatedAt @map("atualizado_em")
+
+  organization Organization           @relation("OrgReviewInputs", fields: [organizationId], references: [id], onDelete: Cascade)
+  review       PerformanceReview      @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  avaliador    Collaborator           @relation("ReviewInputAvaliador", fields: [avaliadorId], references: [id], onDelete: Cascade)
+
+  /// Um convite por pessoa por ciclo — convidar duas vezes daria dois pesos
+  /// à mesma opinião.
+  @@unique([reviewId, avaliadorId])
+  @@index([organizationId, status])
+  @@map("performance_review_inputs")
 }
 
 model PerformanceGoal {

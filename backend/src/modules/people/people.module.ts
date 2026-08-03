@@ -44,6 +44,9 @@ import { SelfServiceController } from "./presentation/self-service.controller";
 import { PrivacyService } from "./application/privacy.service";
 import { PrivacyController } from "./presentation/privacy.controller";
 import { AusenciasModule } from "../ausencias/ausencias.module";
+import { Review360Service } from "./application/review360.service";
+import { Review360Repository } from "./infrastructure/review360.repository";
+import { Review360Controller } from "./presentation/review360.controller";
 
 /**
  * Orkiestri People — gestão de pessoas.
@@ -75,6 +78,7 @@ import { AusenciasModule } from "../ausencias/ausencias.module";
     ChecklistController,
     SelfServiceController,
     PrivacyController,
+    Review360Controller,
   ],
   providers: [
     EmployeeService,
@@ -90,6 +94,8 @@ import { AusenciasModule } from "../ausencias/ausencias.module";
     ChecklistService,
     SelfServiceService,
     PrivacyService,
+    Review360Service,
+    Review360Repository,
     PeopleNotificationsService,
     PeopleScopeService,
     EmployeeRepository,

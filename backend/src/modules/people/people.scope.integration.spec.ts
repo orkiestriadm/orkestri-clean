@@ -17,6 +17,7 @@ import { CareerService } from "./application/career.service";
 import { ChecklistService } from "./application/checklist.service";
 import { PeopleScopeService } from "./application/people-scope.service";
 import { SelfServiceService } from "./application/self-service.service";
+import { Review360Service } from "./application/review360.service";
 
 /**
  * Isolamento de dados do People — o teste que faltava.
@@ -61,6 +62,7 @@ descreve("People — isolamento por escopo", () => {
   let checklists: ChecklistService;
   let escopos: PeopleScopeService;
   let euMesmo: SelfServiceService;
+  let r360: Review360Service;
   let raizDocs: string;
 
   const orgId = `sc-org-${randomUUID()}`;
@@ -121,6 +123,7 @@ descreve("People — isolamento por escopo", () => {
     checklists = moduloRef.get(ChecklistService);
     escopos = moduloRef.get(PeopleScopeService);
     euMesmo = moduloRef.get(SelfServiceService);
+    r360 = moduloRef.get(Review360Service);
 
     for (const [oid, nome] of [[orgId, "Escopo A"], [outraOrgId, "Escopo B"]] as const) {
       await (prisma as any).organization.create({
@@ -461,6 +464,129 @@ descreve("People — isolamento por escopo", () => {
       const ciclos = r.data.avaliacoes.map((a: any) => a.ciclo);
       expect(ciclos).toContain("2026.1");
       expect(ciclos).not.toContain("2026.2");
+    });
+  });
+
+  /* ── Avaliação 360 ────────────────────────────────────────────────────────── */
+
+  describe("360 — autoavaliação, pares e o anonimato que os sustenta", () => {
+    let reviewId: string;
+
+    beforeAll(async () => {
+      await development.salvarAvaliacao(rhCtx, id.bruno, { ciclo: "2027.1", nota: 3 } as any);
+      const lista = await development.listarAvaliacoes(rhCtx, id.bruno);
+      reviewId = lista.data.find((a: any) => a.ciclo === "2027.1").id;
+    });
+
+    it("convida o avaliado para a autoavaliação e colegas como pares", async () => {
+      await r360.convidar(gestorACtx, reviewId, { avaliadorId: id.bruno, origem: "autoavaliacao" } as any);
+      await r360.convidar(gestorACtx, reviewId, { avaliadorId: id.ana, origem: "par" } as any);
+      await r360.convidar(gestorACtx, reviewId, { avaliadorId: id.diego, origem: "par" } as any);
+
+      const p = await r360.painel(gestorACtx, reviewId);
+      expect(p.data.entradas).toHaveLength(3);
+    });
+
+    it("recusa o avaliado como par de si mesmo", async () => {
+      await expect(
+        r360.convidar(gestorACtx, reviewId, { avaliadorId: id.bruno, origem: "par" } as any),
+      ).rejects.toThrow(/par de si mesmo/i);
+    });
+
+    it("recusa autoavaliação atribuída a terceiro", async () => {
+      await expect(
+        r360.convidar(gestorACtx, reviewId, { avaliadorId: id.gestorA, origem: "autoavaliacao" } as any),
+      ).rejects.toThrow(/próprio avaliado/i);
+    });
+
+    it("não convida quem está fora do escopo de quem convida", async () => {
+      // Sem isto, convidar seria uma forma de descobrir ids alheios por tentativa.
+      await expect(
+        r360.convidar(gestorACtx, reviewId, { avaliadorId: id.carla, origem: "par" } as any),
+      ).rejects.toThrow(/não encontrado/i);
+    });
+
+    it("cada um responde o SEU convite, e ninguém responde pelo outro", async () => {
+      const minhas = await r360.minhasPendencias(anaCtx);
+      const daAna = minhas.data.find((x: any) => x.ciclo === "2027.1");
+      expect(daAna.origem).toBe("par");
+      expect(daAna.sobre.nome).toBe("Bruno Direto");
+
+      // Ana tentando responder pelo Diego: o alvo sai do vínculo, não do corpo.
+      const doDiego = (await r360.painel(gestorACtx, reviewId)).data.entradas
+        .find((e: any) => e.avaliador.id === id.diego);
+      await expect(
+        r360.responder(anaCtx, doDiego.id, { nota: 5 } as any),
+      ).rejects.toThrow(/não encontrado/i);
+
+      await r360.responder(anaCtx, daAna.id, { nota: 4, pontosFortes: "Sempre disponível." } as any);
+      const depois = await r360.minhasPendencias(anaCtx);
+      expect(depois.data.some((x: any) => x.ciclo === "2027.1")).toBe(false);
+    });
+
+    it("recusa resposta vazia — participação que não diz nada é pior que a ausência", async () => {
+      const doDiego = (await r360.painel(gestorACtx, reviewId)).data.entradas
+        .find((e: any) => e.avaliador.id === id.diego);
+      await expect(r360.responder(rhCtx, doDiego.id, {} as any)).rejects.toThrow();
+    });
+
+    it("mostra ao gestor a divergência entre a autoavaliação e a nota dele", async () => {
+      const auto = (await r360.painel(gestorACtx, reviewId)).data.entradas
+        .find((e: any) => e.origem === "autoavaliacao");
+      // O Bruno não tem login neste cenário — o RH responde por ele para
+      // exercitar o cálculo; a regra de titularidade já foi provada acima.
+      await (prisma as any).performanceReviewInput.update({
+        where: { id: auto.id },
+        data: { nota: 5, status: "RESPONDIDA", respondidoEm: new Date() },
+      });
+
+      const p = await r360.painel(gestorACtx, reviewId);
+      // Ele se vê 2 pontos acima do que o gestor o vê: é o número que aponta
+      // para uma conversa específica.
+      expect(p.data.divergenciaAutoavaliacao).toBe(2);
+      expect(p.data.notaGestor).toBe(3);
+    });
+
+    it("o avaliado não lê nada enquanto a avaliação não é finalizada", async () => {
+      // Ler as respostas com o gestor ainda decidindo transformaria o ciclo
+      // numa negociação.
+      await development.salvarAvaliacao(rhCtx, id.ana, { ciclo: "2027.2", nota: 4 } as any);
+      await expect(r360.meuResultado(anaCtx, "2027.2")).rejects.toThrow(/em andamento/i);
+    });
+
+    it("esconde do avaliado a média de pares quando poucos responderam", async () => {
+      const lista = await development.listarAvaliacoes(rhCtx, id.ana);
+      const rev = lista.data.find((a: any) => a.ciclo === "2027.2");
+      await r360.convidar(gestorACtx, rev.id, { avaliadorId: id.bruno, origem: "par" } as any);
+      const entradas = (await r360.painel(gestorACtx, rev.id)).data.entradas;
+      await (prisma as any).performanceReviewInput.update({
+        where: { id: entradas[0].id },
+        data: { nota: 2, pontosMelhoria: "Precisa comunicar mais.", status: "RESPONDIDA", respondidoEm: new Date() },
+      });
+      await development.finalizarAvaliacao(rhCtx, rev.id);
+
+      const meu = await r360.meuResultado(anaCtx, "2027.2");
+      const pares = meu.data.resumo.find((x: any) => x.origem === "par");
+      // Com uma resposta, a "média dos pares" identificaria quem respondeu.
+      expect(pares.media).toBeNull();
+      expect(pares.omitidaPorAnonimato).toBe(true);
+      // O comentário chega, mas SEM autor — é o que mantém o par franco.
+      expect(meu.data.comentarios[0].texto).toContain("comunicar");
+      expect(meu.data.comentarios[0]).not.toHaveProperty("avaliador");
+    });
+
+    it("não remove convite já respondido", async () => {
+      const respondida = (await r360.painel(gestorACtx, reviewId)).data.entradas
+        .find((e: any) => e.status === "RESPONDIDA");
+      await expect(r360.remover(gestorACtx, respondida.id)).rejects.toThrow(/já respondeu/i);
+    });
+
+    it("a calibração compara a régua de cada gestor sem mexer em nota", async () => {
+      const r = await r360.calibracao(rhCtx, "2027.2");
+      expect(r.data.ciclo).toBe("2027.2");
+      expect(r.data.totalAvaliados).toBeGreaterThan(0);
+      expect(r.data.mediaGeral).not.toBeNull();
+      expect(r.data.gestores[0]).toHaveProperty("desvio");
     });
   });
 

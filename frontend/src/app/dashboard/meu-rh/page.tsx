@@ -17,6 +17,7 @@ import { formatarDataBR } from "@/lib/datas";
 import MinhasFerias from "./_components/MinhasFerias";
 import MeusDocumentos from "./_components/MeusDocumentos";
 import MinhaCarreira from "./_components/MinhaCarreira";
+import MinhasAvaliacoes from "./_components/MinhasAvaliacoes";
 
 /**
  * Meu RH — o módulo pela ótica de quem é o objeto dele.
@@ -30,7 +31,7 @@ import MinhaCarreira from "./_components/MinhaCarreira";
  * pelo token, e é isso que garante que não há como pedir o dado de um colega.
  */
 
-type Aba = "resumo" | "ferias" | "documentos" | "carreira";
+type Aba = "resumo" | "ferias" | "documentos" | "avaliacoes" | "carreira";
 
 export default function MeuRhPage() {
   const [resumo, setResumo] = useState<MeuResumo | null>(null);
@@ -114,6 +115,7 @@ export default function MeuRhPage() {
             { id: "resumo",     label: "Resumo" },
             { id: "ferias",     label: "Férias" },
             { id: "documentos", label: "Documentos" },
+            { id: "avaliacoes", label: "Avaliações" },
             { id: "carreira",   label: "Carreira" },
           ]}
         />
@@ -123,6 +125,7 @@ export default function MeuRhPage() {
         )}
         {aba === "ferias" && <MinhasFerias onAlterou={carregar} />}
         {aba === "documentos" && <MeusDocumentos onAlterou={carregar} />}
+        {aba === "avaliacoes" && <MinhasAvaliacoes />}
         {aba === "carreira" && <MinhaCarreira />}
       </PageBody>
     </>
