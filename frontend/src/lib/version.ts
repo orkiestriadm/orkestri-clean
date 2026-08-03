@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "1.7.0";
+export const VERSAO = "1.8.0";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -26,7 +26,7 @@ export const VERSAO = "1.7.0";
 export const VERSAO_DATA = "2026-08-03";
 
 /** Nome da entrega, para dar contexto ao número. */
-export const VERSAO_NOME = "People — Promoção com salário e férias na rescisão";
+export const VERSAO_NOME = "People — Meu RH, avaliação 360 e privacidade";
 
 /**
  * Histórico exibido na tela Sobre, do mais recente para o mais antigo.
@@ -35,6 +35,32 @@ export const VERSAO_NOME = "People — Promoção com salário e férias na resc
  * esta lista quer saber o que mudou para ele.
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
+  {
+    versao: "1.8.0",
+    data: "2026-08-03",
+    titulo: "Meu RH, avaliação 360 e privacidade",
+    itens: [
+      "Meu RH: cada pessoa vê o próprio saldo de férias, documentos, carreira e pendências, sem depender do RH",
+      "Pedido de férias mostra o desfecho — aprovado, recusado com motivo — e pode ser cancelado por quem pediu",
+      "Autoavaliação e avaliação de pares, com a divergência entre a nota da pessoa e a do gestor",
+      "Comentários de pares chegam sem autor, e a média some quando há poucas respostas",
+      "Calibração: compara a régua de cada gestor no mesmo ciclo, sem alterar nota nenhuma",
+      "Privacidade: eliminação dos dados pessoais de ex-colaborador depois do prazo de guarda (LGPD)",
+      "Aviso de item de checklist atrasado, que antes só documentos e férias tinham",
+      "Correção: prazos apareciam um dia adiantados — item que vencia hoje constava como atrasado",
+      "Correção: o perfil completo de qualquer colega podia ser aberto por quem não tinha alcance a ele",
+    ],
+  },
+  {
+    versao: "1.7.0",
+    data: "2026-08-03",
+    titulo: "Promoção com salário e férias na rescisão",
+    itens: [
+      "Promover pelo plano de carreira ajusta o salário na mesma ação, com a faixa do cargo à vista",
+      "Desligamento resume as férias devidas, separando o vencido — que é pago em dobro",
+      "Linha do tempo mostra o nome do cargo e do setor no lugar do código interno",
+    ],
+  },
   {
     versao: "1.6.0",
     data: "2026-08-03",
