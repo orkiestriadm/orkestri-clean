@@ -23,6 +23,7 @@ import AbaDesenvolvimento from "../_components/AbaDesenvolvimento";
 import AbaCompetencias from "../_components/AbaCompetencias";
 import AbaCarreira from "../_components/AbaCarreira";
 import ExcluirColaborador from "../_components/ExcluirColaborador";
+import AbaChecklist from "../_components/AbaChecklist";
 import AbaRemuneracao from "../_components/AbaRemuneracao";
 import SecaoFeedback from "../_components/SecaoFeedback";
 import AbaAusenciasPerfil from "../_components/AbaAusenciasPerfil";
@@ -62,23 +63,67 @@ const ROTULO_EVENTO: Record<string, { titulo: string; tone: BadgeTone }> = {
 type Aba =
   | "visao" | "pessoal" | "vinculo" | "documentos" | "ferias"
   | "beneficios" | "remuneracao" | "ausencias" | "desenvolvimento" | "competencias" | "carreira"
-  | "equipe" | "historico";
+  | "equipe" | "historico" | "checklist";
 
-const ABAS: { id: Aba; label: string }[] = [
-  { id: "visao",      label: "Visão geral" },
-  { id: "pessoal",    label: "Dados pessoais" },
-  { id: "vinculo",    label: "Vínculo" },
-  { id: "documentos", label: "Documentos" },
-  { id: "ferias",     label: "Férias" },
-  { id: "ausencias",  label: "Ausências" },
-  { id: "beneficios", label: "Benefícios" },
-  { id: "remuneracao", label: "Remuneração" },
-  { id: "desenvolvimento", label: "Desenvolvimento" },
-  { id: "competencias", label: "Competências" },
-  { id: "carreira",   label: "Carreira" },
-  { id: "equipe",     label: "Equipe" },
-  { id: "historico",  label: "Histórico" },
+/**
+ * Abas em DOIS NÍVEIS.
+ *
+ * Eram treze numa fileira só. A barra transbordava a largura da tela e quatro
+ * abas ficavam inalcançáveis; tornei a barra rolável como remendo, mas rolar
+ * para procurar aba é sintoma, não solução — ninguém rola atrás do que não sabe
+ * que existe.
+ *
+ * Agrupar por PERGUNTA, não por tabela: "quem é essa pessoa", "quando ela está
+ * fora", "quanto ela custa", "para onde ela vai". Cada grupo cabe na tela e o
+ * conjunto continua inteiro à vista — nada escondido atrás de menu.
+ */
+type Grupo = "perfil" | "tempo" | "financeiro" | "desenvolvimento";
+
+const GRUPOS: { id: Grupo; label: string; abas: { id: Aba; label: string }[] }[] = [
+  {
+    id: "perfil",
+    label: "Perfil",
+    abas: [
+      { id: "visao",      label: "Visão geral" },
+      { id: "pessoal",    label: "Dados pessoais" },
+      { id: "vinculo",    label: "Vínculo" },
+      { id: "documentos", label: "Documentos" },
+      { id: "checklist",  label: "Admissão e saída" },
+      { id: "historico",  label: "Histórico" },
+    ],
+  },
+  {
+    id: "tempo",
+    label: "Tempo",
+    abas: [
+      { id: "ferias",    label: "Férias" },
+      { id: "ausencias", label: "Ausências" },
+    ],
+  },
+  {
+    id: "financeiro",
+    label: "Financeiro",
+    abas: [
+      { id: "remuneracao", label: "Remuneração" },
+      { id: "beneficios",  label: "Benefícios" },
+    ],
+  },
+  {
+    id: "desenvolvimento",
+    label: "Desenvolvimento",
+    abas: [
+      { id: "desenvolvimento", label: "Treinamentos e avaliações" },
+      { id: "competencias",    label: "Competências" },
+      { id: "carreira",        label: "Carreira" },
+      { id: "equipe",          label: "Equipe" },
+    ],
+  },
 ];
+
+/** O grupo é DERIVADO da aba ativa — nunca um segundo estado para dessincronizar. */
+function grupoDaAba(aba: Aba): Grupo {
+  return GRUPOS.find(g => g.abas.some(a => a.id === aba))?.id ?? "perfil";
+}
 
 const fmtData = (d: string | null | undefined) =>
   d ? formatarDataBR(d) : null;
@@ -154,6 +199,7 @@ export default function PerfilColaboradorPage() {
   const podeRegistrarFeedback = pode(user, "people.feedback:registrar");
   const podeGerenciarCarreira = pode(user, "people.carreira:gerenciar");
   const podeExcluirColaborador = pode(user, "people.colaborador:excluir");
+  const podeGerenciarChecklist = pode(user, "people.checklist:gerenciar");
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
@@ -195,7 +241,18 @@ export default function PerfilColaboradorPage() {
                   </>
                 }
               />
-              <Tabs<Aba> tabs={ABAS} active={aba} onChange={setAba} />
+              {/* Primeiro nível: o grupo. Trocar de grupo leva à primeira aba
+                  dele — clicar num grupo sem ir a lugar nenhum seria um botão
+                  que não faz nada. */}
+              <Tabs<Grupo>
+                tabs={GRUPOS.map(g => ({ id: g.id, label: g.label }))}
+                active={grupoDaAba(aba)}
+                onChange={g => setAba(GRUPOS.find(x => x.id === g)!.abas[0].id)}
+              />
+
+              {/* Segundo nível: as abas do grupo. Só aparece quando há escolha a
+                  fazer — um grupo de uma aba só mostraria uma pastilha inútil. */}
+              <SubAbas grupo={grupoDaAba(aba)} aba={aba} onMudar={setAba} />
               {aba === "visao"     && <AbaVisao colaborador={colaborador} historico={historico} />}
               {aba === "pessoal"   && <AbaPessoal colaborador={colaborador} />}
               {aba === "vinculo"   && (
@@ -271,6 +328,12 @@ export default function PerfilColaboradorPage() {
                   // A promoção troca o cargo: sem isto o cabeçalho e a aba
                   // Vínculo seguiriam mostrando o cargo anterior.
                   onPromovido={recarregar}
+                />
+              )}
+              {aba === "checklist" && (
+                <AbaChecklist
+                  collaboratorId={colaborador.id}
+                  podeGerenciar={podeGerenciarChecklist}
                 />
               )}
               {aba === "equipe"    && <AbaEquipe colaborador={colaborador} />}
@@ -429,6 +492,59 @@ function AbaPessoal({ colaborador }: { colaborador: ColaboradorDetalhe }) {
           <p style={{ fontSize: 12.5, color: "var(--text-muted)", margin: 0 }}>Nenhum contato cadastrado.</p>
         )}
       </Panel>
+    </div>
+  );
+}
+
+/**
+ * Segundo nível da navegação: pastilhas, não outra barra de abas.
+ *
+ * Duas barras de aba idênticas empilhadas confundem qual manda. Aqui a forma é
+ * diferente de propósito — pastilha arredondada, sem sublinhado — para ler como
+ * subordinada ao grupo escolhido acima.
+ */
+function SubAbas({
+  grupo, aba, onMudar,
+}: {
+  grupo: Grupo; aba: Aba; onMudar: (a: Aba) => void;
+}) {
+  const abas = GRUPOS.find(g => g.id === grupo)?.abas ?? [];
+  if (abas.length <= 1) return null;
+
+  return (
+    <div
+      role="tablist"
+      style={{
+        display: "flex", flexWrap: "wrap", gap: 6,
+        margin: "-8px 0 18px",
+      }}
+    >
+      {abas.map(a => {
+        const ativa = a.id === aba;
+        return (
+          <button
+            key={a.id}
+            role="tab"
+            aria-selected={ativa}
+            type="button"
+            onClick={() => onMudar(a.id)}
+            style={{
+              padding: "5px 12px", borderRadius: 999, cursor: "pointer",
+              fontSize: 12.5, fontWeight: ativa ? 700 : 500,
+              color: ativa ? "var(--text-primary)" : "var(--text-muted)",
+              background: ativa
+                ? "color-mix(in srgb, var(--accent-violet) 12%, transparent)"
+                : "transparent",
+              border: `1px solid ${ativa
+                ? "color-mix(in srgb, var(--accent-violet) 32%, transparent)"
+                : "var(--border-subtle)"}`,
+              transition: "background .18s ease, color .18s ease",
+            }}
+          >
+            {a.label}
+          </button>
+        );
+      })}
     </div>
   );
 }

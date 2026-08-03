@@ -79,6 +79,11 @@ export const PEOPLE_PERMISSION_CATALOG: readonly Permissao[] = [
   p("people.carreira",    "ver",       "Ver trilhas de carreira e prontidão"),
   p("people.carreira",    "gerenciar", "Desenhar trilhas, degraus e requisitos"),
 
+  // Checklist: ver e amplo porque a pessoa precisa saber o que falta dela e o
+  // gestor o que falta do time. Conduzir o processo e que exige concessao.
+  p("people.checklist",   "ver",       "Ver checklists de admissão e desligamento"),
+  p("people.checklist",   "gerenciar", "Manter modelos, abrir checklist e marcar itens"),
+
   p("people.relatorio",   "ver",       "Ver indicadores de pessoas"),
   p("people.relatorio",   "exportar",  "Exportar relatórios de pessoas"),
 ];
@@ -130,6 +135,10 @@ export const PEOPLE_PERMISSIONS = {
     ver:       str("people.feedback", "ver"),
     registrar: str("people.feedback", "registrar"),
   },
+  checklist: {
+    ver:       str("people.checklist", "ver"),
+    gerenciar: str("people.checklist", "gerenciar"),
+  },
   carreira: {
     ver:       str("people.carreira", "ver"),
     gerenciar: str("people.carreira", "gerenciar"),
@@ -147,6 +156,7 @@ export const PEOPLE_PERMISSOES_LEITURA: readonly string[] = [
   PEOPLE_PERMISSIONS.cargo.ver,
   PEOPLE_PERMISSIONS.treinamento.ver,
   PEOPLE_PERMISSIONS.carreira.ver,
+  PEOPLE_PERMISSIONS.checklist.ver,
   PEOPLE_PERMISSIONS.relatorio.ver,
   // `beneficio.ver`, `avaliacao.ver` e `salario.ver` ficam de fora: salário
   // indireto e nota de desempenho não são leitura de rotina de quem apenas

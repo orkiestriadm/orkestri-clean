@@ -15,6 +15,7 @@ import {
   Modal, FormGrid, FormField, FormActions,
 } from "@/components/data-ui";
 import { Library, Plus, Pencil, Trash2, Power, PowerOff, Gift, GraduationCap } from "lucide-react";
+import CatalogoChecklists from "../_components/CatalogoChecklists";
 
 /**
  * Catálogos da organização: benefícios e cursos.
@@ -35,7 +36,7 @@ const fmtMoeda = (v: number | null) =>
 
 const ROTULO_CATEGORIA = new Map(CATEGORIAS_BENEFICIO.map(c => [c.value, c.label]));
 
-type AbaCatalogo = "beneficios" | "cursos";
+type AbaCatalogo = "beneficios" | "cursos" | "checklists";
 
 export default function CatalogosPage() {
   const user = useAuthStore(s => s.user);
@@ -43,15 +44,18 @@ export default function CatalogosPage() {
 
   const podeVerBeneficio = pode(user, "people.beneficio:ver");
   const podeVerCurso = pode(user, "people.treinamento:ver");
+  const podeVerChecklist = pode(user, "people.checklist:ver");
 
   // Abre direto no que a pessoa pode ver, em vez de mostrar um bloqueio.
   useEffect(() => {
     if (!podeVerBeneficio && podeVerCurso) setAba("cursos");
-  }, [podeVerBeneficio, podeVerCurso]);
+    else if (!podeVerBeneficio && !podeVerCurso && podeVerChecklist) setAba("checklists");
+  }, [podeVerBeneficio, podeVerCurso, podeVerChecklist]);
 
   const ABAS = [
     ...(podeVerBeneficio ? [{ id: "beneficios" as const, label: "Benefícios" }] : []),
     ...(podeVerCurso ? [{ id: "cursos" as const, label: "Cursos e treinamentos" }] : []),
+    ...(podeVerChecklist ? [{ id: "checklists" as const, label: "Checklists" }] : []),
   ];
 
   return (
@@ -63,7 +67,7 @@ export default function CatalogosPage() {
           <PageHeader
             icon={<Library size={19} />}
             title="Catálogos"
-            subtitle="O que a organização oferece — benefícios e capacitação"
+            subtitle="O que a organização oferece e o que ela exige — benefícios, capacitação e checklists"
           />
 
           {ABAS.length === 0 ? (
@@ -71,9 +75,13 @@ export default function CatalogosPage() {
           ) : (
             <>
               <Tabs<AbaCatalogo> tabs={ABAS} active={aba} onChange={setAba} />
-              {aba === "beneficios"
-                ? <CatalogoBeneficios podeGerenciar={pode(user, "people.beneficio:gerenciar")} />
-                : <CatalogoCursos podeGerenciar={pode(user, "people.treinamento:gerenciar")} />}
+              {aba === "beneficios" ? (
+                <CatalogoBeneficios podeGerenciar={pode(user, "people.beneficio:gerenciar")} />
+              ) : aba === "cursos" ? (
+                <CatalogoCursos podeGerenciar={pode(user, "people.treinamento:gerenciar")} />
+              ) : (
+                <CatalogoChecklists podeGerenciar={pode(user, "people.checklist:gerenciar")} />
+              )}
             </>
           )}
         </PageBody>

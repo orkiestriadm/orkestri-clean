@@ -12,6 +12,7 @@ import { DevelopmentController } from "./presentation/development.controller";
 import { ReportController } from "./presentation/report.controller";
 import { SalaryController } from "./presentation/salary.controller";
 import { CareerController } from "./presentation/career.controller";
+import { ChecklistController } from "./presentation/checklist.controller";
 import { EmployeeService } from "./application/employee.service";
 import { DocumentService } from "./application/document.service";
 import { PositionService } from "./application/position.service";
@@ -22,6 +23,7 @@ import { ReportService } from "./application/report.service";
 import { SalaryService } from "./application/salary.service";
 import { FeedbackService } from "./application/feedback.service";
 import { CareerService } from "./application/career.service";
+import { ChecklistService } from "./application/checklist.service";
 import { PeopleNotificationsService } from "./application/people-notifications.service";
 import { PeopleScopeService } from "./application/people-scope.service";
 import { EmployeeRepository } from "./infrastructure/employee.repository";
@@ -34,6 +36,7 @@ import { DevelopmentRepository } from "./infrastructure/development.repository";
 import { ReportRepository } from "./infrastructure/report.repository";
 import { SalaryRepository } from "./infrastructure/salary.repository";
 import { CareerRepository } from "./infrastructure/career.repository";
+import { ChecklistRepository } from "./infrastructure/checklist.repository";
 import { DocumentStorageService } from "./infrastructure/document-storage.service";
 import { PeopleEventsPublisher } from "./domain/people-events.publisher";
 
@@ -61,6 +64,7 @@ import { PeopleEventsPublisher } from "./domain/people-events.publisher";
     EmployeeController, DocumentController, PositionController, VacationController,
     BenefitController, DevelopmentController, ReportController, SalaryController,
     CareerController,
+    ChecklistController,
   ],
   providers: [
     EmployeeService,
@@ -73,6 +77,7 @@ import { PeopleEventsPublisher } from "./domain/people-events.publisher";
     SalaryService,
     FeedbackService,
     CareerService,
+    ChecklistService,
     PeopleNotificationsService,
     PeopleScopeService,
     EmployeeRepository,
@@ -85,6 +90,7 @@ import { PeopleEventsPublisher } from "./domain/people-events.publisher";
     ReportRepository,
     SalaryRepository,
     CareerRepository,
+    ChecklistRepository,
     DocumentStorageService,
     PeopleEventsPublisher,
   ],

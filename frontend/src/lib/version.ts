@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "1.5.0";
+export const VERSAO = "1.6.0";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -23,10 +23,10 @@ export const VERSAO = "1.5.0";
  * Não é gerada no build: `new Date()` no bundle muda a cada compilação, e duas
  * builds do mesmo código pareceriam versões diferentes.
  */
-export const VERSAO_DATA = "2026-08-02";
+export const VERSAO_DATA = "2026-08-03";
 
 /** Nome da entrega, para dar contexto ao número. */
-export const VERSAO_NOME = "People — Auditoria e conformidade";
+export const VERSAO_NOME = "People — Checklist e melhorias da auditoria";
 
 /**
  * Histórico exibido na tela Sobre, do mais recente para o mais antigo.
@@ -35,6 +35,19 @@ export const VERSAO_NOME = "People — Auditoria e conformidade";
  * esta lista quer saber o que mudou para ele.
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
+  {
+    versao: "1.6.0",
+    data: "2026-08-03",
+    titulo: "Checklist de admissão e melhorias da auditoria",
+    itens: [
+      "Checklist de admissão e desligamento: o que falta, de quem é e qual prazo já venceu",
+      "Modelos de checklist configuráveis em Catálogos, com responsável e prazo por item",
+      "Promover pelo plano de carreira, sem precisar editar o cargo na mão",
+      "Excluir cadastro criado por engano, com confirmação e sem confundir com desligamento",
+      "Abas do perfil agrupadas em Perfil, Tempo, Financeiro e Desenvolvimento",
+      "Passivo de férias reflete a solicitação na hora, sem esperar a virada do dia",
+    ],
+  },
   {
     versao: "1.5.0",
     data: "2026-08-02",

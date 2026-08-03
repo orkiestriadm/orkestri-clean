@@ -14,6 +14,7 @@ import { ReportService } from "./application/report.service";
 import { SalaryService } from "./application/salary.service";
 import { FeedbackService } from "./application/feedback.service";
 import { CareerService } from "./application/career.service";
+import { ChecklistService } from "./application/checklist.service";
 
 /**
  * Teste de integração do Orkiestri People — serviços reais contra banco real.
@@ -57,6 +58,7 @@ descreve("People — integração", () => {
   let salarios: SalaryService;
   let feedbacks: FeedbackService;
   let carreira: CareerService;
+  let checklists: ChecklistService;
   let raizDocs: string;
 
   const orgId = `it-org-${randomUUID()}`;
@@ -89,6 +91,7 @@ descreve("People — integração", () => {
     salarios = modulo.get(SalaryService);
     feedbacks = modulo.get(FeedbackService);
     carreira = modulo.get(CareerService);
+    checklists = modulo.get(ChecklistService);
 
     await (prisma as any).organization.create({
       data: { id: orgId, nome: "IT People", slug: `it-${randomUUID().slice(0, 8)}` },
@@ -1085,6 +1088,109 @@ descreve("People — integração", () => {
       await expect(
         (prisma as any).position.delete({ where: { id: cargoJr } }),
       ).rejects.toThrow();
+    });
+  });
+
+  describe("checklist de admissão", () => {
+    let modeloId: string;
+    let pessoaId: string;
+
+    beforeAll(async () => {
+      const m = await checklists.criarModelo(rh(), {
+        nome: `Admissão padrão ${randomUUID().slice(0, 6)}`,
+        evento: "admissao",
+      } as any);
+      modeloId = m.data.id;
+
+      await checklists.adicionarItemModelo(rh(), modeloId, {
+        titulo: "Entregar documentos", responsavel: "colaborador", prazoDias: 5,
+      } as any);
+      await checklists.adicionarItemModelo(rh(), modeloId, {
+        titulo: "Exame admissional", responsavel: "rh", prazoDias: 2,
+      } as any);
+      await checklists.adicionarItemModelo(rh(), modeloId, {
+        titulo: "Crachá", responsavel: "rh", obrigatorio: false,
+      } as any);
+
+      // Admitido há 30 dias: os prazos de 5 e 2 dias já estouraram.
+      const admissao = new Date();
+      admissao.setDate(admissao.getDate() - 30);
+      const p = await employees.criar(rh(), {
+        nomeCompleto: "Recém Chegado",
+        dataAdmissao: admissao.toISOString().slice(0, 10),
+      } as any);
+      pessoaId = p.data.id;
+    });
+
+    it("abre copiando os itens do modelo", async () => {
+      const r = await checklists.abrir(rh(), pessoaId, { evento: "admissao" } as any);
+      expect(r.data.total).toBe(3);
+      expect(r.data.itens.map((i: any) => i.ordem)).toEqual([1, 2, 3]);
+      expect(r.data.percentual).toBe(0);
+    });
+
+    it("acusa atraso contando do dia da ADMISSÃO, não da abertura", async () => {
+      const [c] = (await checklists.doColaborador(rh(), pessoaId)).data;
+      // Dois obrigatórios com prazo estourado; o opcional não tem prazo.
+      expect(c.atrasados).toBe(2);
+      expect(c.itens.find((i: any) => i.titulo === "Crachá").situacao).toBe("pendente");
+    });
+
+    it("recusa abrir dois checklists do mesmo evento", async () => {
+      await expect(
+        checklists.abrir(rh(), pessoaId, { evento: "admissao" } as any),
+      ).rejects.toThrow();
+    });
+
+    it("item opcional não impede a conclusão", async () => {
+      const [c] = (await checklists.doColaborador(rh(), pessoaId)).data;
+      const obrigatorios = c.itens.filter((i: any) => i.obrigatorio);
+
+      for (const i of obrigatorios) {
+        await checklists.marcarItem(rh(), i.id, { concluido: true } as any);
+      }
+
+      const [depois] = (await checklists.doColaborador(rh(), pessoaId)).data;
+      expect(depois.percentual).toBe(100);
+      expect(depois.concluidoEm).not.toBeNull();
+      // O opcional segue pendente e visível.
+      expect(depois.itens.find((i: any) => i.titulo === "Crachá").situacao).toBe("pendente");
+    });
+
+    it("desmarcar reabre o checklist", async () => {
+      // Item marcado por engano travaria a conclusão numa mentira; corrigir não
+      // pode exigir apagar o checklist inteiro.
+      const [c] = (await checklists.doColaborador(rh(), pessoaId)).data;
+      const um = c.itens.find((i: any) => i.obrigatorio && i.situacao === "concluido");
+
+      await checklists.marcarItem(rh(), um.id, { concluido: false } as any);
+
+      const [depois] = (await checklists.doColaborador(rh(), pessoaId)).data;
+      expect(depois.concluidoEm).toBeNull();
+      expect(depois.percentual).toBeLessThan(100);
+    });
+
+    it("mudar o modelo NÃO reescreve checklist já aberto", async () => {
+      // O histórico não pode mentir sobre o que foi exigido na época.
+      await checklists.adicionarItemModelo(rh(), modeloId, {
+        titulo: "Item novo no modelo",
+      } as any);
+
+      const [c] = (await checklists.doColaborador(rh(), pessoaId)).data;
+      expect(c.total).toBe(3);
+      expect(c.itens.some((i: any) => i.titulo === "Item novo no modelo")).toBe(false);
+    });
+
+    it("o painel ordena por atraso", async () => {
+      const r = await checklists.painel(rh());
+      expect(r.data.checklists.some((c: any) => c.colaborador.id === pessoaId)).toBe(true);
+    });
+
+    it("excluir o modelo não leva junto os checklists abertos", async () => {
+      await checklists.excluirModelo(rh(), modeloId);
+      const lista = await checklists.doColaborador(rh(), pessoaId);
+      expect(lista.data).toHaveLength(1);
+      expect(lista.data[0].total).toBe(3);
     });
   });
 

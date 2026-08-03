@@ -119,6 +119,10 @@ model Organization {
   collaborators     Collaborator[]               @relation("OrgCollaborators")
   positions         Position[]                   @relation("OrgPositions")
   careerTracks      CareerTrack[]                @relation("OrgCareerTracks")
+  checklistModelos  ChecklistTemplate[]          @relation("OrgChecklistTemplates")
+  checklistItens    ChecklistTemplateItem[]      @relation("OrgChecklistTemplateItems")
+  checklists        CollaboratorChecklist[]      @relation("OrgCollaboratorChecklists")
+  checklistItensCol CollaboratorChecklistItem[]  @relation("OrgCollaboratorChecklistItems")
   careerSteps       CareerTrackStep[]            @relation("OrgCareerSteps")
   careerRequisitos  CareerStepRequirement[]      @relation("OrgCareerRequirements")
   collabHistory     CollaboratorHistory[]        @relation("OrgCollaboratorHistory")
@@ -827,6 +831,7 @@ model Collaborator {
   feedbacks        PerformanceFeedback[]        @relation("FeedbackSobre")
   feedbacksDados   PerformanceFeedback[]        @relation("FeedbackAutor")
   careerTrack      CareerTrack?                 @relation("TrackCollaborators", fields: [careerTrackId], references: [id], onDelete: SetNull)
+  checklists       CollaboratorChecklist[]
 
   @@unique([organizationId, matricula])
   @@index([careerTrackId])
@@ -869,6 +874,97 @@ model Position {
   @@unique([organizationId, titulo])
   @@index([organizationId])
   @@map("positions")
+}
+
+// ── People: Checklist de admissão e desligamento ───────────────────────────
+// A instância COPIA os itens do modelo em vez de apontar para ele: mudar o
+// modelo depois não pode reescrever o checklist de quem já foi admitido, senão
+// o histórico mente sobre o que foi exigido na época.
+model ChecklistTemplate {
+  id              String    @id @default(uuid())
+  organizationId  String    @map("organization_id")
+  nome            String
+  /// admissao | desligamento
+  evento          String
+  descricao       String?
+  ativo           Boolean   @default(true)
+  criadoEm        DateTime  @default(now()) @map("criado_em")
+  criadoPorId     String?   @map("criado_por_id")
+  atualizadoEm    DateTime  @updatedAt @map("atualizado_em")
+  atualizadoPorId String?   @map("atualizado_por_id")
+
+  organization Organization             @relation("OrgChecklistTemplates", fields: [organizationId], references: [id], onDelete: Cascade)
+  itens        ChecklistTemplateItem[]
+  instancias   CollaboratorChecklist[]
+
+  @@unique([organizationId, nome])
+  @@index([organizationId, evento])
+  @@map("checklist_templates")
+}
+
+model ChecklistTemplateItem {
+  id             String   @id @default(uuid())
+  organizationId String   @map("organization_id")
+  templateId     String   @map("template_id")
+  ordem          Int
+  titulo         String
+  descricao      String?
+  /// rh | gestor | colaborador
+  responsavel    String   @default("rh")
+  obrigatorio    Boolean  @default(true)
+  /// Prazo em dias a contar do evento. Nulo = sem prazo (≠ zero, "no mesmo dia").
+  prazoDias      Int?     @map("prazo_dias")
+  criadoEm       DateTime @default(now()) @map("criado_em")
+
+  organization Organization      @relation("OrgChecklistTemplateItems", fields: [organizationId], references: [id], onDelete: Cascade)
+  template     ChecklistTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  @@unique([templateId, ordem])
+  @@index([organizationId])
+  @@map("checklist_template_items")
+}
+
+model CollaboratorChecklist {
+  id             String    @id @default(uuid())
+  organizationId String    @map("organization_id")
+  collaboratorId String    @map("collaborator_id")
+  evento         String
+  templateId     String?   @map("template_id")
+  nome           String
+  iniciadoEm     DateTime  @default(now()) @map("iniciado_em")
+  concluidoEm    DateTime? @map("concluido_em")
+  criadoPorId    String?   @map("criado_por_id")
+
+  organization Organization                 @relation("OrgCollaboratorChecklists", fields: [organizationId], references: [id], onDelete: Cascade)
+  collaborator Collaborator                 @relation(fields: [collaboratorId], references: [id], onDelete: Cascade)
+  template     ChecklistTemplate?           @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  itens        CollaboratorChecklistItem[]
+
+  @@unique([collaboratorId, evento])
+  @@index([organizationId])
+  @@map("collaborator_checklists")
+}
+
+model CollaboratorChecklistItem {
+  id             String    @id @default(uuid())
+  organizationId String    @map("organization_id")
+  checklistId    String    @map("checklist_id")
+  ordem          Int
+  titulo         String
+  descricao      String?
+  responsavel    String    @default("rh")
+  obrigatorio    Boolean   @default(true)
+  prazoDias      Int?      @map("prazo_dias")
+  concluidoEm    DateTime? @map("concluido_em")
+  concluidoPorId String?   @map("concluido_por_id")
+  observacoes    String?
+
+  organization Organization          @relation("OrgCollaboratorChecklistItems", fields: [organizationId], references: [id], onDelete: Cascade)
+  checklist    CollaboratorChecklist @relation(fields: [checklistId], references: [id], onDelete: Cascade)
+
+  @@index([checklistId, ordem])
+  @@index([organizationId])
+  @@map("collaborator_checklist_items")
 }
 
 // ── People: Plano de carreira ──────────────────────────────────────────────
