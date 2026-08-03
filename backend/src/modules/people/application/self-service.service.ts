@@ -10,6 +10,7 @@ import { BenefitService } from "./benefit.service";
 import { FeedbackService } from "./feedback.service";
 import { EnviarDocumentoDto } from "./dto/document.dto";
 import { REVIEW_STATUS } from "../domain/development.entity";
+import { AusenciasService } from "../../ausencias/ausencias.module";
 
 /**
  * Meu RH — o módulo visto pelo próprio colaborador.
@@ -56,6 +57,7 @@ export class SelfServiceService {
     private readonly checklists: ChecklistService,
     private readonly beneficios: BenefitService,
     private readonly feedbacks: FeedbackService,
+    private readonly ausencias: AusenciasService,
   ) {}
 
   /**
@@ -162,6 +164,30 @@ export class SelfServiceService {
 
   async solicitarFerias(user: UsuarioContexto, dto: SolicitarFeriasDto) {
     return this.ferias.solicitar(user, await this.eu(user), dto);
+  }
+
+  /**
+   * Desistir de um pedido de férias.
+   *
+   * Delega ao módulo de ausências, que é o dono do fluxo de aprovação — o
+   * mesmo `cancel` que o gestor usa, e que já permite ao titular cancelar o
+   * próprio pedido (`isOwn`). Reimplementar aqui criaria dois caminhos para
+   * cancelar a mesma coisa, com duas chances de divergir.
+   *
+   * Sem isto o autoatendimento era de mão única: dava para pedir e não para
+   * desistir, e a única tela de cancelamento exige permissão que um
+   * colaborador comum não tem.
+   */
+  async cancelarFerias(user: UsuarioContexto, ausenciaId: string) {
+    // Confirma que o pedido é DESTA pessoa antes de delegar. O serviço de
+    // ausências também confere, mas a garantia desta classe é não tocar em
+    // registro de outro — ela não pode depender de checagem alheia.
+    const meuId = await this.eu(user);
+    const pedido = await this.ferias.solicitacaoDoColaborador(user, meuId, ausenciaId);
+    if (!pedido) throw new NotFoundException("Solicitação não encontrada");
+
+    await this.ausencias.cancel(ausenciaId, user);
+    return { success: true, data: { id: ausenciaId } };
   }
 
   async meusDocumentos(user: UsuarioContexto) {

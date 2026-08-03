@@ -67,6 +67,8 @@ export class VacationService {
           semDataAdmissao: true,
           saldoDisponivel: 0,
           periodos: [],
+          // Array, igual ao outro ramo — mesma razão do `vencendo` abaixo.
+          solicitacoes: [],
           // Número, igual ao outro ramo: o mesmo campo não pode mudar de tipo
           // conforme o caminho — o consumidor não tem como saber qual recebeu.
           vencendo: 0,
@@ -76,11 +78,26 @@ export class VacationService {
 
     const periodos = await this.sincronizarEResolver(organizationId, collaboratorId, colaborador.dataAdmissao);
     const hoje = new Date();
+    // O DESFECHO dos pedidos vem junto do saldo. Sem isto, quem solicitava
+    // férias caía num silêncio: a aprovação vive no módulo de ausências, e a
+    // tela de férias não dizia se o pedido tinha sido aprovado, negado — nem
+    // que existia. A pessoa descobria pelo calendário, ou não descobria.
+    const solicitacoes = await this.repo.solicitacoesDeFerias(collaboratorId);
 
     return {
       success: true,
       data: {
         semDataAdmissao: false,
+        solicitacoes: solicitacoes.map((s: any) => ({
+          id: s.id,
+          dataInicio: s.dataInicio,
+          dataFim: s.dataFim,
+          dias: diffEmDias(s.dataInicio, s.dataFim) + 1,
+          status: s.status,
+          observacao: s.descricao,
+          motivoRejeicao: s.motivoRejeicao,
+          solicitadaEm: s.criadoEm,
+        })),
         saldoDisponivel: saldoDisponivel(periodos.map(p => p.calculado), hoje),
         periodos: periodos.map(p => ({
           id: p.id,
@@ -107,6 +124,19 @@ export class VacationService {
             : null,
       },
     };
+  }
+
+  /**
+   * Uma solicitação específica, confirmada como sendo do colaborador dado.
+   *
+   * Existe para que quem for AGIR sobre o pedido possa provar a titularidade
+   * antes de delegar ao módulo de ausências. Devolve nulo em vez de lançar: o
+   * chamador é que sabe qual erro faz sentido no contexto dele.
+   */
+  async solicitacaoDoColaborador(user: UsuarioContexto, collaboratorId: string, ausenciaId: string) {
+    await this.exigirEscopo(user, collaboratorId);
+    const todas = await this.repo.solicitacoesDeFerias(collaboratorId);
+    return todas.find((s: any) => s.id === ausenciaId) ?? null;
   }
 
   async solicitar(user: UsuarioContexto, collaboratorId: string, dto: SolicitarFeriasDto) {

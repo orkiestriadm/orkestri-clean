@@ -25,11 +25,33 @@ export type PeriodoFerias = {
   diasParaVencer: number;
 };
 
+export type StatusSolicitacao = "PENDENTE" | "APROVADA" | "REJEITADA" | "CANCELADA";
+
+export type SolicitacaoFerias = {
+  id: string;
+  dataInicio: string;
+  dataFim: string;
+  dias: number;
+  status: StatusSolicitacao;
+  observacao: string | null;
+  /** Preenchido só quando o gestor recusou. */
+  motivoRejeicao: string | null;
+  solicitadaEm: string;
+};
+
 export type SituacaoFerias = {
   /** Sem data de admissão não há como calcular período — é dado faltando. */
   semDataAdmissao: boolean;
   saldoDisponivel: number;
   periodos: PeriodoFerias[];
+  /**
+   * O DESFECHO dos pedidos, junto do saldo.
+   *
+   * Antes disso, solicitar férias caía num silêncio: a aprovação vive no
+   * módulo de ausências, e esta tela não dizia se o pedido tinha sido aprovado,
+   * negado — nem que existia.
+   */
+  solicitacoes: SolicitacaoFerias[];
   vencendo: number;
   /**
    * Só preenchido em quem está DESLIGADO — em quem está na ativa seria um

@@ -43,6 +43,7 @@ import { SelfServiceService } from "./application/self-service.service";
 import { SelfServiceController } from "./presentation/self-service.controller";
 import { PrivacyService } from "./application/privacy.service";
 import { PrivacyController } from "./presentation/privacy.controller";
+import { AusenciasModule } from "../ausencias/ausencias.module";
 
 /**
  * Orkiestri People — gestão de pessoas.
@@ -63,7 +64,10 @@ import { PrivacyController } from "./presentation/privacy.controller";
  * problema que ele resolve.
  */
 @Module({
-  imports: [PrismaModule, AuditModule, ScheduleModule.forRoot()],
+  // AusenciasModule entra por causa do autoatendimento: cancelar um pedido de
+  // férias é o MESMO caso de uso que o gestor usa, e reimplementá-lo aqui
+  // criaria dois caminhos para cancelar a mesma coisa. Ver SelfServiceService.
+  imports: [PrismaModule, AuditModule, AusenciasModule, ScheduleModule.forRoot()],
   controllers: [
     EmployeeController, DocumentController, PositionController, VacationController,
     BenefitController, DevelopmentController, ReportController, SalaryController,

@@ -109,6 +109,27 @@ export class VacationRepository {
     });
   }
 
+  /**
+   * As solicitações de férias da pessoa, com o desfecho de cada uma.
+   *
+   * Inclui REJEITADA e CANCELADA de propósito: um pedido negado é a informação
+   * mais importante da lista, e some se o filtro só trouxer o que está de pé.
+   * Quem pediu precisa ver o motivo, não descobrir pela ausência da linha.
+   */
+  async solicitacoesDeFerias(collaboratorId: string) {
+    return this.db.ausencia.findMany({
+      where: { collaboratorId, tipo: "ferias" },
+      select: {
+        id: true, dataInicio: true, dataFim: true, status: true,
+        descricao: true, motivoRejeicao: true, criadoEm: true,
+      },
+      orderBy: { dataInicio: "desc" },
+      // A janela é curta porque a tela é sobre o que está em curso: o
+      // histórico completo de férias é o quadro de períodos, logo acima.
+      take: 12,
+    });
+  }
+
   async criarSolicitacaoFerias(dados: Record<string, any>) {
     return this.db.ausencia.create({
       data: dados,

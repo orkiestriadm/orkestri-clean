@@ -1,5 +1,5 @@
 import {
-  Controller, Get, Post, Body, Req, UseGuards, UseInterceptors, UploadedFile,
+  Controller, Get, Post, Patch, Body, Param, Req, UseGuards, UseInterceptors, UploadedFile,
 } from "@nestjs/common";
 import { AuthGuard } from "@nestjs/passport";
 import { FileInterceptor } from "@nestjs/platform-express";
@@ -43,6 +43,14 @@ export class SelfServiceController {
   @Post("ferias")
   solicitarFerias(@Req() req: any, @Body() dto: SolicitarFeriasDto) {
     return this.service.solicitarFerias(req.user, dto);
+  }
+
+  // O único parâmetro de id aceito neste controller, e ele NÃO identifica
+  // pessoa: é o pedido. O serviço confirma que ele pertence a quem chamou
+  // antes de agir, então a propriedade do controller continua de pé.
+  @Patch("ferias/:ausenciaId/cancelar")
+  cancelarFerias(@Req() req: any, @Param("ausenciaId") ausenciaId: string) {
+    return this.service.cancelarFerias(req.user, ausenciaId);
   }
 
   @Get("documentos")

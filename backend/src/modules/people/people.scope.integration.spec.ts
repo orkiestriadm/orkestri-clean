@@ -388,6 +388,53 @@ descreve("People — isolamento por escopo", () => {
       expect(carreira.success).toBe(true);
     });
 
+    // O ciclo que estava partido: dava para pedir férias e não para saber o
+    // que aconteceu com o pedido — a aprovação vive no módulo de ausências, e
+    // a tela de férias não mostrava nem que a solicitação existia.
+    it("fecha o ciclo do pedido de férias: pedir, ver o desfecho e desistir", async () => {
+      const dias = (n: number) => {
+        const d = new Date();
+        d.setDate(d.getDate() + n);
+        return d.toISOString().slice(0, 10);
+      };
+
+      // Ana precisa de saldo: admissão antiga o bastante para ter período.
+      await employees.atualizar(rhCtx, id.ana, { dataAdmissao: "2020-01-10" } as any);
+
+      const pedido = await euMesmo.solicitarFerias(anaCtx, {
+        dataInicio: dias(30), dataFim: dias(39), observacao: "Viagem",
+      } as any);
+
+      const antes = await euMesmo.minhasFerias(anaCtx);
+      const minha = antes.data.solicitacoes.find((s: any) => s.id === pedido.data.id);
+      expect(minha).toBeDefined();
+      expect(minha.status).toBe("PENDENTE");
+      expect(minha.dias).toBe(10);
+
+      await euMesmo.cancelarFerias(anaCtx, pedido.data.id);
+
+      const depois = await euMesmo.minhasFerias(anaCtx);
+      const cancelada = depois.data.solicitacoes.find((s: any) => s.id === pedido.data.id);
+      // Continua na lista, com o desfecho à vista: sumir faria a pessoa
+      // duvidar se chegou a cancelar.
+      expect(cancelada.status).toBe("CANCELADA");
+    });
+
+    it("não cancela o pedido de outra pessoa", async () => {
+      await employees.atualizar(rhCtx, id.bruno, { dataAdmissao: "2020-01-10" } as any);
+      const dias = (n: number) => {
+        const d = new Date();
+        d.setDate(d.getDate() + n);
+        return d.toISOString().slice(0, 10);
+      };
+      const doBruno = await vacations.solicitar(rhCtx, id.bruno, {
+        dataInicio: dias(60), dataFim: dias(69),
+      } as any);
+
+      await expect(euMesmo.cancelarFerias(anaCtx, doBruno.data.id))
+        .rejects.toThrow(/não encontrada/i);
+    });
+
     it("nunca devolve a anotação privada feita sobre a própria pessoa", async () => {
       await feedbacks.criar(rhCtx, id.ana, {
         tipo: "um_a_um", conteudo: "Só para o gestor.",

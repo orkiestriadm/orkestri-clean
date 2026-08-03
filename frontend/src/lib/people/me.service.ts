@@ -93,6 +93,12 @@ export const meService = {
     return data;
   },
 
+  /** Desistir de um pedido. O backend confirma que ele é seu antes de agir. */
+  async cancelarFerias(ausenciaId: string) {
+    const { data } = await api.patch(`${BASE}/ferias/${ausenciaId}/cancelar`, {});
+    return data;
+  },
+
   async documentos(): Promise<{ success: boolean; data: Documento[] }> {
     const { data } = await api.get(`${BASE}/documentos`);
     return data;

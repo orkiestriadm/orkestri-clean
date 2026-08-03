@@ -2,7 +2,9 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { meService } from "@/lib/people/me.service";
-import type { SituacaoFerias, PeriodoFerias } from "@/lib/people/vacations.service";
+import type {
+  SituacaoFerias, PeriodoFerias, SolicitacaoFerias, StatusSolicitacao,
+} from "@/lib/people/vacations.service";
 import { Panel, StatusBadge, ErrorState, FormGrid, FormField, FormActions } from "@/components/data-ui";
 import { useToastStore } from "@/lib/toast";
 import { formatarDataBR } from "@/lib/datas";
@@ -93,6 +95,13 @@ export default function MinhasFerias({ onAlterou }: { onAlterou: () => void }) {
         )}
       </Panel>
 
+      {/* Antes do formulário: quem abre esta aba depois de pedir quer saber
+          o que aconteceu, não pedir de novo. */}
+      <MeusPedidos
+        itens={dados.solicitacoes ?? []}
+        onMudou={() => { carregar(); onAlterou(); }}
+      />
+
       <SolicitarFerias
         saldo={dados.saldoDisponivel}
         onEnviou={() => { carregar(); onAlterou(); }}
@@ -127,6 +136,86 @@ function Periodo({ p }: { p: PeriodoFerias }) {
       </span>
       <StatusBadge label={ROTULO[p.status] ?? p.status} tone={TOM[p.status] ?? "neutro"} />
     </li>
+  );
+}
+
+/* ── Pedidos ─────────────────────────────────────────────────────────────── */
+
+const TOM_PEDIDO: Record<StatusSolicitacao, "ok" | "atencao" | "critico" | "neutro"> = {
+  APROVADA: "ok",
+  PENDENTE: "atencao",
+  REJEITADA: "critico",
+  CANCELADA: "neutro",
+};
+
+const ROTULO_PEDIDO: Record<StatusSolicitacao, string> = {
+  APROVADA: "Aprovado",
+  PENDENTE: "Aguardando seu gestor",
+  REJEITADA: "Recusado",
+  CANCELADA: "Cancelado por você",
+};
+
+/**
+ * Os pedidos, com o desfecho de cada um.
+ *
+ * REJEITADO e CANCELADO ficam na lista: um pedido negado é a informação mais
+ * importante daqui, e sumir faria a pessoa duvidar se chegou a enviar.
+ */
+function MeusPedidos({
+  itens, onMudou,
+}: {
+  itens: SolicitacaoFerias[];
+  onMudou: () => void;
+}) {
+  const [cancelando, setCancelando] = useState<string | null>(null);
+
+  if (itens.length === 0) return null;
+
+  async function cancelar(id: string) {
+    setCancelando(id);
+    try {
+      await meService.cancelarFerias(id);
+      useToastStore.getState().success("Pedido cancelado");
+      onMudou();
+    } catch { /* o interceptor já mostrou o motivo do backend */ } finally {
+      setCancelando(null);
+    }
+  }
+
+  return (
+    <Panel title="Meus pedidos">
+      <ul style={{ display: "grid", gap: 8, listStyle: "none", padding: 0, margin: 0 }}>
+        {itens.map(s => (
+          <li key={s.id} className="row-line">
+            <span style={{ minWidth: 0 }}>
+              <strong>{formatarDataBR(s.dataInicio)} a {formatarDataBR(s.dataFim)}</strong>
+              <span className="muted" style={{ marginLeft: 8, fontSize: 12 }}>
+                {s.dias} {s.dias === 1 ? "dia" : "dias"}
+              </span>
+              {s.motivoRejeicao && (
+                <div style={{ fontSize: 13, color: "var(--accent-red)", marginTop: 2 }}>
+                  {s.motivoRejeicao}
+                </div>
+              )}
+            </span>
+            <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <StatusBadge label={ROTULO_PEDIDO[s.status] ?? s.status} tone={TOM_PEDIDO[s.status] ?? "neutro"} />
+              {/* Desistir só faz sentido enquanto ninguém decidiu. */}
+              {s.status === "PENDENTE" && (
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  disabled={cancelando === s.id}
+                  onClick={() => cancelar(s.id)}
+                >
+                  {cancelando === s.id ? "…" : "Desistir"}
+                </button>
+              )}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </Panel>
   );
 }
 
