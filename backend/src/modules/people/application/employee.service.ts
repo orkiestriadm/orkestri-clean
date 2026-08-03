@@ -192,6 +192,8 @@ export class EmployeeService {
     }
 
     const alteracoes = this.diffHistorico(atual, dto);
+    const rotulos = await this.rotulosDe(organizationId, alteracoes);
+
     const atualizado = await this.repo.atualizarComHistorico({
       id,
       dados: { ...this.normalizarDatas(dto), atualizadoPorId: user.id ?? null },
@@ -200,9 +202,14 @@ export class EmployeeService {
         collaboratorId: id,
         evento: a.evento,
         campo: a.campo,
+        // `valorAnterior`/`valorNovo` guardam o ID: são o dado bruto, servem
+        // para reconstruir o passado com precisão.
         valorAnterior: a.de,
         valorNovo: a.para,
-        descricao: `${a.rotulo}: ${a.de ?? "—"} → ${a.para ?? "—"}`,
+        // A DESCRIÇÃO é lida por gente. Sem traduzir, a linha do tempo dizia
+        // "Cargo: 28e8cf35-e39e-… → fd26aad2-d5e1-…" — informação nenhuma para
+        // quem abre o perfil.
+        descricao: `${a.rotulo}: ${rotulos.get(a.de) ?? a.de ?? "—"} → ${rotulos.get(a.para) ?? a.para ?? "—"}`,
         registradoPorId: user.id ?? null,
       })),
     });
@@ -359,6 +366,37 @@ export class EmployeeService {
       if (saida[campo]) saida[campo] = new Date(saida[campo]);
     }
     return saida;
+  }
+
+  /**
+   * Traduz os IDs que aparecem na linha do tempo para nome legível.
+   *
+   * `setorId`, `positionId` e `gestorId` guardam UUID. Sem esta tradução a
+   * descrição do evento saía com o identificador cru, e o histórico funcional
+   * — que existe para alguém ler — virava ruído.
+   *
+   * Uma consulta por tipo de entidade envolvida, não uma por alteração: uma
+   * edição mexe em poucos campos, mas o laço ingênuo faria três viagens ao
+   * banco para cada uma.
+   */
+  private async rotulosDe(
+    organizationId: string,
+    alteracoes: { campo: string; de: string | null; para: string | null }[],
+  ): Promise<Map<string | null, string>> {
+    const mapa = new Map<string | null, string>();
+    const idsDe = (campo: string) =>
+      alteracoes.filter(a => a.campo === campo).flatMap(a => [a.de, a.para]).filter(Boolean) as string[];
+
+    const [setores, cargos, gestores] = await Promise.all([
+      this.repo.nomesDeSetor(organizationId, idsDe("setorId")),
+      this.repo.titulosDeCargo(organizationId, idsDe("positionId")),
+      this.repo.nomesDeColaborador(organizationId, idsDe("gestorId")),
+    ]);
+
+    for (const [id, nome] of setores) mapa.set(id, nome);
+    for (const [id, titulo] of cargos) mapa.set(id, titulo);
+    for (const [id, nome] of gestores) mapa.set(id, nome);
+    return mapa;
   }
 
   private diffHistorico(atual: Record<string, any>, dto: Record<string, any>) {

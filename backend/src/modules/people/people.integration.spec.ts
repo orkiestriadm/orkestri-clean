@@ -148,6 +148,29 @@ descreve("People — integração", () => {
     await expect(employees.criar(rh(), { cargo: "Fantasma" } as any)).rejects.toThrow();
   });
 
+  it("a linha do tempo mostra NOME, não o id, na mudança de campo", async () => {
+    // O histórico existe para alguém ler. Sem traduzir, a descrição saía como
+    // "Cargo: 28e8cf35-e39e-… → fd26aad2-d5e1-…" — o dado certo, ilegível.
+    const cargoA = await (prisma as any).position.create({
+      data: { id: `it-pos-${randomUUID()}`, organizationId: orgId, titulo: `Analista A ${randomUUID().slice(0, 5)}` },
+    });
+    const cargoB = await (prisma as any).position.create({
+      data: { id: `it-pos-${randomUUID()}`, organizationId: orgId, titulo: `Analista B ${randomUUID().slice(0, 5)}` },
+    });
+    const p = await employees.criar(rh(), { nomeCompleto: "Rotulo Legivel", positionId: cargoA.id } as any);
+
+    await employees.atualizar(rh(), p.data.id, { positionId: cargoB.id } as any);
+
+    const hist = await employees.historicoDe(rh(), p.data.id);
+    const ev = hist.data.find((e: any) => e.evento === "mudanca_cargo");
+    expect(ev.descricao).toContain(cargoA.titulo);
+    expect(ev.descricao).toContain(cargoB.titulo);
+    // O ID continua nos campos brutos: a descrição é para ler, eles são para
+    // reconstruir o passado.
+    expect(ev.valorAnterior).toBe(cargoA.id);
+    expect(ev.valorNovo).toBe(cargoB.id);
+  });
+
   it("registra mudança de setor na linha do tempo", async () => {
     const setor = await (prisma as any).setor.create({
       data: { id: `it-setor-${randomUUID()}`, organizationId: orgId, nome: "Operações" },

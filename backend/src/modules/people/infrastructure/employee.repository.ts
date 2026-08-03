@@ -154,6 +154,42 @@ export class EmployeeRepository {
     });
   }
 
+  /**
+   * Nome legível dos IDs que aparecem na linha do tempo.
+   *
+   * A descrição do evento é lida por gente: sem isto ela saía como
+   * "Cargo: 28e8cf35-e39e-… → fd26aad2-d5e1-…". Cada método devolve um mapa
+   * id → rótulo, e lista vazia não consulta nada.
+   */
+  async nomesDeSetor(organizationId: string, ids: string[]): Promise<[string, string][]> {
+    if (!ids.length) return [];
+    const linhas = await this.db.setor.findMany({
+      where: { id: { in: ids }, organizationId },
+      select: { id: true, nome: true },
+    });
+    return linhas.map((s: any) => [s.id, s.nome]);
+  }
+
+  async titulosDeCargo(organizationId: string, ids: string[]): Promise<[string, string][]> {
+    if (!ids.length) return [];
+    const linhas = await this.db.position.findMany({
+      where: { id: { in: ids }, organizationId },
+      select: { id: true, titulo: true },
+    });
+    return linhas.map((p: any) => [p.id, p.titulo]);
+  }
+
+  async nomesDeColaborador(organizationId: string, ids: string[]): Promise<[string, string][]> {
+    if (!ids.length) return [];
+    const linhas = await this.db.collaborator.findMany({
+      where: { id: { in: ids }, organizationId },
+      select: { id: true, nomeCompleto: true, user: { select: { nome: true } } },
+    });
+    // `nomeCompleto` pode ser nulo em quem veio pelo cadastro antigo; aí o nome
+    // do login é o melhor que existe.
+    return linhas.map((c: any) => [c.id, c.nomeCompleto || c.user?.nome || c.id]);
+  }
+
   async matriculaEmUso(organizationId: string, matricula: string, excetoId?: string) {
     const achado = await this.db.collaborator.findFirst({
       where: {
