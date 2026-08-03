@@ -19,6 +19,36 @@ services:
     depends_on:
       - api
       - frontend
+      - website
+
+  # Site institucional (Project Phoenix). Convive com a plataforma no mesmo
+  # domínio via nginx: rotas públicas → website, rotas do sistema → frontend/api.
+  website:
+    build:
+      context: ./website
+      dockerfile: Dockerfile
+    image: orkestri/website:latest
+    container_name: orkestri_website
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      HOSTNAME: "0.0.0.0"
+      NEXT_TELEMETRY_DISABLED: "1"
+      NODE_OPTIONS: "--max-old-space-size=192"
+      NEXT_PUBLIC_SITE_URL: "https://www.orkiestri.com"
+    mem_limit: 256m
+    memswap_limit: 256m
+    networks:
+      - orkestri_net
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "3"
 
   certbot:
     image: certbot/certbot:v2.11.0

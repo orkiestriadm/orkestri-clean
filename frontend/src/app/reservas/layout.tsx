@@ -4,7 +4,7 @@ import { ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Calendar, Car, PieChart, ChevronLeft, List, BarChart, ArrowLeft } from "lucide-react";
-import { BrandLogo } from "@/components/ui/logo";
+import { BrandLogo, OrkestriIcon } from "@/components/ui/logo";
 
 export default function ReservasLayout({ children }: { children: ReactNode }) {
   return (
@@ -13,8 +13,12 @@ export default function ReservasLayout({ children }: { children: ReactNode }) {
       <aside className="w-16 lg:w-60 flex-shrink-0 border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 flex flex-col transition-all">
         {/* Logo */}
         <div className="h-14 flex items-center justify-center lg:justify-start lg:px-5 border-b border-slate-200 dark:border-slate-800">
-          <Car className="h-5 w-5 text-red-600 dark:text-red-500 shrink-0 lg:hidden" />
-          <span className="hidden lg:block"><BrandLogo size="sm" /></span>
+          <span className="lg:hidden">
+            <OrkestriIcon size={30} />
+          </span>
+          <span className="hidden lg:inline-flex">
+            <BrandLogo size="sm" />
+          </span>
         </div>
 
         {/* Navigation */}

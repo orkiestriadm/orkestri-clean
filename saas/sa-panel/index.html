@@ -1082,7 +1082,10 @@
 </div>
 
 <script>
-const API = "";
+// Base derivada do próprio endereço, para o painel funcionar tanto na raiz
+// quanto atrás de um prefixo (https://orkiestri.com/sa/). Fixar "" quebraria
+// as chamadas por trás do proxy; fixar "/sa" quebraria o acesso direto.
+const API = location.pathname.replace(/\/[^/]*$/, "");
 let currentDeleteSlug = null;
 let currentLogSlug = null;
 let currentRestartSlug = null;

@@ -1,0 +1,729 @@
+# ORKIESTRI
+# Claude Execution Tasks
+
+Version 1.0
+
+---
+
+# REGRAS
+
+Antes de iniciar qualquer tarefa:
+
+✓ Leia toda a documentação
+
+✓ Nunca pule tarefas
+
+✓ Nunca execute tarefas futuras
+
+✓ Sempre reutilize componentes
+
+✓ Nunca crie código duplicado
+
+✓ Aguarde aprovação ao final de cada tarefa
+
+---
+
+# STATUS
+
+⬜ Todo
+
+🟨 Doing
+
+🟩 Done
+
+---
+
+# FASE 1
+DOCUMENTAÇÃO
+
+---
+
+## TASK-001
+
+Status
+
+⬜
+
+Objetivo
+
+Ler toda a documentação.
+
+Critérios
+
+- Ler todos arquivos da pasta docs
+- Resumir cada documento
+- Explicar arquitetura proposta
+- Identificar inconsistências
+- Listar dúvidas
+
+Não escrever código.
+
+---
+
+## TASK-002
+
+Status
+
+⬜
+
+Criar plano de arquitetura.
+
+Critérios
+
+Definir:
+
+Estrutura
+
+Pastas
+
+Componentes
+
+Hooks
+
+Providers
+
+Services
+
+SEO
+
+Performance
+
+Sem código.
+
+---
+
+## TASK-003
+
+Status
+
+⬜
+
+Criar cronograma de implementação.
+
+Critérios
+
+Dividir projeto em Sprints.
+
+---
+
+# FASE 2
+FOUNDATION
+
+---
+
+## TASK-004
+
+Status
+
+⬜
+
+Criar estrutura do projeto.
+
+Critérios
+
+Next.js
+
+TypeScript
+
+Tailwind
+
+ESLint
+
+Prettier
+
+Aliases
+
+shadcn
+
+---
+
+## TASK-005
+
+Status
+
+⬜
+
+Configurar Design Tokens.
+
+Criar
+
+Colors
+
+Typography
+
+Spacing
+
+Radius
+
+Shadow
+
+Animation Tokens
+
+---
+
+## TASK-006
+
+Status
+
+⬜
+
+Criar Theme Provider.
+
+---
+
+## TASK-007
+
+Status
+
+⬜
+
+Criar estrutura do Design System.
+
+---
+
+# FASE 3
+UI COMPONENTS
+
+---
+
+## TASK-008
+
+Button
+
+---
+
+## TASK-009
+
+Input
+
+---
+
+## TASK-010
+
+Textarea
+
+---
+
+## TASK-011
+
+Checkbox
+
+---
+
+## TASK-012
+
+Radio
+
+---
+
+## TASK-013
+
+Switch
+
+---
+
+## TASK-014
+
+Badge
+
+---
+
+## TASK-015
+
+Chip
+
+---
+
+## TASK-016
+
+Alert
+
+---
+
+## TASK-017
+
+Card
+
+---
+
+## TASK-018
+
+Modal
+
+---
+
+## TASK-019
+
+Drawer
+
+---
+
+## TASK-020
+
+Tabs
+
+---
+
+## TASK-021
+
+Accordion
+
+---
+
+## TASK-022
+
+Tooltip
+
+---
+
+## TASK-023
+
+Popover
+
+---
+
+## TASK-024
+
+Dropdown
+
+---
+
+## TASK-025
+
+Avatar
+
+---
+
+## TASK-026
+
+Table
+
+---
+
+## TASK-027
+
+Pagination
+
+---
+
+## TASK-028
+
+Breadcrumb
+
+---
+
+## TASK-029
+
+Empty State
+
+---
+
+## TASK-030
+
+Loading State
+
+---
+
+## TASK-031
+
+Error State
+
+---
+
+# FASE 4
+LAYOUT
+
+---
+
+## TASK-032
+
+Navbar
+
+---
+
+## TASK-033
+
+Mega Menu
+
+---
+
+## TASK-034
+
+Footer
+
+---
+
+## TASK-035
+
+Hero
+
+---
+
+## TASK-036
+
+Container
+
+---
+
+## TASK-037
+
+Section
+
+---
+
+## TASK-038
+
+CTA
+
+---
+
+## TASK-039
+
+Logo Cloud
+
+---
+
+## TASK-040
+
+Feature Grid
+
+---
+
+## TASK-041
+
+Pricing Card
+
+---
+
+## TASK-042
+
+Timeline
+
+---
+
+## TASK-043
+
+Testimonials
+
+---
+
+## TASK-044
+
+FAQ
+
+---
+
+# FASE 5
+PÁGINAS
+
+---
+
+## TASK-045
+
+Homepage
+
+---
+
+## TASK-046
+
+Empresa
+
+---
+
+## TASK-047
+
+Serviços
+
+---
+
+## TASK-048
+
+Produtos
+
+---
+
+## TASK-049
+
+Orkiestri One
+
+---
+
+## TASK-050
+
+Software Factory
+
+---
+
+## TASK-051
+
+AI Solutions
+
+---
+
+## TASK-052
+
+Cloud
+
+---
+
+## TASK-053
+
+Consultoria
+
+---
+
+## TASK-054
+
+Contato
+
+---
+
+## TASK-055
+
+Blog
+
+---
+
+## TASK-056
+
+Cases
+
+---
+
+## TASK-057
+
+Carreiras
+
+---
+
+## TASK-058
+
+Política de Privacidade
+
+---
+
+## TASK-059
+
+Termos de Uso
+
+---
+
+# FASE 6
+SEO
+
+---
+
+## TASK-060
+
+Metadata
+
+---
+
+## TASK-061
+
+Schema.org
+
+---
+
+## TASK-062
+
+OpenGraph
+
+---
+
+## TASK-063
+
+Twitter Cards
+
+---
+
+## TASK-064
+
+Canonical
+
+---
+
+## TASK-065
+
+Robots
+
+---
+
+## TASK-066
+
+Sitemap
+
+---
+
+## TASK-067
+
+Breadcrumb SEO
+
+---
+
+# FASE 7
+PERFORMANCE
+
+---
+
+## TASK-068
+
+Image Optimization
+
+---
+
+## TASK-069
+
+Lazy Loading
+
+---
+
+## TASK-070
+
+Streaming
+
+---
+
+## TASK-071
+
+Caching
+
+---
+
+## TASK-072
+
+Prefetch
+
+---
+
+## TASK-073
+
+Bundle Optimization
+
+---
+
+# FASE 8
+ACESSIBILIDADE
+
+---
+
+## TASK-074
+
+Keyboard Navigation
+
+---
+
+## TASK-075
+
+ARIA
+
+---
+
+## TASK-076
+
+Screen Reader
+
+---
+
+## TASK-077
+
+Contrast
+
+---
+
+## TASK-078
+
+Focus
+
+---
+
+# FASE 9
+QA
+
+---
+
+## TASK-079
+
+Responsive Validation
+
+---
+
+## TASK-080
+
+Cross Browser
+
+---
+
+## TASK-081
+
+Lighthouse
+
+Objetivo
+
+100
+
+Performance
+
+SEO
+
+Accessibility
+
+Best Practices
+
+---
+
+## TASK-082
+
+Refatoração Geral
+
+Eliminar
+
+Duplicação
+
+Warnings
+
+TODO
+
+Código morto
+
+---
+
+## TASK-083
+
+Preparar Build
+
+---
+
+## TASK-084
+
+Deploy
+
+---
+
+# DEFINIÇÃO DE PRONTO
+
+Uma tarefa só poderá ser marcada como concluída quando:
+
+✓ Não houver erros
+
+✓ Não houver warnings
+
+✓ Build funcionando
+
+✓ Responsiva
+
+✓ SEO validado
+
+✓ Lighthouse aprovado
+
+✓ Seguir toda documentação
+
+✓ Componentes reutilizáveis
+
+✓ Código limpo
+
+---
+
+# REGRA FINAL
+
+Nunca iniciar uma nova tarefa sem concluir totalmente a anterior.
