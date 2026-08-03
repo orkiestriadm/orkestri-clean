@@ -124,6 +124,16 @@ export class PeopleScopeService {
     return proprio?.id === collaboratorId;
   }
 
+  /**
+   * O cadastro do próprio usuário, ou nulo quando não há vínculo.
+   *
+   * Base do autoatendimento: lá o alvo NUNCA vem da requisição, sempre daqui.
+   */
+  async proprioCollaboratorId(user: UsuarioContexto): Promise<string | null> {
+    const proprio = await this.collaboratorDoUsuario(user);
+    return proprio?.id ?? null;
+  }
+
   private async collaboratorDoUsuario(user: UsuarioContexto) {
     if (!user.id) return null;
     return (this.prisma as any).collaborator.findFirst({

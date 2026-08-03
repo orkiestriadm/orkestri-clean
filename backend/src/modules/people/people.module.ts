@@ -39,6 +39,8 @@ import { CareerRepository } from "./infrastructure/career.repository";
 import { ChecklistRepository } from "./infrastructure/checklist.repository";
 import { DocumentStorageService } from "./infrastructure/document-storage.service";
 import { PeopleEventsPublisher } from "./domain/people-events.publisher";
+import { SelfServiceService } from "./application/self-service.service";
+import { SelfServiceController } from "./presentation/self-service.controller";
 
 /**
  * Orkiestri People — gestão de pessoas.
@@ -65,6 +67,7 @@ import { PeopleEventsPublisher } from "./domain/people-events.publisher";
     BenefitController, DevelopmentController, ReportController, SalaryController,
     CareerController,
     ChecklistController,
+    SelfServiceController,
   ],
   providers: [
     EmployeeService,
@@ -78,6 +81,7 @@ import { PeopleEventsPublisher } from "./domain/people-events.publisher";
     FeedbackService,
     CareerService,
     ChecklistService,
+    SelfServiceService,
     PeopleNotificationsService,
     PeopleScopeService,
     EmployeeRepository,

@@ -16,6 +16,7 @@ import { FeedbackService } from "./application/feedback.service";
 import { CareerService } from "./application/career.service";
 import { ChecklistService } from "./application/checklist.service";
 import { PeopleScopeService } from "./application/people-scope.service";
+import { SelfServiceService } from "./application/self-service.service";
 
 /**
  * Isolamento de dados do People — o teste que faltava.
@@ -59,6 +60,7 @@ descreve("People — isolamento por escopo", () => {
   let carreira: CareerService;
   let checklists: ChecklistService;
   let escopos: PeopleScopeService;
+  let euMesmo: SelfServiceService;
   let raizDocs: string;
 
   const orgId = `sc-org-${randomUUID()}`;
@@ -118,6 +120,7 @@ descreve("People — isolamento por escopo", () => {
     carreira = moduloRef.get(CareerService);
     checklists = moduloRef.get(ChecklistService);
     escopos = moduloRef.get(PeopleScopeService);
+    euMesmo = moduloRef.get(SelfServiceService);
 
     for (const [oid, nome] of [[orgId, "Escopo A"], [outraOrgId, "Escopo B"]] as const) {
       await (prisma as any).organization.create({
@@ -345,6 +348,72 @@ descreve("People — isolamento por escopo", () => {
     it("a visão geral da outra org não soma o quadro desta", async () => {
       const r = await reports.visaoGeral(outraOrgCtx);
       expect(r.data.quadro.ativos).toBe(1);
+    });
+  });
+
+  /* ── Autoatendimento ──────────────────────────────────────────────────────── */
+
+  describe("Meu RH — o alvo vem do token, nunca da requisição", () => {
+    it("o colaborador comum vê a si", async () => {
+      const r = await euMesmo.resumo(anaCtx);
+      expect(r.data.colaborador.id).toBe(id.ana);
+      expect(r.data.colaborador.nome).toBe("Ana Direta");
+      expect(r.data.colaborador.gestor).toBe("Gestor A");
+    });
+
+    // O teste que justifica resolver pelo VÍNCULO e não pelo escopo. O gestor
+    // alcança quatro cadastros; ler o primeiro da lista lhe mostraria outra
+    // pessoa sob o título "meus dados".
+    it("o gestor vê a si, não o primeiro da sua equipe", async () => {
+      const r = await euMesmo.resumo(gestorACtx);
+      expect(r.data.colaborador.id).toBe(id.gestorA);
+      expect(r.data.colaborador.nome).toBe("Gestor A");
+    });
+
+    it("quem não tem cadastro recebe instrução, não erro genérico", async () => {
+      await expect(euMesmo.resumo(orfaoCtx)).rejects.toThrow(/vinculado a um cadastro/i);
+      // O RH deste teste também não tem cadastro próprio: enxergar todo mundo
+      // não é o mesmo que ter uma ficha.
+      await expect(euMesmo.resumo(rhCtx)).rejects.toThrow(/vinculado a um cadastro/i);
+    });
+
+    it("as abas trazem os dados de quem chamou", async () => {
+      const [ferias, docs, carreira] = await Promise.all([
+        euMesmo.minhasFerias(anaCtx),
+        euMesmo.meusDocumentos(anaCtx),
+        euMesmo.minhaCarreira(anaCtx),
+      ]);
+      expect(ferias.data).toHaveProperty("saldoDisponivel");
+      expect(docs.data.every((d: any) => d.collaboratorId === undefined || d.collaboratorId === id.ana)).toBe(true);
+      expect(carreira.success).toBe(true);
+    });
+
+    it("nunca devolve a anotação privada feita sobre a própria pessoa", async () => {
+      await feedbacks.criar(rhCtx, id.ana, {
+        tipo: "um_a_um", conteudo: "Só para o gestor.",
+        visibilidade: "privado", autorId: id.gestorA,
+      } as any);
+      await feedbacks.criar(rhCtx, id.ana, {
+        tipo: "elogio", conteudo: "Conduziu bem a virada.", autorId: id.gestorA,
+      } as any);
+
+      const r = await euMesmo.meusFeedbacks(anaCtx);
+      expect(r.data.length).toBeGreaterThan(0);
+      expect(r.data.some((f: any) => f.visibilidade === "privado")).toBe(false);
+    });
+
+    it("mostra avaliação finalizada e esconde rascunho", async () => {
+      // Rascunho é trabalho em curso do gestor: uma nota que ainda vai mudar
+      // gera conversa sobre um número provisório.
+      await development.salvarAvaliacao(rhCtx, id.ana, { ciclo: "2026.1", nota: 4 } as any);
+      const lista = await development.listarAvaliacoes(rhCtx, id.ana);
+      await development.finalizarAvaliacao(rhCtx, lista.data.find((a: any) => a.ciclo === "2026.1").id);
+      await development.salvarAvaliacao(rhCtx, id.ana, { ciclo: "2026.2", nota: 3 } as any);
+
+      const r = await euMesmo.meuDesenvolvimento(anaCtx);
+      const ciclos = r.data.avaliacoes.map((a: any) => a.ciclo);
+      expect(ciclos).toContain("2026.1");
+      expect(ciclos).not.toContain("2026.2");
     });
   });
 
