@@ -4,11 +4,15 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useToastStore } from "@/lib/toast";
 import {
-  careerService, SituacaoCarreira, Trilha, RequisitoAvaliado, CriterioDegrau,
+  careerService, SituacaoCarreira, Trilha, RequisitoAvaliado, CriterioDegrau, Prontidao as ProntidaoDados,
   SituacaoRequisito, NIVEIS_COMPETENCIA,
 } from "@/lib/people/career.service";
-import { Panel, PermissionDenied, StatusBadge } from "@/components/data-ui";
-import { Route, Check, Circle, Eye, Award, GraduationCap, ClipboardCheck } from "lucide-react";
+import {
+  Panel, PermissionDenied, StatusBadge, Modal, FormGrid, FormField, FormActions,
+} from "@/components/data-ui";
+import {
+  Route, Check, Circle, Eye, Award, GraduationCap, ClipboardCheck, ArrowUp, AlertTriangle,
+} from "lucide-react";
 
 /**
  * Carreira do colaborador.
@@ -46,14 +50,17 @@ const CORES: Record<SituacaoRequisito, { cor: string; icone: React.ReactNode; ro
 type Props = {
   collaboratorId: string;
   podeGerenciar: boolean;
+  /** Avisa o perfil de que o cargo mudou, para o cabeçalho acompanhar. */
+  onPromovido?: () => void;
 };
 
-export default function AbaCarreira({ collaboratorId, podeGerenciar }: Props) {
+export default function AbaCarreira({ collaboratorId, podeGerenciar, onPromovido }: Props) {
   const [dados, setDados] = useState<SituacaoCarreira | null>(null);
   const [trilhas, setTrilhas] = useState<Trilha[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [semPermissao, setSemPermissao] = useState(false);
   const [erro, setErro] = useState("");
+  const [promovendo, setPromovendo] = useState(false);
 
   const carregar = useCallback(async () => {
     setCarregando(true);
@@ -147,11 +154,137 @@ export default function AbaCarreira({ collaboratorId, podeGerenciar }: Props) {
               </Texto>
             </Panel>
           ) : (
-            <Prontidao dados={dados} />
+            <>
+              <Prontidao dados={dados} />
+              {podeGerenciar && dados.proximoDegrau && (
+                <Panel title="PROMOVER">
+                  <div style={{ display: "flex", gap: 14, alignItems: "center", flexWrap: "wrap" }}>
+                    <Texto>
+                      Promover move o colaborador para{" "}
+                      <strong style={{ color: "var(--text-primary)" }}>
+                        {dados.proximoDegrau.cargo}
+                      </strong>
+                      {" "}— o cargo muda, e com ele a faixa salarial e o organograma.
+                      {dados.prontidao && !dados.prontidao.pronto && (
+                        <> Há requisitos em aberto; a decisão continua sendo sua.</>
+                      )}
+                    </Texto>
+                    <button
+                      type="button"
+                      className="btn btn-primary"
+                      onClick={() => setPromovendo(true)}
+                    >
+                      <ArrowUp size={13} /> Promover
+                    </button>
+                  </div>
+                </Panel>
+              )}
+            </>
           )}
         </>
       )}
+
+      <PromoverModal
+        aberto={promovendo}
+        collaboratorId={collaboratorId}
+        destino={dados.proximoDegrau}
+        prontidao={dados.prontidao}
+        onFechar={() => setPromovendo(false)}
+        onPromovido={() => { carregar(); onPromovido?.(); }}
+      />
     </div>
+  );
+}
+
+function PromoverModal({
+  aberto, collaboratorId, destino, prontidao, onFechar, onPromovido,
+}: {
+  aberto: boolean;
+  collaboratorId: string;
+  destino: SituacaoCarreira["proximoDegrau"];
+  prontidao: ProntidaoDados | null;
+  onFechar: () => void;
+  onPromovido: () => void;
+}) {
+  const [motivo, setMotivo] = useState("");
+  const [erro, setErro] = useState("");
+  const [salvando, setSalvando] = useState(false);
+
+  useEffect(() => {
+    if (!aberto) return;
+    setMotivo("");
+    setErro("");
+  }, [aberto]);
+
+  async function salvar(e: React.FormEvent) {
+    e.preventDefault();
+    if (!destino) return;
+
+    setSalvando(true);
+    try {
+      await careerService.promover(collaboratorId, destino.id, motivo);
+      useToastStore.getState().success("Promoção registrada", `Novo cargo: ${destino.cargo}`);
+      onPromovido();
+      onFechar();
+    } catch (err: any) {
+      const msg = err?.response?.data?.message;
+      if (msg) setErro(Array.isArray(msg) ? msg.join(". ") : msg);
+    } finally {
+      setSalvando(false);
+    }
+  }
+
+  const pendentes = (prontidao?.requisitos ?? []).filter(r => r.situacao === "pendente").length
+    + (prontidao?.criterios ?? []).filter(c => c.situacao === "pendente").length;
+
+  return (
+    <Modal aberto={aberto} titulo="Promover" subtitulo={destino?.cargo ?? ""} onFechar={onFechar} largura={520}>
+      <form onSubmit={salvar} noValidate>
+        <p style={{ fontSize: 12.5, color: "var(--text-secondary)", lineHeight: 1.6, marginTop: 0 }}>
+          O cargo do colaborador passa a ser <strong>{destino?.cargo}</strong>. Isso muda a
+          faixa salarial de referência e a posição no organograma, e entra na linha do
+          tempo como promoção. O salário <strong>não</strong> muda sozinho — registre a
+          nova remuneração na aba Remuneração.
+        </p>
+
+        {pendentes > 0 && (
+          // Avisa, não impede: quem decide promoção é gente, e o requisito que
+          // mais pesa costuma ser o de conferência manual.
+          <div
+            style={{
+              display: "flex", gap: 9, padding: "10px 12px", borderRadius: 11, marginBottom: 14,
+              background: "color-mix(in srgb, var(--accent-amber) 9%, transparent)",
+              border: "1px solid color-mix(in srgb, var(--accent-amber) 26%, transparent)",
+            }}
+          >
+            <AlertTriangle size={14} style={{ color: "var(--accent-amber)", flexShrink: 0, marginTop: 1 }} />
+            <span style={{ fontSize: 12, color: "var(--text-secondary)", lineHeight: 1.55 }}>
+              {pendentes === 1 ? "Há 1 requisito em aberto" : `Há ${pendentes} requisitos em aberto`}{" "}
+              para este degrau. Você pode promover mesmo assim.
+            </span>
+          </div>
+        )}
+
+        <FormGrid>
+          <FormField label="Motivo" erro={erro} largura="total" dica="Fica na linha do tempo funcional">
+            <textarea
+              className="input-o" rows={2} maxLength={500}
+              value={motivo} onChange={e => setMotivo(e.target.value)}
+              placeholder="Assumiu a liderança técnica do time de plataforma"
+            />
+          </FormField>
+        </FormGrid>
+
+        <FormActions>
+          <button type="button" className="btn btn-ghost" onClick={onFechar} disabled={salvando}>
+            Cancelar
+          </button>
+          <button type="submit" className="btn btn-primary" disabled={salvando}>
+            {salvando ? "Promovendo..." : "Confirmar promoção"}
+          </button>
+        </FormActions>
+      </form>
+    </Modal>
   );
 }
 

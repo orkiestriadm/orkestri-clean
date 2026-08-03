@@ -31,6 +31,20 @@ import { CareerService } from "./application/career.service";
 const DB = process.env.PEOPLE_IT_DATABASE_URL;
 const descreve = DB ? describe : describe.skip;
 
+if (!DB) {
+  // AVISO ALTO, de propósito.
+  //
+  // Esta suíte ficou meses sem rodar e ninguém percebeu, porque `npm test`
+  // terminava dizendo "todos passando" enquanto os 69 testes que tocam o banco
+  // eram pulados em silêncio. Cobertura que some sem avisar é pior que
+  // cobertura que nunca existiu: ela dá confiança falsa.
+  console.warn(
+    "\n\x1b[33m⚠  INTEGRAÇÃO DO PEOPLE NÃO EXECUTADA\x1b[0m\n" +
+    "   Os testes que tocam banco e disco foram PULADOS.\n" +
+    "   Para rodar tudo:  npm run test:it\n",
+  );
+}
+
 descreve("People — integração", () => {
   let moduloRef: any;
   let prisma: PrismaService;
@@ -376,6 +390,45 @@ descreve("People — integração", () => {
       } as any);
       const depois = (await vacations.situacao(rh(), veterano)).data.saldoDisponivel;
       expect(depois).toBe(antes - 10);
+    });
+
+    it("o passivo reflete a solicitação na hora, sem esperar a sincronização", async () => {
+      // O painel lia `dias_gozados` da coluna materializada, reescrita só às
+      // 07:00 ou na subida da API. Quem aprovasse férias de manhã via o saldo
+      // antigo até o dia seguinte — e saldo de férias inflado vira provisão
+      // contábil errada.
+      // Colaborador próprio: pendurar este caso no `veterano` o tornaria refém
+      // do saldo que os testes anteriores consumiram.
+      //
+      // 23 meses de casa, não 24: assim o primeiro período aquisitivo está
+      // ADQUIRIDO (dá para debitar) E com o limite concessivo dentro da janela
+      // de 60 dias do painel (aparece nele). Com 24 meses cheios o débito cairia
+      // no período seguinte, que ainda não vence na janela — e o teste mediria
+      // um período que a tela nem mostra.
+      const admissao = new Date();
+      admissao.setMonth(admissao.getMonth() - 23);
+      const p = await employees.criar(rh(), {
+        nomeCompleto: "Passivo Imediato",
+        dataAdmissao: admissao.toISOString().slice(0, 10),
+      } as any);
+      const pessoa = p.data.id;
+      await vacations.situacao(rh(), pessoa); // materializa os períodos
+
+      const saldoDe = (r: any) =>
+        r.data.periodos
+          .filter((x: any) => x.colaborador.id === pessoa)
+          .reduce((s: number, x: any) => s + x.saldo, 0);
+
+      const saldoAntes = saldoDe(await vacations.passivo(rh()));
+      expect(saldoAntes).toBeGreaterThanOrEqual(10);
+
+      await vacations.solicitar(rh(), pessoa, {
+        dataInicio: "2028-02-01", dataFim: "2028-02-10",
+      } as any);
+
+      // Nada de sincronizar no meio: é justamente a leitura sem sincronização
+      // que precisa estar certa.
+      expect(saldoDe(await vacations.passivo(rh()))).toBe(saldoAntes - 10);
     });
 
     it("recusa período que se sobrepõe a uma solicitação existente", async () => {
@@ -986,6 +1039,45 @@ descreve("People — integração", () => {
       const depois = await carreira.listarTrilhas(rh(), true);
       const nova = depois.data.find((x: any) => x.id === trilhaId);
       expect(nova.degraus.map((d: any) => d.ordem).sort()).toEqual([1, 2]);
+    });
+
+    it("promove trocando o cargo e registrando o motivo", async () => {
+      const antes = await carreira.situacao(rh(), pessoaId);
+      const destino = antes.data.proximoDegrau;
+      expect(destino).not.toBeNull();
+
+      await carreira.promover(rh(), pessoaId, {
+        stepId: destino.id, motivo: "Assumiu a liderança técnica",
+      } as any);
+
+      // O cargo mudou de verdade — não é um carimbo paralelo.
+      const perfil = await employees.obter(rh(), pessoaId);
+      expect(perfil.data.position?.id).toBe(
+        (antes.data.degraus ?? []).find((d: any) => d.id === destino.id) && perfil.data.position?.id,
+      );
+      expect(perfil.data.position?.titulo).toBe(destino.cargo);
+
+      // E a linha do tempo ganhou promoção COM motivo, além do `mudanca_cargo`
+      // que o caminho de edição já grava.
+      const hist = await employees.historicoDe(rh(), pessoaId);
+      const promocao = hist.data.find((e: any) => e.evento === "promocao");
+      expect(promocao).toBeDefined();
+      expect(promocao.descricao).toContain("Assumiu a liderança técnica");
+      expect(hist.data.some((e: any) => e.evento === "mudanca_cargo")).toBe(true);
+
+      // Agora ela está no degrau de destino.
+      const depois = await carreira.situacao(rh(), pessoaId);
+      expect(depois.data.degrauAtual.id).toBe(destino.id);
+    });
+
+    it("recusa promover para trás — isso é rebaixamento, não promoção", async () => {
+      const s = await carreira.situacao(rh(), pessoaId);
+      const anterior = (s.data.degraus ?? []).find((d: any) => d.ordem < s.data.degrauAtual.ordem);
+      if (!anterior) return; // trilha de um degrau só: nada a testar
+
+      await expect(
+        carreira.promover(rh(), pessoaId, { stepId: anterior.id } as any),
+      ).rejects.toThrow(/à frente|frente/i);
     });
 
     it("não deixa excluir cargo que é degrau de trilha", async () => {

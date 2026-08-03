@@ -1,0 +1,105 @@
+name: Testes
+
+# Existe porque a suíte de integração do People ficou MESES sem rodar: ela
+# exigia um banco que ninguém tinha à mão e era pulada em silêncio, com o
+# `npm test` terminando em verde. Aqui o banco vem de graça e o verde significa
+# alguma coisa.
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: it
+          POSTGRES_PASSWORD: it
+          POSTGRES_DB: people_it
+        ports: ["5432:5432"]
+        # Sem healthcheck o job corre para o migrate antes de o banco aceitar
+        # conexão, e falha por corrida, não por defeito.
+        options: >-
+          --health-cmd "pg_isready -U it"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      PEOPLE_IT_DATABASE_URL: postgresql://it:it@localhost:5432/people_it
+      DATABASE_URL: postgresql://it:it@localhost:5432/people_it
+
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - run: npm ci
+
+      - name: Gerar o Prisma Client
+        run: npx prisma generate
+
+      - name: Verificar tipos
+        run: npx tsc --noEmit -p tsconfig.json
+
+      - name: Aplicar migrations no banco de teste
+        run: npx prisma migrate deploy
+
+      # Unitários e integração no mesmo comando: separar convidaria a rodar só
+      # metade — que é exatamente como a integração parou de rodar.
+      - name: Testes (unitários + integração)
+        run: npx jest --runInBand --testTimeout=60000
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - run: npm ci
+
+      # `tsc --noEmit` NÃO basta: o `next build` valida as regras do App Router
+      # (uma página só pode exportar `default` e as configurações de rota) e já
+      # quebrou um deploy com o typecheck passando.
+      - name: Compilar
+        run: npx next build
+
+# ─────────────────────────────────────────────────────────────────────────────
+# COMO ATIVAR
+#
+# Este arquivo está em docs/ci/ e NÃO roda daqui. O token usado no push não tem
+# escopo `workflow`, e o GitHub recusa criar `.github/workflows/*` sem ele —
+# limite de segurança do token, não do repositório.
+#
+# Para ligar a CI, com um token que tenha o escopo `workflow`:
+#
+#   mkdir -p .github/workflows
+#   git mv docs/ci/github-actions-testes.yml .github/workflows/testes.yml
+#   git commit -m "ci: ativar workflow de testes"
+#   git push
+#
+# Ou cole o conteúdo acima direto pela interface do GitHub em
+# Actions › New workflow › set up a workflow yourself.
+# ─────────────────────────────────────────────────────────────────────────────

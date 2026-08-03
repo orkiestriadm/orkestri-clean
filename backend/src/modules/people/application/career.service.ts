@@ -8,6 +8,8 @@ import {
 import { CareerRepository } from "../infrastructure/career.repository";
 import { PeopleScopeService, UsuarioContexto } from "./people-scope.service";
 import { AuditService } from "../../audit/audit.module";
+import { EmployeeService } from "./employee.service";
+import { EmployeeHistoryRepository } from "../infrastructure/employee-history.repository";
 import {
   NIVEIS_COMPETENCIA, avaliarProntidao, degrauAtual, proximoDegrau,
   validarRequisito, validarNivelMinimo, Requisito,
@@ -60,6 +62,12 @@ export class DefinirTrilhaDto {
   @IsOptional() @IsString() careerTrackId?: string | null;
 }
 
+export class PromoverDto {
+  /** Degrau de destino. Exigido para não promover "para o próximo" às cegas. */
+  @IsString() stepId!: string;
+  @IsOptional() @IsString() @MaxLength(500) motivo?: string;
+}
+
 @Injectable()
 export class CareerService {
   private readonly logger = new Logger(CareerService.name);
@@ -68,6 +76,11 @@ export class CareerService {
     private readonly repo: CareerRepository,
     private readonly escopo: PeopleScopeService,
     private readonly audit: AuditService,
+    // A promoção troca o cargo pelo MESMO caminho de sempre, em vez de escrever
+    // direto no repositório: histórico, auditoria e evento de domínio precisam
+    // acontecer uma vez só, num lugar só.
+    private readonly employees: EmployeeService,
+    private readonly historicoFuncional: EmployeeHistoryRepository,
   ) {}
 
   /* ── Trilhas ────────────────────────────────────────────────────────────── */
@@ -378,6 +391,78 @@ export class CareerService {
           : null,
         prontidao,
       },
+    };
+  }
+
+  /**
+   * Promove o colaborador para um degrau da trilha.
+   *
+   * O que isto faz de fato é TROCAR O CARGO — e a troca é delegada ao
+   * EmployeeService, não reimplementada aqui. Duplicar a escrita criaria dois
+   * caminhos para o mesmo fato: um gravando histórico, auditoria e evento de
+   * domínio, e outro esquecendo algum dos três conforme quem mexesse por
+   * último. O cargo sempre foi governado por um campo só; a promoção usa a
+   * mesma porta.
+   *
+   * Sobre a prontidão: ela NÃO é exigida. O sistema calcula o que falta, quem
+   * decide é gente — travar a promoção em cima de um checklist automático
+   * inverteria os papéis, e o item que mais pesa numa promoção costuma ser
+   * justamente o de conferência manual.
+   */
+  async promover(user: UsuarioContexto, collaboratorId: string, dto: PromoverDto) {
+    const organizationId = this.exigirOrganizacao(user);
+    await this.exigirEscopo(user, collaboratorId);
+
+    const colaborador = await this.repo.colaborador(collaboratorId, organizationId);
+    if (!colaborador) throw new NotFoundException("Colaborador não encontrado");
+
+    const destino = await this.repo.obterDegrau(dto.stepId, organizationId);
+    if (!destino) throw new NotFoundException("Degrau não encontrado");
+
+    const { trilha } = await this.resolverTrilha(organizationId, colaborador);
+    if (!trilha || destino.trackId !== trilha.id) {
+      throw new BadRequestException(
+        "O degrau escolhido não pertence à trilha deste colaborador.",
+      );
+    }
+
+    const degraus = trilha.degraus.map((d: any) => ({
+      id: d.id, ordem: d.ordem, positionId: d.positionId,
+    }));
+    const atual = degrauAtual(degraus, colaborador.positionId);
+
+    if (atual && destino.ordem <= atual.ordem) {
+      // Descer de degrau existe (rebaixamento, enquadramento), mas não é
+      // promoção e não deve entrar pela porta que grava "promoção" no histórico.
+      throw new BadRequestException(
+        "O degrau escolhido não está à frente do atual. Para mover para trás, edite o cargo.",
+      );
+    }
+
+    const antes = colaborador.position?.titulo ?? "sem cargo";
+    await this.employees.atualizar(user, collaboratorId, { positionId: destino.positionId } as any);
+
+    // Evento próprio ALÉM do `mudanca_cargo` que o EmployeeService grava: a
+    // troca de cargo diz o quê, este diz por quê e sob qual plano.
+    await this.historicoFuncional.registrar({
+      organizationId,
+      collaboratorId,
+      evento: "promocao",
+      descricao:
+        `Promoção na trilha "${trilha.nome}": ${antes} → ${destino.position?.titulo ?? "—"}` +
+        (dto.motivo?.trim() ? ` — ${dto.motivo.trim()}` : ""),
+      registradoPorId: user.id ?? null,
+    });
+
+    await this.auditar(
+      user, collaboratorId, "editar",
+      `Promoção para "${destino.position?.titulo}" na trilha "${trilha.nome}"`,
+      "collaborators",
+    );
+
+    return {
+      success: true,
+      data: { collaboratorId, positionId: destino.positionId, degrauId: destino.id },
     };
   }
 

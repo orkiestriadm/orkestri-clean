@@ -5,7 +5,7 @@ import { AuthGuard } from "@nestjs/passport";
 import { PermissionsGuard } from "../../auth/permissions.guard";
 import { Permissions } from "../../auth/permissions.decorator";
 import {
-  CareerService, TrilhaDto, DegrauDto, RequisitoDto, ReordenarDto, DefinirTrilhaDto,
+  CareerService, TrilhaDto, DegrauDto, RequisitoDto, ReordenarDto, DefinirTrilhaDto, PromoverDto,
 } from "../application/career.service";
 import { PEOPLE_PERMISSIONS } from "../people.permissions";
 
@@ -93,6 +93,23 @@ export class CareerController {
   @Permissions(PEOPLE_PERMISSIONS.carreira.ver)
   situacao(@Req() req: any, @Param("collaboratorId") collaboratorId: string) {
     return this.service.situacao(req.user, collaboratorId);
+  }
+
+  /**
+   * Promover exige as DUAS permissões, com semântica E.
+   *
+   * Desenhar a trilha e mexer no cadastro de alguém são decisões diferentes:
+   * quem monta o plano de carreira não necessariamente tem alçada para mover a
+   * pessoa de cargo — e essa mudança arrasta faixa salarial e organograma.
+   */
+  @Post("employees/:collaboratorId/carreira/promover")
+  @Permissions(PEOPLE_PERMISSIONS.carreira.gerenciar, PEOPLE_PERMISSIONS.colaborador.editar)
+  promover(
+    @Req() req: any,
+    @Param("collaboratorId") collaboratorId: string,
+    @Body() dto: PromoverDto,
+  ) {
+    return this.service.promover(req.user, collaboratorId, dto);
   }
 
   /**

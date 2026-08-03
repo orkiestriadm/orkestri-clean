@@ -12,7 +12,7 @@ import {
   Timeline, TimelineItem, StatusBadge, BadgeTone,
   ErrorState, PermissionDenied, TableCard,
 } from "@/components/data-ui";
-import { UserX, Mail, Phone, Building2, Pencil, RefreshCw } from "lucide-react";
+import { UserX, Mail, Phone, Building2, Pencil, RefreshCw, Trash2 } from "lucide-react";
 import { useAuthStore } from "@/lib/store";
 import ColaboradorForm from "../_components/ColaboradorForm";
 import MudarSituacao from "../_components/MudarSituacao";
@@ -22,6 +22,7 @@ import AbaBeneficios from "../_components/AbaBeneficios";
 import AbaDesenvolvimento from "../_components/AbaDesenvolvimento";
 import AbaCompetencias from "../_components/AbaCompetencias";
 import AbaCarreira from "../_components/AbaCarreira";
+import ExcluirColaborador from "../_components/ExcluirColaborador";
 import AbaRemuneracao from "../_components/AbaRemuneracao";
 import SecaoFeedback from "../_components/SecaoFeedback";
 import AbaAusenciasPerfil from "../_components/AbaAusenciasPerfil";
@@ -112,6 +113,7 @@ export default function PerfilColaboradorPage() {
   const [aba, setAba] = useState<Aba>("visao");
   const [editando, setEditando] = useState(false);
   const [mudandoSituacao, setMudandoSituacao] = useState(false);
+  const [excluindo, setExcluindo] = useState(false);
 
   const {
     colaborador, historico, carregando, erro, semPermissao, naoEncontrado,
@@ -151,6 +153,7 @@ export default function PerfilColaboradorPage() {
   const podeGerenciarSalario = pode(user, "people.salario:gerenciar");
   const podeRegistrarFeedback = pode(user, "people.feedback:registrar");
   const podeGerenciarCarreira = pode(user, "people.carreira:gerenciar");
+  const podeExcluirColaborador = pode(user, "people.colaborador:excluir");
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
@@ -195,7 +198,13 @@ export default function PerfilColaboradorPage() {
               <Tabs<Aba> tabs={ABAS} active={aba} onChange={setAba} />
               {aba === "visao"     && <AbaVisao colaborador={colaborador} historico={historico} />}
               {aba === "pessoal"   && <AbaPessoal colaborador={colaborador} />}
-              {aba === "vinculo"   && <AbaVinculo colaborador={colaborador} />}
+              {aba === "vinculo"   && (
+                <AbaVinculo
+                  colaborador={colaborador}
+                  podeExcluir={podeExcluirColaborador}
+                  onExcluir={() => setExcluindo(true)}
+                />
+              )}
               {aba === "documentos" && (
                 <AbaDocumentos
                   collaboratorId={colaborador.id}
@@ -259,6 +268,9 @@ export default function PerfilColaboradorPage() {
                 <AbaCarreira
                   collaboratorId={colaborador.id}
                   podeGerenciar={podeGerenciarCarreira}
+                  // A promoção troca o cargo: sem isto o cabeçalho e a aba
+                  // Vínculo seguiriam mostrando o cargo anterior.
+                  onPromovido={recarregar}
                 />
               )}
               {aba === "equipe"    && <AbaEquipe colaborador={colaborador} />}
@@ -275,6 +287,14 @@ export default function PerfilColaboradorPage() {
                 colaborador={colaborador}
                 onFechar={() => setMudandoSituacao(false)}
                 onMudou={recarregar}
+              />
+              <ExcluirColaborador
+                aberto={excluindo}
+                colaborador={colaborador}
+                onFechar={() => setExcluindo(false)}
+                // Volta para a lista: recarregar deixaria a pessoa olhando o
+                // perfil de um registro que a API não devolve mais.
+                onExcluido={() => router.push("/dashboard/people")}
               />
             </>
           ) : null}
@@ -413,7 +433,13 @@ function AbaPessoal({ colaborador }: { colaborador: ColaboradorDetalhe }) {
   );
 }
 
-function AbaVinculo({ colaborador }: { colaborador: ColaboradorDetalhe }) {
+function AbaVinculo({
+  colaborador, podeExcluir, onExcluir,
+}: {
+  colaborador: ColaboradorDetalhe;
+  podeExcluir: boolean;
+  onExcluir: () => void;
+}) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       <Panel title="CONTRATO">
@@ -456,6 +482,29 @@ function AbaVinculo({ colaborador }: { colaborador: ColaboradorDetalhe }) {
           </div>
         )}
       </Panel>
+
+      {/* Longe do topo e da ação de Editar: excluir cadastro é raro e
+          irreversível na prática, não pode ficar a um clique de distância de
+          uma tarefa cotidiana. */}
+      {podeExcluir && (
+        <Panel title="EXCLUIR REGISTRO">
+          <div style={{ display: "flex", gap: 14, alignItems: "center", flexWrap: "wrap" }}>
+            <p style={{ fontSize: 12.5, color: "var(--text-secondary)", margin: 0, lineHeight: 1.6, flex: 1, minWidth: 260 }}>
+              Para quem <strong>saiu da empresa</strong>, use <em>Mudar situação → Desligado</em>:
+              a ficha continua acessível e entra no turnover. A exclusão é para cadastro
+              criado por engano ou duplicado.
+            </p>
+            <button
+              type="button"
+              className="btn btn-ghost"
+              onClick={onExcluir}
+              style={{ color: "var(--accent-red)", borderColor: "color-mix(in srgb, var(--accent-red) 35%, transparent)" }}
+            >
+              <Trash2 size={13} /> Excluir registro
+            </button>
+          </div>
+        </Panel>
+      )}
     </div>
   );
 }

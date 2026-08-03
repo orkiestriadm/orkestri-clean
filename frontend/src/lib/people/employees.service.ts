@@ -193,4 +193,16 @@ export const employeesService = {
     const { data } = await api.patch(`${BASE}/${id}/status`, payload);
     return data;
   },
+
+  /**
+   * Exclusão LÓGICA — o registro sai das telas e continua no banco.
+   *
+   * Existe para desfazer cadastro criado por engano, não para desligar alguém:
+   * quem saiu da empresa tem `dataDesligamento`, aparece no turnover e mantém a
+   * ficha. Retenção legal impede exclusão física (docs/people/ADR-004 §3).
+   */
+  async excluir(id: string) {
+    const { data } = await api.delete(`${BASE}/${id}`);
+    return data;
+  },
 };

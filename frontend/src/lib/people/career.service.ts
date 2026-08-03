@@ -189,6 +189,20 @@ export const careerService = {
     return data;
   },
 
+  /**
+   * Promove para um degrau da trilha — o que, na prática, troca o cargo.
+   *
+   * A prontidão NÃO é pré-requisito: o sistema calcula o que falta, quem decide
+   * é gente. O item que mais pesa numa promoção costuma ser justamente o de
+   * conferência manual.
+   */
+  async promover(collaboratorId: string, stepId: string, motivo?: string) {
+    const corpo: Record<string, unknown> = { stepId };
+    if (motivo?.trim()) corpo.motivo = motivo.trim();
+    const { data } = await api.post(`/v1/people/employees/${collaboratorId}/carreira/promover`, corpo);
+    return data;
+  },
+
   async definirTrilha(collaboratorId: string, careerTrackId: string | null) {
     // `null` explícito desfaz a atribuição; omitir não desfaria nada.
     const { data } = await api.put(`/v1/people/employees/${collaboratorId}/carreira`, { careerTrackId });

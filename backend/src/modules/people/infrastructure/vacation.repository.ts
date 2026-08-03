@@ -120,6 +120,41 @@ export class VacationRepository {
   }
 
   /** Períodos vencendo na organização — alimenta o painel de passivo. */
+  /**
+   * Dias comprometidos de VÁRIOS períodos numa consulta só.
+   *
+   * O painel de passivo lia `dias_gozados` da coluna materializada, que só é
+   * reescrita na sincronização (07:00 ou subida da API). Entre aprovar umas
+   * férias e a próxima varredura, o saldo mostrado ficava maior do que o real —
+   * e saldo de férias errado vira provisão errada.
+   *
+   * Uma consulta para todos os períodos, não uma por colaborador: o painel
+   * varre a organização inteira.
+   */
+  async diasComprometidosDeVarios(periodIds: string[]): Promise<Map<string, number>> {
+    if (!periodIds.length) return new Map();
+
+    const linhas = await this.db.ausencia.findMany({
+      where: {
+        tipo: "ferias",
+        status: { in: ["PENDENTE", "APROVADA"] },
+        vacationPeriodId: { in: periodIds },
+      },
+      select: { vacationPeriodId: true, dataInicio: true, dataFim: true },
+    });
+
+    const porPeriodo = new Map<string, number>();
+    for (const l of linhas as any[]) {
+      // Mesma contagem inclusiva usada em `diasComprometidosPorPeriodo`: de 1º a
+      // 30 são 30 dias, não 29.
+      const dias = Math.round(
+        (new Date(l.dataFim).setHours(0, 0, 0, 0) - new Date(l.dataInicio).setHours(0, 0, 0, 0)) / 86_400_000,
+      ) + 1;
+      porPeriodo.set(l.vacationPeriodId, (porPeriodo.get(l.vacationPeriodId) ?? 0) + dias);
+    }
+    return porPeriodo;
+  }
+
   async periodosVencendoAte(organizationId: string, limite: Date, collaboratorIds?: string[]) {
     return this.db.collaboratorVacationPeriod.findMany({
       where: {

@@ -191,6 +191,17 @@ export class VacationService {
     limite.setDate(limite.getDate() + DIAS_ALERTA_VENCIMENTO_FERIAS);
 
     const periodos = await this.repo.periodosVencendoAte(organizationId, limite, ids);
+
+    // Recalcula os dias comprometidos AGORA, em vez de confiar na coluna
+    // materializada.
+    //
+    // `dias_gozados` só é reescrito na sincronização (07:00 ou subida da API).
+    // Quem aprovasse férias às 9h veria o painel com o saldo antigo até o dia
+    // seguinte — e saldo de férias inflado vira provisão contábil errada. A
+    // fonte da verdade sempre foram as ausências; aqui ela é consultada direto.
+    const comprometidos = await this.repo.diasComprometidosDeVarios(
+      periodos.map((p: any) => p.id),
+    );
     const hoje = new Date();
 
     return {
@@ -205,7 +216,10 @@ export class VacationService {
           },
           limiteConcessivo: p.limiteConcessivo,
           diasParaVencer: diffEmDias(hoje, p.limiteConcessivo),
-          saldo: Math.max(0, p.diasDireito - p.diasGozados),
+          // Ausência do período no mapa significa ZERO dias comprometidos, não
+          // "manter o valor antigo": férias canceladas precisam devolver o saldo
+          // na hora. A coluna é derivada — nada além da sincronização a escreve.
+          saldo: Math.max(0, p.diasDireito - (comprometidos.get(p.id) ?? 0)),
         })),
       },
     };
