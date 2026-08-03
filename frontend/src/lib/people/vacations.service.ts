@@ -31,6 +31,23 @@ export type SituacaoFerias = {
   saldoDisponivel: number;
   periodos: PeriodoFerias[];
   vencendo: number;
+  /**
+   * Só preenchido em quem está DESLIGADO — em quem está na ativa seria um
+   * número sem uso, e o proporcional mudaria sozinho a cada mês.
+   *
+   * Em DIAS, nunca em reais: folha de pagamento está fora do escopo do módulo.
+   * O que o RH tira daqui é o insumo para lançar na folha.
+   */
+  devidasNaRescisao: FeriasDevidas | null;
+};
+
+export type FeriasDevidas = {
+  /** Pagos em DOBRO na rescisão (CLT art. 137) — por isso vêm separados. */
+  vencidosDias: number;
+  adquiridosDias: number;
+  proporcionaisDias: number;
+  mesesProporcionais: number;
+  totalDias: number;
 };
 
 export type ItemPassivo = {

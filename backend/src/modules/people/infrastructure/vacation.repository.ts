@@ -181,7 +181,9 @@ export class VacationRepository {
   async dataAdmissao(collaboratorId: string, organizationId: string) {
     const c = await this.db.collaborator.findFirst({
       where: { id: collaboratorId, organizationId, excluidoEm: null },
-      select: { id: true, dataAdmissao: true, status: true },
+      // `dataDesligamento` entra aqui porque o cálculo de férias devidas avalia
+      // o vencimento NA DATA DA SAÍDA, não em hoje.
+      select: { id: true, dataAdmissao: true, dataDesligamento: true, status: true },
     });
     return c;
   }

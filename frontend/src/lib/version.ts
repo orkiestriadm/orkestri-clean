@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "1.6.0";
+export const VERSAO = "1.7.0";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -26,7 +26,7 @@ export const VERSAO = "1.6.0";
 export const VERSAO_DATA = "2026-08-03";
 
 /** Nome da entrega, para dar contexto ao número. */
-export const VERSAO_NOME = "People — Checklist e melhorias da auditoria";
+export const VERSAO_NOME = "People — Promoção com salário e férias na rescisão";
 
 /**
  * Histórico exibido na tela Sobre, do mais recente para o mais antigo.

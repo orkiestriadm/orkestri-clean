@@ -457,6 +457,36 @@ descreve("People — integração", () => {
       expect(saldoDe(await vacations.passivo(rh()))).toBe(saldoAntes - 10);
     });
 
+    it("resume as férias devidas de quem foi desligado, em dias", async () => {
+      // O passivo ficava visível mas ninguém somava o que era devido. Em DIAS,
+      // nunca em reais: folha está fora do escopo do módulo.
+      const admissao = new Date();
+      admissao.setFullYear(admissao.getFullYear() - 3);
+      const p = await employees.criar(rh(), {
+        nomeCompleto: "Saindo Com Ferias", dataAdmissao: admissao.toISOString().slice(0, 10),
+      } as any);
+      await vacations.situacao(rh(), p.data.id); // materializa os períodos
+
+      const naAtiva = await vacations.situacao(rh(), p.data.id);
+      expect(naAtiva.data.devidasNaRescisao).toBeNull();
+
+      const saida = new Date();
+      await employees.mudarStatus(rh(), p.data.id, {
+        status: "DESLIGADO", dataDesligamento: saida.toISOString().slice(0, 10),
+        motivo: "Pedido de demissão",
+      } as any);
+
+      const depois = await vacations.situacao(rh(), p.data.id);
+      const d = depois.data.devidasNaRescisao;
+      expect(d).not.toBeNull();
+      // 3 anos sem gozar: dois períodos fechados com saldo e o proporcional do
+      // ciclo em curso, que acabou de fechar 12 meses.
+      expect(d.vencidosDias + d.adquiridosDias).toBeGreaterThanOrEqual(60);
+      expect(d.totalDias).toBe(
+        Math.round((d.vencidosDias + d.adquiridosDias + d.proporcionaisDias) * 100) / 100,
+      );
+    });
+
     it("recusa período que se sobrepõe a uma solicitação existente", async () => {
       await expect(
         vacations.solicitar(rh(), veterano, { dataInicio: "2027-03-10", dataFim: "2027-03-20" } as any),
@@ -1094,6 +1124,59 @@ descreve("People — integração", () => {
       // Agora ela está no degrau de destino.
       const depois = await carreira.situacao(rh(), pessoaId);
       expect(depois.data.degrauAtual.id).toBe(destino.id);
+    });
+
+    it("promove e ajusta o salário no mesmo passo", async () => {
+      // Sem isto, promover deixava a pessoa ABAIXO DA FAIXA do cargo novo até
+      // alguém lembrar de registrar o valor — e o painel a acusava por causa da
+      // própria promoção.
+      const p = await employees.criar(rh(), {
+        nomeCompleto: "Promovida Com Aumento", dataAdmissao: "2024-01-10",
+      } as any);
+      await (prisma as any).collaborator.update({
+        where: { id: p.data.id }, data: { positionId: cargoJr },
+      });
+      await salarios.registrar(rh(), p.data.id, {
+        valor: 3000, vigenciaInicio: "2024-01-10", motivo: "admissao",
+      } as any);
+
+      const antes = await carreira.situacao(rh(), p.data.id);
+      const destino = antes.data.proximoDegrau;
+
+      await carreira.promover(
+        { ...rh(), permissions: [...rh().permissions, "people.salario:gerenciar"] },
+        p.data.id,
+        { stepId: destino.id, motivo: "Promoção com ajuste", novoSalario: 5500 } as any,
+      );
+
+      const sal = await salarios.situacao(rh(), p.data.id);
+      expect(sal.data.vigente.valor).toBe(5500);
+      expect(sal.data.vigente.motivo).toBe("promocao");
+      // O registro salarial guarda o cargo do MOMENTO: gravar antes da troca
+      // atribuiria o valor novo ao cargo antigo no histórico.
+      expect(sal.data.historico[0].cargo).toBe(destino.cargo);
+    });
+
+    it("recusa ajustar o salário sem a permissão de remuneração", async () => {
+      const p = await employees.criar(rh(), {
+        nomeCompleto: "Sem Permissao Salario", dataAdmissao: "2024-01-10",
+      } as any);
+      await (prisma as any).collaborator.update({
+        where: { id: p.data.id }, data: { positionId: cargoJr },
+      });
+      const s = await carreira.situacao(rh(), p.data.id);
+
+      // `rh()` não tem `people.salario:gerenciar`.
+      await expect(
+        carreira.promover(rh(), p.data.id, {
+          stepId: s.data.proximoDegrau.id, novoSalario: 9000,
+        } as any),
+      ).rejects.toThrow(/remuneração|permissão/i);
+
+      // E o cargo NÃO pode ter mudado: a checagem vem antes da troca, senão a
+      // pessoa ficaria no cargo novo com o salário antigo.
+      const perfil = await employees.obter(rh(), p.data.id);
+      expect(perfil.data.position?.id).toBe(cargoJr);
     });
 
     it("recusa promover para trás — isso é rebaixamento, não promoção", async () => {

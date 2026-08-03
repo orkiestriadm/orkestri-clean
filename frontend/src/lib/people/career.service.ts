@@ -196,9 +196,12 @@ export const careerService = {
    * é gente. O item que mais pesa numa promoção costuma ser justamente o de
    * conferência manual.
    */
-  async promover(collaboratorId: string, stepId: string, motivo?: string) {
+  async promover(collaboratorId: string, stepId: string, motivo?: string, novoSalario?: number | null) {
     const corpo: Record<string, unknown> = { stepId };
     if (motivo?.trim()) corpo.motivo = motivo.trim();
+    // Só vai quando há valor: promoção sem aumento é decisão legítima, e mandar
+    // `null` seria pedir para registrar salário zero.
+    if (novoSalario != null) corpo.novoSalario = novoSalario;
     const { data } = await api.post(`/v1/people/employees/${collaboratorId}/carreira/promover`, corpo);
     return data;
   },

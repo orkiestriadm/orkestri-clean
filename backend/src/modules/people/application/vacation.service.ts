@@ -9,7 +9,7 @@ import { PeopleEventsPublisher } from "../domain/people-events.publisher";
 import { AuditService } from "../../audit/audit.module";
 import {
   periodosAquisitivos, statusDoPeriodo, saldoDoPeriodo, saldoDisponivel,
-  periodosVencendo, validarJanela, escolherPeriodoParaDebito, diffEmDias,
+  periodosVencendo, feriasDevidas, validarJanela, escolherPeriodoParaDebito, diffEmDias,
   VACATION_PERIOD_STATUS, DIAS_ALERTA_VENCIMENTO_FERIAS, PeriodoAquisitivo,
 } from "../domain/vacation.entity";
 import { EMPLOYEE_STATUS } from "../domain/employee.entity";
@@ -94,6 +94,17 @@ export class VacationService {
           diasParaVencer: diffEmDias(hoje, p.calculado.limiteConcessivo),
         })),
         vencendo: periodosVencendo(periodos.map(p => p.calculado), hoje).length,
+        // Só para quem está de saída: em quem está na ativa, "férias devidas"
+        // seria um número sem uso, e proporcional de ciclo em curso muda todo
+        // mês — informação que muda sozinha na tela confunde mais que ajuda.
+        devidasNaRescisao:
+          colaborador.status === EMPLOYEE_STATUS.DESLIGADO && colaborador.dataDesligamento
+            ? feriasDevidas(
+                periodos.map(p => p.calculado),
+                colaborador.dataAdmissao,
+                colaborador.dataDesligamento,
+              )
+            : null,
       },
     };
   }

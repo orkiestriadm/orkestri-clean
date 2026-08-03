@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useVacation } from "@/hooks/useVacation";
-import { PeriodoFerias, StatusPeriodo } from "@/lib/people/vacations.service";
+import { PeriodoFerias, StatusPeriodo, FeriasDevidas } from "@/lib/people/vacations.service";
 import {
   Panel, TableCard, EmptyState, LoadingRows, ErrorState, PermissionDenied,
   StatusBadge, BadgeTone,
@@ -74,6 +74,12 @@ export default function AbaFerias({ collaboratorId, nome, podeSolicitar }: Props
     <>
       <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
         {!carregando && situacao && <Resumo situacao={situacao} vencidos={vencidos.length} />}
+
+        {/* Só aparece em quem foi desligado — e é o primeiro bloco da aba,
+            porque nesse momento é a única pergunta que importa aqui. */}
+        {!carregando && situacao?.devidasNaRescisao && (
+          <DevidasNaRescisao devidas={situacao.devidasNaRescisao} />
+        )}
 
         <Panel
           title="PERÍODOS AQUISITIVOS"
@@ -222,5 +228,86 @@ function Linha({ periodo }: { periodo: PeriodoFerias }) {
       <td className="num" style={{ fontWeight: 600 }}>{periodo.saldo}</td>
       <td><StatusBadge label={status.label} tone={status.tone} /></td>
     </tr>
+  );
+}
+
+/**
+ * Férias devidas no desligamento.
+ *
+ * EM DIAS, NUNCA EM REAIS. Folha de pagamento está fora do escopo do módulo:
+ * converter para dinheiro exigiria salário, médias, adicionais e o terço
+ * constitucional — cálculo de rescisão, que é outro produto. O que o RH precisa
+ * daqui é o insumo para lançar na folha.
+ *
+ * O vencido vem destacado porque é o número que DOBRA na rescisão; somá-lo ao
+ * resto esconderia justamente o que custa caro.
+ */
+function DevidasNaRescisao({ devidas }: { devidas: FeriasDevidas }) {
+  const linhas = [
+    {
+      rotulo: "Vencidas",
+      dias: devidas.vencidosDias,
+      nota: "pagas em dobro (CLT art. 137)",
+      critico: devidas.vencidosDias > 0,
+    },
+    { rotulo: "Adquiridas não gozadas", dias: devidas.adquiridosDias, nota: "dentro do prazo concessivo" },
+    {
+      rotulo: "Proporcionais",
+      dias: devidas.proporcionaisDias,
+      nota: `${devidas.mesesProporcionais}/12 do período em curso`,
+    },
+  ];
+
+  return (
+    <Panel title="FÉRIAS DEVIDAS NO DESLIGAMENTO">
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        {linhas.map(l => (
+          <div
+            key={l.rotulo}
+            style={{
+              display: "flex", alignItems: "center", gap: 12,
+              padding: "9px 12px", borderRadius: 11,
+              background: "var(--bg-secondary)",
+              border: `1px solid ${l.critico
+                ? "color-mix(in srgb, var(--accent-red) 28%, transparent)"
+                : "var(--border-subtle)"}`,
+            }}
+          >
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 12.5, fontWeight: 600 }}>{l.rotulo}</div>
+              <div style={{ fontSize: 11, color: l.critico ? "var(--accent-red)" : "var(--text-muted)", marginTop: 1 }}>
+                {l.nota}
+              </div>
+            </div>
+            <span
+              className="metric"
+              style={{ fontSize: 16, fontWeight: 700, color: l.critico ? "var(--accent-red)" : "var(--text-primary)" }}
+            >
+              {l.dias}
+            </span>
+            <span style={{ fontSize: 11.5, color: "var(--text-muted)" }}>dias</span>
+          </div>
+        ))}
+
+        <div
+          style={{
+            display: "flex", alignItems: "center", gap: 12,
+            padding: "11px 12px", borderRadius: 11, marginTop: 2,
+            background: "color-mix(in srgb, var(--accent-violet) 9%, transparent)",
+            border: "1px solid color-mix(in srgb, var(--accent-violet) 26%, transparent)",
+          }}
+        >
+          <div style={{ flex: 1, fontSize: 13, fontWeight: 700 }}>Total</div>
+          <span className="metric" style={{ fontSize: 18, fontWeight: 700 }}>{devidas.totalDias}</span>
+          <span style={{ fontSize: 11.5, color: "var(--text-muted)" }}>dias</span>
+        </div>
+      </div>
+
+      <p style={{ fontSize: 11.5, color: "var(--text-secondary)", lineHeight: 1.6, margin: "12px 0 0" }}>
+        Valores em <strong>dias</strong>, para lançamento na folha. O Orkiestri não calcula
+        rescisão — a conversão em reais depende de salário, médias, adicionais e do terço
+        constitucional.
+      </p>
+    </Panel>
   );
 }

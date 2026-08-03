@@ -7,6 +7,7 @@ import {
   careerService, SituacaoCarreira, Trilha, RequisitoAvaliado, CriterioDegrau, Prontidao as ProntidaoDados,
   SituacaoRequisito, NIVEIS_COMPETENCIA,
 } from "@/lib/people/career.service";
+import { salaryService, FaixaCargo } from "@/lib/people/salary.service";
 import {
   Panel, PermissionDenied, StatusBadge, Modal, FormGrid, FormField, FormActions,
 } from "@/components/data-ui";
@@ -50,11 +51,13 @@ const CORES: Record<SituacaoRequisito, { cor: string; icone: React.ReactNode; ro
 type Props = {
   collaboratorId: string;
   podeGerenciar: boolean;
+  /** Ajustar o salário na promoção exige permissão própria. */
+  podeGerenciarSalario?: boolean;
   /** Avisa o perfil de que o cargo mudou, para o cabeçalho acompanhar. */
   onPromovido?: () => void;
 };
 
-export default function AbaCarreira({ collaboratorId, podeGerenciar, onPromovido }: Props) {
+export default function AbaCarreira({ collaboratorId, podeGerenciar, podeGerenciarSalario = false, onPromovido }: Props) {
   const [dados, setDados] = useState<SituacaoCarreira | null>(null);
   const [trilhas, setTrilhas] = useState<Trilha[]>([]);
   const [carregando, setCarregando] = useState(true);
@@ -189,6 +192,7 @@ export default function AbaCarreira({ collaboratorId, podeGerenciar, onPromovido
         collaboratorId={collaboratorId}
         destino={dados.proximoDegrau}
         prontidao={dados.prontidao}
+        podeSalario={podeGerenciarSalario}
         onFechar={() => setPromovendo(false)}
         onPromovido={() => { carregar(); onPromovido?.(); }}
       />
@@ -197,24 +201,35 @@ export default function AbaCarreira({ collaboratorId, podeGerenciar, onPromovido
 }
 
 function PromoverModal({
-  aberto, collaboratorId, destino, prontidao, onFechar, onPromovido,
+  aberto, collaboratorId, destino, prontidao, podeSalario, onFechar, onPromovido,
 }: {
   aberto: boolean;
   collaboratorId: string;
   destino: SituacaoCarreira["proximoDegrau"];
   prontidao: ProntidaoDados | null;
+  podeSalario: boolean;
   onFechar: () => void;
   onPromovido: () => void;
 }) {
   const [motivo, setMotivo] = useState("");
+  const [novoSalario, setNovoSalario] = useState("");
+  const [faixa, setFaixa] = useState<FaixaCargo | null>(null);
   const [erro, setErro] = useState("");
   const [salvando, setSalvando] = useState(false);
 
   useEffect(() => {
     if (!aberto) return;
     setMotivo("");
+    setNovoSalario("");
     setErro("");
-  }, [aberto]);
+    setFaixa(null);
+    // A faixa do cargo de destino serve de referência para quem digita o valor.
+    if (podeSalario && destino?.cargo) {
+      salaryService.faixas()
+        .then(r => setFaixa((r.data ?? []).find(f => f.titulo === destino.cargo) ?? null))
+        .catch(() => setFaixa(null));
+    }
+  }, [aberto, podeSalario, destino?.cargo]);
 
   async function salvar(e: React.FormEvent) {
     e.preventDefault();
@@ -222,7 +237,10 @@ function PromoverModal({
 
     setSalvando(true);
     try {
-      await careerService.promover(collaboratorId, destino.id, motivo);
+      await careerService.promover(
+        collaboratorId, destino.id, motivo,
+        novoSalario === "" ? null : Number(novoSalario),
+      );
       useToastStore.getState().success("Promoção registrada", `Novo cargo: ${destino.cargo}`);
       onPromovido();
       onFechar();
@@ -273,7 +291,33 @@ function PromoverModal({
               placeholder="Assumiu a liderança técnica do time de plataforma"
             />
           </FormField>
+
+          {/* Só para quem pode mexer em remuneração. Sem este campo, promover
+              deixava a pessoa ABAIXO DA FAIXA do cargo novo até alguém lembrar
+              de registrar o valor — e o painel a acusava por causa da própria
+              promoção. */}
+          {podeSalario && (
+            <FormField
+              label="Novo salário"
+              largura="total"
+              dica={
+                faixa && (faixa.minimo !== null || faixa.maximo !== null)
+                  ? `Faixa de ${destino?.cargo}: ${fmtMoeda(faixa.minimo)} a ${fmtMoeda(faixa.maximo)}. Em branco mantém o salário atual.`
+                  : "Opcional — em branco mantém o salário atual"
+              }
+            >
+              <input
+                type="number" className="input-o" min={0} step="0.01"
+                value={novoSalario} onChange={e => setNovoSalario(e.target.value)}
+                placeholder={faixa?.medio != null ? String(faixa.medio) : "—"}
+              />
+            </FormField>
+          )}
         </FormGrid>
+
+        {podeSalario && novoSalario !== "" && faixa && (
+          <AvisoFaixa valor={Number(novoSalario)} faixa={faixa} cargo={destino?.cargo ?? ""} />
+        )}
 
         <FormActions>
           <button type="button" className="btn btn-ghost" onClick={onFechar} disabled={salvando}>
@@ -285,6 +329,38 @@ function PromoverModal({
         </FormActions>
       </form>
     </Modal>
+  );
+}
+
+const fmtMoeda = (v: number | null | undefined) =>
+  v == null ? "—" : v.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
+
+/**
+ * Avisa quando o valor digitado cai fora da faixa do cargo de destino.
+ *
+ * Avisa, não impede: contratar acima do teto ou abaixo do piso acontece e tem
+ * motivo. O que não pode é acontecer sem alguém perceber.
+ */
+function AvisoFaixa({ valor, faixa, cargo }: { valor: number; faixa: FaixaCargo; cargo: string }) {
+  const abaixo = faixa.minimo !== null && valor < faixa.minimo;
+  const acima = faixa.maximo !== null && valor > faixa.maximo;
+  if (!abaixo && !acima) return null;
+
+  return (
+    <div
+      style={{
+        display: "flex", gap: 9, padding: "10px 12px", borderRadius: 11, marginBottom: 14,
+        background: "color-mix(in srgb, var(--accent-amber) 9%, transparent)",
+        border: "1px solid color-mix(in srgb, var(--accent-amber) 26%, transparent)",
+      }}
+    >
+      <AlertTriangle size={14} style={{ color: "var(--accent-amber)", flexShrink: 0, marginTop: 1 }} />
+      <span style={{ fontSize: 12, color: "var(--text-secondary)", lineHeight: 1.55 }}>
+        {fmtMoeda(valor)} fica <strong>{abaixo ? "abaixo do piso" : "acima do teto"}</strong> da
+        faixa de {cargo} ({fmtMoeda(faixa.minimo)} a {fmtMoeda(faixa.maximo)}). A promoção é
+        registrada assim mesmo, e a pessoa aparecerá como fora da faixa no painel de remuneração.
+      </span>
+    </div>
   );
 }
 

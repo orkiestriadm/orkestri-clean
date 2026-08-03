@@ -252,3 +252,99 @@ export function escolherPeriodoParaDebito(
     .filter(p => saldoDoPeriodo(p) >= dias)
     .sort((a, b) => +a.inicio - +b.inicio)[0] ?? null;
 }
+
+/* ── Férias devidas no desligamento ────────────────────────────────────────── */
+
+export type FeriasDevidas = {
+  /** Períodos que passaram do prazo concessivo — pagos em DOBRO (CLT art. 137). */
+  vencidosDias: number;
+  /** Períodos adquiridos e ainda no prazo, não gozados. */
+  adquiridosDias: number;
+  /**
+   * Proporcionais do período aquisitivo em curso: 1/12 por mês trabalhado,
+   * contando o mês só a partir de 15 dias (CLT art. 146, parágrafo único).
+   */
+  proporcionaisDias: number;
+  /** Meses que entraram no cálculo proporcional — para a conta ser conferível. */
+  mesesProporcionais: number;
+  /** Soma simples dos dias. NÃO aplica a dobra: dias são dias. */
+  totalDias: number;
+};
+
+/**
+ * Dias de férias devidos a quem está saindo.
+ *
+ * DELIBERADAMENTE EM DIAS, NUNCA EM REAIS. Folha de pagamento está fora do
+ * escopo do módulo (PEOPLE_HUB_BLUEPRINT.md §4), e converter para dinheiro
+ * exigiria salário, médias, adicionais e o terço constitucional — cálculo de
+ * rescisão, que é outro produto. O que o RH precisa daqui é o insumo: quantos
+ * dias, de que natureza, para lançar no sistema de folha.
+ *
+ * `vencidosDias` vem separado por isso mesmo: é o número que dobra na rescisão,
+ * e somá-lo ao resto esconderia justamente o que custa caro.
+ */
+export function feriasDevidas(
+  periodos: PeriodoAquisitivo[],
+  dataAdmissao: Date,
+  dataDesligamento: Date,
+  diasPorPeriodo: number = DIAS_POR_PERIODO,
+): FeriasDevidas {
+  const saida = inicioDoDia(dataDesligamento);
+
+  let vencidosDias = 0;
+  let adquiridosDias = 0;
+
+  for (const p of periodos) {
+    const saldo = saldoDoPeriodo(p);
+    if (saldo <= 0) continue;
+
+    // O status é calculado NA DATA DA SAÍDA, não hoje: quem foi desligado em
+    // janeiro não acumula vencimento por causa do calendário de hoje.
+    const status = statusDoPeriodo(p, saida);
+    if (status === VACATION_PERIOD_STATUS.VENCIDO) vencidosDias += saldo;
+    else if (status === VACATION_PERIOD_STATUS.ADQUIRIDO) adquiridosDias += saldo;
+  }
+
+  // ── Proporcionais ───────────────────────────────────────────────────────
+  // Conta a partir do início do aquisitivo em curso, que é o último aniversário
+  // de admissão antes da saída.
+  const admissao = inicioDoDia(dataAdmissao);
+  let inicioCiclo = admissao;
+  while (true) {
+    const proximo = new Date(inicioCiclo);
+    proximo.setFullYear(proximo.getFullYear() + 1);
+    if (proximo > saida) break;
+    inicioCiclo = proximo;
+    // Trava: admissão absurda não pode virar laço infinito.
+    if (inicioCiclo.getFullYear() > saida.getFullYear() + 1) break;
+  }
+
+  let mesesProporcionais = 0;
+  if (saida > inicioCiclo) {
+    let marco = new Date(inicioCiclo);
+    while (true) {
+      const fimDoMes = new Date(marco);
+      fimDoMes.setMonth(fimDoMes.getMonth() + 1);
+      if (fimDoMes <= saida) {
+        mesesProporcionais += 1;
+        marco = fimDoMes;
+        continue;
+      }
+      // Fração final: só conta se passou de 14 dias.
+      const dias = Math.floor((+saida - +marco) / 86_400_000);
+      if (dias >= 15) mesesProporcionais += 1;
+      break;
+    }
+  }
+  mesesProporcionais = Math.min(mesesProporcionais, 12);
+
+  const proporcionaisDias = Math.round((diasPorPeriodo / 12) * mesesProporcionais * 100) / 100;
+
+  return {
+    vencidosDias,
+    adquiridosDias,
+    proporcionaisDias,
+    mesesProporcionais,
+    totalDias: Math.round((vencidosDias + adquiridosDias + proporcionaisDias) * 100) / 100,
+  };
+}

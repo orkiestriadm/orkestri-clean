@@ -1,4 +1,4 @@
-import {
+import { feriasDevidas,
   DIAS_POR_PERIODO, VACATION_PERIOD_STATUS,
   periodosAquisitivos, statusDoPeriodo, saldoDoPeriodo, saldoDisponivel,
   periodosVencendo, validarJanela, escolherPeriodoParaDebito, diffEmDias, MINIMO_DIAS_FRACIONAMENTO,
@@ -220,5 +220,68 @@ describe("diffEmDias", () => {
 
   it("é zero no mesmo dia", () => {
     expect(diffEmDias(d("2026-08-01"), d("2026-08-01"))).toBe(0);
+  });
+});
+
+describe("férias devidas no desligamento", () => {
+  const p = (inicioISO: string, gozados = 0, direito = 30) => {
+    const inicio = new Date(inicioISO);
+    const fim = new Date(inicio); fim.setFullYear(fim.getFullYear() + 1); fim.setDate(fim.getDate() - 1);
+    const limite = new Date(fim); limite.setFullYear(limite.getFullYear() + 1);
+    return { inicio, fim, limiteConcessivo: limite, diasDireito: direito, diasGozados: gozados };
+  };
+
+  it("separa vencido de adquirido — é o vencido que dobra na rescisão", () => {
+    const r = feriasDevidas(
+      [p("2022-01-10"), p("2023-01-10"), p("2024-01-10")],
+      new Date("2022-01-10"),
+      new Date("2025-03-10"),
+    );
+    // Aquisitivos 22/23 e 23/24 já passaram do concessivo em 10/03/2025.
+    expect(r.vencidosDias).toBe(60);
+    expect(r.adquiridosDias).toBe(30);
+  });
+
+  it("desconta o que já foi gozado", () => {
+    const r = feriasDevidas([p("2024-01-10", 20)], new Date("2024-01-10"), new Date("2025-06-10"));
+    expect(r.adquiridosDias + r.vencidosDias).toBe(10);
+  });
+
+  it("calcula o proporcional a 1/12 por mês do ciclo em curso", () => {
+    // Admitida em 10/01/2024, sai em 10/07/2025: ciclo em curso começou em
+    // 10/01/2025 e fechou 6 meses cheios.
+    const r = feriasDevidas([p("2024-01-10", 30)], new Date("2024-01-10"), new Date("2025-07-10"));
+    expect(r.mesesProporcionais).toBe(6);
+    expect(r.proporcionaisDias).toBe(15);
+  });
+
+  it("a fração final só conta como mês a partir de 15 dias", () => {
+    const curto = feriasDevidas([], new Date("2024-01-10"), new Date("2025-02-20")); // 1 mês + 10 dias
+    expect(curto.mesesProporcionais).toBe(1);
+
+    const longo = feriasDevidas([], new Date("2024-01-10"), new Date("2025-02-26")); // 1 mês + 16 dias
+    expect(longo.mesesProporcionais).toBe(2);
+  });
+
+  it("o status é avaliado NA DATA DA SAÍDA, não hoje", () => {
+    // Desligada logo depois de adquirir: nada estava vencido naquele dia,
+    // mesmo que hoje já teria vencido.
+    const r = feriasDevidas([p("2020-01-10")], new Date("2020-01-10"), new Date("2021-02-01"));
+    expect(r.vencidosDias).toBe(0);
+    expect(r.adquiridosDias).toBe(30);
+  });
+
+  it("quem sai antes de completar o primeiro ano leva só proporcional", () => {
+    const r = feriasDevidas([], new Date("2025-01-10"), new Date("2025-07-10"));
+    expect(r.vencidosDias).toBe(0);
+    expect(r.adquiridosDias).toBe(0);
+    expect(r.proporcionaisDias).toBe(15);
+    expect(r.totalDias).toBe(15);
+  });
+
+  it("não passa de 12 meses no proporcional", () => {
+    // Guarda contra data de saída incoerente com o ciclo.
+    const r = feriasDevidas([], new Date("2020-01-10"), new Date("2025-12-10"));
+    expect(r.mesesProporcionais).toBeLessThanOrEqual(12);
   });
 });

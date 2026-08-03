@@ -9,6 +9,7 @@ import { CareerRepository } from "../infrastructure/career.repository";
 import { PeopleScopeService, UsuarioContexto } from "./people-scope.service";
 import { AuditService } from "../../audit/audit.module";
 import { EmployeeService } from "./employee.service";
+import { SalaryService } from "./salary.service";
 import { EmployeeHistoryRepository } from "../infrastructure/employee-history.repository";
 import {
   NIVEIS_COMPETENCIA, avaliarProntidao, degrauAtual, proximoDegrau,
@@ -28,6 +29,9 @@ import {
  */
 
 const TIPOS_REQUISITO = ["competencia", "treinamento", "manual"] as const;
+
+/** Sem importar o catálogo inteiro só para uma checagem. */
+const PERMISSAO_SALARIO = "people.salario:gerenciar";
 
 export class TrilhaDto {
   @IsString() @MaxLength(120) nome!: string;
@@ -66,6 +70,18 @@ export class PromoverDto {
   /** Degrau de destino. Exigido para não promover "para o próximo" às cegas. */
   @IsString() stepId!: string;
   @IsOptional() @IsString() @MaxLength(500) motivo?: string;
+  /**
+   * Novo salário, opcional.
+   *
+   * Existe porque promover sem mexer no salário deixava a pessoa ABAIXO DA
+   * FAIXA do cargo novo até alguém lembrar de registrar o valor — e o painel
+   * de remuneração passava a acusá-la como fora da faixa por causa da própria
+   * promoção. Continua opcional: promoção sem aumento é decisão legítima.
+   *
+   * Exige `people.salario:gerenciar` ALÉM das permissões de promover. Quem
+   * conduz carreira não necessariamente decide remuneração.
+   */
+  @IsOptional() @IsNumber() @Min(0.01) novoSalario?: number;
 }
 
 @Injectable()
@@ -81,6 +97,9 @@ export class CareerService {
     // acontecer uma vez só, num lugar só.
     private readonly employees: EmployeeService,
     private readonly historicoFuncional: EmployeeHistoryRepository,
+    // Mesmo motivo de delegar o cargo ao EmployeeService: o registro salarial
+    // tem validação, histórico e auditoria próprios, e não pode ter dois donos.
+    private readonly salarios: SalaryService,
   ) {}
 
   /* ── Trilhas ────────────────────────────────────────────────────────────── */
@@ -439,8 +458,34 @@ export class CareerService {
       );
     }
 
+    // A permissão do salário é conferida ANTES de trocar o cargo: promover e
+    // depois falhar no salário deixaria a pessoa no cargo novo com o salário
+    // antigo — exatamente o estado que este parâmetro existe para evitar.
+    if (dto.novoSalario !== undefined) {
+      const perms: string[] = user?.permissions ?? [];
+      const podeSalario =
+        !!(user as any)?.isMaster || perms.includes("*") || perms.includes(PERMISSAO_SALARIO);
+      if (!podeSalario) {
+        throw new ForbiddenException(
+          "Ajustar o salário na promoção exige a permissão de remuneração. " +
+          "Promova sem o valor e peça a quem tem a permissão para registrá-lo.",
+        );
+      }
+    }
+
     const antes = colaborador.position?.titulo ?? "sem cargo";
     await this.employees.atualizar(user, collaboratorId, { positionId: destino.positionId } as any);
+
+    // O salário vai DEPOIS da troca de cargo, de propósito: o registro salarial
+    // grava o cargo do momento, e gravá-lo antes atribuiria o valor novo ao
+    // cargo antigo no histórico.
+    if (dto.novoSalario !== undefined) {
+      await this.salarios.registrar(user, collaboratorId, {
+        valor: dto.novoSalario,
+        vigenciaInicio: new Date().toISOString().slice(0, 10),
+        motivo: "promocao",
+      } as any);
+    }
 
     // Evento próprio ALÉM do `mudanca_cargo` que o EmployeeService grava: a
     // troca de cargo diz o quê, este diz por quê e sob qual plano.
