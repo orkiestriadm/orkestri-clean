@@ -41,6 +41,8 @@ import { DocumentStorageService } from "./infrastructure/document-storage.servic
 import { PeopleEventsPublisher } from "./domain/people-events.publisher";
 import { SelfServiceService } from "./application/self-service.service";
 import { SelfServiceController } from "./presentation/self-service.controller";
+import { PrivacyService } from "./application/privacy.service";
+import { PrivacyController } from "./presentation/privacy.controller";
 
 /**
  * Orkiestri People — gestão de pessoas.
@@ -68,6 +70,7 @@ import { SelfServiceController } from "./presentation/self-service.controller";
     CareerController,
     ChecklistController,
     SelfServiceController,
+    PrivacyController,
   ],
   providers: [
     EmployeeService,
@@ -82,6 +85,7 @@ import { SelfServiceController } from "./presentation/self-service.controller";
     CareerService,
     ChecklistService,
     SelfServiceService,
+    PrivacyService,
     PeopleNotificationsService,
     PeopleScopeService,
     EmployeeRepository,

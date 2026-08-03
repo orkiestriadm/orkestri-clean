@@ -15,6 +15,7 @@ import { SalaryService } from "./application/salary.service";
 import { FeedbackService } from "./application/feedback.service";
 import { CareerService } from "./application/career.service";
 import { ChecklistService } from "./application/checklist.service";
+import { PrivacyService } from "./application/privacy.service";
 
 /**
  * Teste de integração do Orkiestri People — serviços reais contra banco real.
@@ -59,6 +60,7 @@ descreve("People — integração", () => {
   let feedbacks: FeedbackService;
   let carreira: CareerService;
   let checklists: ChecklistService;
+  let privacidade: PrivacyService;
   let raizDocs: string;
 
   const orgId = `it-org-${randomUUID()}`;
@@ -92,6 +94,7 @@ descreve("People — integração", () => {
     feedbacks = modulo.get(FeedbackService);
     carreira = modulo.get(CareerService);
     checklists = modulo.get(ChecklistService);
+    privacidade = modulo.get(PrivacyService);
 
     await (prisma as any).organization.create({
       data: { id: orgId, nome: "IT People", slug: `it-${randomUUID().slice(0, 8)}` },
@@ -1297,6 +1300,145 @@ descreve("People — integração", () => {
       const lista = await checklists.doColaborador(rh(), pessoaId);
       expect(lista.data).toHaveLength(1);
       expect(lista.data[0].total).toBe(3);
+    });
+  });
+
+  describe("privacidade — eliminação do dado pessoal", () => {
+    /** Desligado há mais tempo que o prazo de guarda. */
+    async function exColaborador(nome: string, anosAtras = 7) {
+      const saida = new Date();
+      saida.setFullYear(saida.getFullYear() - anosAtras);
+      const iso = saida.toISOString().slice(0, 10);
+
+      const p = await employees.criar(rh(), {
+        nomeCompleto: nome,
+        emailPessoal: `${randomUUID().slice(0, 8)}@pessoal.local`,
+        celular: "11999990000",
+        dataNascimento: "1990-05-20",
+        dataAdmissao: "2015-02-01",
+        matricula: `M-${randomUUID().slice(0, 5)}`,
+      } as any);
+
+      await employees.mudarStatus(rh(), p.data.id, {
+        status: "DESLIGADO", dataDesligamento: iso, motivo: "Pedido de demissão",
+      } as any);
+
+      return p.data.id;
+    }
+
+    const arquivo = () => ({
+      originalname: "rg.pdf",
+      mimetype: "application/pdf",
+      buffer: Buffer.from("%PDF-1.4 documento pessoal"),
+      size: 26,
+    });
+
+    it("lista quem passou do prazo e quem ainda está dentro", async () => {
+      await exColaborador("Saiu Faz Tempo", 7);
+      await exColaborador("Saiu Ontem", 0);
+
+      const r = await privacidade.elegiveis(rh());
+      const nomes = (l: any[]) => l.map(x => x.nome);
+      expect(nomes(r.data.elegiveis)).toContain("Saiu Faz Tempo");
+      expect(nomes(r.data.aguardando)).toContain("Saiu Ontem");
+      // A tela precisa explicar a espera, não só recusar o botão.
+      const esperando = r.data.aguardando.find((x: any) => x.nome === "Saiu Ontem");
+      expect(esperando.explicacao).toMatch(/prazo de guarda/i);
+    });
+
+    it("a prévia diz o que some e o que fica", async () => {
+      const id = await exColaborador("Vai Sumir");
+      await documents.enviar(rh(), id, { titulo: "RG", categoria: "identidade" } as any, arquivo() as any);
+
+      const r = await privacidade.previa(rh(), id);
+      expect(r.data.elegivel).toBe(true);
+      expect(r.data.seraEliminado.documentos).toBe(1);
+      expect(r.data.seraPreservado.join(" ")).toMatch(/admissão e desligamento/i);
+    });
+
+    it("recusa quem ainda está dentro do prazo", async () => {
+      const id = await exColaborador("Recente", 1);
+      await expect(
+        privacidade.anonimizar(rh(), id, { justificativa: "teste" } as any),
+      ).rejects.toThrow(/prazo de guarda/i);
+    });
+
+    it("exige justificativa — ela é o registro da decisão", async () => {
+      const id = await exColaborador("Sem Motivo");
+      await expect(
+        privacidade.anonimizar(rh(), id, { justificativa: "   " } as any),
+      ).rejects.toThrow(/justificativa/i);
+    });
+
+    it("apaga o dado pessoal, o arquivo do disco, e preserva o vínculo", async () => {
+      const id = await exColaborador("João da Silva");
+      const doc = await documents.enviar(
+        rh(), id, { titulo: "RG", categoria: "identidade" } as any, arquivo() as any,
+      );
+
+      const antes = await (prisma as any).collaboratorDocument.findUnique({
+        where: { id: doc.data.id }, select: { arquivoRef: true },
+      });
+      const caminho = path.join(raizDocs, antes.arquivoRef);
+      expect(fs.existsSync(caminho)).toBe(true);
+
+      const r = await privacidade.anonimizar(rh(), id, {
+        justificativa: "Prazo de guarda vencido, sem litígio em curso.",
+      } as any);
+      expect(r.data.arquivosRemovidos).toBe(1);
+
+      // O ARQUIVO é onde o dado pessoal realmente está: anonimizar a linha e
+      // deixar o PDF do RG no volume seria teatro.
+      expect(fs.existsSync(caminho)).toBe(false);
+
+      const depois = await (prisma as any).collaborator.findUnique({
+        where: { id },
+        select: {
+          nomeCompleto: true, emailPessoal: true, celular: true, matricula: true,
+          dataNascimento: true, userId: true, anonimizadoEm: true,
+          status: true, dataAdmissao: true, dataDesligamento: true,
+        },
+      });
+
+      expect(depois.nomeCompleto).not.toContain("João");
+      expect(depois.emailPessoal).toBeNull();
+      expect(depois.celular).toBeNull();
+      expect(depois.matricula).toBeNull();
+      expect(depois.dataNascimento).toBeNull();
+      expect(depois.anonimizadoEm).not.toBeNull();
+
+      // O esqueleto do vínculo FICA: é o que prova tempo de serviço e sustenta
+      // a defesa da empresa. A LGPD art. 16, I ressalva exatamente esta guarda.
+      expect(depois.status).toBe("DESLIGADO");
+      expect(depois.dataAdmissao).not.toBeNull();
+      expect(depois.dataDesligamento).not.toBeNull();
+
+      const docs = await (prisma as any).collaboratorDocument.count({ where: { collaboratorId: id } });
+      expect(docs).toBe(0);
+    });
+
+    it("não anonimiza duas vezes", async () => {
+      const id = await exColaborador("Só Uma Vez");
+      await privacidade.anonimizar(rh(), id, { justificativa: "Prazo vencido." } as any);
+      await expect(
+        privacidade.anonimizar(rh(), id, { justificativa: "De novo." } as any),
+      ).rejects.toThrow(/já foi anonimizado/i);
+    });
+
+    it("registra na auditoria quem eliminou e por quê", async () => {
+      const id = await exColaborador("Auditado");
+      await privacidade.anonimizar(rh(), id, {
+        justificativa: "Solicitação do titular.",
+      } as any);
+
+      const log = await (prisma as any).auditLog.findFirst({
+        where: { registroId: id, acao: "anonimizar" },
+      });
+      // Sem este registro não há como provar que a eliminação foi deliberada,
+      // nem por quem — e a ação não tem volta.
+      expect(log).not.toBeNull();
+      expect(log.descricao).toContain("Solicitação do titular");
+      expect(log.userId).toBe(usuarioId);
     });
   });
 

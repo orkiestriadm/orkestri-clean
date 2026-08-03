@@ -805,6 +805,10 @@ model Collaborator {
   atualizadoEm     DateTime  @updatedAt @map("atualizado_em")
   atualizadoPorId  String?   @map("atualizado_por_id")
   excluidoEm       DateTime? @map("excluido_em")
+  /// Quando o dado pessoal foi eliminado (LGPD art. 16). Distinto de
+  /// `excluidoEm`: soft delete some da tela e volta atrás; anonimização apaga
+  /// o que identifica a pessoa e é irreversível. Ver domain/privacidade.entity.
+  anonimizadoEm    DateTime? @map("anonimizado_em")
 
   organization     Organization                 @relation("OrgCollaborators", fields: [organizationId], references: [id], onDelete: Cascade)
   // SetNull, não Cascade: excluir o login de alguém não pode apagar o registro

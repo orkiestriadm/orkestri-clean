@@ -61,6 +61,9 @@ export const NAV: NavGroup[] = [
       { href: "/dashboard/people/carreira",    label: "Carreira",      icon: Route,         permission: "people.carreira:ver" },
       { href: "/dashboard/people/catalogos",   label: "Catálogos",     icon: Library,       permission: ["people.beneficio:ver", "people.treinamento:ver"] },
       { href: "/dashboard/people/indicadores", label: "Indicadores",   icon: BarChart3,     permission: "people.relatorio:ver" },
+      // Permissão própria, fora de qualquer perfil padrão: eliminar dado
+      // pessoal é irreversível, ao contrário de excluir colaborador.
+      { href: "/dashboard/people/privacidade", label: "Privacidade",   icon: ShieldCheck,   permission: "people.privacidade:gerenciar" },
     ],
   },
   {

@@ -86,6 +86,12 @@ export const PEOPLE_PERMISSION_CATALOG: readonly Permissao[] = [
 
   p("people.relatorio",   "ver",       "Ver indicadores de pessoas"),
   p("people.relatorio",   "exportar",  "Exportar relatórios de pessoas"),
+
+  // Separada de `colaborador:excluir` porque são poderes diferentes: excluir
+  // some das telas e volta atrás; anonimizar apaga o dado pessoal e não tem
+  // volta. Reaproveitar a permissão daria o irreversível a quem recebeu o
+  // reversível. Fora de todo perfil padrão, como salário.
+  p("people.privacidade", "gerenciar", "Eliminar dados pessoais de ex-colaborador (LGPD)"),
 ];
 
 const str = (recurso: string, acao: string) => `${recurso}:${acao}`;
@@ -146,6 +152,9 @@ export const PEOPLE_PERMISSIONS = {
   relatorio: {
     ver:      str("people.relatorio", "ver"),
     exportar: str("people.relatorio", "exportar"),
+  },
+  privacidade: {
+    gerenciar: str("people.privacidade", "gerenciar"),
   },
 } as const;
 
