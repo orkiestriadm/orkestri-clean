@@ -4,6 +4,8 @@
  * Camada de domínio: funções puras, sem Prisma, HTTP ou sistema de arquivos.
  */
 
+import { diasDeCalendario } from "../../../common/datas";
+
 export const DOCUMENT_CATEGORY = {
   IDENTIDADE: "identidade",
   CONTRATO: "contrato",
@@ -87,13 +89,10 @@ export function situacaoValidade(
   const validade = new Date(dataValidade);
   if (Number.isNaN(validade.getTime())) return "sem_validade";
 
-  const inicioDoDia = (d: Date) => {
-    const x = new Date(d);
-    x.setHours(0, 0, 0, 0);
-    return x.getTime();
-  };
-
-  const diffDias = Math.round((inicioDoDia(validade) - inicioDoDia(hoje)) / 86_400_000);
+  // `dataValidade` vem de coluna DATE (meia-noite UTC); recortar o dia com
+  // `setHours(0,0,0,0)` a recuava um dia em UTC-3, e documento válido até hoje
+  // aparecia vencido. Ver a nota em common/datas.ts.
+  const diffDias = diasDeCalendario(hoje, validade);
 
   if (diffDias < 0) return "vencido";
   if (diffDias <= diasAlerta) return "vence_em_breve";

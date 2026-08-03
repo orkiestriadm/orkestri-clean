@@ -65,10 +65,23 @@ export class EmployeeRepository {
     return { total, itens };
   }
 
-  /** Perfil completo. Só chamar depois de o escopo autorizar o id. */
+  /**
+   * Perfil completo, restrito ao escopo de quem pediu.
+   *
+   * O `id` pedido é combinado com a restrição do escopo por AND — nunca por
+   * espalhamento. `{ ...where, id }` fazia o id literal SOBRESCREVER a chave
+   * `id: { in: [...] }` que o PeopleScopeService devolve, e o filtro de escopo
+   * desaparecia: qualquer usuário autenticado abria o perfil completo de
+   * qualquer colega passando o id na URL. O `organizationId` sobrevivia, então
+   * o vazamento parava na fronteira da organização e em nenhum lugar antes.
+   */
   async obter(id: string, where: Record<string, any>) {
+    const { id: restricaoDeEscopo, ...resto } = where;
     return this.db.collaborator.findFirst({
-      where: { ...where, id },
+      where: {
+        ...resto,
+        AND: [{ id }, ...(restricaoDeEscopo ? [{ id: restricaoDeEscopo }] : [])],
+      },
       include: {
         user: { select: { id: true, nome: true, email: true, ativo: true, ultimoLogin: true } },
         setor: { select: { id: true, nome: true, cor: true } },

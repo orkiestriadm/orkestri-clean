@@ -14,6 +14,8 @@
  * sistema precisa avisar antes, não depois.
  */
 
+import { diaLocal } from "../../../common/datas";
+
 /** Dias de direito por período aquisitivo completo, sem faltas. */
 export const DIAS_POR_PERIODO = 30;
 
@@ -46,11 +48,10 @@ export type PeriodoAquisitivo = {
 
 // ── Utilitários de data ──────────────────────────────────────────────────────
 
-const inicioDoDia = (d: Date): Date => {
-  const x = new Date(d);
-  x.setHours(0, 0, 0, 0);
-  return x;
-};
+// Meia-noite LOCAL do mesmo dia do calendário. O `setHours(0,0,0,0)` que
+// estava aqui recuava um dia toda data vinda de coluna DATE — limite
+// concessivo e período aquisitivo saíam um dia adiantados. Ver common/datas.ts.
+const inicioDoDia = diaLocal;
 
 const somarMeses = (d: Date, meses: number): Date => {
   const x = new Date(d);

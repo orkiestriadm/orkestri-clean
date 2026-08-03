@@ -5,6 +5,7 @@ import { PrismaService } from "../../../prisma/prisma.service";
 import { PeopleEventsPublisher } from "../domain/people-events.publisher";
 import { VacationService } from "./vacation.service";
 import { situacaoCertificacao, diasEntre } from "../domain/development.entity";
+import { calcularProgresso } from "../domain/checklist.entity";
 import { DIAS_ALERTA_VENCIMENTO_FERIAS } from "../domain/vacation.entity";
 import { collaboratorDisplayName } from "../../../common/collaborator";
 
@@ -176,6 +177,7 @@ export class PeopleNotificationsService implements OnModuleInit {
         this.avisarDocumentosVencendo(),
         this.avisarCertificacoesVencendo(),
         this.avisarFeriasVencendo(),
+        this.avisarChecklistsAtrasados(),
       ]);
     } catch (erro) {
       this.logger.error("Varredura de prazos falhou", erro as Error);
@@ -299,6 +301,88 @@ export class PeopleNotificationsService implements OnModuleInit {
           ? `vencidos há ${Math.abs(dias)} dias. Esses dias são devidos em dobro.`
           : `que vencem em ${dias} dias.`),
         p.id,
+      );
+    }
+  }
+
+  /**
+   * Itens de checklist que passaram do prazo.
+   *
+   * Faltava. Documento e férias vencendo avisavam; admissão parada não — e
+   * checklist de entrada é justamente o que trava por falta de alguém lembrar.
+   * O prazo de um exame admissional só é útil enquanto dá para cumprir.
+   *
+   * UM aviso por checklist para o gestor, não um por item: oito pendências
+   * viram oito notificações, e oito notificações viram zero leitura. O detalhe
+   * item a item está na tela para onde o aviso aponta.
+   *
+   * Ao colaborador vai só o que é DELE — quem tem que entregar a carteira de
+   * trabalho é quem precisa ser lembrado, e ele não vê o resto do checklist.
+   */
+  private async avisarChecklistsAtrasados() {
+    const abertos = await (this.prisma as any).collaboratorChecklist.findMany({
+      where: {
+        concluidoEm: null,
+        collaborator: { excluidoEm: null },
+      },
+      select: {
+        id: true, evento: true, nome: true,
+        itens: {
+          select: {
+            id: true, ordem: true, titulo: true, obrigatorio: true,
+            responsavel: true, prazoDias: true, concluidoEm: true,
+          },
+        },
+        collaborator: {
+          select: {
+            nomeCompleto: true, userId: true,
+            dataAdmissao: true, dataDesligamento: true,
+            user: { select: { nome: true } },
+            gestor: { select: { userId: true } },
+          },
+        },
+      },
+    });
+
+    for (const c of abertos) {
+      // A data do EVENTO, não a da abertura — mesma regra do ChecklistService.
+      // Abrir o checklist atrasado não pode gerar prazo extra.
+      const referencia = c.evento === "desligamento"
+        ? c.collaborator?.dataDesligamento ?? null
+        : c.collaborator?.dataAdmissao ?? null;
+
+      const progresso = calcularProgresso(c.itens, referencia);
+      const atrasados = progresso.itens.filter(i => i.situacao === "atrasado");
+      if (atrasados.length === 0) continue;
+
+      const nome = collaboratorDisplayName(c.collaborator);
+      const gestorId = c.collaborator?.gestor?.userId;
+
+      if (gestorId && !(await this.jaAvisadoHoje(gestorId, "people_checklist_atrasado", c.id))) {
+        const maisAntigo = Math.min(...atrasados.map(i => i.diasParaPrazo ?? 0));
+        await this.criar(
+          gestorId, "people_checklist_atrasado",
+          `Checklist de ${c.evento} atrasado`,
+          `${atrasados.length} ${atrasados.length === 1 ? "item está atrasado" : "itens estão atrasados"} ` +
+          `no checklist de ${c.evento} de ${nome}. ` +
+          `O mais antigo venceu há ${Math.abs(maisAntigo)} dias.`,
+          c.id,
+        );
+      }
+
+      const doColaborador = atrasados.filter(i => i.responsavel === "colaborador");
+      const colaboradorUserId = c.collaborator?.userId;
+      if (!colaboradorUserId || doColaborador.length === 0) continue;
+      if (await this.jaAvisadoHoje(colaboradorUserId, "people_checklist_atrasado", c.id)) continue;
+
+      await this.criar(
+        colaboradorUserId, "people_checklist_atrasado",
+        "Você tem pendências atrasadas",
+        doColaborador.length === 1
+          ? `"${doColaborador[0].titulo}" está atrasado.`
+          : `${doColaborador.length} pendências suas estão atrasadas, ` +
+            `a começar por "${doColaborador[0].titulo}".`,
+        c.id,
       );
     }
   }

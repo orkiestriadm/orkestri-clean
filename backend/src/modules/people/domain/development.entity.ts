@@ -7,6 +7,8 @@
  * que quem cuida de capacitação não necessariamente pode ler.
  */
 
+import { diasDeCalendario } from "../../../common/datas";
+
 /* ── Treinamento ──────────────────────────────────────────────────────────── */
 
 export const TRAINING_STATUS = {
@@ -180,9 +182,13 @@ export function progressoPonderado(metas: Meta[]): number {
 
 /* ── Auxiliar ─────────────────────────────────────────────────────────────── */
 
-/** Diferença em dias inteiros, ignorando hora. Negativo se `ate` já passou. */
+/**
+ * Diferença em dias inteiros, ignorando hora. Negativo se `ate` já passou.
+ *
+ * Delega para `diasDeCalendario` em vez de recortar o dia com os componentes
+ * locais: `validade` vem de coluna DATE (meia-noite UTC) e era recuada um dia
+ * em UTC-3 — certificação válida até hoje aparecia como vencida.
+ */
 export function diasEntre(de: Date, ate: Date): number {
-  const a = new Date(de.getFullYear(), de.getMonth(), de.getDate()).getTime();
-  const b = new Date(ate.getFullYear(), ate.getMonth(), ate.getDate()).getTime();
-  return Math.round((b - a) / 86_400_000);
+  return diasDeCalendario(de, ate);
 }

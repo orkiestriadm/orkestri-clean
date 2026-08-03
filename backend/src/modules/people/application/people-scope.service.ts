@@ -111,6 +111,19 @@ export class PeopleScopeService {
     return escopo.collaboratorIds.includes(collaboratorId);
   }
 
+  /**
+   * O colaborador é o próprio usuário?
+   *
+   * Separado de `resolve`: "sou eu" não é a mesma pergunta que "qual é o meu
+   * alcance". Quem checava identidade pelo formato do escopo (`tipo ===
+   * "proprio"`) errava com gestor — o escopo dele é "equipe", e ele deixava de
+   * alcançar o próprio cadastro em regras que exigem ser o titular.
+   */
+  async ehOProprio(user: UsuarioContexto, collaboratorId: string): Promise<boolean> {
+    const proprio = await this.collaboratorDoUsuario(user);
+    return proprio?.id === collaboratorId;
+  }
+
   private async collaboratorDoUsuario(user: UsuarioContexto) {
     if (!user.id) return null;
     return (this.prisma as any).collaborator.findFirst({

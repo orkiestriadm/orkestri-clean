@@ -9,6 +9,8 @@
  * faltam, de quem é cada um e qual já passou do prazo.
  */
 
+import { diaLocal } from "../../../common/datas";
+
 export const EVENTOS_CHECKLIST = ["admissao", "desligamento"] as const;
 export type EventoChecklist = (typeof EVENTOS_CHECKLIST)[number];
 
@@ -52,10 +54,15 @@ export type ProgressoChecklist = {
   atrasados: number;
 };
 
-/** Só o dia importa: prazo não é hora do dia. */
+/**
+ * Só o dia importa: prazo não é hora do dia.
+ *
+ * A conta partia dos componentes LOCAIS, e `referencia` vem de coluna DATE
+ * (meia-noite UTC): em UTC-3 todo prazo recuava um dia, e item que vencia hoje
+ * já aparecia atrasado. Ver a nota em common/datas.ts.
+ */
 function dia(d: Date): number {
-  const x = new Date(d);
-  return new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+  return diaLocal(d).getTime();
 }
 
 /**

@@ -77,8 +77,12 @@ function testar() {
   // `shell: true` não é preguiça: desde a correção do CVE-2024-27980, o Node
   // recusa executar `.cmd` sem shell e devolve EINVAL — o jest simplesmente não
   // rodava no Windows, com o script terminando em silêncio como se tivesse.
+  // Padrão ABERTO (`.*integration`) e não o nome de um arquivo: a versão
+  // anterior fixava `people.integration` e teria pulado, em silêncio, o
+  // arquivo de isolamento de escopo criado depois. Filtro que exclui teste
+  // novo sem avisar é o mesmo defeito que este script existe para corrigir.
   const r = spawnSync(
-    "npx jest src/modules/people/people.integration --runInBand --testTimeout=60000",
+    "npx jest src/modules/people/.*integration --runInBand --testTimeout=60000",
     {
       stdio: "inherit",
       shell: true,

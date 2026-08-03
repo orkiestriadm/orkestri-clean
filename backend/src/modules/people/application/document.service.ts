@@ -326,6 +326,10 @@ export class DocumentService {
     return {
       success: true,
       data: {
+        // A tela precisa saber se "12 pendentes" é da organização ou só da sua
+        // equipe. Sem a marca, o mesmo número significa duas coisas diferentes
+        // e quem lê não tem como distinguir.
+        escopoOrganizacional: ids === undefined,
         porAprovacao,
         vencendo: vencendo.map((d: any) => ({
           ...d,
@@ -360,8 +364,10 @@ export class DocumentService {
   private async podeVerSensivel(user: UsuarioContexto, collaboratorId: string): Promise<boolean> {
     if (user.isMaster || exerceFuncaoDeRh(user)) return true;
 
-    const escopo = await this.escopo.resolve(user);
-    return escopo.tipo === "proprio" && escopo.collaboratorIds.includes(collaboratorId);
+    // Ser o titular, e não o FORMATO do escopo. Checar `tipo === "proprio"`
+    // trancava o gestor fora do próprio atestado: quem lidera alguém tem escopo
+    // "equipe", que inclui o próprio cadastro mas não casava com a condição.
+    return this.escopo.ehOProprio(user, collaboratorId);
   }
 
   private async auditar(user: UsuarioContexto, registroId: string, acao: string, descricao: string) {

@@ -316,6 +316,9 @@ export class DevelopmentService {
     return {
       success: true,
       data: {
+        // Ver a nota em DocumentService.conformidade: número agregado sem a
+        // marca de escopo é ambíguo para quem lê a tela.
+        escopoOrganizacional: ids === undefined,
         janelaDias: DIAS_ALERTA_CERTIFICACAO,
         itens: itens.map((t: any) => ({
           id: t.id,
