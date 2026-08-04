@@ -214,6 +214,24 @@ descreve("People — isolamento por escopo", () => {
       expect(nomes).not.toContain("Diretora Raiz");
     });
 
+    // O filtro de setor da lista sai do QUADRO, e o quadro é o do escopo:
+    // oferecer um setor que só existe fora dele devolveria zero ao clicar, e
+    // ainda entregaria que o setor existe.
+    it("as opções de filtro não vazam setor de fora da árvore", async () => {
+      const setorDeFora = await (prisma as any).setor.create({
+        data: { id: `sc-setor-${randomUUID()}`, organizationId: orgId, nome: "Setor da Carla", ativo: false },
+      });
+      await employees.atualizar(rhCtx, id.carla, { setorId: setorDeFora.id } as any);
+
+      const doGestor = await employees.filtros(gestorACtx);
+      expect(doGestor.data.setores.some((s: any) => s.id === setorDeFora.id)).toBe(false);
+
+      // E o RH, que enxerga tudo, VÊ o setor mesmo ele estando inativo — é o
+      // caso que o catálogo `/setores` escondia.
+      const doRh = await employees.filtros(rhCtx);
+      expect(doRh.data.setores.some((s: any) => s.id === setorDeFora.id)).toBe(true);
+    });
+
     // 404 e não 403 de propósito: "existe mas você não pode" já entrega que a
     // pessoa existe. Para quem está fora do escopo, ela simplesmente não está lá.
     it.each([

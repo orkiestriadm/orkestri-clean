@@ -66,6 +66,31 @@ export class EmployeeRepository {
   }
 
   /**
+   * Os setores que de fato aparecem no quadro de quem consultou.
+   *
+   * NÃO é o catálogo de setores: o endpoint global `/setores` devolve só os
+   * `ativo: true`, e setor inativo com gente dentro é comum — desativar serve
+   * para não alocar ninguém NOVO, não para esconder quem já está lá. O filtro
+   * montado a partir do catálogo deixava 10 de 18 pessoas infiltráveis, com a
+   * coluna mostrando um setor que a lista de filtros não oferecia.
+   *
+   * Sai do próprio quadro, respeitando o escopo: a lista nunca oferece um
+   * filtro que devolveria zero para quem clicou.
+   */
+  async setoresDoQuadro(where: Record<string, any>) {
+    const linhas = await this.db.collaborator.findMany({
+      where: { ...where, setorId: { not: null } },
+      select: { setor: { select: { id: true, nome: true } } },
+      distinct: ["setorId"],
+    });
+
+    return linhas
+      .map((l: any) => l.setor)
+      .filter(Boolean)
+      .sort((a: any, b: any) => a.nome.localeCompare(b.nome, "pt-BR"));
+  }
+
+  /**
    * Perfil completo, restrito ao escopo de quem pediu.
    *
    * O `id` pedido é combinado com a restrição do escopo por AND — nunca por

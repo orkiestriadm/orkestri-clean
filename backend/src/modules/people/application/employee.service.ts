@@ -87,6 +87,20 @@ export class EmployeeService {
     };
   }
 
+  /**
+   * Opções de filtro da lista, tiradas do próprio quadro.
+   *
+   * Ver a nota em EmployeeRepository.setoresDoQuadro: montar o filtro a partir
+   * do catálogo de setores escondia quem estava em setor inativo.
+   */
+  async filtros(user: UsuarioContexto) {
+    const escopo = await this.escopo.resolve(user);
+    if (escopo.tipo === "nenhum") return { success: true, data: { setores: [] } };
+
+    const where = await this.escopo.whereColaborador(user);
+    return { success: true, data: { setores: await this.repo.setoresDoQuadro(where) } };
+  }
+
   async obter(user: UsuarioContexto, id: string) {
     const where = await this.escopo.whereColaborador(user);
     const colaborador = await this.repo.obter(id, where);

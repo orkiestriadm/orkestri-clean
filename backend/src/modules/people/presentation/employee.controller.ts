@@ -33,6 +33,14 @@ export class EmployeeController {
     return this.service.listar(req.user, query);
   }
 
+  // Rota estática ANTES da paramétrica: o Nest casa por ordem de declaração, e
+  // com `:id` na frente "filtros" viraria um id.
+  @Get("filtros")
+  @Permissions(PEOPLE_PERMISSIONS.colaborador.ver)
+  filtros(@Req() req: any) {
+    return this.service.filtros(req.user);
+  }
+
   @Get(":id")
   @Permissions(PEOPLE_PERMISSIONS.colaborador.ver)
   obter(@Req() req: any, @Param("id") id: string) {

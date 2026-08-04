@@ -124,11 +124,20 @@ export default function ColaboradoresPage() {
     return () => clearTimeout(t);
   }, [busca]);
 
-  // Combo de apoio: se o perfil não tem acesso a setores, a tela continua
-  // utilizável sem ele — por isso `silent`.
+  // Combo de apoio: se o perfil não tem acesso, a tela continua utilizável sem
+  // ele — por isso `silent`.
+  //
+  // Sai do QUADRO, não do catálogo `/setores`. O catálogo devolve apenas os
+  // `ativo: true`, e setor inativo com gente dentro é comum — desativar serve
+  // para não alocar ninguém novo, não para esconder quem já está lá. Montado a
+  // partir dele, o filtro deixava 10 de 18 pessoas infiltráveis: a coluna
+  // mostrava o setor e a lista de filtros não o oferecia.
   useEffect(() => {
-    api.get("/setores", { silent: true })
-      .then(r => setSetores((r.data ?? []).map((s: any) => ({ value: s.id, label: s.nome }))))
+    // `r.data` é o corpo da resposta, e o People envolve tudo em
+    // `{ success, data }` — daí o `data.data`. O `/setores` legado devolvia o
+    // array cru, e copiar a forma dele deixava a lista silenciosamente vazia.
+    api.get("/v1/people/employees/filtros", { silent: true })
+      .then(r => setSetores((r.data?.data?.setores ?? []).map((s: any) => ({ value: s.id, label: s.nome }))))
       .catch(() => setSetores([]));
   }, []);
 
