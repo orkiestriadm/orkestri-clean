@@ -192,8 +192,17 @@ export class DocumentRepository {
       },
       _count: { _all: true },
     });
-    return Object.fromEntries(
-      linhas.map((l: any) => [l.aprovacao, l._count._all]),
-    ) as Record<string, number>;
+    // LISTA, não mapa. Devolvia `Object.fromEntries(...)`, e a tela de
+    // conformidade — cujo tipo no frontend sempre declarou um array — chamava
+    // `.map()` em cima. A página quebrava com "porAprovacao.map is not a
+    // function" SEMPRE, inclusive sem nenhum documento, porque `{}` também não
+    // tem `.map`. Nada pegou: o Prisma passa por `any` aqui, então o contrato
+    // só existia no tipo do outro lado.
+    //
+    // Mesma forma que o ReportService já usava — havia dois formatos para a
+    // mesma contagem no mesmo módulo.
+    return linhas
+      .map((l: any) => ({ aprovacao: l.aprovacao as string, total: l._count._all as number }))
+      .sort((a: any, b: any) => b.total - a.total);
   }
 }

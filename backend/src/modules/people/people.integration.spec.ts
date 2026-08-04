@@ -284,6 +284,25 @@ descreve("People — integração", () => {
       await expect(documents.prepararDownload(gestor, enviado.data.id)).rejects.toThrow();
     });
 
+    /**
+     * A tela de conformidade quebrava sempre, e nada acusava.
+     *
+     * `contarPorAprovacao` devolvia um mapa, e a página — cujo tipo no
+     * frontend sempre declarou um array — chamava `.map()`. Como o Prisma
+     * passa por `any` no repositório, o contrato só existia do lado de lá, e
+     * o TypeScript não tinha o que comparar. Este teste é o que fixa a forma
+     * do lado de cá.
+     */
+    it("a contagem por aprovação é uma LISTA, que é o que a tela consome", async () => {
+      const r = await documents.conformidade(rh());
+      expect(Array.isArray(r.data.porAprovacao)).toBe(true);
+      // Sem documento nenhum a lista é vazia — e `[]` tem `.map`, `{}` não.
+      for (const linha of r.data.porAprovacao) {
+        expect(typeof linha.aprovacao).toBe("string");
+        expect(typeof linha.total).toBe("number");
+      }
+    });
+
     it("acusa o documento cujo arquivo sumiu do armazenamento", async () => {
       // Não é hipótese: o diretório de documentos ficou sem volume no container
       // e todo deploy o recriava vazio, deixando as linhas apontando para o
