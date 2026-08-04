@@ -11,7 +11,8 @@ import {
   Panel, TableCard, EmptyState, LoadingRows, ErrorState, PermissionDenied,
   StatusBadge, BadgeTone, RowActions, RowAction, Modal, FormGrid, FormField, FormActions,
 } from "@/components/data-ui";
-import { Plus, GraduationCap, Award, CheckCircle2, Target, Lock } from "lucide-react";
+import { Plus, GraduationCap, Award, CheckCircle2, Target, Lock, Users } from "lucide-react";
+import Painel360 from "./Painel360";
 import { formatarDataBR } from "@/lib/datas";
 
 /**
@@ -392,6 +393,7 @@ function SecaoAvaliacoes({
               <CartaoAvaliacao
                 key={a.id}
                 avaliacao={a}
+                collaboratorId={collaboratorId}
                 podeGerenciar={podeGerenciar}
                 onEditar={() => setEditando(a)}
                 onMudou={recarregar}
@@ -412,11 +414,13 @@ function SecaoAvaliacoes({
 }
 
 function CartaoAvaliacao({
-  avaliacao, podeGerenciar, onEditar, onMudou,
+  avaliacao, collaboratorId, podeGerenciar, onEditar, onMudou,
 }: {
-  avaliacao: Avaliacao; podeGerenciar: boolean; onEditar: () => void; onMudou: () => void;
+  avaliacao: Avaliacao; collaboratorId: string; podeGerenciar: boolean;
+  onEditar: () => void; onMudou: () => void;
 }) {
   const finalizada = avaliacao.status === "FINALIZADA";
+  const [ver360, setVer360] = useState(false);
 
   async function finalizar() {
     if (!confirm(
@@ -450,6 +454,11 @@ function CartaoAvaliacao({
           </span>
         )}
         <span style={{ flex: 1 }} />
+        {/* Disponível também na finalizada: depois de fechado o ciclo, o 360
+            continua sendo o registro da conversa — só não recebe resposta nova. */}
+        <button type="button" className="btn btn-ghost" onClick={() => setVer360(true)}>
+          <Users size={12} /> 360
+        </button>
         {podeGerenciar && !finalizada && (
           <>
             <button type="button" className="btn btn-ghost" onClick={onEditar}>Editar</button>
@@ -459,6 +468,18 @@ function CartaoAvaliacao({
           </>
         )}
       </div>
+
+      {ver360 && (
+        <Painel360
+          reviewId={avaliacao.id}
+          ciclo={avaliacao.ciclo}
+          collaboratorId={collaboratorId}
+          // Convidar e remover são escrita: seguem a permissão de gerenciar
+          // avaliação, e não a de apenas ver.
+          podeGerenciar={podeGerenciar && !finalizada}
+          onFechar={() => setVer360(false)}
+        />
+      )}
 
       {avaliacao.avaliadorNome && (
         <div style={{ fontSize: 11.5, color: "var(--text-muted)", marginBottom: 8 }}>
