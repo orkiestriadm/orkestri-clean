@@ -131,6 +131,13 @@ export class SelfServiceService {
         ferias: {
           saldoDisponivel: ferias.data.saldoDisponivel,
           vencendo: ferias.data.vencendo,
+          // Dias que JÁ VENCERAM. Sem este número o resumo dizia "30 dias
+          // disponíveis, 0 a vencer" para quem tinha 210 dias vencidos —
+          // literalmente verdadeiro e completamente enganoso. "0 a vencer"
+          // significa "nada prestes a vencer", e é lido como "está tudo em dia".
+          diasVencidos: (ferias.data.periodos ?? [])
+            .filter((p: any) => p.status === "VENCIDO")
+            .reduce((s: number, p: any) => s + p.saldo, 0),
           semDataAdmissao: ferias.data.semDataAdmissao,
         },
         documentos: {

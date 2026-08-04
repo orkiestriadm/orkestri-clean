@@ -130,7 +130,7 @@ function Periodo({ p }: { p: PeriodoFerias }) {
         </span>
         <div className="muted" style={{ fontSize: 12 }}>
           {p.diasParaVencer < 0
-            ? `Prazo terminou há ${Math.abs(p.diasParaVencer)} dias`
+            ? `Prazo terminou há ${Math.abs(p.diasParaVencer)} ${Math.abs(p.diasParaVencer) === 1 ? "dia" : "dias"}`
             : `Precisa ser gozado até ${formatarDataBR(p.limiteConcessivo)}`}
         </div>
       </span>

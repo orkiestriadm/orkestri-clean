@@ -47,11 +47,22 @@ export class VacationRepository {
   }
 
   /**
-   * Cria os períodos que ainda não existem e atualiza status dos existentes.
+   * RECONCILIA os períodos persistidos com os calculados.
    *
-   * `skipDuplicates` com a única (collaboratorId, inicio) torna a chamada
+   * `skipDuplicates` com a única (collaboratorId, inicio) torna a inserção
    * idempotente: sincronizar duas vezes não duplica nem apaga ajuste manual
    * de `diasDireito`.
+   *
+   * Mas inserir não bastava, e isso custou caro. A chave de idempotência é a
+   * DATA DE INÍCIO, então qualquer mudança no cálculo dos limites deixa de
+   * casar com o que já estava gravado — e o `createMany` cria um conjunto
+   * inteiro novo ao lado do antigo. Foi o que aconteceu ao corrigir o erro de
+   * um dia por fuso: 60 períodos viraram 120, e o passivo de férias da
+   * organização dobrou na tela.
+   *
+   * Por isso a poda: o que não está no cálculo atual sai. Uma sincronização
+   * que só soma não é idempotente de verdade — é idempotente enquanto a regra
+   * não muda, que é justamente quando ela precisa ser.
    */
   async sincronizar(
     organizationId: string,
@@ -59,10 +70,80 @@ export class VacationRepository {
     periodos: { inicio: Date; fim: Date; limiteConcessivo: Date; diasDireito: number }[],
   ) {
     if (periodos.length === 0) return { count: 0 };
-    return this.db.collaboratorVacationPeriod.createMany({
+
+    const criados = await this.db.collaboratorVacationPeriod.createMany({
       data: periodos.map(p => ({ ...p, organizationId, collaboratorId })),
       skipDuplicates: true,
     });
+
+    await this.podarPeriodosObsoletos(collaboratorId, periodos);
+    return criados;
+  }
+
+  /**
+   * Remove períodos que o cálculo atual não produz mais.
+   *
+   * ANTES DE APAGAR, REALOCA as ausências. Uma solicitação de férias aponta
+   * para o período de onde os dias saem; apagar a linha sem levar o vínculo
+   * junto faria os dias já gozados sumirem do saldo — a pessoa "ganharia"
+   * férias que já tirou.
+   *
+   * O destino é o período calculado com MAIOR SOBREPOSIÇÃO de janela, e não o
+   * que contém a data da ausência: férias tiradas em 2025 podem ser debitadas
+   * de um período aquisitivo de 2022, e o que se preserva aqui é de qual
+   * período elas saíram, não quando foram gozadas.
+   *
+   * Se nada sobrepuser, a linha FICA. Dado que não se sabe re-alocar não se
+   * apaga — sobrar um período a mais é visível e corrigível; perder o registro
+   * de férias gozadas, não.
+   */
+  private async podarPeriodosObsoletos(
+    collaboratorId: string,
+    calculados: { inicio: Date; fim: Date }[],
+  ) {
+    const persistidos = await this.db.collaboratorVacationPeriod.findMany({
+      where: { collaboratorId },
+      select: { id: true, inicio: true, fim: true },
+    });
+
+    const chave = (d: Date) => new Date(d).toISOString().slice(0, 10);
+    const atuais = new Set(calculados.map(p => chave(p.inicio)));
+    const obsoletos = persistidos.filter((p: any) => !atuais.has(chave(p.inicio)));
+    if (obsoletos.length === 0) return;
+
+    // Índice das linhas que ficam, por data de início.
+    const porInicio = new Map<string, string>();
+    for (const p of persistidos) {
+      if (atuais.has(chave(p.inicio))) porInicio.set(chave(p.inicio), p.id);
+    }
+
+    for (const velho of obsoletos) {
+      const destino = this.maiorSobreposicao(velho, calculados);
+      const destinoId = destino ? porInicio.get(chave(destino.inicio)) : undefined;
+      if (!destinoId) continue; // sem destino seguro: preserva a linha
+
+      await this.db.ausencia.updateMany({
+        where: { vacationPeriodId: velho.id },
+        data: { vacationPeriodId: destinoId },
+      });
+      await this.db.collaboratorVacationPeriod.delete({ where: { id: velho.id } });
+    }
+  }
+
+  private maiorSobreposicao(
+    velho: { inicio: Date; fim: Date },
+    calculados: { inicio: Date; fim: Date }[],
+  ): { inicio: Date; fim: Date } | null {
+    let melhor: { inicio: Date; fim: Date } | null = null;
+    let maior = 0;
+
+    for (const c of calculados) {
+      const de = Math.max(new Date(velho.inicio).getTime(), new Date(c.inicio).getTime());
+      const ate = Math.min(new Date(velho.fim).getTime(), new Date(c.fim).getTime());
+      const dias = ate - de;
+      if (dias > maior) { maior = dias; melhor = c; }
+    }
+    return melhor;
   }
 
   async atualizarStatus(id: string, status: string, diasGozados: number) {

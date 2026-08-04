@@ -380,6 +380,96 @@ descreve("People — integração", () => {
       expect(r.data.saldoDisponivel).toBe(0);
     });
 
+    /**
+     * A regressão que dobrou o passivo da organização.
+     *
+     * A sincronização casava período existente pela DATA DE INÍCIO. Ao corrigir
+     * o erro de um dia por fuso, a data calculada mudou, deixou de casar, e o
+     * `createMany` criou um conjunto inteiro novo ao lado do antigo — 60
+     * períodos viraram 120 em homologação, e o saldo de todo mundo dobrou.
+     *
+     * Este teste simula a mesma coisa: grava um período com a data deslocada,
+     * como se tivesse sido calculado por uma regra antiga, e exige que a
+     * sincronização o REMOVA em vez de conviver com ele.
+     */
+    it("regra de cálculo alterada não deixa período órfão para trás", async () => {
+      const p = await employees.criar(rh(), {
+        nomeCompleto: "Regra Mudou", dataAdmissao: "2020-05-10",
+      } as any);
+
+      await vacations.situacao(rh(), p.data.id);
+      const antes = await (prisma as any).collaboratorVacationPeriod.count({
+        where: { collaboratorId: p.data.id },
+      });
+      expect(antes).toBeGreaterThan(0);
+
+      // Um período "da regra antiga": um dia antes do que o cálculo produz.
+      const legado = await (prisma as any).collaboratorVacationPeriod.create({
+        data: {
+          organizationId: orgId, collaboratorId: p.data.id,
+          inicio: new Date("2020-05-09T00:00:00.000Z"),
+          fim: new Date("2021-05-08T00:00:00.000Z"),
+          limiteConcessivo: new Date("2022-05-08T00:00:00.000Z"),
+          diasDireito: 30,
+        },
+      });
+
+      await vacations.situacao(rh(), p.data.id);
+
+      const sobrou = await (prisma as any).collaboratorVacationPeriod.findUnique({
+        where: { id: legado.id },
+      });
+      expect(sobrou).toBeNull();
+      const depois = await (prisma as any).collaboratorVacationPeriod.count({
+        where: { collaboratorId: p.data.id },
+      });
+      expect(depois).toBe(antes);
+    });
+
+    // Apagar a linha sem levar o vínculo junto faria os dias já gozados
+    // sumirem do saldo — a pessoa "ganharia" férias que já tirou.
+    it("ao podar um período obsoleto, leva a solicitação de férias junto", async () => {
+      const p = await employees.criar(rh(), {
+        nomeCompleto: "Nao Perde Ferias", dataAdmissao: "2019-03-15",
+      } as any);
+      await vacations.situacao(rh(), p.data.id);
+
+      const legado = await (prisma as any).collaboratorVacationPeriod.create({
+        data: {
+          organizationId: orgId, collaboratorId: p.data.id,
+          inicio: new Date("2019-03-14T00:00:00.000Z"),
+          fim: new Date("2020-03-13T00:00:00.000Z"),
+          limiteConcessivo: new Date("2021-03-13T00:00:00.000Z"),
+          diasDireito: 30,
+        },
+      });
+      const ausencia = await (prisma as any).ausencia.create({
+        data: {
+          organizationId: orgId, collaboratorId: p.data.id,
+          tipo: "ferias", status: "APROVADA", diaInteiro: true,
+          dataInicio: new Date("2021-01-11T00:00:00.000Z"),
+          dataFim: new Date("2021-01-20T00:00:00.000Z"),
+          vacationPeriodId: legado.id,
+        },
+      });
+
+      await vacations.situacao(rh(), p.data.id);
+
+      const realocada = await (prisma as any).ausencia.findUnique({
+        where: { id: ausencia.id },
+        select: { vacationPeriodId: true },
+      });
+      expect(realocada.vacationPeriodId).not.toBeNull();
+      expect(realocada.vacationPeriodId).not.toBe(legado.id);
+
+      // E os dias continuam debitados: o saldo não pode ter "devolvido" férias.
+      const destino = await (prisma as any).collaboratorVacationPeriod.findUnique({
+        where: { id: realocada.vacationPeriodId },
+        select: { inicio: true },
+      });
+      expect(destino.inicio.toISOString().slice(0, 10)).toBe("2019-03-15");
+    });
+
     it("sincronizar duas vezes não duplica período", async () => {
       const antes = (await vacations.situacao(rh(), veterano)).data.periodos.length;
       const depois = (await vacations.situacao(rh(), veterano)).data.periodos.length;

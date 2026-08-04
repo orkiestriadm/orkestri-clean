@@ -160,26 +160,39 @@ function Resumo({
             ? "Sem data de admissão no cadastro, não há como calcular"
             : undefined}
         />
+        {/* Só aparece quando existe, e aí aparece em vermelho. "0 dias vencidos"
+            seria ruído; 210 dias vencidos escondidos atrás de "0 a vencer" era
+            o resumo afirmando que estava tudo em dia. */}
+        {ferias.diasVencidos > 0 && (
+          <KpiCard
+            label="Dias já vencidos"
+            valor={ferias.diasVencidos}
+            icon={<AlertTriangle size={18} />}
+            color="var(--accent-red)"
+            index={1}
+            hint="Já passaram do prazo de gozo — a empresa deve pagá-los em dobro"
+          />
+        )}
         <KpiCard
           label={ferias.vencendo === 1 ? "Período a vencer" : "Períodos a vencer"}
           valor={ferias.vencendo}
-          icon={<AlertTriangle size={18} />}
-          color={ferias.vencendo > 0 ? "var(--danger)" : undefined}
-          index={1}
-          hint="Férias não gozadas dentro do prazo são pagas em dobro"
+          icon={<Clock size={18} />}
+          color={ferias.vencendo > 0 ? "var(--accent-amber)" : undefined}
+          index={2}
+          hint="Vencem em breve — ainda dá tempo de programar"
         />
         <KpiCard
           label="Documentos entregues"
           valor={documentos.total}
           icon={<FileText size={18} />}
-          index={2}
+          index={3}
         />
         <KpiCard
           label="Pendências minhas"
           valor={pendencias.length}
           icon={<ClipboardList size={18} />}
-          color={atrasadas.length > 0 ? "var(--danger)" : undefined}
-          index={3}
+          color={atrasadas.length > 0 ? "var(--accent-red)" : undefined}
+          index={4}
         />
       </KpiGrid>
 
@@ -200,7 +213,7 @@ function Resumo({
                 <li key={p.id} className="row-line">
                   <span style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
                     {p.situacao === "atrasado"
-                      ? <AlertTriangle size={15} style={{ color: "var(--danger)", flexShrink: 0 }} />
+                      ? <AlertTriangle size={15} style={{ color: "var(--accent-red)", flexShrink: 0 }} />
                       : <Clock size={15} className="muted" style={{ flexShrink: 0 }} />}
                     <span style={{ minWidth: 0 }}>
                       <strong>{p.titulo}</strong>

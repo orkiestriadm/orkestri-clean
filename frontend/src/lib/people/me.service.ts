@@ -40,7 +40,10 @@ export type MeuResumo = {
   };
   ferias: {
     saldoDisponivel: number;
+    /** Períodos PRESTES a vencer — não os que já venceram. */
     vencendo: number;
+    /** Dias já vencidos, devidos em dobro. Zero é o caso normal. */
+    diasVencidos: number;
     semDataAdmissao: boolean;
   };
   documentos: {
