@@ -169,24 +169,59 @@ export default function CalibracaoPage() {
   );
 }
 
-/** Distribuição por faixa inteira de nota, em barras proporcionais. */
+/**
+ * Distribuição por faixa inteira de nota.
+ *
+ * Cada faixa tem um TRILHO de altura fixa, e o preenchimento cresce dentro
+ * dele. A primeira versão desenhava só a barra preenchida, com 2px de mínimo
+ * para a faixa vazia — que na prática somia, e a coluna parecia ter duas
+ * faixas em vez de cinco. Uma distribuição em que não dá para ver as faixas
+ * vazias não é uma distribuição: é um par de barras soltas.
+ *
+ * A escala vai embaixo pelo mesmo motivo — sem ela, não há como saber que a
+ * barra da direita é a nota 5 sem passar o mouse.
+ */
+const ALTURA_BARRA = 26;
+
 function Barras({ distribuicao, total }: { distribuicao: number[]; total: number }) {
   return (
-    <span style={{ display: "flex", gap: 3, alignItems: "flex-end", height: 26 }}>
-      {distribuicao.map((q, i) => (
-        <span
-          key={i}
-          title={`Nota ${i + 1}: ${q} pessoa(s)`}
-          style={{
-            width: 12,
-            // Mínimo de 2px para a faixa vazia continuar visível: sem isso a
-            // barra some e a distribuição parece ter menos faixas do que tem.
-            height: total > 0 ? Math.max(2, (q / total) * 26) : 2,
-            background: q > 0 ? "var(--accent-violet)" : "var(--border)",
-            borderRadius: 2,
-          }}
-        />
-      ))}
+    <span style={{ display: "inline-flex", flexDirection: "column", gap: 3 }}>
+      <span style={{ display: "flex", gap: 3, alignItems: "flex-end", height: ALTURA_BARRA }}>
+        {distribuicao.map((q, i) => (
+          <span
+            key={i}
+            title={`Nota ${i + 1}: ${q} ${q === 1 ? "pessoa" : "pessoas"}`}
+            style={{
+              width: 14, height: ALTURA_BARRA,
+              display: "flex", alignItems: "flex-end",
+              background: "var(--bg-secondary)",
+              border: "1px solid var(--border-subtle)",
+              borderRadius: 3, overflow: "hidden",
+            }}
+          >
+            <span
+              style={{
+                width: "100%",
+                // Mínimo de 4px quando há alguém: uma pessoa em cinquenta não
+                // pode desenhar uma barra de altura zero e sumir da conta.
+                height: q > 0 && total > 0 ? Math.max(4, (q / total) * ALTURA_BARRA) : 0,
+                background: "var(--accent-violet)",
+              }}
+            />
+          </span>
+        ))}
+      </span>
+      <span style={{ display: "flex", gap: 3 }}>
+        {distribuicao.map((_, i) => (
+          <span
+            key={i}
+            className="muted"
+            style={{ width: 14, fontSize: 9, textAlign: "center", lineHeight: 1 }}
+          >
+            {i + 1}
+          </span>
+        ))}
+      </span>
     </span>
   );
 }
