@@ -13,6 +13,7 @@
  */
 
 import { ReactNode, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import {
   ChevronLeft, ChevronRight, Search, X, Inbox,
@@ -506,6 +507,24 @@ export function Modal({
 }) {
   const caixa = useRef<HTMLDivElement>(null);
 
+  // Renderiza em `document.body`, não no lugar onde foi declarada.
+  //
+  // POR QUÊ: `.main-area` tem `position: relative; z-index: 1`, o que cria um
+  // contexto de empilhamento. Uma modal declarada dentro dela fica presa lá:
+  // o `z-index: 1000` do overlay só vale DENTRO do contexto, e quem disputa
+  // com o menu lateral (`z-index: 20`) é a `.main-area` inteira, com z-index 1.
+  // Resultado: a barra lateral pinta por cima da modal.
+  //
+  // O sintoma só aparecia em modal larga o bastante para alcançar a lateral —
+  // com a largura padrão de 520px numa tela grande, a caixa ficava toda dentro
+  // da área de conteúdo e o defeito passava despercebido. Numa janela estreita,
+  // ou numa modal de 620px, o título aparecia cortado ao meio.
+  //
+  // Portar para o body tira a modal de qualquer contexto de empilhamento, que
+  // é o comportamento que uma sobreposição de tela cheia sempre deveria ter.
+  const [montado, setMontado] = useState(false);
+  useEffect(() => setMontado(true), []);
+
   // Esc fecha, e o scroll do fundo trava: sem isso a página de trás rola
   // quando o cursor sai da caixa.
   useEffect(() => {
@@ -523,9 +542,10 @@ export function Modal({
     };
   }, [aberto, onFechar]);
 
-  if (!aberto) return null;
+  // `montado` também cobre o SSR: `document` não existe no servidor.
+  if (!aberto || !montado) return null;
 
-  return (
+  return createPortal(
     <div
       className="modal-overlay"
       onMouseDown={e => { if (e.target === e.currentTarget) onFechar(); }}
@@ -551,7 +571,8 @@ export function Modal({
         </div>
         {children}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 
