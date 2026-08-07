@@ -26,6 +26,10 @@ volumes:
   # alcançável pelo endpoint autenticado de download. Ver
   # backend/src/modules/people/infrastructure/document-storage.service.ts
   people_docs_data:
+  # Anexos das obrigações (Orkiestri Compliance). Volume NOMEADO de propósito:
+  # em camada de container, todo anexo se perderia a cada deploy. Ver
+  # backend/src/modules/compliance/infrastructure/arquivo-storage.service.ts
+  compliance_docs_data:
   evolution_data:
 
 services:
@@ -137,6 +141,9 @@ services:
       # Fora de /app/uploads de propósito: aquele caminho é servido
       # estaticamente, e documento de colaborador é dado restrito.
       - people_docs_data:/app/secure/people-docs
+      # Mesma razão: anexo de licença, contrato e AVCB não pode ser baixável
+      # por quem tiver a URL. Só sai pelo endpoint autenticado de download.
+      - compliance_docs_data:/app/secure/compliance-docs
     networks:
       - orkestri_net
     depends_on:

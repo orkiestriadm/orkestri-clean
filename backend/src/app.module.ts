@@ -51,6 +51,7 @@ import { OsaModule } from './modules/osa/osa.module';
 import { FinanceiroModule } from './modules/financeiro/financeiro.module';
 import { FrotaModule } from './modules/frota/frota.module';
 import { PeopleModule } from './modules/people/people.module';
+import { ComplianceModule } from './modules/compliance/compliance.module';
 import { JwtModule } from '@nestjs/jwt';
 
 @Module({
@@ -97,6 +98,9 @@ import { JwtModule } from '@nestjs/jwt';
     // Orkiestri People — rotas em /api/v1/people/*. Convive com CollaboratorsModule
     // (/api/collaborators) durante a migração. Ver docs/people/MIGRATION_MATRIX.md.
     PeopleModule,
+    // Orkiestri Compliance — Gestão de Obrigações. Rotas em /api/v1/compliance/*.
+    // Ver docs/architecture/gestaodeobrigacoes.md.
+    ComplianceModule,
   ],
 })
 export class AppModule {}

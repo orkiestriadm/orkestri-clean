@@ -9,6 +9,10 @@ import { AutomacaoService } from "../automacoes/automacoes.module";
 import {
   PEOPLE_PERMISSION_CATALOG, PEOPLE_PERMISSOES_LEITURA, PEOPLE_PERMISSOES_AUDITOR,
 } from "../people/people.permissions";
+import {
+  COMPLIANCE_PERMISSION_CATALOG, COMPLIANCE_PERMISSOES_LEITURA,
+  COMPLIANCE_PERMISSOES_OPERACAO, COMPLIANCE_PERMISSOES_AUDITOR,
+} from "../compliance/compliance.permissions";
 import * as bcrypt from "bcryptjs";
 
 // Todas as permissões do sistema no formato "recurso:acao"
@@ -117,6 +121,8 @@ const ALL_PERMISSIONS: { recurso: string; acao: string; descricao: string }[] = 
   // Orkiestri People — catálogo mantido no próprio módulo, para que o dono da
   // regra e o dono da lista sejam o mesmo arquivo.
   ...PEOPLE_PERMISSION_CATALOG,
+  // Orkiestri Compliance — mesma razão: o dono da regra é o dono da lista.
+  ...COMPLIANCE_PERMISSION_CATALOG,
 ];
 
 // Permissões base — todo usuário recebe automaticamente, independente do papel
@@ -164,6 +170,11 @@ const ROLE_DEFAULTS: Record<string, { nivel: number; descricao: string; permisso
       "financeiro:ver","financeiro:gerenciar",
       "frota:ver","frota:criar","frota:editar","frota:excluir","frota:configurar","frota:relatorios",
       "reservas:ver","reservas:criar","reservas:editar","reservas:cancelar","reservas:admin",
+      // Compliance: o gestor OPERA a carteira — cadastra, edita e renova. Quem
+      // responde pela licença precisa poder registrar o protocolo sem pedir
+      // acesso ao administrador. Configurar a régua de avisos continua fora.
+      ...COMPLIANCE_PERMISSOES_OPERACAO,
+      "compliance.aprovacao:aprovar",
     ],
   },
   analista: {
@@ -233,6 +244,9 @@ const ROLE_DEFAULTS: Record<string, { nivel: number; descricao: string; permisso
       "ativos:ver","ativos:criar","ativos:editar",
       "frota:ver","frota:criar","frota:editar","frota:relatorios",
       "reservas:ver","reservas:criar","reservas:editar","reservas:cancelar","reservas:admin",
+      // Compliance: supervisor lê a carteira inteira, mas não renova nem
+      // registra protocolo — esses são atos de quem responde pela licença.
+      ...COMPLIANCE_PERMISSOES_LEITURA,
     ],
   },
   operador: {
@@ -260,6 +274,9 @@ const ROLE_DEFAULTS: Record<string, { nivel: number; descricao: string; permisso
       "relatorios:exportar",
       // Conformidade exige enxergar a organização inteira, não só a própria equipe.
       ...PEOPLE_PERMISSOES_AUDITOR,
+      // Compliance é o módulo que o auditor mais usa: além da leitura, precisa
+      // ver PARA QUEM cada aviso foi mandado e exportar a carteira.
+      ...COMPLIANCE_PERMISSOES_AUDITOR,
     ],
   },
   cliente_portal: {

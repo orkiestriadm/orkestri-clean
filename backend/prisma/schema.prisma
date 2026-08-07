@@ -188,6 +188,27 @@ model Organization {
   reportSchedules     FrotaReportSchedule[]
   reservasVeiculo     ReservaVeiculo[]
 
+  // ── Compliance (Gestão de Obrigações) ──
+  complianceCategorias     ComplianceCategoria[]        @relation("OrgComplianceCategorias")
+  complianceCampos         ComplianceCampoDefinicao[]   @relation("OrgComplianceCampos")
+  complianceOrgaos         ComplianceOrgao[]            @relation("OrgComplianceOrgaos")
+  complianceObrigacoes     ComplianceObrigacao[]        @relation("OrgComplianceObrigacoes")
+  complianceCampoValores   ComplianceCampoValor[]       @relation("OrgComplianceCampoValores")
+  complianceResponsaveis   ComplianceResponsavel[]      @relation("OrgComplianceResponsaveis")
+  complianceVersoes        ComplianceVersao[]           @relation("OrgComplianceVersoes")
+  complianceArquivos       ComplianceArquivo[]          @relation("OrgComplianceArquivos")
+  complianceHistorico      ComplianceHistorico[]        @relation("OrgComplianceHistorico")
+  complianceComentarios    ComplianceComentario[]       @relation("OrgComplianceComentarios")
+  complianceFavoritos      ComplianceFavorito[]         @relation("OrgComplianceFavoritos")
+  complianceTags           ComplianceTag[]              @relation("OrgComplianceTags")
+  complianceRegras         ComplianceAlertaRegra[]      @relation("OrgComplianceRegras")
+  complianceTemplates      ComplianceTemplate[]         @relation("OrgComplianceTemplates")
+  complianceEscalonamentos ComplianceEscalonamento[]    @relation("OrgComplianceEscalonamentos")
+  complianceEnvios         ComplianceNotificacaoEnvio[] @relation("OrgComplianceEnvios")
+  complianceFluxos         ComplianceFluxo[]            @relation("OrgComplianceFluxos")
+  complianceEtapas         ComplianceFluxoEtapa[]       @relation("OrgComplianceEtapas")
+  complianceAprovacoes     ComplianceAprovacao[]        @relation("OrgComplianceAprovacoes")
+
   @@map("organizations")
 }
 
@@ -304,6 +325,12 @@ model User {
   veiculosResponsavel        Veiculo[]                   @relation("VeiculoResponsavel")
   manutencoesSolicitadas     ManutencaoVeiculo[]         @relation("ManutencaoSolicitante")
   reservasVeiculoSolicitadas ReservaVeiculo[]            @relation("ReservaVeiculoSolicitante")
+  complianceResponsavelPor   ComplianceResponsavel[]     @relation("ComplianceResponsavelUser")
+  complianceHistoricoFeito   ComplianceHistorico[]       @relation("ComplianceHistoricoUser")
+  complianceComentarios      ComplianceComentario[]      @relation("ComplianceComentarioUser")
+  complianceFavoritos        ComplianceFavorito[]        @relation("ComplianceFavoritoUser")
+  complianceEscalonamentos   ComplianceEscalonamento[]   @relation("ComplianceEscalonamentoUser")
+  complianceAprovacoes       ComplianceAprovacao[]       @relation("ComplianceAprovadorUser")
 
   @@unique([organizationId, email])
   @@index([organizationId])
@@ -838,6 +865,7 @@ model Collaborator {
   feedbacksDados   PerformanceFeedback[]        @relation("FeedbackAutor")
   careerTrack      CareerTrack?                 @relation("TrackCollaborators", fields: [careerTrackId], references: [id], onDelete: SetNull)
   checklists       CollaboratorChecklist[]
+  complianceResponsavelPor ComplianceResponsavel[]
 
   @@unique([organizationId, matricula])
   @@index([careerTrackId])
@@ -1725,6 +1753,7 @@ model Project {
   milestones     Milestone[]
   tasks          Task[]
   ReservaVeiculo ReservaVeiculo[]
+  complianceObrigacoes ComplianceObrigacao[]
 
   @@index([organizationId, status])
   @@index([criadoPorId])
@@ -2741,6 +2770,7 @@ model Supplier {
   documents              SupplierDocument[]
   history                SupplierHistory[]
   itensOrcamento         ItemOrcamento[]    @relation("ItemSupplier")
+  complianceObrigacoes   ComplianceObrigacao[]
   criadoEm               DateTime           @default(now()) @map("criado_em")
   atualizadoEm           DateTime           @updatedAt @map("atualizado_em")
 
@@ -3687,4 +3717,657 @@ model PerformanceFeedback {
   @@index([organizationId])
   @@index([reviewId])
   @@map("performance_feedbacks")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Orkiestri Compliance — Gestão de Obrigações
+//
+// Entidade central: ComplianceObrigacao. Qualquer coisa com emissão, validade,
+// responsável e renovação — licença ambiental, AVCB, laudo, certificado,
+// contrato, alvará. Ver docs/architecture/gestaodeobrigacoes.md.
+//
+// Duas decisões de modelagem que a especificação não previa e a planilha do
+// cliente (sgi.xlsx) exigiu:
+//
+//  1. `prazoFatalEm` e `prazoInternoEm` são DERIVADOS (validade − prazo do órgão
+//     − folga interna), não digitados. Na planilha eram fórmula; aqui são coluna
+//     persistida porque a lista precisa filtrar e ordenar por eles no banco.
+//     O override manual existe em campo separado, para nunca perder a conta.
+//
+//  2. `renovacaoAutomatica` + protocolo. Três licenças ambientais da planilha
+//     estão vencidas há anos e continuam VÁLIDAS, porque o protocolo tempestivo
+//     de renovação prorroga a validade até a decisão do órgão. Sem representar
+//     isso, o painel acusaria vencimento permanente e o alerta viraria ruído.
+// ═══════════════════════════════════════════════════════════════════════════
+
+model ComplianceCategoria {
+  id             String  @id @default(uuid())
+  organizationId String  @map("organization_id")
+  nome           String
+  descricao      String?
+  /// Nome do ícone lucide-react, resolvido no frontend.
+  icone          String  @default("shield-check")
+  cor            String  @default("#7c3aed")
+  ativo          Boolean @default(true)
+  ordem          Int     @default(0)
+
+  /// Folga interna padrão, em dias, entre o prazo interno e o prazo fatal.
+  /// A planilha usava 60 fixo dentro da fórmula; aqui é política da categoria,
+  /// porque licença ambiental e laudo de insalubridade não têm a mesma inércia.
+  folgaInternaDias Int @default(60)
+
+  criadoPorId  String?   @map("criado_por_id")
+  deletedAt    DateTime? @map("deleted_at")
+  criadoEm     DateTime  @default(now()) @map("criado_em")
+  atualizadoEm DateTime  @updatedAt @map("atualizado_em")
+
+  organization Organization                @relation("OrgComplianceCategorias", fields: [organizationId], references: [id], onDelete: Cascade)
+  obrigacoes   ComplianceObrigacao[]
+  campos       ComplianceCampoDefinicao[]
+  regras       ComplianceAlertaRegra[]
+  escalonamentos ComplianceEscalonamento[]
+
+  @@unique([organizationId, nome])
+  @@index([organizationId, deletedAt])
+  @@map("compliance_categorias")
+}
+
+/// Campo personalizado de uma categoria — "Número do Processo" em Meio
+/// Ambiente, "Chave de licença" em Software. É o que torna o módulo genérico
+/// sem virar um formulário com 200 campos vazios.
+model ComplianceCampoDefinicao {
+  id             String @id @default(uuid())
+  organizationId String @map("organization_id")
+  categoriaId    String @map("categoria_id")
+  /// Identificador estável usado no valor e nos templates ({{campo.processo}}).
+  chave          String
+  rotulo         String
+  /// texto | texto_longo | numero | data | booleano | selecao
+  tipo           String  @default("texto")
+  /// Opções da seleção, como array de strings.
+  opcoes         Json    @default("[]")
+  obrigatorio    Boolean @default(false)
+  ajuda          String?
+  ordem          Int     @default(0)
+  ativo          Boolean @default(true)
+
+  deletedAt    DateTime? @map("deleted_at")
+  criadoEm     DateTime  @default(now()) @map("criado_em")
+  atualizadoEm DateTime  @updatedAt @map("atualizado_em")
+
+  organization Organization           @relation("OrgComplianceCampos", fields: [organizationId], references: [id], onDelete: Cascade)
+  categoria    ComplianceCategoria    @relation(fields: [categoriaId], references: [id], onDelete: Cascade)
+  valores      ComplianceCampoValor[]
+
+  @@unique([categoriaId, chave])
+  @@index([organizationId, deletedAt])
+  @@map("compliance_campo_definicoes")
+}
+
+/// Órgão emissor/fiscalizador. Separado da obrigação porque o mesmo CETESB
+/// atende dezenas de licenças e o telefone muda uma vez, não trinta.
+model ComplianceOrgao {
+  id             String  @id @default(uuid())
+  organizationId String  @map("organization_id")
+  nome           String
+  sigla          String?
+  contato        String?
+  telefone       String?
+  email          String?
+  site           String?
+  endereco       String?
+  observacoes    String? @db.Text
+
+  deletedAt    DateTime? @map("deleted_at")
+  criadoEm     DateTime  @default(now()) @map("criado_em")
+  atualizadoEm DateTime  @updatedAt @map("atualizado_em")
+
+  organization Organization          @relation("OrgComplianceOrgaos", fields: [organizationId], references: [id], onDelete: Cascade)
+  obrigacoes   ComplianceObrigacao[]
+
+  @@unique([organizationId, nome])
+  @@index([organizationId, deletedAt])
+  @@map("compliance_orgaos")
+}
+
+model ComplianceObrigacao {
+  id             String @id @default(uuid())
+  organizationId String @map("organization_id")
+  /// Código legível e sequencial por organização (OBR-0001). O usuário cita ele
+  /// no e-mail para o órgão; uuid não serve para isso.
+  codigo         String
+  categoriaId    String @map("categoria_id")
+
+  nome      String
+  /// Sigla do tipo (LO, ASV, AVCB, PGR). Não é enum: a especificação exige que
+  /// o sistema nunca limite os tipos existentes.
+  sigla     String?
+  /// Número do documento/processo emitido pelo órgão (709/2008, 1035.8.2025.63314).
+  numeroDocumento String? @map("numero_documento")
+  descricao String? @db.Text
+
+  orgaoId String? @map("orgao_id")
+
+  // ── Escopo ───────────────────────────────────────────────────────────────
+  // A planilha escondia o escopo dentro do nome ("(Lote 1)", "(P3)", "(BSO 4)",
+  // "Nº Série: 368956544"). Aqui vira dimensão própria: sem isso não dá para
+  // agrupar por instalação nem responder "quais licenças são desta base".
+  empresa        String?
+  filial         String?
+  /// Instalação física — Sede Administrativa, Praça P3, BSO 4, Fábrica de Placa.
+  unidade        String?
+  departamento   String?
+  centroCusto    String? @map("centro_custo")
+  /// Equipamento identificável por número de série (motosserra, motopoda).
+  /// 9 dos 36 registros da planilha são obrigações DE UM EQUIPAMENTO.
+  ativoIdentificador String? @map("ativo_identificador")
+  /// Obra/lote. Amarra no módulo de Projetos quando o lote é um projeto ativo.
+  projectId      String? @map("project_id")
+
+  /// baixa | media | alta | critica
+  criticidade String @default("media")
+  /// ativa | em_renovacao | suspensa | vencida | cancelada | arquivada
+  /// É o estado DECLARADO. A situação de prazo (a vencer, vencida, prorrogada)
+  /// é derivada das datas e nunca digitada — foi o erro que a planilha cometia.
+  status      String @default("ativa")
+
+  // ── Datas ────────────────────────────────────────────────────────────────
+  dataEmissao        DateTime? @map("data_emissao")
+  dataValidade       DateTime? @map("data_validade")
+  dataAprovacao      DateTime? @map("data_aprovacao")
+  dataUltimaRenovacao DateTime? @map("data_ultima_renovacao")
+
+  /// Periodicidade em meses. A planilha guardava anos e não usava para nada;
+  /// aqui é o que propõe a próxima validade na renovação.
+  validadeMeses Int? @map("validade_meses")
+  /// Antecedência mínima que o ÓRGÃO exige para protocolar a renovação.
+  prazoMinimoDias Int @default(0) @map("prazo_minimo_dias")
+  /// Sobrepõe a folga da categoria quando esta obrigação precisa de mais tempo.
+  folgaInternaDias Int? @map("folga_interna_dias")
+
+  /// Derivados e persistidos — ver o cabeçalho do bloco.
+  prazoFatalEm   DateTime? @map("prazo_fatal_em")
+  prazoInternoEm DateTime? @map("prazo_interno_em")
+  /// Override manual. Preenchido, vence o cálculo; nulo, o cálculo manda.
+  prazoFatalManual   DateTime? @map("prazo_fatal_manual")
+  prazoInternoManual DateTime? @map("prazo_interno_manual")
+
+  // ── Renovação automática por protocolo ───────────────────────────────────
+  /// Verdadeiro quando o protocolo tempestivo prorroga a validade até a decisão
+  /// do órgão (art. 14 §4º da Res. CONAMA 237/97, para licença ambiental).
+  renovacaoAutomatica Boolean @default(false) @map("renovacao_automatica")
+  protocoloNumero     String? @map("protocolo_numero")
+  protocoloEm         DateTime? @map("protocolo_em")
+  protocoloObservacao String?   @map("protocolo_observacao")
+  /// Materializa `estaProrrogada()` do domínio: a regra permite E houve
+  /// protocolo E ele foi tempestivo.
+  ///
+  /// Existe como coluna porque a alternativa seria comparar `protocolo_em` com
+  /// `prazo_fatal_em` dentro do WHERE, e o Prisma não compara duas colunas sem
+  /// preview feature. Sem isso, filtrar "vencidas" exigiria trazer a carteira
+  /// inteira para a memória e paginar depois — o que quebra a paginação.
+  /// Depende só de campos gravados, então é recalculada em todo save.
+  prorrogacaoVigente Boolean @default(false) @map("prorrogacao_vigente")
+
+  // ── Custos ───────────────────────────────────────────────────────────────
+  valorLicenca   Decimal? @map("valor_licenca") @db.Decimal(14, 2)
+  valorRenovacao Decimal? @map("valor_renovacao") @db.Decimal(14, 2)
+  supplierId     String?  @map("supplier_id")
+  notaFiscal     String?  @map("nota_fiscal")
+
+  observacoes String? @db.Text
+
+  /// Versão corrente. Cada renovação incrementa e congela a anterior.
+  versaoAtual Int @default(1) @map("versao_atual")
+
+  /// Etapa corrente no fluxo configurável, quando a categoria tem fluxo.
+  etapaId String? @map("etapa_id")
+
+  criadoPorId     String?   @map("criado_por_id")
+  atualizadoPorId String?   @map("atualizado_por_id")
+  deletedAt       DateTime? @map("deleted_at")
+  criadoEm        DateTime  @default(now()) @map("criado_em")
+  atualizadoEm    DateTime  @updatedAt @map("atualizado_em")
+
+  organization Organization        @relation("OrgComplianceObrigacoes", fields: [organizationId], references: [id], onDelete: Cascade)
+  categoria    ComplianceCategoria @relation(fields: [categoriaId], references: [id], onDelete: Restrict)
+  orgao        ComplianceOrgao?    @relation(fields: [orgaoId], references: [id], onDelete: SetNull)
+  project      Project?            @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  supplier     Supplier?           @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+  etapa        ComplianceFluxoEtapa? @relation(fields: [etapaId], references: [id], onDelete: SetNull)
+
+  responsaveis  ComplianceResponsavel[]
+  versoes       ComplianceVersao[]
+  arquivos      ComplianceArquivo[]
+  historico     ComplianceHistorico[]
+  comentarios   ComplianceComentario[]
+  favoritos     ComplianceFavorito[]
+  tags          ComplianceObrigacaoTag[]
+  camposValores ComplianceCampoValor[]
+  regras        ComplianceAlertaRegra[]
+  envios        ComplianceNotificacaoEnvio[]
+  aprovacoes    ComplianceAprovacao[]
+
+  @@unique([organizationId, codigo])
+  @@index([organizationId, deletedAt])
+  @@index([organizationId, categoriaId, deletedAt])
+  // O índice que sustenta o painel e a varredura de alertas: "o que vence".
+  @@index([organizationId, dataValidade])
+  @@index([organizationId, prazoInternoEm])
+  @@index([organizationId, status])
+  @@map("compliance_obrigacoes")
+}
+
+model ComplianceCampoValor {
+  id             String @id @default(uuid())
+  organizationId String @map("organization_id")
+  obrigacaoId    String @map("obrigacao_id")
+  campoId        String @map("campo_id")
+
+  /// Colunas tipadas em vez de um Json solto: filtrar "processo contém 1035" e
+  /// ordenar por data de condicionante só funciona com coluna de verdade.
+  valorTexto  String?   @map("valor_texto") @db.Text
+  valorNumero Float?    @map("valor_numero")
+  valorData   DateTime? @map("valor_data")
+  valorBool   Boolean?  @map("valor_bool")
+
+  criadoEm     DateTime @default(now()) @map("criado_em")
+  atualizadoEm DateTime @updatedAt @map("atualizado_em")
+
+  organization Organization             @relation("OrgComplianceCampoValores", fields: [organizationId], references: [id], onDelete: Cascade)
+  obrigacao    ComplianceObrigacao      @relation(fields: [obrigacaoId], references: [id], onDelete: Cascade)
+  campo        ComplianceCampoDefinicao @relation(fields: [campoId], references: [id], onDelete: Cascade)
+
+  @@unique([obrigacaoId, campoId])
+  @@index([organizationId])
+  @@map("compliance_campo_valores")
+}
+
+/// Responsável por uma obrigação.
+///
+/// `userId` é opcional de propósito: a planilha do cliente notifica gente que
+/// não tem login no sistema, só e-mail e WhatsApp. Exigir usuário cadastrado
+/// faria a carga inicial perder metade dos destinatários.
+model ComplianceResponsavel {
+  id             String @id @default(uuid())
+  organizationId String @map("organization_id")
+  obrigacaoId    String @map("obrigacao_id")
+  /// principal | gestor | equipe | observador
+  papel          String @default("equipe")
+
+  userId         String? @map("user_id")
+  collaboratorId String? @map("collaborator_id")
+  /// Preenchidos quando o destinatário não é usuário do sistema.
+  nome     String?
+  email    String?
+  telefone String?
+
+  notificar Boolean @default(true)
+
+  criadoEm DateTime @default(now()) @map("criado_em")
+
+  organization Organization        @relation("OrgComplianceResponsaveis", fields: [organizationId], references: [id], onDelete: Cascade)
+  obrigacao    ComplianceObrigacao @relation(fields: [obrigacaoId], references: [id], onDelete: Cascade)
+  user         User?               @relation("ComplianceResponsavelUser", fields: [userId], references: [id], onDelete: SetNull)
+  collaborator Collaborator?       @relation(fields: [collaboratorId], references: [id], onDelete: SetNull)
+
+  @@index([obrigacaoId, papel])
+  @@index([organizationId, userId])
+  @@map("compliance_responsaveis")
+}
+
+/// Versão congelada. Renovar NUNCA substitui o registro anterior — a licença
+/// vencida em 2012 continua sendo o documento que valia naquele ano, e quem
+/// audita precisa dela.
+model ComplianceVersao {
+  id             String @id @default(uuid())
+  organizationId String @map("organization_id")
+  obrigacaoId    String @map("obrigacao_id")
+  versao         Int
+
+  numeroDocumento String?   @map("numero_documento")
+  dataEmissao     DateTime? @map("data_emissao")
+  dataValidade    DateTime? @map("data_validade")
+  prazoMinimoDias Int       @default(0) @map("prazo_minimo_dias")
+  prazoFatalEm    DateTime? @map("prazo_fatal_em")
+  prazoInternoEm  DateTime? @map("prazo_interno_em")
+  valor           Decimal?  @db.Decimal(14, 2)
+  observacao      String?   @db.Text
+
+  /// Retrato completo dos campos no momento do congelamento, inclusive os
+  /// personalizados. Colunas cobrem o que se consulta; o Json cobre o resto.
+  snapshot Json @default("{}")
+
+  /// Quando esta versão deixou de ser a corrente.
+  encerradaEm DateTime? @map("encerrada_em")
+  criadoEm    DateTime  @default(now()) @map("criado_em")
+  criadoPorId String?   @map("criado_por_id")
+
+  organization Organization        @relation("OrgComplianceVersoes", fields: [organizationId], references: [id], onDelete: Cascade)
+  obrigacao    ComplianceObrigacao @relation(fields: [obrigacaoId], references: [id], onDelete: Cascade)
+  arquivos     ComplianceArquivo[]
+
+  @@unique([obrigacaoId, versao])
+  @@index([organizationId])
+  @@map("compliance_versoes")
+}
+
+/// Anexo. Guardado FORA do diretório público, pelo mesmo motivo do People:
+/// licença e contrato não podem ser baixáveis por quem tiver a URL.
+model ComplianceArquivo {
+  id             String  @id @default(uuid())
+  organizationId String  @map("organization_id")
+  obrigacaoId    String  @map("obrigacao_id")
+  /// Amarra o anexo à versão em que foi enviado — o PDF da licença de 2022 não
+  /// é o mesmo da de 2026.
+  versaoId       String? @map("versao_id")
+
+  titulo       String
+  nomeOriginal String  @map("nome_original")
+  /// Caminho relativo dentro da raiz segura. Nunca absoluto, nunca URL.
+  arquivoRef   String  @map("arquivo_ref")
+  mime         String?
+  tamanho      Int?
+  versao       Int     @default(1)
+  observacoes  String? @db.Text
+
+  criadoPorId String?   @map("criado_por_id")
+  deletedAt   DateTime? @map("deleted_at")
+  criadoEm    DateTime  @default(now()) @map("criado_em")
+
+  organization Organization        @relation("OrgComplianceArquivos", fields: [organizationId], references: [id], onDelete: Cascade)
+  obrigacao    ComplianceObrigacao @relation(fields: [obrigacaoId], references: [id], onDelete: Cascade)
+  versaoRef    ComplianceVersao?   @relation(fields: [versaoId], references: [id], onDelete: SetNull)
+
+  @@index([obrigacaoId, deletedAt])
+  @@index([organizationId])
+  @@map("compliance_arquivos")
+}
+
+/// Histórico campo a campo. A trilha global (AuditLog) responde "quem mexeu no
+/// sistema"; esta responde "o que aconteceu com ESTA licença", que é a pergunta
+/// que o auditor faz na frente da tela.
+model ComplianceHistorico {
+  id             String  @id @default(uuid())
+  organizationId String  @map("organization_id")
+  obrigacaoId    String  @map("obrigacao_id")
+  userId         String? @map("user_id")
+
+  /// criou | editou | renovou | protocolou | anexou | removeu_anexo |
+  /// mudou_status | comentou | notificou | aprovou | rejeitou | excluiu
+  acao          String
+  campo         String?
+  valorAnterior String? @db.Text
+  valorNovo     String? @db.Text
+  descricao     String? @db.Text
+  ip            String?
+  /// web | api | sistema — "sistema" é o que a varredura noturna escreve.
+  origem        String  @default("web")
+
+  criadoEm DateTime @default(now()) @map("criado_em")
+
+  organization Organization        @relation("OrgComplianceHistorico", fields: [organizationId], references: [id], onDelete: Cascade)
+  obrigacao    ComplianceObrigacao @relation(fields: [obrigacaoId], references: [id], onDelete: Cascade)
+  user         User?               @relation("ComplianceHistoricoUser", fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([obrigacaoId, criadoEm(sort: Desc)])
+  @@index([organizationId, criadoEm(sort: Desc)])
+  @@map("compliance_historico")
+}
+
+model ComplianceComentario {
+  id             String @id @default(uuid())
+  organizationId String @map("organization_id")
+  obrigacaoId    String @map("obrigacao_id")
+  userId         String @map("user_id")
+  conteudo       String @db.Text
+
+  deletedAt DateTime? @map("deleted_at")
+  criadoEm  DateTime  @default(now()) @map("criado_em")
+
+  organization Organization        @relation("OrgComplianceComentarios", fields: [organizationId], references: [id], onDelete: Cascade)
+  obrigacao    ComplianceObrigacao @relation(fields: [obrigacaoId], references: [id], onDelete: Cascade)
+  user         User                @relation("ComplianceComentarioUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([obrigacaoId, deletedAt])
+  @@map("compliance_comentarios")
+}
+
+model ComplianceFavorito {
+  id             String @id @default(uuid())
+  organizationId String @map("organization_id")
+  obrigacaoId    String @map("obrigacao_id")
+  userId         String @map("user_id")
+
+  criadoEm DateTime @default(now()) @map("criado_em")
+
+  organization Organization        @relation("OrgComplianceFavoritos", fields: [organizationId], references: [id], onDelete: Cascade)
+  obrigacao    ComplianceObrigacao @relation(fields: [obrigacaoId], references: [id], onDelete: Cascade)
+  user         User                @relation("ComplianceFavoritoUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([obrigacaoId, userId])
+  @@index([userId])
+  @@map("compliance_favoritos")
+}
+
+model ComplianceTag {
+  id             String @id @default(uuid())
+  organizationId String @map("organization_id")
+  nome           String
+  cor            String @default("#64748b")
+
+  criadoEm DateTime @default(now()) @map("criado_em")
+
+  organization Organization            @relation("OrgComplianceTags", fields: [organizationId], references: [id], onDelete: Cascade)
+  obrigacoes   ComplianceObrigacaoTag[]
+
+  @@unique([organizationId, nome])
+  @@map("compliance_tags")
+}
+
+model ComplianceObrigacaoTag {
+  obrigacaoId String @map("obrigacao_id")
+  tagId       String @map("tag_id")
+
+  obrigacao ComplianceObrigacao @relation(fields: [obrigacaoId], references: [id], onDelete: Cascade)
+  tag       ComplianceTag       @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([obrigacaoId, tagId])
+  @@index([tagId])
+  @@map("compliance_obrigacao_tags")
+}
+
+// ── Notificação ────────────────────────────────────────────────────────────
+
+/// Régua de avisos. Vale para a organização inteira, para uma categoria ou para
+/// uma obrigação — a mais específica ganha. Sem herança, cadastrar 36 licenças
+/// significaria configurar 36 réguas idênticas na mão.
+model ComplianceAlertaRegra {
+  id             String  @id @default(uuid())
+  organizationId String  @map("organization_id")
+  categoriaId    String? @map("categoria_id")
+  obrigacaoId    String? @map("obrigacao_id")
+
+  nome String @default("Régua padrão")
+
+  /// Data de referência: validade | prazo_interno | prazo_fatal.
+  /// Padrão é o prazo interno — avisar na validade é avisar tarde demais para
+  /// quem precisa protocolar 120 dias antes.
+  baseData String @default("prazo_interno") @map("base_data")
+
+  /// Marcos ANTES da data base, em dias. A especificação pede a régua completa
+  /// (180, 120, 90, 60, 30, 15, 10, 7, 5, 3, 1, 0).
+  diasAntes  Int[] @default([180, 120, 90, 60, 30, 15, 7, 3, 1, 0]) @map("dias_antes")
+  /// Marcos DEPOIS de vencer — a cobrança não pode parar no dia do vencimento.
+  diasDepois Int[] @default([1, 3, 7, 15, 30]) @map("dias_depois")
+
+  /// interno | email | whatsapp | webhook
+  canais        String[] @default(["interno", "email"])
+  /// responsavel | gestor | equipe | administrador
+  destinatarios String[] @default(["responsavel", "gestor"])
+  emailsExtras    String[] @default([]) @map("emails_extras")
+  whatsappsExtras String[] @default([]) @map("whatsapps_extras")
+
+  templateId String? @map("template_id")
+  ativo      Boolean @default(true)
+
+  criadoEm     DateTime @default(now()) @map("criado_em")
+  atualizadoEm DateTime @updatedAt @map("atualizado_em")
+
+  organization Organization         @relation("OrgComplianceRegras", fields: [organizationId], references: [id], onDelete: Cascade)
+  categoria    ComplianceCategoria? @relation(fields: [categoriaId], references: [id], onDelete: Cascade)
+  obrigacao    ComplianceObrigacao? @relation(fields: [obrigacaoId], references: [id], onDelete: Cascade)
+  template     ComplianceTemplate?  @relation(fields: [templateId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, ativo])
+  @@index([categoriaId])
+  @@index([obrigacaoId])
+  @@map("compliance_alerta_regras")
+}
+
+model ComplianceTemplate {
+  id             String  @id @default(uuid())
+  organizationId String  @map("organization_id")
+  nome           String
+  /// interno | email | whatsapp
+  canal          String  @default("email")
+  assunto        String?
+  corpo          String  @db.Text
+  ativo          Boolean @default(true)
+
+  criadoEm     DateTime @default(now()) @map("criado_em")
+  atualizadoEm DateTime @updatedAt @map("atualizado_em")
+
+  organization Organization           @relation("OrgComplianceTemplates", fields: [organizationId], references: [id], onDelete: Cascade)
+  regras       ComplianceAlertaRegra[]
+
+  @@unique([organizationId, nome])
+  @@map("compliance_templates")
+}
+
+/// Escalonamento: ninguém renovou, sobe um degrau.
+model ComplianceEscalonamento {
+  id             String  @id @default(uuid())
+  organizationId String  @map("organization_id")
+  categoriaId    String? @map("categoria_id")
+
+  /// Dias corridos APÓS o prazo interno sem que a obrigação saia do lugar.
+  aposDias Int
+  /// gestor | administrador | usuario | email
+  alvo     String   @default("gestor")
+  userId   String?  @map("user_id")
+  emails   String[] @default([])
+  ordem    Int      @default(0)
+  ativo    Boolean  @default(true)
+
+  criadoEm DateTime @default(now()) @map("criado_em")
+
+  organization Organization         @relation("OrgComplianceEscalonamentos", fields: [organizationId], references: [id], onDelete: Cascade)
+  categoria    ComplianceCategoria? @relation(fields: [categoriaId], references: [id], onDelete: Cascade)
+  user         User?                @relation("ComplianceEscalonamentoUser", fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, ativo])
+  @@map("compliance_escalonamentos")
+}
+
+/// Um envio efetivamente feito.
+///
+/// `chave` é a idempotência do motor: obrigação + marco + canal + destino. Sem
+/// ela, a varredura diária reenviaria o aviso de "faltam 30 dias" todo dia até
+/// vencer, e o destinatário aprenderia a apagar sem ler.
+model ComplianceNotificacaoEnvio {
+  id             String  @id @default(uuid())
+  organizationId String  @map("organization_id")
+  obrigacaoId    String  @map("obrigacao_id")
+  regraId        String? @map("regra_id")
+
+  /// Ex.: "antes:30", "depois:7", "escalonamento:3".
+  marco   String
+  canal   String
+  destino String
+  /// enviado | falhou | ignorado
+  status  String  @default("enviado")
+  erro    String? @db.Text
+
+  chave     String
+  enviadoEm DateTime @default(now()) @map("enviado_em")
+
+  organization Organization        @relation("OrgComplianceEnvios", fields: [organizationId], references: [id], onDelete: Cascade)
+  obrigacao    ComplianceObrigacao @relation(fields: [obrigacaoId], references: [id], onDelete: Cascade)
+
+  @@unique([chave])
+  @@index([obrigacaoId, enviadoEm(sort: Desc)])
+  @@index([organizationId, enviadoEm(sort: Desc)])
+  @@map("compliance_notificacao_envios")
+}
+
+// ── Fluxo e aprovação ──────────────────────────────────────────────────────
+
+/// Fluxo configurável pelo administrador. Uma categoria pode ter o seu; sem
+/// fluxo, a obrigação vai direto para "ativa".
+model ComplianceFluxo {
+  id             String  @id @default(uuid())
+  organizationId String  @map("organization_id")
+  categoriaId    String? @map("categoria_id")
+  nome           String
+  descricao      String?
+  ativo          Boolean @default(true)
+
+  deletedAt DateTime? @map("deleted_at")
+  criadoEm  DateTime  @default(now()) @map("criado_em")
+  atualizadoEm DateTime @updatedAt @map("atualizado_em")
+
+  organization Organization           @relation("OrgComplianceFluxos", fields: [organizationId], references: [id], onDelete: Cascade)
+  etapas       ComplianceFluxoEtapa[]
+
+  @@index([organizationId, deletedAt])
+  @@map("compliance_fluxos")
+}
+
+model ComplianceFluxoEtapa {
+  id             String @id @default(uuid())
+  organizationId String @map("organization_id")
+  fluxoId        String @map("fluxo_id")
+  nome           String
+  ordem          Int    @default(0)
+  /// Papel exigido para aprovar esta etapa (nome do papel do RBAC).
+  papelAprovador String? @map("papel_aprovador")
+  exigeAprovacao Boolean @default(true) @map("exige_aprovacao")
+  /// Status aplicado à obrigação ao ENTRAR nesta etapa.
+  statusAoEntrar String? @map("status_ao_entrar")
+
+  criadoEm DateTime @default(now()) @map("criado_em")
+
+  organization Organization          @relation("OrgComplianceEtapas", fields: [organizationId], references: [id], onDelete: Cascade)
+  fluxo        ComplianceFluxo       @relation(fields: [fluxoId], references: [id], onDelete: Cascade)
+  obrigacoes   ComplianceObrigacao[]
+  aprovacoes   ComplianceAprovacao[]
+
+  @@unique([fluxoId, ordem])
+  @@index([organizationId])
+  @@map("compliance_fluxo_etapas")
+}
+
+model ComplianceAprovacao {
+  id             String @id @default(uuid())
+  organizationId String @map("organization_id")
+  obrigacaoId    String @map("obrigacao_id")
+  etapaId        String @map("etapa_id")
+
+  /// pendente | aprovado | rejeitado
+  decisao       String    @default("pendente")
+  aprovadorId   String?   @map("aprovador_id")
+  motivo        String?   @db.Text
+  decididoEm    DateTime? @map("decidido_em")
+
+  criadoEm DateTime @default(now()) @map("criado_em")
+
+  organization Organization         @relation("OrgComplianceAprovacoes", fields: [organizationId], references: [id], onDelete: Cascade)
+  obrigacao    ComplianceObrigacao  @relation(fields: [obrigacaoId], references: [id], onDelete: Cascade)
+  etapa        ComplianceFluxoEtapa @relation(fields: [etapaId], references: [id], onDelete: Cascade)
+  aprovador    User?                @relation("ComplianceAprovadorUser", fields: [aprovadorId], references: [id], onDelete: SetNull)
+
+  @@index([obrigacaoId, decisao])
+  @@index([organizationId, decisao])
+  @@map("compliance_aprovacoes")
 }

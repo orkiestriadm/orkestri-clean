@@ -71,6 +71,25 @@ export const NAV: NavGroup[] = [
     ],
   },
   {
+    // Orkiestri Compliance — gestão de obrigações. Substitui o controle de
+    // licenças em planilha: prazos derivados das datas, alertas escalonados e
+    // trilha de auditoria. Ver docs/architecture/gestaodeobrigacoes.md.
+    id: "compliance", produto: "Compliance", descritor: "Obrigações", icon: ShieldCheck,
+    items: [
+      { href: "/dashboard/compliance",             label: "Painel",      icon: LayoutDashboard, permission: "compliance.relatorio:ver" },
+      { href: "/dashboard/compliance/obrigacoes",  label: "Obrigações",  icon: ClipboardCheck,  permission: "compliance.obrigacao:ver" },
+      // Sem permissão: é a tela do responsável pela licença, não de quem
+      // administra o módulo. O backend só devolve aquilo em que a pessoa está
+      // nomeada — exigir concessão para ver as próprias pendências inverteria
+      // o controle de acesso.
+      { href: "/dashboard/compliance/minhas",      label: "Minhas",      icon: UserCircle,      permission: null },
+      { href: "/dashboard/compliance/calendario",  label: "Calendário",  icon: CalendarClock,   permission: "compliance.obrigacao:ver" },
+      { href: "/dashboard/compliance/relatorios",  label: "Relatórios",  icon: BarChart3,       permission: "compliance.relatorio:ver" },
+      { href: "/dashboard/compliance/categorias",  label: "Categorias",  icon: Library,         permission: "compliance.categoria:ver" },
+      { href: "/dashboard/compliance/alertas",     label: "Alertas",     icon: Bell,            permission: "compliance.notificacao:ver" },
+    ],
+  },
+  {
     id: "service", produto: "Service", descritor: "Chamados", icon: Headphones,
     items: [
       { href: "/dashboard/catalogo",      label: "Catálogo",     icon: ShoppingBag,  permission: "chamados:criar" },
