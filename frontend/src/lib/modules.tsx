@@ -152,6 +152,7 @@ export const NAV: NavGroup[] = [
     id: "fleet", produto: "Fleet", descritor: "Frotas", icon: Truck,
     items: [
       { href: "/dashboard/frota",                label: "Dashboard",      icon: LayoutDashboard, permission: "frota:ver" },
+      { href: "/dashboard/frota/status",         label: "Farol da Frota", icon: Activity,        permission: "frota:ver" },
       { href: "/dashboard/frota/veiculos",       label: "Veículos",       icon: Truck,           permission: "frota:ver" },
       { href: "/dashboard/frota/motoristas",     label: "Motoristas",     icon: Users,           permission: "frota:ver" },
       { href: "/dashboard/frota/pneus",          label: "Pneus",          icon: Package,         permission: "frota:ver" },
