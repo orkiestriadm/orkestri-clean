@@ -57,7 +57,7 @@ const downloadAnexos = async (id: string) => {
 
 const config: CrudConfig = {
   endpoint: "/frota/manutencoes", tabela: "manutencoes_veiculo", singular: "ordem de serviço", plural: "Manutenções (OS)",
-  defaults: { tipo: "corretiva", status: "aberta" },
+  defaults: { tipo: "corretiva", status: "aberta", imobiliza: true },
   detailHref: r => `/dashboard/frota/manutencoes/${r.id}`,
   filters: [
     { key: "status", label: "Status", options: STATUS_OPTS },
@@ -92,7 +92,12 @@ const config: CrudConfig = {
     { key: "oficina", label: "Oficina" },
     { key: "fornecedor", label: "Fornecedor" },
     { key: "dataAbertura", label: "Data de abertura", type: "date" },
+    { key: "previsaoLiberacao", label: "Previsão de liberação", type: "date" },
     { key: "dataFechamento", label: "Data de fechamento", type: "date" },
+    { key: "localizacao", label: "Localização do veículo", placeholder: "Oficina, base, pátio..." },
+    // O que separa "Parado" (vermelho) de "Operando com Avaria" (amarelo) no
+    // Farol da Frota. Marcado por padrão = comportamento anterior.
+    { key: "imobiliza", label: "Veículo imobilizado (não pode operar)", type: "checkbox" },
     { key: "km", label: "KM", type: "number" },
     { key: "custoPecas", label: "Custo peças (R$)", type: "number", step: 0.01 },
     { key: "custoServicos", label: "Custo serviços (R$)", type: "number", step: 0.01 },
@@ -159,6 +164,19 @@ export default function ManutencoesPage() {
   }, []);
 
   useEffect(() => { load(); }, [load]);
+
+  // Chegando do Farol da Frota com ?os=<id>, abre a OS clicada já em edição.
+  // Lê de `window.location` em vez de useSearchParams para não exigir um
+  // limite de Suspense em volta da página inteira.
+  useEffect(() => {
+    if (!items.length || !canEdit) return;
+    const alvo = new URLSearchParams(window.location.search).get("os");
+    if (!alvo) return;
+    const achado = items.find((m: any) => m.id === alvo);
+    if (achado) setEditing(achado);
+    // Some com o parâmetro: sem isso o modal reabriria a cada recarga da lista.
+    window.history.replaceState({}, "", window.location.pathname);
+  }, [items, canEdit]);
 
   const onSaved = () => { setCreating(false); setEditing(null); load(); showMsg("Registro salvo!"); };
   const remove = async (m: any) => {

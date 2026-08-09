@@ -73,7 +73,7 @@ class CategoriasAtivoController {
   }
 
   @Delete(":id")
-  @Permissions("ativos:deletar")
+  @Permissions("ativos:excluir")
   async remove(@Param("id") id: string) {
     const existing = await this.db.categoriaAtivo.findUnique({ where: { id } });
     if (!existing) throw new NotFoundException("Categoria nao encontrada");
@@ -395,7 +395,7 @@ class AtivosController {
   }
 
   @Patch(":id/transferir")
-  @Permissions("ativos:transferir")
+  @Permissions("ativos:mover")
   async transferir(@Param("id") id: string, @Body() body: { responsavelId?: string; setorId?: string; motivo?: string }, @Req() req: any) {
     const ativo = await this.db.ativo.findUnique({ where: { id } });
     if (!ativo) throw new NotFoundException("Ativo nao encontrado");
@@ -411,7 +411,7 @@ class AtivosController {
   }
 
   @Delete(":id")
-  @Permissions("ativos:deletar")
+  @Permissions("ativos:excluir")
   async remove(@Param("id") id: string) {
     const existing = await this.db.ativo.findUnique({ where: { id } });
     if (!existing) throw new NotFoundException("Ativo nao encontrado");

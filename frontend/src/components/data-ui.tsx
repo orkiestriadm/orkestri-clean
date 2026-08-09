@@ -251,9 +251,19 @@ export function SelectFilter({
 
 /* ── Tabela ───────────────────────────────────────────────── */
 export function TableCard({ children }: { children: ReactNode }) {
+  // Marca quando existe conteúdo escondido à esquerda. Só então as colunas
+  // congeladas ganham sombra — parada no início, a tabela não mostra costura.
+  const [rolou, setRolou] = useState(false);
   return (
     <div className="table-card">
-      <div className="table-scroll-wrapper" style={{ overflowX: "auto" }}>
+      <div
+        className={`table-scroll-wrapper${rolou ? " rolou" : ""}`}
+        style={{ overflowX: "auto" }}
+        onScroll={(e) => {
+          const passou = (e.currentTarget as HTMLDivElement).scrollLeft > 2;
+          setRolou((antes) => (antes === passou ? antes : passou));
+        }}
+      >
         <table className="data-table">{children}</table>
       </div>
     </div>

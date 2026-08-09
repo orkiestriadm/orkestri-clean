@@ -2,6 +2,7 @@
 
 import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
+import { MARCA, APP_DOMINIO } from "@/lib/marca";
 
 function SuspendedContent() {
   const params = useSearchParams();
@@ -37,7 +38,7 @@ function SuspendedContent() {
 
         <p className="text-sm mb-6 leading-relaxed" style={{ color: "var(--text-secondary, #9090b0)" }}>
           {isTrialExpired
-            ? "O período de avaliação gratuita da sua organização chegou ao fim. Para continuar usando o Orkiestri, ative sua assinatura."
+            ? `O período de avaliação gratuita da sua organização chegou ao fim. Para continuar usando o ${MARCA}, ative sua assinatura.`
             : "O acesso da sua organização foi suspenso por inadimplência ou cancelamento. Regularize para voltar a usar a plataforma."}
         </p>
 
@@ -60,7 +61,7 @@ function SuspendedContent() {
           )}
 
           <a
-            href="https://wa.me/5511999999999?text=Preciso%20de%20ajuda%20com%20minha%20assinatura%20Orkiestri"
+            href={`https://wa.me/5511999999999?text=${encodeURIComponent(`Preciso de ajuda com minha assinatura ${MARCA}`)}`}
             target="_blank"
             rel="noopener noreferrer"
             className="w-full flex items-center justify-center gap-2 rounded-xl px-4 py-3 font-medium transition-colors"
@@ -88,7 +89,7 @@ function SuspendedContent() {
 
       {/* Rodapé */}
       <p className="mt-8 text-xs" style={{ color: "var(--text-muted, #60608080)" }}>
-        Orkiestri · orkiestri.com
+        {MARCA} · {APP_DOMINIO}
       </p>
     </div>
   );

@@ -300,7 +300,7 @@ class WebhooksController {
   }
 
   @Delete(":id")
-  @Permissions("automacoes:deletar")
+  @Permissions("automacoes:excluir")
   async remove(@Param("id") id: string) {
     const existing = await this.db.webhook.findUnique({ where: { id } });
     if (!existing) throw new NotFoundException("Webhook não encontrado");

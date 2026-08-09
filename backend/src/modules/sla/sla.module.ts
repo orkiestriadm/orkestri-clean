@@ -49,7 +49,7 @@ class SlaController {
   }
 
   @Post("regras")
-  @Permissions("sla:configurar")
+  @Permissions("sla:gerenciar")
   async createRegra(@Body() body: { nome: string; prioridade: string; categoria?: string; prazoRespostaH: number; prazoResolucaoH: number }, @Req() req: any) {
     if (!body.nome?.trim())          throw new BadRequestException("Nome obrigatorio");
     if (!body.prioridade)            throw new BadRequestException("Prioridade obrigatoria");
@@ -75,7 +75,7 @@ class SlaController {
   }
 
   @Put("regras/:id")
-  @Permissions("sla:configurar")
+  @Permissions("sla:gerenciar")
   async updateRegra(@Param("id") id: string, @Body() body: any) {
     const existing = await this.db.slaRegra.findUnique({ where: { id } });
     if (!existing) throw new NotFoundException("Regra nao encontrada");
@@ -91,7 +91,7 @@ class SlaController {
   }
 
   @Delete("regras/:id")
-  @Permissions("sla:configurar")
+  @Permissions("sla:gerenciar")
   async deleteRegra(@Param("id") id: string) {
     const existing = await this.db.slaRegra.findUnique({ where: { id } });
     if (!existing) throw new NotFoundException("Regra nao encontrada");
@@ -233,7 +233,7 @@ class SlaController {
   // ── Recalcular SLA para chamados abertos ────────────────────────────────────
 
   @Post("recalcular")
-  @Permissions("sla:configurar")
+  @Permissions("sla:gerenciar")
   async recalcular(@Req() req: any) {
     if (!req.user.isMaster) throw new ForbiddenException("Apenas masters podem recalcular SLA");
 

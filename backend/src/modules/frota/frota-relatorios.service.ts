@@ -2,6 +2,10 @@ import { Injectable, BadRequestException, Logger } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
 import { EmailService } from "../notifications/email.service";
 import { janelaManutencao, janelaRevisao } from "./frota-datas";
+import {
+  farolDoVeiculo, osDeterminante, osEstaAberta, contarFarois,
+  FAROL_LABELS, FarolOperacional, foraDaFrota,
+} from "./frota-status";
 
 /** Teto de linhas devolvidas por relatório. Acima disso a resposta vem marcada
  *  com `truncado: true` para a tela avisar o usuário em vez de mentir. */
@@ -256,15 +260,35 @@ export class FrotaRelatoriosService {
     if (q.tipo) where.tipo = q.tipo;
     if (q.pneuId) where.pneuId = q.pneuId;
 
+    // `PneuEvento` guarda `veiculoId` como coluna solta — NÃO existe relação
+    // `veiculo` no schema. O `include: { veiculo }` que estava aqui era inválido
+    // e derrubava o relatório com erro do Prisma (500) em 100% das chamadas:
+    // este relatório nunca funcionou.
+    //
+    // A correção é feita na consulta, e não no schema, de propósito: declarar a
+    // relação criaria uma FOREIGN KEY nova, e a base de produção tem histórico
+    // de linhas com FK quebrada. Um relatório não justifica esse risco.
     const rows = await this.db.pneuEvento.findMany({
       where,
       include: {
         pneu: { select: { id: true, numeroFogo: true, codigo: true, marca: true, modelo: true } },
-        veiculo: { select: { id: true, placa: true } },
       },
       orderBy: { data: "desc" },
       take: MAX_LINHAS + 1,
     });
+
+    // Uma consulta só para todos os veículos citados, anexada em memória.
+    const veiculoIds = [...new Set(rows.map((r: any) => r.veiculoId).filter(Boolean))];
+    if (veiculoIds.length) {
+      const veics = await this.db.veiculo.findMany({
+        where: { id: { in: veiculoIds } },
+        select: { id: true, placa: true },
+      });
+      const porId = new Map(veics.map((v: any) => [v.id, v]));
+      for (const r of rows) r.veiculo = r.veiculoId ? porId.get(r.veiculoId) || null : null;
+    } else {
+      for (const r of rows) r.veiculo = null;
+    }
 
     const cut = await this.limitar(rows, () => this.db.pneuEvento.count({ where }));
     return {
@@ -381,12 +405,15 @@ export class FrotaRelatoriosService {
 
     const veiculos = await this.db.veiculo.findMany({
       where: { organizationId: orgId, deletedAt: null },
-      select: { id: true, placa: true, modelo: true, status: true },
+      select: { id: true, placa: true, modelo: true, identificacao: true, status: true },
       orderBy: { placa: "asc" },
     });
 
     if (!veiculos.length) {
-      return { linhas: [], truncado: false, totalLinhas: 0, totais: { total: 0, ativos: 0, indisponiveis: 0, dispMedia: 100 } };
+      return {
+        linhas: [], truncado: false, totalLinhas: 0,
+        totais: { total: 0, ativos: 0, indisponiveis: 0, dispMedia: 100, ...contarFarois([]) },
+      };
     }
 
     // Filtro largo no banco; o recorte fino é feito em memória porque a data de
@@ -407,6 +434,8 @@ export class FrotaRelatoriosService {
         dataAbertura: true,
         dataFechamento: true,
         criadoEm: true,
+        imobiliza: true,
+        status: true,
       }
     });
 
@@ -416,6 +445,10 @@ export class FrotaRelatoriosService {
     // Intervalos de parada por veículo, já recortados na janela do relatório.
     const porVeiculo = new Map<string, Array<[number, number]>>();
     for (const m of manutencoes) {
+      // Só OS imobilizante conta como indisponibilidade. Antes, qualquer OS
+      // aberta derrubava a disponibilidade — inclusive a que registra um banco
+      // rasgado num caminhão que segue rodando todo dia.
+      if (m.imobiliza === false) continue;
       const inicioRaw = m.dataAbertura || m.data || m.criadoEm;
       if (!inicioRaw) continue;
       const ab = new Date(inicioRaw).getTime();
@@ -453,7 +486,7 @@ export class FrotaRelatoriosService {
       const dispPct = totalPeriodDays ? Math.max(0, Math.min(100, Math.round((activeDays / totalPeriodDays) * 100))) : 100;
 
       return {
-        veiculo: { id: v.id, placa: v.placa, modelo: v.modelo },
+        veiculo: { id: v.id, placa: v.placa, modelo: v.modelo, identificacao: v.identificacao },
         diasTotais: totalPeriodDays,
         diasParado: downtimeDays,
         diasAtivo: activeDays,
@@ -464,16 +497,298 @@ export class FrotaRelatoriosService {
 
     const dispMedia = Math.round(linhas.reduce((s: number, l: any) => s + l.disponibilidade, 0) / linhas.length);
 
+    // Farol de AGORA junto do acumulado do período: a mesma tela responde
+    // "como foi o mês" e "como está a frota neste momento".
+    const abertasAgora = await this.db.manutencaoVeiculo.findMany({
+      where: { organizationId: orgId, deletedAt: null, dataFechamento: null },
+      select: { veiculoId: true, status: true, imobiliza: true },
+    });
+    const porVeiculoAgora = new Map<string, any[]>();
+    for (const os of abertasAgora) {
+      if (!osEstaAberta(os)) continue;
+      if (!porVeiculoAgora.has(os.veiculoId)) porVeiculoAgora.set(os.veiculoId, []);
+      porVeiculoAgora.get(os.veiculoId)!.push(os);
+    }
+    // Mesma escada de precedência do Farol da Frota, incluindo revisão vencida —
+    // as duas telas não podem discordar sobre quantos veículos estão em atenção.
+    const revisaoAtrasada = await this.veiculosComRevisaoAtrasada(orgId, veiculos.map((v: any) => v.id));
+    const farois = veiculos.map((v: any) =>
+      farolDoVeiculo(v, porVeiculoAgora.get(v.id) || [], { revisaoAtrasada: revisaoAtrasada.has(v.id) }).farol);
+
     const cut = await this.limitar(linhas);
     return {
       ...cut,
       totais: {
         total: veiculos.length,
-        ativos: veiculos.filter((v: any) => v.status === "ativo").length,
+        // `operando_com_avaria` é um veículo em operação: ele roda. Contá-lo
+        // fora de "ativos" faria o KPI cair assim que alguém registrasse a
+        // primeira avaria, dando a impressão de frota encolhendo.
+        ativos: veiculos.filter((v: any) => v.status === "ativo" || v.status === "operando_com_avaria").length,
         indisponiveis: veiculos.filter((v: any) => v.status === "manutencao").length,
         dispMedia,
+        ...contarFarois(farois),
       }
     };
+  }
+
+  /**
+   * Veículos com revisão vencida — o sinal que já existe no banco e acende o
+   * farol sem depender de ninguém digitar nada.
+   *
+   * Duas fontes, porque o status do registro não é confiável sozinho: existe
+   * quem tenha sido marcado `atrasada` na mão, e existe `agendada` cuja data
+   * simplesmente passou sem ninguém reclassificar. Medido em homologação
+   * (04/08/2026): 9 do primeiro caso, 12 do segundo, 21 veículos distintos.
+   */
+  private async veiculosComRevisaoAtrasada(orgId: string, veiculoIds: string[]): Promise<Set<string>> {
+    if (!veiculoIds.length) return new Set();
+    const hoje = this.diaLocal(new Date().toISOString().slice(0, 10));
+    const rows = await this.db.revisaoVeiculo.findMany({
+      where: {
+        organizationId: orgId,
+        deletedAt: null,
+        veiculoId: { in: veiculoIds },
+        OR: [
+          { status: "atrasada" },
+          { status: "agendada", dataPrevista: { lt: hoje } },
+        ],
+      },
+      select: { veiculoId: true },
+      distinct: ["veiculoId"],
+    });
+    return new Set(rows.map((r: any) => r.veiculoId));
+  }
+
+  /**
+   * Status operacional da frota — o equivalente da aba "Controle" da planilha
+   * FORFT_0005, com uma linha por veículo e o farol derivado das OS abertas.
+   *
+   * Diferente dos demais relatórios, este é uma FOTO do agora: não recebe
+   * período. Quem quiser a evolução no tempo usa `historicoDisponibilidade`.
+   */
+  async statusFrota(orgId: string, q: any) {
+    const where: any = { organizationId: orgId, deletedAt: null };
+    if (q.tipo) where.tipo = q.tipo;
+    if (q.setorId) where.setorId = q.setorId;
+    if (q.unidade) where.unidade = q.unidade;
+    if (q.veiculoId) where.id = q.veiculoId;
+
+    const veiculos = await this.db.veiculo.findMany({
+      where,
+      select: {
+        id: true, placa: true, codigo: true, identificacao: true,
+        marca: true, modelo: true, status: true, unidade: true, tipo: true,
+        setor: { select: { id: true, nome: true, cor: true } },
+      },
+      orderBy: { placa: "asc" },
+    });
+
+    if (!veiculos.length) {
+      return {
+        linhas: [], truncado: false, totalLinhas: 0,
+        totais: contarFarois([]),
+      };
+    }
+
+    // Uma consulta só para todas as OS abertas da org — evita N+1 numa tela que
+    // carrega a frota inteira. O filtro de status fica em memória porque a lista
+    // de "encerradas" é definida em frota-status.ts (fonte única).
+    const osAbertas = await this.db.manutencaoVeiculo.findMany({
+      where: {
+        organizationId: orgId,
+        deletedAt: null,
+        veiculoId: { in: veiculos.map((v: any) => v.id) },
+      },
+      select: {
+        id: true, veiculoId: true, numeroOs: true, tipo: true, status: true,
+        descricao: true, imobiliza: true, localizacao: true, oficina: true,
+        fornecedor: true, observacoes: true, dataAbertura: true, data: true,
+        previsaoLiberacao: true, dataFechamento: true, criadoEm: true,
+      },
+    });
+
+    const porVeiculo = new Map<string, any[]>();
+    for (const os of osAbertas) {
+      if (!osEstaAberta(os)) continue;
+      if (!porVeiculo.has(os.veiculoId)) porVeiculo.set(os.veiculoId, []);
+      porVeiculo.get(os.veiculoId)!.push(os);
+    }
+
+    const comRevisaoAtrasada = await this.veiculosComRevisaoAtrasada(orgId, veiculos.map((v: any) => v.id));
+
+    const agora = Date.now();
+    const linhas = veiculos.map((v: any) => {
+      const abertas = porVeiculo.get(v.id) || [];
+      const { farol, motivo, origem } = farolDoVeiculo(v, abertas, {
+        revisaoAtrasada: comRevisaoAtrasada.has(v.id),
+      });
+      const os = osDeterminante(abertas);
+      const inicio = os ? (os.dataAbertura || os.data || os.criadoEm) : null;
+
+      return {
+        veiculo: {
+          id: v.id, placa: v.placa, codigo: v.codigo,
+          identificacao: v.identificacao, marca: v.marca, modelo: v.modelo,
+          unidade: v.unidade, tipo: v.tipo, statusCadastro: v.status,
+        },
+        setor: v.setor?.nome || "",
+        farol,
+        // O amarelo tem três origens (OS, cadastro, revisão) — sem dizer qual
+        // acendeu, a tela não diz ao usuário o que fazer.
+        motivoFarol: motivo,
+        origemFarol: origem,
+        statusOperacional: FAROL_LABELS[farol as FarolOperacional],
+        // Quantas frentes abertas o veículo tem — um caminhão com 6 avarias
+        // acumuladas não é o mesmo caso de um com 1, e a planilha empilhava
+        // tudo numa célula de texto.
+        osAbertas: abertas.length,
+        osImobilizantes: abertas.filter((o: any) => o.imobiliza !== false).length,
+        // O id (nao o numero) e o que permite abrir a OS direto da grade.
+        manutencaoId: os?.id || null,
+        numeroOs: os?.numeroOs || "",
+        tipoManutencao: os?.tipo || "",
+        dataBaixa: inicio || null,
+        // Dias parado só faz sentido para quem está parado; para o veículo com
+        // avaria isso seria "dias convivendo com o defeito" e confundiria a
+        // leitura da coluna.
+        diasParado: farol === "parado" && inicio
+          ? Math.max(0, Math.floor((agora - new Date(inicio).getTime()) / 86400000))
+          : null,
+        previsaoLiberacao: os?.previsaoLiberacao || null,
+        dataLiberacao: os?.dataFechamento || null,
+        // Previsão estourada é o alerta que a planilha não dava: a data ficava
+        // lá, vencida, sem ninguém notar.
+        previsaoAtrasada: !!(os?.previsaoLiberacao && !os?.dataFechamento
+          && new Date(os.previsaoLiberacao).getTime() < agora),
+        localizacao: os?.localizacao || "",
+        problema: os?.descricao || "",
+        prestador: os?.oficina || os?.fornecedor || "",
+        observacao: os?.observacoes || "",
+      };
+    });
+
+    // Parados primeiro, depois avarias, depois o resto: quem abre a tela quer
+    // ver o problema, não a ordem alfabética.
+    const peso: Record<string, number> = { parado: 0, operando_com_avaria: 1, operando: 2, fora_de_operacao: 3 };
+    linhas.sort((a: any, b: any) => {
+      const d = peso[a.farol] - peso[b.farol];
+      if (d !== 0) return d;
+      if (a.farol === "parado") return (b.diasParado || 0) - (a.diasParado || 0);
+      return String(a.veiculo.placa).localeCompare(String(b.veiculo.placa));
+    });
+
+    const cut = await this.limitar(linhas);
+    return { ...cut, totais: contarFarois(linhas.map((l: any) => l.farol)) };
+  }
+
+  /**
+   * Série diária de disponibilidade — o que a planilha só conseguia empilhando
+   * um snapshot da frota inteira por dia (12.374 linhas para 130 dias).
+   *
+   * Reconstrói, para cada dia do período, quantos veículos estavam parados /
+   * com avaria / operando, a partir das janelas [início, fim] das OS. Veículo
+   * fora da frota (vendido/inativo) não entra no denominador.
+   *
+   * Limitação assumida e explícita: usa o cadastro ATUAL do veículo. Um veículo
+   * vendido mês passado não aparece na série de três meses atrás, quando ainda
+   * rodava. Guardar isso exigiria versionar o cadastro; para a pergunta que a
+   * tela responde ("como a frota de hoje vem se comportando") o efeito é
+   * pequeno e o custo seria alto.
+   */
+  async historicoDisponibilidade(orgId: string, q: any) {
+    const to = q.to ? this.diaLocal(q.to, true) : this.diaLocal(new Date().toISOString().slice(0, 10), true);
+    const from = q.from
+      ? this.diaLocal(q.from)
+      : this.diaLocal(new Date(Date.now() - 89 * 86400000).toISOString().slice(0, 10));
+
+    if (from.getTime() > to.getTime()) throw new BadRequestException("Período inválido");
+
+    // Teto de 366 pontos: a série vira gráfico, e acima disso ela deixa de ser
+    // legível antes de ficar cara.
+    const dias = Math.min(366, Math.floor((to.getTime() - from.getTime()) / 86400000) + 1);
+
+    const vehWhere: any = { organizationId: orgId, deletedAt: null };
+    if (q.tipo) vehWhere.tipo = q.tipo;
+    if (q.setorId) vehWhere.setorId = q.setorId;
+    if (q.unidade) vehWhere.unidade = q.unidade;
+
+    const veiculos = await this.db.veiculo.findMany({
+      where: vehWhere,
+      select: { id: true, status: true },
+    });
+    const naFrota = veiculos.filter((v: any) => !foraDaFrota(v));
+    if (!naFrota.length) return { pontos: [], totalVeiculos: 0 };
+
+    const ids = new Set(naFrota.map((v: any) => v.id));
+
+    // Só OS que tocam a janela: fechadas depois do início, ou ainda abertas.
+    const os = await this.db.manutencaoVeiculo.findMany({
+      where: {
+        organizationId: orgId,
+        deletedAt: null,
+        veiculoId: { in: naFrota.map((v: any) => v.id) },
+        OR: [{ dataFechamento: null }, { dataFechamento: { gte: from } }],
+      },
+      select: {
+        veiculoId: true, status: true, imobiliza: true,
+        dataAbertura: true, data: true, dataFechamento: true, criadoEm: true,
+      },
+    });
+
+    const agora = Date.now();
+    // Pré-computa as janelas uma vez; o laço por dia só compara números.
+    const janelas = os
+      .filter((o: any) => ids.has(o.veiculoId))
+      .map((o: any) => {
+        const iniRaw = o.dataAbertura || o.data || o.criadoEm;
+        if (!iniRaw) return null;
+        const fim = o.dataFechamento
+          ? new Date(o.dataFechamento).getTime()
+          : (osEstaAberta(o) ? Number.MAX_SAFE_INTEGER : new Date(o.criadoEm).getTime());
+        return {
+          veiculoId: o.veiculoId,
+          ini: new Date(iniRaw).getTime(),
+          fim,
+          imobiliza: o.imobiliza !== false,
+        };
+      })
+      .filter(Boolean) as Array<{ veiculoId: string; ini: number; fim: number; imobiliza: boolean }>;
+
+    const pontos: any[] = [];
+    for (let i = 0; i < dias; i++) {
+      const dia = new Date(from.getTime() + i * 86400000);
+      dia.setHours(23, 59, 59, 999);
+      const t = Math.min(dia.getTime(), agora);
+      if (t < from.getTime()) continue;
+
+      const parados = new Set<string>();
+      const comAvaria = new Set<string>();
+      for (const j of janelas) {
+        if (j.ini > t || j.fim < t) continue;
+        if (j.imobiliza) parados.add(j.veiculoId);
+        else comAvaria.add(j.veiculoId);
+      }
+      // Um veículo imobilizado e com avaria ao mesmo tempo conta uma vez só,
+      // como parado — senão o total do dia estoura o tamanho da frota.
+      for (const id of parados) comAvaria.delete(id);
+
+      const total = naFrota.length;
+      const parado = parados.size;
+      const avaria = comAvaria.size;
+      const operando = total - parado - avaria;
+
+      pontos.push({
+        data: new Date(from.getTime() + i * 86400000).toISOString().slice(0, 10),
+        operando,
+        operandoComAvaria: avaria,
+        parado,
+        total,
+        percRodando: total ? Math.round(((operando + avaria) / total) * 1000) / 10 : 0,
+        percParados: total ? Math.round((parado / total) * 1000) / 10 : 0,
+      });
+    }
+
+    return { pontos, totalVeiculos: naFrota.length };
   }
 
   // ── Definição única das colunas de cada relatório ────────────────────────────
@@ -599,6 +914,29 @@ export class FrotaRelatoriosService {
         { header: "Custo Total", get: l => num(l.custoTotal) },
       ],
     },
+    "status-frota": {
+      titulo: "Controle de Manutenções Corretivas - Status da Frota",
+      // Ordem espelhando a planilha FORFT_0005 para que quem usa as duas
+      // consiga conferir uma contra a outra linha a linha.
+      cols: [
+        { header: "Status", get: l => l.statusOperacional },
+        { header: "Motivo", get: l => (l.origemFarol && l.origemFarol !== "nenhuma" ? l.motivoFarol : "") },
+        { header: "Placa", get: l => l.veiculo?.placa || "" },
+        { header: "Modelo", get: l => [l.veiculo?.marca, l.veiculo?.modelo].filter(Boolean).join(" ") },
+        { header: "Identificação", get: l => l.veiculo?.identificacao || "" },
+        { header: "Setor", get: l => l.setor || "" },
+        { header: "OS", get: l => l.numeroOs || "" },
+        { header: "Dt baixa", get: l => fmtData(l.dataBaixa) },
+        { header: "Dias parado", get: l => (l.diasParado == null ? "" : num(l.diasParado)) },
+        { header: "Prev liberação", get: l => fmtData(l.previsaoLiberacao) },
+        { header: "Dt liberação", get: l => fmtData(l.dataLiberacao) },
+        { header: "Localização", get: l => l.localizacao || "" },
+        { header: "Tipo Manut", get: l => l.tipoManutencao || "" },
+        { header: "Problema", get: l => l.problema || "" },
+        { header: "Prestador de serviço", get: l => l.prestador || "" },
+        { header: "Observação", get: l => l.observacao || "" },
+      ],
+    },
     disponibilidade: {
       titulo: "Relatório de Disponibilidade de Frota",
       cols: [
@@ -625,6 +963,7 @@ export class FrotaRelatoriosService {
       case "abastecimentos": return this.abastecimentos(orgId, f);
       case "custos": return this.custos(orgId, f.from, f.to, f.veiculoId);
       case "disponibilidade": return this.disponibilidade(orgId, f);
+      case "status-frota": return this.statusFrota(orgId, f);
       default: throw new BadRequestException("tipoRelatorio inválido");
     }
   }

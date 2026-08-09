@@ -6,6 +6,7 @@ import * as OTPAuth from "otpauth";
 import * as QRCode from "qrcode";
 import { randomBytes } from "crypto";
 import * as bcryptjs from "bcryptjs";
+import { MARCA } from "../../common/marca";
 
 class VerifyTotpDto { @IsString() token: string; }
 class DisableTotpDto { @IsString() senha: string; }
@@ -26,7 +27,7 @@ class TwoFAController {
 
     // Gera novo secret TOTP
     const totp = new OTPAuth.TOTP({
-      issuer: "Orkestri",
+      issuer: MARCA,
       label: user.email,
       algorithm: "SHA1",
       digits: 6,
@@ -57,7 +58,7 @@ class TwoFAController {
     if (!profile?.twoFactorSecret) throw new BadRequestException("Configure o 2FA primeiro");
 
     const totp = new OTPAuth.TOTP({
-      issuer: "Orkestri",
+      issuer: MARCA,
       label: req.user.email,
       algorithm: "SHA1",
       digits: 6,
@@ -122,7 +123,7 @@ class TwoFAController {
 
     // Tenta codigo TOTP
     const totp = new OTPAuth.TOTP({
-      issuer: "Orkestri",
+      issuer: MARCA,
       label: req.user.email,
       algorithm: "SHA1",
       digits: 6,

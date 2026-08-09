@@ -55,7 +55,8 @@ type ReportType =
   | "manutencoes"
   | "custos"
   | "abastecimentos"
-  | "disponibilidade";
+  | "disponibilidade"
+  | "status-frota";
 
 interface ReportConfig {
   id: ReportType;
@@ -146,6 +147,15 @@ const REPORTS_CONFIG: ReportConfig[] = [
     icon: Activity,
     endpoint: "/frota/relatorios/disponibilidade",
     filters: ["date"]
+  },
+  {
+    id: "status-frota",
+    title: "Status da Frota (Farol)",
+    // Foto do agora: não aceita filtro de período, ao contrário dos demais.
+    description: "Situação atual de cada veículo — operando, com avaria ou parado, com o motivo da parada.",
+    icon: Activity,
+    endpoint: "/frota/relatorios/status-frota",
+    filters: []
   }
 ];
 
@@ -363,6 +373,37 @@ const REPORT_COLUMNS: Record<ReportType, Col[]> = {
         l.statusAtual === "manutencao" ? "bg-amber-500/10 text-amber-400" : NEUTRO
       )
     },
+  ],
+  "status-frota": [
+    {
+      header: "Status", get: l => l.statusOperacional,
+      cell: l => badge(
+        l.statusOperacional,
+        l.farol === "operando" ? "bg-emerald-500/10 text-emerald-400" :
+        l.farol === "operando_com_avaria" ? "bg-amber-500/10 text-amber-400" :
+        l.farol === "parado" ? "bg-red-500/10 text-red-400" : NEUTRO
+      )
+    },
+    { header: "Motivo", get: l => (l.origemFarol && l.origemFarol !== "nenhuma" ? l.motivoFarol : "") },
+    colVeiculoPlaca(l => l.veiculo),
+    { header: "Identificação", get: l => l.veiculo?.identificacao || "" },
+    { header: "Modelo", get: l => [l.veiculo?.marca, l.veiculo?.modelo].filter(Boolean).join(" ") },
+    { header: "Setor", get: l => l.setor || "" },
+    { header: "Dt Baixa", get: l => l.dataBaixa, cell: l => fmtData(l.dataBaixa) },
+    {
+      header: "Dias Parado", get: l => Number(l.diasParado || 0), align: "right",
+      cell: l => (l.diasParado == null ? "—" : <span className="text-amber-500">{fmtNum(l.diasParado)} d</span>)
+    },
+    {
+      header: "Prev. Liberação", get: l => l.previsaoLiberacao,
+      cell: l => (l.previsaoLiberacao
+        ? <span className={l.previsaoAtrasada ? "font-bold text-red-400" : ""}>{fmtData(l.previsaoLiberacao)}</span>
+        : "—")
+    },
+    { header: "Localização", get: l => l.localizacao || "" },
+    { header: "Tipo Manut.", get: l => l.tipoManutencao || "" },
+    { header: "Problema", get: l => l.problema || "" },
+    { header: "Prestador", get: l => l.prestador || "" },
   ],
 };
 
@@ -770,6 +811,45 @@ export default function FrotaRelatoriosPage() {
                   />
                 ))}
               </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      );
+    }
+
+    if (activeReport === "status-frota") {
+      // Distribuição do farol por setor: mostra ONDE a frota está parada, que é
+      // a pergunta seguinte depois de "quantos estão parados".
+      const porSetor = new Map<string, any>();
+      for (const l of data) {
+        const s = l.setor || "Sem setor";
+        if (!porSetor.has(s)) porSetor.set(s, { setor: s, operando: 0, operandoComAvaria: 0, parado: 0 });
+        const alvo = porSetor.get(s);
+        if (l.farol === "operando") alvo.operando++;
+        else if (l.farol === "operando_com_avaria") alvo.operandoComAvaria++;
+        else if (l.farol === "parado") alvo.parado++;
+      }
+      const chartData = [...porSetor.values()]
+        .sort((a, b) => (b.parado + b.operandoComAvaria) - (a.parado + a.operandoComAvaria))
+        .slice(0, 10);
+      return (
+        <div style={{ height: CHART_H, width: "100%", minWidth: 0 }} className="mt-4">
+          <ResponsiveContainer width="100%" height={CHART_H}>
+            <BarChart data={chartData}>
+              <CartesianGrid strokeDasharray="3 3" opacity={0.15} vertical={false} />
+              <XAxis dataKey="setor" stroke="var(--text-muted)" fontSize={11} interval={0} angle={-18} textAnchor="end" height={60} />
+              <YAxis allowDecimals={false} stroke="var(--text-muted)" fontSize={11} />
+              <Tooltip
+                contentStyle={tooltipStyle}
+                formatter={(v: any, n: string) => [v, ({ operando: "Operando", operandoComAvaria: "Com avaria", parado: "Parado" } as any)[n] || n]}
+              />
+              <Legend
+                wrapperStyle={{ fontSize: 11 }}
+                formatter={(n) => ({ operando: "Operando", operandoComAvaria: "Com avaria", parado: "Parado" } as any)[n] || n}
+              />
+              <Bar dataKey="operando" stackId="f" fill="var(--accent-green)" />
+              <Bar dataKey="operandoComAvaria" stackId="f" fill="var(--accent-amber)" />
+              <Bar dataKey="parado" stackId="f" fill="var(--accent-red)" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -1357,6 +1437,34 @@ export default function FrotaRelatoriosPage() {
                         <div className="card-premium" style={{ padding: 16 }}>
                           <div className="text-[10px] font-mono text-[var(--text-muted)]">INDISPONÍVEIS (OS)</div>
                           <div className="text-xl font-bold mt-1 text-amber-500">{fmtNum(reportData.totais.indisponiveis)} veíc.</div>
+                        </div>
+                      </div>
+                    </>
+                  )}
+
+                  {activeReport === "status-frota" && (
+                    <>
+                      <div className="card-premium" style={{ padding: 16 }}>
+                        <div className="text-[10px] font-mono text-[var(--text-muted)]">FROTA RODANDO</div>
+                        <div className="text-3xl font-extrabold mt-1 text-emerald-400">
+                          {fmtNum(reportData.totais.percRodando, 1)}%
+                        </div>
+                        <div className="text-[10px] text-[var(--text-muted)] mt-1">
+                          sobre {fmtNum(reportData.totais.totalFrota)} veículos em operação
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-3 gap-3">
+                        <div className="card-premium" style={{ padding: 14 }}>
+                          <div className="text-[10px] font-mono text-[var(--text-muted)]">OPERANDO</div>
+                          <div className="text-xl font-bold mt-1 text-emerald-400">{fmtNum(reportData.totais.operando)}</div>
+                        </div>
+                        <div className="card-premium" style={{ padding: 14 }}>
+                          <div className="text-[10px] font-mono text-[var(--text-muted)]">C/ AVARIA</div>
+                          <div className="text-xl font-bold mt-1 text-amber-400">{fmtNum(reportData.totais.operandoComAvaria)}</div>
+                        </div>
+                        <div className="card-premium" style={{ padding: 14 }}>
+                          <div className="text-[10px] font-mono text-[var(--text-muted)]">PARADOS</div>
+                          <div className="text-xl font-bold mt-1 text-red-400">{fmtNum(reportData.totais.parado)}</div>
                         </div>
                       </div>
                     </>

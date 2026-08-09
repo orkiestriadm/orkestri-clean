@@ -6,6 +6,7 @@ import { useAuthStore } from "@/lib/store";
 import { authApi } from "@/lib/api";
 import { Eye, EyeOff, ArrowRight, Loader2, ShieldCheck, Cloud, Sparkles, Network } from "lucide-react";
 import { BrandLogo } from "@/components/ui/logo";
+import { MARCA } from "@/lib/marca";
 
 const pilares = [
   { icon: ShieldCheck, label: "Segurança", text: "MFA, criptografia e auditoria" },
@@ -105,7 +106,7 @@ export default function LoginPage() {
         </div>
 
         <p className="text-[13px] text-white/30">
-          &copy; {new Date().getFullYear()} Orkiestri — Enterprise Software Company
+          &copy; {new Date().getFullYear()} {MARCA} — Enterprise Software Company
         </p>
       </aside>
 
@@ -231,7 +232,7 @@ export default function LoginPage() {
           </p>
 
           <p className="mt-8 text-center text-[12px] text-white/25 lg:hidden">
-            &copy; {new Date().getFullYear()} Orkiestri
+            &copy; {new Date().getFullYear()} {MARCA}
           </p>
         </div>
       </main>

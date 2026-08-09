@@ -9,6 +9,7 @@ import { ConfigService } from "@nestjs/config";
 import { PrismaService } from "../../prisma/prisma.service";
 import { WhatsAppService } from "../notifications/whatsapp.service";
 import { NotificationsModule } from "../notifications/notifications.module";
+import { NotificacaoDispatcher } from "../notifications/notificacao-dispatcher.service";
 import { AutomacaoService } from "../automacoes/automacoes.module";
 import { AutomacoesModule } from "../automacoes/automacoes.module";
 
@@ -64,6 +65,7 @@ export class WorkflowsService {
     private prisma: PrismaService,
     private config: ConfigService,
     private wa: WhatsAppService,
+    private dispatcher: NotificacaoDispatcher,
     private automacao: AutomacaoService,
   ) {}
 
@@ -106,7 +108,7 @@ export class WorkflowsService {
       `*De:* ${solicitanteNome}\n` +
       `*Assunto:* ${titulo}${valorTxt}\n\n` +
       `Acesse para aprovar:\n${this.appUrl}/dashboard/aprovacoes`;
-    this.wa.sendMessageForOrg(orgId, phone, msg).catch(() => {});
+    this.dispatcher.enfileirarDireto({ organizationId: orgId, canal: "whatsapp", destino: phone, modulo: "approvals", tipo: "workflow", titulo: "Workflow", mensagem: msg }).catch(() => {});
   }
 
   /**
@@ -382,7 +384,7 @@ export class WorkflowsService {
     const phone = await this.getUserPhone(dto.novoAprovadorId);
     if (phone) {
       const msg = `*Aprovação delegada para você*\n\n*Solicitação:* ${r.titulo}\n*De:* ${r.solicitante?.nome || "?"}\n*Delegado por:* ${user.nome || "?"}\n\n${this.appUrl}/dashboard/aprovacoes`;
-      this.wa.sendMessageForOrg(user.organizationId, phone, msg).catch(() => {});
+      this.dispatcher.enfileirarDireto({ organizationId: user.organizationId, canal: "whatsapp", destino: phone, modulo: "approvals", tipo: "workflow", titulo: "Workflow", mensagem: msg }).catch(() => {});
     }
     return updated;
   }
@@ -412,7 +414,7 @@ export class WorkflowsService {
     const phone = await this.getUserPhone(r.solicitanteId);
     if (phone) {
       const msg = `*Ajustes solicitados na sua solicitação*\n\n*Solicitação:* ${r.titulo}\n*Mensagem:* ${dto.mensagem}\n\n${this.appUrl}/dashboard/aprovacoes`;
-      this.wa.sendMessageForOrg(user.organizationId, phone, msg).catch(() => {});
+      this.dispatcher.enfileirarDireto({ organizationId: user.organizationId, canal: "whatsapp", destino: phone, modulo: "approvals", tipo: "workflow", titulo: "Workflow", mensagem: msg }).catch(() => {});
     }
     return this.findOne(id, user);
   }
@@ -446,7 +448,7 @@ export class WorkflowsService {
         `*De:* ${r.solicitante?.nome || "Usuario"}\n` +
         `*Assunto:* ${r.titulo}${valorTxt}\n\n` +
         `${this.appUrl}/dashboard/aprovacoes`;
-      this.wa.sendMessageForOrg(r.organizationId, phone, msg).catch(() => {});
+      this.dispatcher.enfileirarDireto({ organizationId: r.organizationId, canal: "whatsapp", destino: phone, modulo: "approvals", tipo: "workflow", titulo: "Workflow", mensagem: msg }).catch(() => {});
     }
     await (this.prisma as any).workflowRequest.update({
       where: { id: r.id },
@@ -527,7 +529,7 @@ export class WorkflowsService {
         `*De:* ${r.solicitante?.nome || "Usuario"}\n` +
         `*Assunto:* ${r.titulo}${valorTxt}\n\n` +
         `${this.appUrl}/dashboard/aprovacoes`;
-      this.wa.sendMessageForOrg(orgId, phone, msg).catch(() => {});
+      this.dispatcher.enfileirarDireto({ organizationId: orgId, canal: "whatsapp", destino: phone, modulo: "approvals", tipo: "workflow", titulo: "Workflow", mensagem: msg }).catch(() => {});
     }
     await this.notify(r.solicitanteId, "workflow_escalado",
       "Sua solicitacao foi escalada",

@@ -1,4 +1,5 @@
 import React from "react";
+import { MARCA } from "@/lib/marca";
 
 /**
  * Símbolo da marca — mesmo desenho do site institucional (orkiestri.com),
@@ -57,9 +58,7 @@ export function BrandLogo({
           tone === "light" ? "text-white" : "text-[var(--text-primary)]"
         }`}
         style={{ letterSpacing: "-0.02em" }}
-      >
-        Orkiestri
-      </span>
+      >{MARCA}</span>
     </span>
   );
 }

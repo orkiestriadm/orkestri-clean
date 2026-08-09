@@ -1,12 +1,62 @@
 "use client";
+export const dynamic = "force-dynamic";
+
+/**
+ * Configuração do WhatsApp.
+ *
+ * Reescrita para usar as primitivas do design system (`PageHeader`, `Panel`).
+ * Antes eram dois cartões soltos com estilo inline próprio, num container de
+ * 560px encostado à esquerda — destoava de todas as outras telas do sistema e
+ * desperdiçava a largura disponível.
+ *
+ * A organização da página segue a ordem em que o master de fato trabalha:
+ * conectar o aparelho → decidir quem recebe → configurar o próprio número.
+ */
+
 import { useState, useEffect, useCallback } from "react";
 import Topbar from "@/components/layout/Topbar";
 import WhatsAppUserConfig from "@/components/ui/WhatsAppUserConfig";
+import PermissoesMensagemModal from "@/components/notificacoes/PermissoesMensagemModal";
+import { PageBody, PageHeader, Panel } from "@/components/data-ui";
+import { ShieldCheck, MessageCircle, RefreshCw, QrCode, Plug, Unplug } from "lucide-react";
 import { api } from "@/lib/api";
 import { useAuthStore } from "@/lib/store";
 
 function Spin() {
-  return <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ animation: "spin 1s linear infinite" }}><path d="M21 12a9 9 0 11-6.219-8.56" strokeLinecap="round" /></svg>;
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+         style={{ animation: "spin 1s linear infinite" }}>
+      <path d="M21 12a9 9 0 11-6.219-8.56" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+/** Etiqueta de estado da conexão — mesma linguagem visual do farol de frota. */
+function EstadoConexao({ conectado, detalhe }: { conectado: boolean; detalhe?: string }) {
+  const cor = conectado ? "var(--accent-green)" : "var(--accent-red)";
+  return (
+    <div style={{
+      display: "flex", alignItems: "center", gap: 12, padding: "14px 16px", borderRadius: 12,
+      background: `color-mix(in srgb, ${cor} 7%, transparent)`,
+      border: `1px solid color-mix(in srgb, ${cor} 22%, transparent)`,
+    }}>
+      <span style={{
+        width: 10, height: 10, borderRadius: "50%", background: cor,
+        boxShadow: `0 0 10px ${cor}`, flexShrink: 0,
+      }} />
+      <div style={{ minWidth: 0 }}>
+        <div style={{ fontSize: 14, fontWeight: 700, color: cor }}>
+          {conectado ? "Conectado" : "Desconectado"}
+        </div>
+        <div style={{ fontSize: 11.5, color: "var(--text-muted)", marginTop: 2 }}>
+          {conectado
+            ? "As mensagens saem normalmente."
+            : "As mensagens ficam na fila e são entregues quando a conexão voltar."}
+          {detalhe && <> · <span style={{ fontFamily: "var(--font-mono)" }}>{detalhe}</span></>}
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function OrgWhatsAppPanel() {
@@ -21,19 +71,25 @@ function OrgWhatsAppPanel() {
     try {
       const r = await api.get("/organizations/me/whatsapp/status");
       setStatus(r.data);
-    } catch { } finally { setLoading(false); }
+    } catch { /* a tela continua útil com o último estado conhecido */ }
+    finally { setLoading(false); }
   }, []);
 
   useEffect(() => { refreshStatus(); }, []);
+
+  const aviso = (text: string, ok: boolean, ms = 5000) => {
+    setMsg({ text, ok });
+    setTimeout(() => setMsg(null), ms);
+  };
 
   const createInstance = async () => {
     setLoading(true);
     try {
       await api.post("/organizations/me/whatsapp/create-instance");
-      setMsg({ text: "Instância criada. Aguarde e clique em Ver QR Code.", ok: true });
+      aviso("Instância criada. Aguarde e clique em Ver QR Code.", true);
       await refreshStatus();
-    } catch { setMsg({ text: "Erro ao criar instância.", ok: false }); }
-    finally { setLoading(false); setTimeout(() => setMsg(null), 5000); }
+    } catch { aviso("Erro ao criar instância.", false); }
+    finally { setLoading(false); }
   };
 
   const getQrCode = async () => {
@@ -42,98 +98,160 @@ function OrgWhatsAppPanel() {
       const r = await api.get("/organizations/me/whatsapp/qrcode");
       const raw = r.data?.base64 || r.data?.qrcode?.base64 || r.data?.code;
       if (raw) setQr(raw.startsWith("data:") ? raw : `data:image/png;base64,${raw}`);
-      else setMsg({ text: "QR Code indisponível. Tente novamente.", ok: false });
-    } catch { setMsg({ text: "Erro ao buscar QR Code.", ok: false }); }
-    finally { setQrLoading(false); setTimeout(() => setMsg(null), 5000); }
+      else aviso("QR Code indisponível. Tente novamente.", false);
+    } catch { aviso("Erro ao buscar QR Code.", false); }
+    finally { setQrLoading(false); }
   };
 
   const disconnect = async () => {
+    if (!confirm("Desconectar o WhatsApp da organização? Nenhuma mensagem sai até parear de novo.")) return;
     setLoading(true);
     try {
       await api.post("/organizations/me/whatsapp/disconnect");
       setQr(null);
       await refreshStatus();
-      setMsg({ text: "WhatsApp desconectado.", ok: true });
-    } catch { setMsg({ text: "Erro ao desconectar.", ok: false }); }
-    finally { setLoading(false); setTimeout(() => setMsg(null), 4000); }
+      aviso("WhatsApp desconectado.", true, 4000);
+    } catch { aviso("Erro ao desconectar.", false); }
+    finally { setLoading(false); }
   };
 
+  const conectado = !!status?.connected;
+
   return (
-    <div className="card" style={{ padding: "20px 24px", maxWidth: 560 }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20, paddingBottom: 12, borderBottom: "1px solid var(--border-subtle)" }}>
-        <div style={{ width: 38, height: 38, borderRadius: 10, background: "rgba(52,211,153,0.1)", border: "1px solid rgba(52,211,153,0.2)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent-green)" strokeWidth="1.5"><path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z" /></svg>
-        </div>
-        <div>
-          <div style={{ fontFamily: "var(--font-display)", fontSize: 15, fontWeight: 700 }}>WhatsApp da Organização</div>
-          <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>Gerencie a conexão da sua instância Evolution API</div>
-        </div>
+    <Panel
+      title="Conexão da organização"
+      actions={
+        <button className="btn btn-ghost" style={{ fontSize: 11, gap: 6 }} onClick={refreshStatus} title="Atualizar status">
+          <RefreshCw size={13} className={loading ? "animate-spin" : ""} /> Atualizar
+        </button>
+      }
+    >
+      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+        {msg && (
+          <div style={{
+            padding: "10px 14px", borderRadius: 10, fontSize: 12.5,
+            background: msg.ok ? "color-mix(in srgb, var(--accent-green) 8%, transparent)"
+                               : "color-mix(in srgb, var(--accent-red) 8%, transparent)",
+            border: `1px solid color-mix(in srgb, ${msg.ok ? "var(--accent-green)" : "var(--accent-red)"} 25%, transparent)`,
+            color: msg.ok ? "var(--accent-green)" : "var(--accent-red)",
+          }}>
+            {msg.text}
+          </div>
+        )}
+
+        {loading && !status ? (
+          <div style={{ display: "flex", alignItems: "center", gap: 8, color: "var(--text-muted)", fontSize: 12.5, padding: 8 }}>
+            <Spin /> Verificando status…
+          </div>
+        ) : (
+          <>
+            <EstadoConexao conectado={conectado} detalhe={status?.status} />
+
+            {qr && (
+              <div style={{
+                display: "flex", flexDirection: "column", alignItems: "center", gap: 10,
+                padding: 18, background: "var(--bg-secondary)", borderRadius: 12,
+                border: "1px solid var(--border-subtle)",
+              }}>
+                <div style={{ fontSize: 12.5, color: "var(--text-secondary)", textAlign: "center" }}>
+                  Escaneie com o WhatsApp da empresa
+                </div>
+                {/* Fundo branco fixo: em tema escuro o QR fica ilegível sem ele. */}
+                <img src={qr} alt="QR Code de pareamento"
+                     style={{ width: 210, height: 210, borderRadius: 10, background: "#fff", padding: 8 }} />
+                <button className="btn btn-ghost" style={{ fontSize: 11, gap: 6 }} onClick={getQrCode} disabled={qrLoading}>
+                  <RefreshCw size={12} /> Gerar novo código
+                </button>
+              </div>
+            )}
+
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              {!conectado && (
+                <>
+                  <button className="btn btn-violet" style={{ fontSize: 12, gap: 6 }} onClick={createInstance}>
+                    <Plug size={13} /> Criar instância
+                  </button>
+                  <button className="btn btn-ghost" style={{ fontSize: 12, gap: 6 }} onClick={getQrCode} disabled={qrLoading}>
+                    {qrLoading ? <Spin /> : <QrCode size={13} />} Ver QR Code
+                  </button>
+                </>
+              )}
+              {conectado && (
+                <button className="btn btn-ghost" style={{ fontSize: 12, gap: 6, color: "var(--accent-red)" }} onClick={disconnect}>
+                  <Unplug size={13} /> Desconectar
+                </button>
+              )}
+            </div>
+
+            {!conectado && (
+              <ol style={{
+                margin: 0, paddingLeft: 18, display: "flex", flexDirection: "column", gap: 6,
+                fontSize: 12, color: "var(--text-muted)", lineHeight: 1.6,
+              }}>
+                <li><strong style={{ color: "var(--text-secondary)" }}>Criar instância</strong> — registra o canal no servidor de mensagens</li>
+                <li><strong style={{ color: "var(--text-secondary)" }}>Ver QR Code</strong> e aguardar o código aparecer</li>
+                <li>No celular da empresa: WhatsApp → Menu → <em>Dispositivos conectados</em> → <em>Conectar dispositivo</em></li>
+                <li>Escanear o código exibido acima</li>
+              </ol>
+            )}
+          </>
+        )}
       </div>
-
-      {msg && (
-        <div style={{ padding: "10px 14px", borderRadius: 8, marginBottom: 12, background: msg.ok ? "rgba(52,211,153,0.08)" : "rgba(220,38,38,0.08)", border: "1px solid", borderColor: msg.ok ? "rgba(52,211,153,0.25)" : "rgba(220,38,38,0.25)", color: msg.ok ? "var(--accent-green)" : "var(--accent-red)", fontSize: 12 }}>
-          {msg.text}
-        </div>
-      )}
-
-      {loading ? (
-        <div style={{ display: "flex", alignItems: "center", gap: 8, color: "var(--text-muted)", fontSize: 12 }}><Spin /> Verificando status...</div>
-      ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 16px", borderRadius: 10, background: "var(--bg-hover)", border: "1px solid var(--border-subtle)" }}>
-            <div style={{ width: 10, height: 10, borderRadius: "50%", background: status?.connected ? "var(--accent-green)" : "var(--accent-red)", flexShrink: 0 }} />
-            <div>
-              <div style={{ fontSize: 13, fontWeight: 500 }}>{status?.connected ? "Conectado" : "Desconectado"}</div>
-              <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 1 }}>Status: {status?.status || "desconhecido"}</div>
-            </div>
-          </div>
-
-          {qr && (
-            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8, padding: 16, background: "var(--bg-hover)", borderRadius: 10, border: "1px solid var(--border-subtle)" }}>
-              <div style={{ fontSize: 12, color: "var(--text-muted)", textAlign: "center" }}>Escaneie com o WhatsApp da empresa</div>
-              <img src={qr} alt="QR Code" style={{ width: 200, height: 200, borderRadius: 8 }} />
-              <button className="btn btn-ghost" style={{ fontSize: 11 }} onClick={getQrCode} disabled={qrLoading}>Atualizar QR</button>
-            </div>
-          )}
-
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            {!status?.connected && (
-              <>
-                <button className="btn btn-violet" style={{ fontSize: 11 }} onClick={createInstance}>Criar instância</button>
-                <button className="btn btn-ghost" style={{ fontSize: 11 }} onClick={getQrCode} disabled={qrLoading}>{qrLoading ? <Spin /> : "Ver QR Code"}</button>
-              </>
-            )}
-            {status?.connected && (
-              <button className="btn btn-ghost" style={{ fontSize: 11, color: "var(--accent-red)" }} onClick={disconnect}>Desconectar</button>
-            )}
-            <button className="btn btn-ghost" style={{ fontSize: 11 }} onClick={refreshStatus}>Atualizar status</button>
-          </div>
-
-          <div style={{ padding: "12px 16px", borderRadius: 10, background: "rgba(124,58,237,0.05)", border: "1px solid rgba(124,58,237,0.15)", fontSize: 11, color: "var(--text-muted)", lineHeight: 1.7 }}>
-            <strong style={{ color: "var(--text-primary)" }}>Como conectar:</strong><br />
-            1. Clique em <em>Criar instância</em> para registrar na Evolution API<br />
-            2. Clique em <em>Ver QR Code</em> e aguarde o código aparecer<br />
-            3. Abra o WhatsApp no celular da empresa → Menu → Dispositivos conectados → Conectar dispositivo<br />
-            4. Escaneie o QR Code exibido
-          </div>
-        </div>
-      )}
-    </div>
+    </Panel>
   );
 }
 
 export default function WhatsAppConfigPage() {
   const { user } = useAuthStore();
+  const [permsAberto, setPermsAberto] = useState(false);
 
   return (
-    <div className="flex flex-col h-full bg-background">
+    <div className="flex flex-col h-full bg-[var(--bg-primary)] text-[var(--text-primary)] animate-in fade-in slide-in-from-bottom-4 duration-500">
       <Topbar />
-      <div className="flex-1 overflow-y-auto p-6">
-        <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-          {user?.isMaster && <OrgWhatsAppPanel />}
-          <WhatsAppUserConfig />
-        </div>
-      </div>
+      <main className="flex-1 overflow-y-auto page-content">
+        <PageBody>
+          <PageHeader
+            icon={<MessageCircle size={22} />}
+            title="WhatsApp"
+            subtitle="Conexão do canal, permissões de mensagem e o seu número"
+            accent="var(--accent-green)"
+            actions={user?.isMaster ? (
+              <button className="btn btn-violet" style={{ fontSize: 12, gap: 6 }} onClick={() => setPermsAberto(true)}>
+                <ShieldCheck size={14} /> Permissões de mensagem
+              </button>
+            ) : undefined}
+          />
+
+          {/* Duas colunas em tela larga: conexão e permissões são assunto do
+              master; o número é assunto de cada pessoa. Antes tudo empilhava
+              numa coluna de 560px, deixando metade da tela vazia. */}
+          <div style={{
+            display: "grid",
+            gridTemplateColumns: user?.isMaster ? "repeat(auto-fit, minmax(340px, 1fr))" : "1fr",
+            gap: 16, alignItems: "start",
+          }}>
+            {user?.isMaster && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                <OrgWhatsAppPanel />
+
+                <Panel title="Permissões de mensagem">
+                  <p style={{ fontSize: 12.5, color: "var(--text-secondary)", lineHeight: 1.65, margin: "0 0 12px" }}>
+                    Defina de quais módulos cada pessoa recebe notificação e por qual canal.
+                    Quem não for configurado <strong>não recebe nada</strong>.
+                  </p>
+                  <button className="btn btn-ghost" style={{ fontSize: 12, gap: 6 }} onClick={() => setPermsAberto(true)}>
+                    <ShieldCheck size={13} /> Abrir configuração
+                  </button>
+                </Panel>
+              </div>
+            )}
+
+            <WhatsAppUserConfig />
+          </div>
+        </PageBody>
+      </main>
+
+      <PermissoesMensagemModal aberto={permsAberto} onFechar={() => setPermsAberto(false)} />
       <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
     </div>
   );

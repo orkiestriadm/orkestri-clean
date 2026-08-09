@@ -9,6 +9,10 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { WhatsAppService } from "./whatsapp.service";
 import { AlertScheduler } from "./alert.scheduler";
 import { AlertConfigModule } from "./alert-config.module";
+import { NotificacaoDispatcher } from "./notificacao-dispatcher.service";
+import { NotificacaoWorker } from "./notificacao-worker.service";
+import { WhatsAppMonitor } from "./whatsapp-monitor.service";
+import { NotificacaoPrefsController } from "./notificacao-prefs.controller";
 
 class UpdatePhoneDto {
   @IsOptional() @IsString() whatsapp?: string;
@@ -208,8 +212,13 @@ import { JwtModule } from "@nestjs/jwt";
       useFactory: (c: ConfigService) => ({ secret: c.get("JWT_SECRET", "fallback_secret") }),
     }),
   ],
-  providers: [WhatsAppService, AlertScheduler, EmailService, ConfigService],
-  controllers: [NotificationsController],
-  exports: [WhatsAppService, AlertScheduler, EmailService],
+  providers: [
+    WhatsAppService, AlertScheduler, EmailService, ConfigService,
+    NotificacaoDispatcher, NotificacaoWorker, WhatsAppMonitor,
+  ],
+  controllers: [NotificationsController, NotificacaoPrefsController],
+  // O despachante é exportado porque os módulos de negócio (frota, orçamento,
+  // chamados) passam a notificar por ele em vez de falar com o WhatsApp direto.
+  exports: [WhatsAppService, AlertScheduler, EmailService, NotificacaoDispatcher],
 })
 export class NotificationsModule {}

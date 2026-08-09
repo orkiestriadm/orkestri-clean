@@ -99,7 +99,7 @@ class CategoriasController {
   }
 
   @Delete(":id")
-  @Permissions("conhecimento:deletar")
+  @Permissions("conhecimento:excluir")
   async remove(@Param("id") id: string) {
     const existing = await this.db.categoriaConhecimento.findUnique({ where: { id } });
     if (!existing) throw new NotFoundException("Categoria nao encontrada");
@@ -305,12 +305,12 @@ class ConhecimentoController {
 
   // DELETE /conhecimento/:id
   @Delete(":id")
-  @Permissions("conhecimento:deletar")
+  @Permissions("conhecimento:excluir")
   async remove(@Param("id") id: string, @Req() req: any) {
     const existing = await this.db.artigoConhecimento.findUnique({ where: { id } });
     if (!existing) throw new NotFoundException("Artigo nao encontrado");
     const canDelete = req.user.isMaster || req.user.permissions?.includes("*") ||
-      req.user.permissions?.includes("conhecimento:deletar") || existing.autorId === req.user.id;
+      req.user.permissions?.includes("conhecimento:excluir") || existing.autorId === req.user.id;
     if (!canDelete) throw new ForbiddenException("Sem permissao");
     await this.db.artigoConhecimento.delete({ where: { id } });
     return { message: "Artigo removido" };

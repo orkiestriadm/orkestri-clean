@@ -4,6 +4,7 @@ import Link from "next/link";
 import { api } from "@/lib/api";
 import { BrandLogo } from "@/components/ui/logo";
 import { ArrowRight, ArrowLeft, CheckCircle2, Loader2, ShieldCheck, Cloud, Sparkles, Network } from "lucide-react";
+import { MARCA } from "@/lib/marca";
 
 interface Organization {
   id: string;
@@ -124,7 +125,7 @@ export default function SolicitarAcessoPage() {
         </div>
 
         <p className="text-[13px] text-white/30">
-          &copy; {new Date().getFullYear()} Orkiestri — Enterprise Software Company
+          &copy; {new Date().getFullYear()} {MARCA} — Enterprise Software Company
         </p>
       </aside>
 
@@ -265,7 +266,7 @@ export default function SolicitarAcessoPage() {
           )}
 
           <p className="mt-8 text-center text-[12px] text-white/25 lg:hidden">
-            &copy; {new Date().getFullYear()} Orkiestri
+            &copy; {new Date().getFullYear()} {MARCA}
           </p>
         </div>
       </main>

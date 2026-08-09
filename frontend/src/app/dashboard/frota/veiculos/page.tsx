@@ -2,12 +2,19 @@
 export const dynamic = "force-dynamic";
 import CrudView, { CrudConfig, Badge } from "../_components/crud";
 
+// `operando_com_avaria` é a porta de entrada MANUAL do farol amarelo: o veículo
+// roda, mas tem defeito conhecido. É como a planilha FORFT_0005 sempre tratou o
+// estado do meio — uma coluna digitada. Quando existir OS aberta, ela tem
+// precedência sobre este campo (ver backend/.../frota-status.ts).
 const STATUS: Record<string, string> = {
-  ativo: "var(--accent-green)", manutencao: "var(--accent-amber)",
+  ativo: "var(--accent-green)", operando_com_avaria: "var(--accent-amber)",
+  manutencao: "var(--accent-amber)",
   inativo: "var(--text-muted)", vendido: "var(--accent-red)", sinistrado: "var(--accent-red)",
 };
 const STATUS_OPTS = [
-  { value: "ativo", label: "Ativo" }, { value: "manutencao", label: "Em manutenção" },
+  { value: "ativo", label: "Ativo" },
+  { value: "operando_com_avaria", label: "Operando com avaria" },
+  { value: "manutencao", label: "Em manutenção" },
   { value: "inativo", label: "Inativo" }, { value: "vendido", label: "Vendido" },
   { value: "sinistrado", label: "Sinistrado" },
 ];
@@ -20,6 +27,10 @@ const config: CrudConfig = {
   detailHref: r => `/dashboard/frota/veiculos/${r.id}`,
   columns: [
     { key: "placa", label: "Placa", render: r => <span style={{ fontFamily: "var(--font-mono)", fontWeight: 700 }}>{r.placa}</span> },
+    // As duas convivem: `codigo` é o patrimônio interno (auto, FRT-00001) e
+    // `identificacao` é o apelido operacional (GL1, TR04). Ao introduzir a
+    // segunda eu havia SUBSTITUÍDO a primeira, tirando o código da listagem.
+    { key: "identificacao", label: "Identificação", render: r => <span style={{ fontFamily: "var(--font-mono)", color: r.identificacao ? "var(--text-primary)" : "var(--text-faint)" }}>{r.identificacao || "—"}</span> },
     { key: "codigo", label: "Código", render: r => <span style={{ fontFamily: "var(--font-mono)", color: "var(--text-muted)" }}>{r.codigo}</span> },
     { key: "modelo", label: "Marca/Modelo", render: r => [r.marca, r.modelo].filter(Boolean).join(" ") || "—" },
     { key: "descricao", label: "Descrição", render: r => <span title={r.descricao || ""} style={{ display: "inline-block", maxWidth: 220, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", verticalAlign: "bottom", color: r.descricao ? "var(--text-primary)" : "var(--text-muted)" }}>{r.descricao || "—"}</span> },
@@ -31,6 +42,7 @@ const config: CrudConfig = {
   ],
   fields: [
     { key: "codigo", label: "Código interno (auto se vazio)", placeholder: "FRT-00001" },
+    { key: "identificacao", label: "Identificação (apelido operacional)", placeholder: "GL1, GP-2, TR04, IT08..." },
     { key: "placa", label: "Placa", required: true, placeholder: "ABC1D23" },
     { key: "renavam", label: "RENAVAM" },
     { key: "chassi", label: "Chassi" },

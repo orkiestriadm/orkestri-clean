@@ -1,16 +1,23 @@
 "use client";
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuthStore } from "@/lib/store";
 import { api } from "@/lib/api";
 import {
   Plus, Search, X, Send, Tag, Building2, Star, Loader2, RefreshCw,
   MessageSquare, ExternalLink, BookOpen, Hand, Inbox, User as UserIcon,
-  Globe2, History, AlertCircle, CheckCircle2, Download, Clock,
+  Globe2, History, AlertCircle, CheckCircle2, Download, Clock, Truck,
+  SlidersHorizontal, ChevronDown,
 } from "lucide-react";
 import Topbar from "@/components/layout/Topbar";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
+/** Ordem de serviço aberta a partir do chamado, no módulo de Frotas. */
+type OsVinculada = {
+  id: string; numeroOs?: string; status: string; tipo?: string;
+  imobiliza?: boolean; dataAbertura?: string; dataFechamento?: string;
+};
+type VeiculoLite = { id: string; placa: string; identificacao?: string; marca?: string; modelo?: string };
 type Chamado = {
   id: string; numero: number; titulo: string; descricao: string;
   status: string; prioridade: string; categoria?: string; tags?: string;
@@ -22,6 +29,11 @@ type Chamado = {
   solicitante: { id: string; nome: string; email: string };
   atendente?: { id: string; nome: string; email: string };
   cliente?: { id: string; nome: string; empresa?: string };
+  atribuidoPorId?: string | null;
+  atribuidoPor?: { id: string; nome: string; email?: string } | null;
+  veiculoId?: string | null;
+  veiculo?: { id: string; placa: string; identificacao?: string; marca?: string; modelo?: string } | null;
+  manutencoes?: OsVinculada[];
   comentarios?: Comentario[];
 };
 type Comentario = {
@@ -52,6 +64,10 @@ const STATUS_COLS = [
   { key: "resolvido",      label: "Resolvido",      color: "#34d399", bg: "bg-emerald-500/10", border: "border-emerald-500/30"},
   { key: "fechado",        label: "Fechado",        color: "#a78bfa", bg: "bg-violet-500/10",  border: "border-violet-500/30" },
 ];
+/** Colunas do quadro pessoal. "Aberto" fica de fora: um chamado aberto só
+ *  existe sem atendente — e esse é exatamente o conjunto da fila pública,
+ *  logo acima na mesma tela. A coluna era duplicata. */
+const COLS_KANBAN = STATUS_COLS.filter(c => c.key !== "aberto");
 const PRIORIDADE_MAP: Record<string, { label: string; color: string; dot: string }> = {
   baixa:   { label: "Baixa",   color: "text-muted-o",  dot: "bg-[var(--text-muted)]"  },
   media:   { label: "Média",   color: "text-blue-400",   dot: "bg-blue-400"   },
@@ -62,7 +78,19 @@ const SLA_STATUS_MAP = {
   risco:   { label: "SLA em Risco", cls: "text-yellow-400" },
   violado: { label: "SLA Violado",  cls: "text-red-400"    },
 };
-const CATEGORIAS = ["Suporte Técnico","Financeiro","Comercial","RH","TI","Infraestrutura","Dúvida","Solicitação","Reclamação","Outro"];
+/** "Frotas" não é uma categoria qualquer: escolhê-la habilita o veículo no
+ *  formulário, e é o veículo que permite o chamado virar ordem de serviço. */
+const CATEGORIA_FROTAS = "Frotas";
+const CATEGORIAS = ["Suporte Técnico","Financeiro","Comercial","RH","TI","Infraestrutura",CATEGORIA_FROTAS,"Dúvida","Solicitação","Reclamação","Outro"];
+
+/** Rótulos das OS do módulo de Frotas. */
+const OS_STATUS: Record<string, { label: string; cor: string }> = {
+  aberta:           { label: "Aberta",           cor: "var(--accent-red)" },
+  em_andamento:     { label: "Em andamento",     cor: "var(--accent-amber)" },
+  aguardando_pecas: { label: "Aguardando peças", cor: "var(--accent-amber)" },
+  finalizada:       { label: "Finalizada",       cor: "var(--accent-green)" },
+  cancelada:        { label: "Cancelada",        cor: "var(--text-muted)" },
+};
 const PRIORIDADES = ["baixa","media","alta","critica"];
 const NEXT_STATUS: Record<string, string[]> = {
   aberto:         ["em_atendimento", "fechado"],
@@ -162,10 +190,270 @@ function SlaBadge({ slaStatus }: { slaStatus?: string }) {
 }
 
 function Avatar({ nome, size = 6 }: { nome: string; size?: number }) {
-  const sizeClass = `w-${size} h-${size}`;
+  // `w-${size}` era classe dinâmica: o Tailwind só gera o que enxerga no
+  // código-fonte, então essas classes sumiam no build e o avatar ficava sem
+  // tamanho definido. Em estilo inline o valor sempre chega.
+  const px = size * 4;
   return (
-    <div className={`${sizeClass} rounded-full bg-gradient-to-br from-primary/40 to-cyan-400/30 border border-primary/20 flex items-center justify-center text-[10px] font-bold text-primary flex-shrink-0`}>
+    <div
+      style={{ width: px, height: px, fontSize: Math.max(9, px * 0.42) }}
+      className="rounded-full bg-gradient-to-br from-primary/40 to-cyan-400/30 border border-primary/20 flex items-center justify-center font-bold text-primary flex-shrink-0"
+    >
       {initials(nome)}
+    </div>
+  );
+}
+
+// ── Ordenação da fila ─────────────────────────────────────────────────────────
+/** Numa fila de triagem o que importa é o que está apodrecendo. A ordem padrão
+ *  é essa: SLA estourado primeiro, depois em risco, e dentro de cada grupo o
+ *  mais antigo na frente. Ordem de chegada crua deixava um crítico de três dias
+ *  abaixo de um trivial de hoje. */
+const PESO_SLA: Record<string, number> = { violado: 0, risco: 1, ok: 2 };
+const PESO_PRIO: Record<string, number> = { critica: 0, alta: 1, media: 2, baixa: 3 };
+type ColunaOrdem = "urgencia" | "numero" | "titulo" | "prioridade" | "solicitante" | "idade" | "sla";
+
+function ordenarFila(lista: Chamado[], coluna: ColunaOrdem, desc: boolean): Chamado[] {
+  const idade = (c: Chamado) => new Date(c.criadoEm).getTime();
+  const cmp: Record<ColunaOrdem, (a: Chamado, b: Chamado) => number> = {
+    urgencia: (a, b) => (PESO_SLA[a.slaStatus || "ok"] ?? 2) - (PESO_SLA[b.slaStatus || "ok"] ?? 2) || idade(a) - idade(b),
+    numero: (a, b) => a.numero - b.numero,
+    titulo: (a, b) => a.titulo.localeCompare(b.titulo, "pt-BR"),
+    prioridade: (a, b) => (PESO_PRIO[a.prioridade] ?? 9) - (PESO_PRIO[b.prioridade] ?? 9),
+    solicitante: (a, b) => (a.solicitante?.nome || "").localeCompare(b.solicitante?.nome || "", "pt-BR"),
+    idade: (a, b) => idade(a) - idade(b),
+    sla: (a, b) => (PESO_SLA[a.slaStatus || "ok"] ?? 2) - (PESO_SLA[b.slaStatus || "ok"] ?? 2),
+  };
+  const ordenada = [...lista].sort(cmp[coluna]);
+  return desc ? ordenada.reverse() : ordenada;
+}
+
+// ── Fila pública em grade ─────────────────────────────────────────────────────
+/**
+ * A fila é uma lista de triagem, não um quadro. O gesto que importa é um só —
+ * "isso é meu" — e ele está no duplo clique na linha, sem abrir modal.
+ *
+ * Um clique abre o chamado para ler antes de decidir.
+ */
+function FilaGrid({ chamados, loading, onOpen, onAssumir, onAssumirVarios, podeAssumir }: {
+  chamados: Chamado[]; loading: boolean;
+  onOpen: (c: Chamado) => void;
+  onAssumir: (id: string) => void;
+  onAssumirVarios: (ids: string[]) => void;
+  podeAssumir: boolean;
+}) {
+  const [assumindo, setAssumindo] = useState<string | null>(null);
+  const [coluna, setColuna] = useState<ColunaOrdem>("urgencia");
+  const [desc, setDesc] = useState(false);
+  const [sel, setSel] = useState<Set<string>>(new Set());
+
+  const ordenados = useMemo(() => ordenarFila(chamados, coluna, desc), [chamados, coluna, desc]);
+
+  // A seleção não pode sobreviver a um chamado que saiu da fila.
+  useEffect(() => {
+    setSel(prev => {
+      const vivos = new Set(chamados.map(c => c.id));
+      const next = new Set([...prev].filter(id => vivos.has(id)));
+      return next.size === prev.size ? prev : next;
+    });
+  }, [chamados]);
+
+  function ordenarPor(c: ColunaOrdem) {
+    if (c === coluna) { setDesc(d => !d); return; }
+    setColuna(c); setDesc(false);
+  }
+
+  async function assumir(c: Chamado) {
+    if (!podeAssumir || assumindo) return;
+    setAssumindo(c.id);
+    try { await onAssumir(c.id); } finally { setAssumindo(null); }
+  }
+
+  // Árbitro entre "abrir" e "assumir".
+  //
+  // Sem ele o clique simples abria o drawer, o segundo clique do duplo caía no
+  // fundo do modal em vez da linha, e o `dblclick` — que exige o mesmo alvo nos
+  // dois cliques — nunca disparava. Aqui a abertura espera o tempo de um duplo
+  // clique antes de acontecer.
+  const cliqueAdiado = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => { if (cliqueAdiado.current) clearTimeout(cliqueAdiado.current); }, []);
+
+  function cancelarAbertura() {
+    if (cliqueAdiado.current) { clearTimeout(cliqueAdiado.current); cliqueAdiado.current = null; }
+  }
+
+  function aoClicar(c: Chamado) {
+    // Quem não pode assumir não tem duplo clique a esperar.
+    if (!podeAssumir) { onOpen(c); return; }
+    cancelarAbertura();
+    cliqueAdiado.current = setTimeout(() => { cliqueAdiado.current = null; onOpen(c); }, 240);
+  }
+
+  function aoDuploClicar(c: Chamado) {
+    cancelarAbertura();
+    assumir(c);
+  }
+
+  function alternar(id: string) {
+    setSel(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
+
+  if (loading && chamados.length === 0) {
+    return <div className="flex items-center justify-center h-full"><Loader2 size={22} className="animate-spin text-[var(--text-muted)]" /></div>;
+  }
+  if (chamados.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full gap-1.5 text-center px-4">
+        <Globe2 size={20} className="text-[var(--text-muted)]" />
+        <p className="text-[13px] text-[var(--text-secondary)]">A fila está vazia</p>
+        <p className="text-[11px] text-[var(--text-muted)]">Chamados abertos sem responsável aparecem aqui.</p>
+      </div>
+    );
+  }
+
+  // `w-full` só no título: ele absorve a sobra e as demais colunas encolhem
+  // até o conteúdo. Sem isso o navegador reparte o espaço entre todas e a
+  // linha vira um campo de futebol com seis ilhas de texto.
+  const COLS: Array<{ k: ColunaOrdem | null; label: string; largura: string }> = [
+    { k: "numero", label: "Nº", largura: "w-px" },
+    { k: "titulo", label: "Chamado", largura: "w-full" },
+    { k: "prioridade", label: "Prioridade", largura: "w-px" },
+    { k: "solicitante", label: "Solicitante", largura: "w-px" },
+    { k: "idade", label: "Idade", largura: "w-px" },
+    { k: "sla", label: "SLA", largura: "w-px" },
+    { k: null, label: "", largura: "w-px" },
+  ];
+
+  // Trilho colorido na borda esquerda: o estado do SLA é o que decide a ordem
+  // de ataque, e um risco de 3px varre a lista mais rápido que ler coluna.
+  const TRILHO: Record<string, string> = {
+    violado: "var(--accent-red)",
+    risco: "var(--accent-amber)",
+  };
+
+  return (
+    <div className="h-full flex flex-col overflow-hidden">
+      {sel.size > 0 && podeAssumir && (
+        <div className="flex items-center gap-3 px-4 py-1.5 bg-[var(--accent-violet)]/10 border-b border-[var(--accent-violet)]/25 flex-shrink-0">
+          <span className="text-[12px] text-[var(--text-secondary)]">{sel.size} selecionado(s)</span>
+          <button
+            onClick={() => { onAssumirVarios([...sel]); setSel(new Set()); }}
+            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-semibold text-white bg-[var(--accent-violet)] hover:opacity-90 transition-opacity"
+          >
+            <Hand size={11} /> Assumir todos
+          </button>
+          <button onClick={() => setSel(new Set())}
+            className="text-[11px] text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors">
+            Limpar
+          </button>
+        </div>
+      )}
+
+      <div className="flex-1 overflow-auto">
+        <table className="w-full border-collapse table-auto">
+          <thead className="sticky top-0 z-10 bg-[var(--bg-secondary)]">
+            <tr className="text-left">
+              {podeAssumir && <th className="w-px pl-4 pr-2 py-1.5 border-b border-[var(--border-subtle)]" />}
+              {COLS.map(col => (
+                <th key={col.label}
+                  className={`${col.largura} px-3 py-1.5 border-b border-[var(--border-subtle)] whitespace-nowrap`}>
+                  {col.k ? (
+                    <button onClick={() => ordenarPor(col.k!)}
+                      className={`font-mono text-[9px] font-medium uppercase tracking-[0.14em] inline-flex items-center gap-1 transition-colors
+                        ${coluna === col.k ? "text-[var(--accent-violet)]" : "text-[var(--text-muted)] hover:text-[var(--text-primary)]"}`}>
+                      {col.label}
+                      {coluna === col.k && <ChevronDown size={10} className={desc ? "rotate-180" : ""} />}
+                    </button>
+                  ) : <span className="sr-only">Ações</span>}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {ordenados.map(c => (
+              <tr
+                key={c.id}
+                onClick={() => aoClicar(c)}
+                onDoubleClick={() => aoDuploClicar(c)}
+                title={podeAssumir ? "Duplo clique assume o chamado" : undefined}
+                className="linha-fila group border-b border-[var(--border-subtle)] hover:bg-[var(--bg-hover)] transition-colors cursor-pointer"
+                style={{ opacity: assumindo === c.id ? 0.45 : 1 }}
+              >
+                {podeAssumir && (
+                  <td className="w-px pl-4 pr-2 py-1" onClick={e => e.stopPropagation()}
+                    style={{ boxShadow: TRILHO[c.slaStatus || ""] ? `inset 3px 0 0 ${TRILHO[c.slaStatus || ""]}` : undefined }}>
+                    <input type="checkbox" checked={sel.has(c.id)} onChange={() => alternar(c.id)}
+                      aria-label={`Selecionar chamado ${c.numero}`} className="align-middle" />
+                  </td>
+                )}
+                <td className="w-px px-3 py-1 font-mono text-[11px] text-[var(--text-muted)] whitespace-nowrap tabular-nums"
+                  style={!podeAssumir && TRILHO[c.slaStatus || ""] ? { boxShadow: `inset 3px 0 0 ${TRILHO[c.slaStatus || ""]}` } : undefined}>
+                  {c.numero}
+                </td>
+
+                {/* Único com peso tipográfico: é por ele que se lê a lista. */}
+                <td className="w-full px-3 py-1 min-w-0">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="text-[13px] font-medium text-[var(--text-primary)] truncate" title={c.titulo}>
+                      {c.titulo}
+                    </span>
+                    {c.categoria && (
+                      <span className="shrink-0 text-[10px] px-1.5 py-px rounded bg-[var(--bg-hover)] text-[var(--text-muted)]">
+                        {c.categoria}
+                      </span>
+                    )}
+                  </div>
+                </td>
+
+                <td className="w-px px-3 py-1 whitespace-nowrap"><PrioridadeBadge prioridade={c.prioridade} /></td>
+
+                <td className="w-px px-3 py-1 whitespace-nowrap">
+                  <span className="flex items-center gap-1.5">
+                    <Avatar nome={c.solicitante?.nome || "?"} size={4.5} />
+                    <span className="text-[12px] text-[var(--text-secondary)] truncate max-w-[14ch]">
+                      {c.solicitante?.nome}
+                    </span>
+                  </span>
+                </td>
+
+                <td className="w-px px-3 py-1 text-[11px] text-[var(--text-muted)] whitespace-nowrap tabular-nums">
+                  {relTime(c.criadoEm)}
+                </td>
+
+                {/* "No prazo" não vira selo: a maioria está no prazo, e marcar
+                    o normal é o que transforma lista em ruído. */}
+                <td className="w-px px-3 py-1 whitespace-nowrap">
+                  {c.slaStatus && c.slaStatus !== "ok" ? <SlaBadge slaStatus={c.slaStatus} /> : null}
+                </td>
+
+                <td className="w-px pl-2 pr-4 py-1 text-right whitespace-nowrap">
+                  {podeAssumir && (
+                    <button
+                      onClick={e => { e.stopPropagation(); cancelarAbertura(); assumir(c); }}
+                      disabled={assumindo === c.id}
+                      title={`Assumir chamado ${c.numero}`}
+                      // Só some onde existe hover. Em toque continua visível —
+                      // esconder ação atrás de hover quebra no celular.
+                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border border-[var(--border-subtle)]
+                        text-[11px] font-medium text-[var(--text-secondary)]
+                        hover:bg-[var(--accent-violet)] hover:text-white hover:border-transparent
+                        focus:opacity-100 focus-visible:ring-2 focus-visible:ring-[var(--accent-violet)]
+                        transition-all duration-150 disabled:opacity-40
+                        [@media(hover:hover)]:opacity-0 group-hover:opacity-100"
+                    >
+                      <Hand size={11} /> Assumir
+                    </button>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
@@ -189,59 +477,74 @@ function ChamadoCard({ chamado, onClick, selected, onSelect, onAssumir, canAssum
     finally { setAssumindo(false); }
   }
 
+  const cor = PRIORIDADE_MAP[chamado.prioridade]?.dot || "bg-[var(--text-muted)]";
+
   return (
-    <div className={`relative w-full text-left card-premium p-3.5 transition-all hover:shadow-premium-md ${selected ? "ring-2 ring-[var(--accent-violet)] bg-[var(--accent-violet-dim)]" : "hover:border-[var(--border-medium)]"} ${isPublicQueue ? "border-l-2 border-l-[var(--accent-violet)]" : ""}`}>
-      {onSelect && (
-        <div className="absolute top-2 right-2 z-10" onClick={onSelect}>
-          <div className={`w-4 h-4 rounded border-2 flex items-center justify-center transition-colors cursor-pointer ${selected ? "bg-[var(--accent-violet)] border-[var(--accent-violet)]" : "border-[var(--border-strong)] bg-[var(--bg-primary)] hover:border-[var(--accent-violet)]"}`}>
-            {selected && <svg width="9" height="9" viewBox="0 0 12 12" fill="none" stroke="white" strokeWidth="2.5"><path d="M2 6l3 3 5-5"/></svg>}
-          </div>
-        </div>
-      )}
-      <button onClick={onClick} className="w-full text-left outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-violet)] rounded">
-      <div className="flex items-start justify-between gap-2 mb-2">
-        <span className="text-[10px] text-[var(--text-muted)] font-mono">#{chamado.numero}</span>
-        <PrioridadeBadge prioridade={chamado.prioridade} />
-      </div>
-      <p className="text-[13px] font-medium text-[var(--text-primary)] leading-snug line-clamp-2 mb-2.5 hover:text-[var(--accent-violet)] transition-colors">{chamado.titulo}</p>
-      {chamado.categoria && (
-        <span className="inline-block text-[10px] font-medium text-[var(--text-secondary)] bg-[var(--bg-hover)] border border-[var(--border-subtle)] rounded px-1.5 py-0.5 mb-2.5">
-          {chamado.categoria}
+    <div
+      onClick={onClick}
+      className={`card-chamado group relative rounded-lg border bg-[var(--bg-card)] px-2.5 py-1.5 cursor-pointer
+        transition-colors duration-150
+        ${selected
+          ? "border-[var(--accent-violet)] bg-[var(--accent-violet-dim)]"
+          : "border-[var(--border-subtle)] hover:border-[var(--border-medium)] hover:bg-[var(--bg-hover)]"}`}
+      style={{ opacity: assumindo ? 0.45 : 1 }}
+    >
+      {/* Linha 1 — identidade. Título em UMA linha: card de altura previsível
+          é o que faz cinco colunas parecerem alinhadas. */}
+      <div className="flex items-center gap-1.5 min-w-0">
+        {onSelect && (
+          <span onClick={onSelect}
+            className={`shrink-0 w-3.5 h-3.5 rounded border flex items-center justify-center transition-colors
+              ${selected ? "bg-[var(--accent-violet)] border-[var(--accent-violet)]" : "border-[var(--border-strong)] hover:border-[var(--accent-violet)]"}`}>
+            {selected && <svg width="8" height="8" viewBox="0 0 12 12" fill="none" stroke="white" strokeWidth="3"><path d="M2 6l3 3 5-5" /></svg>}
+          </span>
+        )}
+        <span className="shrink-0 font-mono text-[10px] text-[var(--text-muted)] tabular-nums">#{chamado.numero}</span>
+        <span className="text-[12.5px] font-medium text-[var(--text-primary)] truncate flex-1 min-w-0" title={chamado.titulo}>
+          {chamado.titulo}
         </span>
-      )}
-      <div className="flex items-center justify-between mt-1">
-        <div className="flex items-center gap-1">
-          <Avatar nome={chamado.solicitante.nome} size={5} />
+        {showAssumir && (
+          <button
+            onClick={handleAssumir}
+            disabled={assumindo}
+            title="Assumir este chamado"
+            aria-label={`Assumir chamado ${chamado.numero}`}
+            // Ocupava a largura inteira do card e somava ~34px de altura.
+            // Só some onde existe hover — em toque continua visível.
+            className="shrink-0 p-0.5 rounded text-[var(--accent-violet)] hover:bg-[var(--accent-violet)]/15
+              focus:opacity-100 focus-visible:ring-2 focus-visible:ring-[var(--accent-violet)]
+              transition-opacity duration-150
+              [@media(hover:hover)]:opacity-0 group-hover:opacity-100"
+          >
+            {assumindo ? <Loader2 size={12} className="animate-spin" /> : <Hand size={12} />}
+          </button>
+        )}
+      </div>
+
+      {/* Linha 2 — contexto. Prioridade em texto, nunca só cor. */}
+      <div className="flex items-center gap-1.5 mt-1 min-w-0 text-[10px]">
+        <span className={`shrink-0 w-1.5 h-1.5 rounded-full ${cor}`} />
+        <span className={`shrink-0 font-semibold uppercase tracking-wide ${PRIORIDADE_MAP[chamado.prioridade]?.color || "text-[var(--text-muted)]"}`}>
+          {PRIORIDADE_MAP[chamado.prioridade]?.label || chamado.prioridade}
+        </span>
+        {chamado.categoria && (
+          <span className="shrink-0 truncate max-w-[10ch] text-[var(--text-muted)]" title={chamado.categoria}>
+            · {chamado.categoria}
+          </span>
+        )}
+        <span className="flex-1" />
+        <span className="shrink-0 flex items-center gap-1">
+          <Avatar nome={chamado.solicitante.nome} size={4} />
           {chamado.atendente && (
             <>
-              <span className="text-muted-foreground/40 text-[10px]">→</span>
-              <Avatar nome={chamado.atendente.nome} size={5} />
+              <span className="text-[var(--text-muted)]">→</span>
+              <Avatar nome={chamado.atendente.nome} size={4} />
             </>
           )}
-          {isPublicQueue && (
-            <span className="ml-1 inline-flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider text-[var(--accent-violet)] bg-[var(--accent-violet)]/10 border border-[var(--accent-violet)]/20 px-1.5 py-0.5 rounded">
-              <Globe2 size={9} /> Fila
-            </span>
-          )}
-        </div>
-        <div className="flex items-center gap-2">
-          <AgeBadge atualizadoEm={chamado.atualizadoEm} status={chamado.status} />
-          <SlaBadge slaStatus={chamado.slaStatus} />
-          <span className="text-[10px] text-muted-foreground">{relTime(chamado.criadoEm)}</span>
-        </div>
+        </span>
+        {chamado.slaStatus && chamado.slaStatus !== "ok" && <SlaBadge slaStatus={chamado.slaStatus} />}
+        <span className="shrink-0 text-[var(--text-muted)] tabular-nums">{relTime(chamado.criadoEm)}</span>
       </div>
-      </button>
-      {showAssumir && (
-        <button
-          onClick={handleAssumir}
-          disabled={assumindo}
-          className="mt-3 w-full flex items-center justify-center gap-1.5 text-[11px] font-semibold py-1.5 px-2 rounded-md border border-[var(--accent-violet)]/40 text-[var(--accent-violet)] bg-[var(--accent-violet)]/10 hover:bg-[var(--accent-violet)]/20 transition-colors disabled:opacity-50"
-          title="Assumir este chamado da fila pública"
-        >
-          {assumindo ? <Loader2 size={12} className="animate-spin" /> : <Hand size={12} />}
-          Assumir Chamado
-        </button>
-      )}
     </div>
   );
 }
@@ -252,7 +555,16 @@ type Template = { id: string; nome: string; titulo: string; descricao?: string; 
 type KbSugestao = { id: string; titulo: string; slug: string; resumo?: string; categoria?: { nome: string; cor: string } };
 
 function NovoChamadoModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
-  const [form, setForm] = useState({ titulo: "", descricao: "", prioridade: "media", categoria: "", clienteId: "" });
+  const [form, setForm] = useState({ titulo: "", descricao: "", prioridade: "media", categoria: "", clienteId: "", veiculoId: "" });
+  // Frota da organização, carregada só quando a categoria pede.
+  const [veiculos, setVeiculos] = useState<VeiculoLite[]>([]);
+  // Atribuição na abertura: quem já sabe de quem é o assunto não precisa
+  // passar pela fila. Fechado por padrão — o caminho normal continua sendo
+  // abrir sem dono.
+  const [showAtribuir, setShowAtribuir] = useState(false);
+  const [buscaUser, setBuscaUser] = useState("");
+  const [usuarios, setUsuarios] = useState<{ id: string; nome: string; email?: string }[]>([]);
+  const [atendente, setAtendente] = useState<{ id: string; nome: string; email?: string } | null>(null);
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -277,6 +589,33 @@ function NovoChamadoModal({ onClose, onCreated }: { onClose: () => void; onCreat
     return () => clearTimeout(t);
   }, [form.titulo]);
 
+  // A lista da frota só é buscada quando o chamado é de frota — não faz
+  // sentido pagar essa consulta em todo chamado de TI.
+  useEffect(() => {
+    if (form.categoria !== CATEGORIA_FROTAS || veiculos.length) return;
+    api.get("/frota/veiculos", { params: { limit: 500 }, silent: true })
+      .then(r => setVeiculos(r.data?.items ?? r.data ?? []))
+      .catch(() => setVeiculos([]));
+  }, [form.categoria, veiculos.length]);
+
+  // Lista carregada só quando o campo é aberto — a maioria dos chamados nasce
+  // sem dono e não precisa dessa consulta.
+  useEffect(() => {
+    if (!showAtribuir || usuarios.length) return;
+    api.get("/users", { silent: true })
+      .then(r => setUsuarios(Array.isArray(r.data) ? r.data : (r.data?.items ?? [])))
+      .catch(() => setUsuarios([]));
+  }, [showAtribuir, usuarios.length]);
+
+  // Sem excluir quem abre: abrir e já assumir é um caso legítimo.
+  const usuariosFiltrados = useMemo(() => {
+    const q = buscaUser.trim().toLowerCase();
+    if (!q) return usuarios.slice(0, 8);
+    return usuarios.filter(u =>
+      u.nome?.toLowerCase().includes(q) || u.email?.toLowerCase().includes(q)
+    ).slice(0, 8);
+  }, [usuarios, buscaUser]);
+
   function applyTemplate(t: Template) {
     setForm(f => ({ ...f, titulo: t.titulo, descricao: t.descricao || f.descricao, prioridade: t.prioridade, categoria: t.categoria || f.categoria }));
   }
@@ -287,6 +626,8 @@ function NovoChamadoModal({ onClose, onCreated }: { onClose: () => void; onCreat
         nome: templateNome.trim(),
         titulo: form.titulo,
         descricao: form.descricao,
+        veiculoId: form.categoria === CATEGORIA_FROTAS ? (form.veiculoId || undefined) : undefined,
+        atendenteId: atendente?.id,
         prioridade: form.prioridade,
         categoria: form.categoria || undefined,
       });
@@ -298,6 +639,10 @@ function NovoChamadoModal({ onClose, onCreated }: { onClose: () => void; onCreat
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
+    if (form.categoria === CATEGORIA_FROTAS && !form.veiculoId) {
+      setError("Selecione o veículo do chamado de frotas.");
+      return;
+    }
     if (!form.titulo.trim() || !form.descricao.trim()) {
       setError("Título e descrição são obrigatórios");
       return;
@@ -419,6 +764,29 @@ function NovoChamadoModal({ onClose, onCreated }: { onClose: () => void; onCreat
               </select>
             </div>
           </div>
+          {form.categoria === CATEGORIA_FROTAS && (
+            <div>
+              <label className="text-[11px] text-[var(--text-muted)] font-mono block mb-1.5 uppercase tracking-wider">
+                Veículo *
+              </label>
+              <select
+                className="input-o"
+                value={form.veiculoId}
+                onChange={e => setForm(f => ({ ...f, veiculoId: e.target.value }))}
+              >
+                <option value="">Selecionar veículo...</option>
+                {veiculos.map(v => (
+                  <option key={v.id} value={v.id}>
+                    {v.placa}{v.identificacao ? ` · ${v.identificacao}` : ""}
+                    {v.marca || v.modelo ? ` — ${[v.marca, v.modelo].filter(Boolean).join(" ")}` : ""}
+                  </option>
+                ))}
+              </select>
+              <p className="text-[11px] text-[var(--text-muted)] mt-1.5">
+                Com o veículo definido, este chamado pode abrir uma ordem de serviço em Frotas.
+              </p>
+            </div>
+          )}
           <div>
             <label className="text-[11px] text-[var(--text-muted)] font-mono block mb-1.5 uppercase tracking-wider">Cliente (opcional)</label>
             <select
@@ -448,6 +816,53 @@ function NovoChamadoModal({ onClose, onCreated }: { onClose: () => void; onCreat
               + Salvar como template
             </button>
           )}
+
+          {/* Atribuir na abertura. Sem usar, o chamado segue para a fila — e,
+              sendo de frota, avisa quem cuida de frota. */}
+          {atendente ? (
+            <div className="flex items-center gap-2 pt-1">
+              <span className="text-xs text-[var(--text-muted)]">Atribuído a</span>
+              <span className="flex items-center gap-2 px-2.5 py-1 rounded-full bg-[var(--accent-violet)]/12 text-[var(--accent-violet)] text-xs font-medium">
+                {atendente.nome}
+                <button type="button" onClick={() => { setAtendente(null); setShowAtribuir(false); setBuscaUser(""); }}
+                  className="hover:opacity-70" title="Remover atribuição"><X size={12} /></button>
+              </span>
+            </div>
+          ) : showAtribuir ? (
+            <div className="pt-1">
+              <div className="flex items-center gap-2 mb-2">
+                <input value={buscaUser} onChange={e => setBuscaUser(e.target.value)} autoFocus
+                  placeholder="Buscar pessoa por nome ou e-mail..." className="input-o flex-1" />
+                <button type="button" onClick={() => { setShowAtribuir(false); setBuscaUser(""); }}
+                  className="p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"><X size={14} /></button>
+              </div>
+              <div className="border border-[var(--border-subtle)] rounded-lg divide-y divide-[var(--border-subtle)] max-h-44 overflow-y-auto">
+                {usuariosFiltrados.length === 0 ? (
+                  <div className="px-3 py-3 text-xs text-[var(--text-muted)]">Ninguém encontrado</div>
+                ) : usuariosFiltrados.map(u => (
+                  <button key={u.id} type="button"
+                    onClick={() => { setAtendente(u); setShowAtribuir(false); setBuscaUser(""); }}
+                    className="w-full text-left px-3 py-2 hover:bg-[var(--bg-hover)] transition-colors">
+                    <div className="text-xs font-medium text-[var(--text-primary)]">{u.nome}</div>
+                    {u.email && <div className="text-[10px] text-[var(--text-muted)]">{u.email}</div>}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <button type="button" onClick={() => setShowAtribuir(true)}
+              className="text-xs font-medium text-[var(--text-muted)] hover:text-[var(--accent-violet)] transition-colors self-start block">
+              + Atribuir para...
+            </button>
+          )}
+
+          <p className="text-[11px] text-[var(--text-muted)] pt-1">
+            {atendente
+              ? `Vai direto para ${atendente.nome}, sem passar pela fila.`
+              : form.categoria === CATEGORIA_FROTAS
+                ? "Sem atribuir, entra na fila e avisa quem cuida de frota."
+                : "Sem atribuir, entra na fila pública para quem estiver disponível."}
+          </p>
           <div className="flex gap-3 pt-3">
             <button type="button" onClick={onClose} className="btn btn-ghost flex-1">
               Cancelar
@@ -464,6 +879,93 @@ function NovoChamadoModal({ onClose, onCreated }: { onClose: () => void; onCreat
 }
 
 // ── Detail Drawer ──────────────────────────────────────────────────────────────
+/** Painel de frota do chamado: mostra o veículo, abre a ordem de serviço e
+ *  lista as OS já geradas.
+ *
+ *  `imobiliza` decide a cor do veículo no Farol da Frota — parado (vermelho) ou
+ *  operando com avaria (amarelo). Só quem abre a OS sabe qual é o caso, por
+ *  isso a escolha fica aqui e não num padrão silencioso. */
+function PainelFrota({ detail, canEditar, onUpdated }: {
+  detail: Chamado; canEditar: boolean; onUpdated: () => void;
+}) {
+  const [abrindo, setAbrindo] = useState(false);
+  const [imobiliza, setImobiliza] = useState(true);
+  const [erro, setErro] = useState("");
+  const os = detail.manutencoes || [];
+  const emAberto = os.filter(o => !["finalizada", "cancelada"].includes(o.status));
+
+  async function abrir() {
+    setAbrindo(true); setErro("");
+    try {
+      await api.post(`/chamados/${detail.id}/abrir-manutencao`, { imobiliza });
+      onUpdated();
+    } catch (e: any) {
+      setErro(e?.response?.data?.message || "Não foi possível abrir a manutenção.");
+    } finally { setAbrindo(false); }
+  }
+
+  const v = detail.veiculo!;
+  return (
+    <div className="px-6 py-6 border-b border-[var(--border-subtle)]">
+      <h3 className="text-[11px] font-mono font-bold text-[var(--text-muted)] tracking-widest uppercase mb-3 flex items-center gap-2">
+        <Truck size={13} /> Frota
+      </h3>
+
+      <div className="flex items-center gap-3 mb-4">
+        <span className="font-mono text-[14px] font-bold text-[var(--text-primary)]">{v.placa}</span>
+        {v.identificacao && <span className="font-mono text-[12px] text-[var(--text-muted)]">{v.identificacao}</span>}
+        <span className="text-[13px] text-[var(--text-secondary)]">
+          {[v.marca, v.modelo].filter(Boolean).join(" ")}
+        </span>
+      </div>
+
+      {os.length > 0 && (
+        <div className="space-y-1.5 mb-4">
+          {os.map(o => {
+            const st = OS_STATUS[o.status] || { label: o.status, cor: "var(--text-muted)" };
+            return (
+              <a
+                key={o.id}
+                href={`/dashboard/frota/manutencoes?os=${o.id}`}
+                className="flex items-center justify-between gap-3 px-3 py-2 rounded-lg border border-[var(--border-subtle)] hover:bg-[var(--bg-hover)] transition-colors"
+              >
+                <span className="font-mono text-[12px] font-semibold text-[var(--text-primary)]">{o.numeroOs || "OS"}</span>
+                <span className="flex items-center gap-2">
+                  {o.imobiliza === false && (
+                    <span className="text-[10px] text-[var(--text-muted)]">segue operando</span>
+                  )}
+                  <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full"
+                    style={{ color: st.cor, background: `color-mix(in srgb, ${st.cor} 13%, transparent)` }}>
+                    {st.label}
+                  </span>
+                </span>
+              </a>
+            );
+          })}
+        </div>
+      )}
+
+      {emAberto.length === 0 && canEditar && (
+        <>
+          <label className="flex items-center gap-2 mb-3 text-[12px] text-[var(--text-secondary)] cursor-pointer">
+            <input type="checkbox" checked={imobiliza} onChange={e => setImobiliza(e.target.checked)} />
+            Veículo está parado (sem o marcar, entra como operando com avaria)
+          </label>
+          <button onClick={abrir} disabled={abrindo} className="btn btn-violet text-[12px] disabled:opacity-50">
+            {abrindo ? "Abrindo..." : "Abrir manutenção"}
+          </button>
+          {erro && <p className="text-[11px] text-[var(--accent-red)] mt-2">{erro}</p>}
+        </>
+      )}
+      {emAberto.length > 0 && (
+        <p className="text-[11px] text-[var(--text-muted)]">
+          Encerrar este chamado finaliza {emAberto.length > 1 ? "as ordens de serviço abertas" : "a ordem de serviço aberta"}.
+        </p>
+      )}
+    </div>
+  );
+}
+
 function ChamadoDrawer({ chamado, isMaster, userId, canEditar, onClose, onUpdated }: {
   chamado: Chamado; isMaster: boolean; userId: string; canEditar: boolean;
   onClose: () => void; onUpdated: () => void;
@@ -570,6 +1072,28 @@ function ChamadoDrawer({ chamado, isMaster, userId, canEditar, onClose, onUpdate
       setSuggestions(r.data);
     } catch { setSuggestions([]); }
     finally { setLoadingSuggest(false); }
+  }
+
+  // Devolver: a atribuição vale na hora, e a recusa é a saída — com motivo,
+  // porque quem recebe de volta precisa saber o que fazer diferente.
+  const [showDevolver, setShowDevolver] = useState(false);
+  const [motivoDevolucao, setMotivoDevolucao] = useState("");
+  const [devolvendo, setDevolvendo] = useState(false);
+  const [erroDevolucao, setErroDevolucao] = useState("");
+
+  async function devolver() {
+    if (motivoDevolucao.trim().length < 5) {
+      setErroDevolucao("Explique o motivo em pelo menos 5 caracteres.");
+      return;
+    }
+    setDevolvendo(true); setErroDevolucao("");
+    try {
+      await api.patch(`/chamados/${chamado.id}/devolver`, { motivo: motivoDevolucao.trim() });
+      setShowDevolver(false); setMotivoDevolucao("");
+      load(); onUpdated();
+    } catch (e: any) {
+      setErroDevolucao(e?.response?.data?.message || "Não foi possível devolver o chamado.");
+    } finally { setDevolvendo(false); }
   }
 
   async function avaliar() {
@@ -747,6 +1271,58 @@ function ChamadoDrawer({ chamado, isMaster, userId, canEditar, onClose, onUpdate
             <h3 className="text-[11px] font-mono font-bold text-[var(--text-muted)] tracking-widest uppercase mb-3">Descrição</h3>
             <p className="text-[14px] text-[var(--text-primary)] whitespace-pre-wrap leading-relaxed">{detail.descricao}</p>
           </div>
+
+          {/* Devolução. Só aparece para quem ESTÁ com o chamado e o recebeu de
+              alguém — quem pegou da fila sozinho não tem a quem devolver. */}
+          {detail.atendenteId === userId && detail.atribuidoPor && !["resolvido", "fechado"].includes(detail.status) && (
+            <div className="px-6 py-4 border-b border-[var(--border-subtle)] bg-[var(--bg-primary)]/40">
+              {!showDevolver ? (
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-[12px] text-[var(--text-muted)]">
+                    Atribuído a você por <span className="text-[var(--text-secondary)] font-medium">{detail.atribuidoPor.nome}</span>.
+                  </p>
+                  <button onClick={() => setShowDevolver(true)}
+                    className="shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-[var(--border-subtle)] text-[11px] font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] transition-colors">
+                    Devolver
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <label className="text-[11px] text-[var(--text-muted)] font-mono block uppercase tracking-wider">
+                    Por que está devolvendo? *
+                  </label>
+                  <textarea
+                    value={motivoDevolucao}
+                    onChange={e => setMotivoDevolucao(e.target.value)}
+                    rows={2} autoFocus
+                    placeholder="Ex.: não é da minha área, estou sem acesso ao sistema, já existe chamado igual..."
+                    className="input-o text-[13px]"
+                  />
+                  {erroDevolucao && <p className="text-[11px] text-[var(--accent-red)]">{erroDevolucao}</p>}
+                  <p className="text-[11px] text-[var(--text-muted)]">
+                    Volta para {detail.atribuidoPor.nome}, não para a fila pública.
+                  </p>
+                  <div className="flex gap-2">
+                    <button onClick={devolver} disabled={devolvendo}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[12px] font-semibold text-white bg-[var(--accent-violet)] hover:opacity-90 disabled:opacity-50 transition-opacity">
+                      {devolvendo && <Loader2 size={12} className="animate-spin" />}
+                      Confirmar devolução
+                    </button>
+                    <button onClick={() => { setShowDevolver(false); setErroDevolucao(""); }}
+                      className="px-3 py-1.5 rounded-md text-[12px] text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors">
+                      Cancelar
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Frotas: o chamado é onde o problema é relatado; a OS é onde ele é
+              trabalhado. O botão evita redigitar o relato no outro módulo. */}
+          {detail.veiculo && (
+            <PainelFrota detail={detail} canEditar={canEditar} onUpdated={() => { load(); onUpdated(); }} />
+          )}
 
           {/* Auditoria / Histórico */}
           {showAuditoria && (
@@ -985,8 +1561,11 @@ export default function ChamadosPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  const [chamados, setChamados] = useState<Chamado[]>([]);
-  const [stats, setStats] = useState<Stats | null>(null);
+  // Duas listas ao mesmo tempo: triar (fila) e tocar (meus) são o mesmo
+  // trabalho em momentos diferentes, e alternar aba escondia metade dele.
+  const [chamadosFila, setChamadosFila] = useState<Chamado[]>([]);
+  const [chamadosMeus, setChamadosMeus] = useState<Chamado[]>([]);
+
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<Chamado | null>(null);
   const [showNew, setShowNew] = useState(false);
@@ -996,6 +1575,9 @@ export default function ChamadosPage() {
   const [filterPrio, setFilterPrio] = useState(() => searchParams?.get("prioridade") || "");
   const [filterCat, setFilterCat] = useState(() => searchParams?.get("categoria") || "");
   const [scope, setScope] = useState<Scope>(() => (searchParams?.get("scope") as Scope) || "meus");
+  // Filtros recolhidos por padrão: são três campos que quase nunca mudam e
+  // custavam uma faixa inteira da tela.
+  const [aba, setAba] = useState<"chamados" | "filtros">("chamados");
   const [bulkIds, setBulkIds] = useState<Set<string>>(new Set());
   const [bulkUsers, setBulkUsers] = useState<Usuario[]>([]);
   const [toast, setToast] = useState<{ type: "ok" | "err"; msg: string } | null>(null);
@@ -1028,20 +1610,20 @@ export default function ChamadosPage() {
   // Drag-and-drop: muda status ao soltar em outra coluna
   const handleDrop = useCallback(async (newStatus: string) => {
     if (!dragId || !newStatus) return;
-    const chamado = chamados.find(c => c.id === dragId);
+    const chamado = chamadosMeus.find(c => c.id === dragId);
     if (!chamado || chamado.status === newStatus) { setDragId(null); setDragOver(null); return; }
     // Otimista: atualiza localmente primeiro
-    setChamados(prev => prev.map(c => c.id === dragId ? { ...c, status: newStatus } : c));
+    setChamadosMeus(prev => prev.map(c => c.id === dragId ? { ...c, status: newStatus } : c));
     setDragId(null); setDragOver(null);
     try {
       await api.patch(`/chamados/${dragId}/status`, { status: newStatus });
       setToast({ type: "ok", msg: `#${chamado.numero} movido para ${newStatus.replace("_"," ")}` });
     } catch {
       // Reverte em caso de erro
-      setChamados(prev => prev.map(c => c.id === dragId ? { ...c, status: chamado.status } : c));
+      setChamadosMeus(prev => prev.map(c => c.id === dragId ? { ...c, status: chamado.status } : c));
       setToast({ type: "err", msg: "Não foi possível mover o chamado." });
     }
-  }, [dragId, chamados]);
+  }, [dragId, chamadosMeus]);
 
   function toggleBulk(id: string) {
     setBulkIds(prev => {
@@ -1059,17 +1641,16 @@ export default function ChamadosPage() {
       if (filterPrio) params.set("prioridade", filterPrio);
       if (filterCat) params.set("categoria", filterCat);
       if (search) params.set("q", search);
-      if (scope) params.set("scope", scope);
-      const sParams = new URLSearchParams();
-      sParams.set("scope", scope);
-      const [cRes, sRes] = await Promise.all([
-        api.get(`/chamados?${params}`),
-        api.get(`/chamados/stats?${sParams}`),
+      const pFila = new URLSearchParams(params); pFila.set("scope", "fila");
+      const pMeus = new URLSearchParams(params); pMeus.set("scope", scope === "todos" ? "todos" : "meus");
+      const [fRes, mRes] = await Promise.all([
+        api.get(`/chamados?${pFila}`),
+        api.get(`/chamados?${pMeus}`),
       ]);
-      setChamados(Array.isArray(cRes.data) ? cRes.data : []);
-      setStats(sRes.data);
+      setChamadosFila(Array.isArray(fRes.data) ? fRes.data : []);
+      setChamadosMeus(Array.isArray(mRes.data) ? mRes.data : []);
     } catch {
-      setChamados([]);
+      setChamadosFila([]); setChamadosMeus([]);
     } finally {
       setLoading(false);
     }
@@ -1084,15 +1665,39 @@ export default function ChamadosPage() {
 
   // Handler: assumir chamado da fila pública (atômico no backend; trata 409).
   const handleAssumir = useCallback(async (id: string) => {
+    // Quem tentou pegar é quem precisa saber POR QUE não conseguiu — em
+    // fila compartilhada, "erro ao assumir" quase sempre significa que alguém
+    // chegou primeiro, e dizer isso evita a segunda tentativa inútil.
+    const alvo = chamadosFila.find(c => c.id === id);
     try {
       await api.patch(`/chamados/${id}/assumir`);
-      setToast({ type: "ok", msg: "Chamado assumido com sucesso." });
+      setToast({ type: "ok", msg: `#${alvo?.numero ?? ""} agora é seu.` });
       load();
     } catch (err: any) {
-      const msg = err?.response?.data?.message || "Nao foi possivel assumir o chamado.";
+      const status = err?.response?.status;
+      const dono = err?.response?.data?.atendente?.nome;
+      const msg = status === 409 || status === 400
+        ? (dono ? `${dono} assumiu este chamado antes de você.` : "Outra pessoa assumiu este chamado antes de você.")
+        : (err?.response?.data?.message || "Não foi possível assumir o chamado.");
       setToast({ type: "err", msg });
       load(); // revalida pra remover da fila se outra pessoa pegou
     }
+  }, [load, chamadosFila]);
+
+  /** Assume vários de uma vez. Sequencial de propósito: o backend resolve a
+   *  disputa um a um, e em paralelo o relato de quem falhou se perde. */
+  const handleAssumirVarios = useCallback(async (ids: string[]) => {
+    let pegos = 0, perdidos = 0;
+    for (const id of ids) {
+      try { await api.patch(`/chamados/${id}/assumir`); pegos++; }
+      catch { perdidos++; }
+    }
+    setToast(
+      perdidos === 0
+        ? { type: "ok", msg: `${pegos} chamado(s) assumido(s).` }
+        : { type: "err", msg: `${pegos} assumido(s); ${perdidos} já tinham dono.` },
+    );
+    load();
   }, [load]);
 
   useEffect(() => { load(); }, [load]);
@@ -1101,9 +1706,29 @@ export default function ChamadosPage() {
     if (user?.isMaster) api.get("/users").then(r => setBulkUsers(Array.isArray(r.data) ? r.data : [])).catch(() => {});
   }, [user?.isMaster]);
 
-  const byCols = STATUS_COLS.map(col => ({
+  const qtdFiltros = [filterStatus, filterPrio, filterCat].filter(Boolean).length;
+
+  // Derivado das listas em tela, não de uma consulta paralela: é o que garante
+  // que o número nunca discorde do que está logo abaixo dele.
+  const resumo = useMemo(() => {
+    const todos = [...chamadosFila, ...chamadosMeus];
+    return {
+      violados: todos.filter(c => c.slaStatus === "violado").length,
+      risco: todos.filter(c => c.slaStatus === "risco").length,
+    };
+  }, [chamadosFila, chamadosMeus]);
+
+  // Quanto tempo o mais paciente da fila está esperando. É a pergunta da
+  // triagem, e não aparecia em lugar nenhum da tela.
+  const maisAntigoFila = useMemo(() => {
+    if (!chamadosFila.length) return null;
+    return chamadosFila.reduce((a, b) =>
+      new Date(a.criadoEm).getTime() <= new Date(b.criadoEm).getTime() ? a : b);
+  }, [chamadosFila]);
+
+  const byCols = COLS_KANBAN.map(col => ({
     ...col,
-    items: chamados.filter(c => c.status === col.key),
+    items: chamadosMeus.filter(c => c.status === col.key),
   }));
 
   const topbarActions = (
@@ -1112,8 +1737,8 @@ export default function ChamadosPage() {
         className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[var(--border-subtle)] text-xs text-[var(--text-muted)] hover:bg-[var(--bg-hover)] transition-colors">
         <RefreshCw size={13} className={loading ? "animate-spin" : ""} /> Atualizar
       </button>
-      {chamados.length > 0 && (
-        <button onClick={() => exportCSV(chamados)}
+      {(chamadosFila.length + chamadosMeus.length) > 0 && (
+        <button onClick={() => exportCSV([...chamadosFila, ...chamadosMeus])}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[var(--border-subtle)] text-xs text-[var(--text-muted)] hover:bg-[var(--bg-hover)] transition-colors"
           title="Exportar chamados em CSV">
           <Download size={13} /> CSV
@@ -1130,49 +1755,27 @@ export default function ChamadosPage() {
     <div className="flex flex-col h-full overflow-hidden bg-background">
       <Topbar>{topbarActions}</Topbar>
 
-      {/* Stats */}
-      {stats && (
-        <div className="px-6 py-3 border-b border-border flex-shrink-0">
-          <div className="grid grid-cols-4 lg:grid-cols-8 gap-3">
-            <StatCard label="Total"        value={stats.total} />
-            <StatCard label="Abertos"      value={stats.aberto}          color="text-muted-o" />
-            <StatCard label="Em Atend."    value={stats.em_atendimento}  color="text-blue-400" />
-            <StatCard label="Aguardando"   value={stats.aguardando}      color="text-yellow-400" />
-            <StatCard label="Resolvidos"   value={stats.resolvido}       color="text-emerald-400" />
-            <StatCard label="Fechados"     value={stats.fechado}         color="text-violet-400" />
-            <StatCard label="SLA Violado"  value={stats.slaViolados}     color={stats.slaViolados > 0 ? "text-red-400" : undefined} />
-            <StatCard label="SLA em Risco" value={stats.slaEmRisco}      color={stats.slaEmRisco > 0 ? "text-yellow-400" : undefined} />
-          </div>
-        </div>
-      )}
-
-      {/* Scope tabs: Fila Pública / Meus Chamados / Todos (master) */}
-      <div className="px-6 pt-3 pb-0 border-b border-[var(--border-subtle)] flex-shrink-0 bg-[var(--bg-primary)]">
+      {/* Abas. Chamados mostra as duas listas juntas; Filtros é só ajuste. */}
+      <div className="px-6 pt-2 border-b border-[var(--border-subtle)] flex-shrink-0 bg-[var(--bg-primary)]">
         <div className="flex items-center gap-1">
           {([
-            { k: "meus",  label: "Meus Chamados", icon: UserIcon, count: stats?.meus },
-            { k: "fila",  label: "Fila Pública",  icon: Globe2,   count: stats?.fila },
-            ...(user?.isMaster ? [{ k: "todos" as const, label: "Todos", icon: Inbox, count: stats?.total }] : []),
-          ] as Array<{ k: Scope; label: string; icon: any; count?: number }>).map(tab => {
-            const active = scope === tab.k;
-            const Icon = tab.icon;
+            { k: "chamados" as const, label: "Chamados", icon: Inbox, count: chamadosFila.length + chamadosMeus.length },
+            { k: "filtros" as const,  label: "Filtros",  icon: SlidersHorizontal, count: qtdFiltros || undefined },
+          ]).map(t => {
+            const ativo = aba === t.k;
+            const Icon = t.icon;
             return (
-              <button
-                key={tab.k}
-                onClick={() => setScope(tab.k)}
-                className={`relative flex items-center gap-2 px-4 py-2.5 text-[13px] font-semibold transition-colors border-b-2 -mb-px
-                  ${active
-                    ? "text-[var(--accent-violet)] border-[var(--accent-violet)]"
-                    : "text-[var(--text-muted)] border-transparent hover:text-[var(--text-primary)]"}`}
-              >
+              <button key={t.k} onClick={() => setAba(t.k)}
+                className={`flex items-center gap-2 px-4 py-2.5 text-[13px] font-semibold transition-colors border-b-2 -mb-px
+                  ${ativo ? "text-[var(--accent-violet)] border-[var(--accent-violet)]"
+                          : "text-[var(--text-muted)] border-transparent hover:text-[var(--text-primary)]"}`}>
                 <Icon size={14} />
-                {tab.label}
-                {typeof tab.count === "number" && (
-                  <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded-full
-                    ${active
-                      ? "bg-[var(--accent-violet)]/15 text-[var(--accent-violet)] border border-[var(--accent-violet)]/30"
-                      : "bg-[var(--bg-hover)] text-[var(--text-muted)] border border-[var(--border-subtle)]"}`}>
-                    {tab.count}
+                {t.label}
+                {typeof t.count === "number" && (
+                  <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded-full border
+                    ${ativo ? "bg-[var(--accent-violet)]/15 text-[var(--accent-violet)] border-[var(--accent-violet)]/30"
+                            : "bg-[var(--bg-hover)] text-[var(--text-muted)] border-[var(--border-subtle)]"}`}>
+                    {t.count}
                   </span>
                 )}
               </button>
@@ -1181,106 +1784,189 @@ export default function ChamadosPage() {
         </div>
       </div>
 
-      {/* Filters */}
-      <div className="px-6 py-4 border-b border-[var(--border-subtle)] flex-shrink-0 flex items-center gap-3 flex-wrap bg-[var(--bg-primary)]">
-        <div className="relative flex-1 min-w-48">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
-          <input
-            className="input-o pl-9 py-2"
-            placeholder="Pesquisar chamados..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-          />
-        </div>
-        <select
-          className="input-o py-2 min-w-[160px]"
-          value={filterStatus}
-          onChange={e => setFilterStatus(e.target.value)}
-        >
-          <option value="">Todos os status</option>
-          {STATUS_COLS.map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
-        </select>
-        <select
-          className="input-o py-2 min-w-[160px]"
-          value={filterPrio}
-          onChange={e => setFilterPrio(e.target.value)}
-        >
-          <option value="">Todas as prioridades</option>
-          {PRIORIDADES.map(p => <option key={p} value={p}>{PRIORIDADE_MAP[p].label}</option>)}
-        </select>
-        <select
-          className="input-o py-2 min-w-[160px]"
-          value={filterCat}
-          onChange={e => setFilterCat(e.target.value)}
-        >
-          <option value="">Todas as categorias</option>
-          {CATEGORIAS.map(c => <option key={c} value={c}>{c}</option>)}
-        </select>
-        {(filterStatus || filterPrio || filterCat || search) && (
-          <button
-            onClick={() => { setFilterStatus(""); setFilterPrio(""); setFilterCat(""); setSearch(""); }}
-            className="btn btn-ghost flex items-center gap-1 py-2 px-3 text-[var(--accent-red)] hover:text-[var(--accent-red)] hover:bg-red-500/10"
-          >
-            <X size={13} /> Limpar
-          </button>
-        )}
-      </div>
+      {aba === "filtros" ? (
+        /* Tela de ajuste: sem lista e sem "assumir". Quem veio filtrar não veio
+           agir — misturar as duas coisas foi o que encheu a tela antes. */
+        <div className="flex-1 overflow-auto px-6 py-6">
+          <div className="max-w-2xl space-y-5">
+            <div>
+              <label className="text-[11px] text-[var(--text-muted)] font-mono block mb-1.5 uppercase tracking-wider">Buscar</label>
+              <div className="relative">
+                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
+                <input className="input-o pl-9 py-2" placeholder="Título, descrição ou número..."
+                  value={search} onChange={e => setSearch(e.target.value)} />
+              </div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div>
+                <label className="text-[11px] text-[var(--text-muted)] font-mono block mb-1.5 uppercase tracking-wider">Status</label>
+                <select className="input-o py-2" value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
+                  <option value="">Todos</option>
+                  {STATUS_COLS.map(x => <option key={x.key} value={x.key}>{x.label}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="text-[11px] text-[var(--text-muted)] font-mono block mb-1.5 uppercase tracking-wider">Prioridade</label>
+                <select className="input-o py-2" value={filterPrio} onChange={e => setFilterPrio(e.target.value)}>
+                  <option value="">Todas</option>
+                  {PRIORIDADES.map(p => <option key={p} value={p}>{PRIORIDADE_MAP[p].label}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="text-[11px] text-[var(--text-muted)] font-mono block mb-1.5 uppercase tracking-wider">Categoria</label>
+                <select className="input-o py-2" value={filterCat} onChange={e => setFilterCat(e.target.value)}>
+                  <option value="">Todas</option>
+                  {CATEGORIAS.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </div>
+            </div>
 
-      {/* Kanban board */}
-      <div className="flex-1 overflow-x-auto overflow-y-hidden p-4">
-        {loading && chamados.length === 0 ? (
-          <div className="flex items-center justify-center h-full">
-            <Loader2 size={24} className="animate-spin text-muted-foreground" />
+            <div className="flex items-center gap-3 pt-1">
+              <button onClick={() => setAba("chamados")} className="btn btn-violet text-[12px] py-2 px-4">
+                Ver {chamadosFila.length + chamadosMeus.length} resultado(s)
+              </button>
+              {(filterStatus || filterPrio || filterCat || search) && (
+                <button onClick={() => { setFilterStatus(""); setFilterPrio(""); setFilterCat(""); setSearch(""); }}
+                  className="btn btn-ghost text-[12px] py-2 px-3 text-[var(--accent-red)] hover:bg-red-500/10 inline-flex items-center gap-1.5">
+                  <X size={13} /> Limpar filtros
+                </button>
+              )}
+            </div>
+            <p className="text-[11px] text-[var(--text-muted)]">
+              {chamadosFila.length} na fila pública · {chamadosMeus.length} seus. Os filtros valem para as duas listas.
+            </p>
           </div>
-        ) : (
-          <div className="flex gap-5 h-full min-w-max pb-4">
-            {byCols.map(col => (
-              <div key={col.key} className="w-[300px] flex-shrink-0 flex flex-col"
-                onDragOver={e => { e.preventDefault(); setDragOver(col.key); }}
-                onDragLeave={() => setDragOver(null)}
-                onDrop={() => handleDrop(col.key)}
-              >
-                <div className="px-1 mb-3 flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="w-2.5 h-2.5 rounded-full" style={{ background: col.color, boxShadow: `0 0 10px ${col.color}80` }} />
-                    <span className="text-[13px] font-bold text-[var(--text-secondary)] font-display tracking-wide uppercase">{col.label}</span>
-                  </div>
-                  <span className="text-[11px] font-mono text-[var(--text-muted)] bg-[var(--bg-hover)] border border-[var(--border-subtle)] rounded-full px-2 py-0.5">
-                    {col.items.length}
+        </div>
+      ) : (
+        /* Fila em cima, meus embaixo. As duas são o mesmo trabalho em momentos
+           diferentes — triar e tocar — e alternar aba escondia metade dele. */
+        <div className="flex-1 flex flex-col overflow-hidden">
+          <section className="h-1/2 flex flex-col overflow-hidden border-b-2 border-[var(--border-subtle)]">
+            {/* alertas-no-cabecalho: o que era uma barra própria acima das abas
+                mora aqui. SLA e tempo de espera são assunto DESTA lista, e como
+                título de seção eles custam zero altura extra. */}
+            <div className="px-6 py-2 flex items-center gap-2 flex-shrink-0 bg-[var(--bg-primary)]">
+              <Globe2 size={13} className="text-[var(--text-muted)]" />
+              <span className="text-[12px] font-bold text-[var(--text-secondary)] uppercase tracking-wide">Fila pública</span>
+              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-full bg-[var(--bg-hover)] border border-[var(--border-subtle)] text-[var(--text-muted)]">
+                {chamadosFila.length}
+              </span>
+              {canEditar && chamadosFila.length > 0 && (
+                <span className="text-[11px] text-[var(--text-muted)] ml-1">duplo clique assume</span>
+              )}
+
+              <span className="flex-1" />
+
+              <div className="flex items-center gap-1.5 text-[11px]">
+                {resumo.violados > 0 && (
+                  <span className="flex items-center gap-1.5 px-2 py-0.5 rounded-md border border-red-500/30 bg-red-500/10">
+                    <AlertCircle size={11} className="text-red-400" />
+                    <span className="text-[var(--text-muted)]">SLA violado</span>
+                    <span className="font-mono font-bold text-red-400 tabular-nums">{resumo.violados}</span>
                   </span>
+                )}
+                {resumo.risco > 0 && (
+                  <span className="flex items-center gap-1.5 px-2 py-0.5 rounded-md border border-yellow-500/30 bg-yellow-500/10">
+                    <Clock size={11} className="text-yellow-400" />
+                    <span className="text-[var(--text-muted)]">em risco</span>
+                    <span className="font-mono font-bold text-yellow-400 tabular-nums">{resumo.risco}</span>
+                  </span>
+                )}
+                {maisAntigoFila && (
+                  <button
+                    onClick={() => setSelected(maisAntigoFila)}
+                    title={`Abrir o chamado que espera há mais tempo: ${maisAntigoFila.titulo}`}
+                    className="flex items-center gap-1.5 px-2 py-0.5 rounded-md border border-[var(--border-subtle)] hover:bg-[var(--bg-hover)] transition-colors"
+                  >
+                    <span className="text-[var(--text-muted)]">espera há</span>
+                    <span className="font-mono font-bold text-[var(--text-secondary)] tabular-nums">
+                      {relTime(maisAntigoFila.criadoEm)}
+                    </span>
+                  </button>
+                )}
+                {resumo.violados === 0 && resumo.risco === 0 && chamadosFila.length === 0 && (
+                  <span className="flex items-center gap-1.5 text-[var(--text-muted)]">
+                    <CheckCircle2 size={11} className="text-emerald-400" />
+                    tudo em dia
+                  </span>
+                )}
+              </div>
+            </div>
+            <div className="flex-1 overflow-hidden">
+              <FilaGrid
+                chamados={chamadosFila}
+                loading={loading}
+                onOpen={c => setSelected(c)}
+                onAssumir={handleAssumir}
+                onAssumirVarios={handleAssumirVarios}
+                podeAssumir={canEditar}
+              />
+            </div>
+          </section>
+
+          <section className="h-1/2 flex flex-col overflow-hidden">
+            <div className="px-6 py-2 flex items-center gap-2 flex-shrink-0 bg-[var(--bg-primary)]">
+              <UserIcon size={13} className="text-[var(--text-muted)]" />
+              <span className="text-[12px] font-bold text-[var(--text-secondary)] uppercase tracking-wide">Meus chamados</span>
+              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-full bg-[var(--bg-hover)] border border-[var(--border-subtle)] text-[var(--text-muted)]">
+                {chamadosMeus.length}
+              </span>
+            </div>
+            <div className="flex-1 overflow-hidden px-4 pb-3">
+              {loading && chamadosMeus.length === 0 ? (
+                <div className="flex items-center justify-center h-full">
+                  <Loader2 size={22} className="animate-spin text-[var(--text-muted)]" />
                 </div>
-                <div className={`flex-1 overflow-y-auto space-y-3 px-1 pb-4 rounded-xl transition-all ${dragOver === col.key && dragId ? "bg-[var(--bg-hover)] ring-2 ring-inset ring-[var(--border-medium)]" : ""}`}>
-                  {col.items.length === 0 && dragOver !== col.key && (
-                    <div className="border border-dashed border-[var(--border-subtle)] rounded-xl p-5 text-center bg-[var(--bg-card)]/50 mt-1">
-                      <p className="text-xs text-[var(--text-muted)]">Nenhum chamado</p>
-                    </div>
-                  )}
-                  {col.items.map(c => (
-                    <div key={c.id}
-                      draggable={canEditar}
-                      onDragStart={() => setDragId(c.id)}
-                      onDragEnd={() => { setDragId(null); setDragOver(null); }}
-                      style={{ opacity: dragId === c.id ? 0.4 : 1, cursor: canEditar ? "grab" : "default" }}
+              ) : (
+                /* `flex-1` em vez de largura fixa: as colunas dividem a tela
+                   e o quadro inteiro fica visível. Arrastar só é previsível
+                   quando o destino não está fora do campo de visão. */
+                <div className="flex gap-3 h-full">
+                  {byCols.map(col => (
+                    <div key={col.key} className="flex-1 min-w-0 flex flex-col"
+                      onDragOver={e => { e.preventDefault(); setDragOver(col.key); }}
+                      onDragLeave={() => setDragOver(null)}
+                      onDrop={() => handleDrop(col.key)}
                     >
-                      <ChamadoCard chamado={c} onClick={() => setSelected(c)}
-                        selected={bulkIds.has(c.id)}
-                        onSelect={user?.isMaster ? e => { e.stopPropagation(); toggleBulk(c.id); } : undefined}
-                        onAssumir={handleAssumir}
-                        canAssumir={canEditar}
-                      />
+                      <div className="px-1 mb-2 flex items-center justify-between flex-shrink-0">
+                        <div className="flex items-center gap-2">
+                          <span className="w-2 h-2 rounded-full" style={{ background: col.color, boxShadow: `0 0 8px ${col.color}80` }} />
+                          <span className="text-[11px] font-bold text-[var(--text-secondary)] tracking-wide uppercase">{col.label}</span>
+                        </div>
+                        <span className="text-[10px] font-mono text-[var(--text-muted)] bg-[var(--bg-hover)] border border-[var(--border-subtle)] rounded-full px-1.5">
+                          {col.items.length}
+                        </span>
+                      </div>
+                      <div className={`flex-1 overflow-y-auto space-y-2 px-1 pb-2 rounded-lg transition-all ${dragOver === col.key && dragId ? "bg-[var(--bg-hover)] ring-2 ring-inset ring-[var(--border-medium)]" : ""}`}>
+                        {col.items.length === 0 && dragOver !== col.key && (
+                          // Faixa discreta em vez de caixa: coluna vazia não pode
+                          // ter mais presença visual que coluna com trabalho.
+                          <p className="text-[10px] text-[var(--text-muted)] text-center py-2 opacity-60">vazio</p>
+                        )}
+                        {col.items.map(c => (
+                          <div key={c.id}
+                            draggable={canEditar}
+                            onDragStart={() => setDragId(c.id)}
+                            onDragEnd={() => { setDragId(null); setDragOver(null); }}
+                            style={{ opacity: dragId === c.id ? 0.4 : 1, cursor: canEditar ? "grab" : "default" }}
+                          >
+                            <ChamadoCard chamado={c} onClick={() => setSelected(c)}
+                              selected={bulkIds.has(c.id)}
+                              onSelect={user?.isMaster ? e => { e.stopPropagation(); toggleBulk(c.id); } : undefined}
+                              onAssumir={handleAssumir}
+                              canAssumir={canEditar}
+                            />
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   ))}
-                  {dragOver === col.key && dragId && (
-                    <div className="border-2 border-dashed rounded-xl p-4 text-center text-xs text-[var(--text-muted)]" style={{ borderColor: col.color }}>
-                      Soltar aqui → {col.label}
-                    </div>
-                  )}
                 </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+              )}
+            </div>
+          </section>
+        </div>
+      )}
 
       {/* Bulk action bar */}
       {bulkIds.size > 0 && (

@@ -1,6 +1,7 @@
 "use client";
 export const dynamic = "force-dynamic";
 
+import { MARCA } from "@/lib/marca";
 import { useEffect, useState } from "react";
 import Topbar from "@/components/layout/Topbar";
 import { api } from "@/lib/api";
@@ -38,7 +39,7 @@ export default function SobrePage() {
 
   async function copiar() {
     const texto =
-      `Orkiestri — sistema ${VERSAO} (${VERSAO_DATA})\n` +
+      `${MARCA} — sistema ${VERSAO} (${VERSAO_DATA})\n` +
       `API: ${versaoApi ?? "não respondeu"}\n` +
       `Navegador: ${navigator.userAgent}`;
     try {
@@ -57,7 +58,7 @@ export default function SobrePage() {
         <PageBody>
           <PageHeader
             icon={<Info size={19} />}
-            title="Sobre o Orkiestri"
+            title={`Sobre o ${MARCA}`}
             subtitle="Versão em uso e o que mudou em cada entrega"
             actions={
               <button type="button" className="btn btn-ghost" onClick={copiar}>

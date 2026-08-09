@@ -6,7 +6,6 @@ import { LogOut, ChevronDown, Star } from "lucide-react";
 import { useAuthStore } from "@/lib/store";
 import { authApi } from "@/lib/api";
 import UserStatus from "@/components/ui/UserStatus";
-import { BrandLogo } from "@/components/ui/logo";
 import { cn } from "@/lib/utils";
 import { NAV, canAccessGroup, type NavGroup, type NavItem as NavItemT } from "@/lib/modules";
 
@@ -154,8 +153,12 @@ export default function Sidebar() {
   return (
     <aside className="sidebar">
       {/* ── Logo ── */}
+      {/* Marca do CLIENTE (Triunfo Transbrasiliana), nao a do produto.
+          Customizacao local deste servidor de homologacao — nao replicar
+          para o checkout principal nem para producao. */}
       <div className="flex items-center justify-center h-16 border-b border-[var(--sidebar-border)] shrink-0 px-4">
-        <BrandLogo size="md" />
+        <img src="/branding/logo-ttbr-colorida.png" alt="Triunfo TBR" className="h-8 w-auto block dark:hidden" />
+        <img src="/branding/logo-ttbr-branca.png" alt="Triunfo TBR" className="h-8 w-auto hidden dark:block" />
       </div>
 
       {/* ── Navigation ── */}

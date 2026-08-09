@@ -12,6 +12,7 @@ import { PermissionsGuard } from "../auth/permissions.guard";
 import { WhatsAppService } from "../notifications/whatsapp.service";
 import { EmailService } from "../notifications/email.service";
 import { NotificationsModule } from "../notifications/notifications.module";
+import { NotificacaoDispatcher } from "../notifications/notificacao-dispatcher.service";
 import { WebhookService, WebhooksModule } from "./webhooks.module";
 import * as crypto from "crypto";
 
@@ -109,6 +110,7 @@ export class AutomacaoService {
   private readonly logger = new Logger(AutomacaoService.name);
   constructor(
     private prisma: PrismaService,
+    private dispatcher: NotificacaoDispatcher,
     private wa: WhatsAppService,
     private email: EmailService,
   ) {}
@@ -345,8 +347,28 @@ export class AutomacaoService {
         let sent = 0;
         for (const userId of targets) {
           const profile = await this.db.userProfile.findUnique({ where: { userId } });
-          if (profile?.whatsapp && profile.whatsappAlertas) {
-            const ok = await this.wa.sendMessageForOrg(ctx.organizationId, profile.whatsapp, mensagem).catch(() => false);
+          // Número precisa estar VERIFICADO: a automação escolhe o destinatário,
+          // mas não valida o telefone dele. Um dígito errado no cadastro faria a
+          // automação despejar mensagem da empresa num desconhecido.
+          if (profile?.whatsapp && profile.whatsappVerificado) {
+            // Vai pela FILA, não direto.
+            //
+            // A automação não passa pelo filtro de preferência por módulo — quem
+            // a montou escolheu o destinatário de propósito, e bloquear seria
+            // desfazer a intenção. Mas passar direto a deixava fora do limite de
+            // vazão: uma automação mal configurada (ou disparada em lote)
+            // mandava dezenas de mensagens seguidas, que é o padrão pelo qual o
+            // WhatsApp bane o número da empresa.
+            const ok = await this.dispatcher.enfileirarDireto({
+              organizationId: ctx.organizationId,
+              canal: "whatsapp",
+              destino: profile.whatsapp,
+              userId,
+              modulo: "core",
+              tipo: "automacao",
+              titulo: "Automação",
+              mensagem,
+            }).catch(() => false);
             if (ok) sent++;
           }
         }
@@ -764,7 +786,7 @@ class AutomacoesController {
   }
 
   @Delete(":id")
-  @Permissions("automacoes:deletar")
+  @Permissions("automacoes:excluir")
   async remove(@Param("id") id: string, @Req() req: any) {
     if (!req.user.isMaster) throw new ForbiddenException("Apenas masters podem remover automacoes");
     const existing = await this.db.automacao.findUnique({ where: { id } });

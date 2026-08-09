@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from "react";
 import { useAuthStore } from "@/lib/store";
 import { api } from "@/lib/api";
 import { playAlertSound } from "@/lib/soundEngine";
+import { MARCA } from "@/lib/marca";
 import { OrkestriLogo } from "@/components/ui/logo";
 import { Clock, X } from "lucide-react";
 
@@ -31,7 +32,7 @@ export default function AlertBanner() {
             playAlertSound(ev.minutosRestantes, volume);
             if (Notification.permission === "granted") {
               const title = ev.minutosRestantes <= 0 ? "Evento agora!" : `em ${ev.minutosRestantes} min`;
-              new Notification(`Orkestri - ${title}`, {
+              new Notification(`${MARCA} - ${title}`, {
                 body: ev.titulo,
                 icon: "/icon-192.png",
                 tag: alertKey,
