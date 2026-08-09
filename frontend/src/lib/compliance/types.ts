@@ -359,6 +359,14 @@ export type Previa = {
   }[];
 };
 
+/** Mensagem já renderizada. `exemplo` nulo = a carteira está vazia e o texto veio de dado fictício. */
+export type PreviaMensagem = {
+  titulo: string;
+  corpo: string;
+  exemplo: { id: string; codigo: string; nome: string } | null;
+  padrao: boolean;
+};
+
 export const ROTULO_CANAL: Record<string, string> = {
   interno: "Notificação interna",
   email: "E-mail",

@@ -2,7 +2,7 @@ import { api } from "../api";
 import type {
   Obrigacao, ListaObrigacoes, Filtros, Painel, MeuPainel, EventoCalendario,
   Anexo, EventoHistorico, Versao, Comentario, Categoria, Orgao, Tag,
-  Regra, Template, Escalonamento, Envio, Previa,
+  Regra, Template, Escalonamento, Envio, Previa, PreviaMensagem,
 } from "./types";
 
 /**
@@ -168,8 +168,37 @@ export const complianceService = {
     return data;
   },
 
-  async relatorios() {
-    const { data } = await api.get(`${BASE}/relatorios`);
+  /**
+   * Agregados dos relatórios.
+   *
+   * Recebe o MESMO recorte que a exportação para que o arquivo baixado seja
+   * exatamente o que está na tela — antes a tela não filtrava nada e o arquivo
+   * filtrava tudo, o que é a pior combinação possível.
+   */
+  async relatorios(consulta: ConsultaObrigacoes = {}) {
+    const { data } = await api.get(`${BASE}/relatorios`, { params: limpar(consulta) });
+    return data;
+  },
+
+  /**
+   * Prévia da mensagem contra uma obrigação real. Não envia nada.
+   *
+   * `silent` porque a prévia roda a cada tecla digitada — um toast de erro por
+   * caractere seria pior que o erro.
+   */
+  async previaMensagem(dados: {
+    assunto?: string; corpo?: string; templateId?: string; obrigacaoId?: string;
+  }): Promise<PreviaMensagem> {
+    const { data } = await api.post(`${BASE}/alertas/mensagem/previa`, dados, { silent: true });
+    return data;
+  },
+
+  /** Envia a mensagem AGORA para o endereço informado. Manda de verdade. */
+  async testarMensagem(dados: {
+    canal: string; para: string;
+    assunto?: string; corpo?: string; templateId?: string; obrigacaoId?: string;
+  }): Promise<PreviaMensagem & { enviado: boolean; motivo: string | null }> {
+    const { data } = await api.post(`${BASE}/alertas/mensagem/teste`, dados);
     return data;
   },
 

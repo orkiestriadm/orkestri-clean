@@ -12,6 +12,14 @@ import { PrismaService } from "../../../prisma/prisma.service";
 
 const VIVAS = { deletedAt: null, status: { notIn: ["cancelada", "arquivada"] } } as const;
 
+/** Recorte que os relatórios aceitam. */
+export type FiltroRelatorio = {
+  de?: Date;
+  ate?: Date;
+  categoriaId?: string;
+  unidade?: string;
+};
+
 @Injectable()
 export class PainelRepository {
   constructor(private readonly prisma: PrismaService) {}
@@ -90,11 +98,31 @@ export class PainelRepository {
     };
   }
 
+  /**
+   * Recorte opcional dos relatórios.
+   *
+   * Sem ele, o relatório só sabia responder "a carteira inteira" — e a
+   * pergunta que se faz num relatório quase nunca é essa; é "o ano passado",
+   * "esta categoria", "esta unidade".
+   */
+  private recorte(f?: FiltroRelatorio): any {
+    if (!f) return {};
+    const w: any = {};
+    if (f.categoriaId) w.categoriaId = f.categoriaId;
+    if (f.unidade) w.unidade = f.unidade;
+    if (f.de || f.ate) {
+      w.dataValidade = {};
+      if (f.de) w.dataValidade.gte = f.de;
+      if (f.ate) w.dataValidade.lte = f.ate;
+    }
+    return w;
+  }
+
   /** Contagem por categoria, já com nome e cor para o gráfico. */
-  async porCategoria(organizationId: string) {
+  async porCategoria(organizationId: string, f?: FiltroRelatorio) {
     const grupos = await this.db.complianceObrigacao.groupBy({
       by: ["categoriaId"],
-      where: { organizationId, ...VIVAS },
+      where: { organizationId, ...VIVAS, ...this.recorte(f) },
       _count: { _all: true },
     });
 
@@ -116,10 +144,10 @@ export class PainelRepository {
   }
 
   /** Agrupamento genérico por uma coluna de texto — status, criticidade, unidade… */
-  async porColuna(organizationId: string, coluna: string) {
+  async porColuna(organizationId: string, coluna: string, f?: FiltroRelatorio) {
     const grupos = await this.db.complianceObrigacao.groupBy({
       by: [coluna],
-      where: { organizationId, ...VIVAS },
+      where: { organizationId, ...VIVAS, ...this.recorte(f) },
       _count: { _all: true },
     });
     return grupos
@@ -134,9 +162,13 @@ export class PainelRepository {
    * janela é de 24 meses e o recorte já filtra pela faixa de datas — o volume
    * que chega é o das obrigações que realmente vencem no período.
    */
-  async vencimentosPorMes(organizationId: string, de: Date, ate: Date) {
+  async vencimentosPorMes(organizationId: string, de: Date, ate: Date, f?: FiltroRelatorio) {
     const linhas = await this.db.complianceObrigacao.findMany({
-      where: { organizationId, ...VIVAS, dataValidade: { gte: de, lte: ate } },
+      where: {
+        organizationId, ...VIVAS,
+        ...this.recorte({ categoriaId: f?.categoriaId, unidade: f?.unidade }),
+        dataValidade: { gte: de, lte: ate },
+      },
       select: { dataValidade: true, criticidade: true, categoriaId: true },
     });
 
@@ -236,8 +268,13 @@ export class PainelRepository {
   }
 
   /** Custos: soma de licença e renovação, por categoria e no total. */
-  async custos(organizationId: string, de?: Date, ate?: Date) {
-    const where: any = { organizationId, ...VIVAS };
+  async custos(organizationId: string, de?: Date, ate?: Date, f?: FiltroRelatorio) {
+    // A faixa de datas aqui é sobre a EMISSÃO (quando se pagou), não sobre a
+    // validade — por isso o recorte entra sem as datas, que vêm à parte.
+    const where: any = {
+      organizationId, ...VIVAS,
+      ...this.recorte({ categoriaId: f?.categoriaId, unidade: f?.unidade }),
+    };
     if (de || ate) {
       where.dataEmissao = {};
       if (de) where.dataEmissao.gte = de;

@@ -10,6 +10,7 @@ import { NotificacaoService } from "../application/notificacao.service";
 import {
   SalvarCategoriaDto, SalvarOrgaoDto, SalvarTagDto, SalvarRegraDto,
   SalvarTemplateDto, SalvarEscalonamentoDto, SalvarFluxoDto,
+  PreviaMensagemDto, TestarMensagemDto,
 } from "../application/dto/configuracao.dto";
 
 /**
@@ -157,6 +158,28 @@ export class CatalogoController {
   @Permissions(COMPLIANCE_PERMISSIONS.notificacao.configurar)
   varrer() {
     return this.notificacoes.executarVarredura();
+  }
+
+  /**
+   * Como a mensagem fica, montada contra uma obrigação real. Não envia nada,
+   * por isso basta `ver`: é leitura de dado que o usuário já podia ler.
+   */
+  @Post("alertas/mensagem/previa")
+  @Permissions(COMPLIANCE_PERMISSIONS.notificacao.ver)
+  previaMensagem(@Req() req: any, @Body() dto: PreviaMensagemDto) {
+    return this.notificacoes.previaMensagem(req.user.organizationId, dto);
+  }
+
+  /**
+   * Envia a mensagem AGORA para um endereço escolhido na hora.
+   *
+   * Exige `configurar` porque manda e-mail e WhatsApp de verdade — e é a única
+   * forma de provar que o canal funciona antes de um prazo depender disso.
+   */
+  @Post("alertas/mensagem/teste")
+  @Permissions(COMPLIANCE_PERMISSIONS.notificacao.configurar)
+  testarMensagem(@Req() req: any, @Body() dto: TestarMensagemDto) {
+    return this.notificacoes.enviarTeste(req.user.organizationId, dto, req.user?.email ?? req.user?.sub);
   }
 
   /* ── Templates ─────────────────────────────────────────────────────────── */

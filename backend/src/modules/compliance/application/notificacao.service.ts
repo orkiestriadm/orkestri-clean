@@ -537,4 +537,153 @@ export class NotificacaoService {
 
     return { hoje: hoje.toISOString(), previstos };
   }
+
+  /* ── Prévia e teste da mensagem ────────────────────────────────────────── */
+
+  /**
+   * Renderiza a mensagem contra uma obrigação REAL da organização.
+   *
+   * Existe porque `{{PrazoFatal}}` num campo de texto não diz nada sobre o que
+   * a pessoa vai receber. O que revela o erro é ver a frase montada: marcador
+   * escrito errado sobra literal, campo vazio vira buraco na frase. Nada é
+   * enviado aqui.
+   */
+  async previaMensagem(organizationId: string, entrada: PreviaMensagem) {
+    const { contexto, exemplo } = await this.contextoDeAmostra(organizationId, entrada.obrigacaoId);
+    const template = entrada.templateId
+      ? await this.db.complianceTemplate.findFirst({
+          where: { id: entrada.templateId, organizationId },
+        })
+      : null;
+
+    const assunto = entrada.assunto ?? template?.assunto ?? null;
+    const corpo = entrada.corpo ?? template?.corpo ?? null;
+    const padrao = mensagemPadrao(contexto);
+
+    return {
+      titulo: assunto ? renderizarTemplate(assunto, contexto) : padrao.titulo,
+      corpo: corpo ? renderizarTemplate(corpo, contexto) : padrao.corpo,
+      /** Nulo quando a carteira está vazia e a prévia usou um exemplo fictício. */
+      exemplo,
+      padrao: !assunto && !corpo,
+    };
+  }
+
+  /**
+   * Envia a mensagem de verdade, para um endereço escolhido na hora.
+   *
+   * Sem isto, a única forma de provar que o WhatsApp está configurado é esperar
+   * um vencimento chegar — que é exatamente quando não se pode descobrir que
+   * não estava. O envio é registrado no log com quem pediu; NÃO entra na
+   * trilha de envios, para não sujar a resposta de "eu fui avisado?".
+   */
+  async enviarTeste(organizationId: string, entrada: TesteMensagem, pedidoPor?: string) {
+    const { titulo, corpo } = await this.previaMensagem(organizationId, entrada);
+    const para = (entrada.para ?? "").trim();
+    if (!para) return { enviado: false, motivo: "Informe o destino do teste.", titulo, corpo };
+
+    this.logger.log(
+      `Teste de mensagem do Compliance por ${entrada.canal} para ${para} (pedido por ${pedidoPor ?? "?"})`,
+    );
+
+    let enviado = false;
+    try {
+      switch (entrada.canal) {
+        case "interno":
+          enviado = await this.entregarInterno(para, `[TESTE] ${titulo}`, corpo, "teste");
+          break;
+        case "email":
+          enviado = await this.email.sendGeneric(para, para, `[TESTE] ${titulo}`, corpo);
+          break;
+        case "whatsapp":
+          enviado = await this.whatsapp.sendMessageForOrg(
+            organizationId, para, `*[TESTE] ${titulo}*\n\n${corpo}`,
+          );
+          break;
+        default:
+          return { enviado: false, motivo: `Canal "${entrada.canal}" não envia.`, titulo, corpo };
+      }
+    } catch (erro) {
+      this.logger.error(`Teste de mensagem falhou para ${para}`, erro as Error);
+      return { enviado: false, motivo: "A entrega falhou. Confira a configuração do canal.", titulo, corpo };
+    }
+
+    return {
+      enviado,
+      motivo: enviado ? null : "O canal recusou a entrega. Confira a configuração e o endereço.",
+      titulo, corpo,
+    };
+  }
+
+  /**
+   * Contexto para prévia e teste.
+   *
+   * Prefere uma obrigação real — a de vencimento mais próximo, que é a que a
+   * pessoa tem na cabeça ao configurar. Só cai no exemplo fictício quando a
+   * carteira está vazia, e nesse caso avisa (`exemplo: null`) para a tela poder
+   * dizer que a frase não veio de dado real.
+   */
+  private async contextoDeAmostra(organizationId: string, obrigacaoId?: string) {
+    const include = {
+      categoria: { select: { id: true, nome: true } },
+      orgao: { select: { nome: true } },
+      responsaveis: { include: { user: { select: { id: true, nome: true, email: true } } } },
+      camposValores: { include: { campo: { select: { chave: true, tipo: true } } } },
+    };
+
+    // A obrigação de vencimento futuro MAIS PRÓXIMO, não a mais antiga da
+    // carteira. Ordenar por validade crescente traz a licença vencida há dez
+    // anos, e a prévia sai dizendo "vence em 5302 dias" — texto que ninguém
+    // reconhece como o aviso que vai receber. Só se a carteira não tiver
+    // nenhuma a vencer é que se cai na mais recente.
+    const o = obrigacaoId
+      ? await this.db.complianceObrigacao.findFirst({
+          where: { id: obrigacaoId, organizationId, deletedAt: null }, include,
+        })
+      : (await this.db.complianceObrigacao.findFirst({
+          where: { organizationId, deletedAt: null, dataValidade: { gte: new Date() } },
+          orderBy: { dataValidade: "asc" }, include,
+        })) ?? (await this.db.complianceObrigacao.findFirst({
+          where: { organizationId, deletedAt: null, dataValidade: { not: null } },
+          orderBy: { dataValidade: "desc" }, include,
+        }));
+
+    if (!o) {
+      const emTrinta = new Date();
+      emTrinta.setDate(emTrinta.getDate() + 30);
+      return {
+        exemplo: null,
+        contexto: {
+          nomeObrigacao: "Licença de Operação (exemplo)",
+          codigo: "OBR-0000",
+          categoria: "Licenças ambientais",
+          sigla: "LO", numeroDocumento: "000/2026",
+          responsavel: "responsável",
+          orgao: "Órgão emissor", unidade: "Unidade",
+          dataValidade: emTrinta, prazoInterno: emTrinta, prazoFatal: emTrinta,
+          dias: 30, situacao: "Vigente",
+          link: this.linkPara("exemplo"),
+          campos: {},
+        } as ContextoMensagem,
+      };
+    }
+
+    const base = o.prazoInternoEm ?? o.prazoFatalEm ?? o.dataValidade;
+    return {
+      exemplo: { id: o.id, codigo: o.codigo, nome: o.nome },
+      contexto: this.montarContexto(o, base ? diasAte(base) : 0, new Date()),
+    };
+  }
 }
+
+export type PreviaMensagem = {
+  assunto?: string;
+  corpo?: string;
+  templateId?: string;
+  obrigacaoId?: string;
+};
+
+export type TesteMensagem = PreviaMensagem & {
+  canal: string;
+  para: string;
+};

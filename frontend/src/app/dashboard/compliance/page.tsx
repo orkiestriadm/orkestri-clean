@@ -11,7 +11,7 @@ import {
 } from "@/components/data-ui";
 import {
   ShieldCheck, AlertTriangle, CalendarClock, Clock, FileWarning, CheckCircle2,
-  ListChecks, CalendarDays, Settings, BarChart2, ArrowRight,
+  ListChecks, CalendarDays, Settings, BarChart2, ArrowRight, BellRing,
 } from "lucide-react";
 import { complianceService } from "@/lib/compliance/compliance.service";
 import type { Painel, Obrigacao } from "@/lib/compliance/types";
@@ -22,6 +22,7 @@ import { BarrasComparativas, BarraEmpilhada, ColunasPorMes, Cartao } from "./_co
 import ObrigacaoModal from "./_components/ObrigacaoModal";
 import RenovarModal from "./_components/RenovarModal";
 import ProtocoloModal from "./_components/ProtocoloModal";
+import { NotificacoesModal } from "./_components/NotificacoesModal";
 
 /**
  * Painel executivo do Compliance.
@@ -63,6 +64,7 @@ export default function CompliancePainelPage() {
   const [aberta, setAberta] = useState<string | null>(null);
   const [renovando, setRenovando] = useState<Obrigacao | null>(null);
   const [protocolando, setProtocolando] = useState<Obrigacao | null>(null);
+  const [notificacoes, setNotificacoes] = useState(false);
 
   const carregar = useCallback(async () => {
     setCarregando(true);
@@ -141,12 +143,26 @@ export default function CompliancePainelPage() {
                   <BarChart2 size={14} /> Relatórios
                 </Link>
                 {pode(user, "compliance.notificacao:ver") && (
-                  <Link href="/dashboard/compliance/alertas" className="btn btn-ghost">
-                    <Settings size={14} /> Alertas
-                  </Link>
+                  <>
+                    {/* Configurar o aviso é o que se faz DEPOIS de olhar o painel
+                        e ver que algo passou batido — por isso a modal abre aqui,
+                        sem tirar a pessoa da tela onde ela viu o problema. */}
+                    <button type="button" className="btn btn-ghost" onClick={() => setNotificacoes(true)}>
+                      <BellRing size={14} /> Notificações
+                    </button>
+                    <Link href="/dashboard/compliance/alertas" className="btn btn-ghost">
+                      <Settings size={14} /> Alertas
+                    </Link>
+                  </>
                 )}
               </>
             }
+          />
+
+          <NotificacoesModal
+            aberto={notificacoes}
+            onFechar={() => setNotificacoes(false)}
+            podeConfigurar={pode(user, "compliance.notificacao:configurar")}
           />
 
           {semPermissao ? (

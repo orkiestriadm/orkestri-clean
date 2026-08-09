@@ -1,6 +1,6 @@
 import { Injectable, BadRequestException } from "@nestjs/common";
 import { ObrigacaoRepository, FiltrosObrigacao } from "../infrastructure/obrigacao.repository";
-import { PainelRepository } from "../infrastructure/painel.repository";
+import { PainelRepository, FiltroRelatorio } from "../infrastructure/painel.repository";
 import { apresentarLista, ROTULO_SITUACAO } from "./obrigacao.presenter";
 import { dataBR } from "../../../common/datas";
 import { ListarObrigacoesQuery } from "./dto/obrigacao.dto";
@@ -155,28 +155,58 @@ export class RelatorioService {
     }
   }
 
-  /** Relatórios agregados que a especificação nomeia. */
-  async agregados(user: Usuario) {
+  /**
+   * Relatórios agregados, com o mesmo recorte que a exportação usa.
+   *
+   * Antes esta consulta só sabia responder "a carteira inteira", e a pergunta
+   * que se faz num relatório quase nunca é essa — é "o ano que vem", "esta
+   * categoria", "esta unidade". Pior: os botões de exportar aplicavam filtro e
+   * os gráficos não, então o arquivo baixado não batia com a tela.
+   */
+  async agregados(user: Usuario, query: ListarObrigacoesQuery = {}) {
     const hoje = new Date();
-    const de = new Date(hoje.getTime()); de.setMonth(de.getMonth() - 12);
-    const ate = new Date(hoje.getTime()); ate.setMonth(ate.getMonth() + 24);
 
-    const [porCategoria, porStatus, porUnidade, porEmpresa, vencimentos, custos] =
+    // Sem período informado, a janela padrão é 12 meses para trás (o que
+    // venceu e ficou) e 24 para a frente.
+    const de = query.de ? new Date(query.de) : (() => {
+      const d = new Date(hoje.getTime()); d.setMonth(d.getMonth() - 12); return d;
+    })();
+    const ate = query.ate ? new Date(query.ate) : (() => {
+      const d = new Date(hoje.getTime()); d.setMonth(d.getMonth() + 24); return d;
+    })();
+
+    const f: FiltroRelatorio = {
+      de: query.de ? new Date(query.de) : undefined,
+      ate: query.ate ? new Date(query.ate) : undefined,
+      categoriaId: query.categoriaId || undefined,
+      unidade: query.unidade || undefined,
+    };
+
+    const org = user.organizationId;
+    const [porCategoria, porStatus, porCriticidade, porUnidade, porEmpresa, porDepartamento, vencimentos, custos, total] =
       await Promise.all([
-        this.painel.porCategoria(user.organizationId),
-        this.painel.porColuna(user.organizationId, "status"),
-        this.painel.porColuna(user.organizationId, "unidade"),
-        this.painel.porColuna(user.organizationId, "empresa"),
-        this.painel.vencimentosPorMes(user.organizationId, de, ate),
-        this.painel.custos(user.organizationId),
+        this.painel.porCategoria(org, f),
+        this.painel.porColuna(org, "status", f),
+        this.painel.porColuna(org, "criticidade", f),
+        this.painel.porColuna(org, "unidade", f),
+        this.painel.porColuna(org, "empresa", f),
+        this.painel.porColuna(org, "departamento", f),
+        this.painel.vencimentosPorMes(org, de, ate, f),
+        this.painel.custos(org, f.de, f.ate, f),
+        this.repo.listar(org, {
+          categoriaId: f.categoriaId, unidade: f.unidade, de: f.de, ate: f.ate,
+        }, { pagina: 1, limite: 1 }),
       ]);
 
     return {
-      porCategoria, porStatus, porUnidade, porEmpresa, vencimentos,
+      total: total.total,
+      porCategoria, porStatus, porCriticidade, porUnidade, porEmpresa, porDepartamento, vencimentos,
       custos: {
         totalLicencas: Number(custos.agregado?._sum?.valorLicenca ?? 0),
         totalRenovacoes: Number(custos.agregado?._sum?.valorRenovacao ?? 0),
+        comCusto: custos.agregado?._count?._all ?? 0,
       },
+      periodo: { de: de.toISOString(), ate: ate.toISOString() },
       geradoEm: hoje.toISOString(),
     };
   }

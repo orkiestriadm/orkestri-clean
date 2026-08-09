@@ -11,11 +11,12 @@ import {
   ErrorState, PermissionDenied, StatusBadge, RowActions, RowAction,
   Modal, FormGrid, FormField, FormActions,
 } from "@/components/data-ui";
-import { Bell, Plus, Pencil, Trash2, PlaySquare, Eye, Send } from "lucide-react";
+import { Bell, Plus, Pencil, Trash2, Eye, Send, Sliders } from "lucide-react";
 import { complianceService } from "@/lib/compliance/compliance.service";
 import type { Regra, Template, Escalonamento, Envio, Previa, Categoria } from "@/lib/compliance/types";
 import { ROTULO_BASE, ROTULO_CANAL, ROTULO_DESTINATARIO } from "@/lib/compliance/types";
 import { pode, data, Aviso } from "../_components/comuns";
+import { NotificacoesModal } from "../_components/NotificacoesModal";
 
 type Aba = "regras" | "previa" | "templates" | "escalonamento" | "envios";
 
@@ -30,6 +31,7 @@ type Aba = "regras" | "previa" | "templates" | "escalonamento" | "envios";
 export default function AlertasPage() {
   const user = useAuthStore(s => s.user);
   const [aba, setAba] = useState<Aba>("regras");
+  const [configurando, setConfigurando] = useState(false);
   const [semPermissao, setSemPermissao] = useState(false);
   const podeConfigurar = pode(user, "compliance.notificacao:configurar");
 
@@ -48,6 +50,19 @@ export default function AlertasPage() {
             icon={<Bell size={19} />}
             title="Alertas"
             subtitle="Quem é avisado, por qual canal e com quanta antecedência"
+            actions={
+              // Esta tela é a de auditoria: prévia, trilha de enviados, degraus.
+              // Quem só quer ajustar a régua não precisa passar por ela.
+              <button type="button" className="btn btn-primary" onClick={() => setConfigurando(true)}>
+                <Sliders size={14} /> Configuração guiada
+              </button>
+            }
+          />
+
+          <NotificacoesModal
+            aberto={configurando}
+            onFechar={() => setConfigurando(false)}
+            podeConfigurar={podeConfigurar}
           />
 
           {semPermissao ? (
@@ -192,6 +207,7 @@ function RegraForm({
   const [canais, setCanais] = useState<string[]>(["interno", "email"]);
   const [destinatarios, setDestinatarios] = useState<string[]>(["responsavel", "gestor"]);
   const [emailsExtras, setEmailsExtras] = useState("");
+  const [whatsappsExtras, setWhatsappsExtras] = useState("");
   const [templateId, setTemplateId] = useState("");
   const [ativo, setAtivo] = useState(true);
   const [categorias, setCategorias] = useState<Categoria[]>([]);
@@ -211,6 +227,7 @@ function RegraForm({
     setCanais(regra?.canais ?? ["interno", "email"]);
     setDestinatarios(regra?.destinatarios ?? ["responsavel", "gestor"]);
     setEmailsExtras((regra?.emailsExtras ?? []).join(", "));
+    setWhatsappsExtras((regra?.whatsappsExtras ?? []).join(", "));
     setTemplateId(regra?.templateId ?? "");
     setAtivo(regra?.ativo ?? true);
   }, [aberto, regra]);
@@ -234,6 +251,7 @@ function RegraForm({
         canais,
         destinatarios,
         emailsExtras: emailsExtras.split(",").map(s => s.trim()).filter(Boolean),
+        whatsappsExtras: whatsappsExtras.split(",").map(s => s.trim()).filter(Boolean),
         templateId: templateId || undefined,
         ativo,
       });
@@ -301,6 +319,13 @@ function RegraForm({
 
           <FormField label="E-mails adicionais" largura="total" dica="Separados por vírgula. Não precisam ter login.">
             <input className="input-o" value={emailsExtras} onChange={e => setEmailsExtras(e.target.value)} />
+          </FormField>
+
+          {/* O motor já lia `whatsappsExtras`; só a tela não deixava preencher,
+              então o campo existia e era impossível de usar. */}
+          <FormField label="WhatsApps adicionais" largura="total"
+            dica="Com DDI e DDD, separados por vírgula: 5511987654321. Só valem com o canal WhatsApp ligado.">
+            <input className="input-o" value={whatsappsExtras} onChange={e => setWhatsappsExtras(e.target.value)} />
           </FormField>
 
           <FormField label="Mensagem" dica="Em branco, usa a mensagem padrão do sistema.">

@@ -95,6 +95,26 @@ export class SalvarTemplateDto {
   @IsOptional() @IsBoolean() ativo?: boolean;
 }
 
+/**
+ * Prévia e teste da mensagem.
+ *
+ * `assunto` e `corpo` chegam soltos, e não só `templateId`, porque a prévia
+ * precisa funcionar com o texto que está sendo digitado — esperar salvar para
+ * então descobrir que o marcador estava errado é o ciclo que se quer evitar.
+ */
+export class PreviaMensagemDto {
+  @IsOptional() @IsString() @MaxLength(200) assunto?: string;
+  @IsOptional() @IsString() @MaxLength(8000) corpo?: string;
+  @IsOptional() @IsUUID() templateId?: string;
+  @IsOptional() @IsUUID() obrigacaoId?: string;
+}
+
+export class TestarMensagemDto extends PreviaMensagemDto {
+  @IsIn(["interno", "email", "whatsapp"]) canal!: string;
+  /** E-mail, número de WhatsApp ou id de usuário, conforme o canal. */
+  @IsString() @MaxLength(200) para!: string;
+}
+
 export class SalvarEscalonamentoDto {
   @IsOptional() @IsUUID() categoriaId?: string;
   @IsInt() @Min(1) @Max(3650) aposDias!: number;

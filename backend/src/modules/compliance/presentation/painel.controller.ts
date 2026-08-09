@@ -5,6 +5,7 @@ import { Permissions } from "../../auth/permissions.decorator";
 import { COMPLIANCE_PERMISSIONS } from "../compliance.permissions";
 import { PainelService } from "../application/painel.service";
 import { RelatorioService } from "../application/relatorio.service";
+import { ListarObrigacoesQuery } from "../application/dto/obrigacao.dto";
 
 @Controller("v1/compliance")
 @UseGuards(AuthGuard("jwt"), PermissionsGuard)
@@ -41,7 +42,7 @@ export class PainelController {
 
   @Get("relatorios")
   @Permissions(COMPLIANCE_PERMISSIONS.relatorio.ver)
-  agregados(@Req() req: any) {
-    return this.relatorios.agregados(req.user);
+  agregados(@Req() req: any, @Query() query: ListarObrigacoesQuery) {
+    return this.relatorios.agregados(req.user, query);
   }
 }
