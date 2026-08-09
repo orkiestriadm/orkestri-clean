@@ -144,6 +144,60 @@ Antes de produção, conferir:
 
 ---
 
+---
+
+## Estado da Fase 1 — atualizado em 09/08/2026
+
+Resgatado e commitado na branch (`d25dd0e`, `8008981`, `f3633ba`):
+
+- 13 arquivos que não existiam no repositório
+- 3 models de notificação + 4 migrations (3 resgatadas, 1 escrita)
+- grupos 1 a 5 dos divergentes, mais o grupo 2
+
+### Duas correções ao levantamento original
+
+**1. A comparação por nome de model era insuficiente.** São **16 models
+compartilhados com campos divergentes**. Foi assim que a integração
+chamado↔frota passou despercebida.
+
+**2. As 11 migrations "só de histórico" NÃO eram equivalentes.** Produção não
+tem `chamados.veiculo_id`, `chamados.atribuido_por_id` nem
+`manutencoes_veiculo.chamado_id`.
+
+### Descoberta: homologação tem drift de schema
+
+As colunas da integração chamado↔frota **existem no banco de homologação e
+nenhuma migration as cria** — foram aplicadas por `db push` ou à mão. Um
+ambiente novo, montado pelas migrations, não as teria.
+
+A migration `20260807000000_chamado_frota_integracao` foi **escrita agora** para
+tapar esse buraco, e é idempotente porque em homologação as colunas já estão lá.
+
+**Vale procurar outros casos de drift antes de promover para produção.**
+
+### A suspeita das guardas empilhadas era infundada
+
+O padrão de homologação (`@UseGuards` duas vezes no mesmo handler) é **seguro**.
+`guards-empilhados.spec.ts` prova: o NestJS acumula em vez de sobrescrever, e a
+ordem final é `[AuthGuard, PermissionsGuard]` — autentica e só então autoriza.
+
+### O que falta da Fase 1
+
+Um cluster, o de **orçamento por centro de custo**, onde homologação está à
+frente e que exige campos de schema (`CentroCusto.compartilhamentos`,
+`OrcamentoCompartilhamento.centroCustoId` e `papel`) mais a migration:
+
+| Arquivo | homolog+ | branch+ |
+|---|---|---|
+| `orcamento/orcamento.module.ts` | 159 | 39 |
+| `app/dashboard/orcamento/page.tsx` | 143 | 45 |
+| `app/dashboard/page.tsx` | 59 | 15 |
+| `workforce/workforce.module.ts` | 14 | 7 |
+
+Nos outros 9 arquivos do grupo 6 a branch está à frente — ficam como estão.
+
+---
+
 ## Riscos conhecidos
 
 | Risco | Mitigação |
