@@ -4371,3 +4371,68 @@ model ComplianceAprovacao {
   @@index([organizationId, decisao])
   @@map("compliance_aprovacoes")
 }
+
+// ── Notificacoes por modulo ───────────────────────────────────────────────
+//
+// Resgatado de homologacao em 07/08/2026: o codigo estava no ar la e nao
+// existia no repositorio. Ver docs/architecture/CONVERGENCIA_AMBIENTES.md.
+//
+// Sem relacao Prisma declarada com Organization/User de proposito — as
+// colunas de escopo sao usadas direto, como no resto do subsistema.
+
+model NotificacaoEnvio {
+  id             String    @id @default(uuid())
+  organizationId String    @map("organization_id")
+  userId         String?   @map("user_id")
+  canal          String
+  destino        String
+  modulo         String
+  tipo           String
+  severidade     String    @default("info")
+  titulo         String
+  mensagem       String    @db.Text
+  status         String    @default("pendente")
+  tentativas     Int       @default(0)
+  ultimoErro     String?   @db.Text @map("ultimo_erro")
+  agendadoPara   DateTime? @map("agendado_para")
+  enviadoEm      DateTime? @map("enviado_em")
+  chave          String?
+  criadoEm       DateTime  @default(now()) @map("criado_em")
+
+  @@index([status, agendadoPara])
+  @@index([organizationId, criadoEm])
+  @@index([userId, criadoEm])
+  @@unique([organizationId, chave])
+  @@map("notificacao_envios")
+}
+
+model NotificacaoPreferencia {
+  id              String       @id @default(uuid())
+  organizationId  String       @map("organization_id")
+  userId          String       @map("user_id")
+  modulo          String
+  sistema         Boolean      @default(true)
+  whatsapp        Boolean      @default(false)
+  email           Boolean      @default(false)
+  severidadeMin   String       @default("info") @map("severidade_min")
+  criadoEm        DateTime     @default(now()) @map("criado_em")
+  atualizadoEm    DateTime     @updatedAt @map("atualizado_em")
+  atualizadoPorId String?      @map("atualizado_por_id")
+
+  @@unique([userId, modulo])
+  @@index([organizationId, modulo])
+  @@map("notificacao_preferencias")
+}
+
+model OrgNotificacaoConfig {
+  id                    String   @id @default(uuid())
+  organizationId        String   @unique @map("organization_id")
+  silencioInicio        Int      @default(21) @map("silencio_inicio")
+  silencioFim           Int      @default(7) @map("silencio_fim")
+  silencioIgnoraCritico Boolean  @default(true) @map("silencio_ignora_critico")
+  maxPorMinuto          Int      @default(12) @map("max_por_minuto")
+  agruparPorModulo      Boolean  @default(true) @map("agrupar_por_modulo")
+  atualizadoEm          DateTime @updatedAt @map("atualizado_em")
+
+  @@map("org_notificacao_configs")
+}

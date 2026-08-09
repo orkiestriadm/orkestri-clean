@@ -1,14 +1,18 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { Resend } from "resend";
+import { MARCA } from "../../common/marca";
 
 /**
- * Nome da marca, com o "i" — é "Orkiestri", como no logo, no domínio e na
- * interface. Os e-mails escreviam "Orkestri" em oito lugares diferentes, o que
- * fazia a mensagem parecer de outro produto (ou de um golpe) para quem
- * comparasse com o sistema. Constante justamente para não divergir de novo.
+ * A marca vem de `common/marca` (que lê do ambiente) e não mais de uma
+ * constante local.
+ *
+ * Antes cada arquivo declarava a sua, e os e-mails escreviam o nome em oito
+ * lugares diferentes — quem recebia via uma marca no e-mail e outra no sistema.
+ * Agora, além de não divergir entre arquivos, ela acompanha o ambiente: no
+ * servidor white-label o e-mail sai com a marca do cliente sem precisar editar
+ * código, que era a origem da divergência que o deploy apagava.
  */
-const MARCA = "Orkiestri";
 
 @Injectable()
 export class EmailService {
@@ -52,6 +56,19 @@ export class EmailService {
       this.logger.error(`Erro ao enviar email para ${to}: ${e.message}`);
       return false;
     }
+  }
+
+  /**
+   * Envio genérico, usado pelo worker de notificações.
+   *
+   * Os demais métodos públicos são específicos por evento (reset de senha,
+   * conta aprovada...). O worker entrega conteúdo já montado pelo despachante e
+   * precisava de uma porta pública sem template próprio — antes disso, a única
+   * saída seria tornar `send` público, o que abriria envio livre para o resto
+   * do sistema e desfaria a padronização dos e-mails transacionais.
+   */
+  async enviarNotificacao(to: string, assunto: string, corpoHtml: string): Promise<boolean> {
+    return this.send(to, assunto, corpoHtml);
   }
 
   async sendWithAttachment(to: string, subject: string, html: string, filename: string, contentBase64: string): Promise<boolean> {
@@ -365,7 +382,7 @@ export class EmailService {
         <p>Olá${nome ? `, <strong>${nome}</strong>` : ""}!</p>
         <div style="white-space:pre-line;font-size:14px;color:#374151;line-height:1.6">${mensagem.replace(/\n/g, "<br>")}</div>
         <p style="font-size:12px;color:#9ca3af;margin-top:24px;border-top:1px solid #e5e7eb;padding-top:12px">
-          Este e-mail foi enviado automaticamente pelo Orkiestri.
+          Este e-mail foi enviado automaticamente pelo ${MARCA}.
         </p>
       `)
     );
