@@ -181,20 +181,36 @@ O padrão de homologação (`@UseGuards` duas vezes no mesmo handler) é **segur
 `guards-empilhados.spec.ts` prova: o NestJS acumula em vez de sobrescrever, e a
 ordem final é `[AuthGuard, PermissionsGuard]` — autentica e só então autoriza.
 
-### O que falta da Fase 1
+### Fase 1 CONCLUÍDA
 
-Um cluster, o de **orçamento por centro de custo**, onde homologação está à
-frente e que exige campos de schema (`CentroCusto.compartilhamentos`,
-`OrcamentoCompartilhamento.centroCustoId` e `papel`) mais a migration:
+Conferido campo a campo contra o schema de homologação: **não falta mais nada**,
+exceto a decisão de projeto abaixo. Nos 9 arquivos restantes do grupo 6 a branch
+está à frente e ficam como estão.
 
-| Arquivo | homolog+ | branch+ |
+Uma falha do resgate, corrigida em `02fb5da`: as migrations resgatadas criavam
+9 colunas que eu não declarei no schema. O efeito não era erro visível — a
+coluna existe, o Prisma a ignora, e a funcionalidade fica morta. É a direção
+inversa do drift que a migration `20260726200000` corrigiu, e mais difícil de
+achar porque não quebra nada.
+
+Verificação: as 5 migrations pendentes foram aplicadas no banco local (o que
+executou pela primeira vez as duas escritas à mão) e as 16 colunas conferidas
+no `information_schema`.
+
+### A decisão que sobrou: centro de custo da reserva de veículo
+
+Os dois lados foram em direções OPOSTAS para a mesma coisa:
+
+| | desenho | como chegou lá |
 |---|---|---|
-| `orcamento/orcamento.module.ts` | 159 | 39 |
-| `app/dashboard/orcamento/page.tsx` | 143 | 45 |
-| `app/dashboard/page.tsx` | 59 | 15 |
-| `workforce/workforce.module.ts` | 14 | 7 |
+| branch + produção | `ReservaVeiculo.centroCusto` **TEXTO** | migration `20260726200000_veiculo_centro_custo_texto`, feita de propósito para corrigir um drift que deixava a Frota inoperante |
+| homologação | `ReservaVeiculo.centroCustoId` **chave estrangeira** para `centros_custo` | — |
 
-Nos outros 9 arquivos do grupo 6 a branch está à frente — ficam como estão.
+Não é "um está desatualizado". São dois modelos de dados incompatíveis, e
+migrar de texto para FK exige casar cada valor de texto com uma linha de
+`centros_custo` — pode não haver correspondência para todos.
+
+**Decisão de projeto, não de merge.** Fica fora até alguém escolher.
 
 ---
 
