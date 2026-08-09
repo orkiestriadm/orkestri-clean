@@ -395,6 +395,7 @@ class ProjectsController {
   // ── Members ───────────────────────────────────────────────────────────────
 
   @Post(":id/members")
+  @Permissions("projetos:gerenciar")
   @Permissions("projetos:editar")
   async addMember(@Param("id") id: string, @Body() body: { userId: string; papel?: string }, @Req() req: any) {
     const project = await this.prisma.project.findUnique({ where: { id } });
@@ -442,6 +443,7 @@ class ProjectsController {
   }
 
   @Delete(":id/members/:userId")
+  @Permissions("projetos:gerenciar")
   @Permissions("projetos:editar")
   async removeMember(@Param("id") id: string, @Param("userId") userId: string) {
     await this.prisma.projectMember.delete({ where: { projectId_userId: { projectId: id, userId } } });

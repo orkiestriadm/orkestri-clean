@@ -1,5 +1,7 @@
 import { Module, Controller, Get, Query, UseGuards, Req } from "@nestjs/common";
 import { AuthGuard } from "@nestjs/passport";
+import { Permissions } from "../auth/permissions.decorator";
+import { PermissionsGuard } from "../auth/permissions.guard";
 import { PrismaService } from "../../prisma/prisma.service";
 
 // Returns an array of {semana, label} for the last N weeks (Mon–Sun)
@@ -29,7 +31,8 @@ class RelatoriosController {
   private get db() { return this.prisma as any; }
 
   @Get("visao-geral")
-  @UseGuards(AuthGuard("jwt"))
+  @UseGuards(AuthGuard("jwt"), PermissionsGuard)
+  @Permissions("relatorios:ver")
   async visaoGeral(@Req() req: any, @Query("dias") dias?: string) {
     const period = Number(dias) || 30;
     const desde = new Date();
@@ -88,7 +91,8 @@ class RelatoriosController {
   }
 
   @Get("produtividade")
-  @UseGuards(AuthGuard("jwt"))
+  @UseGuards(AuthGuard("jwt"), PermissionsGuard)
+  @Permissions("relatorios:ver")
   async produtividade(@Req() req: any) {
     const desde = new Date();
     desde.setDate(desde.getDate() - 30);
@@ -111,7 +115,8 @@ class RelatoriosController {
 
   // GET /relatorios/chamados-trend?semanas=8
   @Get("chamados-trend")
-  @UseGuards(AuthGuard("jwt"))
+  @UseGuards(AuthGuard("jwt"), PermissionsGuard)
+  @Permissions("relatorios:ver")
   async chamadosTrend(@Req() req: any, @Query("semanas") semanas?: string) {
     const n = Math.min(Number(semanas) || 8, 24);
     const weeks = lastNWeeks(n);
@@ -132,7 +137,8 @@ class RelatoriosController {
 
   // GET /relatorios/sla-trend?semanas=8
   @Get("sla-trend")
-  @UseGuards(AuthGuard("jwt"))
+  @UseGuards(AuthGuard("jwt"), PermissionsGuard)
+  @Permissions("relatorios:ver")
   async slaTrend(@Req() req: any, @Query("semanas") semanas?: string) {
     const n = Math.min(Number(semanas) || 8, 24);
     const weeks = lastNWeeks(n);
@@ -173,7 +179,8 @@ class RelatoriosController {
 
   // GET /relatorios/csat-trend?semanas=8
   @Get("csat-trend")
-  @UseGuards(AuthGuard("jwt"))
+  @UseGuards(AuthGuard("jwt"), PermissionsGuard)
+  @Permissions("relatorios:ver")
   async csatTrend(@Req() req: any, @Query("semanas") semanas?: string) {
     const n = Math.min(Number(semanas) || 8, 24);
     const weeks = lastNWeeks(n);
@@ -205,7 +212,8 @@ class RelatoriosController {
 
   // GET /relatorios/horas-trend?semanas=8
   @Get("horas-trend")
-  @UseGuards(AuthGuard("jwt"))
+  @UseGuards(AuthGuard("jwt"), PermissionsGuard)
+  @Permissions("relatorios:ver")
   async horasTrend(@Req() req: any, @Query("semanas") semanas?: string) {
     const n = Math.min(Number(semanas) || 8, 24);
     const weeks = lastNWeeks(n);
@@ -232,7 +240,8 @@ class RelatoriosController {
 
   // GET /relatorios/chamados-categoria — chamados by category (all time / current month)
   @Get("chamados-categoria")
-  @UseGuards(AuthGuard("jwt"))
+  @UseGuards(AuthGuard("jwt"), PermissionsGuard)
+  @Permissions("relatorios:ver")
   async chamadosCategoria(@Req() req: any) {
     const mesInicio = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
     const orgId = req.user?.organizationId;
@@ -269,7 +278,8 @@ class RelatoriosController {
 
   // GET /relatorios/chamados-categorias?semanas=N
   @Get("chamados-categorias")
-  @UseGuards(AuthGuard("jwt"))
+  @UseGuards(AuthGuard("jwt"), PermissionsGuard)
+  @Permissions("relatorios:ver")
   async chamadosCategorias(@Req() req: any, @Query("semanas") semanas?: string) {
     const n = Math.min(Number(semanas) || 12, 52);
     const desde = new Date();
@@ -302,7 +312,8 @@ class RelatoriosController {
 
   // GET /relatorios/chamados-comparativo?p1Start=&p1End=&p2Start=&p2End=
   @Get("chamados-comparativo")
-  @UseGuards(AuthGuard("jwt"))
+  @UseGuards(AuthGuard("jwt"), PermissionsGuard)
+  @Permissions("relatorios:ver")
   async comparativo(
     @Query("p1Start") p1Start?: string,
     @Query("p1End")   p1End?: string,

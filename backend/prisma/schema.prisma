@@ -332,7 +332,8 @@ model User {
   complianceEscalonamentos   ComplianceEscalonamento[]   @relation("ComplianceEscalonamentoUser")
   complianceAprovacoes       ComplianceAprovacao[]       @relation("ComplianceAprovadorUser")
 
-  @@unique([organizationId, email])
+    chamadosAtribuidosPorMim   Chamado[]                   @relation("ChamadoAtribuidor")
+@@unique([organizationId, email])
   @@index([organizationId])
   @@map("users")
 }
@@ -1567,7 +1568,14 @@ model Chamado {
   @@index([solicitanteId])
   @@index([atendenteId])
   @@index([organizationId, status, atendenteId])
-  @@map("chamados")
+    /// Quem atribuiu o chamado. Resgatado de homologacao em 08/2026.
+  atribuidoPorId     String?              @map("atribuido_por_id")
+  /// Veiculo do chamado. Presente = o chamado e de frota e pode virar OS.
+  veiculoId          String?              @map("veiculo_id")
+  atribuidoPor       User?                @relation("ChamadoAtribuidor", fields: [atribuidoPorId], references: [id], onDelete: SetNull)
+  veiculo            Veiculo?             @relation("ChamadoVeiculo", fields: [veiculoId], references: [id], onDelete: SetNull)
+  manutencoes        ManutencaoVeiculo[]  @relation("ManutencaoChamado")
+@@map("chamados")
 }
 
 // ── Anexos de Chamado ──────────────────────────────────────────────────────────
@@ -2222,7 +2230,8 @@ model Veiculo {
   @@unique([organizationId, codigo])
   @@index([organizationId, status])
   @@index([organizationId, deletedAt])
-  @@map("veiculos")
+    chamados             Chamado[]            @relation("ChamadoVeiculo")
+@@map("veiculos")
 }
 
 model Motorista {
@@ -2463,7 +2472,10 @@ model ManutencaoVeiculo {
   anexos          ManutencaoAnexo[]
 
   @@index([organizationId, deletedAt])
-  @@index([veiculoId])
+    /// OS nascida de um chamado. Fechar o chamado fecha esta OS.
+  chamadoId       String?             @map("chamado_id")
+  chamado         Chamado?            @relation("ManutencaoChamado", fields: [chamadoId], references: [id], onDelete: SetNull)
+@@index([veiculoId])
   @@index([organizationId, status])
   @@map("manutencoes_veiculo")
 }

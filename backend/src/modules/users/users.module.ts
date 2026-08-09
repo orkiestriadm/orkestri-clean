@@ -301,7 +301,7 @@ class UsersController {
   }
 
   @Delete(":id")
-  @Permissions("usuarios:deletar")
+  @Permissions("usuarios:excluir")
   async remove(@Param("id") id: string, @Req() req: any) {
     if (id === req.user.id) throw new BadRequestException("Voce nao pode remover sua propria conta");
     const user = await this.prisma.user.findUnique({ where: { id } });

@@ -1,3 +1,5 @@
+import { Permissions } from '../auth/permissions.decorator';
+import { PermissionsGuard } from '../auth/permissions.guard';
 import {
   Module, Controller, Get, Post, Patch, Body, Param,
   UseGuards, Req, ForbiddenException, NotFoundException,
@@ -214,23 +216,26 @@ export class CadastroRequestService {
 // ─── Controller ──────────────────────────────────────────────────────────────
 
 @Controller('cadastro-requests')
-@UseGuards(AuthGuard('jwt'))
+@UseGuards(AuthGuard('jwt'), PermissionsGuard)
 export class CadastroRequestController {
   constructor(private service: CadastroRequestService) {}
 
   @Get()
+  @Permissions('solicitacoes:ver')
   findAll(@Req() req: any) {
     if (!req.user?.isSuperAdmin) throw new ForbiddenException('Apenas Super Admin pode acessar.');
     return this.service.findAll();
   }
 
   @Get(':id')
+  @Permissions('solicitacoes:ver')
   findOne(@Req() req: any, @Param('id') id: string) {
     if (!req.user?.isSuperAdmin) throw new ForbiddenException('Apenas Super Admin pode acessar.');
     return this.service.findOne(id);
   }
 
   @Post()
+  @Permissions('solicitacoes:criar')
   create(@Req() req: any, @Body() dto: CreateCadastroRequestDto) {
     if (!req.user?.isSuperAdmin)
       throw new ForbiddenException('Apenas Super Admin pode criar solicitações de provisionamento.');
@@ -238,6 +243,7 @@ export class CadastroRequestController {
   }
 
   @Patch(':id/aprovar')
+  @Permissions('solicitacoes:aprovar')
   @HttpCode(HttpStatus.OK)
   aprovar(@Req() req: any, @Param('id') id: string) {
     if (!req.user?.isSuperAdmin) throw new ForbiddenException('Apenas Super Admin pode aprovar.');
@@ -245,6 +251,7 @@ export class CadastroRequestController {
   }
 
   @Patch(':id/rejeitar')
+  @Permissions('solicitacoes:aprovar')
   @HttpCode(HttpStatus.OK)
   rejeitar(@Req() req: any, @Param('id') id: string, @Body() dto: RejectCadastroRequestDto) {
     if (!req.user?.isSuperAdmin) throw new ForbiddenException('Apenas Super Admin pode rejeitar.');

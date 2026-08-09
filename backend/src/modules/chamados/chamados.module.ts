@@ -15,6 +15,7 @@ import { PermissionsGuard } from "../auth/permissions.guard";
 import { SlaService } from "../sla/sla.module";
 import { AutomacaoService } from "../automacoes/automacoes.module";
 import { WebhookService } from "../automacoes/webhooks.module";
+import { NotificacaoDispatcher } from "../notifications/notificacao-dispatcher.service";
 
 const SLA_HORAS: Record<string, number> = { baixa: 72, media: 24, alta: 8, critica: 2 };
 
@@ -26,6 +27,8 @@ class CreateChamadoDto {
   @IsOptional() @IsString() tags?: string;
   @IsOptional() @IsString() clienteId?: string;
   @IsOptional() @IsString() atendenteId?: string;
+  /// Preenchido = chamado de frota, elegível a virar ordem de serviço.
+  @IsOptional() @IsString() veiculoId?: string;
 }
 
 class UpdateChamadoDto {
@@ -91,6 +94,11 @@ function mapChamado(c: any) {
     slaRespostaStatus,
     avaliacao: c.avaliacao, avaliacaoNota: c.avaliacaoNota,
     resolvidoEm: c.resolvidoEm, fechadoEm: c.fechadoEm,
+    atribuidoPorId: c.atribuidoPorId ?? null,
+    atribuidoPor: c.atribuidoPor ?? null,
+    veiculoId: c.veiculoId ?? null,
+    veiculo: c.veiculo ?? null,
+    manutencoes: c.manutencoes ?? [],
     criadoEm: c.criadoEm, atualizadoEm: c.atualizadoEm,
     solicitante: c.solicitante ? { id: c.solicitante.id, nome: c.solicitante.nome, email: c.solicitante.email, avatar: c.solicitante.avatar } : null,
     atendente: c.atendente ? { id: c.atendente.id, nome: c.atendente.nome, email: c.atendente.email, avatar: c.atendente.avatar } : null,
@@ -111,6 +119,16 @@ const INCLUDE_LIST = {
 };
 const INCLUDE_DETAIL = {
   ...INCLUDE_LIST,
+  atribuidoPor: { select: { id: true, nome: true, email: true } },
+  veiculo: { select: { id: true, placa: true, identificacao: true, marca: true, modelo: true } },
+  // As OS que este chamado gerou — é o que a tela mostra para não abrir duas.
+  manutencoes: {
+    select: {
+      id: true, numeroOs: true, status: true, tipo: true, imobiliza: true,
+      dataAbertura: true, dataFechamento: true,
+    },
+    orderBy: { criadoEm: "desc" as const },
+  },
   comentarios: {
     include: { user: { select: { id: true, nome: true, avatar: true } } },
     orderBy: { criadoEm: "asc" as const },
@@ -128,13 +146,61 @@ class ChamadosController {
     private sla: SlaService,
     private automacao: AutomacaoService,
     private webhook: WebhookService,
+    private dispatcher: NotificacaoDispatcher,
   ) {}
 
   private get appUrl() { return this.config.get("APP_URL", "http://localhost"); }
 
+  /**
+   * Telefone para o qual PODE ser enviada mensagem de chamado.
+   *
+   * Ponto único por onde os quatro envios de chamado decidem se mandam
+   * WhatsApp. Antes bastava ter número e o interruptor global ligado — o que
+   * fazia alguém de Frotas receber notificação de chamado, exatamente o
+   * vazamento entre módulos que o modelo de permissão veio resolver.
+   *
+   * Agora exige três coisas:
+   *  1. número cadastrado;
+   *  2. número VERIFICADO (dígito errado não vira mensagem para estranho);
+   *  3. preferência explícita para o módulo `service` no canal WhatsApp.
+   */
   private async getUserPhone(userId: string): Promise<string | null> {
     const p = await this.prisma.userProfile.findUnique({ where: { userId } });
-    return (p?.whatsapp && p?.whatsappAlertas) ? p.whatsapp : null;
+    if (!p?.whatsapp || !(p as any)?.whatsappVerificado) return null;
+
+    const pref = await (this.prisma as any).notificacaoPreferencia.findUnique({
+      where: { userId_modulo: { userId, modulo: "service" } },
+    }).catch(() => null);
+    if (!pref?.whatsapp) return null;
+
+    return p.whatsapp;
+  }
+
+  private prioLabel(v: string): string {
+    return ({ baixa: "Baixa", media: "Media", alta: "Alta", critica: "CRITICA", urgente: "URGENTE" } as any)[v] || v;
+  }
+
+  /**
+   * Enfileira uma mensagem de chamado já formatada.
+   *
+   * Antes ia direto para `wa.sendChamadoXxx(...)`, o que a deixava fora da
+   * outbox: WhatsApp fora do ar no instante da atribuição = mensagem perdida
+   * para sempre, mesmo que a conexão voltasse um minuto depois. E chegava às
+   * 3h da manhã, porque não havia horário de silêncio.
+   *
+   * O texto é montado AQUI, e não no serviço de WhatsApp, porque é texto de
+   * negócio (assunto, prioridade, prazo). A permissão por módulo já foi
+   * aplicada antes, em `getUserPhone`.
+   */
+  private async filaChamado(
+    orgId: string, userId: string | null, phone: string,
+    tipo: string, texto: string,
+    severidade: "info" | "aviso" | "critico" = "info", chave?: string,
+  ): Promise<boolean> {
+    return this.dispatcher.enfileirarDireto({
+      organizationId: orgId, canal: "whatsapp", destino: phone, userId,
+      modulo: "service", tipo, titulo: "Chamado", mensagem: texto, severidade, chave,
+    }).catch(() => false);
   }
 
   /** Resolve a instância WhatsApp da organização — garante que notificações usem a instância correta */
@@ -364,6 +430,8 @@ class ChamadosController {
         atendenteId: dto.atendenteId || null,
         clienteId: dto.clienteId || null,
         status: dto.atendenteId ? "em_atendimento" : "aberto",
+        veiculoId: dto.veiculoId || null,
+        atribuidoPorId: dto.atendenteId && dto.atendenteId !== req.user.id ? req.user.id : null,
         slaHoras,
         ...(orgId ? { organizationId: orgId } : {}),
       } as any,
@@ -387,14 +455,36 @@ class ChamadosController {
       await this.notificarAtendente(dto.atendenteId, chamado, "atribuido");
       const atendente = await this.prisma.user.findUnique({ where: { id: dto.atendenteId }, select: { email: true, nome: true } });
       const phone = await this.getUserPhone(dto.atendenteId);
-      if (phone) this.wa.sendChamadoAtribuido(phone, chamado.numero, chamado.titulo, chamado.prioridade, this.deadlineFor(chamado.criadoEm, chamado.slaHoras), this.appUrl, waInst).catch(() => {});
+      if (phone) await this.filaChamado((chamado as any).organizationId, dto.atendenteId, phone, "chamado_atribuido",
+        `*${MARCA} - Chamado #${chamado.numero} atribuido a voce*\n\n*Assunto:* ${chamado.titulo}\n*Prioridade:* ${this.prioLabel(chamado.prioridade)}\n\nAcesse: ${this.appUrl}/dashboard/chamados`,
+        "aviso", `ch-atrib::${chamado.id}::${dto.atendenteId}`);
       if (atendente?.email) this.email.sendChamadoAtribuido(atendente.email, atendente.nome, chamado.numero, chamado.titulo, chamado.prioridade, chamado.solicitante?.nome || "").catch(() => {});
     }
     // Notifica solicitante da abertura
     const solicitante = await this.prisma.user.findUnique({ where: { id: chamado.solicitanteId }, select: { email: true, nome: true } });
     const solPhone = await this.getUserPhone(chamado.solicitanteId);
-    if (solPhone) this.wa.sendChamadoAberto(solPhone, chamado.numero, chamado.titulo, chamado.prioridade, chamado.slaHoras, this.appUrl, waInst).catch(() => {});
+    if (solPhone) await this.filaChamado((chamado as any).organizationId, chamado.solicitanteId, solPhone, "chamado_aberto",
+      `*${MARCA} - Chamado #${chamado.numero} aberto*\n\nSeu chamado foi registrado.\n*Assunto:* ${chamado.titulo}\n*Prioridade:* ${this.prioLabel(chamado.prioridade)}\n\nAcompanhe: ${this.appUrl}/dashboard/chamados`,
+      "info", `ch-aberto::${chamado.id}`);
     if (solicitante?.email) this.email.sendChamadoAberto(solicitante.email, solicitante.nome, chamado.numero, chamado.titulo, chamado.prioridade, chamado.slaHoras).catch(() => {});
+
+    // Chamado de frota sem dono não pode ficar só na fila genérica: quem cuida
+    // de frota precisa saber que chegou. O despachante resolve os destinatários
+    // pelo acesso ao módulo e respeita a preferência de cada um — não existe
+    // cadastro de equipe, e inventar um aqui seria pior que reusar isto.
+    if (!dto.atendenteId && dto.veiculoId) {
+      this.dispatcher.despachar({
+        organizationId: (chamado as any).organizationId,
+        modulo: "fleet",
+        tipo: "chamado_frota_aberto",
+        titulo: `Chamado #${chamado.numero} de frota aguardando atendimento`,
+        mensagem: `${chamado.titulo}\n\nAberto por ${req.user?.nome || "um usuário"}.`,
+        severidade: chamado.prioridade === "critica" ? "critico" : (chamado.prioridade === "alta" ? "aviso" : "info"),
+        referenciaTipo: "chamado",
+        referenciaId: chamado.id,
+        chave: `ch-frota-aberto::${chamado.id}`,
+      }).catch(() => {});
+    }
 
     // Fire automations async (non-blocking)
     this.automacao.executar("chamado_criado", { id: chamado.id, numero: chamado.numero, titulo: chamado.titulo, prioridade, status: chamado.status, categoria: dto.categoria || null, solicitanteId: chamado.solicitanteId, atendenteId: chamado.atendenteId || null, clienteId: chamado.clienteId || null, organizationId: orgId, tags: chamado.tags || "" }).catch(() => {});
@@ -453,7 +543,9 @@ class ChamadosController {
       await this.notificarAtendente(dto.atendenteId, updated, "atribuido");
       const atendente = await this.prisma.user.findUnique({ where: { id: dto.atendenteId }, select: { email: true, nome: true } });
       const phone = await this.getUserPhone(dto.atendenteId);
-      if (phone) this.wa.sendChamadoAtribuido(phone, updated.numero, updated.titulo, updated.prioridade, this.deadlineFor(updated.criadoEm, updated.slaHoras), this.appUrl, waInstUpd).catch(() => {});
+      if (phone) await this.filaChamado((updated as any).organizationId, dto.atendenteId, phone, "chamado_atribuido",
+        `*${MARCA} - Chamado #${updated.numero} atribuido a voce*\n\n*Assunto:* ${updated.titulo}\n*Prioridade:* ${this.prioLabel(updated.prioridade)}\n\nAcesse: ${this.appUrl}/dashboard/chamados`,
+        "aviso", `ch-atrib::${updated.id}::${dto.atendenteId}`);
       if (atendente?.email) this.email.sendChamadoAtribuido(atendente.email, atendente.nome, updated.numero, updated.titulo, updated.prioridade, updated.solicitante?.nome || "").catch(() => {});
     }
     if (dto.status && dto.status !== existing.status && existing.solicitanteId !== req.user.id) {
@@ -462,9 +554,13 @@ class ChamadosController {
       const phone = await this.getUserPhone(existing.solicitanteId);
       if (phone) {
         if (dto.status === "resolvido") {
-          this.wa.sendChamadoResolvido(phone, updated.numero, updated.titulo, this.appUrl, waInstUpd).catch(() => {});
+          await this.filaChamado((updated as any).organizationId, existing.solicitanteId, phone, "chamado_resolvido",
+            `*${MARCA} - Chamado #${updated.numero} resolvido*\n\n*Assunto:* ${updated.titulo}\n\nAvalie o atendimento:\n${this.appUrl}/dashboard/chamados`,
+            "info", `ch-resolv::${updated.id}`);
         } else {
-          this.wa.sendChamadoStatus(phone, updated.numero, updated.titulo, dto.status, this.appUrl, waInstUpd).catch(() => {});
+          await this.filaChamado((updated as any).organizationId, existing.solicitanteId, phone, "chamado_status",
+            `*${MARCA} - Chamado #${updated.numero} atualizado*\n\nNovo status: *${dto.status}*\n*Assunto:* ${updated.titulo}\n\nAcompanhe: ${this.appUrl}/dashboard/chamados`,
+            "info", `ch-status::${updated.id}::${dto.status}`);
         }
       }
       if (solicitante?.email) {
@@ -508,6 +604,14 @@ class ChamadosController {
     if (!existing) throw new NotFoundException("Chamado nao encontrado");
     const canEdit = req.user.isMaster || existing.solicitanteId === req.user.id || existing.atendenteId === req.user.id;
     if (!canEdit) throw new ForbiddenException("Sem permissao");
+    // Fechar é o único estado sem volta (NEXT_STATUS.fechado = []), então tem
+    // permissão própria — quem edita não necessariamente encerra.
+    if (body.status === "fechado" && existing.status !== "fechado") {
+      const perms: string[] = req.user?.permissions || [];
+      if (!req.user?.isMaster && !perms.includes("*") && !perms.includes("chamados:fechar")) {
+        throw new ForbiddenException("Sem permissão para fechar chamados");
+      }
+    }
     const resolvidoEm = body.status === "resolvido" && existing.status !== "resolvido" ? new Date() : undefined;
     const fechadoEm   = body.status === "fechado"   && existing.status !== "fechado"   ? new Date() : undefined;
     const updated = await this.prisma.chamado.update({
@@ -522,9 +626,13 @@ class ChamadosController {
       const waInstStatus = await this.getWaInstance(req.user.organizationId);
       if (phone) {
         if (body.status === "resolvido") {
-          this.wa.sendChamadoResolvido(phone, updated.numero, updated.titulo, this.appUrl, waInstStatus).catch(() => {});
+          await this.filaChamado((updated as any).organizationId, existing.solicitanteId, phone, "chamado_resolvido",
+            `*${MARCA} - Chamado #${updated.numero} resolvido*\n\n*Assunto:* ${updated.titulo}\n\nAvalie o atendimento:\n${this.appUrl}/dashboard/chamados`,
+            "info", `ch-resolv::${updated.id}`);
         } else {
-          this.wa.sendChamadoStatus(phone, updated.numero, updated.titulo, body.status, this.appUrl, waInstStatus).catch(() => {});
+          await this.filaChamado((updated as any).organizationId, existing.solicitanteId, phone, "chamado_status",
+            `*${MARCA} - Chamado #${updated.numero} atualizado*\n\nNovo status: *${body.status}*\n*Assunto:* ${updated.titulo}\n\nAcompanhe: ${this.appUrl}/dashboard/chamados`,
+            "info", `ch-status::${updated.id}::${body.status}`);
         }
       }
       if (solicitante?.email) {
@@ -545,6 +653,24 @@ class ChamadosController {
       this.automacao.executar(trigStatus, baseCtx).catch(() => {});
       this.webhook.fire(evtStatus, { id: updated.id, numero: updated.numero, titulo: updated.titulo, status: updated.status, clienteId: updated.clienteId || null, resolvidoEm: (updated as any).resolvidoEm || new Date() }, orgIdStatus).catch(() => {});
     }
+    // Frotas: encerrar o chamado encerra a OS que ele gerou. Sem isso o veículo
+    // fica vermelho no farol para sempre, mesmo com o problema já resolvido —
+    // era exatamente o vício da planilha, OS que ninguém lembrava de baixar.
+    if (["resolvido", "fechado"].includes(body.status) && body.status !== existing.status) {
+      const encerradas = await (this.prisma as any).manutencaoVeiculo.updateMany({
+        where: { chamadoId: id, deletedAt: null, status: { notIn: ["finalizada", "cancelada"] } },
+        data: { status: "finalizada", dataFechamento: new Date(), atualizadoPorId: req.user.id },
+      });
+      if (encerradas.count) {
+        await (this.prisma as any).chamadoComentario.create({
+          data: {
+            chamadoId: id, userId: req.user.id, interno: true,
+            texto: `${encerradas.count} manutenção(ões) finalizada(s) no módulo de Frotas junto com o chamado.`,
+          },
+        }).catch(() => {});
+      }
+    }
+
     // Auditoria
     if (body.status !== existing.status) {
       await this.recordAudit(id, req.user.id, "status", existing.status, body.status);
@@ -552,12 +678,172 @@ class ChamadosController {
     return mapChamado(updated);
   }
 
+  /** Devolve um chamado a quem o atribuiu.
+   *
+   *  A atribuição vale na hora — não há "pendente de aceite", que criaria um
+   *  chamado sem dono, fora da fila pública e com o SLA correndo. Em vez de
+   *  travar a entrada, aqui existe a saída: recusar depois, com motivo.
+   *
+   *  Volta para QUEM ATRIBUIU, nunca para a fila pública: quem empurrou o
+   *  trabalho responde por ele de volta. Chamado que a pessoa pegou sozinha na
+   *  fila não é devolvível — não há remetente. */
+  @Patch(":id/devolver")
+  @Permissions("chamados:editar")
+  async devolver(@Param("id") id: string, @Body() body: { motivo?: string }, @Req() req: any) {
+    const motivo = (body?.motivo || "").trim();
+    if (motivo.length < 5) throw new BadRequestException("Explique o motivo da devolução");
+
+    const chamado: any = await this.prisma.chamado.findUnique({ where: { id } });
+    if (!chamado) throw new NotFoundException("Chamado não encontrado");
+    if (req.user?.organizationId && chamado.organizationId !== req.user.organizationId) {
+      throw new NotFoundException("Chamado não encontrado");
+    }
+    if (chamado.atendenteId !== req.user.id) {
+      throw new ForbiddenException("Só quem está com o chamado pode devolvê-lo");
+    }
+    if (!chamado.atribuidoPorId) {
+      throw new BadRequestException("Este chamado não foi atribuído por ninguém — você o assumiu da fila");
+    }
+    if (["resolvido", "fechado"].includes(chamado.status)) {
+      throw new BadRequestException("Chamado já encerrado não pode ser devolvido");
+    }
+
+    const destino = chamado.atribuidoPorId;
+    const updated = await this.prisma.chamado.update({
+      where: { id },
+      data: {
+        atendenteId: destino,
+        // Zera a origem: o chamado não fica quicando entre duas pessoas.
+        atribuidoPorId: null,
+        status: "em_atendimento",
+      },
+      include: INCLUDE_DETAIL,
+    });
+
+    const quem = await this.prisma.user.findUnique({ where: { id: req.user.id }, select: { nome: true } });
+    await (this.prisma as any).chamadoComentario.create({
+      data: {
+        chamadoId: id, userId: req.user.id, interno: false,
+        texto: `Chamado devolvido por ${quem?.nome || "o atendente"}. Motivo: ${motivo}`,
+      },
+    }).catch(() => {});
+    await this.recordAudit(id, req.user.id, "devolucao", req.user.id, destino);
+
+    // Quem atribuiu precisa saber que voltou — senão o chamado some do radar
+    // dele e reaparece na conta de outro dia.
+    await this.notificarAtendente(destino, updated, "devolvido").catch(() => {});
+    await (this.prisma as any).notification.create({
+      data: {
+        userId: destino, tipo: "chamado_devolvido", modulo: "service",
+        titulo: `Chamado #${updated.numero} devolvido a você`,
+        mensagem: `${quem?.nome || "O atendente"} devolveu: ${motivo}`,
+        referenciaTipo: "chamado", referenciaId: id,
+      },
+    }).catch(() => {});
+    const phone = await this.getUserPhone(destino);
+    if (phone) {
+      await this.filaChamado((updated as any).organizationId, destino, phone, "chamado_devolvido",
+        `*${MARCA} - Chamado #${updated.numero} devolvido*\n\n*Assunto:* ${updated.titulo}\n*Motivo:* ${motivo}\n\nAcesse: ${this.appUrl}/dashboard/chamados`,
+        "aviso", `ch-devol::${id}::${destino}`);
+    }
+
+    return mapChamado(updated);
+  }
+
+  // ── Integração com Frotas ──────────────────────────────────────────────────
+
+  /** Abre a ordem de serviço do chamado no módulo de Frotas.
+   *
+   *  Copia o relato para a OS em vez de pedir redigitação, põe o chamado em
+   *  atendimento e deixa a origem rastreável dos dois lados. Idempotente: dois
+   *  cliques não geram duas OS. */
+  @Post(":id/abrir-manutencao")
+  @Permissions("chamados:editar")
+  async abrirManutencao(
+    @Param("id") id: string,
+    @Body() body: { imobiliza?: boolean; tipo?: string; localizacao?: string; previsaoLiberacao?: string },
+    @Req() req: any,
+  ) {
+    const chamado: any = await this.prisma.chamado.findUnique({ where: { id } });
+    if (!chamado) throw new NotFoundException("Chamado não encontrado");
+    if (req.user?.organizationId && chamado.organizationId !== req.user.organizationId) {
+      throw new NotFoundException("Chamado não encontrado");
+    }
+    if (!chamado.veiculoId) {
+      throw new BadRequestException("Selecione o veículo no chamado antes de abrir a manutenção");
+    }
+
+    const orgId = chamado.organizationId;
+    const aberta = await (this.prisma as any).manutencaoVeiculo.findFirst({
+      where: { chamadoId: id, deletedAt: null, status: { notIn: ["finalizada", "cancelada"] } },
+      select: { id: true, numeroOs: true, status: true, imobiliza: true },
+    });
+    if (aberta) return { jaExistia: true, manutencao: aberta };
+
+    // Mesma numeração do módulo de Frotas, para as OS não saírem de duas séries.
+    const ultima = await (this.prisma as any).manutencaoVeiculo.findFirst({
+      where: { organizationId: orgId, numeroOs: { startsWith: "OS-" } },
+      orderBy: { numeroOs: "desc" }, select: { numeroOs: true },
+    });
+    let seq = ultima?.numeroOs ? (parseInt(String(ultima.numeroOs).replace("OS-", ""), 10) || 0) : 0;
+    let numeroOs = `OS-${String(++seq).padStart(5, "0")}`;
+    while (await (this.prisma as any).manutencaoVeiculo.findFirst({ where: { organizationId: orgId, numeroOs } })) {
+      numeroOs = `OS-${String(++seq).padStart(5, "0")}`;
+    }
+
+    const agora = new Date();
+    // `imobiliza` decide a cor do veículo no farol: parado (vermelho) ou
+    // operando com avaria (amarelo). Só quem abre a OS sabe qual é o caso.
+    const imobiliza = body.imobiliza !== false;
+    const manutencao = await (this.prisma as any).manutencaoVeiculo.create({
+      data: {
+        organizationId: orgId,
+        veiculoId: chamado.veiculoId,
+        chamadoId: id,
+        numeroOs,
+        tipo: body.tipo || "corretiva",
+        descricao: `[Chamado #${chamado.numero}] ${chamado.titulo}\n\n${chamado.descricao}`,
+        solicitanteId: chamado.solicitanteId,
+        imobiliza,
+        localizacao: body.localizacao || null,
+        previsaoLiberacao: body.previsaoLiberacao ? new Date(body.previsaoLiberacao) : null,
+        status: "aberta",
+        data: agora,
+        dataAbertura: agora,
+        criadoPorId: req.user.id,
+      },
+      select: { id: true, numeroOs: true, status: true, imobiliza: true },
+    });
+
+    // O chamado deixa a fila: existe trabalho em campo a partir de agora.
+    if (chamado.status === "aberto") {
+      await this.prisma.chamado.update({ where: { id }, data: { status: "em_atendimento" } });
+      await this.recordAudit(id, req.user.id, "status", chamado.status, "em_atendimento");
+    }
+    await (this.prisma as any).chamadoComentario.create({
+      data: {
+        chamadoId: id, userId: req.user.id, interno: true,
+        texto: `Manutenção ${numeroOs} aberta no módulo de Frotas — veículo ${imobiliza ? "parado" : "operando com avaria"}.`,
+      },
+    }).catch(() => {});
+
+    return { jaExistia: false, manutencao };
+  }
+
   @Patch(":id/atribuir")
   @Permissions("chamados:editar")
   async atribuir(@Param("id") id: string, @Body() body: { atendenteId: string | null }, @Req() req: any) {
     const existing = await this.prisma.chamado.findUnique({ where: { id } });
     if (!existing) throw new NotFoundException("Chamado nao encontrado");
-    if (!req.user.isMaster && existing.solicitanteId !== req.user.id) throw new ForbiddenException("Sem permissao");
+    // Antes a regra era só "master ou solicitante" — escrita aqui dentro, e por
+    // isso invisível para a matriz de permissões: marcar as 90 caixinhas não
+    // dava esse acesso. Agora existe o caminho pela matriz, sem tirar o do
+    // solicitante, que continua podendo direcionar o próprio chamado.
+    const podeAtribuir = req.user.isMaster
+      || (req.user.permissions || []).includes("*")
+      || (req.user.permissions || []).includes("chamados:atribuir")
+      || existing.solicitanteId === req.user.id;
+    if (!podeAtribuir) throw new ForbiddenException("Sem permissão para atribuir este chamado");
     const orgId = req.user?.organizationId;
     if (orgId && (existing as any).organizationId && (existing as any).organizationId !== orgId) {
       throw new NotFoundException("Chamado nao encontrado");
@@ -567,6 +853,9 @@ class ChamadosController {
       data: {
         atendenteId: body.atendenteId || null,
         status: body.atendenteId ? "em_atendimento" : "aberto",
+        // Guarda o remetente: é para ele que a devolução volta. Assumir da
+        // fila limpa isto — quem se serviu não tem a quem devolver.
+        atribuidoPorId: body.atendenteId && body.atendenteId !== req.user.id ? req.user.id : null,
       },
       include: INCLUDE_DETAIL,
     });
@@ -574,7 +863,9 @@ class ChamadosController {
       await this.notificarAtendente(body.atendenteId, updated, "atribuido");
       const phone = await this.getUserPhone(body.atendenteId);
       const waInstAtrib = await this.getWaInstance(req.user.organizationId);
-      if (phone) this.wa.sendChamadoAtribuido(phone, updated.numero, updated.titulo, updated.prioridade, this.deadlineFor(updated.criadoEm, updated.slaHoras), this.appUrl, waInstAtrib).catch(() => {});
+      if (phone) await this.filaChamado((updated as any).organizationId, body.atendenteId, phone, "chamado_atribuido",
+        `*${MARCA} - Chamado #${updated.numero} atribuido a voce*\n\n*Assunto:* ${updated.titulo}\n*Prioridade:* ${this.prioLabel(updated.prioridade)}\n\nAcesse: ${this.appUrl}/dashboard/chamados`,
+        "aviso", `ch-atrib::${updated.id}::${body.atendenteId}`);
     }
     // Auditoria — diferencia atribuição inicial / transferência / remoção
     let acao = "atribuicao";
@@ -614,6 +905,8 @@ class ChamadosController {
       data: {
         atendenteId: userId,
         status: "em_atendimento",
+        // Quem se serviu da fila nao tem a quem devolver.
+        atribuidoPorId: null,
       },
     });
 
@@ -640,7 +933,9 @@ class ChamadosController {
       const sol = await this.prisma.user.findUnique({ where: { id: existing.solicitanteId }, select: { email: true, nome: true } });
       const phone = await this.getUserPhone(existing.solicitanteId);
       const waInstAssumir = await this.getWaInstance(req.user.organizationId);
-      if (phone) this.wa.sendChamadoStatus(phone, updated.numero, updated.titulo, "em_atendimento", this.appUrl, waInstAssumir).catch(() => {});
+      if (phone) await this.filaChamado((updated as any).organizationId, existing.solicitanteId, phone, "chamado_status",
+        `*${MARCA} - Chamado #${updated.numero} atualizado*\n\nNovo status: *em atendimento*\n*Assunto:* ${updated.titulo}\n\nAcompanhe: ${this.appUrl}/dashboard/chamados`,
+        "info", `ch-status::${updated.id}::em_atendimento`);
       if (sol?.email) this.email.sendChamadoStatus(sol.email, sol.nome, updated.numero, updated.titulo, "em_atendimento").catch(() => {});
     }
 
@@ -725,7 +1020,7 @@ class ChamadosController {
   }
 
   @Delete(":id")
-  @Permissions("chamados:deletar")
+  @Permissions("chamados:excluir")
   async remove(@Param("id") id: string, @Req() req: any) {
     if (!req.user.isMaster) throw new ForbiddenException("Apenas masters podem remover chamados");
     const chamado = await this.prisma.chamado.findUnique({ where: { id } });
@@ -774,6 +1069,7 @@ import { AutomacoesModule } from "../automacoes/automacoes.module";
 import { WebhooksModule } from "../automacoes/webhooks.module";
 import { NotificationsModule } from "../notifications/notifications.module";
 import { Injectable, OnModuleInit, Logger } from "@nestjs/common";
+import { MARCA } from "../../common/marca";
 
 // ── SLA Escalation Scheduler ─────────────────────────────────────────────────
 // Verifica a cada 30min chamados com SLA violado e notifica os masters da org.

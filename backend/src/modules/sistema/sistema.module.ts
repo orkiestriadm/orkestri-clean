@@ -6,6 +6,8 @@ import { ConfigService } from "@nestjs/config";
 import * as fs from "fs";
 import * as path from "path";
 import { spawn } from "child_process";
+import { Permissions } from "../auth/permissions.decorator";
+import { PermissionsGuard } from "../auth/permissions.guard";
 
 // Tabelas de telemetria do Monitoramento (time-series regeneravel, ~7GB). Sao
 // EXCLUIDAS do dump de dados para o backup ser rapido e nao derrubar a API.
@@ -307,6 +309,8 @@ class SistemaController {
   constructor(private sistemaService: SistemaService) {}
 
   @Get("config")
+  @UseGuards(PermissionsGuard)
+  @Permissions("configuracoes:ver")
   @UseGuards(AuthGuard("jwt"))
   async getConfig(@Req() req: any) {
     if (!req.user.isMaster && !req.user.isSuperAdmin) throw new Error("Acesso negado");
@@ -314,6 +318,8 @@ class SistemaController {
   }
 
   @Post("config")
+  @UseGuards(PermissionsGuard)
+  @Permissions("configuracoes:editar")
   @UseGuards(AuthGuard("jwt"))
   async updateConfig(@Body() dto: UpdateSistemaConfigDto, @Req() req: any) {
     if (!req.user.isMaster && !req.user.isSuperAdmin) throw new Error("Acesso negado");

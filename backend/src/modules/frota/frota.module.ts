@@ -18,7 +18,7 @@ import * as crypto from "crypto";
 import { EmailService } from "../notifications/email.service";
 import { NotificationsModule } from "../notifications/notifications.module";
 import { FrotaRelatoriosService } from "./frota-relatorios.service";
-import { janelaManutencao, janelaRevisao } from "./frota-datas";
+import { janelaManutencao, janelaRevisao, dataQueryLocal } from "./frota-datas";
 import { ReservasModule } from "./reservas/reservas.module";
 
 const FROTA_UPLOAD_DIR = process.env.UPLOAD_DIR || "/app/uploads";
@@ -252,7 +252,7 @@ class VeiculosController extends BaseFrotaController {
   constructor(prisma: PrismaService, audit: AuditService) { super(prisma, audit); }
   protected model = "veiculo";
   protected tabela = "veiculos";
-  protected searchFields = ["placa", "codigo", "marca", "modelo", "renavam", "chassi"];
+  protected searchFields = ["placa", "codigo", "identificacao", "marca", "modelo", "renavam", "chassi"];
   protected requiredFields = ["placa"];
   protected filterKeys = ["status", "categoriaId", "tipo", "combustivel", "setorId", "motoristaId", "responsavelId", "centroCusto"];
   protected include = VEICULO_LIST_INCLUDE;
@@ -266,7 +266,8 @@ class VeiculosController extends BaseFrotaController {
     condutores:     { where: { deletedAt: null }, orderBy: { dataInicio: "desc" }, include: { motorista: { select: { id: true, nome: true } } } },
   };
   protected fields: FieldDef[] = [
-    { k: "codigo", t: "string" }, { k: "placa", t: "string" }, { k: "renavam", t: "string" },
+    { k: "codigo", t: "string" }, { k: "identificacao", t: "string" },
+    { k: "placa", t: "string" }, { k: "renavam", t: "string" },
     { k: "chassi", t: "string" }, { k: "marca", t: "string" }, { k: "modelo", t: "string" },
     { k: "anoFabricacao", t: "int" }, { k: "anoModelo", t: "int" }, { k: "cor", t: "string" },
     { k: "tipo", t: "string" }, { k: "combustivel", t: "string" }, { k: "categoriaId", t: "string" },
@@ -471,12 +472,24 @@ class MotoristasController extends BaseFrotaController {
     const m = await this.db.motorista.findFirst({ where: { id, organizationId: orgId, deletedAt: null } });
     if (!m) throw new NotFoundException("Motorista não encontrado");
     if (!body.validadeNova) throw new BadRequestException("Informe a nova validade");
+    // Validade é DIA, não instante. `new Date("2026-08-15")` é meia-noite UTC =
+    // 14/08 21:00 no fuso do container, e a CNH ficaria gravada um dia antes do
+    // que o usuário digitou — inclusive antecipando o alerta de vencimento.
+    // As 220 CNHs atuais estão corretas (meia-noite local), então este é um
+    // defeito latente: nunca chegou a produzir dado errado.
+    let validadeNova: Date, cnhEmissao: Date | null;
+    try {
+      validadeNova = dataQueryLocal(body.validadeNova)!;
+      cnhEmissao = dataQueryLocal(body.dataRenovacao);
+    } catch (e: any) {
+      throw new BadRequestException(e?.message || "Data inválida");
+    }
     const renov = await this.db.motoristaCnhRenovacao.create({
       data: {
         id: crypto.randomUUID(), organizationId: orgId, motoristaId: id,
         numeroAnterior: m.cnh || null, categoriaAnterior: m.categoriaCnh || null, validadeAnterior: m.validadeCnh || null,
         numeroNovo: body.numeroNovo || m.cnh || null, categoriaNova: body.categoriaNova || m.categoriaCnh || null,
-        validadeNova: new Date(body.validadeNova), orgaoEmissor: body.orgaoEmissor || m.orgaoEmissor || null,
+        validadeNova, orgaoEmissor: body.orgaoEmissor || m.orgaoEmissor || null,
         observacoes: body.observacoes || null, criadoPorId: req.user?.id || null,
       },
     });
@@ -484,8 +497,8 @@ class MotoristasController extends BaseFrotaController {
       where: { id },
       data: {
         cnh: body.numeroNovo || m.cnh, categoriaCnh: body.categoriaNova || m.categoriaCnh,
-        validadeCnh: new Date(body.validadeNova), orgaoEmissor: body.orgaoEmissor || m.orgaoEmissor,
-        ...(body.dataRenovacao ? { cnhEmissao: new Date(body.dataRenovacao) } : {}),
+        validadeCnh: validadeNova, orgaoEmissor: body.orgaoEmissor || m.orgaoEmissor,
+        ...(cnhEmissao ? { cnhEmissao } : {}),
         atualizadoPorId: req.user?.id || null,
       },
     });
@@ -847,7 +860,8 @@ class ManutencoesController extends BaseFrotaController {
     { k: "veiculoId", t: "string" }, { k: "numeroOs", t: "string" }, { k: "tipo", t: "string" },
     { k: "descricao", t: "string" }, { k: "solicitanteId", t: "string" },
     { k: "data", t: "date" }, { k: "dataAgendada", t: "date" }, { k: "dataAbertura", t: "date" },
-    { k: "dataFechamento", t: "date" }, { k: "km", t: "int" },
+    { k: "previsaoLiberacao", t: "date" }, { k: "dataFechamento", t: "date" }, { k: "km", t: "int" },
+    { k: "imobiliza", t: "bool" }, { k: "localizacao", t: "string" },
     { k: "custoPecas", t: "float" }, { k: "custoServicos", t: "float" }, { k: "custoTerceiros", t: "float" },
     { k: "fornecedor", t: "string" }, { k: "fornecedorId", t: "string" }, { k: "oficina", t: "string" },
     { k: "pecas", t: "json" }, { k: "status", t: "string" }, { k: "observacoes", t: "string" },
@@ -862,6 +876,9 @@ class ManutencoesController extends BaseFrotaController {
       while (await this.db.manutencaoVeiculo.findFirst({ where: { organizationId: orgId, numeroOs: os } })) os = `OS-${String(++n).padStart(5, "0")}`;
       data.numeroOs = os;
     }
+    // `imobiliza` é NOT NULL. O coerce transforma "" em null, então um campo
+    // vazio vindo do formulário derrubaria o insert no Prisma.
+    if (data.imobiliza == null) data.imobiliza = true;
     if (!data.dataAbertura) data.dataAbertura = new Date();
     // `data` é a data de referência da OS para custo e relatório. O formulário
     // não a envia, e nada a preenchia — resultado: 100% das OS ficavam com
@@ -871,6 +888,8 @@ class ManutencoesController extends BaseFrotaController {
   }
 
   protected async beforeUpdate(data: any, existing: any, _req: any): Promise<void> {
+    // Mesma proteção do create: nunca gravar null num campo NOT NULL.
+    if ("imobiliza" in data && data.imobiliza == null) data.imobiliza = true;
     // Repara OS antigas ao primeiro salvamento e cobre o caso de a abertura ser
     // preenchida só na edição.
     const abertura = data.dataAbertura ?? existing?.dataAbertura;
@@ -882,9 +901,78 @@ class ManutencoesController extends BaseFrotaController {
     }
   }
 
-  protected async afterWrite(row: any, _req: any, _acao: string): Promise<void> {
+  protected async afterWrite(row: any, req: any, _acao: string): Promise<void> {
     const total = await this.recalcTotal(row.id);
     row.custo = total;
+    await this.avisarChamado(row.id, req);
+  }
+
+  /**
+   * Encerrar a OS avisa o chamado que a originou.
+   *
+   * AVISA, não fecha. Quem abriu o chamado pode ter pendência que a oficina não
+   * resolve — peça em garantia, laudo, aprovação de custo — e fechar por fora
+   * tiraria essa decisão de quem é dono dela. O sentido chamado → OS é
+   * automático (ver `chamados.module.ts`); este aqui é só informativo.
+   *
+   * Nunca derruba o salvamento da OS: o aviso é acessório, e um erro aqui não
+   * pode fazer o mecânico perder o lançamento de custo.
+   */
+  private async avisarChamado(id: string, req: any): Promise<void> {
+    try {
+      const os = await this.db.manutencaoVeiculo.findUnique({
+        where: { id },
+        select: {
+          id: true, numeroOs: true, status: true, chamadoId: true,
+          veiculo: { select: { placa: true } },
+        },
+      });
+      if (!os?.chamadoId || !["finalizada", "cancelada"].includes(os.status)) return;
+
+      const chamado = await (this.db as any).chamado.findUnique({
+        where: { id: os.chamadoId },
+        select: { id: true, numero: true, titulo: true, status: true, solicitanteId: true },
+      });
+      if (!chamado) return;
+
+      // Idempotência sem coluna extra: o texto começa com a identificação da
+      // OS, então salvar a OS de novo não empilha avisos repetidos.
+      const prefixo = `Manutenção ${os.numeroOs || os.id} do veículo ${os.veiculo?.placa || ""}`;
+      const jaAvisado = await (this.db as any).chamadoComentario.findFirst({
+        where: { chamadoId: chamado.id, texto: { startsWith: prefixo } },
+        select: { id: true },
+      });
+      if (jaAvisado) return;
+
+      const verbo = os.status === "cancelada" ? "cancelada" : "finalizada";
+      const autorId = req?.user?.id;
+      if (autorId) {
+        await (this.db as any).chamadoComentario.create({
+          data: {
+            chamadoId: chamado.id, userId: autorId, interno: false,
+            texto: `${prefixo} foi ${verbo} no módulo de Frotas.`,
+          },
+        });
+      }
+
+      // O comentário só aparece para quem abrir o chamado. O sino é o que faz o
+      // solicitante saber sem ficar conferindo.
+      if (chamado.solicitanteId && chamado.solicitanteId !== autorId && !["resolvido", "fechado"].includes(chamado.status)) {
+        await (this.db as any).notification.create({
+          data: {
+            userId: chamado.solicitanteId,
+            tipo: "frota_manutencao_encerrada",
+            modulo: "fleet",
+            titulo: `Manutenção ${verbo} — chamado #${chamado.numero}`,
+            mensagem: `${prefixo} foi ${verbo}. Confira se o chamado já pode ser encerrado.`,
+            referenciaTipo: "chamado",
+            referenciaId: chamado.id,
+          },
+        });
+      }
+    } catch {
+      // Silencioso de propósito: ver o comentário do método.
+    }
   }
 
   private async recalcTotal(id: string): Promise<number> {
@@ -894,6 +982,467 @@ class ManutencoesController extends BaseFrotaController {
     const total = (m.custoPecas || 0) + (m.custoServicos || 0) + (m.custoTerceiros || 0) + (mo._sum.custo || 0);
     await this.db.manutencaoVeiculo.update({ where: { id }, data: { custo: total } });
     return total;
+  }
+
+  /**
+   * Importa a planilha FORFT_0005 ("Controle de Manutenções Corretivas").
+   *
+   * Duas abas, dois formatos:
+   *
+   *  - "Controle Frota": log histórico, uma linha = uma OS já encerrada.
+   *  - "Controle": SNAPSHOT DIÁRIO da frota inteira — a mesma avaria reaparece
+   *    todo dia enquanto está aberta (12.374 linhas para ~130 dias).
+   *
+   * O snapshot é colapsado por PERÍODO CONTÍNUO, não por texto. Deduplicar
+   * pelo problema não funciona porque o texto cresce dia a dia — o operador vai
+   * anexando "(OC. 06 - 13/12)", "(OC. 11 - 14/12)" na mesma célula, o que
+   * geraria uma OS nova a cada dia. Medido na planilha real: colapso por texto
+   * produzia 3.349 OS (2.865 abertas, para 95 veículos); colapso por período
+   * produz 662, e as 27 que ficam abertas na última foto batem com os 7 parados
+   * + 22 com avaria que a própria planilha contabiliza.
+   *
+   * Sem `confirmar`, é dry-run — devolve o que faria, sem escrever nada.
+   *
+   * NÃO cria veículo e NÃO altera cadastro existente. O que não casar sai
+   * listado em `placasSemCadastro` para o usuário cadastrar pela tela;
+   * `preencherIdentificacao` é o único opt-in de escrita fora das OS, e mesmo
+   * ele só preenche apelido vazio. A base de homologação tem carga real.
+   */
+  @Post("importar")
+  @Permissions("frota:criar")
+  @UseInterceptors(FileInterceptor("file", { storage: memoryStorage(), limits: { fileSize: 30 * 1024 * 1024 } }))
+  async importar(@UploadedFile() file: any, @Body() body: any, @Req() req: any) {
+    const orgId = req.user?.organizationId;
+    if (!file?.buffer) throw new BadRequestException("Arquivo obrigatório");
+    const flag = (v: any) => v === "true" || v === true;
+    const confirmar = flag(body?.confirmar);
+    const preencherIdentificacao = flag(body?.preencherIdentificacao);
+
+    const wb = XLSX.read(file.buffer, { type: "buffer", cellDates: true });
+
+    const veiculos = await this.db.veiculo.findMany({
+      where: { organizationId: orgId, deletedAt: null },
+      select: { id: true, placa: true, codigo: true, identificacao: true },
+    });
+    const byPlaca = new Map<string, any>();
+    const byIdent = new Map<string, any>();
+    for (const v of veiculos) {
+      if (v.placa) byPlaca.set(normPlacaImp(v.placa), v);
+      if (v.codigo) byPlaca.set(normPlacaImp(v.codigo), v);
+      if (v.identificacao) byIdent.set(normPlacaImp(v.identificacao), v);
+    }
+
+    // ── Pré-passagem: mapa apelido → placa, vindo da aba de cadastro ───────────
+    // Precisa vir ANTES de extrair as OS: a aba "Base" é a terceira do arquivo,
+    // e sem ela as duas primeiras não conseguiriam resolver linhas identificadas
+    // só pelo apelido (o log histórico não preenche a coluna Placa dos
+    // equipamentos — traz apenas "TR03", "R04").
+    const identParaPlaca = new Map<string, string>();
+    for (const nomeAba of wb.SheetNames) {
+      const ws = wb.Sheets[nomeAba];
+      if (!ws) continue;
+      const raw: any[][] = XLSX.utils.sheet_to_json(ws, { header: 1, raw: true, defval: null });
+      const iCab = acharCabecalho(raw);
+      if (iCab < 0) continue;
+      const header = (raw[iCab] || []).map(normHeader);
+      const iP = header.indexOf("placa"), iI = header.indexOf("identificacao");
+      if (iP < 0 || iI < 0) continue;
+      for (const r of raw.slice(iCab + 1)) {
+        const placa = String(r?.[iP] ?? "").trim();
+        const ident = String(r?.[iI] ?? "").trim();
+        if (placa && ident && !identParaPlaca.has(normPlacaImp(ident))) {
+          identParaPlaca.set(normPlacaImp(ident), placa);
+        }
+      }
+    }
+
+    /**
+     * Resolve a linha da planilha para um veículo do cadastro.
+     *
+     * Quatro tentativas, porque planilha e cadastro nomeiam equipamento de
+     * formas diferentes:
+     *  1. placa direta (ou código interno);
+     *  2. apelido, quando o cadastro já tem `identificacao` preenchida;
+     *  3. **placa + apelido concatenados** — o cadastro registra a máquina como
+     *     "ROÇADEIRA A01" enquanto a planilha quebra em placa="ROÇADEIRA" e
+     *     identificação="A01". Sem isto, 295 OS (as 20 roçadeiras) ficavam sem
+     *     dono, todas colidindo no mesmo rótulo genérico "ROÇADEIRA";
+     *  4. ponte pela aba de cadastro: apelido → placa → veículo, para o log
+     *     histórico, que traz só "TR03" e nenhuma placa.
+     */
+    const acharVeiculo = (placaRaw: string, identRaw: string) => {
+      const p = normPlacaImp(placaRaw), i = normPlacaImp(identRaw);
+      if (p && byPlaca.has(p)) return byPlaca.get(p);
+      if (i && byIdent.has(i)) return byIdent.get(i);
+      if (p && byIdent.has(p)) return byIdent.get(p);
+      if (p && i && byPlaca.has(p + i)) return byPlaca.get(p + i);
+      if (i && identParaPlaca.has(i)) {
+        const v = byPlaca.get(normPlacaImp(identParaPlaca.get(i)!));
+        if (v) return v;
+      }
+      return null;
+    };
+
+    // ── Leitura das abas ──────────────────────────────────────────────────────
+    // `osExtraidas` já sai no formato de OS; a colapsagem do snapshot acontece
+    // por aba, porque só ali existe a noção de "dia da foto".
+    const osExtraidas: any[] = [];
+    const identificacoes = new Map<string, string>(); // placa normalizada → apelido
+    let semVeiculo = 0, semData = 0, linhasLidas = 0, linhasColapsadas = 0;
+    const naoCasadas = new Map<string, string>();     // chave → rótulo original
+
+    for (const nomeAba of wb.SheetNames) {
+      const ws = wb.Sheets[nomeAba];
+      if (!ws) continue;
+      const raw: any[][] = XLSX.utils.sheet_to_json(ws, { header: 1, raw: true, defval: null });
+      const iCab = acharCabecalho(raw);
+      if (iCab < 0) continue;
+
+      const header = (raw[iCab] || []).map(normHeader);
+      const col = (...nomes: string[]) => {
+        for (const n of nomes) { const i = header.indexOf(n); if (i >= 0) return i; }
+        return -1;
+      };
+      const iBaixa = col("dt baixa"), iPrev = col("prev liberacao", "previsao liberacao"),
+            iLib = col("dt liberacao"), iPlaca = col("placa"), iIdent = col("identificacao"),
+            iSetor = col("setor"), iStatus = col("status"), iLocal = col("localizacao"),
+            iTipo = col("tipo manut"), iProb = col("problema"), iPrest = col("prestador de servico"),
+            iObs = col("observacao"), iValor = col("valor"), iDia = col("dia");
+
+      // Sem coluna de problema não há OS a extrair (é o caso da aba "Base",
+      // que é só cadastro, e da aba "Revisões", vazia).
+      if (iProb < 0 && iTipo < 0) {
+        // Ainda assim a aba de cadastro serve para o mapa placa → identificação.
+        if (iPlaca >= 0 && iIdent >= 0) {
+          for (const r of raw.slice(iCab + 1)) {
+            const p = normPlacaImp(r?.[iPlaca]); const id = String(r?.[iIdent] ?? "").trim();
+            if (p && id) identificacoes.set(p, id);
+          }
+        }
+        continue;
+      }
+
+      const lidas: any[] = [];
+      for (const r of raw.slice(iCab + 1)) {
+        if (!r || !r.some((c: any) => c != null && c !== "")) continue;
+
+        const placaRaw = iPlaca >= 0 ? String(r[iPlaca] ?? "").trim() : "";
+        const identRaw = iIdent >= 0 ? String(r[iIdent] ?? "").trim() : "";
+        const problema = iProb >= 0 ? String(r[iProb] ?? "").trim() : "";
+        const tipoRaw = iTipo >= 0 ? String(r[iTipo] ?? "").trim() : "";
+
+        // Linha de veículo sadio no snapshot: existe só para completar a lista
+        // da frota daquele dia, não representa manutenção nenhuma.
+        if (!problema && !tipoRaw) continue;
+        linhasLidas++;
+
+        const placaNorm = normPlacaImp(placaRaw);
+        if (placaNorm && identRaw) identificacoes.set(placaNorm, identRaw);
+
+        const veic = acharVeiculo(placaRaw, identRaw);
+
+        if (!veic) {
+          // Rótulo com o apelido junto: "ROÇADEIRA" sozinho não diz qual das 20.
+          const rotulo = [placaRaw, identRaw].filter(Boolean).join(" ") || placaRaw || identRaw;
+          if (rotulo) naoCasadas.set(normPlacaImp(rotulo), rotulo);
+          semVeiculo++;
+          continue;
+        }
+
+        lidas.push({
+          aba: nomeAba, placaRaw, identRaw, placaNorm, veiculo: veic,
+          dtBaixa: iBaixa >= 0 ? parseDataPlanilha(r[iBaixa]) : null,
+          dtDia: iDia >= 0 ? parseDataPlanilha(r[iDia]) : null,
+          previsaoLiberacao: iPrev >= 0 ? parseDataPlanilha(r[iPrev]) : null,
+          dataFechamento: iLib >= 0 ? parseDataPlanilha(r[iLib]) : null,
+          statusPlanilha: iStatus >= 0 ? String(r[iStatus] ?? "").trim() : "",
+          setor: iSetor >= 0 ? String(r[iSetor] ?? "").trim() : "",
+          localizacao: iLocal >= 0 ? String(r[iLocal] ?? "").trim() : "",
+          tipo: normTipoManut(tipoRaw),
+          problema,
+          prestador: iPrest >= 0 ? String(r[iPrest] ?? "").trim() : "",
+          observacao: iObs >= 0 ? String(r[iObs] ?? "").trim() : "",
+          valor: iValor >= 0 ? parseValorPlanilha(r[iValor]) : null,
+        });
+      }
+
+      // Uma aba é snapshot quando tem coluna "Dia" preenchida: é a foto diária
+      // da frota. Sem ela, cada linha já é uma OS fechada do log histórico.
+      const ehSnapshot = iDia >= 0 && lidas.some(l => l.dtDia);
+
+      if (!ehSnapshot) {
+        for (const l of lidas) {
+          const abertura = l.dtBaixa || l.dataFechamento;
+          if (!abertura) { semData++; continue; }
+          osExtraidas.push({
+            ...l,
+            dataAbertura: abertura,
+            // O log histórico é fechado por definição — são registros de 2022
+            // e 2023. Linha sem "Dt liberação" significa campo não preenchido
+            // na época, não veículo parado há três anos. Importar essas 13
+            // linhas em aberto deixaria os veículos vermelhos para sempre.
+            dataFechamento: l.dataFechamento || abertura,
+            historico: true,
+          });
+        }
+        continue;
+      }
+
+      // ── Colapso do snapshot em períodos contínuos ───────────────────────────
+      // A mesma avaria reaparece todo dia enquanto está aberta, e o texto do
+      // problema CRESCE (o operador vai anexando "(OC. 06 - 13/12)"...). Por
+      // isso não dá para deduplicar por texto: a chave mudaria a cada dia.
+      // O que identifica uma OS é o PERÍODO em que o veículo esteve com
+      // problema — uma corrida de dias consecutivos vira uma OS só.
+      const slots = [...new Set(lidas.map(l => l.dtDia?.getTime()).filter(Boolean))].sort((a: any, b: any) => a - b) as number[];
+      const idxSlot = new Map(slots.map((t, i) => [t, i]));
+
+      const porVeiculo = new Map<string, any[]>();
+      for (const l of lidas) {
+        if (!l.dtDia) continue;
+        if (!porVeiculo.has(l.veiculo.id)) porVeiculo.set(l.veiculo.id, []);
+        porVeiculo.get(l.veiculo.id)!.push(l);
+      }
+
+      for (const [, arr] of porVeiculo) {
+        arr.sort((a, b) => a.dtDia.getTime() - b.dtDia.getTime());
+        let run: any[] = [];
+
+        const fechar = () => {
+          if (!run.length) return;
+          linhasColapsadas += run.length - 1;
+          const primeira = run[0], ultima = run[run.length - 1];
+          const ultIdx = idxSlot.get(ultima.dtDia.getTime())!;
+          // Se o veículo deixou de aparecer com problema antes do fim da
+          // planilha, ele foi liberado — o próximo snapshot é a melhor
+          // estimativa da data. Só fica aberta a OS que chega até a última foto.
+          const liberacaoImplicita = ultIdx < slots.length - 1 ? new Date(slots[ultIdx + 1]) : null;
+          osExtraidas.push({
+            ...ultima,                                  // texto e status mais recentes
+            dataAbertura: primeira.dtBaixa || primeira.dtDia,
+            dataFechamento: ultima.dataFechamento || liberacaoImplicita,
+            fechamentoImplicito: !ultima.dataFechamento && !!liberacaoImplicita,
+            snapshots: run.length,
+          });
+          run = [];
+        };
+
+        for (const l of arr) {
+          if (!run.length) { run = [l]; continue; }
+          const ant = run[run.length - 1];
+          // Tolera lacuna curta: a planilha só é preenchida em dia útil, então
+          // fim de semana e feriado abrem buracos que não significam liberação.
+          const gap = idxSlot.get(l.dtDia.getTime())! - idxSlot.get(ant.dtDia.getTime())!;
+          // Nova "Dt baixa" = novo evento, mesmo sem intervalo entre eles.
+          const mudouBaixa = !!(l.dtBaixa && ant.dtBaixa && l.dtBaixa.getTime() !== ant.dtBaixa.getTime());
+          if (gap > SNAPSHOT_GAP_MAX || mudouBaixa) { fechar(); run = [l]; }
+          else run.push(l);
+        }
+        fechar();
+      }
+    }
+
+    if (!osExtraidas.length) throw new BadRequestException("Nenhuma linha de manutenção encontrada. Esperado o layout FORFT_0005 (colunas Placa, Problema, Tipo Manut).");
+
+    // ── Corte opcional por data de abertura ───────────────────────────────────
+    // `ate=YYYY-MM-DD` importa só o que abriu até essa data. Serve para trazer o
+    // histórico sem tocar na janela em que o sistema já vinha sendo alimentado —
+    // é a forma de levar o risco de duplicata a zero em vez de conferir caso a
+    // caso.
+    let ignoradasPorCorte = 0;
+    let candidatas = osExtraidas;
+    if (body?.ate) {
+      const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(body.ate).trim());
+      if (!m) throw new BadRequestException("Parâmetro `ate` deve ser YYYY-MM-DD");
+      const corte = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]), 23, 59, 59, 999);
+      const antes = candidatas.length;
+      candidatas = candidatas.filter(c => c.dataAbertura && c.dataAbertura <= corte);
+      ignoradasPorCorte = antes - candidatas.length;
+    }
+
+    // ── Dedup contra o que já existe no banco ─────────────────────────────────
+    const jaNoBanco = await this.db.manutencaoVeiculo.findMany({
+      where: {
+        organizationId: orgId,
+        deletedAt: null,
+        veiculoId: { in: [...new Set(candidatas.map(c => c.veiculo.id))] },
+      },
+      select: { veiculoId: true, dataAbertura: true, data: true, descricao: true },
+    });
+    const existentes = new Set(jaNoBanco.map((m: any) =>
+      chaveOsImportada(m.veiculoId, m.dataAbertura || m.data, m.descricao || "")));
+
+    /**
+     * Segunda chave, SEM o texto: veículo + dia.
+     *
+     * A chave com texto não protege contra a OS que já está no sistema, porque
+     * os dois lados descrevem o mesmo evento de ângulos diferentes — a planilha
+     * registra a RECLAMAÇÃO ("Problema na embreagem") e o sistema registra o
+     * SERVIÇO EXECUTADO ("TROCA DE KIT EMBREAGEM"). Nunca vão casar por texto.
+     * Medido na base de homologação: 4 OS da planilha caem no mesmo veículo e
+     * mesmo dia de uma OS já existente.
+     */
+    const porVeiculoDia = new Set(jaNoBanco.map((m: any) =>
+      chaveVeiculoDia(m.veiculoId, m.dataAbertura || m.data)));
+
+    const aInserir = candidatas.filter(c =>
+      !existentes.has(chaveOsImportada(c.veiculo.id, c.dataAbertura, c.problema))
+      && !porVeiculoDia.has(chaveVeiculoDia(c.veiculo.id, c.dataAbertura)));
+    const duplicadas = candidatas.length - aInserir.length;
+
+    /**
+     * Quase-colisões: mesmo veículo, abertura a poucos dias de uma OS já
+     * existente. Não são descartadas — podem ser eventos distintos — mas saem
+     * listadas para conferência, porque é aí que mora a duplicata semântica que
+     * nenhuma chave automática pega.
+     */
+    const porVeiculoDatas = new Map<string, number[]>();
+    for (const m of jaNoBanco) {
+      const d = m.dataAbertura || m.data;
+      if (!d) continue;
+      if (!porVeiculoDatas.has(m.veiculoId)) porVeiculoDatas.set(m.veiculoId, []);
+      porVeiculoDatas.get(m.veiculoId)!.push(new Date(d).getTime());
+    }
+    const revisarManualmente = aInserir
+      .filter(c => (porVeiculoDatas.get(c.veiculo.id) || [])
+        .some(t => Math.abs(t - c.dataAbertura.getTime()) <= PROXIMIDADE_DUPLICATA_MS))
+      .map(c => ({
+        veiculo: c.veiculo.placa,
+        dataAbertura: c.dataAbertura,
+        problema: String(c.problema || "").slice(0, 100),
+      }));
+
+    const placasSemCadastro = [...naoCasadas.values()].sort();
+
+    // Cadastro que ganharia apelido — só informativo enquanto não confirmado.
+    const identificacoesAplicaveis = veiculos.filter((v: any) =>
+      !v.identificacao && v.placa && identificacoes.get(normPlacaImp(v.placa)));
+
+    const datas = aInserir.map(c => c.dataAbertura).filter(Boolean) as Date[];
+    const abertasResultantes = aInserir.filter(c => !c.dataFechamento);
+    const resumo: any = {
+      linhasLidas,
+      abas: [...new Set(candidatas.map(c => c.aba))],
+      osDistintas: candidatas.length,
+      linhasColapsadas,
+      inserir: aInserir.length,
+      ficariamAbertas: abertasResultantes.length,
+      ficariamParadas: abertasResultantes.filter(c => imobilizaDoStatusPlanilha(c.statusPlanilha)).length,
+      fechamentosImplicitos: aInserir.filter(c => c.fechamentoImplicito).length,
+      duplicadas,
+      // Não são descartadas — o usuário decide olhando a lista.
+      revisarManualmente,
+      ignoradasPorCorte,
+      semVeiculoCadastrado: semVeiculo,
+      semDataUtilizavel: semData,
+      placasSemCadastro,
+      identificacoesAPreencher: identificacoesAplicaveis.length,
+      periodo: datas.length
+        ? { de: new Date(Math.min(...datas.map(d => d.getTime()))), ate: new Date(Math.max(...datas.map(d => d.getTime()))) }
+        : null,
+    };
+
+    if (!confirmar) {
+      return {
+        dryRun: true,
+        resumo,
+        // Amostra priorizando o que ficaria ABERTO: é o que muda o farol da
+        // frota hoje e o que o usuário precisa conferir antes de confirmar.
+        amostra: [...aInserir].sort((a, b) => Number(!!a.dataFechamento) - Number(!!b.dataFechamento))
+          .slice(0, 25).map(c => ({
+            veiculo: c.veiculo.placa, aba: c.aba,
+            dataAbertura: c.dataAbertura, dataFechamento: c.dataFechamento,
+            fechamentoImplicito: !!c.fechamentoImplicito,
+            tipo: c.tipo,
+            imobiliza: c.dataFechamento ? false : imobilizaDoStatusPlanilha(c.statusPlanilha),
+            statusPlanilha: c.statusPlanilha || null,
+            problema: c.problema.slice(0, 120), prestador: c.prestador || null, valor: c.valor,
+          })),
+      };
+    }
+
+    // ===== COMMIT =====
+    // Não há criação automática de veículo aqui, ao contrário do importador de
+    // abastecimentos. Os registros sem correspondência nesta planilha são
+    // equipamentos identificados por nome ("ROÇADEIRA", "Mini Retro",
+    // "Retroescavadeira"), não placas — criá-los às cegas encheria uma base
+    // real de cadastro incompleto. Eles saem listados em `placasSemCadastro`
+    // para o usuário cadastrar pela tela, com tipo e setor corretos, e então
+    // reimportar.
+    let identificacoesPreenchidas = 0;
+    if (preencherIdentificacao) {
+      for (const v of veiculos) {
+        if (v.identificacao || !v.placa) continue;
+        const apelido = identificacoes.get(normPlacaImp(v.placa));
+        if (!apelido) continue;
+        // Só preenche vazio — nunca sobrescreve o que o usuário já cadastrou.
+        const r = await this.db.veiculo.updateMany({
+          where: { id: v.id, organizationId: orgId, identificacao: null },
+          data: { identificacao: apelido },
+        });
+        identificacoesPreenchidas += r.count;
+      }
+    }
+
+    const finais = aInserir;
+
+    // Numeração sequencial contínua a partir do que já existe, para as OS
+    // importadas não colidirem com as criadas pela tela.
+    let seq = await this.db.manutencaoVeiculo.count({ where: { organizationId: orgId } });
+    let inseridas = 0;
+    const erros: string[] = [];
+
+    for (const c of finais.sort((a, b) => a.dataAbertura.getTime() - b.dataAbertura.getTime())) {
+      let numeroOs = `OS-${String(++seq).padStart(5, "0")}`;
+      while (await this.db.manutencaoVeiculo.findFirst({ where: { organizationId: orgId, numeroOs } })) {
+        numeroOs = `OS-${String(++seq).padStart(5, "0")}`;
+      }
+      // A planilha tem linhas com "Dt liberação" ANTERIOR à "Dt baixa" (erro de
+      // digitação na origem). Importar como está cria OS de duração negativa —
+      // aconteceu 2 vezes na carga de 04/08/2026.
+      //
+      // O fechamento é ancorado na abertura (duração zero) em vez de anulado.
+      // Anular reabriria a OS, e afirmar que um veículo está parado desde 2023
+      // por causa de um erro de digitação é pior que registrar uma manutenção
+      // de duração desconhecida. A OS aconteceu e terminou; só não se sabe
+      // quando — mesma regra já usada para a aba histórica sem "Dt liberação".
+      if (c.dataFechamento && c.dataFechamento.getTime() < c.dataAbertura.getTime()) {
+        c.dataFechamento = c.dataAbertura;
+        c.fechamentoInconsistente = true;
+      }
+      const encerrada = !!c.dataFechamento;
+      try {
+        await this.db.manutencaoVeiculo.create({
+          data: {
+            id: crypto.randomUUID(), organizationId: orgId, veiculoId: c.veiculo.id,
+            numeroOs, tipo: c.tipo,
+            descricao: c.problema || null,
+            // `data` ancora a OS no período — sem ela a OS some de qualquer
+            // filtro por data (armadilha conhecida deste módulo).
+            data: c.dataAbertura, dataAbertura: c.dataAbertura,
+            previsaoLiberacao: c.previsaoLiberacao,
+            dataFechamento: c.dataFechamento,
+            status: encerrada ? "finalizada" : "aberta",
+            // OS já encerrada não imobiliza mais ninguém; para as abertas vale
+            // o status operacional que a planilha registrou.
+            imobiliza: encerrada ? false : imobilizaDoStatusPlanilha(c.statusPlanilha),
+            localizacao: c.localizacao || null,
+            oficina: c.prestador || null,
+            custoServicos: c.valor, custo: c.valor,
+            observacoes: c.observacao || null,
+            criadoPorId: req.user?.id || null,
+          } as any,
+        });
+        inseridas++;
+      } catch (e: any) {
+        erros.push(`${c.veiculo.placa} ${c.dataAbertura?.toISOString?.().slice(0, 10)}: ${e?.message || e}`);
+      }
+    }
+
+    return {
+      dryRun: false,
+      resumo: { ...resumo, inseridas, identificacoesPreenchidas, erros: erros.slice(0, 20) },
+    };
   }
 
   // ── Mão de obra ──────────────────────────────────────────────────────────────
@@ -1107,6 +1656,132 @@ function parseDataHora(v: any): Date | null {
 }
 const KM_SALTO_MAX = 30000; // avanço plausível de hodômetro numa importação
 
+// ── Helpers da importação de manutenções corretivas (planilha FORFT_0005) ──────
+
+/**
+ * Data vinda de célula de planilha: Date (cellDates), serial Excel ou texto.
+ *
+ * SEMPRE devolve meia-noite LOCAL. Sem isso:
+ *  - o caminho do serial Excel produz meia-noite UTC, que em America/Sao_Paulo
+ *    é 21h do DIA ANTERIOR — a OS seria gravada um dia atrás;
+ *  - o caminho `cellDates` devolve `00:00:28` (arredondamento do SheetJS,
+ *    verificado na planilha real), sujando a chave de deduplicação e fazendo
+ *    duas datas do mesmo dia parecerem diferentes.
+ * É a mesma armadilha de fuso que o `diaLocal()` dos relatórios já resolve.
+ */
+function meiaNoiteLocal(ano: number, mes1a12: number, dia: number): Date | null {
+  const d = new Date(ano, mes1a12 - 1, dia);
+  return isNaN(d.getTime()) || d.getMonth() !== mes1a12 - 1 ? null : d;
+}
+
+function parseDataPlanilha(v: any): Date | null {
+  if (v == null || v === "") return null;
+  if (v instanceof Date) {
+    if (isNaN(v.getTime())) return null;
+    // Já vem no fuso local; zera a hora residual.
+    return meiaNoiteLocal(v.getFullYear(), v.getMonth() + 1, v.getDate());
+  }
+  if (typeof v === "number") {
+    // Serial Excel: dias desde 30/12/1899. Faixa sanitária evita que um número
+    // solto numa célula de data (ex.: um KM digitado errado) vire ano 3500.
+    if (v < 1 || v > 80000) return null;
+    const utc = new Date(Math.round((v - 25569) * 86400000));
+    if (isNaN(utc.getTime())) return null;
+    // Lê os componentes em UTC (é onde o serial os colocou) e remonta local.
+    return meiaNoiteLocal(utc.getUTCFullYear(), utc.getUTCMonth() + 1, utc.getUTCDate());
+  }
+  const s = String(v).trim();
+  // A planilha mistura dd/mm/aaaa e m/d/aa. Sem saber a origem de cada célula,
+  // trata >12 no primeiro campo como dia; o resto fica ambíguo e é descartado
+  // se não formar data válida.
+  const m = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/);
+  if (m) {
+    let [, a, b, y] = m;
+    let ano = Number(y); if (ano < 100) ano += ano < 70 ? 2000 : 1900;
+    let dia = Number(a), mes = Number(b);
+    if (dia <= 12 && mes > 12) { const t = dia; dia = mes; mes = t; }
+    return meiaNoiteLocal(ano, mes, dia);
+  }
+  return null;
+}
+
+/** "R$ 13,315.00" / "1.234,56" → número. */
+function parseValorPlanilha(v: any): number | null {
+  if (v == null || v === "") return null;
+  if (typeof v === "number") return isFinite(v) ? v : null;
+  let s = String(v).replace(/[R$\s]/gi, "").trim();
+  if (!s || s === "-") return null;
+  // Decide o separador decimal pelo que aparece por último.
+  const ultVirg = s.lastIndexOf(","), ultPonto = s.lastIndexOf(".");
+  if (ultVirg > ultPonto) s = s.replace(/\./g, "").replace(",", ".");
+  else s = s.replace(/,/g, "");
+  const n = Number(s);
+  return isFinite(n) ? n : null;
+}
+
+/** Tipo de manutenção da planilha → vocabulário do sistema. */
+function normTipoManut(v: any): string {
+  const t = stripAccents(String(v ?? "").toLowerCase());
+  // "Preventiva/Corretiva" aparece bastante: o que dispara a OS é a corretiva.
+  if (t.includes("corretiv") || t.includes("coretiv")) return "corretiva";
+  if (t.includes("preventiv") || t.includes("prevetiv")) return "preventiva";
+  if (t.includes("incidente") || t.includes("emergenc")) return "emergencial";
+  return "corretiva";
+}
+
+/**
+ * Status operacional da planilha → { imobiliza }.
+ * "Parado" = a OS tira o veículo de operação; "Operando com Avaria" = não.
+ */
+function imobilizaDoStatusPlanilha(v: any): boolean {
+  const t = stripAccents(String(v ?? "").toLowerCase()).trim();
+  if (!t) return true;               // sem status declarado, mantém o padrão
+  if (t.startsWith("parado")) return true;
+  if (t.includes("avaria")) return false;
+  if (t.startsWith("operando")) return false;
+  return true;
+}
+
+/** Dia local de uma data, em `YYYY-MM-DD`. */
+function diaChave(dt: Date | null): string {
+  // Componentes LOCAIS, não `toISOString()`: em fuso positivo a meia-noite local
+  // vira o dia anterior em UTC e a chave passaria a apontar para outro dia.
+  if (!dt) return "sem-data";
+  const d = new Date(dt);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+/** Chave "só posição": veículo + dia, sem o texto do problema. */
+function chaveVeiculoDia(veiculoId: string, dt: Date | null): string {
+  return `${veiculoId}|${diaChave(dt)}`;
+}
+
+/** Janela em que duas OS do mesmo veículo levantam suspeita de duplicata. */
+const PROXIMIDADE_DUPLICATA_MS = 7 * 86400000;
+
+/** Chave de deduplicação de uma OS importada. */
+function chaveOsImportada(veiculoId: string, dt: Date | null, problema: string): string {
+  const dia = diaChave(dt);
+  const p = stripAccents(String(problema || "").toLowerCase()).replace(/\s+/g, " ").trim().slice(0, 120);
+  return `${veiculoId}|${dia}|${p}`;
+}
+
+/**
+ * Lacuna máxima, em fotos consecutivas, que ainda mantém o mesmo período.
+ * A planilha só é preenchida em dia útil: feriado emendado abre buraco de até
+ * 3 fotos sem que o veículo tenha sido liberado.
+ */
+const SNAPSHOT_GAP_MAX = 3;
+
+/** Localiza a linha de cabeçalho procurando a que contém "placa". */
+function acharCabecalho(raw: any[][], limite = 15): number {
+  for (let i = 0; i < Math.min(raw.length, limite); i++) {
+    const linha = (raw[i] || []).map(normHeader);
+    if (linha.includes("placa")) return i;
+  }
+  return -1;
+}
+
 // ── Abastecimentos ─────────────────────────────────────────────────────────────
 @Controller("frota/abastecimentos")
 @UseGuards(AuthGuard("jwt"), PermissionsGuard)
@@ -1290,8 +1965,16 @@ class AbastecimentosController extends BaseFrotaController {
   async analise(@Req() req: any, @Query("from") from?: string, @Query("to") to?: string, @Query("veiculoId") veiculoId?: string) {
     const orgId = req.user?.organizationId;
     const range: any = {};
-    if (from) range.gte = new Date(from);
-    if (to) { const t = new Date(to); t.setHours(23, 59, 59, 999); range.lte = t; }
+    // `dataQueryLocal` ancora no fuso local e valida — `new Date(from)` cru
+    // puxava o dia anterior e transformava data malformada em erro 500.
+    try {
+      const de = dataQueryLocal(from);
+      const ate = dataQueryLocal(to, true);
+      if (de) range.gte = de;
+      if (ate) range.lte = ate;
+    } catch (e: any) {
+      throw new BadRequestException(e?.message || "Data inválida");
+    }
     const where: any = { organizationId: orgId, deletedAt: null, ...(veiculoId ? { veiculoId } : {}), ...(Object.keys(range).length ? { data: range } : {}) };
     const abast = await this.db.abastecimento.findMany({
       where,
@@ -1385,8 +2068,28 @@ class CategoriasVeiculoController extends BaseFrotaController {
 @Controller("frota/dashboard")
 @UseGuards(AuthGuard("jwt"), PermissionsGuard)
 class FrotaDashboardController {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService, private relService: FrotaRelatoriosService) {}
   private get db() { return this.prisma as any; }
+
+  /**
+   * Farol da frota — foto do status operacional de cada veículo.
+   *
+   * Espelha `GET /frota/relatorios/status-frota`, mas exige só `frota:ver`: é
+   * um painel de acompanhamento diário da operação, não um relatório gerencial.
+   * Exportar continua sendo do domínio de `frota:relatorios`.
+   */
+  @Get("farol")
+  @Permissions("frota:ver")
+  async farol(@Req() req: any, @Query() q: any) {
+    return this.relService.statusFrota(req.user?.organizationId, q);
+  }
+
+  /** Série diária de operando / com avaria / parado, derivada das janelas de OS. */
+  @Get("disponibilidade-historico")
+  @Permissions("frota:ver")
+  async disponibilidadeHistorico(@Req() req: any, @Query() q: any) {
+    return this.relService.historicoDisponibilidade(req.user?.organizationId, q);
+  }
 
   @Get()
   @Permissions("frota:ver")
@@ -1402,7 +2105,10 @@ class FrotaDashboardController {
       this.db.veiculo.count({ where: base }),
       this.db.veiculo.groupBy({ by: ["status"], _count: true, where: base }),
       this.db.motorista.count({ where: base }),
-      this.db.manutencaoVeiculo.count({ where: { ...base, status: { notIn: ["concluida", "cancelada"] } } }),
+      // "concluida" nunca foi gravado pelo formulário — o status de OS encerrada
+      // é "finalizada". O filtro antigo (`notIn ["concluida","cancelada"]`)
+      // contava toda OS finalizada como aberta, inflando este KPI em silêncio.
+      this.db.manutencaoVeiculo.count({ where: { ...base, status: { notIn: ["finalizada", "concluida", "cancelada"] } } }),
       this.db.manutencaoVeiculo.aggregate({ _sum: { custo: true }, where: { ...base, ...janelaManutencao({ gte: inicioMes }) } }),
       this.db.abastecimento.aggregate({ _sum: { valorTotal: true }, where: { ...base, data: { gte: inicioMes } } }),
       this.db.motorista.count({ where: { ...base, validadeCnh: { gte: now, lte: em30 } } }),
@@ -1430,10 +2136,19 @@ class FrotaDashboardController {
   async executivo(@Req() req: any, @Query() q: any) {
     const orgId = req.user?.organizationId;
     const now = new Date();
-    const to = q.to ? new Date(q.to) : new Date(now);
-    to.setHours(23, 59, 59, 999);
-    const from = q.from ? new Date(q.from) : new Date(now.getFullYear(), now.getMonth() - 5, 1);
-    from.setHours(0, 0, 0, 0);
+    // Mesma correção da análise de consumo: `new Date("2026-07-01")` é UTC e
+    // vira 30/06 21:00 no fuso do container, arrastando o dia anterior para
+    // dentro do período. O default (sem filtro) já era construído com
+    // componentes locais e por isso estava correto — só o caminho com filtro
+    // do usuário é que errava.
+    let to: Date, from: Date;
+    try {
+      to = dataQueryLocal(q.to, true) || (() => { const d = new Date(now); d.setHours(23, 59, 59, 999); return d; })();
+      from = dataQueryLocal(q.from) || new Date(now.getFullYear(), now.getMonth() - 5, 1);
+    } catch (e: any) {
+      throw new BadRequestException(e?.message || "Data inválida");
+    }
+    if (from.getTime() > to.getTime()) throw new BadRequestException("Período inválido: início posterior ao fim.");
     const inicioMes = new Date(now.getFullYear(), now.getMonth(), 1);
     const em30 = new Date(now.getTime() + 30 * 86400000);
     const em90 = new Date(now.getTime() + 90 * 86400000);
@@ -1603,6 +2318,13 @@ export class FrotaRelatoriosController {
   async disponibilidade(@Req() req: any, @Query() q: any) {
     const orgId = req.user?.organizationId;
     return this.relService.disponibilidade(orgId, q);
+  }
+
+  @Get("status-frota")
+  @Permissions("frota:relatorios")
+  async statusFrota(@Req() req: any, @Query() q: any) {
+    const orgId = req.user?.organizationId;
+    return this.relService.statusFrota(orgId, q);
   }
 
   @Post("enviar-email")
