@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback , useMemo } from "react";
 import { useAuthStore } from "@/lib/store";
 import { useToastStore } from "@/lib/toast";
 import Topbar from "@/components/layout/Topbar";
@@ -249,6 +249,61 @@ function ChartTooltip({ active, payload, label }: any) {
 ═══════════════════════════════════════════════ */
 export default function CommandCenter() {
   const { user } = useAuthStore();
+
+  // Sem `dashboard:ver` esta tela só produziria 403: ela consulta relatórios,
+  // aprovações e execução orçamentária. Em vez de recusar tudo, manda a pessoa
+  // para o primeiro módulo que ela realmente tem.
+  const podeVerDashboard = canAccessModule(user, "dashboard:ver");
+  const primeiroDisponivel = useMemo(() => {
+    for (const g of NAV) {
+      if (!canAccessGroup(user, g)) continue;
+      for (const it of g.items) {
+        if (it.href !== "/dashboard" && canAccessModule(user, it.permission)) return it.href;
+      }
+    }
+    return null;
+  }, [user]);
+  useEffect(() => {
+    if (user && !podeVerDashboard && primeiroDisponivel) {
+      window.location.replace(primeiroDisponivel);
+    }
+  }, [user, podeVerDashboard, primeiroDisponivel]);
+
+  // Atalhos do painel. A permissao NAO e declarada aqui: e herdada do NAV pelo
+  // `href`. Repetir a regra em dois lugares foi exatamente o que deixou este
+  // painel oferecendo 12 telas que a API recusava.
+  const atalhosPermitidos = useMemo(() => {
+    const permPorHref = new Map<string, string | string[] | null>();
+    const grupoPorHref = new Map<string, any>();
+    for (const g of NAV) {
+      for (const it of g.items) {
+        permPorHref.set(it.href, it.permission);
+        grupoPorHref.set(it.href, g);
+      }
+    }
+    const TODOS = [
+                { href: "/dashboard/executivo",  label: "Executivo",    icon: TrendingUp,  accent: "#10b981" },
+                { href: "/dashboard/relatorios", label: "Relatórios",   icon: BarChart3,   accent: "#3b82f6" },
+                { href: "/dashboard/agenda",     label: "Agenda",       icon: Calendar,    accent: "#f59e0b" },
+                { href: "/dashboard/orcamento",  label: "Orçamento",    icon: PiggyBank,   accent: "#a78bfa" },
+                { href: "/dashboard/clientes",   label: "Clientes",     icon: Building2,   accent: "#06b6d4" },
+                { href: "/dashboard/workforce",  label: "Workforce",    icon: Users,       accent: "#ec4899" },
+                { href: "/dashboard/contratos",  label: "Contratos",    icon: FileText,    accent: "#0ea5e9" },
+                { href: "/dashboard/faturas",    label: "Faturas",      icon: Receipt,     accent: "#34d399" },
+                { href: "/dashboard/gantt",      label: "Linha do Tempo", icon: Activity,  accent: "#f97316" },
+                { href: "/dashboard/keep",       label: "Keep",         icon: StickyNote,  accent: "#8b5cf6" },
+                { href: "/dashboard/conhecimento",label:"Conhecimento", icon: CheckCircle2,accent: "#22d3ee" },
+                { href: "/dashboard/ativos",     label: "Ativos",       icon: Package,     accent: "#64748b" },
+    ];
+    return TODOS.filter(m => {
+      const g = grupoPorHref.get(m.href);
+      // Atalho para tela fora do menu não aparece: se não está no NAV, não há
+      // regra conhecida e o padrão seguro é esconder.
+      if (!g) return false;
+      return canAccessGroup(user, g) && canAccessModule(user, permPorHref.get(m.href) ?? null);
+    });
+  }, [user]);
+
   const [dash, setDash]   = useState<DashStats | null>(null);
   const [exec, setExec]   = useState<ExecStats | null>(null);
   const [aprov, setAprov] = useState<AprovStats | null>(null);
@@ -756,23 +811,11 @@ export default function CommandCenter() {
           </div>
 
           {/* ── Quick Access ── */}
+          {atalhosPermitidos.length > 0 && (
           <div className="card-premium p-5">
             <div className="text-[11px] font-bold text-[var(--text-muted)] uppercase tracking-widest mb-4">Acesso Rápido</div>
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-              {[
-                { href: "/dashboard/executivo",  label: "Executivo",    icon: TrendingUp,  accent: "#10b981" },
-                { href: "/dashboard/relatorios", label: "Relatórios",   icon: BarChart3,   accent: "#3b82f6" },
-                { href: "/dashboard/agenda",     label: "Agenda",       icon: Calendar,    accent: "#f59e0b" },
-                { href: "/dashboard/orcamento",  label: "Orçamento",    icon: PiggyBank,   accent: "#a78bfa" },
-                { href: "/dashboard/clientes",   label: "Clientes",     icon: Building2,   accent: "#06b6d4" },
-                { href: "/dashboard/workforce",  label: "Workforce",    icon: Users,       accent: "#ec4899" },
-                { href: "/dashboard/contratos",  label: "Contratos",    icon: FileText,    accent: "#0ea5e9" },
-                { href: "/dashboard/faturas",    label: "Faturas",      icon: Receipt,     accent: "#34d399" },
-                { href: "/dashboard/gantt",      label: "Linha do Tempo", icon: Activity,  accent: "#f97316" },
-                { href: "/dashboard/keep",       label: "Keep",         icon: StickyNote,  accent: "#8b5cf6" },
-                { href: "/dashboard/conhecimento",label:"Conhecimento", icon: CheckCircle2,accent: "#22d3ee" },
-                { href: "/dashboard/ativos",     label: "Ativos",       icon: Package,     accent: "#64748b" },
-              ].map(m => {
+              {atalhosPermitidos.map(m => {
                 const Icon = m.icon;
                 return (
                   <Link key={m.href} href={m.href}
@@ -787,6 +830,7 @@ export default function CommandCenter() {
               })}
             </div>
           </div>
+          )}
 
         </div>
       </div>

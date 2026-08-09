@@ -285,8 +285,8 @@ model User {
   clientesResponsavel        Cliente[]                   @relation("ClienteResponsavel")
   clienteTimelines           ClienteTimeline[]
   ciclosAprovados            OrcamentoCiclo[]            @relation("CicloAprovador")
-  orcamentosProprios         OrcamentoCiclo[]            @relation("CicloOwner")
-  orcamentosCompartilhados   OrcamentoCompartilhamento[] @relation("OrcCompartilhadoCom")
+  ciclosProprios             OrcamentoCiclo[]            @relation("CicloOwner")
+  orcamentosCompartilhados   OrcamentoCompartilhamento[] @relation("OrcCompUser")
   centrosCustoResponsavel    CentroCusto[]               @relation("CentroCustoResp")
   itensOrcamentoCriados      ItemOrcamento[]             @relation("ItemCriador")
   lancamentosOrcamento       ItemOrcamentoMes[]          @relation("LancadoPor")
@@ -370,12 +370,16 @@ model OrcamentoCompartilhamento {
   cicloId     String         @map("ciclo_id")
   ciclo       OrcamentoCiclo @relation(fields: [cicloId], references: [id], onDelete: Cascade)
   userId      String         @map("user_id")
-  user        User           @relation("OrcCompartilhadoCom", fields: [userId], references: [id], onDelete: Cascade)
+  user        User           @relation("OrcCompUser", fields: [userId], references: [id], onDelete: Cascade)
+  /// Compartilhar UM centro de custo do ciclo, e não o ciclo inteiro.
+  centroCustoId String?      @map("centro_custo_id")
+  centroCusto   CentroCusto? @relation(fields: [centroCustoId], references: [id], onDelete: Cascade)
+  /// editor | leitor
+  papel         String       @default("editor")
   criadoPorId String?        @map("criado_por_id")
   criadoEm    DateTime       @default(now()) @map("criado_em")
 
-  @@unique([cicloId, userId])
-  @@index([userId])
+  @@unique([cicloId, userId, centroCustoId])
   @@map("orcamento_compartilhamentos")
 }
 
@@ -407,6 +411,7 @@ model CentroCusto {
   responsavel    User?           @relation("CentroCustoResp", fields: [responsavelId], references: [id], onDelete: SetNull)
   organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   itens          ItemOrcamento[]
+  compartilhamentos OrcamentoCompartilhamento[]
   criadoEm       DateTime        @default(now()) @map("criado_em")
 
   @@unique([organizationId, codigo])

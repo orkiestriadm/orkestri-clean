@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import {
   PiggyBank, Plus, RefreshCw, TrendingUp, TrendingDown, AlertTriangle,
   CheckCircle, Clock, ChevronDown, ChevronRight, Edit2, Trash2, X,
@@ -24,7 +24,7 @@ interface Ciclo {
   podeEditar?:boolean; podeCompartilhar?:boolean; qtdCompartilhado?:number;
 }
 interface Categoria { id:string; tipo:string; codigo:string; nome:string; cor:string; icone?:string; paiId?:string; filhos?:Categoria[] }
-interface CentroCusto { id:string; codigo:string; nome:string; cor:string; ativo:boolean }
+interface CentroCusto { id:string; codigo:string; nome:string; cor:string; ativo:boolean; responsavel?:{ id:string; nome:string }|null }
 interface Fornecedor { id:string; nome:string; cnpj?:string; segmento?:string; ativo:boolean }
 interface ItemMes { id:string; mes:number; valorPrevisto:number; valorRealizado?:number; status:string }
 interface Item {
@@ -1103,17 +1103,44 @@ function TabComparacao({ ciclos, cicloId }:{ ciclos:Ciclo[]; cicloId:string }) {
   );
 }
 
-// ─── Compartilhar orçamento pessoal ───────────────────────────────────────────
+// ─── Compartilhar orçamento ───────────────────────────────────────────────────
+//
+// Dois eixos: COM QUEM e ATÉ ONDE. O "até onde" é o centro de custo — é o que
+// permite passar o orçamento de TI para alguém sem abrir o corporativo inteiro.
 interface UserLite { id:string; nome:string; email?:string }
-interface ShareRow { id:string; user:UserLite; criadoEm:string }
+interface ShareRow {
+  id:string; user:UserLite; papel?:string;
+  centroCusto?:{ id:string; codigo:string; nome:string; cor:string }|null;
+  criadoEm:string;
+}
 
-function ShareModal({ ciclo, onClose, onChanged }:{ ciclo:Ciclo; onClose:()=>void; onChanged:()=>void }) {
+function ShareModal({ ciclo, centrosCusto, podeEscopoTotal, onClose, onChanged }:{
+  ciclo:Ciclo; centrosCusto:CentroCusto[]; podeEscopoTotal:boolean;
+  onClose:()=>void; onChanged:()=>void;
+}) {
+  const { user } = useAuthStore();
   const [shares, setShares] = useState<ShareRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [q, setQ] = useState("");
   const [results, setResults] = useState<UserLite[]>([]);
   const [searching, setSearching] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [erro, setErro] = useState("");
+
+  const corporativo = ciclo.escopo === "corporativo";
+
+  // Quem não administra o orçamento só compartilha as áreas pelas quais responde.
+  const areas = useMemo(()=>{
+    const ativos = centrosCusto.filter(c=>c.ativo);
+    if (podeEscopoTotal) return ativos;
+    return ativos.filter(c=>c.responsavel?.id === (user as any)?.id);
+  },[centrosCusto, podeEscopoTotal, user]);
+
+  // No corporativo o escopo é obrigatório para quem não administra.
+  const [escopoId, setEscopoId] = useState<string>(
+    corporativo && !podeEscopoTotal ? (areas[0]?.id ?? "") : ""
+  );
+  const [papel, setPapel] = useState<"editor"|"leitor">("editor");
 
   const loadShares = useCallback(()=>{
     setLoading(true);
@@ -1122,7 +1149,6 @@ function ShareModal({ ciclo, onClose, onChanged }:{ ciclo:Ciclo; onClose:()=>voi
   },[ciclo.id]);
   useEffect(()=>{ loadShares(); },[loadShares]);
 
-  // Busca de pessoas com debounce simples
   useEffect(()=>{
     const t = setTimeout(()=>{
       setSearching(true);
@@ -1132,20 +1158,39 @@ function ShareModal({ ciclo, onClose, onChanged }:{ ciclo:Ciclo; onClose:()=>voi
     return ()=>clearTimeout(t);
   },[q]);
 
-  const jaTem = (id:string) => shares.some(s=>s.user.id===id);
+  // "Já tem" é por pessoa E escopo: a mesma pessoa pode ter TI e não ter Frotas.
+  const jaTem = (id:string) => shares.some(x=>x.user.id===id && (x.centroCusto?.id ?? "") === escopoId);
+
+  const semAreaPossivel = corporativo && !podeEscopoTotal && areas.length===0;
 
   async function add(userId:string) {
-    setBusy(true);
-    try { await api.post(`/orcamento/ciclos/${ciclo.id}/compartilhar`, { userIds:[userId] }); loadShares(); onChanged(); }
-    catch {} finally { setBusy(false); }
+    if (corporativo && !podeEscopoTotal && !escopoId) { setErro("Escolha o centro de custo antes."); return; }
+    setBusy(true); setErro("");
+    try {
+      await api.post(`/orcamento/ciclos/${ciclo.id}/compartilhar`, {
+        userIds:[userId],
+        ...(escopoId ? { centroCustoId: escopoId } : {}),
+        papel,
+      });
+      loadShares(); onChanged();
+    } catch (e:any) {
+      setErro(e?.response?.data?.message || "Não foi possível compartilhar.");
+    } finally { setBusy(false); }
   }
-  async function remove(userId:string) {
-    setBusy(true);
-    try { await api.delete(`/orcamento/ciclos/${ciclo.id}/compartilhar/${userId}`); loadShares(); onChanged(); }
-    catch {} finally { setBusy(false); }
+
+  async function remove(row:ShareRow) {
+    setBusy(true); setErro("");
+    try {
+      const qs = row.centroCusto?.id ? `?centroCustoId=${row.centroCusto.id}` : "";
+      await api.delete(`/orcamento/ciclos/${ciclo.id}/compartilhar/${row.user.id}${qs}`);
+      loadShares(); onChanged();
+    } catch (e:any) {
+      setErro(e?.response?.data?.message || "Não foi possível remover o acesso.");
+    } finally { setBusy(false); }
   }
 
   const disponiveis = results.filter(u=>!jaTem(u.id));
+  const areaAtual = areas.find(a=>a.id===escopoId);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={onClose}>
@@ -1153,39 +1198,82 @@ function ShareModal({ ciclo, onClose, onChanged }:{ ciclo:Ciclo; onClose:()=>voi
         <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
           <div>
             <div className="text-sm font-semibold text-foreground">Compartilhar orçamento</div>
-            <div className="text-[11px] text-muted-foreground">{ciclo.ano}{ciclo.descricao?` — ${ciclo.descricao}`:""} · quem tiver acesso pode editar</div>
+            <div className="text-[11px] text-muted-foreground">
+              {ciclo.ano}{ciclo.descricao?` — ${ciclo.descricao}`:""}
+            </div>
           </div>
           <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-accent"><X size={16}/></button>
         </div>
 
         <div className="p-6 space-y-4 overflow-y-auto">
-          {/* Busca de pessoas */}
-          <div>
-            <FL l="Adicionar pessoa" />
-            <div className="relative">
-              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-              <input value={q} onChange={e=>setQ(e.target.value)} placeholder="Buscar por nome ou e-mail..."
-                className="w-full bg-input border border-border rounded-lg pl-9 pr-3 py-2 text-sm text-foreground outline-none focus:border-primary" autoFocus />
+          {semAreaPossivel ? (
+            <div className="text-xs text-muted-foreground py-4 text-center border border-dashed border-border rounded-lg">
+              Você não responde por nenhum centro de custo, então não há área para compartilhar.
             </div>
-            {(q.trim() || disponiveis.length>0) && (
-              <div className="mt-2 border border-border rounded-lg divide-y divide-border max-h-48 overflow-y-auto">
-                {searching ? (
-                  <div className="px-3 py-3 text-xs text-muted-foreground flex items-center gap-2"><Loader2 size={12} className="animate-spin"/>Buscando...</div>
-                ) : disponiveis.length===0 ? (
-                  <div className="px-3 py-3 text-xs text-muted-foreground">Ninguém encontrado</div>
-                ) : disponiveis.map(u=>(
-                  <button key={u.id} onClick={()=>add(u.id)} disabled={busy}
-                    className="w-full flex items-center justify-between gap-2 px-3 py-2 text-left hover:bg-white/3 disabled:opacity-50">
-                    <div className="min-w-0">
-                      <div className="text-xs font-medium text-foreground truncate">{u.nome}</div>
-                      {u.email && <div className="text-[10px] text-muted-foreground truncate">{u.email}</div>}
-                    </div>
-                    <Plus size={13} className="text-primary shrink-0"/>
+          ) : (<>
+            {/* Escopo do acesso */}
+            <div>
+              <FL l="Até onde vai o acesso" />
+              <select value={escopoId} onChange={e=>setEscopoId(e.target.value)}
+                className="w-full bg-input border border-border rounded-lg px-3 py-2 text-sm text-foreground outline-none focus:border-primary">
+                {(!corporativo || podeEscopoTotal) && <option value="">Orçamento inteiro</option>}
+                {areas.map(a=>(
+                  <option key={a.id} value={a.id}>{a.codigo} — {a.nome}</option>
+                ))}
+              </select>
+              <div className="mt-1 text-[10px] text-muted-foreground">
+                {escopoId
+                  ? `Só os itens de ${areaAtual?.nome ?? "este centro de custo"}. O resto do orçamento segue fora do alcance.`
+                  : "Acesso ao orçamento inteiro."}
+              </div>
+            </div>
+
+            {/* Papel */}
+            <div>
+              <FL l="O que a pessoa pode fazer" />
+              <div className="flex gap-2">
+                {([["editor","Editar"],["leitor","Só ver"]] as const).map(([v,rotulo])=>(
+                  <button key={v} type="button" onClick={()=>setPapel(v)}
+                    className={cn("flex-1 px-3 py-2 rounded-lg text-xs font-medium border transition-colors",
+                      papel===v ? "border-primary bg-primary/10 text-foreground" : "border-border text-muted-foreground hover:bg-accent")}>
+                    {rotulo}
                   </button>
                 ))}
               </div>
+            </div>
+
+            {erro && (
+              <div className="text-[11px] text-red-400 bg-red-500/10 border border-red-500/25 rounded-lg px-3 py-2">{erro}</div>
             )}
-          </div>
+
+            {/* Busca de pessoas */}
+            <div>
+              <FL l="Adicionar pessoa" />
+              <div className="relative">
+                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                <input value={q} onChange={e=>setQ(e.target.value)} placeholder="Buscar por nome ou e-mail..."
+                  className="w-full bg-input border border-border rounded-lg pl-9 pr-3 py-2 text-sm text-foreground outline-none focus:border-primary" autoFocus />
+              </div>
+              {(q.trim() || disponiveis.length>0) && (
+                <div className="mt-2 border border-border rounded-lg divide-y divide-border max-h-40 overflow-y-auto">
+                  {searching ? (
+                    <div className="px-3 py-3 text-xs text-muted-foreground flex items-center gap-2"><Loader2 size={12} className="animate-spin"/>Buscando...</div>
+                  ) : disponiveis.length===0 ? (
+                    <div className="px-3 py-3 text-xs text-muted-foreground">Ninguém encontrado</div>
+                  ) : disponiveis.map(u=>(
+                    <button key={u.id} onClick={()=>add(u.id)} disabled={busy}
+                      className="w-full flex items-center justify-between gap-2 px-3 py-2 text-left hover:bg-white/3 disabled:opacity-50">
+                      <div className="min-w-0">
+                        <div className="text-xs font-medium text-foreground truncate">{u.nome}</div>
+                        {u.email && <div className="text-[10px] text-muted-foreground truncate">{u.email}</div>}
+                      </div>
+                      <Plus size={13} className="text-primary shrink-0"/>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </>)}
 
           {/* Quem já tem acesso */}
           <div>
@@ -1194,17 +1282,25 @@ function ShareModal({ ciclo, onClose, onChanged }:{ ciclo:Ciclo; onClose:()=>voi
               <div className="text-xs text-muted-foreground py-2">Carregando...</div>
             ) : shares.length===0 ? (
               <div className="text-xs text-muted-foreground py-3 text-center border border-dashed border-border rounded-lg">
-                Só você tem acesso. Adicione pessoas acima.
+                Ninguém além de quem já enxerga o orçamento.
               </div>
             ) : (
               <div className="space-y-1.5">
-                {shares.map(s=>(
-                  <div key={s.id} className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-white/3 border border-border">
+                {shares.map(x=>(
+                  <div key={x.id} className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-white/3 border border-border">
                     <div className="min-w-0">
-                      <div className="text-xs font-medium text-foreground truncate">{s.user.nome}</div>
-                      {s.user.email && <div className="text-[10px] text-muted-foreground truncate">{s.user.email}</div>}
+                      <div className="text-xs font-medium text-foreground truncate">{x.user.nome}</div>
+                      <div className="flex items-center gap-1.5 mt-0.5">
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-white/8 text-muted-foreground truncate">
+                          {x.centroCusto ? `${x.centroCusto.codigo} — ${x.centroCusto.nome}` : "Orçamento inteiro"}
+                        </span>
+                        <span className={cn("text-[10px] px-1.5 py-0.5 rounded",
+                          x.papel==="leitor" ? "bg-white/8 text-muted-foreground" : "bg-primary/15 text-primary")}>
+                          {x.papel==="leitor" ? "Só ver" : "Editar"}
+                        </span>
+                      </div>
                     </div>
-                    <button onClick={()=>remove(s.user.id)} disabled={busy} title="Remover acesso"
+                    <button onClick={()=>remove(x)} disabled={busy} title="Remover acesso"
                       className="p-1 rounded hover:bg-red-500/15 text-muted-foreground hover:text-red-400 shrink-0 disabled:opacity-50"><X size={13}/></button>
                   </div>
                 ))}
@@ -1502,10 +1598,12 @@ export default function OrcamentoPage() {
         </div>
       )}
 
-      {/* Modal compartilhar (apenas orçamento pessoal do próprio dono) */}
+      {/* Compartilhar: pessoal (dono) ou corporativo com escopo de centro de custo */}
       {showShare && cicloAtual?.podeCompartilhar && (
         <ShareModal
           ciclo={cicloAtual}
+          centrosCusto={centrosCusto}
+          podeEscopoTotal={podeCriarCorporativo || perms.includes("orcamento:planejar")}
           onClose={()=>setShowShare(false)}
           onChanged={()=>loadConfig(cicloId)}
         />
