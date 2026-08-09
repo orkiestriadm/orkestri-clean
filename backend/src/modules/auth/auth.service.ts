@@ -41,6 +41,9 @@ const ALL_PERMISSIONS: { recurso: string; acao: string; descricao: string }[] = 
   { recurso: "chamados",      acao: "editar",      descricao: "Editar chamados" },
   { recurso: "chamados",      acao: "fechar",      descricao: "Fechar/resolver chamados" },
   { recurso: "chamados",      acao: "atribuir",    descricao: "Atribuir chamados a atendentes" },
+  // Exigida por chamados.module.ts e ausente do catalogo: sem ela a rota de
+  // exclusao so funcionava para master.
+  { recurso: "chamados",      acao: "excluir",     descricao: "Excluir chamados" },
   { recurso: "whatsapp",      acao: "ver",         descricao: "Ver configurações WhatsApp" },
   { recurso: "whatsapp",      acao: "configurar",  descricao: "Configurar integração WhatsApp" },
   { recurso: "usuarios",      acao: "ver",         descricao: "Ver usuários" },
@@ -48,6 +51,7 @@ const ALL_PERMISSIONS: { recurso: string; acao: string; descricao: string }[] = 
   { recurso: "usuarios",      acao: "editar",      descricao: "Editar usuários" },
   { recurso: "usuarios",      acao: "desativar",   descricao: "Ativar/desativar usuários" },
   { recurso: "usuarios",      acao: "permissoes",  descricao: "Gerenciar permissões de usuários" },
+  { recurso: "usuarios",      acao: "excluir",     descricao: "Excluir usuários" },
   { recurso: "configuracoes", acao: "ver",         descricao: "Ver configurações do sistema" },
   { recurso: "configuracoes", acao: "editar",      descricao: "Editar configurações do sistema" },
   { recurso: "historico",     acao: "ver",         descricao: "Ver histórico de auditoria" },
@@ -102,6 +106,10 @@ const ALL_PERMISSIONS: { recurso: string; acao: string; descricao: string }[] = 
   { recurso: "automacoes",    acao: "excluir",     descricao: "Excluir automações" },
   // Monitoramento operacional
   { recurso: "monitoramento", acao: "ver",         descricao: "Ver monitoramento de serviços e hardware" },
+  { recurso: "monitoramento", acao: "gerenciar",   descricao: "Configurar monitoramento e OSA" },
+  // A tela inicial checa dashboard:ver; sem a permissao no catalogo ela nunca
+  // poderia ser concedida.
+  { recurso: "dashboard",     acao: "ver",         descricao: "Ver a tela inicial" },
   // Financeiro
   { recurso: "financeiro",    acao: "ver",         descricao: "Ver módulo financeiro (contas a pagar, dashboard)" },
   { recurso: "financeiro",    acao: "gerenciar",   descricao: "Criar, editar e excluir títulos financeiros" },
