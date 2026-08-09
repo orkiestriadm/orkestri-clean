@@ -1287,6 +1287,11 @@ model UserProfile {
   setorId         String?  @map("setor_id")
   cargo           String?
   telefone        String?
+  /// Verificação do WhatsApp por código. Migration notificacoes_por_modulo.
+  whatsappVerificado   Boolean   @default(false) @map("whatsapp_verificado")
+  whatsappCodigo       String?   @map("whatsapp_codigo")
+  whatsappCodigoExpira DateTime? @map("whatsapp_codigo_expira")
+  whatsappTentativas   Int       @default(0) @map("whatsapp_tentativas")
   modulos         String   @default("[\"projetos\",\"keep\",\"gantt\",\"relatorios\"]")
   setor           Setor?   @relation(fields: [setorId], references: [id])
   user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -1954,6 +1959,8 @@ model Notification {
   referenciaTipo String?  @map("referencia_tipo")
   referenciaId   String?  @map("referencia_id")
   lida           Boolean  @default(false)
+  /// Módulo de origem, para a preferência por módulo. Migration notification_modulo.
+  modulo         String?
   criadoEm       DateTime @default(now()) @map("criado_em")
   user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -2215,6 +2222,8 @@ model Veiculo {
   criadoPorId      String?             @map("criado_por_id")
   atualizadoPorId  String?             @map("atualizado_por_id")
   deletedAt        DateTime?           @map("deleted_at")
+  /// Identificação operacional (TR01, S02...). Migration frota_status_operacional.
+  identificacao    String?
   criadoEm         DateTime            @default(now()) @map("criado_em")
   atualizadoEm     DateTime            @updatedAt @map("atualizado_em")
   organization     Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
@@ -2468,6 +2477,10 @@ model ManutencaoVeiculo {
   criadoPorId     String?             @map("criado_por_id")
   atualizadoPorId String?             @map("atualizado_por_id")
   deletedAt       DateTime?           @map("deleted_at")
+  /// A OS tira o veículo de operação. Migration frota_status_operacional.
+  imobiliza       Boolean             @default(true)
+  localizacao     String?
+  previsaoLiberacao DateTime?         @map("previsao_liberacao")
   criadoEm        DateTime            @default(now()) @map("criado_em")
   atualizadoEm    DateTime            @updatedAt @map("atualizado_em")
   organization    Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
