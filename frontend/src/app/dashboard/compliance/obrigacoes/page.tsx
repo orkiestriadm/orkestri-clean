@@ -24,6 +24,7 @@ import {
 import ObrigacaoForm from "../_components/ObrigacaoForm";
 import RenovarModal from "../_components/RenovarModal";
 import ProtocoloModal from "../_components/ProtocoloModal";
+import ObrigacaoModal from "../_components/ObrigacaoModal";
 
 /**
  * Carteira de obrigações.
@@ -59,6 +60,8 @@ export default function ObrigacoesPage() {
   const [criando, setCriando] = useState(false);
   const [renovando, setRenovando] = useState<Obrigacao | null>(null);
   const [protocolando, setProtocolando] = useState<Obrigacao | null>(null);
+  /** Duplo clique na linha abre o detalhe completo sem perder a lista. */
+  const [aberta, setAberta] = useState<string | null>(null);
 
   const podeCriar = pode(user, "compliance.obrigacao:criar");
   const podeEditar = pode(user, "compliance.obrigacao:editar");
@@ -288,7 +291,18 @@ export default function ObrigacoesPage() {
                     />
                   ) : (
                     lista.map(o => (
-                      <tr key={o.id}>
+                      <tr
+                        key={o.id}
+                        onDoubleClick={() => setAberta(o.id)}
+                        /* Enter abre também: quem navega por teclado não tem
+                           duplo clique. A linha entra na ordem de tabulação. */
+                        tabIndex={0}
+                        onKeyDown={e => {
+                          if (e.key === "Enter" && e.currentTarget === e.target) setAberta(o.id);
+                        }}
+                        title="Duplo clique para abrir"
+                        style={{ cursor: "pointer" }}
+                      >
                         <td style={{ width: 30 }}>
                           <button
                             type="button"
@@ -377,6 +391,16 @@ export default function ObrigacoesPage() {
         obrigacao={protocolando}
         onFechar={() => setProtocolando(null)}
         onSalvo={() => { carregar(consulta); recontar(); }}
+      />
+      <ObrigacaoModal
+        obrigacaoId={aberta}
+        user={user}
+        onFechar={() => setAberta(null)}
+        onMudou={() => { carregar(consulta); recontar(); }}
+        /* Renovar e protocolar saem do detalhe para o seu próprio passo: são
+           operações com regra e confirmação próprias, não edição de campo. */
+        onRenovar={o => { setAberta(null); setRenovando(o); }}
+        onProtocolar={o => { setAberta(null); setProtocolando(o); }}
       />
     </div>
   );
