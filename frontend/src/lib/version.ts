@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "1.8.0";
+export const VERSAO = "1.9.0";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -23,10 +23,10 @@ export const VERSAO = "1.8.0";
  * Não é gerada no build: `new Date()` no bundle muda a cada compilação, e duas
  * builds do mesmo código pareceriam versões diferentes.
  */
-export const VERSAO_DATA = "2026-08-03";
+export const VERSAO_DATA = "2026-08-09";
 
 /** Nome da entrega, para dar contexto ao número. */
-export const VERSAO_NOME = "People — Meu RH, avaliação 360 e privacidade";
+export const VERSAO_NOME = "Compliance e convergência dos ambientes";
 
 /**
  * Histórico exibido na tela Sobre, do mais recente para o mais antigo.
@@ -35,6 +35,20 @@ export const VERSAO_NOME = "People — Meu RH, avaliação 360 e privacidade";
  * esta lista quer saber o que mudou para ele.
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
+  {
+    versao: "1.9.0",
+    data: "2026-08-09",
+    titulo: "Compliance e convergência dos ambientes",
+    itens: [
+      "Compliance: licenças, laudos, AVCB e contratos com prazo, substituindo o controle em planilha",
+      "O prazo para começar a renovar é calculado, não digitado: validade menos a antecedência que o órgão exige, menos a folga da empresa",
+      "Licença vencida continua regular quando o protocolo de renovação foi feito dentro do prazo — e o sistema avisa quando o protocolo foi tarde demais",
+      "Alertas com régua configurável por categoria, escalonamento e prévia do que seria enviado hoje, sem enviar nada",
+      "Calendário mostra três marcos por obrigação: quando começar, o último dia para protocolar, e o vencimento",
+      "Farol da Frota disponível também em produção",
+      "Corrigido: excluir e transferir ativo, excluir artigo, configurar SLA, excluir chamado, excluir usuário e configurar monitoramento exigiam permissões que não existiam para ser concedidas — só funcionavam para o master",
+    ],
+  },
   {
     versao: "1.8.0",
     data: "2026-08-03",
