@@ -67,3 +67,10 @@ saas/tenants/
 saas/nginx-conf/
 saas/backup/
 saas/*.log
+
+# Chave privada — NUNCA versionar
+*.pem
+*.key
+
+# Artefato de build
+frontend_build.zip

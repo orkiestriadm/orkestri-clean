@@ -1,0 +1,18 @@
+# Contexto de build da API.
+#
+# O frontend já tinha o seu; o backend não, então cada build enviava ao daemon
+# o `node_modules` inteiro e o `dist` da build anterior — que o Dockerfile
+# descarta em seguida, porque instala e compila de novo lá dentro.
+#
+# Nos servidores isso são centenas de MB subindo para o daemon a cada deploy,
+# sem servir para nada.
+node_modules
+dist
+.git
+.env
+Dockerfile
+.dockerignore
+
+# Dumps e artefatos que às vezes sobram na pasta durante depuração.
+*.dump
+*.log
