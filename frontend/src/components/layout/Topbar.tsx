@@ -8,6 +8,43 @@ import NotificationBell from "@/components/ui/NotificationBell";
 import FocusMode from "@/components/ui/FocusMode";
 import { useAuthStore } from "@/lib/store";
 import { api } from "@/lib/api";
+import { NAV } from "@/lib/modules";
+import { MARCA } from "@/lib/marca";
+
+/**
+ * Nome de cada rota, vindo do menu.
+ *
+ * `TITLES` abaixo é mantido à mão e envelheceu: de 68 rotas do menu, 27 não
+ * tinham entrada — People, Compliance e financeiro inteiros caíam no texto
+ * padrão. E o padrão era a marca do PRODUTO escrita no código, então no
+ * servidor white-label o cabeçalho anunciava "Orkiestri" para o cliente.
+ *
+ * O menu já sabe o nome de toda rota que ele mesmo exibe. Usar essa fonte faz
+ * a barra acompanhar sozinha cada página nova, em vez de depender de alguém
+ * lembrar de editar dois arquivos.
+ */
+const ROTULOS_DO_MENU: Record<string, string> = Object.fromEntries(
+  NAV.flatMap(g => g.items).map(i => [i.href, i.label]),
+);
+
+/**
+ * Título da rota, do mais específico para o mais genérico.
+ *
+ * O prefixo mais longo cobre as telas de detalhe: `/dashboard/chamados/42` não
+ * está em lugar nenhum, e sem isso mostraria a marca em vez de "Chamados".
+ */
+function tituloDaRota(path: string): { label: string; desc: string } {
+  if (TITLES[path]) return TITLES[path];
+  if (ROTULOS_DO_MENU[path]) return { label: ROTULOS_DO_MENU[path], desc: "" };
+
+  const prefixo = Object.keys(ROTULOS_DO_MENU)
+    .filter(href => href !== "/dashboard" && path.startsWith(`${href}/`))
+    .sort((a, b) => b.length - a.length)[0];
+  if (prefixo) return { label: ROTULOS_DO_MENU[prefixo], desc: "" };
+
+  // Último recurso: a marca DO AMBIENTE, nunca a do produto escrita à mão.
+  return { label: MARCA, desc: "" };
+}
 
 const TITLES: Record<string, { label: string; desc: string }> = {
   "/dashboard":                        { label: "Visão Geral",    desc: "Resumo operacional" },
@@ -55,7 +92,7 @@ const TITLES: Record<string, { label: string; desc: string }> = {
 export default function Topbar({ children }: { children?: React.ReactNode }) {
   const path = usePathname();
   const { user } = useAuthStore();
-  const meta = TITLES[path] || { label: "Orkiestri", desc: "" };
+  const meta = tituloDaRota(path);
   const [focusOpen, setFocusOpen] = useState(false);
   const [exitingImpersonation, setExitingImpersonation] = useState(false);
 

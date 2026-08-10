@@ -6,6 +6,7 @@ import { useState, useEffect, useCallback, useRef, useMemo, ReactNode } from "re
 import Topbar from "@/components/layout/Topbar";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
+import { MARCA } from "@/lib/marca";
 import {
   Truck,
   Users,
@@ -696,7 +697,7 @@ export default function FrotaRelatoriosPage() {
       doc.text(config.title, 14, 18);
       doc.setFont("helvetica", "normal");
       doc.setFontSize(9);
-      doc.text(`Gerado em: ${new Date().toLocaleString("pt-BR")} | Orkestri Gestão de Frota`, 14, 24);
+      doc.text(`Gerado em: ${new Date().toLocaleString("pt-BR")} | ${MARCA} Gestão de Frota`, 14, 24);
 
       doc.autoTable({
         startY: 28,

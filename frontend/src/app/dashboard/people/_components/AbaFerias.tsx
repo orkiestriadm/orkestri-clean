@@ -10,6 +10,7 @@ import {
 import { Plus, CalendarOff, AlertTriangle, CalendarDays } from "lucide-react";
 import SolicitarFerias from "./SolicitarFerias";
 import { formatarDataBR } from "@/lib/datas";
+import { MARCA } from "@/lib/marca";
 
 /**
  * Férias do colaborador.
@@ -304,7 +305,7 @@ function DevidasNaRescisao({ devidas }: { devidas: FeriasDevidas }) {
       </div>
 
       <p style={{ fontSize: 11.5, color: "var(--text-secondary)", lineHeight: 1.6, margin: "12px 0 0" }}>
-        Valores em <strong>dias</strong>, para lançamento na folha. O Orkiestri não calcula
+        Valores em <strong>dias</strong>, para lançamento na folha. O {MARCA} não calcula
         rescisão — a conversão em reais depende de salário, médias, adicionais e do terço
         constitucional.
       </p>

@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import Topbar from "@/components/layout/Topbar";
 import { useAuthStore } from "@/lib/store";
 import { api } from "@/lib/api";
+import { MARCA } from "@/lib/marca";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type Cliente = {
@@ -836,7 +837,7 @@ function TabOrganizacao({ cliente, isMaster }: { cliente: Cliente; isMaster: boo
       <div>
         <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)", marginBottom: 6 }}>Sem organização provisionada</div>
         <div style={{ fontSize: 12, color: "var(--text-muted)", maxWidth: 320, lineHeight: 1.6 }}>
-          Este cliente ainda não possui um tenant operacional no Orkiestri.
+          Este cliente ainda não possui um tenant operacional no {MARCA}.
           {isMaster ? " Crie uma solicitação de provisionamento para iniciar o onboarding." : ""}
         </div>
       </div>
