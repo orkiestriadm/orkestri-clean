@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Modal, FormGrid, FormField, FormActions, Tabs } from "@/components/data-ui";
 import { useToastStore } from "@/lib/toast";
+import { api } from "@/lib/api";
 import { complianceService } from "@/lib/compliance/compliance.service";
 import type { Obrigacao, Categoria, Orgao, CampoDefinicao } from "@/lib/compliance/types";
 import { ROTULO_CRITICIDADE } from "@/lib/compliance/types";
@@ -36,7 +37,25 @@ const VAZIO = {
 };
 
 type Formulario = typeof VAZIO;
-type LinhaResponsavel = { papel: string; nome: string; email: string; telefone: string; notificar: boolean };
+/**
+ * `userId` é o que faz a obrigação aparecer em "Minhas obrigações" e o aviso
+ * chegar ao sino do sistema. Ele existia no backend e nunca era preenchido:
+ * o formulário só coletava texto, então as duas coisas nunca funcionaram.
+ *
+ * Continua opcional de propósito — a maior parte dos responsáveis desta base
+ * são contatos externos, sem conta, que recebem por e-mail e WhatsApp.
+ */
+type LinhaResponsavel = {
+  papel: string;
+  userId?: string | null;
+  nome: string;
+  email: string;
+  telefone: string;
+  notificar: boolean;
+};
+
+/** Usuário da organização, para o seletor. */
+type UsuarioPick = { id: string; nome: string; email: string };
 
 const soData = (v: string | null | undefined) => (v ? v.slice(0, 10) : "");
 
@@ -54,6 +73,7 @@ export default function ObrigacaoForm({
   const [campos, setCampos] = useState<Record<string, string>>({});
   const [categorias, setCategorias] = useState<Categoria[]>([]);
   const [orgaos, setOrgaos] = useState<Orgao[]>([]);
+  const [usuarios, setUsuarios] = useState<UsuarioPick[]>([]);
   const [salvando, setSalvando] = useState(false);
   const [erros, setErros] = useState<Record<string, string>>({});
 
@@ -61,6 +81,11 @@ export default function ObrigacaoForm({
     if (!aberto) return;
     complianceService.categorias().then(setCategorias).catch(() => setCategorias([]));
     complianceService.orgaos().then(setOrgaos).catch(() => setOrgaos([]));
+    // `silent`: sem a lista o formulário ainda funciona para contato externo —
+    // não vale um toast de erro em cima de quem só quer cadastrar a obrigação.
+    api.get("/users/picklist", { silent: true })
+      .then(r => setUsuarios(r.data ?? []))
+      .catch(() => setUsuarios([]));
   }, [aberto]);
 
   useEffect(() => {
@@ -70,7 +95,7 @@ export default function ObrigacaoForm({
 
     if (!obrigacao) {
       setForm(VAZIO);
-      setResponsaveis([{ papel: "principal", nome: "", email: "", telefone: "", notificar: true }]);
+      setResponsaveis([{ papel: "principal", userId: null, nome: "", email: "", telefone: "", notificar: true }]);
       setCampos({});
       return;
     }
@@ -107,6 +132,9 @@ export default function ObrigacaoForm({
     setResponsaveis(
       (obrigacao.responsaveis ?? []).map(r => ({
         papel: r.papel,
+        // Preservar o vínculo ao editar: sem isto, abrir e salvar uma obrigação
+        // desfazia a ligação com a conta e a obrigação sumia de "Minhas".
+        userId: r.user?.id ?? null,
         nome: r.user?.nome ?? r.nome ?? "",
         email: r.email ?? r.user?.email ?? "",
         telefone: r.telefone ?? "",
@@ -229,6 +257,7 @@ export default function ObrigacaoForm({
           .filter(r => r.nome.trim() || r.email.trim())
           .map(r => ({
             papel: r.papel,
+            userId: r.userId || undefined,
             nome: texto(r.nome),
             email: texto(r.email),
             telefone: texto(r.telefone),
@@ -442,44 +471,90 @@ export default function ObrigacaoForm({
         {aba === "responsaveis" && (
           <div>
             <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 12, lineHeight: 1.55 }}>
-              Quem recebe os avisos. O e-mail não precisa ser de um usuário do sistema — quem não tem
-              login recebe por e-mail e WhatsApp mesmo assim.
+              Quem recebe os avisos. Escolher alguém da lista <strong>liga a obrigação à conta</strong> —
+              é o que faz ela aparecer em "Minhas obrigações" e o aviso chegar no sino do sistema.
+              Contato de fora continua valendo: deixe em <em>Contato externo</em> e preencha nome e
+              e-mail à mão.
             </div>
 
-            {responsaveis.map((r, i) => (
-              <div key={i} style={{ display: "grid", gridTemplateColumns: "110px 1fr 1fr 130px 70px 30px", gap: 8, marginBottom: 8, alignItems: "center" }}>
-                <select
-                  className="input-o"
-                  value={r.papel}
-                  onChange={e => setResponsaveis(l => l.map((x, j) => (j === i ? { ...x, papel: e.target.value } : x)))}
-                >
-                  <option value="principal">Principal</option>
-                  <option value="gestor">Gestor</option>
-                  <option value="equipe">Equipe</option>
-                  <option value="observador">Observador</option>
-                </select>
-                <input className="input-o" placeholder="Nome" value={r.nome}
-                  onChange={e => setResponsaveis(l => l.map((x, j) => (j === i ? { ...x, nome: e.target.value } : x)))} />
-                <input className="input-o" placeholder="E-mail" value={r.email}
-                  onChange={e => setResponsaveis(l => l.map((x, j) => (j === i ? { ...x, email: e.target.value } : x)))} />
-                <input className="input-o" placeholder="WhatsApp" value={r.telefone}
-                  onChange={e => setResponsaveis(l => l.map((x, j) => (j === i ? { ...x, telefone: e.target.value } : x)))} />
-                <label style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11 }} title="Recebe os avisos de prazo">
-                  <input type="checkbox" checked={r.notificar}
-                    onChange={e => setResponsaveis(l => l.map((x, j) => (j === i ? { ...x, notificar: e.target.checked } : x)))} />
-                  avisar
-                </label>
-                <button type="button" className="btn-icon" title="Remover" aria-label="Remover responsável"
-                  onClick={() => setResponsaveis(l => l.filter((_, j) => j !== i))}>
-                  ×
-                </button>
-              </div>
-            ))}
+            {responsaveis.map((r, i) => {
+              const trocar = (m: Partial<LinhaResponsavel>) =>
+                setResponsaveis(l => l.map((x, j) => (j === i ? { ...x, ...m } : x)));
+
+              return (
+                <div key={i} style={{ marginBottom: 10 }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "110px 1fr 1fr 130px 70px 30px", gap: 8, alignItems: "center" }}>
+                    <select className="input-o" value={r.papel} onChange={e => trocar({ papel: e.target.value })}>
+                      <option value="principal">Principal</option>
+                      <option value="gestor">Gestor</option>
+                      <option value="equipe">Equipe</option>
+                      <option value="observador">Observador</option>
+                    </select>
+
+                    {/* Escolher da lista preenche nome e e-mail juntos: digitar
+                        um e-mail diferente do cadastro foi como 128 responsáveis
+                        ficaram sem vínculo nenhum. */}
+                    <select
+                      className="input-o"
+                      value={r.userId ?? ""}
+                      onChange={e => {
+                        const u = usuarios.find(x => x.id === e.target.value);
+                        trocar(u
+                          ? { userId: u.id, nome: u.nome, email: u.email }
+                          : { userId: null });
+                      }}
+                    >
+                      <option value="">Contato externo (digitar)</option>
+                      {usuarios.map(u => <option key={u.id} value={u.id}>{u.nome}</option>)}
+                    </select>
+
+                    <input
+                      className="input-o"
+                      placeholder="E-mail"
+                      value={r.email}
+                      onChange={e => trocar({ email: e.target.value })}
+                      // Travado quando veio da lista: editar aqui desfaria em
+                      // silêncio a ligação que o seletor acabou de criar.
+                      disabled={!!r.userId}
+                      title={r.userId ? "Vem do cadastro do usuário" : undefined}
+                    />
+                    <input className="input-o" placeholder="WhatsApp" value={r.telefone}
+                      onChange={e => trocar({ telefone: e.target.value })} />
+                    <label style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11 }} title="Recebe os avisos de prazo">
+                      <input type="checkbox" checked={r.notificar}
+                        onChange={e => trocar({ notificar: e.target.checked })} />
+                      avisar
+                    </label>
+                    <button type="button" className="btn-icon" title="Remover" aria-label="Remover responsável"
+                      onClick={() => setResponsaveis(l => l.filter((_, j) => j !== i))}>
+                      ×
+                    </button>
+                  </div>
+
+                  {/* Contato externo precisa do nome à mão; da lista ele já veio. */}
+                  {!r.userId && (
+                    <div style={{ display: "grid", gridTemplateColumns: "110px 1fr", gap: 8, marginTop: 6 }}>
+                      <span />
+                      <input className="input-o" placeholder="Nome do contato externo" value={r.nome}
+                        onChange={e => trocar({ nome: e.target.value })} />
+                    </div>
+                  )}
+
+                  {/* Diz, na hora, o que aquela linha vai conseguir fazer — em vez
+                      de a pessoa descobrir semanas depois que não recebeu nada. */}
+                  <div style={{ fontSize: 11, color: r.userId ? "var(--accent-green)" : "var(--text-muted)", marginTop: 4, paddingLeft: 118 }}>
+                    {r.userId
+                      ? "Ligado à conta: aparece em Minhas obrigações e recebe no sino"
+                      : "Contato externo: recebe só por e-mail e WhatsApp"}
+                  </div>
+                </div>
+              );
+            })}
 
             <button
               type="button"
               className="btn btn-ghost"
-              onClick={() => setResponsaveis(l => [...l, { papel: "equipe", nome: "", email: "", telefone: "", notificar: true }])}
+              onClick={() => setResponsaveis(l => [...l, { papel: "equipe", userId: null, nome: "", email: "", telefone: "", notificar: true }])}
             >
               + Adicionar responsável
             </button>
