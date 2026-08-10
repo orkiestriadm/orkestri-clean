@@ -222,6 +222,9 @@ class ProjectsController {
       }
     }
 
+    // Todo mundo que entrou no projeto passa a receber os avisos dele.
+    if (orgId) await this.garantirPreferenciaDeProjetos(orgId, allMemberIds);
+
     // Cria evento de prazo na agenda de todos os membros
     if (dto.dataFim) {
       await createDeadlineEvent(this.prisma, { ...project, dataFim: dto.dataFim }, allMemberIds, req.user.id);
@@ -479,6 +482,10 @@ class ProjectsController {
       update: { papel: body.papel || "membro" },
       create: { projectId: id, userId: body.userId, papel: body.papel || "membro" },
     });
+
+    // Entrou no projeto, passa a receber os avisos dele.
+    await this.garantirPreferenciaDeProjetos((project as any).organizationId, [body.userId]);
+
     if (body.userId !== req.user.id) {
       if (project.dataFim) {
         // Cria evento de prazo + notificacao de convite
@@ -528,6 +535,53 @@ class ProjectsController {
      Proposta, ata, escopo assinado — o que sustenta a decisão do projeto.
      Guardados fora do diretório público: só saem pelo endpoint de download,
      que confere a organização. */
+
+  /**
+   * Garante que quem entra num projeto passe a receber os avisos dele.
+   *
+   * O despachante NEGA POR PADRÃO: sem linha em `notificacao_preferencias`, a
+   * pessoa não recebe nada. É um desenho deliberado e bom — antes o alerta de
+   * Frota ia para todos os masters, quisessem ou não. Mas ele parte do princípio
+   * de que alguém cadastrou a preferência, e ninguém cadastra: em 10/08/2026 a
+   * organização inteira tinha DUAS linhas, nenhuma de `projects`. O aviso de
+   * projeto sairia para zero pessoas, em silêncio.
+   *
+   * Entrar num projeto é o próprio sinal de interesse — mais específico que um
+   * papel, e por isso legítimo como gatilho. A pessoa continua podendo desligar
+   * depois na tela de notificações.
+   *
+   * NÃO SOBRESCREVE linha existente: quem desligou de propósito não é religado
+   * ao ser posto num projeto novo. Por isso `createMany` com `skipDuplicates`
+   * não serve — ele ignora conflito de chave única, e aqui a checagem é por
+   * (usuário, módulo).
+   *
+   * WhatsApp fica ligado, mas só chega em quem tem número no perfil E manteve o
+   * opt-in — o despachante confere os dois.
+   */
+  private async garantirPreferenciaDeProjetos(organizationId: string, userIds: string[]) {
+    const alvos = userIds.filter((u, i, a) => u && a.indexOf(u) === i);
+    if (!alvos.length) return;
+
+    const existentes = await this.prisma.notificacaoPreferencia.findMany({
+      where: { userId: { in: alvos }, modulo: "projects" },
+      select: { userId: true },
+    });
+    const jaTem = new Set(existentes.map(e => e.userId));
+    const faltando = alvos.filter(u => !jaTem.has(u));
+    if (!faltando.length) return;
+
+    await this.prisma.notificacaoPreferencia.createMany({
+      data: faltando.map(userId => ({
+        organizationId, userId, modulo: "projects",
+        sistema: true, whatsapp: true, email: false,
+        severidadeMin: "info",
+      })),
+    }).catch(() => {
+      // Preferência é acessório: não vale derrubar a criação do projeto se a
+      // linha não entrar. O pior caso é a pessoa não receber, que é o estado
+      // anterior de qualquer forma.
+    });
+  }
 
   /** Confere que o projeto existe E é da organização de quem pede. */
   private async exigirProjeto(id: string, req: any) {
