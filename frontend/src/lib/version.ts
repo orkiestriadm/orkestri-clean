@@ -161,7 +161,9 @@ export const HISTORICO: { versao: string; data: string; titulo: string; itens: s
   {
     versao: "1.1.0",
     data: "2026-07-29",
-    titulo: "Orkiestri People",
+    // Sem o nome do produto: o módulo se chama "People" no menu, e esta tela
+    // é lida também no servidor white-label, onde a marca é a do cliente.
+    titulo: "People — gestão de pessoas",
     itens: [
       "Módulo de pessoas: colaboradores, cargos, organograma e equipes",
       "Documentos do colaborador com aprovação e controle de validade",
