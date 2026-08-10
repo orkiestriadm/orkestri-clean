@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "1.9.0";
+export const VERSAO = "1.9.1";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -26,7 +26,7 @@ export const VERSAO = "1.9.0";
 export const VERSAO_DATA = "2026-08-09";
 
 /** Nome da entrega, para dar contexto ao número. */
-export const VERSAO_NOME = "Compliance e convergência dos ambientes";
+export const VERSAO_NOME = "Relatórios e notificações do Compliance";
 
 /**
  * Histórico exibido na tela Sobre, do mais recente para o mais antigo.
@@ -35,6 +35,20 @@ export const VERSAO_NOME = "Compliance e convergência dos ambientes";
  * esta lista quer saber o que mudou para ele.
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
+  {
+    versao: "1.9.1",
+    data: "2026-08-09",
+    titulo: "Relatórios e notificações do Compliance",
+    itens: [
+      "Relatórios do Compliance passam a ter filtro por período, categoria e unidade — e o arquivo exportado leva exatamente o recorte que está na tela",
+      "Configuração de notificações em uma tela só: quando avisar, quem recebe e o que a mensagem diz",
+      "Os prazos de aviso viraram fichas clicáveis, com a sequência desenhada — dá para ver a lacuna antes de ela custar um prazo",
+      "A mensagem pode ser vista pronta, montada com uma obrigação real, antes de salvar",
+      "Botão para enviar a mensagem de teste na hora, e provar que o e-mail ou o WhatsApp chegam",
+      "WhatsApps adicionais podem ser cadastrados na régua de aviso — o campo existia e não tinha onde preencher",
+      "Corrigido: os botões de exportar relatório apareciam para quem não tinha permissão de usá-los, e o clique terminava em erro",
+    ],
+  },
   {
     versao: "1.9.0",
     data: "2026-08-09",
