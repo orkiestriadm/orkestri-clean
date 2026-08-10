@@ -1,9 +1,19 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { PrismaService } from "../../prisma/prisma.service";
+import { MARCA } from "../../common/marca";
 
-/** Marca do produto, com o "i". Ver o comentário em email.service.ts. */
-const MARCA = "Orkiestri";
+/**
+ * A marca vem de `common/marca`, que lê do ambiente.
+ *
+ * Este arquivo declarava a própria constante `const MARCA = "Orkiestri"` — o
+ * template usava `${MARCA}` e parecia certo, mas era a constante LOCAL. Toda
+ * mensagem de WhatsApp saía com a marca do produto: em homologação, o cliente
+ * recebia no celular dele um código de recuperação assinado "Orkiestri".
+ *
+ * Descoberto num teste de envio real, não na leitura do código — a linha do
+ * template parecia correta em qualquer revisão.
+ */
 
 @Injectable()
 export class WhatsAppService {
