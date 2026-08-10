@@ -11,6 +11,25 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 ENV NEXT_PUBLIC_API_URL=/api
 ENV NEXT_TELEMETRY_DISABLED=1
+
+# Marca exibida na interface. Precisa entrar como ARG e virar ENV ANTES do
+# build: o Next embute variáveis `NEXT_PUBLIC_*` no bundle do navegador em
+# tempo de compilação — defini-las só no runtime do compose não tem efeito
+# nenhum na tela.
+#
+# O padrão é a marca do produto; um ambiente white-label passa a do cliente pelo
+# `build.args` do compose. Assim a customização mora na configuração daquele
+# ambiente e não no código, que é o que faz ela sobreviver ao próximo deploy —
+# e é o que permite os três ambientes rodarem o MESMO Dockerfile.
+#
+# Estava só em homologação, que exibe "Hub Transbrasiliana". Enquanto viveu lá
+# fora do versionamento, qualquer deploy que trouxesse este arquivo do git
+# apagava a marca do cliente em silêncio: o build continuava passando, e o
+# defeito só aparecia na tela.
+ARG NEXT_PUBLIC_MARCA=Orkiestri
+ARG NEXT_PUBLIC_APP_DOMINIO=app.orkiestri.com
+ENV NEXT_PUBLIC_MARCA=$NEXT_PUBLIC_MARCA
+ENV NEXT_PUBLIC_APP_DOMINIO=$NEXT_PUBLIC_APP_DOMINIO
 # Teto explícito de heap durante o build. Sem isso, o Node pode crescer até o
 # cgroup limit e ser OOM-killed silenciosamente em hosts pequenos como Lightsail 2GB.
 ENV NODE_OPTIONS="--max-old-space-size=1024"
