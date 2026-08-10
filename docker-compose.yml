@@ -30,6 +30,9 @@ volumes:
   # em camada de container, todo anexo se perderia a cada deploy. Ver
   # backend/src/modules/compliance/infrastructure/arquivo-storage.service.ts
   compliance_docs_data:
+  # Anexos de projeto (proposta, ata, escopo). Volume NOMEADO pela mesma razao
+  # dos outros: em camada de container, todo anexo se perde a cada deploy.
+  project_docs_data:
   evolution_data:
 
 services:
@@ -144,6 +147,7 @@ services:
       # Mesma razão: anexo de licença, contrato e AVCB não pode ser baixável
       # por quem tiver a URL. Só sai pelo endpoint autenticado de download.
       - compliance_docs_data:/app/secure/compliance-docs
+      - project_docs_data:/app/secure/project-docs
     networks:
       - orkestri_net
     depends_on:

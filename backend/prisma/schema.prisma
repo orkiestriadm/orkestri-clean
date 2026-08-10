@@ -197,6 +197,7 @@ model Organization {
   complianceResponsaveis   ComplianceResponsavel[]      @relation("OrgComplianceResponsaveis")
   complianceVersoes        ComplianceVersao[]           @relation("OrgComplianceVersoes")
   complianceArquivos       ComplianceArquivo[]          @relation("OrgComplianceArquivos")
+  projectAnexos            ProjectAnexo[]               @relation("OrgProjectAnexos")
   complianceHistorico      ComplianceHistorico[]        @relation("OrgComplianceHistorico")
   complianceComentarios    ComplianceComentario[]       @relation("OrgComplianceComentarios")
   complianceFavoritos      ComplianceFavorito[]         @relation("OrgComplianceFavoritos")
@@ -261,6 +262,7 @@ model User {
   eventsCriados              Event[]                     @relation("EventCreator")
   eventParticipants          EventParticipant[]
   projectsOwner              Project[]                   @relation("ProjectOwner")
+  projectAnexosCriados       ProjectAnexo[]              @relation("ProjectAnexoAutor")
   projectMembers             ProjectMember[]
   tasksAssignee              Task[]                      @relation("TaskAssignee")
   tasksCriadas               Task[]                      @relation("TaskCreator")
@@ -1772,11 +1774,44 @@ model Project {
   tasks          Task[]
   ReservaVeiculo ReservaVeiculo[]
   complianceObrigacoes ComplianceObrigacao[]
+  anexos         ProjectAnexo[]
 
   @@index([organizationId, status])
   @@index([criadoPorId])
   @@index([tipo])
   @@map("projects")
+}
+
+/// Anexo de projeto — proposta, ata, escopo assinado, o que sustenta a decisão.
+///
+/// Vive em volume nomeado sob `/app/secure/project-docs`, FORA de
+/// `/app/uploads`: aquele é servido estaticamente pelo nginx, e anexo de
+/// projeto pode conter valor, contrato e nome de cliente. Só sai pelo endpoint
+/// autenticado de download. Mesmo desenho de ComplianceArquivo e dos
+/// documentos do People.
+model ProjectAnexo {
+  id             String @id @default(uuid())
+  organizationId String @map("organization_id")
+  projectId      String @map("project_id")
+
+  titulo       String
+  nomeOriginal String  @map("nome_original")
+  /// Caminho relativo dentro da raiz segura. Nunca absoluto, nunca URL.
+  arquivoRef   String  @map("arquivo_ref")
+  mime         String?
+  tamanho      Int?
+
+  criadoPorId String?   @map("criado_por_id")
+  deletedAt   DateTime? @map("deleted_at")
+  criadoEm    DateTime  @default(now()) @map("criado_em")
+
+  organization Organization @relation("OrgProjectAnexos", fields: [organizationId], references: [id], onDelete: Cascade)
+  project      Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  criadoPor    User?        @relation("ProjectAnexoAutor", fields: [criadoPorId], references: [id], onDelete: SetNull)
+
+  @@index([projectId, deletedAt])
+  @@index([organizationId])
+  @@map("project_anexos")
 }
 
 model ProjectMember {

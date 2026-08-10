@@ -1,6 +1,7 @@
 "use client";
 import TaskDetailModal from "@/components/ui/TaskDetailModal";
 
+import AnexosProjeto from "./_components/AnexosProjeto";
 import { useState, useEffect, useCallback } from "react";
 import Topbar from "@/components/layout/Topbar";
 import { useAuthStore } from "@/lib/store";
@@ -234,6 +235,10 @@ function KanbanBoard({ project, onMoveTask, onNewTask, onEditTask, onDeleteTask,
 
 export default function ProjetosPage() {
   const { user: me } = useAuthStore();
+  // Mesma permissão que o endpoint de anexo exige — mostrar o botão a quem
+  // leva 403 no clique é pior que não mostrar.
+  const podeEditarProjetos =
+    !!me?.isMaster || ((me as any)?.permissions ?? []).some((p: string) => p === "*" || p === "projetos:editar");
   const [projects,  setProjects]  = useState<Project[]>([]);
   const [users,     setUsers]     = useState<any[]>([]);
   const [loading,   setLoading]   = useState(true);
@@ -376,6 +381,8 @@ export default function ProjetosPage() {
                   <span className="text-[11px] text-[var(--text-muted)] font-medium">{(selected.tasks||[]).length} total</span>
                 </div>
               </div>
+
+              <AnexosProjeto projectId={selected.id} podeEditar={podeEditarProjetos} />
 
               <KanbanBoard project={selected} onMoveTask={handleMove} onNewTask={(status:string)=>setTaskModal({status})} onEditTask={(task:Task)=>setTaskModal({status:task.status,task})} onDeleteTask={handleDeleteTask} onDetailTask={(task:Task)=>setDetailTask(task)} />
             </>

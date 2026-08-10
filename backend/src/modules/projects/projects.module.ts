@@ -1,4 +1,7 @@
-import { Module, Controller, Get, Post, Put, Patch, Delete, Body, Param, Query, UseGuards, Req, NotFoundException, BadRequestException } from "@nestjs/common";
+import { Module, Controller, Get, Post, Put, Patch, Delete, Body, Param, Query, UseGuards, Req, Res, UseInterceptors, UploadedFile, NotFoundException, BadRequestException } from "@nestjs/common";
+import { FileInterceptor } from "@nestjs/platform-express";
+import { memoryStorage } from "multer";
+import { randomUUID } from "crypto";
 import { AuthGuard } from "@nestjs/passport";
 import { IsString, IsOptional, IsArray, IsDateString, IsNumber } from "class-validator";
 import { Type } from "class-transformer";
@@ -7,6 +10,38 @@ import { Permissions } from "../auth/permissions.decorator";
 import { PermissionsGuard } from "../auth/permissions.guard";
 import { WebhookService, WebhooksModule } from "../automacoes/webhooks.module";
 import { AutomacaoService, AutomacoesModule } from "../automacoes/automacoes.module";
+import { NotificacaoDispatcher } from "../notifications/notificacao-dispatcher.service";
+import { NotificationsModule } from "../notifications/notifications.module";
+
+import { ProjectAnexoStorageService } from "./project-anexo-storage.service";
+
+/**
+ * Tipos aceitos em anexo de projeto — a mesma lista do Compliance.
+ *
+ * Lista de permitidos, não de proibidos: o que não está aqui é recusado. A
+ * lista de proibidos sempre esquece um formato executável novo.
+ */
+const ANEXO_MIMES_ACEITOS: readonly string[] = [
+  "application/pdf",
+  "image/jpeg", "image/png", "image/webp", "image/tiff",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.ms-excel",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "application/zip", "application/x-zip-compressed",
+];
+
+/** 25 MB, igual ao Compliance: proposta com anexos técnicos passa de 15 MB. */
+const ANEXO_TAMANHO_MAXIMO = 25 * 1024 * 1024;
+
+/** Status do projeto em português, para a mensagem do aviso ser legível. */
+const ROTULO_STATUS_PROJETO: Record<string, string> = {
+  PLANEJAMENTO: "Planejamento",
+  EM_ANDAMENTO: "Em andamento",
+  PAUSADO: "Pausado",
+  CONCLUIDO: "Concluído",
+  CANCELADO: "Cancelado",
+};
 
 class CreateProjectDto {
   @IsString() titulo: string;
@@ -109,6 +144,8 @@ class ProjectsController {
     private prisma: PrismaService,
     private webhook: WebhookService,
     private automacao: AutomacaoService,
+    private notificacoes: NotificacaoDispatcher,
+    private anexos: ProjectAnexoStorageService,
   ) {}
 
   @Get()
@@ -219,6 +256,43 @@ class ProjectsController {
         ...(dto.valor !== undefined && { valor: dto.valor ?? null }),
       },
     });
+
+    // Avisa quem está no projeto que o status mudou.
+    //
+    // Só o status do PROJETO, e não o das tarefas: num quadro ativo, cartão
+    // muda de coluna dezenas de vezes por dia, e aviso demais faz a pessoa
+    // ignorar todos — inclusive o que importa. Status de projeto muda pouco e
+    // cada mudança interessa a todo mundo que está nele.
+    if (dto.status && dto.status !== existing.status) {
+      const envolvidos = [
+        ...existing.members.map((m: any) => m.userId),
+        existing.criadoPorId,
+      ].filter((u, i, a) => u && a.indexOf(u) === i)
+        // Quem fez a mudança não precisa ser avisado dela.
+        .filter(u => u !== req.user.id);
+
+      if (envolvidos.length) {
+        this.notificacoes.despachar({
+          organizationId: (updated as any).organizationId,
+          modulo: "projects",
+          tipo: "projeto_status",
+          titulo: `Projeto ${updated.titulo}: ${ROTULO_STATUS_PROJETO[updated.status] ?? updated.status}`,
+          mensagem:
+            `${req.user.nome ?? "Alguém"} mudou o status de ` +
+            `${ROTULO_STATUS_PROJETO[existing.status] ?? existing.status} para ` +
+            `${ROTULO_STATUS_PROJETO[updated.status] ?? updated.status}.`,
+          // Cancelamento é "aviso": interrompe o trabalho de quem está no
+          // projeto. As demais mudanças são informativas.
+          severidade: updated.status === "CANCELADO" ? "aviso" : "info",
+          usuariosAlvo: envolvidos,
+          referenciaTipo: "projeto",
+          referenciaId: updated.id,
+          // Sem a chave, salvar o formulário duas vezes com o mesmo status
+          // mandaria o aviso duas vezes.
+          chave: `projeto:${updated.id}:status:${updated.status}`,
+        }).catch(() => {});
+      }
+    }
 
     // Webhook quando projeto é marcado como concluído
     if (dto.status === "CONCLUIDO" && existing.status !== "CONCLUIDO") {
@@ -449,10 +523,137 @@ class ProjectsController {
     await this.prisma.projectMember.delete({ where: { projectId_userId: { projectId: id, userId } } });
     return { message: "Membro removido" };
   }
+
+  /* ── Anexos ──────────────────────────────────────────────────────────────
+     Proposta, ata, escopo assinado — o que sustenta a decisão do projeto.
+     Guardados fora do diretório público: só saem pelo endpoint de download,
+     que confere a organização. */
+
+  /** Confere que o projeto existe E é da organização de quem pede. */
+  private async exigirProjeto(id: string, req: any) {
+    const projeto = await this.prisma.project.findFirst({
+      where: { id, organizationId: req.user.organizationId },
+    });
+    if (!projeto) throw new NotFoundException("Projeto não encontrado.");
+    return projeto;
+  }
+
+  @Get(":id/anexos")
+  @Permissions("projetos:ver")
+  async listarAnexos(@Param("id") id: string, @Req() req: any) {
+    await this.exigirProjeto(id, req);
+    return this.prisma.projectAnexo.findMany({
+      where: { projectId: id, deletedAt: null },
+      orderBy: { criadoEm: "desc" },
+      select: {
+        id: true, titulo: true, nomeOriginal: true, mime: true, tamanho: true, criadoEm: true,
+        criadoPor: { select: { id: true, nome: true } },
+      },
+    });
+  }
+
+  @Post(":id/anexos")
+  @Permissions("projetos:editar")
+  @UseInterceptors(FileInterceptor("arquivo", {
+    storage: memoryStorage(),
+    limits: { fileSize: ANEXO_TAMANHO_MAXIMO },
+  }))
+  async enviarAnexo(
+    @Param("id") id: string,
+    @Body() dados: { titulo?: string },
+    @UploadedFile() arquivo: any,
+    @Req() req: any,
+  ) {
+    const projeto = await this.exigirProjeto(id, req);
+
+    if (!arquivo) throw new BadRequestException("Nenhum arquivo enviado.");
+    if (arquivo.size > ANEXO_TAMANHO_MAXIMO) {
+      throw new BadRequestException(
+        `Arquivo maior que o limite de ${Math.round(ANEXO_TAMANHO_MAXIMO / 1024 / 1024)} MB.`,
+      );
+    }
+    if (!ANEXO_MIMES_ACEITOS.includes(arquivo.mimetype)) {
+      throw new BadRequestException(
+        `Tipo de arquivo não aceito (${arquivo.mimetype}). Aceitos: PDF, Word, Excel, imagem e ZIP.`,
+      );
+    }
+
+    // Nome no disco é o id + extensão, nunca o nome enviado: o original vai
+    // para o banco e é usado só no download. Assim nome com `../`, acento ou
+    // caractere de shell não vira caminho.
+    const anexoId = randomUUID();
+    const extensao = (arquivo.originalname.match(/\.([A-Za-z0-9]{1,8})$/)?.[1] ?? "bin").toLowerCase();
+    const ref = await this.anexos.gravar(
+      projeto.organizationId, id, `${anexoId}.${extensao}`, arquivo.buffer,
+    );
+
+    return this.prisma.projectAnexo.create({
+      data: {
+        id: anexoId,
+        organizationId: projeto.organizationId,
+        projectId: id,
+        titulo: (dados?.titulo || arquivo.originalname).slice(0, 200),
+        nomeOriginal: arquivo.originalname,
+        arquivoRef: ref,
+        mime: arquivo.mimetype,
+        tamanho: arquivo.size,
+        criadoPorId: req.user.id,
+      },
+      select: { id: true, titulo: true, nomeOriginal: true, mime: true, tamanho: true, criadoEm: true },
+    });
+  }
+
+  @Get(":id/anexos/:anexoId/download")
+  @Permissions("projetos:ver")
+  async baixarAnexo(
+    @Param("id") id: string,
+    @Param("anexoId") anexoId: string,
+    @Req() req: any,
+    @Res() res: any,
+  ) {
+    await this.exigirProjeto(id, req);
+    const anexo = await this.prisma.projectAnexo.findFirst({
+      where: { id: anexoId, projectId: id, deletedAt: null },
+    });
+    if (!anexo) throw new NotFoundException("Anexo não encontrado.");
+    if (!this.anexos.existe(anexo.arquivoRef)) {
+      // O registro existe e o arquivo não: dizer isso é mais útil que um 500.
+      throw new NotFoundException("O arquivo não está mais disponível no servidor.");
+    }
+
+    res.setHeader("Content-Type", anexo.mime || "application/octet-stream");
+    // `attachment` de propósito: anexo de projeto não deve abrir dentro da
+    // página, onde um HTML enviado por engano rodaria no nosso domínio.
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename*=UTF-8''${encodeURIComponent(anexo.nomeOriginal)}`,
+    );
+    this.anexos.abrirLeitura(anexo.arquivoRef).pipe(res);
+  }
+
+  @Delete(":id/anexos/:anexoId")
+  @Permissions("projetos:editar")
+  async removerAnexo(@Param("id") id: string, @Param("anexoId") anexoId: string, @Req() req: any) {
+    await this.exigirProjeto(id, req);
+    const anexo = await this.prisma.projectAnexo.findFirst({
+      where: { id: anexoId, projectId: id, deletedAt: null },
+    });
+    if (!anexo) throw new NotFoundException("Anexo não encontrado.");
+
+    // Exclusão lógica no registro, remoção física do arquivo: a linha guarda
+    // quem enviou e quando, que é o que responde "de onde veio este documento".
+    await this.prisma.projectAnexo.update({
+      where: { id: anexoId },
+      data: { deletedAt: new Date() },
+    });
+    await this.anexos.remover(anexo.arquivoRef);
+    return { message: "Anexo removido" };
+  }
 }
 
 @Module({
-  imports: [WebhooksModule, AutomacoesModule],
+  imports: [WebhooksModule, AutomacoesModule, NotificationsModule],
+  providers: [ProjectAnexoStorageService],
   controllers: [ProjectsController],
 })
 export class ProjectsModule {}

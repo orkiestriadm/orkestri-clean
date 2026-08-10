@@ -29,10 +29,19 @@ COPY package*.json ./
 # inicializar um volume vazio. Sem isso o volume nasce como root e o processo,
 # que roda como `app`, não consegue escrever.
 #
-# `secure/people-docs` guarda documento de colaborador e fica fora de `uploads`
-# de propósito — aquele é publicado estaticamente pelo nginx, este só sai pelo
-# endpoint autenticado de download.
-RUN mkdir -p /app/uploads /app/secure/people-docs && chown -R app:app /app
+# Tudo sob `secure/` fica fora de `uploads` de propósito — aquele é publicado
+# estaticamente pelo nginx, estes só saem pelo endpoint autenticado de download:
+# documento de colaborador, anexo de licença e anexo de projeto.
+#
+# `compliance-docs` FALTAVA aqui, e o defeito era invisível: o volume montava,
+# a aplicação subia saudável, e só falhava no momento de anexar um arquivo a
+# uma obrigação — com erro de permissão que não aponta para o Dockerfile.
+# Descoberto em 10/08/2026, ao acrescentar `project-docs`.
+#
+# Corrigir a imagem NÃO conserta volume que já nasceu como root: é preciso
+# ajustar o dono do volume existente, uma vez, em cada ambiente.
+RUN mkdir -p /app/uploads /app/secure/people-docs /app/secure/compliance-docs /app/secure/project-docs \
+ && chown -R app:app /app
 USER app
 EXPOSE 3000
 CMD ["sh", "-c", "npx prisma migrate deploy && node dist/main"]
