@@ -7,7 +7,7 @@ import { useAuthStore } from "@/lib/store";
 import { authApi } from "@/lib/api";
 import UserStatus from "@/components/ui/UserStatus";
 import { cn } from "@/lib/utils";
-import { NAV, canAccessGroup, type NavGroup, type NavItem as NavItemT } from "@/lib/modules";
+import { NAV, canAccessGroup, canAccessItemLevel, type NavGroup, type NavItem as NavItemT } from "@/lib/modules";
 
 const ALL_ITEMS: NavItemT[] = NAV.flatMap(g => g.items);
 
@@ -148,7 +148,11 @@ export default function Sidebar() {
     router.replace("/login");
   };
 
-  const favItems = ALL_ITEMS.filter(item => isFavorite(item.href) && can(item.permission));
+  // O nível também vale aqui: quem tinha o Sobre fixado antes da restrição
+  // continuaria com o atalho no menu, que é o mesmo que não ter restringido.
+  const favItems = ALL_ITEMS.filter(
+    item => isFavorite(item.href) && canAccessItemLevel(user, item) && can(item.permission),
+  );
 
   return (
     <aside className="sidebar">
@@ -192,7 +196,7 @@ export default function Sidebar() {
         {NAV.map(group => {
           // Grupo restrito (SA / admin da org) só aparece para quem tem o nível.
           if (!canAccessGroup(user, group)) return null;
-          const visible = group.items.filter(i => can(i.permission));
+          const visible = group.items.filter(i => canAccessItemLevel(user, i) && can(i.permission));
           if (!visible.length) return null;
 
           if (!group.produto) {

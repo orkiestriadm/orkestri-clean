@@ -16,7 +16,7 @@ import {
   Brain, Activity, CircleCheckBig, SmilePlus, Settings2, RefreshCw,
   LayoutDashboard, Building2, PiggyBank, Eye, EyeOff, LayoutGrid, X, Search,
 } from "lucide-react";
-import { NAV, canAccessModule, canAccessGroup } from "@/lib/modules";
+import { NAV, canAccessModule, canAccessGroup, canAccessItemLevel } from "@/lib/modules";
 
 /* ═══════════════════════════════════════════════
    TYPES
@@ -258,7 +258,9 @@ export default function CommandCenter() {
     for (const g of NAV) {
       if (!canAccessGroup(user, g)) continue;
       for (const it of g.items) {
-        if (it.href !== "/dashboard" && canAccessModule(user, it.permission)) return it.href;
+        // Sem o nível aqui, alguém sem `dashboard:ver` poderia ser redirecionado
+        // justamente para a tela restrita — o primeiro item sem permissão.
+        if (it.href !== "/dashboard" && canAccessItemLevel(user, it) && canAccessModule(user, it.permission)) return it.href;
       }
     }
     return null;
@@ -473,6 +475,7 @@ export default function CommandCenter() {
             const grupos = NAV.filter(group => canAccessGroup(user, group)).map(group => ({
               group,
               items: group.items.filter(it =>
+                canAccessItemLevel(user, it) &&
                 canAccessModule(user, it.permission) &&
                 (!q
                   || it.label.toLowerCase().includes(q)

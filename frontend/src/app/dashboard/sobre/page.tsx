@@ -6,8 +6,9 @@ import { useEffect, useState } from "react";
 import Topbar from "@/components/layout/Topbar";
 import { api } from "@/lib/api";
 import { VERSAO, VERSAO_DATA, VERSAO_NOME, HISTORICO } from "@/lib/version";
-import { PageBody, PageHeader, Panel } from "@/components/data-ui";
+import { PageBody, PageHeader, Panel, PermissionDenied } from "@/components/data-ui";
 import { Info, Copy, Check } from "lucide-react";
+import { useAuthStore } from "@/lib/store";
 
 /**
  * Sobre — versão do sistema.
@@ -17,6 +18,13 @@ import { Info, Copy, Check } from "lucide-react";
  * O botão de copiar leva a versão da TELA e a da API juntas. Se as duas
  * divergirem, o deploy saiu pela metade — e essa é a primeira hipótese a
  * descartar em qualquer diagnóstico, antes de procurar bug no código.
+ *
+ * RESTRITA A MASTER/SA. A verificação mora aqui e não só no menu: esconder o
+ * link não fecha a porta, e `/dashboard/sobre` continuaria abrindo para quem
+ * digitasse a URL ou tivesse o atalho salvo.
+ *
+ * Isto é ocultação de tela, não proteção de dado: a versão da API segue
+ * respondendo em `GET /api/health` sem autenticação, como um health check exige.
  */
 
 const fmtData = (iso: string) =>
@@ -25,15 +33,19 @@ const fmtData = (iso: string) =>
   });
 
 export default function SobrePage() {
+  const user = useAuthStore(s => s.user);
   const [versaoApi, setVersaoApi] = useState<string | null>(null);
   const [copiado, setCopiado] = useState(false);
 
+  const permitido = !!user?.isMaster || !!user?.isSuperAdmin;
+
   useEffect(() => {
+    if (!permitido) return;
     // `silent`: a tela continua útil mesmo se a API não responder.
     api.get("/health", { silent: true })
       .then(r => setVersaoApi(r.data?.version ?? null))
       .catch(() => setVersaoApi(null));
-  }, []);
+  }, [permitido]);
 
   const divergente = !!versaoApi && versaoApi !== VERSAO;
 
@@ -49,6 +61,24 @@ export default function SobrePage() {
     } catch {
       /* área de transferência bloqueada: os números estão visíveis na tela */
     }
+  }
+
+  if (!permitido) {
+    return (
+      <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
+        <Topbar />
+        <div style={{ flex: 1, overflowY: "auto" }}>
+          <PageBody>
+            <PageHeader
+              icon={<Info size={19} />}
+              title="Sobre"
+              subtitle="Restrito à administração do sistema"
+            />
+            <PermissionDenied hint="Esta tela é restrita ao master da organização. Para informar a versão ao relatar um problema, peça a um administrador." />
+          </PageBody>
+        </div>
+      </div>
+    );
   }
 
   return (

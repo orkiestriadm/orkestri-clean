@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "1.9.1";
+export const VERSAO = "1.9.2";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -26,7 +26,7 @@ export const VERSAO = "1.9.1";
 export const VERSAO_DATA = "2026-08-09";
 
 /** Nome da entrega, para dar contexto ao número. */
-export const VERSAO_NOME = "Relatórios e notificações do Compliance";
+export const VERSAO_NOME = "Sobre restrito à administração";
 
 /**
  * Histórico exibido na tela Sobre, do mais recente para o mais antigo.
@@ -35,6 +35,15 @@ export const VERSAO_NOME = "Relatórios e notificações do Compliance";
  * esta lista quer saber o que mudou para ele.
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
+  {
+    versao: "1.9.2",
+    data: "2026-08-09",
+    titulo: "Sobre restrito à administração",
+    itens: [
+      "A tela Sobre passa a ser visível apenas ao master da organização e ao super administrador",
+      "Para informar a versão ao relatar um problema, peça a um administrador — ou consulte /api/health, que segue respondendo",
+    ],
+  },
   {
     versao: "1.9.1",
     data: "2026-08-09",

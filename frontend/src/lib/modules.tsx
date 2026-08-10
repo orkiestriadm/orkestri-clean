@@ -13,7 +13,22 @@ import {
 } from "lucide-react";
 
 // `permission` como lista significa OU — ver canAccessModule.
-export type NavItem  = { href: string; label: string; icon: any; permission: string | string[] | null };
+//
+// `access` restringe o ITEM por nível de conta, e não por permissão concedida.
+// Existe porque nem toda restrição cabe no catálogo de permissões: "só quem
+// administra a plataforma" não é algo que se conceda a um papel — é o que a
+// conta é. Sem isto, esconder um único item exigiria movê-lo para um grupo
+// inteiro só dele.
+export type NavItem  = {
+  href: string;
+  label: string;
+  icon: any;
+  permission: string | string[] | null;
+  access?: ItemAccess;
+};
+
+/** "master" = master da organização ou Super Admin global. */
+export type ItemAccess = "master";
 // access controla a visibilidade do grupo INTEIRO (além das permissões por item):
 //   undefined  → visível a todos (respeitando a permissão de cada item)
 //   "sa"       → só Super Admin global (infra/plataforma)
@@ -32,9 +47,13 @@ export const NAV: NavGroup[] = [
       { href: "/dashboard/ia",         label: "IA Operacional", icon: Brain,        permission: "relatorios:ver" },
       { href: "/dashboard/relatorios", label: "Relatórios",  icon: BarChart2,       permission: "relatorios:ver" },
       { href: "/dashboard/workforce",  label: "Workforce",   icon: LayoutGrid,      permission: "colaboradores:ver" },
-      // Sem permissao, e fora do grupo Core (restrito a admin): qualquer pessoa
-      // precisa conseguir informar a versao ao relatar um problema.
-      { href: "/dashboard/sobre",      label: "Sobre",       icon: Info,            permission: null },
+      // Restrito ao master/SA por decisão do produto.
+      //
+      // Era aberto a todos com um motivo: quem relata um problema precisa saber
+      // informar a versão. Esse motivo não desapareceu — quem for atender um
+      // chamado agora precisa pedir a versão a um master, ou consultá-la em
+      // `GET /api/health`, que continua público.
+      { href: "/dashboard/sobre", label: "Sobre", icon: Info, permission: null, access: "master" },
     ],
   },
   {
@@ -206,6 +225,19 @@ export function canAccessGroup(user: any, group: NavGroup): boolean {
   if (group.access === "adminOrg") {
     return !!user?.isMaster || (user?.roles ?? []).includes("administrador");
   }
+  return true;
+}
+
+/**
+ * Nível de conta exigido pelo item, quando há um.
+ *
+ * Separado de `canAccessModule` de propósito: aquele responde "concederam isto
+ * a você?", este responde "você é isto?". Misturar os dois faria uma permissão
+ * concedida por engano abrir uma tela que nunca deveria depender de concessão.
+ */
+export function canAccessItemLevel(user: any, item: { access?: ItemAccess }): boolean {
+  if (!item.access) return true;
+  if (item.access === "master") return !!user?.isMaster || !!user?.isSuperAdmin;
   return true;
 }
 
