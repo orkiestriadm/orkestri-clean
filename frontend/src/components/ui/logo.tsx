@@ -1,5 +1,5 @@
 import React from "react";
-import { MARCA } from "@/lib/marca";
+import { MARCA, LOGO_ARQUIVO } from "@/lib/marca";
 
 /**
  * Símbolo da marca — mesmo desenho do site institucional (orkiestri.com),
@@ -50,6 +50,25 @@ export function BrandLogo({
   className?: string;
 }) {
   const s = SIZE[size];
+
+  // Ambiente white-label com logotipo próprio: a imagem substitui símbolo E
+  // wordmark. Repetir o nome ao lado de um logotipo que já o contém escreve a
+  // marca duas vezes na mesma linha.
+  if (LOGO_ARQUIVO) {
+    return (
+      <span className={`inline-flex items-center ${className}`}>
+        <img
+          src={LOGO_ARQUIVO}
+          alt={MARCA}
+          // Altura amarrada à do símbolo para o logotipo ocupar o mesmo espaço
+          // vertical que ele ocuparia; a largura acompanha a proporção.
+          style={{ height: s.icon, width: "auto" }}
+          className="shrink-0 object-contain"
+        />
+      </span>
+    );
+  }
+
   return (
     <span className={`inline-flex items-center ${s.gap} ${className}`}>
       <OrkestriIcon size={s.icon} />

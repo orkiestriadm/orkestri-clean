@@ -30,6 +30,16 @@ ARG NEXT_PUBLIC_MARCA=Orkiestri
 ARG NEXT_PUBLIC_APP_DOMINIO=app.orkiestri.com
 ENV NEXT_PUBLIC_MARCA=$NEXT_PUBLIC_MARCA
 ENV NEXT_PUBLIC_APP_DOMINIO=$NEXT_PUBLIC_APP_DOMINIO
+
+# Fundo do login e logotipo, pela mesma razão e com o mesmo mecanismo.
+#
+# Vazio em LOGO_ARQUIVO mantém o símbolo vetorial do produto. Os dois arquivos
+# de imagem ja vivem em `public/branding`, versionados: o ambiente escolhe qual
+# usar em vez de sobrescrever um pelo outro em disco.
+ARG NEXT_PUBLIC_LOGIN_FUNDO=/branding/planeta.jpg
+ARG NEXT_PUBLIC_LOGO_ARQUIVO=
+ENV NEXT_PUBLIC_LOGIN_FUNDO=$NEXT_PUBLIC_LOGIN_FUNDO
+ENV NEXT_PUBLIC_LOGO_ARQUIVO=$NEXT_PUBLIC_LOGO_ARQUIVO
 # Teto explícito de heap durante o build. Sem isso, o Node pode crescer até o
 # cgroup limit e ser OOM-killed silenciosamente em hosts pequenos como Lightsail 2GB.
 ENV NODE_OPTIONS="--max-old-space-size=1024"

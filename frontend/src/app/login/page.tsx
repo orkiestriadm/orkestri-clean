@@ -6,7 +6,7 @@ import { useAuthStore } from "@/lib/store";
 import { authApi } from "@/lib/api";
 import { Eye, EyeOff, ArrowRight, Loader2, ShieldCheck, Cloud, Sparkles, Network } from "lucide-react";
 import { BrandLogo } from "@/components/ui/logo";
-import { MARCA } from "@/lib/marca";
+import { MARCA, LOGIN_FUNDO } from "@/lib/marca";
 
 const pilares = [
   { icon: ShieldCheck, label: "Segurança", text: "MFA, criptografia e auditoria" },
@@ -56,7 +56,7 @@ export default function LoginPage() {
           fundo: quem vem de /entrar sente que a animação apenas congelou. */}
       <div aria-hidden className="pointer-events-none absolute inset-0">
         <img
-          src="/branding/planeta.jpg"
+          src={LOGIN_FUNDO}
           alt=""
           className="absolute inset-0 h-full w-full object-cover"
         />
