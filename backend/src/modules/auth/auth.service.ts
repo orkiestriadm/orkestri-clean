@@ -529,7 +529,23 @@ export class AuthService implements OnModuleInit {
     const permissions = await this.resolvePermissions(user.id);
     const primeiroAcesso = (user as any).primeiroAcesso ?? true;
     const organizationId = (user as any).organizationId;
-    const payload = { sub: user.id, email: user.email, organizationId, roles, isMaster, isSuperAdmin, permissions };
+    // `permissions` NÃO entra no token, de propósito.
+    //
+    // O token vai num cookie, e navegador descarta silenciosamente cookie acima
+    // de 4096 bytes. Com 144 permissões o JWT dava 4531 bytes e o cookie 4596:
+    // o login respondia 200, o navegador jogava o cookie fora, o middleware não
+    // achava sessão e devolvia todo mundo para a tela de entrada. Ninguém
+    // conseguia usar o sistema, e o log da API não acusava nada — porque do
+    // lado do servidor estava tudo certo.
+    //
+    // Carregar a lista aqui também era peso morto: `JwtStrategy.validate` já
+    // chama `resolvePermissions(sub)` e IGNORA o que vem assinado — de
+    // propósito, para que revogar permissão tenha efeito imediato em vez de
+    // esperar as 8h de validade do token. O frontend recebe as permissões pelo
+    // CORPO da resposta (`user.permissions`), que não tem limite de tamanho.
+    //
+    // Sem elas o token fica em ~500 bytes. Não voltar a colocá-las aqui.
+    const payload = { sub: user.id, email: user.email, organizationId, roles, isMaster, isSuperAdmin };
     const accessToken = this.jwt.sign(payload, { secret: this.config.get("JWT_SECRET"), expiresIn: "8h" });
     const refreshToken = this.jwt.sign({ sub: user.id }, { secret: this.config.get("JWT_REFRESH_SECRET"), expiresIn: "7d" });
     return {
