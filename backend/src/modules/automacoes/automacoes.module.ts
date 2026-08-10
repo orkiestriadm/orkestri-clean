@@ -1,3 +1,4 @@
+import { MARCA } from "../../common/marca";
 import {
   Module, Controller, Get, Post, Put, Patch, Delete,
   Body, Param, Query, UseGuards, Req, Logger,
@@ -399,7 +400,7 @@ export class AutomacaoService {
 
       // ── Email ────────────────────────────────────────────────────────────────
       case "enviar_email": {
-        const assunto  = await this.interpolate(acao.assunto  || "Notificação do Orkiestri", ctx, tplCache);
+        const assunto  = await this.interpolate(acao.assunto  || `Notificação do ${MARCA}`, ctx, tplCache);
         const mensagem = await this.interpolate(acao.mensagem || "", ctx, tplCache);
         if (!mensagem) break;
         const targets  = await this.resolveTargets(acao, ctx);

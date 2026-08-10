@@ -1,3 +1,4 @@
+import { MARCA } from "../../common/marca";
 import { Module, Controller, Get } from "@nestjs/common";
 
 /**
@@ -16,7 +17,7 @@ class HealthController {
     const now = new Date();
     return {
       status: "ok",
-      app: "Orkiestri",
+      app: MARCA,
       version: VERSAO_API,
       serverTime: now.toISOString(),
       serverTimeLocal: now.toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" }),

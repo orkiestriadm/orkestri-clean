@@ -1,3 +1,4 @@
+import { MARCA } from "../../common/marca";
 import { Module, Controller, Get, Post, Patch, Body, UseGuards, Req, BadRequestException } from "@nestjs/common";
 import { AuthGuard } from "@nestjs/passport";
 import { PrismaService } from "../../prisma/prisma.service";
@@ -55,7 +56,7 @@ class UserWhatsAppController {
       );
     }
 
-    const msg = "*Orkestri* - Teste\n\nOla, " + (user?.nome || "") + "!\n\nNotificacoes WhatsApp funcionando corretamente!";
+    const msg = `*${MARCA}* - Teste\n\nOla, ${user?.nome || ""}!\n\nNotificacoes WhatsApp funcionando corretamente!`;
     const ok = await this.wa.sendMessageForOrg(req.user.organizationId, profile.whatsapp, msg);
     if (!ok) throw new BadRequestException("Falha ao enviar. Verifique se o numero esta correto e cadastrado no WhatsApp.");
     return { sucesso: true };

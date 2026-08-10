@@ -1,3 +1,4 @@
+import { MARCA } from "../../common/marca";
 import { Injectable, Logger, OnModuleInit } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
 import { WhatsAppService } from "./whatsapp.service";
@@ -231,7 +232,7 @@ export class AlertScheduler implements OnModuleInit {
           const profile = (ev.user as any).profile;
           if (profile?.whatsapp && profile?.whatsappAlertas) {
             const body = this.fmt(cfg.mensagem, ev.titulo, horario, appUrl);
-            const msg  = `${cfg.emoji} *Orkestri*\n\n${body}`;
+            const msg  = `${cfg.emoji} *${MARCA}*\n\n${body}`;
             try {
               const inst = await this.wa.resolveInstance((ev as any).organizationId);
               const ok = await this.wa.sendMessage(profile.whatsapp, msg, inst);
@@ -324,7 +325,7 @@ export class AlertScheduler implements OnModuleInit {
             }
             const phone = (u as any).profile?.whatsapp;
             if (canais.includes("whatsapp") && phone && (u as any).profile?.whatsappAlertas && inst) {
-              await this.wa.sendMessage(phone, `💸 *Orkestri — Orçamento*\n\n${titulo}\n${mensagem}`, inst).catch(() => {});
+              await this.wa.sendMessage(phone, `💸 *${MARCA} — Orçamento*\n\n${titulo}\n${mensagem}`, inst).catch(() => {});
             }
           }
           this.logger.log(`Alerta orçamento estouro item=${m.item?.id} org=${regra.organizationId}`);
@@ -558,7 +559,7 @@ export class AlertScheduler implements OnModuleInit {
           }).catch(() => {});
           const phone = m.profile?.whatsapp;
           if (phone && m.profile?.whatsappAlertas && inst) {
-            await this.wa.sendMessage(phone, `🚗 *Orkestri — Frota*\n\n${a.titulo}\n${a.mensagem}`, inst).catch(() => {});
+            await this.wa.sendMessage(phone, `🚗 *${MARCA} — Frota*\n\n${a.titulo}\n${a.mensagem}`, inst).catch(() => {});
           }
         }
         this.logger.log(`Alerta frota [${a.tipo}] org=${a.org} ref=${a.refId}`);

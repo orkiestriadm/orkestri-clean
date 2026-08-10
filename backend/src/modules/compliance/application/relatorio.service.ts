@@ -1,3 +1,4 @@
+import { MARCA } from "../../../common/marca";
 import { Injectable, BadRequestException } from "@nestjs/common";
 import { ObrigacaoRepository, FiltrosObrigacao } from "../infrastructure/obrigacao.repository";
 import { PainelRepository, FiltroRelatorio } from "../infrastructure/painel.repository";
@@ -247,7 +248,7 @@ export class RelatorioService {
 
       doc.font("Helvetica-Bold").fontSize(14).fillColor("#1e1b4b").text(titulo, esquerda, 26);
       doc.font("Helvetica").fontSize(8).fillColor("#6b7280").text(
-        `Gerado em ${new Date().toLocaleString("pt-BR")} · Orkiestri Compliance · ` +
+        `Gerado em ${new Date().toLocaleString("pt-BR")} · ${MARCA} Compliance · ` +
         `${linhas.length} ${linhas.length === 1 ? "obrigação" : "obrigações"} · ` +
         `colunas resumidas — a versão completa está no Excel`,
         esquerda, 44,

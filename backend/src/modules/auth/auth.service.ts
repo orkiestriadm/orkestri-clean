@@ -1,3 +1,4 @@
+import { MARCA } from "../../common/marca";
 import { Injectable, UnauthorizedException, OnModuleInit, Logger, NotFoundException, ForbiddenException, BadRequestException } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import { ConfigService } from "@nestjs/config";
@@ -1083,7 +1084,7 @@ export class AuthService implements OnModuleInit {
   }
 
   getTenantInfo() {
-    return { nome: this.config.get("TENANT_NOME", "Orkestri") };
+    return { nome: this.config.get("TENANT_NOME", MARCA) };
   }
 
   async getPublicOrganizations() {

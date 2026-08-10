@@ -1,3 +1,4 @@
+import { MARCA } from "../../common/marca";
 import { Injectable, BadRequestException, Logger } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
 import { EmailService } from "../notifications/email.service";
@@ -1004,7 +1005,7 @@ export class FrotaRelatoriosService {
 
       doc.font("Helvetica-Bold").fontSize(14).fillColor("#1e1b4b").text(titulo, left, 30);
       doc.font("Helvetica").fontSize(8).fillColor("#6b7280")
-        .text(`Gerado em: ${new Date().toLocaleString("pt-BR")} | Orkestri Gestão de Frota`, left, 48);
+        .text(`Gerado em: ${new Date().toLocaleString("pt-BR")} | ${MARCA} Gestão de Frota`, left, 48);
 
       let y = 68;
       const cabecalho = () => {
