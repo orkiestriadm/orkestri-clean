@@ -909,11 +909,31 @@ export class AuthService implements OnModuleInit {
 
   // ── OTP via WhatsApp ───────────────────────────────────────────────────────────
 
+  /**
+   * OTP de recuperação por WhatsApp.
+   *
+   * `semCadastro: true` diz à tela que aquele número não leva a lugar nenhum,
+   * para ela poder mandar a pessoa procurar o administrador em vez de deixá-la
+   * esperando um código que nunca vem. Sete das doze contas desta organização
+   * não têm WhatsApp cadastrado — sem esse retorno, sete pessoas ficam sem
+   * saída e sem explicação.
+   *
+   * ATENÇÃO — isto é uma troca consciente: informar "este número não tem conta"
+   * permite descobrir, por tentativa, quais números estão cadastrados. O que
+   * limita o estrago é o teto de 5 tentativas a cada 15 minutos por IP, aplicado
+   * no controller. Se algum dia este código servir a um cadastro aberto ao
+   * público, reavaliar: lá o custo da enumeração é bem maior que aqui.
+   */
   async sendPasswordOtp(whatsapp: string) {
+    const semCadastro = {
+      message: "Não encontramos este número cadastrado.",
+      semCadastro: true,
+    };
+
     const profile = await this.prisma.userProfile.findFirst({ where: { whatsapp } });
-    if (!profile) return { message: "Se o número estiver cadastrado, você receberá o código." };
+    if (!profile) return semCadastro;
     const user = await this.prisma.user.findUnique({ where: { id: profile.userId } });
-    if (!user || !user.ativo) return { message: "Se o número estiver cadastrado, você receberá o código." };
+    if (!user || !user.ativo) return semCadastro;
     if ((user as any).bloqueado) throw new UnauthorizedException("Conta bloqueada. Contate o Administrador.");
 
     // Invalida OTPs anteriores
@@ -955,7 +975,7 @@ export class AuthService implements OnModuleInit {
         this.logger.error(`Falha ao enviar OTP para o usuário ${user.id}`, erro as Error),
       );
 
-    return { message: "Se o número estiver cadastrado, você receberá o código." };
+    return { message: "Código enviado para o seu WhatsApp.", semCadastro: false };
   }
 
   async verifyPasswordOtp(whatsapp: string, code: string) {

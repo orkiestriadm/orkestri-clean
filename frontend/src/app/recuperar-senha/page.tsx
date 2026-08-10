@@ -3,7 +3,8 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { api } from "@/lib/api";
 import { BrandLogo } from "@/components/ui/logo";
-import { Loader2, Mail, Check, ArrowLeft, MessageCircle } from "lucide-react";
+import { Loader2, Mail, Check, ArrowLeft, MessageCircle, ShieldAlert, X } from "lucide-react";
+import { LOGIN_FUNDO } from "@/lib/marca";
 
 /**
  * Recuperação de senha.
@@ -59,6 +60,8 @@ export default function RecuperarSenhaPage() {
   const [resetToken, setResetToken] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  /** Número sem conta: abre o aviso em vez de mandar esperar um código. */
+  const [semCadastro, setSemCadastro] = useState(false);
 
   /**
    * Token pela URL lido de `window.location`, e não de `useSearchParams()`.
@@ -100,7 +103,11 @@ export default function RecuperarSenhaPage() {
     if (whatsappLimpo.length < 10) { setError("Informe o número com DDD."); return; }
     setLoading(true); setError("");
     try {
-      await api.post("/auth/enviar-otp", { whatsapp: whatsappLimpo });
+      const { data } = await api.post("/auth/enviar-otp", { whatsapp: whatsappLimpo });
+      // Sem WhatsApp cadastrado não adianta ir para a tela de código: a pessoa
+      // ficaria esperando um código que nunca chega, sem saber por quê. Sete das
+      // doze contas desta organização estão nessa situação.
+      if (data?.semCadastro) { setSemCadastro(true); return; }
       setStep("codigo");
     } catch (err: any) {
       setError(err.response?.data?.message || "Não foi possível enviar o código.");
@@ -148,10 +155,14 @@ export default function RecuperarSenhaPage() {
     <div className="relative flex min-h-dvh items-center justify-center overflow-hidden bg-[#08090c] px-5 py-10 text-white">
       {/* Mesma atmosfera do login: o planeta continua ao fundo. */}
       <div aria-hidden className="pointer-events-none absolute inset-0">
-        <img src="/branding/planeta.jpg" alt="" className="absolute inset-0 h-full w-full object-cover" />
+        <img src={LOGIN_FUNDO} alt="" className="absolute inset-0 h-full w-full object-cover" />
         <div className="absolute inset-0 bg-[#08090c]/70" />
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,transparent_20%,rgba(8,9,12,0.85)_80%)]" />
       </div>
+
+      {semCadastro && (
+        <AvisoSemCadastro numero={whatsapp} onFechar={() => setSemCadastro(false)} />
+      )}
 
       <div className="relative z-10 w-full max-w-[430px]">
         <div className="mb-8 flex flex-col items-center gap-5 text-center">
@@ -412,6 +423,66 @@ function Voltar({ onClick, rotulo = "Voltar" }: { onClick: () => void; rotulo?: 
     >
       ← {rotulo}
     </button>
+  );
+}
+
+/**
+ * Aviso de número sem cadastro.
+ *
+ * Existe porque a alternativa era pior: mandar a pessoa para a tela de código e
+ * deixá-la esperando um SMS que nunca chega, sem nada explicando o motivo. Sete
+ * das doze contas desta organização não têm WhatsApp cadastrado.
+ *
+ * Diz o que fazer, não só o que deu errado — "procure o administrador" é a
+ * única saída real de quem não tem canal de recuperação, ainda mais com o
+ * e-mail fora do ar.
+ */
+function AvisoSemCadastro({ numero, onFechar }: { numero: string; onFechar: () => void }) {
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-5 backdrop-blur-sm"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="sem-cadastro-titulo"
+      onMouseDown={e => { if (e.target === e.currentTarget) onFechar(); }}
+    >
+      <div className="relative w-full max-w-[420px] rounded-[20px] border border-white/[0.10] bg-[#12141a] p-7 text-white shadow-2xl">
+        <button
+          type="button"
+          onClick={onFechar}
+          aria-label="Fechar"
+          className="absolute right-4 top-4 text-white/40 transition-colors hover:text-white/80"
+        >
+          <X size={18} />
+        </button>
+
+        <span className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-amber-500/12 text-amber-400">
+          <ShieldAlert size={22} />
+        </span>
+
+        <h2 id="sem-cadastro-titulo" className="mb-2.5 text-[19px] font-bold leading-tight tracking-[-0.02em]">
+          Número não cadastrado
+        </h2>
+
+        <p className="mb-3 text-[14px] leading-relaxed text-white/60">
+          Não encontramos nenhuma conta com o WhatsApp{" "}
+          <strong className="font-semibold text-white/85">{numero}</strong>.
+        </p>
+        <p className="mb-6 text-[14px] leading-relaxed text-white/60">
+          Se você tem acesso ao sistema mas nunca cadastrou seu WhatsApp,{" "}
+          <strong className="font-semibold text-white/85">procure o administrador</strong>. Ele pode
+          cadastrar seu número ou redefinir sua senha diretamente.
+        </p>
+
+        <button
+          type="button"
+          onClick={onFechar}
+          className="w-full rounded-[12px] bg-[#f97316] px-4 py-3 text-[14px] font-semibold text-white transition-colors hover:bg-[#ea6a0c] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f97316]"
+        >
+          Entendi
+        </button>
+      </div>
+    </div>
   );
 }
 
