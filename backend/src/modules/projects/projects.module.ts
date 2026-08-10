@@ -11,9 +11,11 @@ import { PermissionsGuard } from "../auth/permissions.guard";
 import { WebhookService, WebhooksModule } from "../automacoes/webhooks.module";
 import { AutomacaoService, AutomacoesModule } from "../automacoes/automacoes.module";
 import { NotificacaoDispatcher } from "../notifications/notificacao-dispatcher.service";
+import type { Severidade } from "../notifications/notificacao-modulos";
 import { NotificationsModule } from "../notifications/notifications.module";
 
 import { ProjectAnexoStorageService } from "./project-anexo-storage.service";
+import { PrazosProjetoScheduler } from "./prazos.scheduler";
 
 /**
  * Tipos aceitos em anexo de projeto — a mesma lista do Compliance.
@@ -41,6 +43,15 @@ const ROTULO_STATUS_PROJETO: Record<string, string> = {
   PAUSADO: "Pausado",
   CONCLUIDO: "Concluído",
   CANCELADO: "Cancelado",
+};
+
+/** Colunas do quadro, com o mesmo nome que aparece na tela. */
+const ROTULO_STATUS_TAREFA: Record<string, string> = {
+  A_FAZER: "A Fazer",
+  EM_ANDAMENTO: "Em Andamento",
+  EM_REVISAO: "Em Revisão",
+  CONCLUIDA: "Concluída",
+  CANCELADA: "Cancelada",
 };
 
 class CreateProjectDto {
@@ -267,34 +278,18 @@ class ProjectsController {
     // ignorar todos — inclusive o que importa. Status de projeto muda pouco e
     // cada mudança interessa a todo mundo que está nele.
     if (dto.status && dto.status !== existing.status) {
-      const envolvidos = [
-        ...existing.members.map((m: any) => m.userId),
-        existing.criadoPorId,
-      ].filter((u, i, a) => u && a.indexOf(u) === i)
-        // Quem fez a mudança não precisa ser avisado dela.
-        .filter(u => u !== req.user.id);
-
-      if (envolvidos.length) {
-        this.notificacoes.despachar({
-          organizationId: (updated as any).organizationId,
-          modulo: "projects",
-          tipo: "projeto_status",
-          titulo: `Projeto ${updated.titulo}: ${ROTULO_STATUS_PROJETO[updated.status] ?? updated.status}`,
-          mensagem:
-            `${req.user.nome ?? "Alguém"} mudou o status de ` +
-            `${ROTULO_STATUS_PROJETO[existing.status] ?? existing.status} para ` +
-            `${ROTULO_STATUS_PROJETO[updated.status] ?? updated.status}.`,
-          // Cancelamento é "aviso": interrompe o trabalho de quem está no
-          // projeto. As demais mudanças são informativas.
-          severidade: updated.status === "CANCELADO" ? "aviso" : "info",
-          usuariosAlvo: envolvidos,
-          referenciaTipo: "projeto",
-          referenciaId: updated.id,
-          // Sem a chave, salvar o formulário duas vezes com o mesmo status
-          // mandaria o aviso duas vezes.
-          chave: `projeto:${updated.id}:status:${updated.status}`,
-        }).catch(() => {});
-      }
+      await this.avisarEnvolvidos(id, (updated as any).organizationId, req.user, {
+        tipo: "projeto_status",
+        titulo: `Projeto ${updated.titulo}: ${ROTULO_STATUS_PROJETO[updated.status] ?? updated.status}`,
+        mensagem:
+          `${req.user?.nome ?? "Alguém"} mudou o status de ` +
+          `${ROTULO_STATUS_PROJETO[existing.status] ?? existing.status} para ` +
+          `${ROTULO_STATUS_PROJETO[updated.status] ?? updated.status}.`,
+        // Cancelamento sobe de tom: interrompe o trabalho de quem esta no projeto.
+        severidade: updated.status === "CANCELADO" ? "aviso" : "info",
+        // Sem a chave, salvar o formulario duas vezes mandaria o aviso duas vezes.
+        chave: `projeto:${updated.id}:status:${updated.status}`,
+      });
     }
 
     // Webhook quando projeto é marcado como concluído
@@ -397,7 +392,10 @@ class ProjectsController {
 
   @Patch(":id/tasks/:taskId")
   @Permissions("projetos:editar")
-  async updateTask(@Param("id") projectId: string, @Param("taskId") taskId: string, @Body() dto: UpdateTaskDto) {
+  async updateTask(
+    @Param("id") projectId: string, @Param("taskId") taskId: string,
+    @Body() dto: UpdateTaskDto, @Req() req: any,
+  ) {
     const before = await this.prisma.task.findUnique({ where: { id: taskId } });
     const task = await this.prisma.task.update({
       where: { id: taskId },
@@ -415,6 +413,29 @@ class ProjectsController {
 
     const proj = await this.prisma.project.findUnique({ where: { id: projectId }, select: { organizationId: true } as any });
     const orgIdT = (proj as any)?.organizationId;
+
+    // Avisa os envolvidos que a tarefa mudou de coluna.
+    //
+    // TODA mudança de status, a pedido do usuário. É uma escolha com custo
+    // conhecido: num quadro ativo, cartão muda de coluna muitas vezes por dia.
+    // A defesa contra virar ruído é a chave de deduplicação abaixo — sem ela,
+    // arrastar o cartão de ida e volta mandaria uma mensagem por arrasto.
+    if (dto.status && before && dto.status !== before.status && orgIdT) {
+      await this.avisarEnvolvidos(projectId, orgIdT, req.user, {
+        tipo: "projeto_tarefa_status",
+        titulo: `${task.titulo}: ${ROTULO_STATUS_TAREFA[task.status] ?? task.status}`,
+        mensagem:
+          `${req.user?.nome ?? "Alguém"} moveu a tarefa de ` +
+          `${ROTULO_STATUS_TAREFA[before.status] ?? before.status} para ` +
+          `${ROTULO_STATUS_TAREFA[task.status] ?? task.status}.`,
+        // Cancelamento sobe de tom: interrompe trabalho de quem estava nela.
+        severidade: task.status === "CANCELADA" ? "aviso" : "info",
+        // A data entra na chave para o mesmo movimento repetido no MESMO dia
+        // não render duas mensagens — mas amanhã, se acontecer de novo, avisa.
+        chave: `tarefa:${taskId}:${task.status}:${new Date().toISOString().slice(0, 10)}`,
+      });
+    }
+
     if (dto.status === "CONCLUIDA" && before?.status !== "CONCLUIDA") {
       this.automacao.executar("tarefa_concluida", {
         id: task.id, titulo: task.titulo, projectId, assigneeId: task.assigneeId, organizationId: orgIdT,
@@ -535,6 +556,49 @@ class ProjectsController {
      Proposta, ata, escopo assinado — o que sustenta a decisão do projeto.
      Guardados fora do diretório público: só saem pelo endpoint de download,
      que confere a organização. */
+
+  /**
+   * Manda o aviso para quem está no projeto, menos quem provocou a mudança.
+   *
+   * Centralizado porque status de projeto, status de tarefa e prazo precisam da
+   * mesma resolução de destinatário — e resolver isso em três lugares é como se
+   * criam três comportamentos ligeiramente diferentes.
+   */
+  private async avisarEnvolvidos(
+    projectId: string,
+    organizationId: string,
+    autor: { id?: string; nome?: string } | null,
+    aviso: { tipo: string; titulo: string; mensagem: string; severidade: Severidade; chave: string },
+  ) {
+    const projeto = await this.prisma.project.findUnique({
+      where: { id: projectId },
+      select: { criadoPorId: true, members: { select: { userId: true } } },
+    });
+    if (!projeto) return;
+
+    const envolvidos = [
+      ...projeto.members.map(m => m.userId),
+      projeto.criadoPorId,
+    ]
+      .filter((u, i, a) => u && a.indexOf(u) === i)
+      // Quem fez a mudança já sabe dela.
+      .filter(u => u !== autor?.id);
+
+    if (!envolvidos.length) return;
+
+    await this.notificacoes.despachar({
+      organizationId,
+      modulo: "projects",
+      tipo: aviso.tipo,
+      titulo: aviso.titulo,
+      mensagem: aviso.mensagem,
+      severidade: aviso.severidade,
+      usuariosAlvo: envolvidos,
+      referenciaTipo: "projeto",
+      referenciaId: projectId,
+      chave: aviso.chave,
+    }).catch(() => {});
+  }
 
   /**
    * Garante que quem entra num projeto passe a receber os avisos dele.
@@ -707,7 +771,7 @@ class ProjectsController {
 
 @Module({
   imports: [WebhooksModule, AutomacoesModule, NotificationsModule],
-  providers: [ProjectAnexoStorageService],
+  providers: [ProjectAnexoStorageService, PrazosProjetoScheduler],
   controllers: [ProjectsController],
 })
 export class ProjectsModule {}
