@@ -474,23 +474,55 @@ export class ObrigacaoService {
     return dados;
   }
 
+  /**
+   * Amarra o responsável à conta de usuário quando o e-mail bate com uma.
+   *
+   * O formulário coleta responsável como TEXTO — nome, e-mail e WhatsApp — e não
+   * tem seletor de usuário, então `userId` nunca chegava preenchido. Duas coisas
+   * dependem desse vínculo e por isso não funcionavam para ninguém:
+   *
+   *   - "Minhas obrigações", que consulta `responsaveis.some({ userId })` e
+   *     devolvia lista vazia mesmo para quem estava nomeado na obrigação;
+   *   - a notificação interna (o sino), que precisa de um usuário para destinar.
+   *
+   * O e-mail já identifica a pessoa dentro da organização, então a ligação é
+   * feita aqui, na gravação. Quem preenche continua digitando o e-mail e não
+   * precisa saber que existe um id por trás.
+   *
+   * Só amarra dentro da MESMA organização: e-mail igual em outro tenant é outra
+   * pessoa, e vincular atravessaria o isolamento entre clientes.
+   */
+  private async vincularResponsaveisAoUsuario(organizationId: string, responsaveis: any[]) {
+    const emails = responsaveis
+      .map(r => (r.userId ? null : r.email?.trim().toLowerCase()))
+      .filter((e): e is string => !!e);
+
+    const porEmail = new Map<string, string>();
+    if (emails.length) {
+      const usuarios = await (this.repo as any).usuariosPorEmail(organizationId, emails);
+      for (const u of usuarios) porEmail.set(u.email.toLowerCase(), u.id);
+    }
+
+    return responsaveis.map((r: any) => ({
+      papel: r.papel,
+      userId: r.userId ?? porEmail.get(r.email?.trim().toLowerCase() ?? "") ?? null,
+      collaboratorId: r.collaboratorId ?? null,
+      nome: r.nome ?? null,
+      email: r.email ?? null,
+      telefone: r.telefone ?? null,
+      notificar: r.notificar ?? true,
+    }));
+  }
+
   /** Responsáveis, tags e campos personalizados — tudo que vive fora da linha. */
   private async aplicarRelacionados(
     user: Usuario, obrigacaoId: string, dto: any, categoria: any,
   ) {
     if (dto.responsaveis !== undefined) {
-      await this.repo.substituirResponsaveis(
-        user.organizationId, obrigacaoId,
-        dto.responsaveis.map((r: any) => ({
-          papel: r.papel,
-          userId: r.userId ?? null,
-          collaboratorId: r.collaboratorId ?? null,
-          nome: r.nome ?? null,
-          email: r.email ?? null,
-          telefone: r.telefone ?? null,
-          notificar: r.notificar ?? true,
-        })),
+      const comVinculo = await this.vincularResponsaveisAoUsuario(
+        user.organizationId, dto.responsaveis,
       );
+      await this.repo.substituirResponsaveis(user.organizationId, obrigacaoId, comVinculo);
     }
 
     if (dto.tags !== undefined) {

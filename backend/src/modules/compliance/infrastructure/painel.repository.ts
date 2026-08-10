@@ -244,11 +244,29 @@ export class PainelRepository {
    * inteira faria o painel pessoal repetir o executivo, e a pergunta que ele
    * responde é outra: o que EU preciso fazer.
    */
-  async minhasObrigacoes(organizationId: string, userId: string, limite = 200) {
+  /**
+   * O que está no nome da pessoa.
+   *
+   * Casa por `userId` OU por e-mail. O e-mail existe porque o formulário coleta
+   * responsável como texto e, antes da correção que amarra o vínculo na
+   * gravação, TODOS os registros ficaram com `userId` nulo: quem abria esta tela
+   * via "você não é responsável por nenhuma obrigação" mesmo estando nomeado
+   * nelas. Sem casar por e-mail, esses registros continuariam invisíveis até
+   * alguém reabrir e salvar cada obrigação uma a uma.
+   *
+   * `mode: insensitive` porque e-mail não diferencia maiúscula, e o que foi
+   * digitado à mão não segue a caixa do cadastro.
+   */
+  async minhasObrigacoes(
+    organizationId: string, userId: string, limite = 200, email?: string | null,
+  ) {
+    const sou: any[] = [{ userId }];
+    if (email) sou.push({ email: { equals: email, mode: "insensitive" } });
+
     return this.db.complianceObrigacao.findMany({
       where: {
         organizationId, ...VIVAS,
-        responsaveis: { some: { userId } },
+        responsaveis: { some: { OR: sou } },
       },
       include: {
         categoria: { select: { id: true, nome: true, cor: true, icone: true } },

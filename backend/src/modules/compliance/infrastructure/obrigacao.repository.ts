@@ -318,6 +318,25 @@ export class ObrigacaoRepository {
 
   /* ── Responsáveis, tags e campos ───────────────────────────────────────── */
 
+  /**
+   * Usuários da organização por e-mail, para amarrar o responsável digitado à
+   * mão à conta dele.
+   *
+   * Restrito à organização de propósito: e-mail igual em outro tenant é outra
+   * pessoa, e vincular atravessaria o isolamento entre clientes.
+   */
+  async usuariosPorEmail(organizationId: string, emails: string[]) {
+    if (!emails.length) return [];
+    return this.db.user.findMany({
+      where: {
+        organizationId,
+        ativo: true,
+        email: { in: emails, mode: "insensitive" },
+      },
+      select: { id: true, email: true },
+    });
+  }
+
   async substituirResponsaveis(organizationId: string, obrigacaoId: string, lista: any[]) {
     await this.db.$transaction([
       this.db.complianceResponsavel.deleteMany({ where: { obrigacaoId } }),

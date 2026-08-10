@@ -72,7 +72,11 @@ export class PainelService {
    */
   async meuPainel(user: Usuario) {
     const hoje = new Date();
-    const minhas = await this.repo.minhasObrigacoes(user.organizationId, user.id);
+    // O e-mail vai junto: responsável digitado à mão fica sem `userId`, e sem
+    // ele esta tela devolvia vazio para quem estava nomeado na obrigação.
+    const minhas = await this.repo.minhasObrigacoes(
+      user.organizationId, user.id, 200, (user as any).email ?? null,
+    );
 
     const apresentadas = apresentarLista(minhas, hoje);
     const contar = (s: string) => apresentadas.filter(o => o.situacao === s).length;
