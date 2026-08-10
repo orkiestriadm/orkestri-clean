@@ -1,6 +1,7 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { Resend } from "resend";
+import * as nodemailer from "nodemailer";
 import { MARCA } from "../../common/marca";
 
 /**
@@ -18,34 +19,100 @@ import { MARCA } from "../../common/marca";
 export class EmailService {
   private readonly logger = new Logger(EmailService.name);
   private resend: Resend | null = null;
+  private smtp: nodemailer.Transporter | null = null;
   private from: string;
   private appUrl: string;
 
+  /**
+   * Dois provedores, e a escolha é do ambiente.
+   *
+   * SMTP tem precedência sobre o Resend quando `SMTP_HOST` está definido. A
+   * ordem importa: produção usa Resend e não define SMTP_HOST, então continua
+   * exatamente como estava — a mudança é inerte onde ninguém a configurou.
+   *
+   * Por que os dois em vez de trocar: o Resend exige verificar o domínio por
+   * DNS para poder enviar como ele. Um ambiente que precisa sair de um endereço
+   * corporativo cujo DNS não controlamos só consegue isso autenticando na
+   * própria caixa, que é o que SMTP faz.
+   */
   constructor(private config: ConfigService) {
     const apiKey = this.config.get<string>("RESEND_API_KEY", "");
+    const smtpHost = this.config.get<string>("SMTP_HOST", "");
     const fromName = this.config.get<string>("EMAIL_FROM_NAME", MARCA);
     const fromAddr = this.config.get<string>("EMAIL_FROM", "onboarding@resend.dev");
     this.from = `${fromName} <${fromAddr}>`;
     this.appUrl = this.config.get<string>("APP_URL", "http://localhost");
-    if (apiKey) {
+
+    if (smtpHost) {
+      const porta = Number(this.config.get<string>("SMTP_PORT", "587")) || 587;
+      const usuario = this.config.get<string>("SMTP_USER", "");
+      const senha = this.config.get<string>("SMTP_PASS", "");
+
+      // `secure` significa TLS desde o primeiro byte (porta 465). Na 587 o
+      // caminho é STARTTLS: a conexão abre em claro e sobe para TLS. Deduzir
+      // pela porta evita o erro clássico de marcar secure na 587 e ver o
+      // servidor derrubar a conexão sem explicação.
+      const explicito = this.config.get<string>("SMTP_SECURE", "");
+      const secure = explicito ? explicito === "true" : porta === 465;
+
+      this.smtp = nodemailer.createTransport({
+        host: smtpHost,
+        port: porta,
+        secure,
+        auth: usuario ? { user: usuario, pass: senha } : undefined,
+        // Sem teto, uma fila de avisos abre uma conexão por mensagem e o
+        // servidor corporativo corta por excesso.
+        pool: true,
+        maxConnections: 3,
+      });
+
+      this.logger.log(`E-mail por SMTP: ${smtpHost}:${porta} (secure=${secure}), remetente ${this.from}`);
+
+      // Verifica no boot: credencial errada ou SMTP AUTH desabilitado aparecem
+      // AQUI, no log da subida, e não três semanas depois num aviso que não
+      // chegou. Não derruba a aplicação — e-mail quebrado não justifica deixar
+      // o sistema inteiro fora do ar.
+      //
+      // Fora dos testes: `verify` abre conexão de verdade, e no CI isso vira
+      // espera por um host inexistente e processo pendurado depois da suíte.
+      if (process.env.NODE_ENV !== "test") {
+        this.smtp.verify()
+          .then(() => this.logger.log("SMTP autenticado com sucesso."))
+          .catch((e: any) => this.logger.error(`SMTP NÃO autenticou: ${e.message}`));
+      }
+    } else if (apiKey) {
       this.resend = new Resend(apiKey);
     } else {
-      this.logger.warn("RESEND_API_KEY não configurada — envio de e-mails desativado.");
+      this.logger.warn(
+        "Sem RESEND_API_KEY e sem SMTP_HOST — envio de e-mails desativado.",
+      );
     }
   }
 
-  /** Indica se há provedor de e-mail configurado (RESEND_API_KEY presente). */
+  /** Indica se há provedor de e-mail configurado (SMTP ou Resend). */
   isEnabled(): boolean {
-    return this.resend !== null;
+    return this.smtp !== null || this.resend !== null;
   }
 
   private async send(to: string, subject: string, html: string): Promise<boolean> {
-    if (!to || !this.resend) {
+    if (!to || !this.isEnabled()) {
       this.logger.warn(`Email não enviado para ${to || "(vazio)"} — serviço de e-mail indisponível.`);
       return false;
     }
+
+    if (this.smtp) {
+      try {
+        await this.smtp.sendMail({ from: this.from, to, subject, html });
+        this.logger.log(`Email enviado por SMTP para ${to}: ${subject}`);
+        return true;
+      } catch (e: any) {
+        this.logger.error(`Erro ao enviar email por SMTP para ${to}: ${e.message}`);
+        return false;
+      }
+    }
+
     try {
-      const res: any = await this.resend.emails.send({ from: this.from, to, subject, html });
+      const res: any = await this.resend!.emails.send({ from: this.from, to, subject, html });
       if (res?.error) {
         this.logger.error(`Resend recusou e-mail para ${to}: ${JSON.stringify(res.error)}`);
         return false;
