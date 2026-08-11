@@ -1,9 +1,13 @@
 import {
   Module, Controller, Get, Post, Patch,
-  Body, Param, Query,
+  Body, Param, Query, Req, UseGuards,
   NotFoundException, BadRequestException,
 } from "@nestjs/common";
+import { AuthGuard } from "@nestjs/passport";
+import { randomUUID } from "crypto";
 import { PrismaService } from "../../prisma/prisma.service";
+import { PermissionsGuard } from "../auth/permissions.guard";
+import { Permissions } from "../auth/permissions.decorator";
 
 const PORTAL_USER_ID = "00000000-0000-0000-0000-000000portal";
 
@@ -178,37 +182,80 @@ class PortalController {
     }));
   }
 
-  // POST /portal/:token/gerar — regenerate portal token (internal utility, should be called from admin)
-  // Actually exposed via a separate admin endpoint below
+  // As rotas administrativas do token NAO moram aqui — este controller e
+  // publico por natureza (o token do cliente E a credencial). Ver
+  // PortalAdminController abaixo, que exige JWT e permissao.
+}
 
-  // GET /portal-admin/:clienteId/token — get/regenerate portal token (needs no auth since called from clientes module)
-  @Get("admin/:clienteId/token")
-  async getToken(@Param("clienteId") clienteId: string) {
-    const cliente = await this.db.cliente.findUnique({ where: { id: clienteId } });
-    if (!cliente) throw new NotFoundException("Cliente não encontrado");
-    if (!cliente.portalToken) {
-      const updated = await this.db.cliente.update({
-        where: { id: clienteId },
-        data: { portalToken: require("crypto").randomUUID() },
-        select: { portalToken: true },
-      });
-      return { token: updated.portalToken };
-    }
-    return { token: cliente.portalToken };
+/**
+ * Administracao do token de portal.
+ *
+ * Vive em um controller SEPARADO e autenticado de proposito. Enquanto estas
+ * duas rotas moravam no PortalController — que nao tem guard, porque o portal
+ * do cliente e publico —, qualquer pessoa na internet podia:
+ *
+ *   GET  /api/portal/admin/:clienteId/token      ler o token de QUALQUER cliente
+ *   POST /api/portal/admin/:clienteId/regenerar  rotacionar o token de qualquer
+ *                                                cliente e receber o novo
+ *
+ * O primeiro ainda CRIAVA o token quando nao existia; o segundo derrubava o
+ * link legitimo do cliente e entregava o acesso a quem chamou. Com o token em
+ * maos, o portal expoe chamados, contratos e faturas daquele cliente.
+ *
+ * O comentario original dizia "needs no auth since called from clientes
+ * module". Nao e uma chamada interna — e uma rota HTTP exposta.
+ *
+ * O prefixo mudou de `portal/admin` para `portal-admin` para nao conviver com
+ * as rotas publicas `portal/:token`. Nenhum consumidor quebra: o frontend le o
+ * `portalToken` junto do objeto do cliente e nunca chamou estas duas.
+ */
+@Controller("portal-admin")
+@UseGuards(AuthGuard("jwt"), PermissionsGuard)
+class PortalAdminController {
+  constructor(private prisma: PrismaService) {}
+  private get db() { return this.prisma as any; }
+
+  /** Resolve o cliente DENTRO da organizacao de quem chamou. */
+  private async clienteDaOrg(req: any, clienteId: string) {
+    const cliente = await this.db.cliente.findFirst({
+      where: { id: clienteId, organizationId: req.user.organizationId },
+    });
+    // 404 e nao 403: para quem esta fora da organizacao, o cliente nao existe.
+    // Responder 403 confirmaria a existencia do id em outro tenant.
+    if (!cliente) throw new NotFoundException("Cliente nao encontrado");
+    return cliente;
   }
 
-  @Post("admin/:clienteId/regenerar")
-  async regenerarToken(@Param("clienteId") clienteId: string) {
-    const cliente = await this.db.cliente.findUnique({ where: { id: clienteId } });
-    if (!cliente) throw new NotFoundException("Cliente não encontrado");
+  // `crm:*` e nao `clientes:*`: sao os dois esquemas de nome que convivem no
+  // projeto, mas e `crm:*` que o ClientesController exige de fato. O token da
+  // acesso aos chamados, contratos e faturas do cliente — tem que custar ao
+  // menos o mesmo que ver o cliente.
+  @Get(":clienteId/token")
+  @Permissions("crm:ver")
+  async getToken(@Req() req: any, @Param("clienteId") clienteId: string) {
+    const cliente = await this.clienteDaOrg(req, clienteId);
+    if (cliente.portalToken) return { token: cliente.portalToken };
+
     const updated = await this.db.cliente.update({
-      where: { id: clienteId },
-      data: { portalToken: require("crypto").randomUUID() },
+      where: { id: cliente.id },
+      data: { portalToken: randomUUID() },
+      select: { portalToken: true },
+    });
+    return { token: updated.portalToken };
+  }
+
+  @Post(":clienteId/regenerar")
+  @Permissions("crm:editar")
+  async regenerarToken(@Req() req: any, @Param("clienteId") clienteId: string) {
+    const cliente = await this.clienteDaOrg(req, clienteId);
+    const updated = await this.db.cliente.update({
+      where: { id: cliente.id },
+      data: { portalToken: randomUUID() },
       select: { portalToken: true },
     });
     return { token: updated.portalToken };
   }
 }
 
-@Module({ controllers: [PortalController] })
+@Module({ controllers: [PortalController, PortalAdminController] })
 export class PortalModule {}
