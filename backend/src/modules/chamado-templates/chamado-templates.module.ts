@@ -2,12 +2,45 @@ import {
   Module, Controller, Get, Post, Put, Delete, Body, Param,
   UseGuards, Req, BadRequestException, NotFoundException, Injectable,
 } from "@nestjs/common";
+import { IsOptional, IsString } from "class-validator";
 import { AuthGuard } from "@nestjs/passport";
 import { PrismaService } from "../../prisma/prisma.service";
 import { v4 as uuid } from "uuid";
 
-class CreateTemplateDto { nome: string; titulo: string; descricao?: string; prioridade?: string; categoria?: string; tags?: string; }
-class UpdateTemplateDto { nome?: string; titulo?: string; descricao?: string; prioridade?: string; categoria?: string; tags?: string; }
+/**
+ * Estes DTOs estavam SEM nenhum decorador, e isso não era detalhe de estilo:
+ * sem ao menos um, o `whitelist` global trata todas as propriedades como
+ * não-listadas e o `forbidNonWhitelisted` recusa a requisição inteira. A rota
+ * respondia "property nome should not exist" para qualquer corpo — criar
+ * template de chamado estava 100% quebrado.
+ */
+class CreateTemplateDto {
+  @IsString() nome: string;
+  @IsString() titulo: string;
+  @IsOptional() @IsString() descricao?: string;
+  @IsOptional() @IsString() prioridade?: string;
+  @IsOptional() @IsString() categoria?: string;
+  @IsOptional() @IsString() tags?: string;
+
+  // A tela envia estes dois quando a categoria é Frotas
+  // (chamados/page.tsx:652). O modelo ChamadoTemplate NÃO tem as colunas e o
+  // service não os lê — são aceitos e descartados.
+  //
+  // Declaro em vez de omitir porque omitir devolveria 400 sempre que o usuário
+  // escolhesse Frotas. Mas fica o registro: ou o modelo ganha as colunas, ou a
+  // tela para de mandá-los. Do jeito que está, o dado se perde em silêncio.
+  @IsOptional() @IsString() veiculoId?: string;
+  @IsOptional() @IsString() atendenteId?: string;
+}
+
+class UpdateTemplateDto {
+  @IsOptional() @IsString() nome?: string;
+  @IsOptional() @IsString() titulo?: string;
+  @IsOptional() @IsString() descricao?: string;
+  @IsOptional() @IsString() prioridade?: string;
+  @IsOptional() @IsString() categoria?: string;
+  @IsOptional() @IsString() tags?: string;
+}
 
 @Injectable()
 export class ChamadoTemplatesService {

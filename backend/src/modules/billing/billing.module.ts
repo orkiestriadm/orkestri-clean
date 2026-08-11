@@ -12,7 +12,7 @@ import { ConfigService } from '@nestjs/config';
 import { AuthGuard } from '@nestjs/passport';
 import { Resend } from 'resend';
 import * as bcrypt from 'bcryptjs';
-import { IsString, IsEmail, IsOptional, MinLength, IsIn } from 'class-validator';
+import { IsEmail, IsIn, IsNumber, IsOptional, IsString, MinLength } from "class-validator";
 
 // ─── Planos ──────────────────────────────────────────────────────────────────
 
@@ -49,17 +49,17 @@ export const PLANS: Record<string, {
 // ─── DTOs ────────────────────────────────────────────────────────────────────
 
 class AssignPlanDto {
-  plano: string;
-  masterEmail?: string;
+  @IsString() plano: string;
+  @IsOptional() @IsString() masterEmail?: string;
 }
 
 class OverrideStatusDto {
-  status: string;
-  nota?: string;
+  @IsString() status: string;
+  @IsOptional() @IsString() nota?: string;
 }
 
 class ExtendTrialDto {
-  dias: number;
+  @IsNumber() dias: number;
 }
 
 class PublicSignupDto {

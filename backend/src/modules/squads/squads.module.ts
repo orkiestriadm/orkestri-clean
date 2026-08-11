@@ -2,32 +2,33 @@ import {
   Module, Controller, Get, Post, Put, Delete, Body, Param,
   UseGuards, Req, Injectable, BadRequestException, NotFoundException,
 } from "@nestjs/common";
+import { Allow, IsBoolean, IsNumber, IsOptional, IsString } from "class-validator";
 import { AuthGuard } from "@nestjs/passport";
 import { PrismaService } from "../../prisma/prisma.service";
 import { PermissionsGuard } from "../auth/permissions.guard";
 import { Permissions } from "../auth/permissions.decorator";
 
 class CreateSquadDto {
-  nome: string;
-  descricao?: string;
-  cor?: string;
-  liderId?: string;
+  @IsString() nome: string;
+  @IsOptional() @IsString() descricao?: string;
+  @IsOptional() @IsString() cor?: string;
+  @IsOptional() @IsString() liderId?: string;
 }
 class UpdateSquadDto {
-  nome?: string;
-  descricao?: string | null;
-  cor?: string | null;
-  liderId?: string | null;
-  ativo?: boolean;
+  @IsOptional() @IsString() nome?: string;
+  @IsOptional() @Allow() descricao?: string | null;
+  @IsOptional() @Allow() cor?: string | null;
+  @IsOptional() @Allow() liderId?: string | null;
+  @IsOptional() @IsBoolean() ativo?: boolean;
 }
 class AddMemberDto {
-  collaboratorId: string;
-  alocacaoPercent?: number;
-  papel?: string;
+  @IsString() collaboratorId: string;
+  @IsOptional() @IsNumber() alocacaoPercent?: number;
+  @IsOptional() @IsString() papel?: string;
 }
 class UpdateMemberDto {
-  alocacaoPercent?: number;
-  papel?: string;
+  @IsOptional() @IsNumber() alocacaoPercent?: number;
+  @IsOptional() @IsString() papel?: string;
 }
 
 @Injectable()

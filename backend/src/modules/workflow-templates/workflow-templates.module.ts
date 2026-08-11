@@ -2,6 +2,7 @@ import {
   Module, Controller, Get, Post, Put, Delete, Body, Param, Query,
   UseGuards, Req, Injectable, NotFoundException, ForbiddenException, BadRequestException,
 } from "@nestjs/common";
+import { IsArray, IsBoolean, IsOptional, IsString } from "class-validator";
 import { AuthGuard } from "@nestjs/passport";
 import { PrismaService } from "../../prisma/prisma.service";
 import { v4 as uuid } from "uuid";
@@ -20,22 +21,25 @@ export interface WfStep {
 }
 
 class CreateTemplateDto {
-  nome: string;
-  descricao?: string;
-  tipo?: string;
-  icone?: string;
-  cor?: string;
-  etapas?: WfStep[];
+  @IsString() nome: string;
+  @IsOptional() @IsString() descricao?: string;
+  @IsOptional() @IsString() tipo?: string;
+  @IsOptional() @IsString() icone?: string;
+  @IsOptional() @IsString() cor?: string;
+  @IsOptional() @IsArray() etapas?: WfStep[];
+  // A tela manda `ativo: true` ao criar (processos/page.tsx:257) e o service
+  // lê `dto.ativo` — só o DTO não declarava, e a criação voltava 400.
+  @IsOptional() @IsBoolean() ativo?: boolean;
 }
 
 class UpdateTemplateDto {
-  nome?: string;
-  descricao?: string;
-  tipo?: string;
-  icone?: string;
-  cor?: string;
-  ativo?: boolean;
-  etapas?: WfStep[];
+  @IsOptional() @IsString() nome?: string;
+  @IsOptional() @IsString() descricao?: string;
+  @IsOptional() @IsString() tipo?: string;
+  @IsOptional() @IsString() icone?: string;
+  @IsOptional() @IsString() cor?: string;
+  @IsOptional() @IsBoolean() ativo?: boolean;
+  @IsOptional() @IsArray() etapas?: WfStep[];
 }
 
 @Injectable()

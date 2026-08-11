@@ -28,6 +28,15 @@ class CreateClienteDto {
   @IsOptional() @IsString() notas?: string;
   @IsOptional() @IsBoolean() ativo?: boolean;
   @IsOptional() @IsString() responsavelId?: string;
+  // Oportunidade. O formulário de cadastro (clientes/page.tsx:138) envia os
+  // dois desde sempre, e eles NÃO estavam declarados aqui: com
+  // `forbidNonWhitelisted`, preencher "valor estimado" ou "probabilidade"
+  // fazia o cadastro inteiro voltar 400. Passava despercebido porque a tela só
+  // manda a chave quando o campo tem valor — vazio, ela é omitida.
+  //
+  // Persistem sozinhos: o handler faz `...rest` e o modelo já tem as colunas.
+  @IsOptional() @IsNumber() valorEstimado?: number;
+  @IsOptional() @IsNumber() probabilidade?: number;
 }
 
 class UpdateClienteDto {
@@ -46,6 +55,11 @@ class UpdateClienteDto {
   @IsOptional() @IsString() notas?: string;
   @IsOptional() @IsBoolean() ativo?: boolean;
   @IsOptional() @IsString() responsavelId?: string;
+  // Espelham o Create. A tela de edição ainda não manda estes dois, mas o
+  // handler usa o mesmo `...rest` — deixar só o Create corrigido plantaria
+  // exatamente o mesmo defeito para o dia em que a edição passar a mandá-los.
+  @IsOptional() @IsNumber() valorEstimado?: number;
+  @IsOptional() @IsNumber() probabilidade?: number;
 }
 
 class CreateContratoDto {
