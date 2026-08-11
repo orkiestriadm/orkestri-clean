@@ -81,6 +81,32 @@ const SLA_STATUS_MAP = {
 /** "Frotas" não é uma categoria qualquer: escolhê-la habilita o veículo no
  *  formulário, e é o veículo que permite o chamado virar ordem de serviço. */
 const CATEGORIA_FROTAS = "Frotas";
+
+/**
+ * Condição do veículo relatada por quem abre o chamado.
+ *
+ * Serve a UMA pergunta de quem vai atender: dá para esperar? Um veículo parado
+ * na estrada e um veículo rodando com barulho no freio geram o mesmo chamado no
+ * sistema e exigem reações completamente diferentes.
+ *
+ * NÃO é estado do veículo. O farol em Frotas continua vindo do módulo de
+ * Frotas — isto é o relato de quem abriu, e misturar as duas coisas faria um
+ * chamado mal preenchido mudar a operação da frota.
+ */
+const CONDICOES_VEICULO = [
+  {
+    valor: "inoperante",
+    rotulo: "Inoperante",
+    ajuda: "Não roda. Parado.",
+    cor: "var(--accent-red)",
+  },
+  {
+    valor: "operando_com_avaria",
+    rotulo: "Operando com avaria",
+    ajuda: "Roda, mas com defeito.",
+    cor: "var(--accent-amber)",
+  },
+] as const;
 const CATEGORIAS = ["Suporte Técnico","Financeiro","Comercial","RH","TI","Infraestrutura",CATEGORIA_FROTAS,"Dúvida","Solicitação","Reclamação","Outro"];
 
 /** Rótulos das OS do módulo de Frotas. */
@@ -137,7 +163,7 @@ function AgeBadge({ atualizadoEm, status }: { atualizadoEm: string; status: stri
 
 // ── CSV Export ────────────────────────────────────────────────────────────────
 function exportCSV(chamados: Chamado[]) {
-  const headers = ["#","Título","Status","Prioridade","Categoria","Solicitante","Atendente","Cliente","SLA","Criado em","Atualizado em"];
+  const headers = ["#","Título","Status","Prioridade","Categoria","Solicitante","Atendente","SLA","Criado em","Atualizado em"];
   const rows = chamados.map(c => [
     c.numero,
     `"${c.titulo.replace(/"/g,'""')}"`,
@@ -146,7 +172,6 @@ function exportCSV(chamados: Chamado[]) {
     c.categoria || "",
     `"${c.solicitante.nome}"`,
     c.atendente ? `"${c.atendente.nome}"` : "",
-    c.cliente ? `"${c.cliente.empresa || c.cliente.nome}"` : "",
     c.slaStatus || "ok",
     new Date(c.criadoEm).toLocaleString("pt-BR"),
     new Date(c.atualizadoEm).toLocaleString("pt-BR"),
@@ -555,7 +580,7 @@ type Template = { id: string; nome: string; titulo: string; descricao?: string; 
 type KbSugestao = { id: string; titulo: string; slug: string; resumo?: string; categoria?: { nome: string; cor: string } };
 
 function NovoChamadoModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
-  const [form, setForm] = useState({ titulo: "", descricao: "", prioridade: "media", categoria: "", clienteId: "", veiculoId: "" });
+  const [form, setForm] = useState({ titulo: "", descricao: "", prioridade: "media", categoria: "", veiculoId: "", condicaoVeiculo: "" });
   // Frota da organização, carregada só quando a categoria pede.
   const [veiculos, setVeiculos] = useState<VeiculoLite[]>([]);
   // Atribuição na abertura: quem já sabe de quem é o assunto não precisa
@@ -565,7 +590,6 @@ function NovoChamadoModal({ onClose, onCreated }: { onClose: () => void; onCreat
   const [buscaUser, setBuscaUser] = useState("");
   const [usuarios, setUsuarios] = useState<{ id: string; nome: string; email?: string }[]>([]);
   const [atendente, setAtendente] = useState<{ id: string; nome: string; email?: string } | null>(null);
-  const [clientes, setClientes] = useState<Cliente[]>([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [templates, setTemplates] = useState<Template[]>([]);
@@ -575,7 +599,6 @@ function NovoChamadoModal({ onClose, onCreated }: { onClose: () => void; onCreat
   const [kbArtigo, setKbArtigo] = useState<KbSugestao & { conteudo?: string } | null>(null);
 
   useEffect(() => {
-    api.get("/clientes").then(r => setClientes(Array.isArray(r.data) ? r.data : [])).catch(() => {});
     api.get("/chamado-templates").then(r => setTemplates(Array.isArray(r.data) ? r.data : [])).catch(() => {});
   }, []);
 
@@ -649,7 +672,15 @@ function NovoChamadoModal({ onClose, onCreated }: { onClose: () => void; onCreat
     }
     setSaving(true); setError("");
     try {
-      await api.post("/chamados", { ...form, clienteId: form.clienteId || undefined });
+      // A condição só faz sentido com veículo — mandar em chamado de outra
+      // categoria sujaria o registro com dado que não se aplica.
+      await api.post("/chamados", {
+        ...form,
+        condicaoVeiculo:
+          form.categoria === CATEGORIA_FROTAS && form.veiculoId
+            ? form.condicaoVeiculo || undefined
+            : undefined,
+      });
       onCreated(); onClose();
     } catch (err: any) {
       setError(err?.response?.data?.message || "Erro ao criar chamado");
@@ -785,21 +816,47 @@ function NovoChamadoModal({ onClose, onCreated }: { onClose: () => void; onCreat
               <p className="text-[11px] text-[var(--text-muted)] mt-1.5">
                 Com o veículo definido, este chamado pode abrir uma ordem de serviço em Frotas.
               </p>
+
+              {/* Condição do veículo.
+                  Existe para quem PEGA o chamado saber, antes de abrir, se o
+                  veículo parou ou ainda roda — a diferença entre atender agora
+                  e atender depois.
+                  NÃO altera o farol em Fleet: o estado operacional do veículo
+                  continua sendo o que o módulo de Frotas registra. Isto é o
+                  relato de quem abriu, não uma medição. */}
+              <div className="mt-3">
+                <label className="text-[11px] text-[var(--text-muted)] font-mono block mb-1.5 uppercase tracking-wider">
+                  Condição do veículo
+                </label>
+                <div className="flex gap-2">
+                  {CONDICOES_VEICULO.map(c => {
+                    const ativo = form.condicaoVeiculo === c.valor;
+                    return (
+                      <button
+                        key={c.valor}
+                        type="button"
+                        onClick={() => setForm(f => ({ ...f, condicaoVeiculo: ativo ? "" : c.valor }))}
+                        aria-pressed={ativo}
+                        className="flex-1 rounded-[10px] border px-3 py-2 text-left transition-colors"
+                        style={{
+                          borderColor: ativo ? c.cor : "var(--border-subtle)",
+                          background: ativo ? `color-mix(in srgb, ${c.cor} 12%, transparent)` : "transparent",
+                        }}
+                      >
+                        <span className="block text-[12.5px] font-semibold" style={{ color: ativo ? c.cor : "var(--text-primary)" }}>
+                          {c.rotulo}
+                        </span>
+                        <span className="block text-[10.5px] text-[var(--text-muted)] mt-0.5">{c.ajuda}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+                <p className="text-[11px] text-[var(--text-muted)] mt-1.5">
+                  Só orienta quem vai atender. Não muda o farol do veículo em Frotas.
+                </p>
+              </div>
             </div>
           )}
-          <div>
-            <label className="text-[11px] text-[var(--text-muted)] font-mono block mb-1.5 uppercase tracking-wider">Cliente (opcional)</label>
-            <select
-              className="input-o"
-              value={form.clienteId}
-              onChange={e => setForm(f => ({ ...f, clienteId: e.target.value }))}
-            >
-              <option value="">Nenhum</option>
-              {clientes.map(c => (
-                <option key={c.id} value={c.id}>{c.nome}{c.empresa ? ` — ${c.empresa}` : ""}</option>
-              ))}
-            </select>
-          </div>
           {showSaveTemplate ? (
             <div className="flex gap-2 pt-1 items-center">
               <input value={templateNome} onChange={e => setTemplateNome(e.target.value)}
@@ -911,13 +968,38 @@ function PainelFrota({ detail, canEditar, onUpdated }: {
         <Truck size={13} /> Frota
       </h3>
 
-      <div className="flex items-center gap-3 mb-4">
+      <div className="flex items-center gap-3 mb-3">
         <span className="font-mono text-[14px] font-bold text-[var(--text-primary)]">{v.placa}</span>
         {v.identificacao && <span className="font-mono text-[12px] text-[var(--text-muted)]">{v.identificacao}</span>}
         <span className="text-[13px] text-[var(--text-secondary)]">
           {[v.marca, v.modelo].filter(Boolean).join(" ")}
         </span>
       </div>
+
+      {/* A condição relatada, em destaque: é a primeira coisa que quem pega o
+          chamado precisa saber para decidir se atende agora ou depois.
+          Vem com a ressalva de que é relato, não o estado oficial — quem for
+          agir na frota tem que olhar o módulo de Frotas. */}
+      {(() => {
+        const c = CONDICOES_VEICULO.find(x => x.valor === (detail as any).condicaoVeiculo);
+        if (!c) return null;
+        return (
+          <div
+            className="mb-4 rounded-[10px] border px-3 py-2"
+            style={{
+              borderColor: c.cor,
+              background: `color-mix(in srgb, ${c.cor} 10%, transparent)`,
+            }}
+          >
+            <span className="block text-[13px] font-semibold" style={{ color: c.cor }}>
+              {c.rotulo}
+            </span>
+            <span className="block text-[11px] text-[var(--text-muted)] mt-0.5">
+              Relatado na abertura. Não reflete o farol do veículo em Frotas.
+            </span>
+          </div>
+        );
+      })()}
 
       {os.length > 0 && (
         <div className="space-y-1.5 mb-4">
@@ -1223,15 +1305,10 @@ function ChamadoDrawer({ chamado, isMaster, userId, canEditar, onClose, onUpdate
                   </div>
                 )}
               </div>
-              {detail.cliente && (
-                <div>
-                  <span className="text-[11px] font-mono text-[var(--text-muted)] tracking-wider uppercase mb-1.5 block">Cliente</span>
-                  <div className="flex items-center gap-1.5">
-                    <Building2 size={14} className="text-[var(--text-muted)]" />
-                    <span className="text-[var(--text-primary)] font-medium">{detail.cliente.nome}</span>
-                  </div>
-                </div>
-              )}
+              {/* Cliente saiu do módulo de Chamados em 11/08/2026 — não era
+                  usado. A COLUNA no banco continua: chamado antigo que tenha
+                  cliente preenchido não perde o dado, e voltar a exibir é
+                  descomentar isto. Apagar seria irreversível. */}
               {detail.categoria && (
                 <div>
                   <span className="text-[11px] font-mono text-[var(--text-muted)] tracking-wider uppercase mb-1.5 block">Categoria</span>

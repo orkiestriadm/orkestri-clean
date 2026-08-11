@@ -293,18 +293,24 @@
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1); white-space: nowrap;
 }
 
+/* Ação principal.
+   A borda acompanha o fundo em vez de escurecer a 5%, e o brilho interno saiu:
+   os dois juntos lavavam o laranja e faziam o botão parecer desbotado — foi a
+   queixa de "botão opaco" no modal de chamado. Agora a cor é sólida e a sombra
+   é quem dá o relevo. */
 .btn-primary,
 .btn-violet {
   background: var(--accent-violet);
   color: #fff;
-  border-color: rgba(0,0,0,0.05);
-  box-shadow: 0 2px 8px rgba(249, 115, 22, 0.20), inset 0 1px 0 rgba(255,255,255,0.15);
+  border-color: var(--accent-violet);
+  box-shadow: 0 2px 8px rgba(249, 115, 22, 0.28);
 }
 .btn-primary:hover,
 .btn-violet:hover {
   background: #ea580c;
+  border-color: #ea580c;
   color: #fff;
-  box-shadow: 0 6px 16px rgba(249, 115, 22, 0.30), inset 0 1px 0 rgba(255,255,255,0.2);
+  box-shadow: 0 6px 16px rgba(249, 115, 22, 0.34);
   transform: translateY(-1.5px);
 }
 .btn-primary:active,

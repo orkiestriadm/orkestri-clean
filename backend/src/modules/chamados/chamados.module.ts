@@ -4,7 +4,7 @@ import { diskStorage } from "multer";
 import * as path from "path";
 import * as fs from "fs";
 import { AuthGuard } from "@nestjs/passport";
-import { IsString, IsOptional, IsInt, Min, Max } from "class-validator";
+import { IsString, IsOptional, IsInt, IsIn, Min, Max } from "class-validator";
 import { Type } from "class-transformer";
 import { ConfigService } from "@nestjs/config";
 import { PrismaService } from "../../prisma/prisma.service";
@@ -29,6 +29,9 @@ class CreateChamadoDto {
   @IsOptional() @IsString() atendenteId?: string;
   /// Preenchido = chamado de frota, elegível a virar ordem de serviço.
   @IsOptional() @IsString() veiculoId?: string;
+  /// "inoperante" ou "operando_com_avaria". Relato de quem abriu — NAO altera
+  /// o farol do veiculo em Frotas.
+  @IsOptional() @IsIn(["inoperante", "operando_com_avaria"]) condicaoVeiculo?: string;
 }
 
 class UpdateChamadoDto {
@@ -431,6 +434,9 @@ class ChamadosController {
         clienteId: dto.clienteId || null,
         status: dto.atendenteId ? "em_atendimento" : "aberto",
         veiculoId: dto.veiculoId || null,
+        // Só grava a condição quando há veículo: sem ele o campo não descreve
+        // nada, e guardar assim sujaria o registro com dado que não se aplica.
+        condicaoVeiculo: dto.veiculoId ? (dto.condicaoVeiculo || null) : null,
         atribuidoPorId: dto.atendenteId && dto.atendenteId !== req.user.id ? req.user.id : null,
         slaHoras,
         ...(orgId ? { organizationId: orgId } : {}),
