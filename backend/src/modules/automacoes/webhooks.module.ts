@@ -3,6 +3,7 @@ import {
   Body, Param, Query, Req, UseGuards, Injectable, Logger,
   NotFoundException, BadRequestException,
 } from "@nestjs/common";
+import { Allow, IsOptional, IsString } from "class-validator";
 import { AuthGuard } from "@nestjs/passport";
 import { PrismaService } from "../../prisma/prisma.service";
 import { Permissions } from "../auth/permissions.decorator";
@@ -187,6 +188,17 @@ export class WebhookService {
 }
 
 // ── Controller ────────────────────────────────────────────────────────────────
+// ── DTOs gerados: sem classe, o ValidationPipe global nao tem metadata e a
+//    rota aceita qualquer JSON. Campos derivados do tipo inline anterior.
+class CreateWebhooksDto {
+  @IsString() nome: string;
+  @IsString() url: string;
+  @IsString() evento: string;
+  @IsOptional() @Allow() headers?: Record<string, string>;
+  @IsOptional() @IsString() secret?: string;
+  @IsOptional() @IsString() descricao?: string;
+}
+
 @Controller("webhooks")
 @UseGuards(AuthGuard("jwt"), PermissionsGuard)
 class WebhooksController {
@@ -225,10 +237,7 @@ class WebhooksController {
 
   @Post()
   @Permissions("automacoes:criar")
-  async create(@Body() body: {
-    nome: string; url: string; evento: string;
-    headers?: Record<string, string>; secret?: string; descricao?: string;
-  }, @Req() req: any) {
+  async create(@Body() body: CreateWebhooksDto, @Req() req: any) {
     if (!body.nome?.trim()) throw new BadRequestException("Nome obrigatório");
     if (!body.url?.trim())  throw new BadRequestException("URL obrigatória");
     if (!body.evento)       throw new BadRequestException("Evento obrigatório");

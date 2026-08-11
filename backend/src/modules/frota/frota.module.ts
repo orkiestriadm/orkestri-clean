@@ -4,6 +4,7 @@ import {
   NotFoundException, BadRequestException,
   UseInterceptors, UploadedFile,
 } from "@nestjs/common";
+import { IsBoolean, IsOptional } from "class-validator";
 import { AuthGuard } from "@nestjs/passport";
 import { FileInterceptor } from "@nestjs/platform-express";
 import { diskStorage, memoryStorage } from "multer";
@@ -246,6 +247,12 @@ const VEICULO_LIST_INCLUDE = {
   responsavel: { select: { id: true, nome: true, email: true, avatar: true } },
   setor:       { select: { id: true, nome: true, cor: true } },
 };
+
+// ── DTOs gerados: sem classe, o ValidationPipe global nao tem metadata e a
+//    rota aceita qualquer JSON. Campos derivados do tipo inline anterior.
+class UpdateFrotaDto {
+  @IsOptional() @IsBoolean() bloqueioCnhVencida?: boolean;
+}
 
 @Controller("frota/veiculos")
 @UseGuards(AuthGuard("jwt"), PermissionsGuard)
@@ -596,7 +603,7 @@ class FrotaConfigController {
 
   @Put()
   @Permissions("frota:configurar")
-  async update(@Body() body: { bloqueioCnhVencida?: boolean }, @Req() req: any) {
+  async update(@Body() body: UpdateFrotaDto, @Req() req: any) {
     const orgId = req.user?.organizationId;
     const valor = body.bloqueioCnhVencida ? "true" : "false";
     const existing = await this.db.sistemaConfig.findFirst({ where: { organizationId: orgId, chave: "frota_bloqueio_cnh" } });

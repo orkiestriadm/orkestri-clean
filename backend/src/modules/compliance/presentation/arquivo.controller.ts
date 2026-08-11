@@ -2,6 +2,7 @@ import {
   Controller, Get, Post, Delete, Body, Param, Req, Res, UseGuards,
   UseInterceptors, UploadedFile,
 } from "@nestjs/common";
+import { IsOptional, IsString } from "class-validator";
 import { AuthGuard } from "@nestjs/passport";
 import { FileInterceptor } from "@nestjs/platform-express";
 import { memoryStorage } from "multer";
@@ -10,6 +11,14 @@ import { PermissionsGuard } from "../../auth/permissions.guard";
 import { Permissions } from "../../auth/permissions.decorator";
 import { COMPLIANCE_PERMISSIONS } from "../compliance.permissions";
 import { ArquivoService, TAMANHO_MAXIMO_BYTES } from "../application/arquivo.service";
+
+// ── DTOs gerados: sem classe, o ValidationPipe global nao tem metadata e a
+//    rota aceita qualquer JSON. Campos derivados do tipo inline anterior.
+class BodyArquivoDto {
+  @IsOptional() @IsString() titulo?: string;
+  @IsOptional() @IsString() observacoes?: string;
+  @IsOptional() @IsString() versaoId?: string;
+}
 
 @Controller("v1/compliance")
 @UseGuards(AuthGuard("jwt"), PermissionsGuard)
@@ -35,7 +44,7 @@ export class ArquivoController {
   enviar(
     @Req() req: any,
     @Param("obrigacaoId") obrigacaoId: string,
-    @Body() dados: { titulo?: string; observacoes?: string; versaoId?: string },
+    @Body() dados: BodyArquivoDto,
     @UploadedFile() arquivo: any,
   ) {
     return this.service.enviar(req.user, obrigacaoId, dados, arquivo, this.ip(req));

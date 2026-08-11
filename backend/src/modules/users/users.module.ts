@@ -1,6 +1,6 @@
 import { Module, Controller, Get, Post, Put, Patch, Delete, Body, Param, Query, UseGuards, Req, ConflictException, BadRequestException, NotFoundException } from "@nestjs/common";
 import { AuthGuard } from "@nestjs/passport";
-import { IsEmail, IsString, MinLength, IsOptional, IsBoolean, IsArray } from "class-validator";
+import { IsArray, IsBoolean, IsEmail, IsOptional, IsString, MinLength } from "class-validator";
 import { PrismaService } from "../../prisma/prisma.service";
 import * as bcrypt from "bcryptjs";
 import { Permissions } from "../auth/permissions.decorator";
@@ -59,6 +59,26 @@ function mapUser(u: any) {
     isMaster: u.userRoles.some((ur: any) => ur.role.isMaster),
     modulos: parseModulos(u.profile?.modulos),
   };
+}
+
+// ── DTOs gerados: sem classe, o ValidationPipe global nao tem metadata e a
+//    rota aceita qualquer JSON. Campos derivados do tipo inline anterior.
+class UpdateMeUsersDto {
+  @IsOptional() @IsString() nome?: string;
+  @IsOptional() @IsString() telefone?: string;
+  @IsOptional() @IsString() cargo?: string;
+  @IsOptional() @IsString() whatsapp?: string;
+  @IsOptional() @IsBoolean() whatsappAlertas?: boolean;
+  @IsOptional() @IsString() statusOnline?: string;
+}
+
+class ChangeMyPasswordUsersDto {
+  @IsString() senhaAtual: string;
+  @IsString() novaSenha: string;
+}
+
+class ImportCsvUsersDto {
+  @IsString() csv: string;
 }
 
 @Controller("users")
@@ -129,10 +149,7 @@ class UsersController {
   }
 
   @Patch("me")
-  async updateMe(@Req() req: any, @Body() body: {
-    nome?: string; telefone?: string; cargo?: string;
-    whatsapp?: string; whatsappAlertas?: boolean; statusOnline?: string;
-  }) {
+  async updateMe(@Req() req: any, @Body() body: UpdateMeUsersDto) {
     const id = req.user.id;
     if (body.nome) {
       await this.prisma.user.update({ where: { id }, data: { nome: body.nome } });
@@ -157,7 +174,7 @@ class UsersController {
   }
 
   @Patch("me/senha")
-  async changeMyPassword(@Req() req: any, @Body() body: { senhaAtual: string; novaSenha: string }) {
+  async changeMyPassword(@Req() req: any, @Body() body: ChangeMyPasswordUsersDto) {
     const id = req.user.id;
     if (!body.senhaAtual || !body.novaSenha) throw new BadRequestException("Campos obrigatórios");
     if (body.novaSenha.length < 6) throw new BadRequestException("Senha deve ter ao menos 6 caracteres");
@@ -369,7 +386,7 @@ class UsersCsvController {
   constructor(private prisma: PrismaService, private cache: CacheService) {}
 
   @Post("import-csv")
-  async importCsv(@Req() req: any, @Body() body: { csv: string }) {
+  async importCsv(@Req() req: any, @Body() body: ImportCsvUsersDto) {
     if (!req.user?.isMaster) throw new BadRequestException("Apenas Masters podem importar usuários");
     if (!body?.csv?.trim()) throw new BadRequestException("CSV vazio");
 

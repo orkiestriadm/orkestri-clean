@@ -4,7 +4,7 @@ import {
   NotFoundException, BadRequestException, ForbiddenException,
 } from "@nestjs/common";
 import { AuthGuard } from "@nestjs/passport";
-import { IsString, IsOptional, IsEmail, IsBoolean, IsNumber, IsDateString } from "class-validator";
+import { IsArray, IsBoolean, IsDateString, IsEmail, IsNumber, IsOptional, IsString } from "class-validator";
 import { PrismaService } from "../../prisma/prisma.service";
 import { Permissions } from "../auth/permissions.decorator";
 import { PermissionsGuard } from "../auth/permissions.guard";
@@ -176,6 +176,19 @@ async function addTimelineEvent(prisma: PrismaService, data: {
 
 // ── Controller ────────────────────────────────────────────────────────────────
 
+// ── DTOs gerados: sem classe, o ValidationPipe global nao tem metadata e a
+//    rota aceita qualquer JSON. Campos derivados do tipo inline anterior.
+class ImportarClientesDto {
+  @IsArray() rows: any[];
+}
+
+class UpdateStatusClientesDto {
+  @IsString() statusLead: string;
+  @IsOptional() @IsNumber() valorEstimado?: number;
+  @IsOptional() @IsNumber() probabilidade?: number;
+  @IsOptional() @IsString() dataFechamento?: string;
+}
+
 @Controller("clientes")
 @UseGuards(AuthGuard("jwt"), PermissionsGuard)
 class ClientesController {
@@ -285,7 +298,7 @@ class ClientesController {
   // POST /clientes/importar — bulk import from CSV rows
   @Post("importar")
   @Permissions("crm:criar")
-  async importar(@Body() body: { rows: any[] }, @Req() req: any) {
+  async importar(@Body() body: ImportarClientesDto, @Req() req: any) {
     const rows = body.rows || [];
     const criados: any[] = [];
     const erros: { linha: number; erro: string }[] = [];
@@ -356,7 +369,7 @@ class ClientesController {
   async updateStatus(
     @Req() req: any,
     @Param("id") id: string,
-    @Body() body: { statusLead: string; valorEstimado?: number; probabilidade?: number; dataFechamento?: string },
+    @Body() body: UpdateStatusClientesDto,
   ) {
     const orgId = req.user?.organizationId;
     const validos = ["lead", "prospect", "oportunidade", "negociacao", "ativo", "inativo"];

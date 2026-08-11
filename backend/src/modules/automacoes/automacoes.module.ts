@@ -1,4 +1,5 @@
 import { MARCA } from "../../common/marca";
+import { Allow, IsArray, IsBoolean, IsOptional, IsString } from "class-validator";
 import {
   Module, Controller, Get, Post, Put, Patch, Delete,
   Body, Param, Query, UseGuards, Req, Logger,
@@ -641,6 +642,21 @@ export class AutomacaoCronService {
 }
 
 // ── AutomacoesController ──────────────────────────────────────────────────────
+// ── DTOs gerados: sem classe, o ValidationPipe global nao tem metadata e a
+//    rota aceita qualquer JSON. Campos derivados do tipo inline anterior.
+class CreateAutomacoesDto {
+  @IsString() nome: string;
+  @IsOptional() @IsString() descricao?: string;
+  @IsString() trigger: string;
+  @IsOptional() @Allow() condicoes?: any;
+  @IsOptional() @IsArray() acoes?: any[];
+}
+
+class TestarAutomacoesDto {
+  @IsOptional() @Allow() contexto?: Record<string, any>;
+  @IsOptional() @IsBoolean() dryRun?: boolean;
+}
+
 @Controller("automacoes")
 @UseGuards(AuthGuard("jwt"), PermissionsGuard)
 class AutomacoesController {
@@ -696,7 +712,7 @@ class AutomacoesController {
   @Post()
   @Permissions("automacoes:criar")
   async create(
-    @Body() body: { nome: string; descricao?: string; trigger: string; condicoes?: any; acoes?: any[] },
+    @Body() body: CreateAutomacoesDto,
     @Req() req: any,
   ) {
     if (!body.nome?.trim()) throw new BadRequestException("Nome obrigatorio");
@@ -745,7 +761,7 @@ class AutomacoesController {
 
   @Post(":id/testar")
   @Permissions("automacoes:editar")
-  async testar(@Param("id") id: string, @Body() body: { contexto?: Record<string, any>; dryRun?: boolean }, @Req() req: any) {
+  async testar(@Param("id") id: string, @Body() body: TestarAutomacoesDto, @Req() req: any) {
     const auto = await acharNaOrganizacao(this.db.automacao, id, req, "Automacao nao encontrada");
     const ctx = body.contexto || {
       prioridade: "alta", status: "aberto", categoria: "teste",

@@ -4,6 +4,7 @@ import {
   Injectable, NotFoundException, BadRequestException, ForbiddenException,
   UseInterceptors, UploadedFile,
 } from "@nestjs/common";
+import { IsNumber, IsOptional, IsString } from "class-validator";
 import { AuthGuard } from "@nestjs/passport";
 import { FileInterceptor } from "@nestjs/platform-express";
 import { diskStorage } from "multer";
@@ -43,6 +44,15 @@ async function nextNumero(db: any): Promise<number> {
 }
 
 // ── ContratosController ───────────────────────────────────────────────────────
+// ── DTOs gerados: sem classe, o ValidationPipe global nao tem metadata e a
+//    rota aceita qualquer JSON. Campos derivados do tipo inline anterior.
+class RenovarContratosDto {
+  @IsString() vigenciaInicio: string;
+  @IsString() vigenciaFim: string;
+  @IsOptional() @IsNumber() valor?: number;
+  @IsOptional() @IsString() titulo?: string;
+}
+
 @Controller("contratos")
 @UseGuards(AuthGuard("jwt"), PermissionsGuard)
 class ContratosController {
@@ -218,7 +228,7 @@ class ContratosController {
   @Permissions("crm:ver")
   async renovar(
     @Param("id") id: string,
-    @Body() body: { vigenciaInicio: string; vigenciaFim: string; valor?: number; titulo?: string },
+    @Body() body: RenovarContratosDto,
   @Req() req: any) {
     if (!body.vigenciaInicio || !body.vigenciaFim) throw new BadRequestException("Datas de vigência obrigatórias");
     const existing = await acharNaOrganizacao(this.db.contrato, id, req, "Contrato não encontrado");

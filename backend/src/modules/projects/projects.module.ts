@@ -3,7 +3,7 @@ import { FileInterceptor } from "@nestjs/platform-express";
 import { memoryStorage } from "multer";
 import { randomUUID } from "crypto";
 import { AuthGuard } from "@nestjs/passport";
-import { IsString, IsOptional, IsArray, IsDateString, IsNumber } from "class-validator";
+import { IsArray, IsBoolean, IsDateString, IsNumber, IsOptional, IsString } from "class-validator";
 import { Type } from "class-transformer";
 import { PrismaService } from "../../prisma/prisma.service";
 import { Permissions } from "../auth/permissions.decorator";
@@ -147,6 +147,30 @@ async function createDeadlineEvent(prisma: PrismaService, project: any, userIds:
       });
     }
   }
+}
+
+// ── DTOs gerados: sem classe, o ValidationPipe global nao tem metadata e a
+//    rota aceita qualquer JSON. Campos derivados do tipo inline anterior.
+class CreateMilestoneProjectsDto {
+  @IsString() titulo: string;
+  @IsOptional() @IsString() descricao?: string;
+  @IsString() dataAlvo: string;
+}
+
+class UpdateMilestoneProjectsDto {
+  @IsOptional() @IsString() titulo?: string;
+  @IsOptional() @IsString() descricao?: string;
+  @IsOptional() @IsString() dataAlvo?: string;
+  @IsOptional() @IsBoolean() concluido?: boolean;
+}
+
+class AddMemberProjectsDto {
+  @IsString() userId: string;
+  @IsOptional() @IsString() papel?: string;
+}
+
+class EnviarAnexoProjectsDto {
+  @IsOptional() @IsString() titulo?: string;
 }
 
 @Controller("projects")
@@ -464,7 +488,7 @@ class ProjectsController {
 
   @Post(":id/milestones")
   @Permissions("projetos:editar")
-  async createMilestone(@Param("id") projectId: string, @Body() body: { titulo: string; descricao?: string; dataAlvo: string }) {
+  async createMilestone(@Param("id") projectId: string, @Body() body: CreateMilestoneProjectsDto) {
     if (!body.titulo?.trim() || !body.dataAlvo) throw new BadRequestException("titulo e dataAlvo obrigatorios");
     return this.prisma.milestone.create({
       data: { projectId, titulo: body.titulo, descricao: body.descricao, dataAlvo: new Date(body.dataAlvo) },
@@ -473,7 +497,7 @@ class ProjectsController {
 
   @Patch(":id/milestones/:mid")
   @Permissions("projetos:editar")
-  async updateMilestone(@Param("mid") mid: string, @Body() body: { titulo?: string; descricao?: string; dataAlvo?: string; concluido?: boolean }) {
+  async updateMilestone(@Param("mid") mid: string, @Body() body: UpdateMilestoneProjectsDto) {
     return this.prisma.milestone.update({
       where: { id: mid },
       data: {
@@ -497,7 +521,7 @@ class ProjectsController {
   @Post(":id/members")
   @Permissions("projetos:gerenciar")
   @Permissions("projetos:editar")
-  async addMember(@Param("id") id: string, @Body() body: { userId: string; papel?: string }, @Req() req: any) {
+  async addMember(@Param("id") id: string, @Body() body: AddMemberProjectsDto, @Req() req: any) {
     const project = await this.prisma.project.findUnique({ where: { id } });
     if (!project) throw new NotFoundException();
     const member = await this.prisma.projectMember.upsert({
@@ -680,7 +704,7 @@ class ProjectsController {
   }))
   async enviarAnexo(
     @Param("id") id: string,
-    @Body() dados: { titulo?: string },
+    @Body() dados: EnviarAnexoProjectsDto,
     @UploadedFile() arquivo: any,
     @Req() req: any,
   ) {

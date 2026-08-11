@@ -2,6 +2,7 @@ import {
   Module, Controller, Get, Post, Put, Delete, Body, Param,
   UseGuards, Req, Injectable, NotFoundException, BadRequestException, ForbiddenException,
 } from "@nestjs/common";
+import { IsNumber, IsOptional, IsString } from "class-validator";
 import { AuthGuard } from "@nestjs/passport";
 import { PrismaService } from "../../prisma/prisma.service";
 import { Permissions } from "../auth/permissions.decorator";
@@ -32,6 +33,16 @@ export class SlaService {
 }
 
 // ── SlaController ─────────────────────────────────────────────────────────────
+// ── DTOs gerados: sem classe, o ValidationPipe global nao tem metadata e a
+//    rota aceita qualquer JSON. Campos derivados do tipo inline anterior.
+class CreateRegraSlaDto {
+  @IsString() nome: string;
+  @IsString() prioridade: string;
+  @IsOptional() @IsString() categoria?: string;
+  @IsNumber() prazoRespostaH: number;
+  @IsNumber() prazoResolucaoH: number;
+}
+
 @Controller("sla")
 @UseGuards(AuthGuard("jwt"), PermissionsGuard)
 class SlaController {
@@ -51,7 +62,7 @@ class SlaController {
 
   @Post("regras")
   @Permissions("sla:gerenciar")
-  async createRegra(@Body() body: { nome: string; prioridade: string; categoria?: string; prazoRespostaH: number; prazoResolucaoH: number }, @Req() req: any) {
+  async createRegra(@Body() body: CreateRegraSlaDto, @Req() req: any) {
     if (!body.nome?.trim())          throw new BadRequestException("Nome obrigatorio");
     if (!body.prioridade)            throw new BadRequestException("Prioridade obrigatoria");
     if (!body.prazoRespostaH  || body.prazoRespostaH  < 1) throw new BadRequestException("Prazo de resposta invalido");

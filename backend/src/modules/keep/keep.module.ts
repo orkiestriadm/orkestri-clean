@@ -1,6 +1,6 @@
 import { Module, Controller, Get, Post, Put, Patch, Delete, Body, Param, Query, UseGuards, Req, ForbiddenException } from "@nestjs/common";
 import { AuthGuard } from "@nestjs/passport";
-import { IsString, IsOptional, IsBoolean } from "class-validator";
+import { IsBoolean, IsOptional, IsString } from "class-validator";
 import { PrismaService } from "../../prisma/prisma.service";
 import { Permissions } from "../auth/permissions.decorator";
 import { PermissionsGuard } from "../auth/permissions.guard";
@@ -25,6 +25,22 @@ class CreateDailyTaskDto {
   @IsString() titulo: string;
   @IsOptional() @IsString() tipo?: string;
   @IsOptional() @IsString() data?: string;
+}
+
+// ── DTOs gerados: sem classe, o ValidationPipe global nao tem metadata e a
+//    rota aceita qualquer JSON. Campos derivados do tipo inline anterior.
+class AddChecklistItemKeepDto {
+  @IsString() descricao: string;
+}
+
+class UpdateChecklistItemKeepDto {
+  @IsOptional() @IsBoolean() concluido?: boolean;
+  @IsOptional() @IsString() descricao?: string;
+}
+
+class UpdateDailyTaskKeepDto {
+  @IsOptional() @IsBoolean() concluido?: boolean;
+  @IsOptional() @IsString() titulo?: string;
 }
 
 @Controller("keep")
@@ -79,7 +95,7 @@ class KeepController {
 
   @Post("notes/:id/checklist")
   @Permissions("keep:editar")
-  async addChecklistItem(@Param("id") noteId: string, @Body() body: { descricao: string }, @Req() req: any) {
+  async addChecklistItem(@Param("id") noteId: string, @Body() body: AddChecklistItemKeepDto, @Req() req: any) {
     await this.prisma.note.findFirstOrThrow({ where: { id: noteId, userId: req.user.id } });
     let checklist = await this.prisma.checklist.findFirst({ where: { noteId } });
     if (!checklist) checklist = await this.prisma.checklist.create({ data: { noteId } });
@@ -88,7 +104,7 @@ class KeepController {
 
   @Patch("notes/:id/checklist/:itemId")
   @Permissions("keep:editar")
-  async updateChecklistItem(@Param("id") noteId: string, @Param("itemId") itemId: string, @Body() body: { concluido?: boolean; descricao?: string }, @Req() req: any) {
+  async updateChecklistItem(@Param("id") noteId: string, @Param("itemId") itemId: string, @Body() body: UpdateChecklistItemKeepDto, @Req() req: any) {
     // Verifica ownership da nota
     await this.prisma.note.findFirstOrThrow({ where: { id: noteId, userId: req.user.id } });
     return this.prisma.checklistItem.update({
@@ -134,7 +150,7 @@ class KeepController {
 
   @Patch("daily/:id")
   @Permissions("keep:editar")
-  async updateDailyTask(@Param("id") id: string, @Body() body: { concluido?: boolean; titulo?: string }, @Req() req: any) {
+  async updateDailyTask(@Param("id") id: string, @Body() body: UpdateDailyTaskKeepDto, @Req() req: any) {
     // Verifica ownership
     await this.prisma.dailyTask.findFirstOrThrow({ where: { id, userId: req.user.id } });
     return this.prisma.dailyTask.update({

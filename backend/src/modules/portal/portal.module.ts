@@ -3,6 +3,7 @@ import {
   Body, Param, Query, Req, UseGuards,
   NotFoundException, BadRequestException,
 } from "@nestjs/common";
+import { IsNumber, IsOptional, IsString } from "class-validator";
 import { AuthGuard } from "@nestjs/passport";
 import { randomUUID } from "crypto";
 import { PrismaService } from "../../prisma/prisma.service";
@@ -10,6 +11,22 @@ import { PermissionsGuard } from "../auth/permissions.guard";
 import { Permissions } from "../auth/permissions.decorator";
 
 const PORTAL_USER_ID = "00000000-0000-0000-0000-000000portal";
+
+// ── DTOs gerados: sem classe, o ValidationPipe global nao tem metadata e a
+//    rota aceita qualquer JSON. Campos derivados do tipo inline anterior.
+class CreateChamadoPortalDto {
+  @IsString() titulo: string;
+  @IsString() descricao: string;
+  @IsOptional() @IsString() prioridade?: string;
+  @IsOptional() @IsString() categoria?: string;
+  @IsOptional() @IsString() nomeContato?: string;
+  @IsOptional() @IsString() emailContato?: string;
+}
+
+class AvaliarPortalDto {
+  @IsNumber() nota: number;
+  @IsOptional() @IsString() comentario?: string;
+}
 
 @Controller("portal")
 class PortalController {
@@ -78,14 +95,7 @@ class PortalController {
   @Post(":token/chamado")
   async createChamado(
     @Param("token") token: string,
-    @Body() body: {
-      titulo: string;
-      descricao: string;
-      prioridade?: string;
-      categoria?: string;
-      nomeContato?: string;
-      emailContato?: string;
-    },
+    @Body() body: CreateChamadoPortalDto,
   ) {
     if (!body.titulo?.trim())    throw new BadRequestException("Título obrigatório");
     if (!body.descricao?.trim()) throw new BadRequestException("Descrição obrigatória");
@@ -129,7 +139,7 @@ class PortalController {
   async avaliar(
     @Param("token") token: string,
     @Param("id") id: string,
-    @Body() body: { nota: number; comentario?: string },
+    @Body() body: AvaliarPortalDto,
   ) {
     const nota = Number(body.nota);
     if (!nota || nota < 1 || nota > 5) throw new BadRequestException("Nota deve ser entre 1 e 5");

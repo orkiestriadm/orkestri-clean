@@ -5,7 +5,7 @@ import { filtroDeTipo, nomeSeguroParaMulter, validarArquivoGravado } from "../..
 import * as path from "path";
 import * as fs from "fs";
 import { AuthGuard } from "@nestjs/passport";
-import { IsString, IsOptional, IsInt, IsIn, Min, Max } from "class-validator";
+import { IsArray, IsBoolean, IsIn, IsInt, IsOptional, IsString, Max, Min } from "class-validator";
 import { Type } from "class-transformer";
 import { ConfigService } from "@nestjs/config";
 import { PrismaService } from "../../prisma/prisma.service";
@@ -139,6 +139,37 @@ const INCLUDE_DETAIL = {
     orderBy: { criadoEm: "asc" as const },
   },
 };
+
+// ── DTOs gerados: sem classe, o ValidationPipe global nao tem metadata e a
+//    rota aceita qualquer JSON. Campos derivados do tipo inline anterior.
+class BulkStatusChamadosDto {
+  @IsArray() @IsString({ each: true }) ids: string[];
+  @IsString() status: string;
+}
+
+class BulkAtribuirChamadosDto {
+  @IsArray() @IsString({ each: true }) ids: string[];
+  @IsOptional() @IsString() atendenteId: string | null;
+}
+
+class ChangeStatusChamadosDto {
+  @IsString() status: string;
+}
+
+class DevolverChamadosDto {
+  @IsOptional() @IsString() motivo?: string;
+}
+
+class AbrirManutencaoChamadosDto {
+  @IsOptional() @IsBoolean() imobiliza?: boolean;
+  @IsOptional() @IsString() tipo?: string;
+  @IsOptional() @IsString() localizacao?: string;
+  @IsOptional() @IsString() previsaoLiberacao?: string;
+}
+
+class AtribuirChamadosDto {
+  @IsOptional() @IsString() atendenteId: string | null;
+}
 
 @Controller("chamados")
 @UseGuards(AuthGuard("jwt"), PermissionsGuard)
@@ -329,7 +360,7 @@ class ChamadosController {
 
   @Patch("bulk/status")
   @Permissions("chamados:editar")
-  async bulkStatus(@Body() body: { ids: string[]; status: string }) {
+  async bulkStatus(@Body() body: BulkStatusChamadosDto) {
     if (!body.ids?.length) throw new BadRequestException("Nenhum chamado selecionado");
     if (!STATUS_VALID.includes(body.status)) throw new BadRequestException("Status inválido");
     const data: any = { status: body.status };
@@ -341,7 +372,7 @@ class ChamadosController {
 
   @Patch("bulk/atribuir")
   @Permissions("chamados:editar")
-  async bulkAtribuir(@Body() body: { ids: string[]; atendenteId: string | null }) {
+  async bulkAtribuir(@Body() body: BulkAtribuirChamadosDto) {
     if (!body.ids?.length) throw new BadRequestException("Nenhum chamado selecionado");
     await (this.prisma as any).chamado.updateMany({
       where: { id: { in: body.ids } },
@@ -605,7 +636,7 @@ class ChamadosController {
 
   @Patch(":id/status")
   @Permissions("chamados:editar")
-  async changeStatus(@Param("id") id: string, @Body() body: { status: string }, @Req() req: any) {
+  async changeStatus(@Param("id") id: string, @Body() body: ChangeStatusChamadosDto, @Req() req: any) {
     if (!STATUS_VALID.includes(body.status)) throw new BadRequestException("Status invalido");
     const existing = await acharNaOrganizacao(this.prisma.chamado, id, req, "Chamado nao encontrado");
     const canEdit = req.user.isMaster || existing.solicitanteId === req.user.id || existing.atendenteId === req.user.id;
@@ -695,7 +726,7 @@ class ChamadosController {
    *  fila não é devolvível — não há remetente. */
   @Patch(":id/devolver")
   @Permissions("chamados:editar")
-  async devolver(@Param("id") id: string, @Body() body: { motivo?: string }, @Req() req: any) {
+  async devolver(@Param("id") id: string, @Body() body: DevolverChamadosDto, @Req() req: any) {
     const motivo = (body?.motivo || "").trim();
     if (motivo.length < 5) throw new BadRequestException("Explique o motivo da devolução");
 
@@ -767,7 +798,7 @@ class ChamadosController {
   @Permissions("chamados:editar")
   async abrirManutencao(
     @Param("id") id: string,
-    @Body() body: { imobiliza?: boolean; tipo?: string; localizacao?: string; previsaoLiberacao?: string },
+    @Body() body: AbrirManutencaoChamadosDto,
     @Req() req: any,
   ) {
     const chamado: any = await this.prisma.chamado.findUnique({ where: { id } });
@@ -838,7 +869,7 @@ class ChamadosController {
 
   @Patch(":id/atribuir")
   @Permissions("chamados:editar")
-  async atribuir(@Param("id") id: string, @Body() body: { atendenteId: string | null }, @Req() req: any) {
+  async atribuir(@Param("id") id: string, @Body() body: AtribuirChamadosDto, @Req() req: any) {
     const existing = await acharNaOrganizacao(this.prisma.chamado, id, req, "Chamado nao encontrado");
     // Antes a regra era só "master ou solicitante" — escrita aqui dentro, e por
     // isso invisível para a matriz de permissões: marcar as 90 caixinhas não

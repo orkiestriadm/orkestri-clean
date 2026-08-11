@@ -3,6 +3,7 @@ import {
   Body, Param, Query, UseGuards, Req,
   NotFoundException, BadRequestException, ForbiddenException,
 } from "@nestjs/common";
+import { IsArray, IsNumber, IsOptional, IsString } from "class-validator";
 import { AuthGuard } from "@nestjs/passport";
 import { PrismaService } from "../../prisma/prisma.service";
 import { Permissions } from "../auth/permissions.decorator";
@@ -22,6 +23,21 @@ function mapFatura(f: any) {
 }
 
 // ── FaturasController ─────────────────────────────────────────────────────────
+// ── DTOs gerados: sem classe, o ValidationPipe global nao tem metadata e a
+//    rota aceita qualquer JSON. Campos derivados do tipo inline anterior.
+class GerarLoteFaturasDto {
+  @IsOptional() @IsNumber() mes?: number;
+  @IsOptional() @IsNumber() ano?: number;
+}
+
+class PagarFaturasDto {
+  @IsOptional() @IsString() dataPagamento?: string;
+}
+
+class ImportarFaturasDto {
+  @IsArray() rows: any[];
+}
+
 @Controller("faturas")
 @UseGuards(AuthGuard("jwt"), PermissionsGuard)
 class FaturasController {
@@ -85,7 +101,7 @@ class FaturasController {
   // POST /faturas/gerar-lote — gera faturas mensais de contratos vigentes
   @Post("gerar-lote")
   @Permissions("crm:ver")
-  async gerarLote(@Body() body: { mes?: number; ano?: number }, @Req() req: any) {
+  async gerarLote(@Body() body: GerarLoteFaturasDto, @Req() req: any) {
     const now2 = new Date();
     const mes = body.mes || (now2.getMonth() + 1);
     const ano = body.ano || now2.getFullYear();
@@ -254,7 +270,7 @@ class FaturasController {
   // PATCH /faturas/:id/pagar — marcar como pago
   @Patch(":id/pagar")
   @Permissions("crm:ver")
-  async pagar(@Param("id") id: string, @Body() body: { dataPagamento?: string }, @Req() req: any) {
+  async pagar(@Param("id") id: string, @Body() body: PagarFaturasDto, @Req() req: any) {
     const existing = await acharNaOrganizacao(this.db.fatura, id, req, "Fatura nao encontrada");
     const updated = await this.db.fatura.update({
       where: { id },
@@ -274,7 +290,7 @@ class FaturasController {
   // POST /faturas/importar — bulk import from CSV rows
   @Post("importar")
   @Permissions("crm:ver")
-  async importar(@Body() body: { rows: any[] }, @Req() req: any) {
+  async importar(@Body() body: ImportarFaturasDto, @Req() req: any) {
     const rows = body.rows || [];
     const criadas: any[] = [];
     const erros: { linha: number; erro: string }[] = [];

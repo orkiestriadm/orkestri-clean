@@ -4,6 +4,8 @@ import {
   NotFoundException, BadRequestException,
   UnauthorizedException, Logger,
 } from "@nestjs/common";
+import { IsArray, IsBoolean, IsNumber, IsOptional, IsString, ValidateNested } from "class-validator";
+import { Type } from "class-transformer";
 import { AuthGuard } from "@nestjs/passport";
 import { PrismaService } from "../../prisma/prisma.service";
 import { Permissions } from "../auth/permissions.decorator";
@@ -32,6 +34,62 @@ function mapAtivo(a: any) {
 }
 
 // ── Categories Controller ─────────────────────────────────────────────────────
+/**
+ * Resultado de varredura enviado pelo agente de monitoramento.
+ *
+ * Objeto ANINHADO, então precisa de `@ValidateNested` + `@Type`: sem os dois o
+ * class-validator trata cada item do array como valor solto e não desce nos
+ * campos — a validação passaria a existir só no nome.
+ */
+class ResultadoAtivoDto {
+  @IsString() ativoId: string;
+  @IsBoolean() online: boolean;
+  @IsOptional() @IsNumber() latenciaMs?: number;
+  @IsOptional() @IsString() erro?: string;
+}
+
+class ResultadosMonitoramentoDto {
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => ResultadoAtivoDto)
+  resultados: ResultadoAtivoDto[];
+}
+
+// ── DTOs gerados: sem classe, o ValidationPipe global nao tem metadata e a
+//    rota aceita qualquer JSON. Campos derivados do tipo inline anterior.
+class CreateAtivos2Dto {
+  @IsString() nome: string;
+  @IsOptional() @IsString() descricao?: string;
+  @IsOptional() @IsString() icone?: string;
+  @IsOptional() @IsString() cor?: string;
+}
+
+class CreateAtivosDto {
+  @IsString() nome: string;
+  @IsOptional() @IsString() codigo?: string;
+  @IsOptional() @IsString() descricao?: string;
+  @IsOptional() @IsString() categoriaId?: string;
+  @IsOptional() @IsString() status?: string;
+  @IsOptional() @IsString() marca?: string;
+  @IsOptional() @IsString() modelo?: string;
+  @IsOptional() @IsString() numeroSerie?: string;
+  @IsOptional() @IsString() localizacao?: string;
+  @IsOptional() @IsString() responsavelId?: string;
+  @IsOptional() @IsString() setorId?: string;
+  @IsOptional() @IsString() dataAquisicao?: string;
+  @IsOptional() @IsNumber() valorAquisicao?: number;
+  @IsOptional() @IsString() dataGarantiaFim?: string;
+  @IsOptional() @IsString() observacoes?: string;
+  @IsOptional() @IsString() ip?: string;
+  @IsOptional() @IsBoolean() monitorar?: boolean;
+}
+
+class TransferirAtivosDto {
+  @IsOptional() @IsString() responsavelId?: string;
+  @IsOptional() @IsString() setorId?: string;
+  @IsOptional() @IsString() motivo?: string;
+}
+
 @Controller("ativos/categorias")
 @UseGuards(AuthGuard("jwt"), PermissionsGuard)
 class CategoriasAtivoController {
@@ -52,7 +110,7 @@ class CategoriasAtivoController {
 
   @Post()
   @Permissions("ativos:criar")
-  async create(@Body() body: { nome: string; descricao?: string; icone?: string; cor?: string }, @Req() req: any) {
+  async create(@Body() body: CreateAtivos2Dto, @Req() req: any) {
     if (!body.nome?.trim()) throw new BadRequestException("Nome obrigatorio");
     const orgId = req.user?.organizationId;
     try {
@@ -194,7 +252,7 @@ class MonitoramentoController {
   @Post("agent/report")
   async receiveReport(
     @Headers("x-monitoring-key") key: string,
-    @Body() body: { resultados: { ativoId: string; online: boolean; latenciaMs?: number; erro?: string }[] },
+    @Body() body: ResultadosMonitoramentoDto,
   ) {
     const orgId = await this.resolveOrg(key);
     if (!orgId) throw new UnauthorizedException("Chave de monitoramento invalida");
@@ -320,13 +378,7 @@ class AtivosController {
 
   @Post()
   @Permissions("ativos:criar")
-  async create(@Body() body: {
-    nome: string; codigo?: string; descricao?: string; categoriaId?: string;
-    status?: string; marca?: string; modelo?: string; numeroSerie?: string;
-    localizacao?: string; responsavelId?: string; setorId?: string;
-    dataAquisicao?: string; valorAquisicao?: number; dataGarantiaFim?: string;
-    observacoes?: string; ip?: string; monitorar?: boolean;
-  }, @Req() req: any) {
+  async create(@Body() body: CreateAtivosDto, @Req() req: any) {
     if (!body.nome?.trim()) throw new BadRequestException("Nome obrigatorio");
     const orgId = req.user?.organizationId;
 
@@ -392,7 +444,7 @@ class AtivosController {
 
   @Patch(":id/transferir")
   @Permissions("ativos:mover")
-  async transferir(@Param("id") id: string, @Body() body: { responsavelId?: string; setorId?: string; motivo?: string }, @Req() req: any) {
+  async transferir(@Param("id") id: string, @Body() body: TransferirAtivosDto, @Req() req: any) {
     const ativo = await acharNaOrganizacao(this.db.ativo, id, req, "Ativo nao encontrado");
     if (!body.responsavelId && !body.setorId) throw new BadRequestException("Informe responsavel ou setor de destino");
     await this.db.transferenciaAtivo.create({

@@ -2,6 +2,7 @@ import {
   Module, Controller, Get, Post, Put, Delete, Body, Param, Query,
   UseGuards, Req, NotFoundException, BadRequestException,
 } from "@nestjs/common";
+import { IsArray } from "class-validator";
 import { AuthGuard } from "@nestjs/passport";
 import { PrismaService } from "../../prisma/prisma.service";
 import { Permissions } from "../auth/permissions.decorator";
@@ -92,6 +93,12 @@ function parseRow(row: any, orgId: string, importadoEm: Date) {
 }
 
 // ── Controller ────────────────────────────────────────────────────────────────
+
+// ── DTOs gerados: sem classe, o ValidationPipe global nao tem metadata e a
+//    rota aceita qualquer JSON. Campos derivados do tipo inline anterior.
+class ImportarFinanceiroDto {
+  @IsArray() rows: any[];
+}
 
 @Controller("financeiro")
 @UseGuards(AuthGuard("jwt"), PermissionsGuard)
@@ -319,7 +326,7 @@ class FinanceiroController {
 
   @Post("contas-a-pagar/importar")
   @Permissions("financeiro:gerenciar")
-  async importar(@Body() body: { rows: any[] }, @Req() req: any) {
+  async importar(@Body() body: ImportarFinanceiroDto, @Req() req: any) {
     const orgId = req.user?.organizationId;
     if (!Array.isArray(body.rows) || body.rows.length === 0)
       throw new BadRequestException("Sem linhas para importar");

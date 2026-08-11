@@ -3,6 +3,7 @@ import {
   Body, Param, Query, UseGuards, Req,
   NotFoundException, BadRequestException, ForbiddenException,
 } from "@nestjs/common";
+import { IsArray, IsBoolean, IsNumber, IsOptional, IsString } from "class-validator";
 import { AuthGuard } from "@nestjs/passport";
 import { PrismaService } from "../../prisma/prisma.service";
 import { Permissions } from "../auth/permissions.decorator";
@@ -40,6 +41,29 @@ const ARTIGO_SELECT_LIST = {
 };
 
 // ── Categories Controller ─────────────────────────────────────────────────────
+// ── DTOs gerados: sem classe, o ValidationPipe global nao tem metadata e a
+//    rota aceita qualquer JSON. Campos derivados do tipo inline anterior.
+class CreateConhecimento2Dto {
+  @IsString() nome: string;
+  @IsOptional() @IsString() descricao?: string;
+  @IsOptional() @IsString() icone?: string;
+  @IsOptional() @IsString() cor?: string;
+  @IsOptional() @IsNumber() ordem?: number;
+}
+
+class CreateConhecimentoDto {
+  @IsString() titulo: string;
+  @IsOptional() @IsString() resumo?: string;
+  @IsOptional() @IsString() conteudo?: string;
+  @IsOptional() @IsString() categoriaId?: string;
+  @IsOptional() @IsArray() @IsString({ each: true }) tags?: string[];
+  @IsOptional() @IsString() status?: string;
+}
+
+class PublicarConhecimentoDto {
+  @IsBoolean() publicar: boolean;
+}
+
 @Controller("conhecimento/categorias")
 @UseGuards(AuthGuard("jwt"), PermissionsGuard)
 class CategoriasController {
@@ -60,7 +84,7 @@ class CategoriasController {
 
   @Post()
   @Permissions("conhecimento:criar")
-  async create(@Body() body: { nome: string; descricao?: string; icone?: string; cor?: string; ordem?: number }, @Req() req: any) {
+  async create(@Body() body: CreateConhecimento2Dto, @Req() req: any) {
     if (!body.nome?.trim()) throw new BadRequestException("Nome obrigatorio");
     const orgId = req.user?.organizationId;
     try {
@@ -226,7 +250,7 @@ class ConhecimentoController {
   // POST /conhecimento — create article
   @Post()
   @Permissions("conhecimento:criar")
-  async create(@Body() body: { titulo: string; resumo?: string; conteudo?: string; categoriaId?: string; tags?: string[]; status?: string }, @Req() req: any) {
+  async create(@Body() body: CreateConhecimentoDto, @Req() req: any) {
     if (!body.titulo?.trim()) throw new BadRequestException("Titulo obrigatorio");
     const baseSlug = slugify(body.titulo);
     const slug = await uniqueSlug(this.db, baseSlug);
@@ -287,7 +311,7 @@ class ConhecimentoController {
   // PATCH /conhecimento/:id/publicar — publish or unpublish
   @Patch(":id/publicar")
   @Permissions("conhecimento:publicar")
-  async publicar(@Param("id") id: string, @Body() body: { publicar: boolean }, @Req() req: any) {
+  async publicar(@Param("id") id: string, @Body() body: PublicarConhecimentoDto, @Req() req: any) {
     const existing = await acharNaOrganizacao(this.db.artigoConhecimento, id, req, "Artigo nao encontrado");
     const status = body.publicar ? "publicado" : "rascunho";
     return this.db.artigoConhecimento.update({
