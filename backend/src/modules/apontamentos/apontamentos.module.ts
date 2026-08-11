@@ -7,6 +7,7 @@ import { AuthGuard } from "@nestjs/passport";
 import { PrismaService } from "../../prisma/prisma.service";
 import { Permissions } from "../auth/permissions.decorator";
 import { PermissionsGuard } from "../auth/permissions.guard";
+import { acharNaOrganizacao } from "../../common/escopo-organizacao";
 
 // ── ApontamentosController ────────────────────────────────────────────────────
 @Controller("apontamentos")
@@ -121,8 +122,7 @@ class ApontamentosController {
   @Delete(":id")
   @Permissions("chamados:ver")
   async remove(@Param("id") id: string, @Req() req: any) {
-    const ap = await this.db.apontamentoHoras.findUnique({ where: { id } });
-    if (!ap) throw new NotFoundException("Apontamento nao encontrado");
+    const ap = await acharNaOrganizacao(this.db.apontamentoHoras, id, req, "Apontamento nao encontrado");
     if (ap.userId !== req.user.id && !req.user.isMaster)
       throw new ForbiddenException("Apenas o dono ou um master pode remover este apontamento");
     await this.db.apontamentoHoras.delete({ where: { id } });

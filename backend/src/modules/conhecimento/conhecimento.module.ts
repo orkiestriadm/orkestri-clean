@@ -7,6 +7,7 @@ import { AuthGuard } from "@nestjs/passport";
 import { PrismaService } from "../../prisma/prisma.service";
 import { Permissions } from "../auth/permissions.decorator";
 import { PermissionsGuard } from "../auth/permissions.guard";
+import { acharNaOrganizacao } from "../../common/escopo-organizacao";
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 function slugify(text: string): string {
@@ -82,9 +83,8 @@ class CategoriasController {
 
   @Put(":id")
   @Permissions("conhecimento:editar")
-  async update(@Param("id") id: string, @Body() body: any) {
-    const existing = await this.db.categoriaConhecimento.findUnique({ where: { id } });
-    if (!existing) throw new NotFoundException("Categoria nao encontrada");
+  async update(@Param("id") id: string, @Body() body: any, @Req() req: any) {
+    const existing = await acharNaOrganizacao(this.db.categoriaConhecimento, id, req, "Categoria nao encontrada");
     return this.db.categoriaConhecimento.update({
       where: { id },
       data: {
@@ -100,9 +100,8 @@ class CategoriasController {
 
   @Delete(":id")
   @Permissions("conhecimento:excluir")
-  async remove(@Param("id") id: string) {
-    const existing = await this.db.categoriaConhecimento.findUnique({ where: { id } });
-    if (!existing) throw new NotFoundException("Categoria nao encontrada");
+  async remove(@Param("id") id: string, @Req() req: any) {
+    const existing = await acharNaOrganizacao(this.db.categoriaConhecimento, id, req, "Categoria nao encontrada");
     // Disassociate articles before deleting
     await this.db.artigoConhecimento.updateMany({ where: { categoriaId: id }, data: { categoriaId: null } });
     await this.db.categoriaConhecimento.delete({ where: { id } });
@@ -258,8 +257,7 @@ class ConhecimentoController {
   @Put(":id")
   @Permissions("conhecimento:editar")
   async update(@Param("id") id: string, @Body() body: any, @Req() req: any) {
-    const existing = await this.db.artigoConhecimento.findUnique({ where: { id } });
-    if (!existing) throw new NotFoundException("Artigo nao encontrado");
+    const existing = await acharNaOrganizacao(this.db.artigoConhecimento, id, req, "Artigo nao encontrado");
 
     const canEdit = req.user.isMaster || req.user.permissions?.includes("*") ||
       req.user.permissions?.includes("conhecimento:editar") || existing.autorId === req.user.id;
@@ -290,8 +288,7 @@ class ConhecimentoController {
   @Patch(":id/publicar")
   @Permissions("conhecimento:publicar")
   async publicar(@Param("id") id: string, @Body() body: { publicar: boolean }, @Req() req: any) {
-    const existing = await this.db.artigoConhecimento.findUnique({ where: { id } });
-    if (!existing) throw new NotFoundException("Artigo nao encontrado");
+    const existing = await acharNaOrganizacao(this.db.artigoConhecimento, id, req, "Artigo nao encontrado");
     const status = body.publicar ? "publicado" : "rascunho";
     return this.db.artigoConhecimento.update({
       where: { id },
@@ -307,8 +304,7 @@ class ConhecimentoController {
   @Delete(":id")
   @Permissions("conhecimento:excluir")
   async remove(@Param("id") id: string, @Req() req: any) {
-    const existing = await this.db.artigoConhecimento.findUnique({ where: { id } });
-    if (!existing) throw new NotFoundException("Artigo nao encontrado");
+    const existing = await acharNaOrganizacao(this.db.artigoConhecimento, id, req, "Artigo nao encontrado");
     const canDelete = req.user.isMaster || req.user.permissions?.includes("*") ||
       req.user.permissions?.includes("conhecimento:excluir") || existing.autorId === req.user.id;
     if (!canDelete) throw new ForbiddenException("Sem permissao");

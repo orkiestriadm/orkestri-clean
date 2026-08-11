@@ -10,6 +10,7 @@ import { Permissions } from "../auth/permissions.decorator";
 import { PermissionsGuard } from "../auth/permissions.guard";
 import { AutomacaoService } from "../automacoes/automacoes.module";
 import { AutomacoesModule } from "../automacoes/automacoes.module";
+import { acharNaOrganizacao } from "../../common/escopo-organizacao";
 import * as crypto from "crypto";
 
 // ── helpers ───────────────────────────────────────────────────────────────────
@@ -66,17 +67,15 @@ class CategoriasAtivoController {
 
   @Put(":id")
   @Permissions("ativos:editar")
-  async update(@Param("id") id: string, @Body() body: any) {
-    const existing = await this.db.categoriaAtivo.findUnique({ where: { id } });
-    if (!existing) throw new NotFoundException("Categoria nao encontrada");
+  async update(@Param("id") id: string, @Body() body: any, @Req() req: any) {
+    await acharNaOrganizacao(this.db.categoriaAtivo, id, req, "Categoria nao encontrada");
     return this.db.categoriaAtivo.update({ where: { id }, data: { ...(body.nome && { nome: body.nome.trim() }), ...(body.descricao !== undefined && { descricao: body.descricao }), ...(body.icone && { icone: body.icone }), ...(body.cor && { cor: body.cor }), ...(body.ativo !== undefined && { ativo: Boolean(body.ativo) }) } });
   }
 
   @Delete(":id")
   @Permissions("ativos:excluir")
-  async remove(@Param("id") id: string) {
-    const existing = await this.db.categoriaAtivo.findUnique({ where: { id } });
-    if (!existing) throw new NotFoundException("Categoria nao encontrada");
+  async remove(@Param("id") id: string, @Req() req: any) {
+    await acharNaOrganizacao(this.db.categoriaAtivo, id, req, "Categoria nao encontrada");
     await this.db.ativo.updateMany({ where: { categoriaId: id }, data: { categoriaId: null } });
     await this.db.categoriaAtivo.delete({ where: { id } });
     return { message: "Categoria removida" };
@@ -302,9 +301,8 @@ class AtivosController {
 
   @Get(":id")
   @Permissions("ativos:ver")
-  async findOne(@Param("id") id: string) {
-    const ativo = await this.db.ativo.findUnique({
-      where: { id },
+  async findOne(@Param("id") id: string, @Req() req: any) {
+    const ativo = await acharNaOrganizacao(this.db.ativo, id, req, "Ativo nao encontrado", {
       include: {
         ...ATIVO_INCLUDE,
         transferencias: {
@@ -317,7 +315,6 @@ class AtivosController {
         },
       },
     });
-    if (!ativo) throw new NotFoundException("Ativo nao encontrado");
     return mapAtivo(ativo);
   }
 
@@ -366,9 +363,8 @@ class AtivosController {
 
   @Put(":id")
   @Permissions("ativos:editar")
-  async update(@Param("id") id: string, @Body() body: any) {
-    const existing = await this.db.ativo.findUnique({ where: { id } });
-    if (!existing) throw new NotFoundException("Ativo nao encontrado");
+  async update(@Param("id") id: string, @Body() body: any, @Req() req: any) {
+    await acharNaOrganizacao(this.db.ativo, id, req, "Ativo nao encontrado");
     if (body.status && !STATUS_VALID.includes(body.status)) throw new BadRequestException("Status invalido");
     return mapAtivo(await this.db.ativo.update({
       where: { id },
@@ -397,8 +393,7 @@ class AtivosController {
   @Patch(":id/transferir")
   @Permissions("ativos:mover")
   async transferir(@Param("id") id: string, @Body() body: { responsavelId?: string; setorId?: string; motivo?: string }, @Req() req: any) {
-    const ativo = await this.db.ativo.findUnique({ where: { id } });
-    if (!ativo) throw new NotFoundException("Ativo nao encontrado");
+    const ativo = await acharNaOrganizacao(this.db.ativo, id, req, "Ativo nao encontrado");
     if (!body.responsavelId && !body.setorId) throw new BadRequestException("Informe responsavel ou setor de destino");
     await this.db.transferenciaAtivo.create({
       data: { id: crypto.randomUUID(), ativoId: id, deResponsavelId: ativo.responsavelId || null, paraResponsavelId: body.responsavelId || null, deSetorId: ativo.setorId || null, paraSetorId: body.setorId || null, motivo: body.motivo || null, realizadoPorId: req.user.id },
@@ -412,9 +407,8 @@ class AtivosController {
 
   @Delete(":id")
   @Permissions("ativos:excluir")
-  async remove(@Param("id") id: string) {
-    const existing = await this.db.ativo.findUnique({ where: { id } });
-    if (!existing) throw new NotFoundException("Ativo nao encontrado");
+  async remove(@Param("id") id: string, @Req() req: any) {
+    await acharNaOrganizacao(this.db.ativo, id, req, "Ativo nao encontrado");
     await this.db.ativo.delete({ where: { id } });
     return { message: "Ativo removido" };
   }

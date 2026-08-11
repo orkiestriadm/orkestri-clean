@@ -7,6 +7,7 @@ import { AuthGuard } from "@nestjs/passport";
 import { PrismaService } from "../../prisma/prisma.service";
 import { Permissions } from "../auth/permissions.decorator";
 import { PermissionsGuard } from "../auth/permissions.guard";
+import { acharNaOrganizacao } from "../../common/escopo-organizacao";
 import * as crypto from "crypto";
 import * as net from "net";
 import * as dns from "dns/promises";
@@ -251,9 +252,8 @@ class WebhooksController {
 
   @Put(":id")
   @Permissions("automacoes:editar")
-  async update(@Param("id") id: string, @Body() body: any) {
-    const existing = await this.db.webhook.findUnique({ where: { id } });
-    if (!existing) throw new NotFoundException("Webhook não encontrado");
+  async update(@Param("id") id: string, @Body() body: any, @Req() req: any) {
+    const existing = await acharNaOrganizacao(this.db.webhook, id, req, "Webhook não encontrado");
     if (body.url) await validateWebhookUrl(body.url);
     if (body.evento && !WEBHOOK_EVENTOS.includes(body.evento)) throw new BadRequestException("Evento inválido");
     return this.db.webhook.update({
@@ -273,17 +273,15 @@ class WebhooksController {
 
   @Patch(":id/toggle")
   @Permissions("automacoes:editar")
-  async toggle(@Param("id") id: string) {
-    const existing = await this.db.webhook.findUnique({ where: { id } });
-    if (!existing) throw new NotFoundException("Webhook não encontrado");
+  async toggle(@Param("id") id: string, @Req() req: any) {
+    const existing = await acharNaOrganizacao(this.db.webhook, id, req, "Webhook não encontrado");
     return this.db.webhook.update({ where: { id }, data: { ativo: !existing.ativo } });
   }
 
   @Post(":id/testar")
   @Permissions("automacoes:editar")
-  async testar(@Param("id") id: string) {
-    const hook = await this.db.webhook.findUnique({ where: { id } });
-    if (!hook) throw new NotFoundException("Webhook não encontrado");
+  async testar(@Param("id") id: string, @Req() req: any) {
+    const hook = await acharNaOrganizacao(this.db.webhook, id, req, "Webhook não encontrado");
 
     // Single dispatch (no retry) for a quick test
     await this.webhookService.dispatch(hook, hook.evento, {
@@ -301,9 +299,8 @@ class WebhooksController {
 
   @Delete(":id")
   @Permissions("automacoes:excluir")
-  async remove(@Param("id") id: string) {
-    const existing = await this.db.webhook.findUnique({ where: { id } });
-    if (!existing) throw new NotFoundException("Webhook não encontrado");
+  async remove(@Param("id") id: string, @Req() req: any) {
+    const existing = await acharNaOrganizacao(this.db.webhook, id, req, "Webhook não encontrado");
     await this.db.webhook.delete({ where: { id } });
     return { message: "Webhook removido" };
   }

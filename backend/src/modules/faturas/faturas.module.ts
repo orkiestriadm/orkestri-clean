@@ -7,6 +7,7 @@ import { AuthGuard } from "@nestjs/passport";
 import { PrismaService } from "../../prisma/prisma.service";
 import { Permissions } from "../auth/permissions.decorator";
 import { PermissionsGuard } from "../auth/permissions.guard";
+import { acharNaOrganizacao } from "../../common/escopo-organizacao";
 
 const STATUS_VALID = ["pendente", "pago", "vencido", "cancelado"];
 
@@ -227,9 +228,8 @@ class FaturasController {
   // PUT /faturas/:id
   @Put(":id")
   @Permissions("crm:ver")
-  async update(@Param("id") id: string, @Body() body: any) {
-    const existing = await this.db.fatura.findUnique({ where: { id } });
-    if (!existing) throw new NotFoundException("Fatura nao encontrada");
+  async update(@Param("id") id: string, @Body() body: any, @Req() req: any) {
+    const existing = await acharNaOrganizacao(this.db.fatura, id, req, "Fatura nao encontrada");
 
     const data: any = { atualizadoEm: new Date() };
     if (body.descricao      !== undefined) data.descricao      = body.descricao;
@@ -255,9 +255,8 @@ class FaturasController {
   // PATCH /faturas/:id/pagar — marcar como pago
   @Patch(":id/pagar")
   @Permissions("crm:ver")
-  async pagar(@Param("id") id: string, @Body() body: { dataPagamento?: string }) {
-    const existing = await this.db.fatura.findUnique({ where: { id } });
-    if (!existing) throw new NotFoundException("Fatura nao encontrada");
+  async pagar(@Param("id") id: string, @Body() body: { dataPagamento?: string }, @Req() req: any) {
+    const existing = await acharNaOrganizacao(this.db.fatura, id, req, "Fatura nao encontrada");
     const updated = await this.db.fatura.update({
       where: { id },
       data: {
@@ -330,8 +329,7 @@ class FaturasController {
   @Permissions("crm:ver")
   async remove(@Param("id") id: string, @Req() req: any) {
     if (!req.user.isMaster) throw new ForbiddenException("Apenas masters podem remover faturas");
-    const existing = await this.db.fatura.findUnique({ where: { id } });
-    if (!existing) throw new NotFoundException("Fatura nao encontrada");
+    const existing = await acharNaOrganizacao(this.db.fatura, id, req, "Fatura nao encontrada");
     await this.db.fatura.delete({ where: { id } });
     return { message: "Fatura removida" };
   }

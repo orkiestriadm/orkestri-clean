@@ -10,6 +10,7 @@ import { AuthGuard } from "@nestjs/passport";
 import { PrismaService } from "../../prisma/prisma.service";
 import { Permissions } from "../auth/permissions.decorator";
 import { PermissionsGuard } from "../auth/permissions.guard";
+import { acharNaOrganizacao } from "../../common/escopo-organizacao";
 import { WhatsAppService } from "../notifications/whatsapp.service";
 import { EmailService } from "../notifications/email.service";
 import { NotificationsModule } from "../notifications/notifications.module";
@@ -687,9 +688,8 @@ class AutomacoesController {
 
   @Get(":id")
   @Permissions("automacoes:ver")
-  async findOne(@Param("id") id: string) {
-    const a = await this.db.automacao.findUnique({ where: { id } });
-    if (!a) throw new NotFoundException("Automacao nao encontrada");
+  async findOne(@Param("id") id: string, @Req() req: any) {
+    const a = await acharNaOrganizacao(this.db.automacao, id, req, "Automacao nao encontrada");
     return a;
   }
 
@@ -719,9 +719,8 @@ class AutomacoesController {
 
   @Put(":id")
   @Permissions("automacoes:editar")
-  async update(@Param("id") id: string, @Body() body: any) {
-    const existing = await this.db.automacao.findUnique({ where: { id } });
-    if (!existing) throw new NotFoundException("Automacao nao encontrada");
+  async update(@Param("id") id: string, @Body() body: any, @Req() req: any) {
+    const existing = await acharNaOrganizacao(this.db.automacao, id, req, "Automacao nao encontrada");
     if (body.trigger && !TRIGGERS_VALIDOS.includes(body.trigger)) throw new BadRequestException("Trigger invalido");
     if (body.acoes !== undefined) validateAcoes(body.acoes);
     return this.db.automacao.update({
@@ -739,17 +738,15 @@ class AutomacoesController {
 
   @Patch(":id/toggle")
   @Permissions("automacoes:editar")
-  async toggle(@Param("id") id: string) {
-    const existing = await this.db.automacao.findUnique({ where: { id } });
-    if (!existing) throw new NotFoundException("Automacao nao encontrada");
+  async toggle(@Param("id") id: string, @Req() req: any) {
+    const existing = await acharNaOrganizacao(this.db.automacao, id, req, "Automacao nao encontrada");
     return this.db.automacao.update({ where: { id }, data: { ativo: !existing.ativo } });
   }
 
   @Post(":id/testar")
   @Permissions("automacoes:editar")
-  async testar(@Param("id") id: string, @Body() body: { contexto?: Record<string, any>; dryRun?: boolean }) {
-    const auto = await this.db.automacao.findUnique({ where: { id } });
-    if (!auto) throw new NotFoundException("Automacao nao encontrada");
+  async testar(@Param("id") id: string, @Body() body: { contexto?: Record<string, any>; dryRun?: boolean }, @Req() req: any) {
+    const auto = await acharNaOrganizacao(this.db.automacao, id, req, "Automacao nao encontrada");
     const ctx = body.contexto || {
       prioridade: "alta", status: "aberto", categoria: "teste",
       titulo: "Chamado de teste", numero: 99, tags: "",
@@ -790,8 +787,7 @@ class AutomacoesController {
   @Permissions("automacoes:excluir")
   async remove(@Param("id") id: string, @Req() req: any) {
     if (!req.user.isMaster) throw new ForbiddenException("Apenas masters podem remover automacoes");
-    const existing = await this.db.automacao.findUnique({ where: { id } });
-    if (!existing) throw new NotFoundException("Automacao nao encontrada");
+    const existing = await acharNaOrganizacao(this.db.automacao, id, req, "Automacao nao encontrada");
     await this.db.automacao.delete({ where: { id } });
     return { message: "Automacao removida" };
   }

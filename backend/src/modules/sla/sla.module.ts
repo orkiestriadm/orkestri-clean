@@ -6,6 +6,7 @@ import { AuthGuard } from "@nestjs/passport";
 import { PrismaService } from "../../prisma/prisma.service";
 import { Permissions } from "../auth/permissions.decorator";
 import { PermissionsGuard } from "../auth/permissions.guard";
+import { acharNaOrganizacao } from "../../common/escopo-organizacao";
 
 // ── SlaService (exported for use in ChamadosModule) ───────────────────────────
 @Injectable()
@@ -76,9 +77,8 @@ class SlaController {
 
   @Put("regras/:id")
   @Permissions("sla:gerenciar")
-  async updateRegra(@Param("id") id: string, @Body() body: any) {
-    const existing = await this.db.slaRegra.findUnique({ where: { id } });
-    if (!existing) throw new NotFoundException("Regra nao encontrada");
+  async updateRegra(@Param("id") id: string, @Body() body: any, @Req() req: any) {
+    const existing = await acharNaOrganizacao(this.db.slaRegra, id, req, "Regra nao encontrada");
     return this.db.slaRegra.update({
       where: { id },
       data: {
@@ -92,9 +92,8 @@ class SlaController {
 
   @Delete("regras/:id")
   @Permissions("sla:gerenciar")
-  async deleteRegra(@Param("id") id: string) {
-    const existing = await this.db.slaRegra.findUnique({ where: { id } });
-    if (!existing) throw new NotFoundException("Regra nao encontrada");
+  async deleteRegra(@Param("id") id: string, @Req() req: any) {
+    const existing = await acharNaOrganizacao(this.db.slaRegra, id, req, "Regra nao encontrada");
     await this.db.slaRegra.delete({ where: { id } });
     return { message: "Regra removida" };
   }

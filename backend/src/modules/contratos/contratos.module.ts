@@ -12,6 +12,7 @@ import * as fs from "fs";
 import { PrismaService } from "../../prisma/prisma.service";
 import { Permissions } from "../auth/permissions.decorator";
 import { PermissionsGuard } from "../auth/permissions.guard";
+import { acharNaOrganizacao } from "../../common/escopo-organizacao";
 import { AutomacaoService } from "../automacoes/automacoes.module";
 import { AutomacoesModule } from "../automacoes/automacoes.module";
 
@@ -180,9 +181,8 @@ class ContratosController {
   // PUT /contratos/:id
   @Put(":id")
   @Permissions("crm:ver")
-  async update(@Param("id") id: string, @Body() body: any) {
-    const existing = await this.db.contrato.findUnique({ where: { id } });
-    if (!existing) throw new NotFoundException("Contrato nao encontrado");
+  async update(@Param("id") id: string, @Body() body: any, @Req() req: any) {
+    const existing = await acharNaOrganizacao(this.db.contrato, id, req, "Contrato nao encontrado");
 
     const data: any = {};
     if (body.titulo       !== undefined) data.titulo         = body.titulo.trim();
@@ -219,10 +219,9 @@ class ContratosController {
   async renovar(
     @Param("id") id: string,
     @Body() body: { vigenciaInicio: string; vigenciaFim: string; valor?: number; titulo?: string },
-  ) {
+  @Req() req: any) {
     if (!body.vigenciaInicio || !body.vigenciaFim) throw new BadRequestException("Datas de vigência obrigatórias");
-    const existing = await this.db.contrato.findUnique({ where: { id } });
-    if (!existing) throw new NotFoundException("Contrato não encontrado");
+    const existing = await acharNaOrganizacao(this.db.contrato, id, req, "Contrato não encontrado");
 
     const numero = await nextNumero(this.db);
     const novo = await this.db.contrato.create({
@@ -257,8 +256,7 @@ class ContratosController {
   @Permissions("crm:ver")
   async remove(@Param("id") id: string, @Req() req: any) {
     if (!req.user.isMaster) throw new ForbiddenException("Apenas masters podem remover contratos");
-    const existing = await this.db.contrato.findUnique({ where: { id } });
-    if (!existing) throw new NotFoundException("Contrato nao encontrado");
+    const existing = await acharNaOrganizacao(this.db.contrato, id, req, "Contrato nao encontrado");
     await this.db.contrato.delete({ where: { id } });
     return { message: "Contrato removido" };
   }
