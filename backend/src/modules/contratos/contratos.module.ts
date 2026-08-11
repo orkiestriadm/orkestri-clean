@@ -125,9 +125,8 @@ class ContratosController {
   // GET /contratos/:id
   @Get(":id")
   @Permissions("crm:ver")
-  async findOne(@Param("id") id: string) {
-    const c = await this.db.contrato.findUnique({
-      where: { id },
+  async findOne(@Param("id") id: string, @Req() req: any) {
+    const c = await acharNaOrganizacao(this.db.contrato, id, req, "Contrato nao encontrado", {
       include: {
         cliente:     { select: { id: true, nome: true, empresa: true, email: true, telefone: true } },
         responsavel: { select: { id: true, nome: true } },

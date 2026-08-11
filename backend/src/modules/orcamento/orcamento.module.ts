@@ -10,6 +10,7 @@ import {
 import { PrismaService } from "../../prisma/prisma.service";
 import { Permissions } from "../auth/permissions.decorator";
 import { PermissionsGuard } from "../auth/permissions.guard";
+import { acharNaOrganizacao } from "../../common/escopo-organizacao";
 
 // ── DTOs ──────────────────────────────────────────────────────────────────────
 
@@ -692,9 +693,8 @@ class OrcamentoController {
 
   @Patch("ciclos/:id/fechar")
   @Permissions("orcamento:admin")
-  async fecharCiclo(@Param("id") id: string) {
-    const ciclo = await (this.prisma as any).orcamentoCiclo.findUnique({ where: { id } });
-    if (!ciclo) throw new NotFoundException("Ciclo não encontrado");
+  async fecharCiclo(@Param("id") id: string, @Req() req: any) {
+    await acharNaOrganizacao((this.prisma as any).orcamentoCiclo, id, req, "Ciclo não encontrado");
     return (this.prisma as any).orcamentoCiclo.update({ where: { id }, data: { status: "fechado" } });
   }
 

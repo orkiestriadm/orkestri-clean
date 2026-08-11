@@ -12,6 +12,7 @@ import { WhatsAppService } from "../notifications/whatsapp.service";
 import { EmailService } from "../notifications/email.service";
 import { Permissions } from "../auth/permissions.decorator";
 import { PermissionsGuard } from "../auth/permissions.guard";
+import { acharNaOrganizacao } from "../../common/escopo-organizacao";
 import { SlaService } from "../sla/sla.module";
 import { AutomacaoService } from "../automacoes/automacoes.module";
 import { WebhookService } from "../automacoes/webhooks.module";
@@ -508,8 +509,7 @@ class ChamadosController {
   @Put(":id")
   @Permissions("chamados:editar")
   async update(@Param("id") id: string, @Body() dto: UpdateChamadoDto, @Req() req: any) {
-    const existing = await this.prisma.chamado.findUnique({ where: { id } });
-    if (!existing) throw new NotFoundException("Chamado nao encontrado");
+    const existing = await acharNaOrganizacao(this.prisma.chamado, id, req, "Chamado nao encontrado");
     const canEdit = req.user.isMaster || existing.solicitanteId === req.user.id || existing.atendenteId === req.user.id;
     if (!canEdit) throw new ForbiddenException("Sem permissao para editar este chamado");
     if (dto.status && !STATUS_VALID.includes(dto.status)) throw new BadRequestException("Status invalido");
@@ -606,8 +606,7 @@ class ChamadosController {
   @Permissions("chamados:editar")
   async changeStatus(@Param("id") id: string, @Body() body: { status: string }, @Req() req: any) {
     if (!STATUS_VALID.includes(body.status)) throw new BadRequestException("Status invalido");
-    const existing = await this.prisma.chamado.findUnique({ where: { id } });
-    if (!existing) throw new NotFoundException("Chamado nao encontrado");
+    const existing = await acharNaOrganizacao(this.prisma.chamado, id, req, "Chamado nao encontrado");
     const canEdit = req.user.isMaster || existing.solicitanteId === req.user.id || existing.atendenteId === req.user.id;
     if (!canEdit) throw new ForbiddenException("Sem permissao");
     // Fechar é o único estado sem volta (NEXT_STATUS.fechado = []), então tem
@@ -839,8 +838,7 @@ class ChamadosController {
   @Patch(":id/atribuir")
   @Permissions("chamados:editar")
   async atribuir(@Param("id") id: string, @Body() body: { atendenteId: string | null }, @Req() req: any) {
-    const existing = await this.prisma.chamado.findUnique({ where: { id } });
-    if (!existing) throw new NotFoundException("Chamado nao encontrado");
+    const existing = await acharNaOrganizacao(this.prisma.chamado, id, req, "Chamado nao encontrado");
     // Antes a regra era só "master ou solicitante" — escrita aqui dentro, e por
     // isso invisível para a matriz de permissões: marcar as 90 caixinhas não
     // dava esse acesso. Agora existe o caminho pela matriz, sem tirar o do
@@ -893,8 +891,7 @@ class ChamadosController {
     const userId = req.user.id;
     const orgId  = req.user?.organizationId;
 
-    const existing = await this.prisma.chamado.findUnique({ where: { id } });
-    if (!existing) throw new NotFoundException("Chamado nao encontrado");
+    const existing = await acharNaOrganizacao(this.prisma.chamado, id, req, "Chamado nao encontrado");
     // Isolamento multi-tenant
     if (orgId && (existing as any).organizationId && (existing as any).organizationId !== orgId) {
       throw new NotFoundException("Chamado nao encontrado");
@@ -962,8 +959,7 @@ class ChamadosController {
   @Permissions("chamados:editar")
   async addComentario(@Param("id") id: string, @Body() dto: AddComentarioDto, @Req() req: any) {
     if (!dto.texto?.trim()) throw new BadRequestException("Texto obrigatorio");
-    const chamado = await this.prisma.chamado.findUnique({ where: { id } });
-    if (!chamado) throw new NotFoundException("Chamado nao encontrado");
+    const chamado = await acharNaOrganizacao(this.prisma.chamado, id, req, "Chamado nao encontrado");
     const canComment = req.user.isMaster || chamado.solicitanteId === req.user.id || chamado.atendenteId === req.user.id;
     if (!canComment) throw new ForbiddenException("Sem permissao");
     const comentario = await this.prisma.chamadoComentario.create({
@@ -1013,8 +1009,7 @@ class ChamadosController {
   @Patch(":id/avaliar")
   @Permissions("chamados:editar")
   async avaliar(@Param("id") id: string, @Body() dto: AvaliarDto, @Req() req: any) {
-    const chamado = await this.prisma.chamado.findUnique({ where: { id } });
-    if (!chamado) throw new NotFoundException("Chamado nao encontrado");
+    const chamado = await acharNaOrganizacao(this.prisma.chamado, id, req, "Chamado nao encontrado");
     if (chamado.solicitanteId !== req.user.id) throw new ForbiddenException("Apenas o solicitante pode avaliar");
     if (!["resolvido", "fechado"].includes(chamado.status)) throw new BadRequestException("Chamado precisa estar resolvido para avaliar");
     const updated = await this.prisma.chamado.update({
@@ -1029,8 +1024,7 @@ class ChamadosController {
   @Permissions("chamados:excluir")
   async remove(@Param("id") id: string, @Req() req: any) {
     if (!req.user.isMaster) throw new ForbiddenException("Apenas masters podem remover chamados");
-    const chamado = await this.prisma.chamado.findUnique({ where: { id } });
-    if (!chamado) throw new NotFoundException("Chamado nao encontrado");
+    const chamado = await acharNaOrganizacao(this.prisma.chamado, id, req, "Chamado nao encontrado");
     await this.prisma.chamado.delete({ where: { id } });
     return { message: "Chamado removido" };
   }
@@ -1245,8 +1239,7 @@ class ChamadoUploadController {
   }))
   async upload(@Req() req: any, @Param("id") id: string, @UploadedFile() file: any) {
     if (!file) throw new BadRequestException("Arquivo obrigatório");
-    const chamado = await (this.prisma as any).chamado.findUnique({ where: { id } });
-    if (!chamado) throw new NotFoundException("Chamado não encontrado");
+    const chamado = await acharNaOrganizacao((this.prisma as any).chamado, id, req, "Chamado não encontrado");
     const anexo = await (this.prisma as any).chamadoAnexo.create({
       data: { id: require("uuid").v4(), chamadoId: id, uploaderId: req.user.id, nomeOriginal: file.originalname, nomeArquivo: file.filename, mimeType: file.mimetype, tamanhoBytes: file.size },
     });

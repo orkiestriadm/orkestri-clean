@@ -8,6 +8,7 @@ import { Type } from "class-transformer";
 import { PrismaService } from "../../prisma/prisma.service";
 import { Permissions } from "../auth/permissions.decorator";
 import { PermissionsGuard } from "../auth/permissions.guard";
+import { acharNaOrganizacao } from "../../common/escopo-organizacao";
 import { WebhookService, WebhooksModule } from "../automacoes/webhooks.module";
 import { AutomacaoService, AutomacoesModule } from "../automacoes/automacoes.module";
 import { NotificacaoDispatcher } from "../notifications/notificacao-dispatcher.service";
@@ -190,9 +191,10 @@ class ProjectsController {
 
   @Get(":id")
   @Permissions("projetos:ver")
-  async findOne(@Param("id") id: string) {
-    const p = await this.prisma.project.findUnique({
-      where: { id },
+  async findOne(@Param("id") id: string, @Req() req: any) {
+    // <any> pelo mesmo motivo do workspace de clientes: o include traz relacoes
+    // que o tipo base do modelo nao declara.
+    const p = await acharNaOrganizacao<any>(this.prisma.project, id, req, "Projeto nao encontrado", {
       include: {
         members: { include: { user: { select: { id: true, nome: true, email: true } } } },
         tasks: { include: { assignee: { select: { id: true, nome: true } }, comments: { include: { user: { select: { id: true, nome: true } } } } }, orderBy: { criadoEm: "asc" } },
@@ -200,7 +202,6 @@ class ProjectsController {
         cliente: { select: { id: true, nome: true, empresa: true, email: true, telefone: true } },
       },
     });
-    if (!p) throw new NotFoundException("Projeto nao encontrado");
     return { ...p, progressoPct: calcPct(p.tasks) };
   }
 
@@ -316,8 +317,9 @@ class ProjectsController {
   @Delete(":id")
   @Permissions("projetos:deletar")
   async remove(@Param("id") id: string, @Req() req: any) {
-    const p = await this.prisma.project.findUnique({ where: { id } });
-    if (!p) throw new NotFoundException();
+    // A checagem de autoria abaixo ja existia, mas rodava DEPOIS de resolver o
+    // projeto por id solto: um master de outra organizacao passava nela.
+    const p = await acharNaOrganizacao(this.prisma.project, id, req, "Projeto nao encontrado");
     if (p.criadoPorId !== req.user.id && !req.user.isMaster) throw new BadRequestException("Sem permissao");
     // Remove eventos de prazo
     await this.prisma.event.deleteMany({ where: { origemTipo: "projeto", origemId: id } });

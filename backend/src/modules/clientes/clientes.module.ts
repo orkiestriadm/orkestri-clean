@@ -8,6 +8,7 @@ import { IsString, IsOptional, IsEmail, IsBoolean, IsNumber, IsDateString } from
 import { PrismaService } from "../../prisma/prisma.service";
 import { Permissions } from "../auth/permissions.decorator";
 import { PermissionsGuard } from "../auth/permissions.guard";
+import { acharNaOrganizacao } from "../../common/escopo-organizacao";
 
 // ── DTOs ─────────────────────────────────────────────────────────────────────
 
@@ -398,15 +399,15 @@ class ClientesController {
 
   @Get(":id/workspace")
   @Permissions("crm:ver")
-  async workspace(@Param("id") id: string) {
-    const c = await this.prisma.cliente.findUnique({
-      where: { id },
+  async workspace(@Param("id") id: string, @Req() req: any) {
+    // <any> porque o delegate e tipado e o tipo base do modelo nao conhece as
+    // relacoes trazidas pelo include.
+    const c = await acharNaOrganizacao<any>(this.prisma.cliente, id, req, "Cliente não encontrado", {
       include: {
         responsavel: { select: { id: true, nome: true, avatar: true } },
         contratos: { where: { ativo: true }, orderBy: { criadoEm: "desc" }, take: 1 },
       },
     });
-    if (!c) throw new NotFoundException("Cliente não encontrado");
 
     const [projetos, chamadosAbertos, chamadosTotais, timeline, proximosMarcos] = await Promise.all([
       this.prisma.project.findMany({
@@ -528,8 +529,7 @@ class ClientesController {
   @Post(":id/timeline/nota")
   @Permissions("crm:editar")
   async addNota(@Param("id") id: string, @Body() dto: CreateTimelineNotaDto, @Req() req: any) {
-    const c = await this.prisma.cliente.findUnique({ where: { id } });
-    if (!c) throw new NotFoundException("Cliente não encontrado");
+    const c = await acharNaOrganizacao(this.prisma.cliente, id, req, "Cliente não encontrado");
     const evento = await (this.prisma as any).clienteTimeline.create({
       data: {
         id: require("crypto").randomUUID(),
@@ -558,8 +558,7 @@ class ClientesController {
   @Post(":id/contratos")
   @Permissions("crm:criar")
   async createContrato(@Param("id") id: string, @Body() dto: CreateContratoDto, @Req() req: any) {
-    const c = await this.prisma.cliente.findUnique({ where: { id } });
-    if (!c) throw new NotFoundException("Cliente não encontrado");
+    const c = await acharNaOrganizacao(this.prisma.cliente, id, req, "Cliente não encontrado");
     const contrato = await (this.prisma as any).contrato.create({
       data: { id: require("crypto").randomUUID(), clienteId: id, ...dto },
     });

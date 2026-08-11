@@ -5,6 +5,7 @@ import { PrismaService } from "../../prisma/prisma.service";
 import * as bcrypt from "bcryptjs";
 import { Permissions } from "../auth/permissions.decorator";
 import { PermissionsGuard } from "../auth/permissions.guard";
+import { acharNaOrganizacao } from "../../common/escopo-organizacao";
 import { CacheService } from "../cache/cache.service";
 import { WebhookService, WebhooksModule } from "../automacoes/webhooks.module";
 import { AutomacaoService, AutomacoesModule } from "../automacoes/automacoes.module";
@@ -170,15 +171,16 @@ class UsersController {
 
   @Get(":id")
   @Permissions("usuarios:ver")
-  async findOne(@Param("id") id: string) {
+  async findOne(@Param("id") id: string, @Req() req: any) {
+    // O escopo vem ANTES do cache: servir do cache sem conferir a organizacao
+    // devolveria usuario de outro tenant para quem tivesse o id.
+    const u = await acharNaOrganizacao(this.prisma.user, id, req, "Usuario nao encontrado", {
+      include: { userRoles: { include: { role: true } }, profile: { include: { setor: true } } },
+    });
+
     const cached = await this.cache.get(CACHE_USER(id));
     if (cached) return cached;
 
-    const u = await this.prisma.user.findUnique({
-      where: { id },
-      include: { userRoles: { include: { role: true } }, profile: { include: { setor: true } } },
-    });
-    if (!u) throw new NotFoundException("Usuario nao encontrado");
     const result = mapUser(u);
     await this.cache.set(CACHE_USER(id), result, TTL_USER);
     return result;
@@ -265,14 +267,15 @@ class UsersController {
       create: { userId: id, cargo: dto.cargo, telefone: dto.telefone, setorId: dto.setorId || null },
     });
     await this.cache.del(CACHE_USER(id), CACHE_USERS_LIST, `${CACHE_USERS_LIST}:true`, `${CACHE_USERS_LIST}:0`);
-    return this.findOne(id);
+    return this.findOne(id, req);
   }
 
   @Patch(":id/password")
   @Permissions("usuarios:editar")
-  async changePassword(@Param("id") id: string, @Body() dto: ChangePasswordDto) {
-    const exists = await this.prisma.user.findUnique({ where: { id } });
-    if (!exists) throw new NotFoundException("Usuario nao encontrado");
+  async changePassword(@Param("id") id: string, @Body() dto: ChangePasswordDto, @Req() req: any) {
+    // Sem o escopo, um administrador trocava a senha de usuario de OUTRA
+    // organizacao — tomada de conta, nao so leitura indevida.
+    await acharNaOrganizacao(this.prisma.user, id, req, "Usuario nao encontrado");
     await this.prisma.user.update({ where: { id }, data: { senhaHash: await bcrypt.hash(dto.novaSenha, 12) } });
     return { message: "Senha alterada com sucesso" };
   }
@@ -293,8 +296,7 @@ class UsersController {
   @Permissions("usuarios:editar")
   async toggle(@Param("id") id: string, @Req() req: any) {
     if (id === req.user.id) throw new BadRequestException("Voce nao pode desativar sua propria conta");
-    const user = await this.prisma.user.findUnique({ where: { id } });
-    if (!user) throw new NotFoundException("Usuario nao encontrado");
+    const user = await acharNaOrganizacao(this.prisma.user, id, req, "Usuario nao encontrado");
     const updated = await this.prisma.user.update({ where: { id }, data: { ativo: !user.ativo } });
     await this.cache.del(CACHE_USER(id), CACHE_USERS_LIST, `${CACHE_USERS_LIST}:true`, `${CACHE_USERS_LIST}:0`);
     return { message: updated.ativo ? "Usuario ativado" : "Usuario desativado", ativo: updated.ativo };
@@ -304,8 +306,7 @@ class UsersController {
   @Permissions("usuarios:excluir")
   async remove(@Param("id") id: string, @Req() req: any) {
     if (id === req.user.id) throw new BadRequestException("Voce nao pode remover sua propria conta");
-    const user = await this.prisma.user.findUnique({ where: { id } });
-    if (!user) throw new NotFoundException("Usuario nao encontrado");
+    const user = await acharNaOrganizacao(this.prisma.user, id, req, "Usuario nao encontrado");
 
     try {
     await this.prisma.$transaction(async (tx) => {

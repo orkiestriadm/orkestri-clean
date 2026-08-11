@@ -177,9 +177,8 @@ class FaturasController {
   // GET /faturas/:id
   @Get(":id")
   @Permissions("crm:ver")
-  async findOne(@Param("id") id: string) {
-    const f = await this.db.fatura.findUnique({
-      where: { id },
+  async findOne(@Param("id") id: string, @Req() req: any) {
+    const f = await acharNaOrganizacao(this.db.fatura, id, req, "Fatura nao encontrada", {
       include: {
         cliente:  { select: { id: true, nome: true, empresa: true, email: true } },
         contrato: { select: { id: true, titulo: true, numero: true } },
