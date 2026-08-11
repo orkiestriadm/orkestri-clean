@@ -1821,8 +1821,11 @@ export default function ChamadosPage() {
           <Download size={13} /> CSV
         </button>
       )}
-      <button onClick={() => setShowNew(true)}
-        className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-[var(--border-subtle)] text-xs text-[var(--text-muted)] hover:bg-[var(--bg-hover)] transition-colors">
+      {/* A ação principal da tela, com a cor da ação principal.
+          Estava com as MESMAS classes de "Atualizar" e "CSV" — borda cinza,
+          texto apagado, fundo transparente — e sumia no meio delas. Quem chega
+          para abrir um chamado tem que achar o botão sem procurar. */}
+      <button onClick={() => setShowNew(true)} className="btn btn-violet" style={{ fontSize: 12, padding: "6px 14px" }}>
         <Plus size={13} /> Novo Chamado
       </button>
     </>
