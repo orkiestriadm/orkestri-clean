@@ -1,5 +1,6 @@
 import {
   Module, Controller, Get, Post, Put, Patch, Delete,
+  Res,
   Body, Param, Query, UseGuards, Req,
   NotFoundException, BadRequestException,
   UseInterceptors, UploadedFile,
@@ -9,6 +10,8 @@ import { AuthGuard } from "@nestjs/passport";
 import { FileInterceptor } from "@nestjs/platform-express";
 import { diskStorage, memoryStorage } from "multer";
 import { filtroDeTipo, nomeSeguroParaMulter, validarArquivoGravado } from "../../common/arquivo-seguro";
+import { responderComAnexo } from "../../common/download-anexo";
+import { organizacaoDe } from "../../common/escopo-organizacao";
 import * as XLSX from "xlsx";
 import * as path from "path";
 import * as fs from "fs";
@@ -534,7 +537,25 @@ class MotoristasController extends BaseFrotaController {
       where: { motoristaId: id, organizationId: orgId, deletedAt: null },
       orderBy: { criadoEm: "desc" },
     });
-    return anexos.map((a: any) => ({ ...a, url: `/uploads/motoristas/${id}/${a.nomeArquivo}` }));
+    return anexos.map((a: any) => ({ ...a, url: `/api/frota/motoristas/${id}/anexos/${a.id}/download` }));
+  }
+
+  /**
+   * Download autenticado. Antes o anexo saia por `/uploads/motoristas/...`,
+   * que o nginx servia sem sessao — bastava conhecer a URL, e a listagem
+   * entregava a URL exata.
+   */
+  @Get(":id/anexos/:anexoId/download")
+  @Permissions("frota:ver")
+  async baixarAnexo(@Req() req: any, @Res({ passthrough: true }) res: any, @Param("id") id: string, @Param("anexoId") anexoId: string) {
+    const anexo = await this.db.motoristaAnexo.findFirst({
+      where: { id: anexoId, motoristaId: id, organizationId: organizacaoDe(req), deletedAt: null },
+    });
+    if (!anexo) throw new NotFoundException("Anexo não encontrado");
+    return responderComAnexo(res, {
+      subdir: `motoristas/${id}`, nomeArquivo: anexo.nomeArquivo,
+      nomeOriginal: anexo.nomeOriginal, mimeType: anexo.mimeType,
+    });
   }
 
   // POST /frota/motoristas/:id/anexos — upload (cnh_frente | cnh_verso | exame | certificado)
@@ -566,7 +587,7 @@ class MotoristasController extends BaseFrotaController {
         criadoPorId: req.user?.id || null,
       },
     });
-    return { ...anexo, url: `/uploads/motoristas/${id}/${anexo.nomeArquivo}` };
+    return { ...anexo, url: `/api/frota/motoristas/${id}/anexos/${anexo.id}/download` };
   }
 
   // DELETE /frota/motoristas/:id/anexos/:anexoId
@@ -1494,7 +1515,25 @@ class ManutencoesController extends BaseFrotaController {
   async listAnexos(@Param("id") id: string, @Req() req: any) {
     const orgId = req.user?.organizationId;
     const anexos = await this.db.manutencaoAnexo.findMany({ where: { manutencaoId: id, organizationId: orgId, deletedAt: null }, orderBy: { criadoEm: "desc" } });
-    return anexos.map((a: any) => ({ ...a, url: `/uploads/manutencoes/${id}/${a.nomeArquivo}` }));
+    return anexos.map((a: any) => ({ ...a, url: `/api/frota/manutencoes/${id}/anexos/${a.id}/download` }));
+  }
+
+  /**
+   * Download autenticado. Antes o anexo saia por `/uploads/manutencoes/...`,
+   * que o nginx servia sem sessao — bastava conhecer a URL, e a listagem
+   * entregava a URL exata.
+   */
+  @Get(":id/anexos/:anexoId/download")
+  @Permissions("frota:ver")
+  async baixarAnexo(@Req() req: any, @Res({ passthrough: true }) res: any, @Param("id") id: string, @Param("anexoId") anexoId: string) {
+    const anexo = await this.db.manutencaoAnexo.findFirst({
+      where: { id: anexoId, manutencaoId: id, organizationId: organizacaoDe(req), deletedAt: null },
+    });
+    if (!anexo) throw new NotFoundException("Anexo não encontrado");
+    return responderComAnexo(res, {
+      subdir: `manutencoes/${id}`, nomeArquivo: anexo.nomeArquivo,
+      nomeOriginal: anexo.nomeOriginal, mimeType: anexo.mimeType,
+    });
   }
 
   @Post(":id/anexos")
@@ -1521,7 +1560,7 @@ class ManutencoesController extends BaseFrotaController {
     const anexo = await this.db.manutencaoAnexo.create({
       data: { id: crypto.randomUUID(), organizationId: orgId, manutencaoId: id, tipo, nomeArquivo: file.filename, nomeOriginal: file.originalname, mime: file.mimetype, tamanho: file.size, criadoPorId: req.user?.id || null },
     });
-    return { ...anexo, url: `/uploads/manutencoes/${id}/${anexo.nomeArquivo}` };
+    return { ...anexo, url: `/api/frota/manutencoes/${id}/anexos/${anexo.id}/download` };
   }
 
   @Delete(":id/anexos/:anexoId")
@@ -1589,7 +1628,25 @@ class DocumentosController extends BaseFrotaController {
   async listAnexos(@Param("id") id: string, @Req() req: any) {
     const orgId = req.user?.organizationId;
     const anexos = await this.db.documentoAnexo.findMany({ where: { documentoId: id, organizationId: orgId, deletedAt: null }, orderBy: { criadoEm: "desc" } });
-    return anexos.map((a: any) => ({ ...a, url: `/uploads/documentos/${id}/${a.nomeArquivo}` }));
+    return anexos.map((a: any) => ({ ...a, url: `/api/frota/documentos/${id}/anexos/${a.id}/download` }));
+  }
+
+  /**
+   * Download autenticado. Antes o anexo saia por `/uploads/documentos/...`,
+   * que o nginx servia sem sessao — bastava conhecer a URL, e a listagem
+   * entregava a URL exata.
+   */
+  @Get(":id/anexos/:anexoId/download")
+  @Permissions("frota:ver")
+  async baixarAnexo(@Req() req: any, @Res({ passthrough: true }) res: any, @Param("id") id: string, @Param("anexoId") anexoId: string) {
+    const anexo = await this.db.documentoAnexo.findFirst({
+      where: { id: anexoId, documentoId: id, organizationId: organizacaoDe(req), deletedAt: null },
+    });
+    if (!anexo) throw new NotFoundException("Anexo não encontrado");
+    return responderComAnexo(res, {
+      subdir: `documentos/${id}`, nomeArquivo: anexo.nomeArquivo,
+      nomeOriginal: anexo.nomeOriginal, mimeType: anexo.mimeType,
+    });
   }
 
   @Post(":id/anexos")
@@ -1615,7 +1672,7 @@ class DocumentosController extends BaseFrotaController {
     const anexo = await this.db.documentoAnexo.create({
       data: { id: crypto.randomUUID(), organizationId: orgId, documentoId: id, nomeArquivo: file.filename, nomeOriginal: file.originalname, mime: file.mimetype, tamanho: file.size, criadoPorId: req.user?.id || null },
     });
-    return { ...anexo, url: `/uploads/documentos/${id}/${anexo.nomeArquivo}` };
+    return { ...anexo, url: `/api/frota/documentos/${id}/anexos/${anexo.id}/download` };
   }
 
   @Delete(":id/anexos/:anexoId")

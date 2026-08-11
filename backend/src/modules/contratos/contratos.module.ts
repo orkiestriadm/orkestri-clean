@@ -1,5 +1,6 @@
 import {
   Module, Controller, Get, Post, Put, Delete, Patch,
+  Res,
   Body, Param, Query, UseGuards, Req,
   Injectable, NotFoundException, BadRequestException, ForbiddenException,
   UseInterceptors, UploadedFile,
@@ -9,6 +10,7 @@ import { AuthGuard } from "@nestjs/passport";
 import { FileInterceptor } from "@nestjs/platform-express";
 import { diskStorage } from "multer";
 import { filtroDeTipo, nomeSeguroParaMulter, validarArquivoGravado } from "../../common/arquivo-seguro";
+import { responderComAnexo } from "../../common/download-anexo";
 import * as path from "path";
 import * as fs from "fs";
 import { PrismaService } from "../../prisma/prisma.service";
@@ -279,9 +281,29 @@ class ContratosController {
     const orgId = req.user?.organizationId;
     const c = await this.db.contrato.findFirst({ where: { id, ...(orgId ? { organizationId: orgId } : {}) } });
     if (!c) throw new NotFoundException("Contrato não encontrado");
-    return this.db.contratoAnexo.findMany({
+    const anexos = await this.db.contratoAnexo.findMany({
       where: { contratoId: id },
       orderBy: { criadoEm: "desc" },
+    });
+    // A coluna `url` guarda o caminho publico antigo (`/uploads/contratos/...`),
+    // que o nginx servia sem sessao. Nao reescrevo a coluna — linha antiga
+    // continua com o valor de origem —, mas a API passa a devolver o caminho
+    // autenticado. Quem consumir a resposta usa o novo.
+    return anexos.map((a: any) => ({ ...a, url: `/api/contratos/${id}/anexos/${a.id}/download` }));
+  }
+
+  @Get(":id/anexos/:anexoId/download")
+  @Permissions("crm:ver")
+  async baixarAnexo(@Req() req: any, @Res({ passthrough: true }) res: any, @Param("id") id: string, @Param("anexoId") anexoId: string) {
+    await acharNaOrganizacao(this.db.contrato, id, req, "Contrato não encontrado");
+    const anexo = await this.db.contratoAnexo.findFirst({ where: { id: anexoId, contratoId: id } });
+    if (!anexo) throw new NotFoundException("Anexo não encontrado");
+    // `url` na base guarda o caminho inteiro; o nome do arquivo e o ultimo
+    // segmento. `caminhoDentroDe` (dentro de responderComAnexo) recusa `..`.
+    const nomeArquivo = String(anexo.url || "").split("/").pop() || "";
+    return responderComAnexo(res, {
+      subdir: `contratos/${id}`, nomeArquivo,
+      nomeOriginal: anexo.nome, mimeType: anexo.tipo,
     });
   }
 
@@ -311,7 +333,10 @@ class ContratosController {
     const c = await this.db.contrato.findFirst({ where: { id, ...(orgId ? { organizationId: orgId } : {}) } });
     if (!c) throw new NotFoundException("Contrato não encontrado");
     if (!file) throw new BadRequestException("Nenhum arquivo enviado");
-    const url = `/uploads/contratos/${id}/${file.filename}`;
+    validarArquivoGravado(file.path, file.mimetype);
+    // Guarda so o caminho relativo do arquivo; o download sai pela rota
+    // autenticada, nao mais por `/uploads/`.
+    const url = `contratos/${id}/${file.filename}`;
     return this.db.contratoAnexo.create({
       data: {
         contratoId: id,

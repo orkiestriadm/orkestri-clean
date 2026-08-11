@@ -19,31 +19,22 @@ async function bootstrap() {
   app.use(json({ limit: "50mb" }));
   app.use(urlencoded({ extended: true, limit: "50mb" }));
 
-  // Servir uploads de arquivos (anexos de chamados)
+  // O diretório de uploads NÃO é mais publicado estaticamente.
   //
-  // Estes cabeçalhos são a segunda linha de defesa do XSS armazenado, e a
-  // ÚNICA que alcança arquivo que já está no disco — a validação de upload só
-  // vale para o que entra a partir de agora, e este diretório tem histórico.
+  // Enquanto era, `/uploads/<id>/<arquivo>` respondia a qualquer um que
+  // soubesse a URL — sem sessão, sem escopo de organização. E a URL não era
+  // segredo: a listagem de anexos a entregava pronta, inclusive para anexo de
+  // outro tenant, porque a listagem também não escopava.
   //
-  //   attachment  o navegador baixa em vez de renderizar. Um HTML que tenha
-  //               entrado antes deixa de executar na origem da aplicação, que
-  //               é onde ele alcançaria a sessão de quem abrisse.
-  //   nosniff     sem isto o navegador ignora o Content-Type e adivinha pelo
-  //               conteúdo — e volta a tratar como página o que declaramos
-  //               como binário.
+  // Agora cada anexo sai por uma rota autenticada do seu módulo
+  // (`/api/chamados/:id/anexos/:anexoId/download` e equivalentes em contratos
+  // e frota), que exige sessão, permissão e organização do registro dono. É o
+  // que o Compliance e o People já faziam com seus diretórios `secure/`.
   //
-  // Não quebra a interface: o front já baixa os anexos por link `download`
-  // (ver dashboard/frota/manutencoes), não exibe nada embutido.
+  // O diretório continua sendo criado: os uploads seguem gravando nele, só
+  // deixa de haver porta pública para ele.
   const uploadsDir = process.env.UPLOAD_DIR || "/app/uploads";
   if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
-  app.useStaticAssets(uploadsDir, {
-    prefix: "/uploads",
-    setHeaders: (res: Response) => {
-      res.setHeader("Content-Disposition", "attachment");
-      res.setHeader("X-Content-Type-Options", "nosniff");
-      res.setHeader("Content-Security-Policy", "default-src 'none'; sandbox");
-    },
-  });
 
   // Cookie parsing (required for HttpOnly JWT cookies)
   app.use(cookieParser());

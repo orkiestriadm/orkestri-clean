@@ -1,7 +1,8 @@
-import { Module, Controller, Get, Post, Put, Patch, Delete, Body, Param, Query, UseGuards, Req, NotFoundException, BadRequestException, ForbiddenException, ConflictException, UseInterceptors, UploadedFile } from "@nestjs/common";
+import { Res, Module, Controller, Get, Post, Put, Patch, Delete, Body, Param, Query, UseGuards, Req, NotFoundException, BadRequestException, ForbiddenException, ConflictException, UseInterceptors, UploadedFile } from "@nestjs/common";
 import { FileInterceptor } from "@nestjs/platform-express";
 import { diskStorage } from "multer";
 import { filtroDeTipo, nomeSeguroParaMulter, validarArquivoGravado } from "../../common/arquivo-seguro";
+import { responderComAnexo } from "../../common/download-anexo";
 import * as path from "path";
 import * as fs from "fs";
 import { AuthGuard } from "@nestjs/passport";
@@ -1276,18 +1277,32 @@ class ChamadoUploadController {
     const anexo = await (this.prisma as any).chamadoAnexo.create({
       data: { id: require("uuid").v4(), chamadoId: id, uploaderId: req.user.id, nomeOriginal: file.originalname, nomeArquivo: file.filename, mimeType: file.mimetype, tamanhoBytes: file.size },
     });
-    return { ...anexo, url: `/uploads/${id}/${file.filename}` };
+    // URL de download AUTENTICADO. Antes apontava para `/uploads/...`, que o
+    // nginx servia sem sessao nenhuma: quem tivesse a URL baixava o anexo.
+    return { ...anexo, url: `/api/chamados/${id}/anexos/${anexo.id}/download` };
   }
 
   @Get(":id/anexos")
-  async listAnexos(@Param("id") id: string) {
+  async listAnexos(@Req() req: any, @Param("id") id: string) {
+    // A listagem tambem escapava do escopo: entregava as URLs exatas dos
+    // anexos de QUALQUER chamado, e o download nem exigia sessao.
+    await acharNaOrganizacao((this.prisma as any).chamado, id, req, "Chamado não encontrado");
     const anexos = await (this.prisma as any).chamadoAnexo.findMany({ where: { chamadoId: id }, include: { uploader: { select: { id: true, nome: true } } }, orderBy: { criadoEm: "asc" } });
-    return anexos.map((a: any) => ({ ...a, url: `/uploads/${id}/${a.nomeArquivo}` }));
+    return anexos.map((a: any) => ({ ...a, url: `/api/chamados/${id}/anexos/${a.id}/download` }));
+  }
+
+  @Get(":id/anexos/:anexoId/download")
+  async baixarAnexo(@Req() req: any, @Res({ passthrough: true }) res: any, @Param("id") id: string, @Param("anexoId") anexoId: string) {
+    await acharNaOrganizacao((this.prisma as any).chamado, id, req, "Chamado não encontrado");
+    const anexo = await (this.prisma as any).chamadoAnexo.findFirst({ where: { id: anexoId, chamadoId: id } });
+    if (!anexo) throw new NotFoundException("Anexo não encontrado");
+    return responderComAnexo(res, { subdir: id, nomeArquivo: anexo.nomeArquivo, nomeOriginal: anexo.nomeOriginal, mimeType: anexo.mimeType });
   }
 
   @Delete(":id/anexos/:anexoId")
   async deleteAnexo(@Req() req: any, @Param("id") id: string, @Param("anexoId") anexoId: string) {
-    const anexo = await (this.prisma as any).chamadoAnexo.findUnique({ where: { id: anexoId } });
+    await acharNaOrganizacao((this.prisma as any).chamado, id, req, "Chamado não encontrado");
+    const anexo = await (this.prisma as any).chamadoAnexo.findFirst({ where: { id: anexoId, chamadoId: id } });
     if (!anexo) throw new NotFoundException("Anexo não encontrado");
     if (anexo.uploaderId !== req.user.id && !req.user.isMaster) throw new ForbiddenException("Sem permissão");
     try { fs.unlinkSync(path.join(UPLOAD_DIR, id, anexo.nomeArquivo)); } catch {}

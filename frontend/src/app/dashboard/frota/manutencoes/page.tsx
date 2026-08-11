@@ -33,7 +33,12 @@ const downloadAnexos = async (id: string) => {
     const { data } = await api.get(`/frota/manutencoes/${id}/anexos`);
     if (data && data.length > 0) {
       data.forEach((anexo: any) => {
-        let url = anexo.url || `/uploads/manutencoes/${id}/${anexo.nomeArquivo}`;
+        // `anexo.url` vem da API já como rota autenticada
+        // (`/api/frota/manutencoes/.../download`). O caminho `/uploads/...`
+        // que existia aqui como reserva servia o arquivo SEM sessão e não
+        // existe mais — sem URL da API, não há de onde baixar.
+        if (!anexo.url) return;
+        let url: string = anexo.url;
         if (url.startsWith("/")) {
           const base = api.defaults.baseURL || "";
           url = base.replace(/\/api\/?$/, "") + url;
