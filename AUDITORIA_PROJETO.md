@@ -130,15 +130,19 @@ O mesmo padrão se repete no frontend: os módulos novos (`people`, `compliance`
 
 A estrutura de diretórios está **coerente** e não exigiu remanejamento. Não movi arquivos de código: em um monorepo com imports por alias, movimentação em massa entrega risco real em troca de ganho estético.
 
-A única movimentação foi para quarentena:
+A única movimentação foi para quarentena — **e a quarentena foi depois apagada, por decisão do usuário** (commit `7b0fe89`):
 
-| Arquivo | Origem → Destino | Motivo | Risco |
+| Arquivo | Destino final | Motivo | Risco |
 |---|---|---|---|
-| `CLAUDE-FABLE-5.md` | raiz → `_quarentena/` | 124 KB de *system prompt* de um modelo de IA. Não é artefato do projeto, não é referenciado. | Baixo |
-| `deploy-frota.sh` | raiz → `_quarentena/` | Deploy pontual de 24/06/2026 para homologação; empacota migrations nomeadas que já estão aplicadas nos três ambientes. | Baixo |
-| `FROTA-HANDOFF.md` | raiz → `_quarentena/` | Documento de repasse do módulo, concluído em 07/2026. | Baixo |
+| `CLAUDE-FABLE-5.md` | removido | 124 KB de *system prompt* de um modelo de IA. Não é artefato do projeto, não é referenciado. | Baixo |
+| `deploy-frota.sh` | removido | Deploy pontual de 24/06/2026 para homologação; empacota migrations nomeadas que já estão aplicadas nos três ambientes. | Baixo |
+| `FROTA-HANDOFF.md` | removido | Documento de repasse do módulo, concluído em 07/2026. | Baixo |
 
-Quarentena em vez de exclusão porque são documentos/scripts de valor histórico — a decisão de descartar é sua, não minha.
+Passaram um commit em `_quarentena/` porque são documentos de valor histórico e a decisão de descartar cabia ao usuário, não a mim. Ele decidiu apagar. Seguem recuperáveis do histórico:
+
+```bash
+git checkout fbc0a40 -- _quarentena/FROTA-HANDOFF.md
+```
 
 ---
 
@@ -212,9 +216,9 @@ Nenhum teste falhou; nenhum teste foi alterado, desabilitado ou removido.
 
 | Métrica | Antes | Depois |
 |---|---|---|
-| Arquivos versionados | 1.002 | **981** |
-| Arquivos removidos | — | 21 |
-| Arquivos movidos (quarentena) | — | 3 |
+| Arquivos versionados | 1.002 | **979** |
+| Arquivos removidos | — | 24 |
+| Arquivos movidos (quarentena, depois apagados) | — | 3 |
 | Arquivos criados | — | 1 (este relatório) |
 | Dependências de produção (backend) | 33 | **32** |
 | Dependências de produção (frontend) | 25 | **20** |
@@ -235,7 +239,7 @@ Nenhum teste falhou; nenhum teste foi alterado, desabilitado ou removido.
 
 3. **Nada disto foi validado em execução real.** Build e testes passam, mas este projeto tem histórico documentado de build verde com sistema quebrado. Antes de considerar concluído: subir os containers, **fazer um login de verdade até chegar ao dashboard**, e abrir uma tela de cada módulo tocado indiretamente (agenda, orçamento, frota, financeiro — as que usam import dinâmico).
 
-4. **`_quarentena/` precisa de decisão.** Ou apaga, ou tira do versionamento. Não deixe indefinidamente.
+4. ~~`_quarentena/` precisa de decisão.~~ **Resolvido** — apagada a pedido do usuário em `7b0fe89`. Os três arquivos seguem no histórico.
 
 ---
 
