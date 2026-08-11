@@ -1,6 +1,7 @@
 import { Module, Controller, Get, Post, Put, Patch, Delete, Body, Param, Query, UseGuards, Req, NotFoundException, BadRequestException, ForbiddenException, ConflictException, UseInterceptors, UploadedFile } from "@nestjs/common";
 import { FileInterceptor } from "@nestjs/platform-express";
 import { diskStorage } from "multer";
+import { filtroDeTipo, nomeSeguroParaMulter, validarArquivoGravado } from "../../common/arquivo-seguro";
 import * as path from "path";
 import * as fs from "fs";
 import { AuthGuard } from "@nestjs/passport";
@@ -1226,19 +1227,20 @@ class ChamadoUploadController {
         fs.mkdirSync(dir, { recursive: true });
         cb(null, dir);
       },
-      filename: (_req, file, cb) => {
-        const ext = path.extname(file.originalname);
-        cb(null, `${Date.now()}-${Math.random().toString(36).slice(2)}${ext}`);
-      },
+      // Nome e extensao saem da lista de tipos aceitos, NUNCA de
+      // `originalname`. Era dali que vinha o `.html` que o nginx depois servia
+      // como pagina, na origem da aplicacao.
+      filename: nomeSeguroParaMulter,
     }),
     limits: { fileSize: MAX_FILE_SIZE },
-    fileFilter: (_req, file, cb) => {
-      if (ALLOWED_MIMES.includes(file.mimetype)) cb(null, true);
-      else cb(new BadRequestException(`Tipo de arquivo não permitido: ${file.mimetype}`), false);
-    },
+    fileFilter: filtroDeTipo,
   }))
   async upload(@Req() req: any, @Param("id") id: string, @UploadedFile() file: any) {
     if (!file) throw new BadRequestException("Arquivo obrigatório");
+    // Confere os primeiros bytes e apaga o arquivo se nao corresponderem ao
+    // tipo declarado. O `fileFilter` so enxerga cabecalho — conteudo so da
+    // para olhar depois que o multer gravou.
+    validarArquivoGravado(file.path, file.mimetype);
     const chamado = await acharNaOrganizacao((this.prisma as any).chamado, id, req, "Chamado não encontrado");
     const anexo = await (this.prisma as any).chamadoAnexo.create({
       data: { id: require("uuid").v4(), chamadoId: id, uploaderId: req.user.id, nomeOriginal: file.originalname, nomeArquivo: file.filename, mimeType: file.mimetype, tamanhoBytes: file.size },

@@ -7,6 +7,7 @@ import {
 import { AuthGuard } from "@nestjs/passport";
 import { FileInterceptor } from "@nestjs/platform-express";
 import { diskStorage } from "multer";
+import { filtroDeTipo, nomeSeguroParaMulter, validarArquivoGravado } from "../../common/arquivo-seguro";
 import * as path from "path";
 import * as fs from "fs";
 import { PrismaService } from "../../prisma/prisma.service";
@@ -283,12 +284,13 @@ class ContratosController {
         fs.mkdirSync(dir, { recursive: true });
         cb(null, dir);
       },
-      filename: (_req: any, file: any, cb: any) => {
-        const unique = Date.now() + "-" + Math.round(Math.random() * 1e9);
-        cb(null, unique + path.extname(file.originalname));
-      },
+      // Extensao da lista de tipos aceitos, nunca de `originalname`.
+      filename: nomeSeguroParaMulter,
     }),
     limits: { fileSize: 20 * 1024 * 1024 }, // 20MB
+    // NAO havia filtro de tipo aqui: qualquer arquivo era aceito e gravado no
+    // diretorio publico, com a extensao que o remetente escolhesse.
+    fileFilter: filtroDeTipo,
   }))
   async uploadAnexo(
     @Req() req: any,

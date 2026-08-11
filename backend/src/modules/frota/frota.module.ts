@@ -7,6 +7,7 @@ import {
 import { AuthGuard } from "@nestjs/passport";
 import { FileInterceptor } from "@nestjs/platform-express";
 import { diskStorage, memoryStorage } from "multer";
+import { filtroDeTipo, nomeSeguroParaMulter, validarArquivoGravado } from "../../common/arquivo-seguro";
 import * as XLSX from "xlsx";
 import * as path from "path";
 import * as fs from "fs";
@@ -539,12 +540,11 @@ class MotoristasController extends BaseFrotaController {
         fs.mkdirSync(dir, { recursive: true });
         cb(null, dir);
       },
-      filename: (_req, file, cb) => {
-        const ext = path.extname(file.originalname);
-        cb(null, `${Date.now()}-${Math.random().toString(36).slice(2)}${ext}`);
-      },
+      // Extensao da lista de tipos aceitos, nunca de `originalname`.
+      filename: nomeSeguroParaMulter,
     }),
     limits: { fileSize: 20 * 1024 * 1024 },
+    fileFilter: filtroDeTipo,
   }))
   async uploadAnexo(@Param("id") id: string, @UploadedFile() file: any, @Body() body: any, @Req() req: any) {
     const orgId = req.user?.organizationId;
@@ -1499,9 +1499,11 @@ class ManutencoesController extends BaseFrotaController {
         fs.mkdirSync(dir, { recursive: true });
         cb(null, dir);
       },
-      filename: (_req, file, cb) => cb(null, `${Date.now()}-${Math.random().toString(36).slice(2)}${path.extname(file.originalname)}`),
+      // Extensao da lista de tipos aceitos, nunca de `originalname`.
+      filename: nomeSeguroParaMulter,
     }),
     limits: { fileSize: 20 * 1024 * 1024 },
+    fileFilter: filtroDeTipo,
   }))
   async uploadAnexo(@Param("id") id: string, @UploadedFile() file: any, @Body() body: any, @Req() req: any) {
     const orgId = req.user?.organizationId;
@@ -1592,9 +1594,11 @@ class DocumentosController extends BaseFrotaController {
         fs.mkdirSync(dir, { recursive: true });
         cb(null, dir);
       },
-      filename: (_req, file, cb) => cb(null, `${Date.now()}-${Math.random().toString(36).slice(2)}${path.extname(file.originalname)}`),
+      // Extensao da lista de tipos aceitos, nunca de `originalname`.
+      filename: nomeSeguroParaMulter,
     }),
     limits: { fileSize: 20 * 1024 * 1024 },
+    fileFilter: filtroDeTipo,
   }))
   async uploadAnexo(@Param("id") id: string, @UploadedFile() file: any, @Req() req: any) {
     const orgId = req.user?.organizationId;
