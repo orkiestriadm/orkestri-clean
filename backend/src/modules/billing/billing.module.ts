@@ -7,6 +7,7 @@ import {
 import { Injectable } from '@nestjs/common';
 import { ScheduleModule, Cron } from '@nestjs/schedule';
 import { PrismaService } from '../../prisma/prisma.service';
+import { semearPapeisDaOrganizacao, semearPermissoes } from '../auth/auth.service';
 import { ConfigService } from '@nestjs/config';
 import { AuthGuard } from '@nestjs/passport';
 import { Resend } from 'resend';
@@ -586,8 +587,12 @@ export class BillingService {
       },
     });
 
-    // Atribui role master
-    const masterRole = await this.prisma.role.findFirst({ where: { isMaster: true } });
+    // Papeis DA ORGANIZACAO nova. Antes isto pegava o primeiro papel master
+    // que existisse no banco — de qualquer tenant —, porque papel era global.
+    // Agora cada organizacao tem os seus, e sem semear aqui o tenant nasceria
+    // sem papel nenhum e seus usuarios sem permissao alguma.
+    const permMap = await semearPermissoes(this.prisma);
+    const masterRole = await semearPapeisDaOrganizacao(this.prisma, org.id, permMap);
     if (masterRole) {
       await this.prisma.userRole.create({
         data: { userId: user.id, roleId: masterRole.id, atribuidoPorId: user.id },

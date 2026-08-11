@@ -10,6 +10,7 @@ import { JwtService } from "@nestjs/jwt";
 import { JwtModule } from "@nestjs/jwt";
 import { Response } from "express";
 import { PrismaService } from "../../prisma/prisma.service";
+import { semearPapeisDaOrganizacao, semearPermissoes } from "../auth/auth.service";
 import { WhatsAppService } from "../notifications/whatsapp.service";
 import { EmailService } from "../notifications/email.service";
 import { NotificationsModule } from "../notifications/notifications.module";
@@ -138,6 +139,11 @@ class SuperAdminOrgsController {
     const org = await (this.prisma as any).organization.create({
       data: { ...rest, plano: plano || "starter" },
     });
+    // Papeis proprios da organizacao recem-criada. Sem isto ela nasce sem
+    // papel nenhum — o que nao aparecia enquanto papel era global, porque a
+    // organizacao nova reusava os papeis compartilhados de todo mundo.
+    const permMap = await semearPermissoes(this.prisma);
+    await semearPapeisDaOrganizacao(this.prisma, org.id, permMap);
     return org;
   }
 
@@ -210,7 +216,10 @@ class SuperAdminOrgsController {
       where: { email: dto.email, organizationId: orgId } as any,
     });
     if (exists) throw new ConflictException("E-mail já cadastrado nesta organização");
-    const masterRole = await this.prisma.role.findFirst({ where: { isMaster: true } });
+    // O master DESTA organizacao. Buscar `isMaster: true` sem escopo devolvia
+    // o papel de outro tenant — papel era global.
+    const permMap = await semearPermissoes(this.prisma);
+    const masterRole = await semearPapeisDaOrganizacao(this.prisma, orgId, permMap);
     const hash = await bcrypt.hash(dto.senha, 12);
     const user = await this.prisma.user.create({
       data: {

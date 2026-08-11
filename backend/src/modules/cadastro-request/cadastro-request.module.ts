@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { semearPapeisDaOrganizacao, semearPermissoes } from '../auth/auth.service';
 import { AuthGuard } from '@nestjs/passport';
 import * as bcrypt from 'bcryptjs';
 
@@ -122,8 +123,11 @@ export class CadastroRequestService {
       },
     });
 
-    // 5. Atribui role master
-    const masterRole = await this.prisma.role.findFirst({ where: { isMaster: true } });
+    // 5. Papeis DA ORGANIZACAO nova e atribuicao do master.
+    //    Papel deixou de ser global: sem semear aqui, o tenant aprovado
+    //    nasceria sem papel nenhum.
+    const permMap = await semearPermissoes(this.prisma);
+    const masterRole = await semearPapeisDaOrganizacao(this.prisma, org.id, permMap);
     if (masterRole) {
       await this.prisma.userRole.create({
         data: { userId: user.id, roleId: masterRole.id, atribuidoPorId: aprovadoPorId },
