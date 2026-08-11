@@ -3,8 +3,18 @@
 **Data:** 11/08/2026
 **Branch:** `claude/project-audit-reorganization-761e9e` (worktree isolado; `main` intocada)
 **Baseline verificada antes de qualquer alteração:** 486 testes passando, build do backend e dos dois frontends em exit 0.
+**Ao final:** 551 testes, build limpo, 15 commits, 82 arquivos alterados.
+
+Este documento cobre **duas frentes**, executadas na ordem:
+
+1. **Auditoria e reorganização** — mapa do projeto, código morto, dependências, arquitetura.
+2. **Revisão de segurança** — sete classes de vulnerabilidade, corrigidas e validadas em execução real. Começa em [REVISÃO DE SEGURANÇA](#revisão-de-segurança).
+
+> A segunda frente encontrou coisas mais graves que a primeira, incluindo **rotas que estavam 100% quebradas em produção** e uma **chave de root exposta**, já rotacionada.
 
 ---
+
+## PARTE 1 — AUDITORIA E REORGANIZAÇÃO
 
 ## SUMÁRIO EXECUTIVO
 
@@ -216,10 +226,10 @@ Nenhum teste falhou; nenhum teste foi alterado, desabilitado ou removido.
 
 | Métrica | Antes | Depois |
 |---|---|---|
-| Arquivos versionados | 1.002 | **979** |
+| Arquivos versionados | 1.002 | **989** (979 + 10 de segurança) |
 | Arquivos removidos | — | 24 |
 | Arquivos movidos (quarentena, depois apagados) | — | 3 |
-| Arquivos criados | — | 1 (este relatório) |
+| Arquivos criados | — | 11 (relatório + 10 na revisão de segurança) |
 | Dependências de produção (backend) | 33 | **32** |
 | Dependências de produção (frontend) | 25 | **20** |
 | Pacotes em `node_modules` (frontend) | — | **−31** |
@@ -266,3 +276,196 @@ Nenhum teste falhou; nenhum teste foi alterado, desabilitado ou removido.
 Nenhuma funcionalidade foi reescrita. Nenhum teste foi alterado para "passar". Nenhum arquivo foi removido por ausência de referência estática apenas — cada remoção tem evidência independente, e a categoria 🟠 existe justamente porque **seis conjuntos de arquivos sem nenhuma referência estática estão vivos** e foram preservados.
 
 Onde havia dúvida, quarentena. Onde havia risco de quebrar, recomendação em vez de execução.
+
+---
+---
+
+# REVISÃO DE SEGURANÇA
+
+Sete classes de vulnerabilidade, pedidas depois da reorganização. Todas corrigidas; todas validadas **em execução real**, não só no build.
+
+## PLACAR
+
+| # | Achado | Situação |
+|---|---|---|
+| 1 | Rotas administrativas do portal sem autenticação | ✅ fechado |
+| 2 | Chave privada de root no histórico do git | ✅ rotacionada e revogada |
+| 3 | IDOR em 48 rotas | ✅ fechado |
+| 4 | Papéis compartilhados entre organizações | ✅ fechado |
+| 5 | Upload confiando no tipo informado pelo cliente | ✅ fechado |
+| 6 | Anexos servidos sem autenticação | ✅ fechado |
+| 7 | Corpo de requisição sem validação (102 rotas) | 🟡 82 fechadas, 20 com motivo |
+| — | **Bônus: 19 rotas que recusavam QUALQUER corpo** | ✅ fechado |
+
+---
+
+## 🔴 1 — Portal: rotas administrativas abertas para a internet
+
+`GET /api/portal/admin/:clienteId/token` e `POST .../regenerar` não tinham guard nenhum. Qualquer pessoa lia o token de portal de **qualquer cliente** — e com ele, os chamados, contratos e faturas dele. A primeira rota ainda **criava** o token se não existisse; a segunda **rotacionava** e devolvia o novo, derrubando o link legítimo e entregando o acesso a quem chamou.
+
+O guard global não cobria: `first-access.guard.ts:24` faz `if (!user) return true`, delegando ao AuthGuard — que ali não existia. O comentário no código dizia *"needs no auth since called from clientes module"*: não era chamada interna, era rota HTTP exposta.
+
+**Correção:** controller separado (`portal-admin`) com JWT + permissão, e cliente resolvido com o `organizationId` de quem chama. Nenhum consumidor quebrou — o frontend nunca chamou essas duas.
+
+## 🔴 2 — Chave de root de produção no histórico do git
+
+`lightsail-key.pem` (RSA-2048, `SHA256:YgHMDrokb…`) estava versionada de 19/05 a 09/08/2026. Impressão digital conferida contra o servidor: era **a única chave autorizada**, e abria `ubuntu` **e root**.
+
+**Rotacionada em 11/08/2026** para ed25519, com a antiga removida dos dois usuários e confirmada rejeitada (`Permission denied (publickey)`).
+
+> **A lição que ficou:** eu declarei a rotação concluída depois de limpar o `authorized_keys` do `ubuntu`. A memória do projeto registrava que a chave abria **também root** — fui conferir e ela estava lá, com `permitrootlogin without-password` ativo. Não era resíduo: era root direto em produção, ainda vivo. **Conferir por usuário, não pela própria sessão.**
+
+Pendências: era o par **padrão da conta Lightsail** (pode abrir outras instâncias — só o console da AWS mostra); homologação e deploy keys do GitHub não foram verificadas.
+
+## 🔴 3 — IDOR: 48 rotas resolviam registro só por ID
+
+O padrão conferia **existência**, não posse:
+
+```ts
+const existing = await this.db.ativo.findUnique({ where: { id } });   // antes
+if (!existing) throw new NotFoundException("Ativo nao encontrado");
+```
+
+O `@Permissions` não cobre isso: garante que o usuário **tem** a permissão, não que o objeto é dele. Qualquer usuário autenticado editava e apagava dado de outro cliente.
+
+Que era descuido está no próprio código: em `automacoes` o **list** já filtrava por organização; o detalhe, o update e o delete perderam o escopo.
+
+**O pior do lote:** `PATCH /users/:id/password` — um administrador **trocava a senha de usuário de outra organização**. Isso é tomada de conta, não leitura indevida.
+
+**Correção:** `common/escopo-organizacao.ts`. Existe menos pela repetição e mais por uma armadilha do Prisma: `where: { id, organizationId: undefined }` **não filtra** — o campo `undefined` é descartado e volta a casar qualquer registro. Um `req.user` sem organização reabriria o furo inteiro, em silêncio. Por isso o helper recusa o valor ausente e falha alto.
+
+Responde **404, não 403**: para quem está fora, o registro não existe. Um 403 confirmaria que o id é válido em outro tenant.
+
+## 🔴 4 — Papéis eram compartilhados entre organizações
+
+`roles.nome` era único **globalmente** e a tabela não tinha `organization_id`. Duas organizações não conseguiam ter duas linhas "gestor" — compartilhavam a mesma. Um master do cliente A editava aquele papel e mudava o que os usuários do cliente B podiam fazer.
+
+Produção tem **uma** organização, então ainda não era explorável lá — vira explorável no dia em que entrar a segunda. Por isso o momento de corrigir era agora, com a migração barata.
+
+**A migração foi validada contra uma cópia dos dados reais de produção, e isso achou dois problemas que revisão de código não acharia:**
+
+1. **A ordem intuitiva aborta.** Duplicar "master" para a segunda organização colide com `roles_nome_key`, que ainda estava de pé. O `DROP` do índice teve que subir para antes da duplicação.
+2. **Produção tem vínculo órfão** — 1 linha em `user_roles` apontando para usuário inexistente, **apesar da constraint estar validada** (`convalidated = true`). O `INNER JOIN` a descartaria em silêncio; passou a ser removida explicitamente.
+
+Resultado na cópia: 4 usuários reais mantiveram exatamente seus papéis, 461 permissões intactas, zero divergências.
+
+**Armadilha que se repetiu:** o cache era a segunda porta. `cache:roles:list` era chave global — mesmo com a consulta filtrando, a lista do primeiro tenant seria servida a todos. Foi o terceiro achado seguido em que o cache precisou do mesmo cuidado que a consulta.
+
+## 🟠 5 — Upload confiava no que o remetente declarava
+
+Dois dados do upload vêm do atacante e os dois eram usados como verdade: `file.mimetype` (o header `Content-Type`, que quem envia escolhe) e `file.originalname`, de onde saía **a extensão gravada**.
+
+Combinado com o diretório público: mandar `Content-Type: image/png` com um arquivo `x.html` passava no filtro e era gravado como `.html`. O nginx servia aquilo como `text/html` **na origem da aplicação** — XSS armazenado, com acesso à sessão de quem abrisse.
+
+**O escopo era maior do que o diagnóstico inicial:** `contratos` e `frota` (3 rotas) usavam `diskStorage` com **nenhum** filtro de tipo. Cinco rotas, não uma.
+
+**Correção em três camadas:** extensão derivada da tabela de tipos aceitos (nunca do nome enviado — `.html` não está na tabela, então não há caminho que grave um); conferência dos primeiros bytes após a gravação, apagando o arquivo se não corresponder; e cabeçalhos `attachment` + `nosniff` + CSP sandbox, que são **a única camada que alcança arquivo já gravado**.
+
+## 🟠 6 — Anexos baixáveis sem sessão
+
+`/uploads/` era publicado estaticamente e repassado pelo nginx. E a URL não era segredo: a **listagem** de anexos a entregava pronta, e a listagem também não escopava.
+
+A cadeia completa: usuário do tenant A chamava `GET /chamados/<id-do-tenant-B>/anexos`, recebia as URLs exatas, e baixava cada arquivo **sem sequer estar logado**.
+
+**Correção:** `useStaticAssets` removido, `location /uploads/` removido do nginx (com o motivo escrito no lugar), e cada anexo saindo por rota autenticada do seu módulo — o padrão que Compliance e People já usavam.
+
+## 🟡 7 — Corpo de requisição sem validação: 102 rotas
+
+O `ValidationPipe` global estava configurado corretamente desde sempre (`whitelist`, `transform`, `forbidNonWhitelisted`) e mesmo assim não validava nada nessas rotas: **sem classe DTO ele não tem metadata**, porque o tipo do TypeScript é apagado em runtime. Configuração certa dando impressão de cobertura que não existia.
+
+**82 fechadas.** 46 com tipo inline (forma declarada, derivação fiel) + 36 com `any` (campos descobertos pelo uso, tipo afirmado só onde inequívoco).
+
+**20 ficam, com motivo registrado** em teste que falha se aparecer `any` em arquivo fora da lista: `monitoramento` (8), `frota` (4), `osa` (3), `notificacao-prefs` (3), `reservas` (2). Todas repassam o corpo adiante — DTO parcial recusaria campo que hoje funciona.
+
+**Descoberta que mudou o diagnóstico:** `BaseFrotaController` (herdado por 8 controllers) **não estava desprotegido**. O `buildData` já monta o objeto apenas com os campos de `this.fields`, e `coerce` converte por tipo declarado. É lista fechada com coerção, por outro mecanismo. Eu havia classificado como "sem validação"; estava errado.
+
+## ✅ BÔNUS — 19 rotas que recusavam QUALQUER corpo
+
+O achado mais grave da revisão, e **não veio de procurar vulnerabilidade** — veio da pergunta *"os testes foram feitos para saber se quebrou algo?"*.
+
+Um DTO sem **nenhum** decorador de class-validator não valida menos: recusa tudo. O `whitelist` trata todas as propriedades como não-listadas e o `forbidNonWhitelisted` devolve 400.
+
+Provado em execução, antes de mexer:
+
+```
+POST /squads             → 400 "property nome should not exist"
+POST /skills             → 400 "property nome should not exist"
+POST /workflow-templates → 400 "property nome/tipo/ativo/etapas should not exist"
+```
+
+Eram **19 DTOs em 8 módulos**. Criar squad, skill, ausência e template de chamado estava **100% quebrado em produção**.
+
+**Não foi causado por esta sessão:** `forbidNonWhitelisted: true` já estava no `main.ts` do commit base, e os módulos afetados nunca foram tocados. O defeito nasceu quando o pipe global ganhou a opção sem que os DTOs antigos fossem decorados junto.
+
+Depois da correção, as quatro rotas devolvem 201 e campo inventado continua dando 400.
+
+---
+
+## COMO A LACUNA DE TESTE FOI FECHADA
+
+A pergunta do usuário expôs um problema real na minha verificação: a varredura de "27/27 rotas" era quase toda **GET**, e as mudanças do achado 7 afetam **corpo de POST/PUT/PATCH**. Eu havia exercitado ~6 mutações contra 82 rotas convertidas, com payloads que **eu inventei** — não os que a interface manda.
+
+Fechei escrevendo um **cruzamento estático das 148 chamadas de mutação do frontend** contra os DTOs das rotas. Casou 91. Apontou 3 riscos de 400 — e puxar o fio dos 3 revelou os 19.
+
+Depois das correções, o mesmo cruzamento devolve **0 riscos**.
+
+**O que esse cruzamento não cobre:** 35 chamadas com caminho dinâmico, 6 com spread, e — o principal — **nenhuma tela foi aberta no navegador**. Todo o teste é de contrato de API.
+
+---
+
+## VALIDAÇÃO EM EXECUÇÃO REAL
+
+Instância separada, contra cópia do banco, com login de verdade. O ambiente de desenvolvimento do usuário nunca foi tocado (confirmado: o banco de dev segue sem a coluna `organization_id`).
+
+| Verificação | Resultado |
+|---|---|
+| Login real | 200, `roles: ["master"]` |
+| JWT vs buffer do nginx | 1.267 de 16.384 bytes |
+| Ler/editar/apagar recurso de outro tenant | 404 nos cinco casos |
+| Recurso do próprio tenant | 200 |
+| Recurso alheio sobreviveu ao DELETE | sim, intacto |
+| Portal admin sem sessão | 401 (rota antiga: 404) |
+| HTML disfarçado de PNG | 400, arquivo apagado do disco |
+| `/uploads/...` sem sessão | 404 (caminho morto) |
+| Anexo por rota autenticada | 200 + attachment + nosniff |
+| Listar/baixar anexo alheio | 404 |
+| Payload inválido nas rotas com DTO | 400 |
+| Rotas antes quebradas | 201 |
+| Varredura de regressão | 27/27 |
+
+---
+
+## ERROS QUE COMETI, E O QUE OS PEGOU
+
+Registrado porque o padrão importa mais que os casos:
+
+| Erro | O que pegou |
+|---|---|
+| Extrator não reconhecia `body?.campo` → DTOs incompletos | `tsc` num caso; um verificador que escrevi pegou o resto |
+| `LoteNotificacaoPrefsDto` sem `preferencias` — o lote aplicaria preferência **vazia** a todo mundo, sem erro | erro de tipo do compilador |
+| Migração com ordem errada (apertar antes de duplicar) | rodar contra cópia dos dados reais |
+| Rotação declarada concluída com root ainda aberto | memória do projeto |
+| Regex guloso, escape de shell, detecção de decorador | reverificação; nenhum chegou ao código |
+
+**Nenhuma dessas falhas seria pega por build verde.** Três foram pegas por testar contra dados e execução reais.
+
+---
+
+## PENDÊNCIAS DA REVISÃO DE SEGURANÇA
+
+1. **`veiculoId`/`atendenteId` em `chamado-templates`** — a tela manda quando a categoria é Frotas; o modelo **não tem as colunas** e o service não os lê. Declarei para a rota parar de dar 400, mas **o dado se perde em silêncio**. Ou o modelo ganha as colunas, ou a tela para de mandá-los. É decisão de produto, por isso não resolvi.
+2. **As 20 rotas com `any`** que repassam o corpo adiante.
+3. **35 chamadas de mutação** com caminho dinâmico, fora do alcance do cruzamento.
+4. **Chave antiga**: verificar outras instâncias Lightsail (era o par padrão da conta), homologação e deploy keys do GitHub.
+5. **157 testes de integração** seguem *skipped* por exigirem banco.
+
+---
+
+## RISCOS PARA O DEPLOY
+
+- **A migração de papéis mexe em `user_roles`.** Se falhar no meio, o sintoma é **usuário sem permissão**, não erro visível. Fazer um login de verdade até o dashboard logo depois, e abrir a tela de perfis.
+- **As URLs de anexo mudaram.** Conferir download em chamados e frota.
+- **A correção do compose (Parte 1) muda o comportamento em Linux.** Conferir o `<title>` de `/`.
+- **Rotas com DTO novo recusam campo não declarado.** Se alguma tela mandar campo que o cruzamento não alcançou, o sintoma é 400 na ação — não erro no boot.
+
+**Nada foi enviado para produção.** Tudo está na branch `claude/project-audit-reorganization-761e9e`, com `main` intocada.

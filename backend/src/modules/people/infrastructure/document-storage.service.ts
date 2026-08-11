@@ -5,11 +5,15 @@ import * as path from "path";
 /**
  * Armazenamento dos documentos de colaborador.
  *
- * DELIBERADAMENTE FORA DE `UPLOAD_DIR`. Aquele diretório é publicado por
- * `useStaticAssets` em main.ts e proxiado pelo nginx: qualquer pessoa com a URL
- * baixa o arquivo, sem login e sem checagem de organização. Documento de
- * colaborador é dado restrito (PEOPLE_PERMISSIONS.md §21) e atestado médico é
- * dado sensível sob a LGPD — não pode ficar em diretório público.
+ * DELIBERADAMENTE FORA DE `UPLOAD_DIR`. Aquele diretório era publicado por
+ * `useStaticAssets` e proxiado pelo nginx: qualquer pessoa com a URL baixava o
+ * arquivo, sem login e sem checagem de organização. Documento de colaborador é
+ * dado restrito (PEOPLE_PERMISSIONS.md §21) e atestado médico é dado sensível
+ * sob a LGPD — não pode ficar em diretório público.
+ *
+ * Desde 11/08/2026 `UPLOAD_DIR` também deixou de ser público. A separação aqui
+ * continua valendo: mantém estes arquivos fora do caminho de qualquer futura
+ * republicação daquele diretório.
  *
  * Aqui o arquivo só sai pelo endpoint de download, que valida escopo e permissão.
  *

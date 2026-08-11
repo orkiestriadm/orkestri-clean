@@ -158,7 +158,16 @@ class CategoriasAtivoController {
   @Permissions("ativos:editar")
   async update(@Param("id") id: string, @Body() body: UpdateAtivos2Dto, @Req() req: any) {
     await acharNaOrganizacao(this.db.categoriaAtivo, id, req, "Categoria nao encontrada");
-    return this.db.categoriaAtivo.update({ where: { id }, data: { ...(body.nome && { nome: body.nome.trim() }), ...(body.descricao !== undefined && { descricao: body.descricao }), ...(body.icone && { icone: body.icone }), ...(body.cor && { cor: body.cor }), ...(body.ativo !== undefined && { ativo: Boolean(body.ativo) }) } });
+    try {
+      return await this.db.categoriaAtivo.update({ where: { id }, data: { ...(body.nome && { nome: body.nome.trim() }), ...(body.descricao !== undefined && { descricao: body.descricao }), ...(body.icone && { icone: body.icone }), ...(body.cor && { cor: body.cor }), ...(body.ativo !== undefined && { ativo: Boolean(body.ativo) }) } });
+    } catch (e: any) {
+      // Renomear para um nome que já existe na organização é erro do usuário,
+      // não falha do servidor. O `create` logo acima já tratava P2002; aqui o
+      // erro do Prisma vazava como 500 e a tela mostrava "erro interno" para
+      // quem só tinha escolhido um nome repetido.
+      if (e.code === "P2002") throw new BadRequestException("Ja existe uma categoria com este nome");
+      throw e;
+    }
   }
 
   @Delete(":id")
