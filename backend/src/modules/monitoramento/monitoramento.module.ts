@@ -3,6 +3,7 @@ import {
   Body, Param, Query, UseGuards, Req, Logger,
   Injectable, NotFoundException, BadRequestException, OnModuleInit,
 } from "@nestjs/common";
+import { Allow, IsArray, IsOptional } from "class-validator";
 import { AuthGuard } from "@nestjs/passport";
 import { JwtModule } from "@nestjs/jwt";
 import { PrismaService } from "../../prisma/prisma.service";
@@ -680,6 +681,29 @@ export class MonitoramentoService implements OnModuleInit {
 }
 
 // ── Controllers (tudo em /api/monitoramento) ────────────────────────────────
+// ── DTOs de corpo antes tipado como `any`.
+//    Campos descobertos pelo uso no handler; todos opcionais e com tipo
+//    afirmado só onde o código o torna inequívoco. O ganho é a lista
+//    fechada de campos aceitos — antes qualquer JSON passava.
+class BulkActionAtivosDto {
+  @IsOptional() @Allow() acao?: any;
+  @IsOptional() @IsArray() ids?: any;
+  @IsOptional() @Allow() valor?: any;
+}
+
+class ImportarAtivosDto {
+  @IsOptional() @IsArray() linhas?: any;
+}
+
+class SetSlaMetaDto {
+  @IsOptional() @Allow() categoria?: any;
+  @IsOptional() @Allow() metaPct?: any;
+}
+
+class UpsertPosicoesDto {
+  @IsOptional() @IsArray() positions?: any;
+}
+
 @Controller("monitoramento")
 @UseGuards(AuthGuard("jwt"), PermissionsGuard)
 export class MonitoramentoController {
@@ -703,9 +727,9 @@ export class MonitoramentoController {
   @Delete("assets/:id") @Permissions("monitoramento:gerenciar")
   delAsset(@Req() req: any, @Param("id") id: string) { return this.svc.deleteAsset(this.org(req), id); }
   @Post("assets/bulk") @Permissions("monitoramento:gerenciar")
-  bulkAction(@Req() req: any, @Body() b: any) { return this.svc.bulkAction(this.org(req), b.ids || [], b.acao, b.valor); }
+  bulkAction(@Req() req: any, @Body() b: BulkActionAtivosDto) { return this.svc.bulkAction(this.org(req), b.ids || [], b.acao, b.valor); }
   @Post("assets/import") @Permissions("monitoramento:gerenciar")
-  importAssets(@Req() req: any, @Body() b: any) { return this.svc.importAssets(this.org(req), b.linhas || []); }
+  importAssets(@Req() req: any, @Body() b: ImportarAtivosDto) { return this.svc.importAssets(this.org(req), b.linhas || []); }
 
   // Coleta profunda (serviços + hardware do Zabbix)
   @Get("assets/:id/deep") @Permissions("monitoramento:ver")
@@ -740,7 +764,7 @@ export class MonitoramentoController {
   @Get("sla/metas") @Permissions("monitoramento:ver")
   listSlaMetas(@Req() req: any) { return this.svc.listSlaMetas(this.org(req)); }
   @Put("sla/metas") @Permissions("monitoramento:gerenciar")
-  setSlaMeta(@Req() req: any, @Body() b: any) { return this.svc.setSlaMeta(this.org(req), b.categoria, b.metaPct); }
+  setSlaMeta(@Req() req: any, @Body() b: SetSlaMetaDto) { return this.svc.setSlaMeta(this.org(req), b.categoria, b.metaPct); }
   @Get("events/:assetId/historico") @Permissions("monitoramento:ver")
   hist(@Req() req: any, @Param("assetId") aid: string, @Query("horas") h: any) {
     const horas = Math.max(1, Math.min(720, Number(h) || 24));
@@ -753,7 +777,7 @@ export class MonitoramentoController {
   @Get("mapas/:id")       @Permissions("monitoramento:ver")        getMap(@Req() req: any, @Param("id") id: string) { return this.svc.getMap(this.org(req), id); }
   @Patch("mapas/:id")     @Permissions("monitoramento:gerenciar")  updateMap(@Req() req: any, @Param("id") id: string, @Body() b: any) { return this.svc.updateMap(this.org(req), id, b); }
   @Put("mapas/:id/positions") @Permissions("monitoramento:gerenciar")
-  upsertPos(@Req() req: any, @Param("id") id: string, @Body() b: any) { return this.svc.upsertPositions(this.org(req), id, b.positions || []); }
+  upsertPos(@Req() req: any, @Param("id") id: string, @Body() b: UpsertPosicoesDto) { return this.svc.upsertPositions(this.org(req), id, b.positions || []); }
   @Delete("mapas/:id")    @Permissions("monitoramento:gerenciar")  delMap(@Req() req: any, @Param("id") id: string) { return this.svc.deleteMap(this.org(req), id); }
 
   // Unidades

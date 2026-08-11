@@ -4,9 +4,7 @@ import {
   NotFoundException, BadRequestException, ForbiddenException,
 } from "@nestjs/common";
 import { AuthGuard } from "@nestjs/passport";
-import {
-  IsString, IsOptional, IsNumber, IsBoolean, IsIn, Min, Max, IsArray,
-} from "class-validator";
+import { Allow, IsArray, IsBoolean, IsIn, IsNumber, IsOptional, IsString, Max, Min } from "class-validator";
 import { PrismaService } from "../../prisma/prisma.service";
 import { Permissions } from "../auth/permissions.decorator";
 import { PermissionsGuard } from "../auth/permissions.guard";
@@ -174,6 +172,14 @@ function mapItem(item: any) {
 }
 
 // ── Controller ────────────────────────────────────────────────────────────────
+
+// ── DTOs de corpo antes tipado como `any`.
+//    Campos descobertos pelo uso no handler; todos opcionais e com tipo
+//    afirmado só onde o código o torna inequívoco. O ganho é a lista
+//    fechada de campos aceitos — antes qualquer JSON passava.
+class ImportarOpexOrcamentoDto {
+  @IsOptional() @Allow() ciclos?: any;
+}
 
 @Controller("orcamento")
 @UseGuards(AuthGuard("jwt"), PermissionsGuard)
@@ -917,7 +923,7 @@ class OrcamentoController {
   // Re-importável: se o ciclo do ano já existe, substitui os itens dele.
   @Post("importar-opex")
   @Permissions("orcamento:planejar")
-  async importarOpex(@Body() body: any, @Req() req: any) {
+  async importarOpex(@Body() body: ImportarOpexOrcamentoDto, @Req() req: any) {
     const orgId = req.user?.organizationId;
     const userId = req.user.id;
     const ciclos = Array.isArray(body?.ciclos) ? body.ciclos : [];

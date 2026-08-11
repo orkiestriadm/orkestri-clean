@@ -3,6 +3,7 @@ import {
   Body, Param, Query, UseGuards, Req,
   Injectable, NotFoundException, BadRequestException, ForbiddenException,
 } from "@nestjs/common";
+import { Allow, IsDateString, IsNumber, IsOptional } from "class-validator";
 import { AuthGuard } from "@nestjs/passport";
 import { PrismaService } from "../../prisma/prisma.service";
 import { Permissions } from "../auth/permissions.decorator";
@@ -10,6 +11,17 @@ import { PermissionsGuard } from "../auth/permissions.guard";
 import { acharNaOrganizacao } from "../../common/escopo-organizacao";
 
 // ── ApontamentosController ────────────────────────────────────────────────────
+// ── DTOs de corpo antes tipado como `any`.
+//    Campos descobertos pelo uso no handler; todos opcionais e com tipo
+//    afirmado só onde o código o torna inequívoco. O ganho é a lista
+//    fechada de campos aceitos — antes qualquer JSON passava.
+class CreateApontamentosDto {
+  @IsOptional() @Allow() chamadoId?: any;
+  @IsOptional() @IsDateString() data?: any;
+  @IsOptional() @Allow() descricao?: any;
+  @IsOptional() @IsNumber() minutos?: any;
+}
+
 @Controller("apontamentos")
 @UseGuards(AuthGuard("jwt"), PermissionsGuard)
 class ApontamentosController {
@@ -20,7 +32,7 @@ class ApontamentosController {
   // Body: { chamadoId, minutos, descricao?, data? }
   @Post()
   @Permissions("chamados:ver")
-  async create(@Body() body: any, @Req() req: any) {
+  async create(@Body() body: CreateApontamentosDto, @Req() req: any) {
     if (!body.chamadoId)       throw new BadRequestException("chamadoId obrigatorio");
     if (!body.minutos || body.minutos <= 0)
       throw new BadRequestException("minutos deve ser maior que 0");

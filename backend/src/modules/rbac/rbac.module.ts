@@ -3,6 +3,7 @@ import {
   Body, Param, UseGuards, Req, HttpCode, HttpStatus,
   BadRequestException, NotFoundException, ForbiddenException,
 } from "@nestjs/common";
+import { Allow, IsOptional } from "class-validator";
 import { AuthGuard } from "@nestjs/passport";
 import { JwtModule } from "@nestjs/jwt";
 import { ConfigModule, ConfigService } from "@nestjs/config";
@@ -42,6 +43,33 @@ function canManagePerms(user: any): boolean {
 // ──────────────────────────────────────────────
 // Controller de Papéis (Roles)
 // ──────────────────────────────────────────────
+// ── DTOs de corpo antes tipado como `any`.
+//    Campos descobertos pelo uso no handler; todos opcionais e com tipo
+//    afirmado só onde o código o torna inequívoco. O ganho é a lista
+//    fechada de campos aceitos — antes qualquer JSON passava.
+class CreateRoleRbacDto {
+  @IsOptional() @Allow() descricao?: any;
+  @IsOptional() @Allow() nivel?: any;
+  @IsOptional() @Allow() nome?: any;
+  @IsOptional() @Allow() permissoes?: any;
+}
+
+class UpdateRoleRbacDto {
+  @IsOptional() @Allow() descricao?: any;
+  @IsOptional() @Allow() nivel?: any;
+  @IsOptional() @Allow() nome?: any;
+  @IsOptional() @Allow() permissoes?: any;
+}
+
+class AssignRoleRbacDto {
+  @IsOptional() @Allow() roleId?: any;
+}
+
+class SetOverrideRbacDto {
+  @IsOptional() @Allow() conceder?: any;
+  @IsOptional() @Allow() permissionId?: any;
+}
+
 @Controller("rbac/roles")
 @UseGuards(JwtAuthGuard)
 class RolesController {
@@ -66,7 +94,7 @@ class RolesController {
   }
 
   @Post()
-  async createRole(@Body() body: any, @Req() req: any) {
+  async createRole(@Body() body: CreateRoleRbacDto, @Req() req: any) {
     if (!req.user.isMaster) throw new ForbiddenException("Apenas masters");
     const orgId = organizacaoDe(req);
     const { nome, descricao, nivel = 0, permissoes = [] } = body;
@@ -97,7 +125,7 @@ class RolesController {
   }
 
   @Patch(":id")
-  async updateRole(@Param("id") id: string, @Body() body: any, @Req() req: any) {
+  async updateRole(@Param("id") id: string, @Body() body: UpdateRoleRbacDto, @Req() req: any) {
     if (!req.user.isMaster) throw new ForbiddenException("Apenas masters");
     const orgId = organizacaoDe(req);
     // Resolve DENTRO da organizacao: era aqui que um master do cliente A
@@ -189,7 +217,7 @@ class UserPermissionsController {
 
   // POST /rbac/users/:userId/roles — atribuir papel
   @Post("roles")
-  async assignRole(@Param("userId") userId: string, @Body() body: any, @Req() req: any) {
+  async assignRole(@Param("userId") userId: string, @Body() body: AssignRoleRbacDto, @Req() req: any) {
     if (!canManagePerms(req.user)) throw new ForbiddenException("Sem permissao para gerenciar papeis");
     const { roleId } = body;
     if (!roleId) throw new BadRequestException("roleId é obrigatório");
@@ -230,7 +258,7 @@ class UserPermissionsController {
 
   // POST /rbac/users/:userId/overrides — criar/atualizar override
   @Post("overrides")
-  async setOverride(@Param("userId") userId: string, @Body() body: any, @Req() req: any) {
+  async setOverride(@Param("userId") userId: string, @Body() body: SetOverrideRbacDto, @Req() req: any) {
     if (!canManagePerms(req.user)) throw new ForbiddenException("Sem permissao para gerenciar permissoes");
     const { permissionId, conceder } = body;
     if (!permissionId) throw new BadRequestException("permissionId é obrigatório");

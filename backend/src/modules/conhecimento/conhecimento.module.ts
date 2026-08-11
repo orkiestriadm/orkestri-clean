@@ -3,7 +3,7 @@ import {
   Body, Param, Query, UseGuards, Req,
   NotFoundException, BadRequestException, ForbiddenException,
 } from "@nestjs/common";
-import { IsArray, IsBoolean, IsNumber, IsOptional, IsString } from "class-validator";
+import { Allow, IsArray, IsBoolean, IsNumber, IsOptional, IsString } from "class-validator";
 import { AuthGuard } from "@nestjs/passport";
 import { PrismaService } from "../../prisma/prisma.service";
 import { Permissions } from "../auth/permissions.decorator";
@@ -64,6 +64,27 @@ class PublicarConhecimentoDto {
   @IsBoolean() publicar: boolean;
 }
 
+// ── DTOs de corpo antes tipado como `any`.
+//    Campos descobertos pelo uso no handler; todos opcionais e com tipo
+//    afirmado só onde o código o torna inequívoco. O ganho é a lista
+//    fechada de campos aceitos — antes qualquer JSON passava.
+class UpdateConhecimento2Dto {
+  @IsOptional() @IsBoolean() ativo?: any;
+  @IsOptional() @Allow() cor?: any;
+  @IsOptional() @Allow() descricao?: any;
+  @IsOptional() @Allow() icone?: any;
+  @IsOptional() @IsString() nome?: any;
+  @IsOptional() @IsNumber() ordem?: any;
+}
+
+class UpdateConhecimentoDto {
+  @IsOptional() @Allow() categoriaId?: any;
+  @IsOptional() @Allow() conteudo?: any;
+  @IsOptional() @Allow() resumo?: any;
+  @IsOptional() @Allow() tags?: any;
+  @IsOptional() @IsString() titulo?: any;
+}
+
 @Controller("conhecimento/categorias")
 @UseGuards(AuthGuard("jwt"), PermissionsGuard)
 class CategoriasController {
@@ -107,7 +128,7 @@ class CategoriasController {
 
   @Put(":id")
   @Permissions("conhecimento:editar")
-  async update(@Param("id") id: string, @Body() body: any, @Req() req: any) {
+  async update(@Param("id") id: string, @Body() body: UpdateConhecimento2Dto, @Req() req: any) {
     const existing = await acharNaOrganizacao(this.db.categoriaConhecimento, id, req, "Categoria nao encontrada");
     return this.db.categoriaConhecimento.update({
       where: { id },
@@ -280,7 +301,7 @@ class ConhecimentoController {
   // PUT /conhecimento/:id — update article
   @Put(":id")
   @Permissions("conhecimento:editar")
-  async update(@Param("id") id: string, @Body() body: any, @Req() req: any) {
+  async update(@Param("id") id: string, @Body() body: UpdateConhecimentoDto, @Req() req: any) {
     const existing = await acharNaOrganizacao(this.db.artigoConhecimento, id, req, "Artigo nao encontrado");
 
     const canEdit = req.user.isMaster || req.user.permissions?.includes("*") ||

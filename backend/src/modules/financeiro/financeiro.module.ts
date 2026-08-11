@@ -2,7 +2,7 @@ import {
   Module, Controller, Get, Post, Put, Delete, Body, Param, Query,
   UseGuards, Req, NotFoundException, BadRequestException,
 } from "@nestjs/common";
-import { IsArray } from "class-validator";
+import { Allow, IsArray, IsNumber, IsOptional, IsString } from "class-validator";
 import { AuthGuard } from "@nestjs/passport";
 import { PrismaService } from "../../prisma/prisma.service";
 import { Permissions } from "../auth/permissions.decorator";
@@ -98,6 +98,78 @@ function parseRow(row: any, orgId: string, importadoEm: Date) {
 //    rota aceita qualquer JSON. Campos derivados do tipo inline anterior.
 class ImportarFinanceiroDto {
   @IsArray() rows: any[];
+}
+
+// ── DTOs de corpo antes tipado como `any`.
+//    Campos descobertos pelo uso no handler; todos opcionais e com tipo
+//    afirmado só onde o código o torna inequívoco. O ganho é a lista
+//    fechada de campos aceitos — antes qualquer JSON passava.
+class CreateFinanceiroDto {
+  @IsOptional() @Allow() centroCusto?: any;
+  @IsOptional() @Allow() classeValor?: any;
+  @IsOptional() @Allow() ctaContab?: any;
+  @IsOptional() @Allow() dataEmissao?: any;
+  @IsOptional() @Allow() dataPagamento?: any;
+  @IsOptional() @Allow() dataVencto?: any;
+  @IsOptional() @Allow() dataVenctoReal?: any;
+  @IsOptional() @IsNumber() diasAtraso?: any;
+  @IsOptional() @Allow() fornecedorCodigo?: any;
+  @IsOptional() @IsString() fornecedorNome?: any;
+  @IsOptional() @Allow() historico?: any;
+  @IsOptional() @Allow() natureza?: any;
+  @IsOptional() @IsString() numero?: any;
+  @IsOptional() @Allow() observacao?: any;
+  @IsOptional() @Allow() parcela?: any;
+  @IsOptional() @Allow() pedido?: any;
+  @IsOptional() @Allow() portador?: any;
+  @IsOptional() @Allow() prefixo?: any;
+  @IsOptional() @Allow() tipo?: any;
+  @IsOptional() @Allow() valorAVencerNominal?: any;
+  @IsOptional() @Allow() valorJuros?: any;
+  @IsOptional() @Allow() valorOriginal?: any;
+  @IsOptional() @Allow() valorPago?: any;
+  @IsOptional() @Allow() valorVencidoCorrigido?: any;
+  @IsOptional() @Allow() valorVencidoNominal?: any;
+}
+
+/**
+ * Atualizacao de conta a pagar.
+ *
+ * Os campos sao exatamente as tres listas que o handler percorre — nem mais,
+ * nem menos. Ele ja funcionava como lista fechada (campo fora das listas era
+ * ignorado); o DTO acrescenta o que faltava: recusar o campo desconhecido em
+ * vez de descarta-lo em silencio, e conferir o tipo na entrada.
+ *
+ * Numeros e datas ficam permissivos porque a planilha de importacao manda tudo
+ * como texto e o handler converte com `toNum`/`toDate` — exigir tipo aqui
+ * recusaria o que hoje entra e funciona.
+ */
+class AtualizarContaPagarDto {
+  @IsOptional() @IsString() fornecedorNome?: string;
+  @IsOptional() @IsString() fornecedorCodigo?: string;
+  @IsOptional() @IsString() prefixo?: string;
+  @IsOptional() @IsString() numero?: string;
+  @IsOptional() @IsString() parcela?: string;
+  @IsOptional() @IsString() tipo?: string;
+  @IsOptional() @IsString() natureza?: string;
+  @IsOptional() @IsString() portador?: string;
+  @IsOptional() @IsString() historico?: string;
+  @IsOptional() @IsString() classeValor?: string;
+  @IsOptional() @IsString() observacao?: string;
+  @IsOptional() @IsString() pedido?: string;
+  @IsOptional() @IsString() ctaContab?: string;
+  @IsOptional() @IsString() centroCusto?: string;
+  @IsOptional() @Allow() valorOriginal?: any;
+  @IsOptional() @Allow() valorVencidoNominal?: any;
+  @IsOptional() @Allow() valorVencidoCorrigido?: any;
+  @IsOptional() @Allow() valorAVencerNominal?: any;
+  @IsOptional() @Allow() valorJuros?: any;
+  @IsOptional() @Allow() valorPago?: any;
+  @IsOptional() @Allow() diasAtraso?: any;
+  @IsOptional() @Allow() dataEmissao?: any;
+  @IsOptional() @Allow() dataVencto?: any;
+  @IsOptional() @Allow() dataVenctoReal?: any;
+  @IsOptional() @Allow() dataPagamento?: any;
 }
 
 @Controller("financeiro")
@@ -371,7 +443,7 @@ class FinanceiroController {
 
   @Post("contas-a-pagar")
   @Permissions("financeiro:gerenciar")
-  async create(@Body() dto: any, @Req() req: any) {
+  async create(@Body() dto: CreateFinanceiroDto, @Req() req: any) {
     const orgId = req.user?.organizationId;
     if (!dto.fornecedorNome?.trim()) throw new BadRequestException("Fornecedor obrigatório");
     if (!dto.numero?.trim())         throw new BadRequestException("Número obrigatório");
@@ -409,7 +481,7 @@ class FinanceiroController {
 
   @Put("contas-a-pagar/:id")
   @Permissions("financeiro:gerenciar")
-  async update(@Param("id") id: string, @Body() dto: any, @Req() req: any) {
+  async update(@Param("id") id: string, @Body() dto: AtualizarContaPagarDto, @Req() req: any) {
     const orgId = req.user?.organizationId;
     const exists = await (this.prisma as any).contaPagar.findFirst({
       where: { id, ...(orgId ? { organizationId: orgId } : {}) },

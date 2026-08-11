@@ -3,7 +3,7 @@ import {
   Body, Param, Query, UseGuards, Req,
   NotFoundException, BadRequestException, ForbiddenException,
 } from "@nestjs/common";
-import { IsArray, IsNumber, IsOptional, IsString } from "class-validator";
+import { Allow, IsArray, IsDateString, IsNumber, IsOptional, IsString } from "class-validator";
 import { AuthGuard } from "@nestjs/passport";
 import { PrismaService } from "../../prisma/prisma.service";
 import { Permissions } from "../auth/permissions.decorator";
@@ -36,6 +36,33 @@ class PagarFaturasDto {
 
 class ImportarFaturasDto {
   @IsArray() rows: any[];
+}
+
+// ── DTOs de corpo antes tipado como `any`.
+//    Campos descobertos pelo uso no handler; todos opcionais e com tipo
+//    afirmado só onde o código o torna inequívoco. O ganho é a lista
+//    fechada de campos aceitos — antes qualquer JSON passava.
+class CreateFaturasDto {
+  @IsOptional() @Allow() clienteId?: any;
+  @IsOptional() @Allow() contratoId?: any;
+  @IsOptional() @IsDateString() dataEmissao?: any;
+  @IsOptional() @IsDateString() dataPagamento?: any;
+  @IsOptional() @IsDateString() dataVencimento?: any;
+  @IsOptional() @Allow() descricao?: any;
+  @IsOptional() @Allow() observacoes?: any;
+  @IsOptional() @Allow() status?: any;
+  @IsOptional() @IsNumber() valor?: any;
+}
+
+class UpdateFaturasDto {
+  @IsOptional() @Allow() contratoId?: any;
+  @IsOptional() @IsDateString() dataEmissao?: any;
+  @IsOptional() @IsDateString() dataPagamento?: any;
+  @IsOptional() @IsDateString() dataVencimento?: any;
+  @IsOptional() @Allow() descricao?: any;
+  @IsOptional() @Allow() observacoes?: any;
+  @IsOptional() @Allow() status?: any;
+  @IsOptional() @IsNumber() valor?: any;
 }
 
 @Controller("faturas")
@@ -207,7 +234,7 @@ class FaturasController {
   // POST /faturas
   @Post()
   @Permissions("crm:ver")
-  async create(@Body() body: any, @Req() req: any) {
+  async create(@Body() body: CreateFaturasDto, @Req() req: any) {
     if (!body.clienteId) throw new BadRequestException("clienteId obrigatorio");
     if (!body.dataVencimento) throw new BadRequestException("dataVencimento obrigatorio");
     if (body.valor === undefined || body.valor === null) throw new BadRequestException("valor obrigatorio");
@@ -243,7 +270,7 @@ class FaturasController {
   // PUT /faturas/:id
   @Put(":id")
   @Permissions("crm:ver")
-  async update(@Param("id") id: string, @Body() body: any, @Req() req: any) {
+  async update(@Param("id") id: string, @Body() body: UpdateFaturasDto, @Req() req: any) {
     const existing = await acharNaOrganizacao(this.db.fatura, id, req, "Fatura nao encontrada");
 
     const data: any = { atualizadoEm: new Date() };

@@ -2,7 +2,7 @@ import {
   Module, Controller, Get, Post, Put, Delete, Body, Param,
   UseGuards, Req, Injectable, NotFoundException, BadRequestException, ForbiddenException,
 } from "@nestjs/common";
-import { IsNumber, IsOptional, IsString } from "class-validator";
+import { IsBoolean, IsNumber, IsOptional, IsString } from "class-validator";
 import { AuthGuard } from "@nestjs/passport";
 import { PrismaService } from "../../prisma/prisma.service";
 import { Permissions } from "../auth/permissions.decorator";
@@ -41,6 +41,17 @@ class CreateRegraSlaDto {
   @IsOptional() @IsString() categoria?: string;
   @IsNumber() prazoRespostaH: number;
   @IsNumber() prazoResolucaoH: number;
+}
+
+// ── DTOs de corpo antes tipado como `any`.
+//    Campos descobertos pelo uso no handler; todos opcionais e com tipo
+//    afirmado só onde o código o torna inequívoco. O ganho é a lista
+//    fechada de campos aceitos — antes qualquer JSON passava.
+class UpdateRegraSlaDto {
+  @IsOptional() @IsBoolean() ativo?: any;
+  @IsOptional() @IsString() nome?: any;
+  @IsOptional() @IsNumber() prazoResolucaoH?: any;
+  @IsOptional() @IsNumber() prazoRespostaH?: any;
 }
 
 @Controller("sla")
@@ -88,7 +99,7 @@ class SlaController {
 
   @Put("regras/:id")
   @Permissions("sla:gerenciar")
-  async updateRegra(@Param("id") id: string, @Body() body: any, @Req() req: any) {
+  async updateRegra(@Param("id") id: string, @Body() body: UpdateRegraSlaDto, @Req() req: any) {
     const existing = await acharNaOrganizacao(this.db.slaRegra, id, req, "Regra nao encontrada");
     return this.db.slaRegra.update({
       where: { id },

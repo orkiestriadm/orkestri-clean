@@ -657,6 +657,19 @@ class TestarAutomacoesDto {
   @IsOptional() @IsBoolean() dryRun?: boolean;
 }
 
+// ── DTOs de corpo antes tipado como `any`.
+//    Campos descobertos pelo uso no handler; todos opcionais e com tipo
+//    afirmado só onde o código o torna inequívoco. O ganho é a lista
+//    fechada de campos aceitos — antes qualquer JSON passava.
+class UpdateAutomacoesDto {
+  @IsOptional() @Allow() acoes?: any;
+  @IsOptional() @IsBoolean() ativo?: any;
+  @IsOptional() @Allow() condicoes?: any;
+  @IsOptional() @Allow() descricao?: any;
+  @IsOptional() @IsString() nome?: any;
+  @IsOptional() @Allow() trigger?: any;
+}
+
 @Controller("automacoes")
 @UseGuards(AuthGuard("jwt"), PermissionsGuard)
 class AutomacoesController {
@@ -735,7 +748,7 @@ class AutomacoesController {
 
   @Put(":id")
   @Permissions("automacoes:editar")
-  async update(@Param("id") id: string, @Body() body: any, @Req() req: any) {
+  async update(@Param("id") id: string, @Body() body: UpdateAutomacoesDto, @Req() req: any) {
     const existing = await acharNaOrganizacao(this.db.automacao, id, req, "Automacao nao encontrada");
     if (body.trigger && !TRIGGERS_VALIDOS.includes(body.trigger)) throw new BadRequestException("Trigger invalido");
     if (body.acoes !== undefined) validateAcoes(body.acoes);

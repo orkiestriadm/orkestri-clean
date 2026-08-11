@@ -3,7 +3,7 @@ import {
   Body, Param, Query, Req, UseGuards, Injectable, Logger,
   NotFoundException, BadRequestException,
 } from "@nestjs/common";
-import { Allow, IsOptional, IsString } from "class-validator";
+import { Allow, IsBoolean, IsOptional, IsString } from "class-validator";
 import { AuthGuard } from "@nestjs/passport";
 import { PrismaService } from "../../prisma/prisma.service";
 import { Permissions } from "../auth/permissions.decorator";
@@ -199,6 +199,20 @@ class CreateWebhooksDto {
   @IsOptional() @IsString() descricao?: string;
 }
 
+// ── DTOs de corpo antes tipado como `any`.
+//    Campos descobertos pelo uso no handler; todos opcionais e com tipo
+//    afirmado só onde o código o torna inequívoco. O ganho é a lista
+//    fechada de campos aceitos — antes qualquer JSON passava.
+class UpdateWebhooksDto {
+  @IsOptional() @IsBoolean() ativo?: any;
+  @IsOptional() @Allow() descricao?: any;
+  @IsOptional() @Allow() evento?: any;
+  @IsOptional() @Allow() headers?: any;
+  @IsOptional() @IsString() nome?: any;
+  @IsOptional() @IsString() secret?: any;
+  @IsOptional() @IsString() url?: any;
+}
+
 @Controller("webhooks")
 @UseGuards(AuthGuard("jwt"), PermissionsGuard)
 class WebhooksController {
@@ -261,7 +275,7 @@ class WebhooksController {
 
   @Put(":id")
   @Permissions("automacoes:editar")
-  async update(@Param("id") id: string, @Body() body: any, @Req() req: any) {
+  async update(@Param("id") id: string, @Body() body: UpdateWebhooksDto, @Req() req: any) {
     const existing = await acharNaOrganizacao(this.db.webhook, id, req, "Webhook não encontrado");
     if (body.url) await validateWebhookUrl(body.url);
     if (body.evento && !WEBHOOK_EVENTOS.includes(body.evento)) throw new BadRequestException("Evento inválido");

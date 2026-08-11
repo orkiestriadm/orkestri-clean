@@ -5,7 +5,7 @@ import {
   Injectable, NotFoundException, BadRequestException, ForbiddenException,
   UseInterceptors, UploadedFile,
 } from "@nestjs/common";
-import { IsNumber, IsOptional, IsString } from "class-validator";
+import { Allow, IsBoolean, IsDateString, IsNumber, IsOptional, IsString } from "class-validator";
 import { AuthGuard } from "@nestjs/passport";
 import { FileInterceptor } from "@nestjs/platform-express";
 import { diskStorage } from "multer";
@@ -53,6 +53,38 @@ class RenovarContratosDto {
   @IsString() vigenciaFim: string;
   @IsOptional() @IsNumber() valor?: number;
   @IsOptional() @IsString() titulo?: string;
+}
+
+// ── DTOs de corpo antes tipado como `any`.
+//    Campos descobertos pelo uso no handler; todos opcionais e com tipo
+//    afirmado só onde o código o torna inequívoco. O ganho é a lista
+//    fechada de campos aceitos — antes qualquer JSON passava.
+class CreateContratosDto {
+  @IsOptional() @Allow() clienteId?: any;
+  @IsOptional() @Allow() observacoes?: any;
+  @IsOptional() @Allow() plano?: any;
+  @IsOptional() @Allow() responsavelId?: any;
+  @IsOptional() @IsNumber() slaHoras?: any;
+  @IsOptional() @Allow() status?: any;
+  @IsOptional() @Allow() tipo?: any;
+  @IsOptional() @IsString() titulo?: any;
+  @IsOptional() @IsNumber() valor?: any;
+  @IsOptional() @IsDateString() vigenciaFim?: any;
+  @IsOptional() @IsDateString() vigenciaInicio?: any;
+}
+
+class UpdateContratosDto {
+  @IsOptional() @IsBoolean() ativo?: any;
+  @IsOptional() @Allow() observacoes?: any;
+  @IsOptional() @Allow() plano?: any;
+  @IsOptional() @Allow() responsavelId?: any;
+  @IsOptional() @IsNumber() slaHoras?: any;
+  @IsOptional() @Allow() status?: any;
+  @IsOptional() @Allow() tipo?: any;
+  @IsOptional() @IsString() titulo?: any;
+  @IsOptional() @IsNumber() valor?: any;
+  @IsOptional() @IsDateString() vigenciaFim?: any;
+  @IsOptional() @IsDateString() vigenciaInicio?: any;
 }
 
 @Controller("contratos")
@@ -152,7 +184,7 @@ class ContratosController {
   // POST /contratos
   @Post()
   @Permissions("crm:ver")
-  async create(@Body() body: any, @Req() req: any) {
+  async create(@Body() body: CreateContratosDto, @Req() req: any) {
     if (!body.clienteId) throw new BadRequestException("clienteId obrigatorio");
     if (!body.titulo?.trim()) throw new BadRequestException("titulo obrigatorio");
 
@@ -193,7 +225,7 @@ class ContratosController {
   // PUT /contratos/:id
   @Put(":id")
   @Permissions("crm:ver")
-  async update(@Param("id") id: string, @Body() body: any, @Req() req: any) {
+  async update(@Param("id") id: string, @Body() body: UpdateContratosDto, @Req() req: any) {
     const existing = await acharNaOrganizacao(this.db.contrato, id, req, "Contrato nao encontrado");
 
     const data: any = {};

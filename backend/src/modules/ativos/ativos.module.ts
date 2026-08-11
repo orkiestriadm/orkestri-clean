@@ -4,7 +4,7 @@ import {
   NotFoundException, BadRequestException,
   UnauthorizedException, Logger,
 } from "@nestjs/common";
-import { IsArray, IsBoolean, IsNumber, IsOptional, IsString, ValidateNested } from "class-validator";
+import { Allow, IsArray, IsBoolean, IsDateString, IsNumber, IsOptional, IsString, ValidateNested } from "class-validator";
 import { Type } from "class-transformer";
 import { AuthGuard } from "@nestjs/passport";
 import { PrismaService } from "../../prisma/prisma.service";
@@ -90,6 +90,37 @@ class TransferirAtivosDto {
   @IsOptional() @IsString() motivo?: string;
 }
 
+// ── DTOs de corpo antes tipado como `any`.
+//    Campos descobertos pelo uso no handler; todos opcionais e com tipo
+//    afirmado só onde o código o torna inequívoco. O ganho é a lista
+//    fechada de campos aceitos — antes qualquer JSON passava.
+class UpdateAtivos2Dto {
+  @IsOptional() @IsBoolean() ativo?: any;
+  @IsOptional() @Allow() cor?: any;
+  @IsOptional() @Allow() descricao?: any;
+  @IsOptional() @Allow() icone?: any;
+  @IsOptional() @IsString() nome?: any;
+}
+
+class UpdateAtivosDto {
+  @IsOptional() @Allow() categoriaId?: any;
+  @IsOptional() @IsDateString() dataAquisicao?: any;
+  @IsOptional() @IsDateString() dataGarantiaFim?: any;
+  @IsOptional() @Allow() descricao?: any;
+  @IsOptional() @IsString() ip?: any;
+  @IsOptional() @Allow() localizacao?: any;
+  @IsOptional() @Allow() marca?: any;
+  @IsOptional() @Allow() modelo?: any;
+  @IsOptional() @IsBoolean() monitorar?: any;
+  @IsOptional() @IsString() nome?: any;
+  @IsOptional() @Allow() numeroSerie?: any;
+  @IsOptional() @Allow() observacoes?: any;
+  @IsOptional() @Allow() responsavelId?: any;
+  @IsOptional() @Allow() setorId?: any;
+  @IsOptional() @Allow() status?: any;
+  @IsOptional() @Allow() valorAquisicao?: any;
+}
+
 @Controller("ativos/categorias")
 @UseGuards(AuthGuard("jwt"), PermissionsGuard)
 class CategoriasAtivoController {
@@ -125,7 +156,7 @@ class CategoriasAtivoController {
 
   @Put(":id")
   @Permissions("ativos:editar")
-  async update(@Param("id") id: string, @Body() body: any, @Req() req: any) {
+  async update(@Param("id") id: string, @Body() body: UpdateAtivos2Dto, @Req() req: any) {
     await acharNaOrganizacao(this.db.categoriaAtivo, id, req, "Categoria nao encontrada");
     return this.db.categoriaAtivo.update({ where: { id }, data: { ...(body.nome && { nome: body.nome.trim() }), ...(body.descricao !== undefined && { descricao: body.descricao }), ...(body.icone && { icone: body.icone }), ...(body.cor && { cor: body.cor }), ...(body.ativo !== undefined && { ativo: Boolean(body.ativo) }) } });
   }
@@ -415,7 +446,7 @@ class AtivosController {
 
   @Put(":id")
   @Permissions("ativos:editar")
-  async update(@Param("id") id: string, @Body() body: any, @Req() req: any) {
+  async update(@Param("id") id: string, @Body() body: UpdateAtivosDto, @Req() req: any) {
     await acharNaOrganizacao(this.db.ativo, id, req, "Ativo nao encontrado");
     if (body.status && !STATUS_VALID.includes(body.status)) throw new BadRequestException("Status invalido");
     return mapAtivo(await this.db.ativo.update({
