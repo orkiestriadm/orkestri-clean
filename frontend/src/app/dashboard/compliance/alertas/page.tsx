@@ -166,8 +166,12 @@ function AbaRegras({ podeConfigurar }: { podeConfigurar: boolean }) {
                       : "Organização inteira"}
                   </td>
                   <td style={{ fontSize: 12 }}>{ROTULO_BASE[r.baseData]}</td>
-                  <td className="num" style={{ fontSize: 11.5 }}>{r.diasAntes.join(", ") || "—"}</td>
-                  <td className="num" style={{ fontSize: 11.5 }}>{r.diasDepois.join(", ") || "—"}</td>
+                  {/* `num--lista`: mantém o alinhamento tabular mas libera a
+                      quebra. Sem isso, "90, 60, 30, 15, 7, 3, 1, 0" segura a
+                      tabela numa linha só e joga as últimas colunas para fora
+                      da tela. */}
+                  <td className="num num--lista" style={{ fontSize: 11.5, minWidth: 92 }}>{r.diasAntes.join(", ") || "—"}</td>
+                  <td className="num num--lista" style={{ fontSize: 11.5, minWidth: 72 }}>{r.diasDepois.join(", ") || "—"}</td>
                   <td style={{ fontSize: 12 }}>{r.canais.map(c => ROTULO_CANAL[c] ?? c).join(", ")}</td>
                   <td style={{ fontSize: 12 }}>{r.destinatarios.map(d => ROTULO_DESTINATARIO[d] ?? d).join(", ")}</td>
                   <td><StatusBadge label={r.ativo ? "Ativa" : "Desligada"} tone={r.ativo ? "ok" : "neutro"} /></td>
