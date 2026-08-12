@@ -41,6 +41,13 @@ const mockPrisma = {
     findMany: jest.fn().mockResolvedValue([]),
     create: jest.fn(),
   },
+  // Papéis passaram a ser POR ORGANIZAÇÃO, então o seed percorre as
+  // organizações existentes. Sem este mock ele lança, o onModuleInit engole a
+  // exceção num warn, e o teste vê "0 chamadas" — a mesma armadilha que o
+  // comentário acima descreve para permission/rolePermission.
+  organization: {
+    findMany: jest.fn().mockResolvedValue([{ id: "00000000-0000-0000-0000-000000000001" }]),
+  },
   notification: {
     create: jest.fn(),
     findMany: jest.fn(),
@@ -143,7 +150,10 @@ describe("AuthService", () => {
 
   describe("seedMaster (onModuleInit)", () => {
     it("should create master role and user if they dont exist", async () => {
-      mockPrisma.role.findUnique.mockResolvedValue(null);
+      // `findFirst`, não `findUnique`: o nome do papel deixou de ser único
+      // globalmente e passou a ser único DENTRO da organização, então o seed
+      // procura por (nome, organizationId).
+      mockPrisma.role.findFirst.mockResolvedValue(null);
       mockPrisma.role.create.mockResolvedValue({ id: "role-1", nome: "master", isMaster: true });
       // `findFirst`, não `findUnique`: e-mail sozinho não é único (é único por
       // organização), então o seed procura assim. O mock antigo apontava para o
@@ -153,9 +163,17 @@ describe("AuthService", () => {
 
       await service.onModuleInit();
 
+      // O papel master nasce AMARRADO a uma organização. Sem o organizationId
+      // aqui, o papel voltaria a ser compartilhado entre tenants — que era o
+      // defeito: um master do cliente A editava o papel e mudava o que os
+      // usuários do cliente B podiam fazer.
       expect(mockPrisma.role.create).toHaveBeenCalledWith(
         expect.objectContaining({
-          data: expect.objectContaining({ nome: "master", isMaster: true }),
+          data: expect.objectContaining({
+            nome: "master",
+            isMaster: true,
+            organizationId: expect.any(String),
+          }),
         })
       );
       expect(mockPrisma.user.create).toHaveBeenCalledWith(
@@ -172,7 +190,7 @@ describe("AuthService", () => {
       const existingRole = { id: "role-1", nome: "master", isMaster: true };
       const existingUser = { id: "user-1", email: "sa@test.local" };
 
-      mockPrisma.role.findUnique.mockResolvedValue(existingRole);
+      mockPrisma.role.findFirst.mockResolvedValue(existingRole);
       mockPrisma.user.findFirst.mockResolvedValue(existingUser);
       mockPrisma.userRole.findUnique.mockResolvedValue({ userId: "user-1", roleId: "role-1" });
 
@@ -192,7 +210,7 @@ describe("AuthService", () => {
       const existingRole = { id: "role-1", nome: "master", isMaster: true };
       const existingUser = { id: "user-1", email: "sa@test.local" };
 
-      mockPrisma.role.findUnique.mockResolvedValue(existingRole);
+      mockPrisma.role.findFirst.mockResolvedValue(existingRole);
       mockPrisma.user.findFirst.mockResolvedValue(existingUser);
       mockPrisma.userRole.findUnique.mockResolvedValue(null); // no role assigned
 

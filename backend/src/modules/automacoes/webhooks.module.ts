@@ -3,10 +3,12 @@ import {
   Body, Param, Query, Req, UseGuards, Injectable, Logger,
   NotFoundException, BadRequestException,
 } from "@nestjs/common";
+import { Allow, IsBoolean, IsOptional, IsString } from "class-validator";
 import { AuthGuard } from "@nestjs/passport";
 import { PrismaService } from "../../prisma/prisma.service";
 import { Permissions } from "../auth/permissions.decorator";
 import { PermissionsGuard } from "../auth/permissions.guard";
+import { acharNaOrganizacao } from "../../common/escopo-organizacao";
 import * as crypto from "crypto";
 import * as net from "net";
 import * as dns from "dns/promises";
@@ -186,6 +188,31 @@ export class WebhookService {
 }
 
 // ── Controller ────────────────────────────────────────────────────────────────
+// ── DTOs gerados: sem classe, o ValidationPipe global nao tem metadata e a
+//    rota aceita qualquer JSON. Campos derivados do tipo inline anterior.
+class CreateWebhooksDto {
+  @IsString() nome: string;
+  @IsString() url: string;
+  @IsString() evento: string;
+  @IsOptional() @Allow() headers?: Record<string, string>;
+  @IsOptional() @IsString() secret?: string;
+  @IsOptional() @IsString() descricao?: string;
+}
+
+// ── DTOs de corpo antes tipado como `any`.
+//    Campos descobertos pelo uso no handler; todos opcionais e com tipo
+//    afirmado só onde o código o torna inequívoco. O ganho é a lista
+//    fechada de campos aceitos — antes qualquer JSON passava.
+class UpdateWebhooksDto {
+  @IsOptional() @IsBoolean() ativo?: any;
+  @IsOptional() @Allow() descricao?: any;
+  @IsOptional() @Allow() evento?: any;
+  @IsOptional() @Allow() headers?: any;
+  @IsOptional() @IsString() nome?: any;
+  @IsOptional() @IsString() secret?: any;
+  @IsOptional() @IsString() url?: any;
+}
+
 @Controller("webhooks")
 @UseGuards(AuthGuard("jwt"), PermissionsGuard)
 class WebhooksController {
@@ -224,10 +251,7 @@ class WebhooksController {
 
   @Post()
   @Permissions("automacoes:criar")
-  async create(@Body() body: {
-    nome: string; url: string; evento: string;
-    headers?: Record<string, string>; secret?: string; descricao?: string;
-  }, @Req() req: any) {
+  async create(@Body() body: CreateWebhooksDto, @Req() req: any) {
     if (!body.nome?.trim()) throw new BadRequestException("Nome obrigatório");
     if (!body.url?.trim())  throw new BadRequestException("URL obrigatória");
     if (!body.evento)       throw new BadRequestException("Evento obrigatório");
@@ -251,9 +275,8 @@ class WebhooksController {
 
   @Put(":id")
   @Permissions("automacoes:editar")
-  async update(@Param("id") id: string, @Body() body: any) {
-    const existing = await this.db.webhook.findUnique({ where: { id } });
-    if (!existing) throw new NotFoundException("Webhook não encontrado");
+  async update(@Param("id") id: string, @Body() body: UpdateWebhooksDto, @Req() req: any) {
+    const existing = await acharNaOrganizacao(this.db.webhook, id, req, "Webhook não encontrado");
     if (body.url) await validateWebhookUrl(body.url);
     if (body.evento && !WEBHOOK_EVENTOS.includes(body.evento)) throw new BadRequestException("Evento inválido");
     return this.db.webhook.update({
@@ -273,17 +296,15 @@ class WebhooksController {
 
   @Patch(":id/toggle")
   @Permissions("automacoes:editar")
-  async toggle(@Param("id") id: string) {
-    const existing = await this.db.webhook.findUnique({ where: { id } });
-    if (!existing) throw new NotFoundException("Webhook não encontrado");
+  async toggle(@Param("id") id: string, @Req() req: any) {
+    const existing = await acharNaOrganizacao(this.db.webhook, id, req, "Webhook não encontrado");
     return this.db.webhook.update({ where: { id }, data: { ativo: !existing.ativo } });
   }
 
   @Post(":id/testar")
   @Permissions("automacoes:editar")
-  async testar(@Param("id") id: string) {
-    const hook = await this.db.webhook.findUnique({ where: { id } });
-    if (!hook) throw new NotFoundException("Webhook não encontrado");
+  async testar(@Param("id") id: string, @Req() req: any) {
+    const hook = await acharNaOrganizacao(this.db.webhook, id, req, "Webhook não encontrado");
 
     // Single dispatch (no retry) for a quick test
     await this.webhookService.dispatch(hook, hook.evento, {
@@ -301,9 +322,8 @@ class WebhooksController {
 
   @Delete(":id")
   @Permissions("automacoes:excluir")
-  async remove(@Param("id") id: string) {
-    const existing = await this.db.webhook.findUnique({ where: { id } });
-    if (!existing) throw new NotFoundException("Webhook não encontrado");
+  async remove(@Param("id") id: string, @Req() req: any) {
+    const existing = await acharNaOrganizacao(this.db.webhook, id, req, "Webhook não encontrado");
     await this.db.webhook.delete({ where: { id } });
     return { message: "Webhook removido" };
   }

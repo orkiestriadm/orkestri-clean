@@ -4,12 +4,15 @@ import {
   NotFoundException, BadRequestException,
   UnauthorizedException, Logger,
 } from "@nestjs/common";
+import { Allow, IsArray, IsBoolean, IsDateString, IsNumber, IsOptional, IsString, ValidateNested } from "class-validator";
+import { Type } from "class-transformer";
 import { AuthGuard } from "@nestjs/passport";
 import { PrismaService } from "../../prisma/prisma.service";
 import { Permissions } from "../auth/permissions.decorator";
 import { PermissionsGuard } from "../auth/permissions.guard";
 import { AutomacaoService } from "../automacoes/automacoes.module";
 import { AutomacoesModule } from "../automacoes/automacoes.module";
+import { acharNaOrganizacao } from "../../common/escopo-organizacao";
 import * as crypto from "crypto";
 
 // ── helpers ───────────────────────────────────────────────────────────────────
@@ -31,6 +34,93 @@ function mapAtivo(a: any) {
 }
 
 // ── Categories Controller ─────────────────────────────────────────────────────
+/**
+ * Resultado de varredura enviado pelo agente de monitoramento.
+ *
+ * Objeto ANINHADO, então precisa de `@ValidateNested` + `@Type`: sem os dois o
+ * class-validator trata cada item do array como valor solto e não desce nos
+ * campos — a validação passaria a existir só no nome.
+ */
+class ResultadoAtivoDto {
+  @IsString() ativoId: string;
+  @IsBoolean() online: boolean;
+  @IsOptional() @IsNumber() latenciaMs?: number;
+  @IsOptional() @IsString() erro?: string;
+}
+
+class ResultadosMonitoramentoDto {
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => ResultadoAtivoDto)
+  resultados: ResultadoAtivoDto[];
+}
+
+// ── DTOs gerados: sem classe, o ValidationPipe global nao tem metadata e a
+//    rota aceita qualquer JSON. Campos derivados do tipo inline anterior.
+class CreateAtivos2Dto {
+  @IsString() nome: string;
+  @IsOptional() @IsString() descricao?: string;
+  @IsOptional() @IsString() icone?: string;
+  @IsOptional() @IsString() cor?: string;
+}
+
+class CreateAtivosDto {
+  @IsString() nome: string;
+  @IsOptional() @IsString() codigo?: string;
+  @IsOptional() @IsString() descricao?: string;
+  @IsOptional() @IsString() categoriaId?: string;
+  @IsOptional() @IsString() status?: string;
+  @IsOptional() @IsString() marca?: string;
+  @IsOptional() @IsString() modelo?: string;
+  @IsOptional() @IsString() numeroSerie?: string;
+  @IsOptional() @IsString() localizacao?: string;
+  @IsOptional() @IsString() responsavelId?: string;
+  @IsOptional() @IsString() setorId?: string;
+  @IsOptional() @IsString() dataAquisicao?: string;
+  @IsOptional() @IsNumber() valorAquisicao?: number;
+  @IsOptional() @IsString() dataGarantiaFim?: string;
+  @IsOptional() @IsString() observacoes?: string;
+  @IsOptional() @IsString() ip?: string;
+  @IsOptional() @IsBoolean() monitorar?: boolean;
+}
+
+class TransferirAtivosDto {
+  @IsOptional() @IsString() responsavelId?: string;
+  @IsOptional() @IsString() setorId?: string;
+  @IsOptional() @IsString() motivo?: string;
+}
+
+// ── DTOs de corpo antes tipado como `any`.
+//    Campos descobertos pelo uso no handler; todos opcionais e com tipo
+//    afirmado só onde o código o torna inequívoco. O ganho é a lista
+//    fechada de campos aceitos — antes qualquer JSON passava.
+class UpdateAtivos2Dto {
+  @IsOptional() @IsBoolean() ativo?: any;
+  @IsOptional() @Allow() cor?: any;
+  @IsOptional() @Allow() descricao?: any;
+  @IsOptional() @Allow() icone?: any;
+  @IsOptional() @IsString() nome?: any;
+}
+
+class UpdateAtivosDto {
+  @IsOptional() @Allow() categoriaId?: any;
+  @IsOptional() @IsDateString() dataAquisicao?: any;
+  @IsOptional() @IsDateString() dataGarantiaFim?: any;
+  @IsOptional() @Allow() descricao?: any;
+  @IsOptional() @IsString() ip?: any;
+  @IsOptional() @Allow() localizacao?: any;
+  @IsOptional() @Allow() marca?: any;
+  @IsOptional() @Allow() modelo?: any;
+  @IsOptional() @IsBoolean() monitorar?: any;
+  @IsOptional() @IsString() nome?: any;
+  @IsOptional() @Allow() numeroSerie?: any;
+  @IsOptional() @Allow() observacoes?: any;
+  @IsOptional() @Allow() responsavelId?: any;
+  @IsOptional() @Allow() setorId?: any;
+  @IsOptional() @Allow() status?: any;
+  @IsOptional() @Allow() valorAquisicao?: any;
+}
+
 @Controller("ativos/categorias")
 @UseGuards(AuthGuard("jwt"), PermissionsGuard)
 class CategoriasAtivoController {
@@ -51,7 +141,7 @@ class CategoriasAtivoController {
 
   @Post()
   @Permissions("ativos:criar")
-  async create(@Body() body: { nome: string; descricao?: string; icone?: string; cor?: string }, @Req() req: any) {
+  async create(@Body() body: CreateAtivos2Dto, @Req() req: any) {
     if (!body.nome?.trim()) throw new BadRequestException("Nome obrigatorio");
     const orgId = req.user?.organizationId;
     try {
@@ -66,17 +156,24 @@ class CategoriasAtivoController {
 
   @Put(":id")
   @Permissions("ativos:editar")
-  async update(@Param("id") id: string, @Body() body: any) {
-    const existing = await this.db.categoriaAtivo.findUnique({ where: { id } });
-    if (!existing) throw new NotFoundException("Categoria nao encontrada");
-    return this.db.categoriaAtivo.update({ where: { id }, data: { ...(body.nome && { nome: body.nome.trim() }), ...(body.descricao !== undefined && { descricao: body.descricao }), ...(body.icone && { icone: body.icone }), ...(body.cor && { cor: body.cor }), ...(body.ativo !== undefined && { ativo: Boolean(body.ativo) }) } });
+  async update(@Param("id") id: string, @Body() body: UpdateAtivos2Dto, @Req() req: any) {
+    await acharNaOrganizacao(this.db.categoriaAtivo, id, req, "Categoria nao encontrada");
+    try {
+      return await this.db.categoriaAtivo.update({ where: { id }, data: { ...(body.nome && { nome: body.nome.trim() }), ...(body.descricao !== undefined && { descricao: body.descricao }), ...(body.icone && { icone: body.icone }), ...(body.cor && { cor: body.cor }), ...(body.ativo !== undefined && { ativo: Boolean(body.ativo) }) } });
+    } catch (e: any) {
+      // Renomear para um nome que já existe na organização é erro do usuário,
+      // não falha do servidor. O `create` logo acima já tratava P2002; aqui o
+      // erro do Prisma vazava como 500 e a tela mostrava "erro interno" para
+      // quem só tinha escolhido um nome repetido.
+      if (e.code === "P2002") throw new BadRequestException("Ja existe uma categoria com este nome");
+      throw e;
+    }
   }
 
   @Delete(":id")
   @Permissions("ativos:excluir")
-  async remove(@Param("id") id: string) {
-    const existing = await this.db.categoriaAtivo.findUnique({ where: { id } });
-    if (!existing) throw new NotFoundException("Categoria nao encontrada");
+  async remove(@Param("id") id: string, @Req() req: any) {
+    await acharNaOrganizacao(this.db.categoriaAtivo, id, req, "Categoria nao encontrada");
     await this.db.ativo.updateMany({ where: { categoriaId: id }, data: { categoriaId: null } });
     await this.db.categoriaAtivo.delete({ where: { id } });
     return { message: "Categoria removida" };
@@ -195,7 +292,7 @@ class MonitoramentoController {
   @Post("agent/report")
   async receiveReport(
     @Headers("x-monitoring-key") key: string,
-    @Body() body: { resultados: { ativoId: string; online: boolean; latenciaMs?: number; erro?: string }[] },
+    @Body() body: ResultadosMonitoramentoDto,
   ) {
     const orgId = await this.resolveOrg(key);
     if (!orgId) throw new UnauthorizedException("Chave de monitoramento invalida");
@@ -302,9 +399,8 @@ class AtivosController {
 
   @Get(":id")
   @Permissions("ativos:ver")
-  async findOne(@Param("id") id: string) {
-    const ativo = await this.db.ativo.findUnique({
-      where: { id },
+  async findOne(@Param("id") id: string, @Req() req: any) {
+    const ativo = await acharNaOrganizacao(this.db.ativo, id, req, "Ativo nao encontrado", {
       include: {
         ...ATIVO_INCLUDE,
         transferencias: {
@@ -317,19 +413,12 @@ class AtivosController {
         },
       },
     });
-    if (!ativo) throw new NotFoundException("Ativo nao encontrado");
     return mapAtivo(ativo);
   }
 
   @Post()
   @Permissions("ativos:criar")
-  async create(@Body() body: {
-    nome: string; codigo?: string; descricao?: string; categoriaId?: string;
-    status?: string; marca?: string; modelo?: string; numeroSerie?: string;
-    localizacao?: string; responsavelId?: string; setorId?: string;
-    dataAquisicao?: string; valorAquisicao?: number; dataGarantiaFim?: string;
-    observacoes?: string; ip?: string; monitorar?: boolean;
-  }, @Req() req: any) {
+  async create(@Body() body: CreateAtivosDto, @Req() req: any) {
     if (!body.nome?.trim()) throw new BadRequestException("Nome obrigatorio");
     const orgId = req.user?.organizationId;
 
@@ -366,9 +455,8 @@ class AtivosController {
 
   @Put(":id")
   @Permissions("ativos:editar")
-  async update(@Param("id") id: string, @Body() body: any) {
-    const existing = await this.db.ativo.findUnique({ where: { id } });
-    if (!existing) throw new NotFoundException("Ativo nao encontrado");
+  async update(@Param("id") id: string, @Body() body: UpdateAtivosDto, @Req() req: any) {
+    await acharNaOrganizacao(this.db.ativo, id, req, "Ativo nao encontrado");
     if (body.status && !STATUS_VALID.includes(body.status)) throw new BadRequestException("Status invalido");
     return mapAtivo(await this.db.ativo.update({
       where: { id },
@@ -396,9 +484,8 @@ class AtivosController {
 
   @Patch(":id/transferir")
   @Permissions("ativos:mover")
-  async transferir(@Param("id") id: string, @Body() body: { responsavelId?: string; setorId?: string; motivo?: string }, @Req() req: any) {
-    const ativo = await this.db.ativo.findUnique({ where: { id } });
-    if (!ativo) throw new NotFoundException("Ativo nao encontrado");
+  async transferir(@Param("id") id: string, @Body() body: TransferirAtivosDto, @Req() req: any) {
+    const ativo = await acharNaOrganizacao(this.db.ativo, id, req, "Ativo nao encontrado");
     if (!body.responsavelId && !body.setorId) throw new BadRequestException("Informe responsavel ou setor de destino");
     await this.db.transferenciaAtivo.create({
       data: { id: crypto.randomUUID(), ativoId: id, deResponsavelId: ativo.responsavelId || null, paraResponsavelId: body.responsavelId || null, deSetorId: ativo.setorId || null, paraSetorId: body.setorId || null, motivo: body.motivo || null, realizadoPorId: req.user.id },
@@ -412,9 +499,8 @@ class AtivosController {
 
   @Delete(":id")
   @Permissions("ativos:excluir")
-  async remove(@Param("id") id: string) {
-    const existing = await this.db.ativo.findUnique({ where: { id } });
-    if (!existing) throw new NotFoundException("Ativo nao encontrado");
+  async remove(@Param("id") id: string, @Req() req: any) {
+    await acharNaOrganizacao(this.db.ativo, id, req, "Ativo nao encontrado");
     await this.db.ativo.delete({ where: { id } });
     return { message: "Ativo removido" };
   }

@@ -5,26 +5,28 @@ import {
   UseGuards, Req, ForbiddenException, NotFoundException,
   BadRequestException, HttpCode, HttpStatus,
 } from '@nestjs/common';
+import { IsOptional, IsString } from "class-validator";
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { semearPapeisDaOrganizacao, semearPermissoes } from '../auth/auth.service';
 import { AuthGuard } from '@nestjs/passport';
 import * as bcrypt from 'bcryptjs';
 
 // ─── DTOs ────────────────────────────────────────────────────────────────────
 
 class CreateCadastroRequestDto {
-  nomeOrg: string;
-  slugOrg?: string;
-  planoSolicitado?: string;
-  contatoNome?: string;
-  contatoEmail: string;
-  contatoWhatsapp?: string;
-  clienteId?: string;
-  observacoes?: string;
+  @IsString() nomeOrg: string;
+  @IsOptional() @IsString() slugOrg?: string;
+  @IsOptional() @IsString() planoSolicitado?: string;
+  @IsOptional() @IsString() contatoNome?: string;
+  @IsString() contatoEmail: string;
+  @IsOptional() @IsString() contatoWhatsapp?: string;
+  @IsOptional() @IsString() clienteId?: string;
+  @IsOptional() @IsString() observacoes?: string;
 }
 
 class RejectCadastroRequestDto {
-  motivo: string;
+  @IsString() motivo: string;
 }
 
 // ─── Service ─────────────────────────────────────────────────────────────────
@@ -122,8 +124,11 @@ export class CadastroRequestService {
       },
     });
 
-    // 5. Atribui role master
-    const masterRole = await this.prisma.role.findFirst({ where: { isMaster: true } });
+    // 5. Papeis DA ORGANIZACAO nova e atribuicao do master.
+    //    Papel deixou de ser global: sem semear aqui, o tenant aprovado
+    //    nasceria sem papel nenhum.
+    const permMap = await semearPermissoes(this.prisma);
+    const masterRole = await semearPapeisDaOrganizacao(this.prisma, org.id, permMap);
     if (masterRole) {
       await this.prisma.userRole.create({
         data: { userId: user.id, roleId: masterRole.id, atribuidoPorId: aprovadoPorId },

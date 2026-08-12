@@ -4,7 +4,7 @@ import {
   BadRequestException, NotFoundException, ForbiddenException,
 } from "@nestjs/common";
 import { AuthGuard } from "@nestjs/passport";
-import { IsString, IsOptional, IsNumber, IsObject, MaxLength } from "class-validator";
+import { IsNumber, IsObject, IsOptional, IsString, MaxLength } from "class-validator";
 import { ConfigService } from "@nestjs/config";
 import { PrismaService } from "../../prisma/prisma.service";
 import { WhatsAppService } from "../notifications/whatsapp.service";
@@ -679,10 +679,10 @@ export class WorkflowsService {
 }
 
 class UpsertAprovadorSetorDto {
-  aprovadorId: string;
-  backupAprovadorId?: string;
-  backupInicio?: string;
-  backupFim?: string;
+  @IsString() aprovadorId: string;
+  @IsOptional() @IsString() backupAprovadorId?: string;
+  @IsOptional() @IsString() backupInicio?: string;
+  @IsOptional() @IsString() backupFim?: string;
 }
 
 @Controller("workflows/requests")

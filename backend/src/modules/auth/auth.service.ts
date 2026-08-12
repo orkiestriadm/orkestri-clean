@@ -142,6 +142,102 @@ const BASE_PERMISSIONS = [
   "agenda:ver", "agenda:criar", "agenda:editar", "agenda:deletar",
 ];
 
+/**
+ * Garante os papéis padrão DE UMA ORGANIZAÇÃO.
+ *
+ * Função de módulo, e não método de serviço, porque TODA criação de
+ * organização precisa chamá-la — billing, cadastro-request e organizations —
+ * e nenhum desses módulos importa o AuthModule. Como função solta, eles usam
+ * sem fiação de módulo e sem risco de dependência circular.
+ *
+ * Por que passou a ser necessária: enquanto os papéis eram globais, o tenant
+ * novo simplesmente reusava os de todo mundo — que era o defeito. Agora cada
+ * organização tem os seus, e sem esta chamada o tenant novo nasceria SEM
+ * papel nenhum, deixando seus usuários sem permissão alguma.
+ *
+ * Idempotente: cria o que falta, atualiza nível, não duplica.
+ */
+export async function semearPapeisDaOrganizacao(
+  prisma: any,
+  organizationId: string,
+  permMap: Record<string, string>,
+  logger?: { log: (m: string) => void },
+) {
+  // Nomes legados → nomes atuais, DENTRO da organização.
+  const legacyMap: Record<string, string> = {
+    admin: "administrador", gerente: "gestor",
+    colaborador: "analista", atendente: "tecnico",
+  };
+  for (const [old, novo] of Object.entries(legacyMap)) {
+    const existing = await prisma.role.findFirst({ where: { nome: old, organizationId } });
+    const conflict = await prisma.role.findFirst({ where: { nome: novo, organizationId } });
+    if (existing && !conflict) {
+      await prisma.role.update({ where: { id: existing.id }, data: { nome: novo } });
+      logger?.log(`Role '${old}' renomeada para '${novo}' (org ${organizationId})`);
+    }
+  }
+
+  // Papel master da organização.
+  let masterRole = await prisma.role.findFirst({ where: { nome: "master", organizationId } });
+  if (!masterRole) {
+    masterRole = await prisma.role.create({
+      data: {
+        id: require("crypto").randomUUID(), organizationId,
+        nome: "master", descricao: "Acesso total ao sistema", isMaster: true, nivel: 100,
+      },
+    });
+    logger?.log(`Role master criada (org ${organizationId})`);
+  } else if (masterRole.nivel !== 100) {
+    await prisma.role.update({ where: { id: masterRole.id }, data: { nivel: 100 } });
+  }
+
+  // Demais papéis padrão + sincronia de permissões.
+  for (const [nome, cfg] of Object.entries(ROLE_DEFAULTS)) {
+    let role = await prisma.role.findFirst({ where: { nome, organizationId } });
+    if (!role) {
+      role = await prisma.role.create({
+        data: {
+          id: require("crypto").randomUUID(), organizationId,
+          nome, descricao: (ROLE_DEFAULTS[nome] as any)?.descricao || nome,
+          isMaster: false, nivel: cfg.nivel,
+        },
+      });
+      logger?.log(`Role '${nome}' criada (org ${organizationId})`);
+    } else {
+      await prisma.role.update({ where: { id: role.id }, data: { nivel: cfg.nivel } });
+    }
+
+    const existingPerms = await prisma.rolePermission.findMany({ where: { roleId: role.id } });
+    const existingIds = new Set(existingPerms.map((rp: any) => rp.permissionId));
+    const desiredIds = new Set(cfg.permissoes.map(p => permMap[p]).filter(Boolean));
+
+    for (const permId of desiredIds) {
+      if (!existingIds.has(permId)) {
+        await prisma.rolePermission.create({ data: { roleId: role.id, permissionId: permId } });
+      }
+    }
+  }
+
+  return masterRole;
+}
+
+/**
+ * Catálogo de permissões — global, e chamável de fora para quem precisa do
+ * `permMap` antes de semear os papéis de uma organização nova.
+ */
+export async function semearPermissoes(prisma: any): Promise<Record<string, string>> {
+  const permMap: Record<string, string> = {};
+  for (const p of ALL_PERMISSIONS) {
+    const perm = await prisma.permission.upsert({
+      where: { recurso_acao: { recurso: p.recurso, acao: p.acao } },
+      create: { id: require("crypto").randomUUID(), recurso: p.recurso, acao: p.acao, descricao: p.descricao },
+      update: { descricao: p.descricao },
+    });
+    permMap[`${p.recurso}:${p.acao}`] = perm.id;
+  }
+  return permMap;
+}
+
 // Permissões por papel padrão (master ignora — tem acesso total via isMaster)
 // As BASE_PERMISSIONS são adicionadas automaticamente no resolvePermissions()
 // e NÃO precisam ser repetidas aqui, mas estão inclusas para clareza na UI
@@ -342,18 +438,15 @@ export class AuthService implements OnModuleInit {
 
     await this.seedPermissionsAndRoles();
 
-    // Garante que role master existe
-    let masterRole = await this.prisma.role.findUnique({ where: { nome: "master" } });
-    if (!masterRole) {
-      masterRole = await this.prisma.role.create({
-        data: { nome: "master", descricao: "Acesso total ao sistema", isMaster: true, nivel: 100 }
-      });
-      this.logger.log("Role master criada");
-    } else if ((masterRole as any).nivel !== 100) {
-      await this.prisma.role.update({ where: { id: masterRole.id }, data: { nivel: 100 } });
-    }
-
     const DEFAULT_ORG = "00000000-0000-0000-0000-000000000001";
+
+    // O papel master e DA ORGANIZACAO do usuario master. Buscar por nome
+    // global aqui devolveria o master de outro tenant no dia em que existisse
+    // mais de um — e era exatamente esse compartilhamento o defeito.
+    //
+    // `seedRolesDaOrganizacao` cria o que faltar e devolve o master, entao
+    // cobre tambem a instalacao nova, em que a org padrao ainda nao tem papeis.
+    const masterRole = await this.seedRolesDaOrganizacao(DEFAULT_ORG);
     const exists = await this.prisma.user.findFirst({ where: { email: masterEmail } });
     if (!exists) {
       const hash = await bcrypt.hash(masterPassword, 12);
@@ -396,22 +489,13 @@ export class AuthService implements OnModuleInit {
     }
   }
 
-  private async seedPermissionsAndRoles() {
-    // Migra nomes de papéis legados para os nomes corretos
-    const legacyMap: Record<string, string> = {
-      admin: "administrador", gerente: "gestor",
-      colaborador: "analista", atendente: "tecnico",
-    };
-    for (const [old, novo] of Object.entries(legacyMap)) {
-      const existing = await this.prisma.role.findUnique({ where: { nome: old } });
-      const conflict = await this.prisma.role.findUnique({ where: { nome: novo } });
-      if (existing && !conflict) {
-        await this.prisma.role.update({ where: { id: existing.id }, data: { nome: novo } });
-        this.logger.log(`Role '${old}' renomeada para '${novo}'`);
-      }
-    }
-
-    // Cria/atualiza todas as permissões
+  /**
+   * Catálogo de permissões — GLOBAL de propósito.
+   *
+   * Permissão é capacidade do sistema (`chamados:criar`), não dado de cliente.
+   * O que passou a ser por organização é o AMARRADO entre papel e permissão.
+   */
+  private async seedPermissions(): Promise<Record<string, string>> {
     const permMap: Record<string, string> = {};
     for (const p of ALL_PERMISSIONS) {
       const perm = await this.prisma.permission.upsert({
@@ -421,33 +505,26 @@ export class AuthService implements OnModuleInit {
       });
       permMap[`${p.recurso}:${p.acao}`] = perm.id;
     }
+    return permMap;
+  }
 
-    // Cria/atualiza papéis padrão e associa permissões
-    for (const [nome, cfg] of Object.entries(ROLE_DEFAULTS)) {
-      let role = await this.prisma.role.findUnique({ where: { nome } });
-      if (!role) {
-        role = await this.prisma.role.create({
-          data: { id: require("crypto").randomUUID(), nome, descricao: this.roleDesc(nome), isMaster: false, nivel: cfg.nivel }
-        });
-        this.logger.log(`Role '${nome}' criada`);
-      } else {
-        await this.prisma.role.update({ where: { id: role.id }, data: { nivel: cfg.nivel } });
-      }
+  /** Ver `semearPapeisDaOrganizacao` — a lógica é módulo-nível para poder ser
+   *  usada por quem cria organização sem precisar importar o AuthModule. */
+  async seedRolesDaOrganizacao(organizationId: string, permMapExterno?: Record<string, string>) {
+    const permMap = permMapExterno ?? (await this.seedPermissions());
+    return semearPapeisDaOrganizacao(this.prisma, organizationId, permMap, this.logger);
+  }
 
-      // Sincroniza permissões do papel
-      const existingPerms = await this.prisma.rolePermission.findMany({ where: { roleId: role.id } });
-      const existingIds = new Set(existingPerms.map(rp => rp.permissionId));
-      const desiredIds = new Set(cfg.permissoes.map(p => permMap[p]).filter(Boolean));
+  /** No boot: permissões uma vez, papéis para CADA organização existente. */
+  private async seedPermissionsAndRoles() {
+    const permMap = await this.seedPermissions();
 
-      // Adiciona faltantes
-      for (const permId of desiredIds) {
-        if (!existingIds.has(permId)) {
-          await this.prisma.rolePermission.create({ data: { roleId: role.id, permissionId: permId } });
-        }
-      }
+    const orgs = await this.prisma.organization.findMany({ select: { id: true } });
+    for (const org of orgs) {
+      await this.seedRolesDaOrganizacao(org.id, permMap);
     }
 
-    this.logger.log("Permissões e papéis padrão verificados");
+    this.logger.log(`Permissões e papéis padrão verificados (${orgs.length} organização(ões))`);
   }
 
   private roleDesc(nome: string) {

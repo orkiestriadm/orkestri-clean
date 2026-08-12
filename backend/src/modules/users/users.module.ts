@@ -1,10 +1,11 @@
 import { Module, Controller, Get, Post, Put, Patch, Delete, Body, Param, Query, UseGuards, Req, ConflictException, BadRequestException, NotFoundException } from "@nestjs/common";
 import { AuthGuard } from "@nestjs/passport";
-import { IsEmail, IsString, MinLength, IsOptional, IsBoolean, IsArray } from "class-validator";
+import { IsArray, IsBoolean, IsEmail, IsOptional, IsString, MinLength } from "class-validator";
 import { PrismaService } from "../../prisma/prisma.service";
 import * as bcrypt from "bcryptjs";
 import { Permissions } from "../auth/permissions.decorator";
 import { PermissionsGuard } from "../auth/permissions.guard";
+import { acharNaOrganizacao } from "../../common/escopo-organizacao";
 import { CacheService } from "../cache/cache.service";
 import { WebhookService, WebhooksModule } from "../automacoes/webhooks.module";
 import { AutomacaoService, AutomacoesModule } from "../automacoes/automacoes.module";
@@ -58,6 +59,26 @@ function mapUser(u: any) {
     isMaster: u.userRoles.some((ur: any) => ur.role.isMaster),
     modulos: parseModulos(u.profile?.modulos),
   };
+}
+
+// ── DTOs gerados: sem classe, o ValidationPipe global nao tem metadata e a
+//    rota aceita qualquer JSON. Campos derivados do tipo inline anterior.
+class UpdateMeUsersDto {
+  @IsOptional() @IsString() nome?: string;
+  @IsOptional() @IsString() telefone?: string;
+  @IsOptional() @IsString() cargo?: string;
+  @IsOptional() @IsString() whatsapp?: string;
+  @IsOptional() @IsBoolean() whatsappAlertas?: boolean;
+  @IsOptional() @IsString() statusOnline?: string;
+}
+
+class ChangeMyPasswordUsersDto {
+  @IsString() senhaAtual: string;
+  @IsString() novaSenha: string;
+}
+
+class ImportCsvUsersDto {
+  @IsString() csv: string;
 }
 
 @Controller("users")
@@ -128,10 +149,7 @@ class UsersController {
   }
 
   @Patch("me")
-  async updateMe(@Req() req: any, @Body() body: {
-    nome?: string; telefone?: string; cargo?: string;
-    whatsapp?: string; whatsappAlertas?: boolean; statusOnline?: string;
-  }) {
+  async updateMe(@Req() req: any, @Body() body: UpdateMeUsersDto) {
     const id = req.user.id;
     if (body.nome) {
       await this.prisma.user.update({ where: { id }, data: { nome: body.nome } });
@@ -156,7 +174,7 @@ class UsersController {
   }
 
   @Patch("me/senha")
-  async changeMyPassword(@Req() req: any, @Body() body: { senhaAtual: string; novaSenha: string }) {
+  async changeMyPassword(@Req() req: any, @Body() body: ChangeMyPasswordUsersDto) {
     const id = req.user.id;
     if (!body.senhaAtual || !body.novaSenha) throw new BadRequestException("Campos obrigatórios");
     if (body.novaSenha.length < 6) throw new BadRequestException("Senha deve ter ao menos 6 caracteres");
@@ -170,15 +188,16 @@ class UsersController {
 
   @Get(":id")
   @Permissions("usuarios:ver")
-  async findOne(@Param("id") id: string) {
+  async findOne(@Param("id") id: string, @Req() req: any) {
+    // O escopo vem ANTES do cache: servir do cache sem conferir a organizacao
+    // devolveria usuario de outro tenant para quem tivesse o id.
+    const u = await acharNaOrganizacao(this.prisma.user, id, req, "Usuario nao encontrado", {
+      include: { userRoles: { include: { role: true } }, profile: { include: { setor: true } } },
+    });
+
     const cached = await this.cache.get(CACHE_USER(id));
     if (cached) return cached;
 
-    const u = await this.prisma.user.findUnique({
-      where: { id },
-      include: { userRoles: { include: { role: true } }, profile: { include: { setor: true } } },
-    });
-    if (!u) throw new NotFoundException("Usuario nao encontrado");
     const result = mapUser(u);
     await this.cache.set(CACHE_USER(id), result, TTL_USER);
     return result;
@@ -265,14 +284,15 @@ class UsersController {
       create: { userId: id, cargo: dto.cargo, telefone: dto.telefone, setorId: dto.setorId || null },
     });
     await this.cache.del(CACHE_USER(id), CACHE_USERS_LIST, `${CACHE_USERS_LIST}:true`, `${CACHE_USERS_LIST}:0`);
-    return this.findOne(id);
+    return this.findOne(id, req);
   }
 
   @Patch(":id/password")
   @Permissions("usuarios:editar")
-  async changePassword(@Param("id") id: string, @Body() dto: ChangePasswordDto) {
-    const exists = await this.prisma.user.findUnique({ where: { id } });
-    if (!exists) throw new NotFoundException("Usuario nao encontrado");
+  async changePassword(@Param("id") id: string, @Body() dto: ChangePasswordDto, @Req() req: any) {
+    // Sem o escopo, um administrador trocava a senha de usuario de OUTRA
+    // organizacao — tomada de conta, nao so leitura indevida.
+    await acharNaOrganizacao(this.prisma.user, id, req, "Usuario nao encontrado");
     await this.prisma.user.update({ where: { id }, data: { senhaHash: await bcrypt.hash(dto.novaSenha, 12) } });
     return { message: "Senha alterada com sucesso" };
   }
@@ -293,8 +313,7 @@ class UsersController {
   @Permissions("usuarios:editar")
   async toggle(@Param("id") id: string, @Req() req: any) {
     if (id === req.user.id) throw new BadRequestException("Voce nao pode desativar sua propria conta");
-    const user = await this.prisma.user.findUnique({ where: { id } });
-    if (!user) throw new NotFoundException("Usuario nao encontrado");
+    const user = await acharNaOrganizacao(this.prisma.user, id, req, "Usuario nao encontrado");
     const updated = await this.prisma.user.update({ where: { id }, data: { ativo: !user.ativo } });
     await this.cache.del(CACHE_USER(id), CACHE_USERS_LIST, `${CACHE_USERS_LIST}:true`, `${CACHE_USERS_LIST}:0`);
     return { message: updated.ativo ? "Usuario ativado" : "Usuario desativado", ativo: updated.ativo };
@@ -304,8 +323,7 @@ class UsersController {
   @Permissions("usuarios:excluir")
   async remove(@Param("id") id: string, @Req() req: any) {
     if (id === req.user.id) throw new BadRequestException("Voce nao pode remover sua propria conta");
-    const user = await this.prisma.user.findUnique({ where: { id } });
-    if (!user) throw new NotFoundException("Usuario nao encontrado");
+    const user = await acharNaOrganizacao(this.prisma.user, id, req, "Usuario nao encontrado");
 
     try {
     await this.prisma.$transaction(async (tx) => {
@@ -368,7 +386,7 @@ class UsersCsvController {
   constructor(private prisma: PrismaService, private cache: CacheService) {}
 
   @Post("import-csv")
-  async importCsv(@Req() req: any, @Body() body: { csv: string }) {
+  async importCsv(@Req() req: any, @Body() body: ImportCsvUsersDto) {
     if (!req.user?.isMaster) throw new BadRequestException("Apenas Masters podem importar usuários");
     if (!body?.csv?.trim()) throw new BadRequestException("CSV vazio");
 

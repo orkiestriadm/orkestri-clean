@@ -4,12 +4,13 @@ import {
   ForbiddenException, NotFoundException, ConflictException, BadRequestException,
 } from "@nestjs/common";
 import { AuthGuard } from "@nestjs/passport";
-import { IsString, IsOptional, IsBoolean, IsEmail, MinLength } from "class-validator";
+import { IsBoolean, IsEmail, IsOptional, IsString, MinLength } from "class-validator";
 import { ConfigService } from "@nestjs/config";
 import { JwtService } from "@nestjs/jwt";
 import { JwtModule } from "@nestjs/jwt";
 import { Response } from "express";
 import { PrismaService } from "../../prisma/prisma.service";
+import { semearPapeisDaOrganizacao, semearPermissoes } from "../auth/auth.service";
 import { WhatsAppService } from "../notifications/whatsapp.service";
 import { EmailService } from "../notifications/email.service";
 import { NotificationsModule } from "../notifications/notifications.module";
@@ -69,6 +70,16 @@ function isSuperAdmin(req: any) {
 }
 
 // ── Super-admin: Organization management ──────────────────────────────────────
+
+// ── DTOs gerados: sem classe, o ValidationPipe global nao tem metadata e a
+//    rota aceita qualquer JSON. Campos derivados do tipo inline anterior.
+class SetPhoneOrganizations2Dto {
+  @IsString() phoneNumber: string;
+}
+
+class SetPhoneOrganizationsDto {
+  @IsString() phoneNumber: string;
+}
 
 @Controller("superadmin/organizations")
 @UseGuards(AuthGuard("jwt"))
@@ -138,6 +149,11 @@ class SuperAdminOrgsController {
     const org = await (this.prisma as any).organization.create({
       data: { ...rest, plano: plano || "starter" },
     });
+    // Papeis proprios da organizacao recem-criada. Sem isto ela nasce sem
+    // papel nenhum — o que nao aparecia enquanto papel era global, porque a
+    // organizacao nova reusava os papeis compartilhados de todo mundo.
+    const permMap = await semearPermissoes(this.prisma);
+    await semearPapeisDaOrganizacao(this.prisma, org.id, permMap);
     return org;
   }
 
@@ -210,7 +226,10 @@ class SuperAdminOrgsController {
       where: { email: dto.email, organizationId: orgId } as any,
     });
     if (exists) throw new ConflictException("E-mail já cadastrado nesta organização");
-    const masterRole = await this.prisma.role.findFirst({ where: { isMaster: true } });
+    // O master DESTA organizacao. Buscar `isMaster: true` sem escopo devolvia
+    // o papel de outro tenant — papel era global.
+    const permMap = await semearPermissoes(this.prisma);
+    const masterRole = await semearPapeisDaOrganizacao(this.prisma, orgId, permMap);
     const hash = await bcrypt.hash(dto.senha, 12);
     const user = await this.prisma.user.create({
       data: {
@@ -257,7 +276,7 @@ class SuperAdminOrgsController {
   }
 
   @Patch(":id/whatsapp/phone")
-  async setPhone(@Req() req: any, @Param("id") id: string, @Body() body: { phoneNumber: string }) {
+  async setPhone(@Req() req: any, @Param("id") id: string, @Body() body: SetPhoneOrganizations2Dto) {
     this.guard(req);
     await (this.prisma as any).orgWhatsappConfig.upsert({
       where: { organizationId: id },
@@ -340,7 +359,7 @@ class OrgWhatsAppController {
   }
 
   @Patch("phone")
-  async setPhone(@Req() req: any, @Body() body: { phoneNumber: string }) {
+  async setPhone(@Req() req: any, @Body() body: SetPhoneOrganizationsDto) {
     if (!req.user.isMaster) throw new ForbiddenException("Apenas masters");
     await (this.prisma as any).orgWhatsappConfig.upsert({
       where: { organizationId: req.user.organizationId },

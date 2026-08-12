@@ -1,6 +1,6 @@
 import { Module, Controller, Get, Post, Put, Delete, Patch, Body, Param, Query, UseGuards, Req, NotFoundException, BadRequestException } from "@nestjs/common";
 import { AuthGuard } from "@nestjs/passport";
-import { IsString, IsOptional, IsBoolean, IsDateString, IsArray, IsIn } from "class-validator";
+import { IsArray, IsBoolean, IsDateString, IsIn, IsOptional, IsString } from "class-validator";
 import { PrismaService } from "../../prisma/prisma.service";
 import { Permissions } from "../auth/permissions.decorator";
 import { PermissionsGuard } from "../auth/permissions.guard";
@@ -66,6 +66,22 @@ function expandRecurring(event: any, from: Date, to: Date): any[] {
     cur = next;
   }
   return results;
+}
+
+// ── DTOs gerados: sem classe, o ValidationPipe global nao tem metadata e a
+//    rota aceita qualquer JSON. Campos derivados do tipo inline anterior.
+class UpdateAtaAgendaDto {
+  @IsString() ata: string;
+}
+
+class RespondByRefAgendaDto {
+  @IsString() referenciaTipo: string;
+  @IsString() referenciaId: string;
+  @IsString() @IsIn(["aceito", "recusado"]) status: "aceito" | "recusado";
+}
+
+class RespondAgendaDto {
+  @IsString() @IsIn(["aceito", "recusado"]) status: "aceito" | "recusado";
 }
 
 @Controller("agenda")
@@ -222,13 +238,13 @@ class AgendaController {
 
   @Patch(":id/ata")
   @Permissions("agenda:editar")
-  async updateAta(@Param("id") id: string, @Body() body: { ata: string }, @Req() req: any) {
+  async updateAta(@Param("id") id: string, @Body() body: UpdateAtaAgendaDto, @Req() req: any) {
     const realId = id.includes("_") ? id.split("_")[0] : id;
     return this.prisma.event.update({ where: { id: realId }, data: { ata: body.ata } });
   }
   @Patch("respond-by-ref")
   @Permissions("agenda:editar")
-  async respondByRef(@Body() body: { referenciaTipo: string; referenciaId: string; status: "aceito" | "recusado" }, @Req() req: any) {
+  async respondByRef(@Body() body: RespondByRefAgendaDto, @Req() req: any) {
     const origemMap: Record<string, string> = {
       event: "evento_compartilhado", task: "task", project: "projeto",
     };
@@ -242,7 +258,7 @@ class AgendaController {
 
   @Patch(":id/respond")
   @Permissions("agenda:editar")
-  async respond(@Param("id") id: string, @Body() body: { status: "aceito" | "recusado" }, @Req() req: any) {
+  async respond(@Param("id") id: string, @Body() body: RespondAgendaDto, @Req() req: any) {
     return this.respondEvent(id, body.status, req);
   }
 

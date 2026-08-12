@@ -2,6 +2,7 @@ import {
   Controller, Get, Put, Post, Body, Param, Query, UseGuards, Req,
   ForbiddenException, BadRequestException, NotFoundException,
 } from "@nestjs/common";
+import { Allow, IsOptional } from "class-validator";
 import { AuthGuard } from "@nestjs/passport";
 import { Permissions } from "../auth/permissions.decorator";
 import { PermissionsGuard } from "../auth/permissions.guard";
@@ -22,6 +23,28 @@ const SEVERIDADES = ["info", "aviso", "critico"];
 
 function exigirMaster(req: any) {
   if (!req.user?.isMaster) throw new ForbiddenException("Apenas masters podem configurar notificações");
+}
+
+// ── DTOs de corpo antes tipado como `any`.
+//    Campos descobertos pelo uso no handler; todos opcionais e com tipo
+//    afirmado só onde o código o torna inequívoco. O ganho é a lista
+//    fechada de campos aceitos — antes qualquer JSON passava.
+class SalvarNotificacaoPrefsDto {
+  @IsOptional() @Allow() preferencias?: any;
+}
+
+/**
+ * Aplicação em lote: além dos destinatários, carrega as MESMAS preferências
+ * que `salvar` recebe — o handler repassa o próprio corpo adiante
+ * (`this.salvar(uid, body, req)`).
+ *
+ * Herdar de `SalvarNotificacaoPrefsDto` é o que garante isso. Declarar só
+ * `userIds` faria o whitelist remover `preferencias` em silêncio, e o lote
+ * aplicaria preferência vazia a todo mundo — sem erro nenhum, que é o pior
+ * jeito de quebrar.
+ */
+class LoteNotificacaoPrefsDto extends SalvarNotificacaoPrefsDto {
+  @IsOptional() @Allow() userIds?: any;
 }
 
 @Controller("notificacoes/preferencias")
@@ -117,7 +140,7 @@ export class NotificacaoPrefsController {
    * justamente no sentido perigoso.
    */
   @Put(":userId")
-  async salvar(@Param("userId") userId: string, @Body() body: any, @Req() req: any) {
+  async salvar(@Param("userId") userId: string, @Body() body: SalvarNotificacaoPrefsDto, @Req() req: any) {
     exigirMaster(req);
     const orgId = req.user.organizationId;
 
@@ -168,7 +191,7 @@ export class NotificacaoPrefsController {
 
   /** Aplica o mesmo conjunto a vários usuários de uma vez. */
   @Post("aplicar-em-lote")
-  async lote(@Body() body: any, @Req() req: any) {
+  async lote(@Body() body: LoteNotificacaoPrefsDto, @Req() req: any) {
     exigirMaster(req);
     const userIds: string[] = Array.isArray(body?.userIds) ? body.userIds : [];
     if (!userIds.length) throw new BadRequestException("Informe `userIds`");

@@ -2,6 +2,7 @@ import {
   Module, Controller, Get, Post, Put, Patch, Delete, Body, Param, Query,
   UseGuards, Req, Injectable, BadRequestException, NotFoundException, ForbiddenException,
 } from "@nestjs/common";
+import { IsBoolean, IsNumber, IsOptional, IsString } from "class-validator";
 import { AuthGuard } from "@nestjs/passport";
 import { PrismaService } from "../../prisma/prisma.service";
 import { PermissionsGuard } from "../auth/permissions.guard";
@@ -11,27 +12,27 @@ import { collaboratorDisplayName } from "../../common/collaborator";
 const TIPOS_VALIDOS = ["ferias", "atestado", "folga", "licenca", "banco_horas", "outro"];
 
 class CreateAusenciaDto {
-  collaboratorId: string;
-  tipo: string;
-  dataInicio: string;
-  dataFim: string;
-  diaInteiro?: boolean;
-  horasDia?: number;
-  descricao?: string;
-  documentoUrl?: string;
+  @IsString() collaboratorId: string;
+  @IsString() tipo: string;
+  @IsString() dataInicio: string;
+  @IsString() dataFim: string;
+  @IsOptional() @IsBoolean() diaInteiro?: boolean;
+  @IsOptional() @IsNumber() horasDia?: number;
+  @IsOptional() @IsString() descricao?: string;
+  @IsOptional() @IsString() documentoUrl?: string;
 }
 
 class UpdateAusenciaDto {
-  tipo?: string;
-  dataInicio?: string;
-  dataFim?: string;
-  diaInteiro?: boolean;
-  horasDia?: number;
-  descricao?: string;
-  documentoUrl?: string;
+  @IsOptional() @IsString() tipo?: string;
+  @IsOptional() @IsString() dataInicio?: string;
+  @IsOptional() @IsString() dataFim?: string;
+  @IsOptional() @IsBoolean() diaInteiro?: boolean;
+  @IsOptional() @IsNumber() horasDia?: number;
+  @IsOptional() @IsString() descricao?: string;
+  @IsOptional() @IsString() documentoUrl?: string;
 }
 
-class RejectAusenciaDto { motivo: string; }
+class RejectAusenciaDto { @IsString() motivo: string; }
 
 @Injectable()
 export class AusenciasService {
@@ -264,7 +265,7 @@ export class AusenciasService {
       }
     });
     return map;
-  }
+  }
 }
 
 @Controller("ausencias")

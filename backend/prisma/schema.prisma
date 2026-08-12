@@ -89,6 +89,7 @@ model Organization {
   atualizadoEm      DateTime @updatedAt @map("atualizado_em")
 
   users             User[]
+  roles             Role[]
   chamados          Chamado[]
   clientes          Cliente[]
   contratos         Contrato[]
@@ -1301,16 +1302,31 @@ model UserProfile {
   @@map("user_profiles")
 }
 
+/// Papel de acesso, POR ORGANIZACAO.
+///
+/// Antes desta versao `Role` nao tinha `organizationId` e `nome` era unico
+/// GLOBALMENTE: duas organizacoes nao conseguiam ter duas linhas chamadas
+/// "gestor" — elas compartilhavam a MESMA linha. Consequencia: um master do
+/// cliente A editava as permissoes do papel e mudava o que os usuarios do
+/// cliente B podiam fazer.
+///
+/// `Permission` continua global de proposito: e catalogo fixo de capacidades
+/// do sistema, nao dado de cliente. O que passa a ser por organizacao e o
+/// AMARRADO entre papel e permissao.
 model Role {
   id              String           @id @default(uuid())
-  nome            String           @unique
+  organizationId  String           @map("organization_id")
+  nome            String
   descricao       String?
   isMaster        Boolean          @default(false) @map("is_master")
   nivel           Int              @default(0)
   criadoEm        DateTime         @default(now()) @map("criado_em")
+  organization    Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   userRoles       UserRole[]
   rolePermissions RolePermission[]
 
+  @@unique([organizationId, nome])
+  @@index([organizationId])
   @@map("roles")
 }
 

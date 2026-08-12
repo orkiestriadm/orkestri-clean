@@ -1,17 +1,22 @@
 import {
   Module, Controller, Get, Post, Put, Delete, Patch,
+  Res,
   Body, Param, Query, UseGuards, Req,
   Injectable, NotFoundException, BadRequestException, ForbiddenException,
   UseInterceptors, UploadedFile,
 } from "@nestjs/common";
+import { Allow, IsBoolean, IsDateString, IsNumber, IsOptional, IsString } from "class-validator";
 import { AuthGuard } from "@nestjs/passport";
 import { FileInterceptor } from "@nestjs/platform-express";
 import { diskStorage } from "multer";
+import { filtroDeTipo, nomeSeguroParaMulter, validarArquivoGravado } from "../../common/arquivo-seguro";
+import { responderComAnexo } from "../../common/download-anexo";
 import * as path from "path";
 import * as fs from "fs";
 import { PrismaService } from "../../prisma/prisma.service";
 import { Permissions } from "../auth/permissions.decorator";
 import { PermissionsGuard } from "../auth/permissions.guard";
+import { acharNaOrganizacao } from "../../common/escopo-organizacao";
 import { AutomacaoService } from "../automacoes/automacoes.module";
 import { AutomacoesModule } from "../automacoes/automacoes.module";
 
@@ -41,6 +46,47 @@ async function nextNumero(db: any): Promise<number> {
 }
 
 // ── ContratosController ───────────────────────────────────────────────────────
+// ── DTOs gerados: sem classe, o ValidationPipe global nao tem metadata e a
+//    rota aceita qualquer JSON. Campos derivados do tipo inline anterior.
+class RenovarContratosDto {
+  @IsString() vigenciaInicio: string;
+  @IsString() vigenciaFim: string;
+  @IsOptional() @IsNumber() valor?: number;
+  @IsOptional() @IsString() titulo?: string;
+}
+
+// ── DTOs de corpo antes tipado como `any`.
+//    Campos descobertos pelo uso no handler; todos opcionais e com tipo
+//    afirmado só onde o código o torna inequívoco. O ganho é a lista
+//    fechada de campos aceitos — antes qualquer JSON passava.
+class CreateContratosDto {
+  @IsOptional() @Allow() clienteId?: any;
+  @IsOptional() @Allow() observacoes?: any;
+  @IsOptional() @Allow() plano?: any;
+  @IsOptional() @Allow() responsavelId?: any;
+  @IsOptional() @IsNumber() slaHoras?: any;
+  @IsOptional() @Allow() status?: any;
+  @IsOptional() @Allow() tipo?: any;
+  @IsOptional() @IsString() titulo?: any;
+  @IsOptional() @IsNumber() valor?: any;
+  @IsOptional() @IsDateString() vigenciaFim?: any;
+  @IsOptional() @IsDateString() vigenciaInicio?: any;
+}
+
+class UpdateContratosDto {
+  @IsOptional() @IsBoolean() ativo?: any;
+  @IsOptional() @Allow() observacoes?: any;
+  @IsOptional() @Allow() plano?: any;
+  @IsOptional() @Allow() responsavelId?: any;
+  @IsOptional() @IsNumber() slaHoras?: any;
+  @IsOptional() @Allow() status?: any;
+  @IsOptional() @Allow() tipo?: any;
+  @IsOptional() @IsString() titulo?: any;
+  @IsOptional() @IsNumber() valor?: any;
+  @IsOptional() @IsDateString() vigenciaFim?: any;
+  @IsOptional() @IsDateString() vigenciaInicio?: any;
+}
+
 @Controller("contratos")
 @UseGuards(AuthGuard("jwt"), PermissionsGuard)
 class ContratosController {
@@ -124,9 +170,8 @@ class ContratosController {
   // GET /contratos/:id
   @Get(":id")
   @Permissions("crm:ver")
-  async findOne(@Param("id") id: string) {
-    const c = await this.db.contrato.findUnique({
-      where: { id },
+  async findOne(@Param("id") id: string, @Req() req: any) {
+    const c = await acharNaOrganizacao(this.db.contrato, id, req, "Contrato nao encontrado", {
       include: {
         cliente:     { select: { id: true, nome: true, empresa: true, email: true, telefone: true } },
         responsavel: { select: { id: true, nome: true } },
@@ -139,7 +184,7 @@ class ContratosController {
   // POST /contratos
   @Post()
   @Permissions("crm:ver")
-  async create(@Body() body: any, @Req() req: any) {
+  async create(@Body() body: CreateContratosDto, @Req() req: any) {
     if (!body.clienteId) throw new BadRequestException("clienteId obrigatorio");
     if (!body.titulo?.trim()) throw new BadRequestException("titulo obrigatorio");
 
@@ -180,9 +225,8 @@ class ContratosController {
   // PUT /contratos/:id
   @Put(":id")
   @Permissions("crm:ver")
-  async update(@Param("id") id: string, @Body() body: any) {
-    const existing = await this.db.contrato.findUnique({ where: { id } });
-    if (!existing) throw new NotFoundException("Contrato nao encontrado");
+  async update(@Param("id") id: string, @Body() body: UpdateContratosDto, @Req() req: any) {
+    const existing = await acharNaOrganizacao(this.db.contrato, id, req, "Contrato nao encontrado");
 
     const data: any = {};
     if (body.titulo       !== undefined) data.titulo         = body.titulo.trim();
@@ -218,11 +262,10 @@ class ContratosController {
   @Permissions("crm:ver")
   async renovar(
     @Param("id") id: string,
-    @Body() body: { vigenciaInicio: string; vigenciaFim: string; valor?: number; titulo?: string },
-  ) {
+    @Body() body: RenovarContratosDto,
+  @Req() req: any) {
     if (!body.vigenciaInicio || !body.vigenciaFim) throw new BadRequestException("Datas de vigência obrigatórias");
-    const existing = await this.db.contrato.findUnique({ where: { id } });
-    if (!existing) throw new NotFoundException("Contrato não encontrado");
+    const existing = await acharNaOrganizacao(this.db.contrato, id, req, "Contrato não encontrado");
 
     const numero = await nextNumero(this.db);
     const novo = await this.db.contrato.create({
@@ -257,8 +300,7 @@ class ContratosController {
   @Permissions("crm:ver")
   async remove(@Param("id") id: string, @Req() req: any) {
     if (!req.user.isMaster) throw new ForbiddenException("Apenas masters podem remover contratos");
-    const existing = await this.db.contrato.findUnique({ where: { id } });
-    if (!existing) throw new NotFoundException("Contrato nao encontrado");
+    const existing = await acharNaOrganizacao(this.db.contrato, id, req, "Contrato nao encontrado");
     await this.db.contrato.delete({ where: { id } });
     return { message: "Contrato removido" };
   }
@@ -271,9 +313,29 @@ class ContratosController {
     const orgId = req.user?.organizationId;
     const c = await this.db.contrato.findFirst({ where: { id, ...(orgId ? { organizationId: orgId } : {}) } });
     if (!c) throw new NotFoundException("Contrato não encontrado");
-    return this.db.contratoAnexo.findMany({
+    const anexos = await this.db.contratoAnexo.findMany({
       where: { contratoId: id },
       orderBy: { criadoEm: "desc" },
+    });
+    // A coluna `url` guarda o caminho publico antigo (`/uploads/contratos/...`),
+    // que o nginx servia sem sessao. Nao reescrevo a coluna — linha antiga
+    // continua com o valor de origem —, mas a API passa a devolver o caminho
+    // autenticado. Quem consumir a resposta usa o novo.
+    return anexos.map((a: any) => ({ ...a, url: `/api/contratos/${id}/anexos/${a.id}/download` }));
+  }
+
+  @Get(":id/anexos/:anexoId/download")
+  @Permissions("crm:ver")
+  async baixarAnexo(@Req() req: any, @Res({ passthrough: true }) res: any, @Param("id") id: string, @Param("anexoId") anexoId: string) {
+    await acharNaOrganizacao(this.db.contrato, id, req, "Contrato não encontrado");
+    const anexo = await this.db.contratoAnexo.findFirst({ where: { id: anexoId, contratoId: id } });
+    if (!anexo) throw new NotFoundException("Anexo não encontrado");
+    // `url` na base guarda o caminho inteiro; o nome do arquivo e o ultimo
+    // segmento. `caminhoDentroDe` (dentro de responderComAnexo) recusa `..`.
+    const nomeArquivo = String(anexo.url || "").split("/").pop() || "";
+    return responderComAnexo(res, {
+      subdir: `contratos/${id}`, nomeArquivo,
+      nomeOriginal: anexo.nome, mimeType: anexo.tipo,
     });
   }
 
@@ -286,12 +348,13 @@ class ContratosController {
         fs.mkdirSync(dir, { recursive: true });
         cb(null, dir);
       },
-      filename: (_req: any, file: any, cb: any) => {
-        const unique = Date.now() + "-" + Math.round(Math.random() * 1e9);
-        cb(null, unique + path.extname(file.originalname));
-      },
+      // Extensao da lista de tipos aceitos, nunca de `originalname`.
+      filename: nomeSeguroParaMulter,
     }),
     limits: { fileSize: 20 * 1024 * 1024 }, // 20MB
+    // NAO havia filtro de tipo aqui: qualquer arquivo era aceito e gravado no
+    // diretorio publico, com a extensao que o remetente escolhesse.
+    fileFilter: filtroDeTipo,
   }))
   async uploadAnexo(
     @Req() req: any,
@@ -302,7 +365,10 @@ class ContratosController {
     const c = await this.db.contrato.findFirst({ where: { id, ...(orgId ? { organizationId: orgId } : {}) } });
     if (!c) throw new NotFoundException("Contrato não encontrado");
     if (!file) throw new BadRequestException("Nenhum arquivo enviado");
-    const url = `/uploads/contratos/${id}/${file.filename}`;
+    validarArquivoGravado(file.path, file.mimetype);
+    // Guarda so o caminho relativo do arquivo; o download sai pela rota
+    // autenticada, nao mais por `/uploads/`.
+    const url = `contratos/${id}/${file.filename}`;
     return this.db.contratoAnexo.create({
       data: {
         contratoId: id,

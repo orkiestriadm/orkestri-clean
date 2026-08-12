@@ -1,10 +1,12 @@
-import { Module, Controller, Get, Post, Put, Patch, Delete, Body, Param, Query, UseGuards, Req, NotFoundException, BadRequestException, ForbiddenException, ConflictException, UseInterceptors, UploadedFile } from "@nestjs/common";
+import { Res, Module, Controller, Get, Post, Put, Patch, Delete, Body, Param, Query, UseGuards, Req, NotFoundException, BadRequestException, ForbiddenException, ConflictException, UseInterceptors, UploadedFile } from "@nestjs/common";
 import { FileInterceptor } from "@nestjs/platform-express";
 import { diskStorage } from "multer";
+import { filtroDeTipo, nomeSeguroParaMulter, validarArquivoGravado } from "../../common/arquivo-seguro";
+import { responderComAnexo } from "../../common/download-anexo";
 import * as path from "path";
 import * as fs from "fs";
 import { AuthGuard } from "@nestjs/passport";
-import { IsString, IsOptional, IsInt, IsIn, Min, Max } from "class-validator";
+import { IsArray, IsBoolean, IsIn, IsInt, IsOptional, IsString, Max, Min } from "class-validator";
 import { Type } from "class-transformer";
 import { ConfigService } from "@nestjs/config";
 import { PrismaService } from "../../prisma/prisma.service";
@@ -12,6 +14,7 @@ import { WhatsAppService } from "../notifications/whatsapp.service";
 import { EmailService } from "../notifications/email.service";
 import { Permissions } from "../auth/permissions.decorator";
 import { PermissionsGuard } from "../auth/permissions.guard";
+import { acharNaOrganizacao } from "../../common/escopo-organizacao";
 import { SlaService } from "../sla/sla.module";
 import { AutomacaoService } from "../automacoes/automacoes.module";
 import { WebhookService } from "../automacoes/webhooks.module";
@@ -139,6 +142,39 @@ const INCLUDE_DETAIL = {
     orderBy: { criadoEm: "asc" as const },
   },
 };
+
+// ── DTOs gerados: sem classe, o ValidationPipe global nao tem metadata e a
+//    rota aceita qualquer JSON. Campos derivados do tipo inline anterior.
+class BulkStatusChamadosDto {
+  @IsArray() @IsString({ each: true }) ids: string[];
+  @IsString() status: string;
+}
+
+class BulkAtribuirChamadosDto {
+  @IsArray() @IsString({ each: true }) ids: string[];
+  @IsOptional() @IsString() atendenteId: string | null;
+}
+
+class ChangeStatusChamadosDto {
+  @IsString() status: string;
+  /// O que trava o chamado. Só gravado ao entrar em aguardando.
+  @IsOptional() @IsString() aguardandoMotivo?: string;
+}
+
+class DevolverChamadosDto {
+  @IsOptional() @IsString() motivo?: string;
+}
+
+class AbrirManutencaoChamadosDto {
+  @IsOptional() @IsBoolean() imobiliza?: boolean;
+  @IsOptional() @IsString() tipo?: string;
+  @IsOptional() @IsString() localizacao?: string;
+  @IsOptional() @IsString() previsaoLiberacao?: string;
+}
+
+class AtribuirChamadosDto {
+  @IsOptional() @IsString() atendenteId: string | null;
+}
 
 @Controller("chamados")
 @UseGuards(AuthGuard("jwt"), PermissionsGuard)
@@ -444,7 +480,7 @@ class ChamadosController {
 
   @Patch("bulk/status")
   @Permissions("chamados:editar")
-  async bulkStatus(@Body() body: { ids: string[]; status: string }) {
+  async bulkStatus(@Body() body: BulkStatusChamadosDto) {
     if (!body.ids?.length) throw new BadRequestException("Nenhum chamado selecionado");
     if (!STATUS_VALID.includes(body.status)) throw new BadRequestException("Status inválido");
     const data: any = { status: body.status };
@@ -456,7 +492,7 @@ class ChamadosController {
 
   @Patch("bulk/atribuir")
   @Permissions("chamados:editar")
-  async bulkAtribuir(@Body() body: { ids: string[]; atendenteId: string | null }) {
+  async bulkAtribuir(@Body() body: BulkAtribuirChamadosDto) {
     if (!body.ids?.length) throw new BadRequestException("Nenhum chamado selecionado");
     await (this.prisma as any).chamado.updateMany({
       where: { id: { in: body.ids } },
@@ -625,8 +661,7 @@ class ChamadosController {
   @Put(":id")
   @Permissions("chamados:editar")
   async update(@Param("id") id: string, @Body() dto: UpdateChamadoDto, @Req() req: any) {
-    const existing = await this.prisma.chamado.findUnique({ where: { id } });
-    if (!existing) throw new NotFoundException("Chamado nao encontrado");
+    const existing = await acharNaOrganizacao(this.prisma.chamado, id, req, "Chamado nao encontrado");
     const canEdit = req.user.isMaster || existing.solicitanteId === req.user.id || existing.atendenteId === req.user.id;
     if (!canEdit) throw new ForbiddenException("Sem permissao para editar este chamado");
     if (dto.status && !STATUS_VALID.includes(dto.status)) throw new BadRequestException("Status invalido");
@@ -721,10 +756,9 @@ class ChamadosController {
 
   @Patch(":id/status")
   @Permissions("chamados:editar")
-  async changeStatus(@Param("id") id: string, @Body() body: { status: string; aguardandoMotivo?: string }, @Req() req: any) {
+  async changeStatus(@Param("id") id: string, @Body() body: ChangeStatusChamadosDto, @Req() req: any) {
     if (!STATUS_VALID.includes(body.status)) throw new BadRequestException("Status invalido");
-    const existing = await this.prisma.chamado.findUnique({ where: { id } });
-    if (!existing) throw new NotFoundException("Chamado nao encontrado");
+    const existing = await acharNaOrganizacao(this.prisma.chamado, id, req, "Chamado nao encontrado");
     const canEdit = req.user.isMaster || existing.solicitanteId === req.user.id || existing.atendenteId === req.user.id;
     if (!canEdit) throw new ForbiddenException("Sem permissao");
     // Fechar é o único estado sem volta (NEXT_STATUS.fechado = []), então tem
@@ -828,7 +862,7 @@ class ChamadosController {
    *  fila não é devolvível — não há remetente. */
   @Patch(":id/devolver")
   @Permissions("chamados:editar")
-  async devolver(@Param("id") id: string, @Body() body: { motivo?: string }, @Req() req: any) {
+  async devolver(@Param("id") id: string, @Body() body: DevolverChamadosDto, @Req() req: any) {
     const motivo = (body?.motivo || "").trim();
     if (motivo.length < 5) throw new BadRequestException("Explique o motivo da devolução");
 
@@ -900,7 +934,7 @@ class ChamadosController {
   @Permissions("chamados:editar")
   async abrirManutencao(
     @Param("id") id: string,
-    @Body() body: { imobiliza?: boolean; tipo?: string; localizacao?: string; previsaoLiberacao?: string },
+    @Body() body: AbrirManutencaoChamadosDto,
     @Req() req: any,
   ) {
     const chamado: any = await this.prisma.chamado.findUnique({ where: { id } });
@@ -971,9 +1005,8 @@ class ChamadosController {
 
   @Patch(":id/atribuir")
   @Permissions("chamados:editar")
-  async atribuir(@Param("id") id: string, @Body() body: { atendenteId: string | null }, @Req() req: any) {
-    const existing = await this.prisma.chamado.findUnique({ where: { id } });
-    if (!existing) throw new NotFoundException("Chamado nao encontrado");
+  async atribuir(@Param("id") id: string, @Body() body: AtribuirChamadosDto, @Req() req: any) {
+    const existing = await acharNaOrganizacao(this.prisma.chamado, id, req, "Chamado nao encontrado");
     // Antes a regra era só "master ou solicitante" — escrita aqui dentro, e por
     // isso invisível para a matriz de permissões: marcar as 90 caixinhas não
     // dava esse acesso. Agora existe o caminho pela matriz, sem tirar o do
@@ -1026,8 +1059,7 @@ class ChamadosController {
     const userId = req.user.id;
     const orgId  = req.user?.organizationId;
 
-    const existing = await this.prisma.chamado.findUnique({ where: { id } });
-    if (!existing) throw new NotFoundException("Chamado nao encontrado");
+    const existing = await acharNaOrganizacao(this.prisma.chamado, id, req, "Chamado nao encontrado");
     // Isolamento multi-tenant
     if (orgId && (existing as any).organizationId && (existing as any).organizationId !== orgId) {
       throw new NotFoundException("Chamado nao encontrado");
@@ -1095,8 +1127,7 @@ class ChamadosController {
   @Permissions("chamados:editar")
   async addComentario(@Param("id") id: string, @Body() dto: AddComentarioDto, @Req() req: any) {
     if (!dto.texto?.trim()) throw new BadRequestException("Texto obrigatorio");
-    const chamado = await this.prisma.chamado.findUnique({ where: { id } });
-    if (!chamado) throw new NotFoundException("Chamado nao encontrado");
+    const chamado = await acharNaOrganizacao(this.prisma.chamado, id, req, "Chamado nao encontrado");
     const canComment = req.user.isMaster || chamado.solicitanteId === req.user.id || chamado.atendenteId === req.user.id;
     if (!canComment) throw new ForbiddenException("Sem permissao");
     const comentario = await this.prisma.chamadoComentario.create({
@@ -1146,8 +1177,7 @@ class ChamadosController {
   @Patch(":id/avaliar")
   @Permissions("chamados:editar")
   async avaliar(@Param("id") id: string, @Body() dto: AvaliarDto, @Req() req: any) {
-    const chamado = await this.prisma.chamado.findUnique({ where: { id } });
-    if (!chamado) throw new NotFoundException("Chamado nao encontrado");
+    const chamado = await acharNaOrganizacao(this.prisma.chamado, id, req, "Chamado nao encontrado");
     if (chamado.solicitanteId !== req.user.id) throw new ForbiddenException("Apenas o solicitante pode avaliar");
     if (!["resolvido", "fechado"].includes(chamado.status)) throw new BadRequestException("Chamado precisa estar resolvido para avaliar");
     const updated = await this.prisma.chamado.update({
@@ -1162,8 +1192,7 @@ class ChamadosController {
   @Permissions("chamados:excluir")
   async remove(@Param("id") id: string, @Req() req: any) {
     if (!req.user.isMaster) throw new ForbiddenException("Apenas masters podem remover chamados");
-    const chamado = await this.prisma.chamado.findUnique({ where: { id } });
-    if (!chamado) throw new NotFoundException("Chamado nao encontrado");
+    const chamado = await acharNaOrganizacao(this.prisma.chamado, id, req, "Chamado nao encontrado");
     await this.prisma.chamado.delete({ where: { id } });
     return { message: "Chamado removido" };
   }
@@ -1365,36 +1394,50 @@ class ChamadoUploadController {
         fs.mkdirSync(dir, { recursive: true });
         cb(null, dir);
       },
-      filename: (_req, file, cb) => {
-        const ext = path.extname(file.originalname);
-        cb(null, `${Date.now()}-${Math.random().toString(36).slice(2)}${ext}`);
-      },
+      // Nome e extensao saem da lista de tipos aceitos, NUNCA de
+      // `originalname`. Era dali que vinha o `.html` que o nginx depois servia
+      // como pagina, na origem da aplicacao.
+      filename: nomeSeguroParaMulter,
     }),
     limits: { fileSize: MAX_FILE_SIZE },
-    fileFilter: (_req, file, cb) => {
-      if (ALLOWED_MIMES.includes(file.mimetype)) cb(null, true);
-      else cb(new BadRequestException(`Tipo de arquivo não permitido: ${file.mimetype}`), false);
-    },
+    fileFilter: filtroDeTipo,
   }))
   async upload(@Req() req: any, @Param("id") id: string, @UploadedFile() file: any) {
     if (!file) throw new BadRequestException("Arquivo obrigatório");
-    const chamado = await (this.prisma as any).chamado.findUnique({ where: { id } });
-    if (!chamado) throw new NotFoundException("Chamado não encontrado");
+    // Confere os primeiros bytes e apaga o arquivo se nao corresponderem ao
+    // tipo declarado. O `fileFilter` so enxerga cabecalho — conteudo so da
+    // para olhar depois que o multer gravou.
+    validarArquivoGravado(file.path, file.mimetype);
+    const chamado = await acharNaOrganizacao((this.prisma as any).chamado, id, req, "Chamado não encontrado");
     const anexo = await (this.prisma as any).chamadoAnexo.create({
       data: { id: require("uuid").v4(), chamadoId: id, uploaderId: req.user.id, nomeOriginal: file.originalname, nomeArquivo: file.filename, mimeType: file.mimetype, tamanhoBytes: file.size },
     });
-    return { ...anexo, url: `/uploads/${id}/${file.filename}` };
+    // URL de download AUTENTICADO. Antes apontava para `/uploads/...`, que o
+    // nginx servia sem sessao nenhuma: quem tivesse a URL baixava o anexo.
+    return { ...anexo, url: `/api/chamados/${id}/anexos/${anexo.id}/download` };
   }
 
   @Get(":id/anexos")
-  async listAnexos(@Param("id") id: string) {
+  async listAnexos(@Req() req: any, @Param("id") id: string) {
+    // A listagem tambem escapava do escopo: entregava as URLs exatas dos
+    // anexos de QUALQUER chamado, e o download nem exigia sessao.
+    await acharNaOrganizacao((this.prisma as any).chamado, id, req, "Chamado não encontrado");
     const anexos = await (this.prisma as any).chamadoAnexo.findMany({ where: { chamadoId: id }, include: { uploader: { select: { id: true, nome: true } } }, orderBy: { criadoEm: "asc" } });
-    return anexos.map((a: any) => ({ ...a, url: `/uploads/${id}/${a.nomeArquivo}` }));
+    return anexos.map((a: any) => ({ ...a, url: `/api/chamados/${id}/anexos/${a.id}/download` }));
+  }
+
+  @Get(":id/anexos/:anexoId/download")
+  async baixarAnexo(@Req() req: any, @Res({ passthrough: true }) res: any, @Param("id") id: string, @Param("anexoId") anexoId: string) {
+    await acharNaOrganizacao((this.prisma as any).chamado, id, req, "Chamado não encontrado");
+    const anexo = await (this.prisma as any).chamadoAnexo.findFirst({ where: { id: anexoId, chamadoId: id } });
+    if (!anexo) throw new NotFoundException("Anexo não encontrado");
+    return responderComAnexo(res, { subdir: id, nomeArquivo: anexo.nomeArquivo, nomeOriginal: anexo.nomeOriginal, mimeType: anexo.mimeType });
   }
 
   @Delete(":id/anexos/:anexoId")
   async deleteAnexo(@Req() req: any, @Param("id") id: string, @Param("anexoId") anexoId: string) {
-    const anexo = await (this.prisma as any).chamadoAnexo.findUnique({ where: { id: anexoId } });
+    await acharNaOrganizacao((this.prisma as any).chamado, id, req, "Chamado não encontrado");
+    const anexo = await (this.prisma as any).chamadoAnexo.findFirst({ where: { id: anexoId, chamadoId: id } });
     if (!anexo) throw new NotFoundException("Anexo não encontrado");
     if (anexo.uploaderId !== req.user.id && !req.user.isMaster) throw new ForbiddenException("Sem permissão");
     try { fs.unlinkSync(path.join(UPLOAD_DIR, id, anexo.nomeArquivo)); } catch {}

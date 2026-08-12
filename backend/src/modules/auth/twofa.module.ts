@@ -1,6 +1,6 @@
 import { Module, Controller, Post, Get, Body, UseGuards, Req, UnauthorizedException, BadRequestException } from "@nestjs/common";
 import { AuthGuard } from "@nestjs/passport";
-import { IsString } from "class-validator";
+import { Allow, IsOptional, IsString } from "class-validator";
 import { PrismaService } from "../../prisma/prisma.service";
 import * as OTPAuth from "otpauth";
 import * as QRCode from "qrcode";
@@ -10,6 +10,26 @@ import { MARCA } from "../../common/marca";
 
 class VerifyTotpDto { @IsString() token: string; }
 class DisableTotpDto { @IsString() senha: string; }
+
+/**
+ * Politica de senha da organizacao.
+ *
+ * Os campos sao exatamente a lista que o handler percorre. Ele ja funcionava
+ * como lista fechada — chave fora dela era ignorada —, e o DTO acrescenta a
+ * recusa explicita do desconhecido em vez do descarte silencioso.
+ *
+ * Permissivo no tipo porque o handler grava com String(...) e o formulario
+ * manda numero ora como number, ora como texto.
+ */
+class PoliticaDeSenhaDto {
+  @IsOptional() @Allow() minLength?: any;
+  @IsOptional() @Allow() requireUpper?: any;
+  @IsOptional() @Allow() requireLower?: any;
+  @IsOptional() @Allow() requireNumber?: any;
+  @IsOptional() @Allow() requireSpecial?: any;
+  @IsOptional() @Allow() expiracaoDias?: any;
+  @IsOptional() @Allow() historicoSenhas?: any;
+}
 
 @Controller("auth/2fa")
 class TwoFAController {
@@ -189,7 +209,7 @@ class PasswordPolicyController {
 
   @Post()
   @UseGuards(AuthGuard("jwt"))
-  async savePolicy(@Body() body: any, @Req() req: any) {
+  async savePolicy(@Body() body: PoliticaDeSenhaDto, @Req() req: any) {
     if (!req.user.isMaster) throw new UnauthorizedException("Apenas masters");
     const DEFAULT_ORG = "00000000-0000-0000-0000-000000000001";
     const fields = ["minLength","requireUpper","requireLower","requireNumber","requireSpecial","expiracaoDias","historicoSenhas"];

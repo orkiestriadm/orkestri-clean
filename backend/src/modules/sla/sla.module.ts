@@ -2,10 +2,12 @@ import {
   Module, Controller, Get, Post, Put, Delete, Body, Param,
   UseGuards, Req, Injectable, NotFoundException, BadRequestException, ForbiddenException,
 } from "@nestjs/common";
+import { IsBoolean, IsNumber, IsOptional, IsString } from "class-validator";
 import { AuthGuard } from "@nestjs/passport";
 import { PrismaService } from "../../prisma/prisma.service";
 import { Permissions } from "../auth/permissions.decorator";
 import { PermissionsGuard } from "../auth/permissions.guard";
+import { acharNaOrganizacao } from "../../common/escopo-organizacao";
 
 // ── SlaService (exported for use in ChamadosModule) ───────────────────────────
 @Injectable()
@@ -31,6 +33,27 @@ export class SlaService {
 }
 
 // ── SlaController ─────────────────────────────────────────────────────────────
+// ── DTOs gerados: sem classe, o ValidationPipe global nao tem metadata e a
+//    rota aceita qualquer JSON. Campos derivados do tipo inline anterior.
+class CreateRegraSlaDto {
+  @IsString() nome: string;
+  @IsString() prioridade: string;
+  @IsOptional() @IsString() categoria?: string;
+  @IsNumber() prazoRespostaH: number;
+  @IsNumber() prazoResolucaoH: number;
+}
+
+// ── DTOs de corpo antes tipado como `any`.
+//    Campos descobertos pelo uso no handler; todos opcionais e com tipo
+//    afirmado só onde o código o torna inequívoco. O ganho é a lista
+//    fechada de campos aceitos — antes qualquer JSON passava.
+class UpdateRegraSlaDto {
+  @IsOptional() @IsBoolean() ativo?: any;
+  @IsOptional() @IsString() nome?: any;
+  @IsOptional() @IsNumber() prazoResolucaoH?: any;
+  @IsOptional() @IsNumber() prazoRespostaH?: any;
+}
+
 @Controller("sla")
 @UseGuards(AuthGuard("jwt"), PermissionsGuard)
 class SlaController {
@@ -50,7 +73,7 @@ class SlaController {
 
   @Post("regras")
   @Permissions("sla:gerenciar")
-  async createRegra(@Body() body: { nome: string; prioridade: string; categoria?: string; prazoRespostaH: number; prazoResolucaoH: number }, @Req() req: any) {
+  async createRegra(@Body() body: CreateRegraSlaDto, @Req() req: any) {
     if (!body.nome?.trim())          throw new BadRequestException("Nome obrigatorio");
     if (!body.prioridade)            throw new BadRequestException("Prioridade obrigatoria");
     if (!body.prazoRespostaH  || body.prazoRespostaH  < 1) throw new BadRequestException("Prazo de resposta invalido");
@@ -76,9 +99,8 @@ class SlaController {
 
   @Put("regras/:id")
   @Permissions("sla:gerenciar")
-  async updateRegra(@Param("id") id: string, @Body() body: any) {
-    const existing = await this.db.slaRegra.findUnique({ where: { id } });
-    if (!existing) throw new NotFoundException("Regra nao encontrada");
+  async updateRegra(@Param("id") id: string, @Body() body: UpdateRegraSlaDto, @Req() req: any) {
+    const existing = await acharNaOrganizacao(this.db.slaRegra, id, req, "Regra nao encontrada");
     return this.db.slaRegra.update({
       where: { id },
       data: {
@@ -92,9 +114,8 @@ class SlaController {
 
   @Delete("regras/:id")
   @Permissions("sla:gerenciar")
-  async deleteRegra(@Param("id") id: string) {
-    const existing = await this.db.slaRegra.findUnique({ where: { id } });
-    if (!existing) throw new NotFoundException("Regra nao encontrada");
+  async deleteRegra(@Param("id") id: string, @Req() req: any) {
+    const existing = await acharNaOrganizacao(this.db.slaRegra, id, req, "Regra nao encontrada");
     await this.db.slaRegra.delete({ where: { id } });
     return { message: "Regra removida" };
   }

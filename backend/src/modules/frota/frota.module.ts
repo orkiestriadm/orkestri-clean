@@ -1,12 +1,17 @@
 import {
   Module, Controller, Get, Post, Put, Patch, Delete,
+  Res,
   Body, Param, Query, UseGuards, Req,
   NotFoundException, BadRequestException,
   UseInterceptors, UploadedFile,
 } from "@nestjs/common";
+import { Allow, IsArray, IsBoolean, IsDateString, IsNumber, IsOptional, IsString } from "class-validator";
 import { AuthGuard } from "@nestjs/passport";
 import { FileInterceptor } from "@nestjs/platform-express";
 import { diskStorage, memoryStorage } from "multer";
+import { filtroDeTipo, nomeSeguroParaMulter, validarArquivoGravado } from "../../common/arquivo-seguro";
+import { responderComAnexo } from "../../common/download-anexo";
+import { organizacaoDe } from "../../common/escopo-organizacao";
 import * as XLSX from "xlsx";
 import * as path from "path";
 import * as fs from "fs";
@@ -246,6 +251,92 @@ const VEICULO_LIST_INCLUDE = {
   setor:       { select: { id: true, nome: true, cor: true } },
 };
 
+// ── DTOs gerados: sem classe, o ValidationPipe global nao tem metadata e a
+//    rota aceita qualquer JSON. Campos derivados do tipo inline anterior.
+class UpdateFrotaDto {
+  @IsOptional() @IsBoolean() bloqueioCnhVencida?: boolean;
+}
+
+// ── DTOs de corpo antes tipado como `any`.
+//    Campos descobertos pelo uso no handler; todos opcionais e com tipo
+//    afirmado só onde o código o torna inequívoco. O ganho é a lista
+//    fechada de campos aceitos — antes qualquer JSON passava.
+class AtualizarKmFrotaDto {
+  @IsOptional() @IsNumber() km?: any;
+}
+
+class RenovarFrotaDto {
+  @IsOptional() @Allow() categoriaNova?: any;
+  @IsOptional() @Allow() dataRenovacao?: any;
+  @IsOptional() @Allow() numeroNovo?: any;
+  @IsOptional() @Allow() observacoes?: any;
+  @IsOptional() @Allow() orgaoEmissor?: any;
+  @IsOptional() @Allow() validadeNova?: any;
+}
+
+class UploadAnexoFrota2Dto {
+  @IsOptional() @Allow() tipo?: any;
+}
+
+class EventoFrotaDto {
+  @IsOptional() @IsNumber() custo?: any;
+  @IsOptional() @IsDateString() data?: any;
+  @IsOptional() @IsNumber() km?: any;
+  @IsOptional() @Allow() observacoes?: any;
+  @IsOptional() @Allow() posicaoPara?: any;
+  @IsOptional() @Allow() status?: any;
+  @IsOptional() @Allow() tipo?: any;
+  @IsOptional() @Allow() veiculoId?: any;
+}
+
+class PutFrotaDto {
+  @IsOptional() @IsArray() posicoes?: any;
+}
+
+/**
+ * Importação de planilha de veículos.
+ *
+ * Vem como multipart junto do arquivo, então os dois campos chegam como texto
+ * ("true"/"false") — o handler normaliza com o helper `flag`. Por isso não há
+ * `@IsBoolean()` aqui: ele recusaria a string que o formulário realmente envia.
+ */
+class ImportarFrotaDto {
+  @IsOptional() @Allow() confirmar?: any;
+  @IsOptional() @Allow() preencherIdentificacao?: any;
+  /** Corte por data de abertura, no formato YYYY-MM-DD. */
+  @IsOptional() @IsString() ate?: any;
+}
+
+class AddMaoObraFrotaDto {
+  @IsOptional() @IsNumber() custo?: any;
+  @IsOptional() @IsString() descricao?: any;
+  @IsOptional() @IsNumber() horas?: any;
+  @IsOptional() @Allow() responsavel?: any;
+  @IsOptional() @IsNumber() valorHora?: any;
+}
+
+class UploadAnexoFrotaDto {
+  @IsOptional() @Allow() tipo?: any;
+}
+
+class CreateFrotaDto {
+  @IsOptional() @Allow() destinatarios?: any;
+  @IsOptional() @Allow() filtros?: any;
+  @IsOptional() @Allow() formato?: any;
+  @IsOptional() @Allow() frequencia?: any;
+  @IsOptional() @Allow() tipoRelatorio?: any;
+  @IsOptional() @Allow() titulo?: any;
+}
+
+class UpdateFrota2Dto {
+  @IsOptional() @Allow() ativo?: any;
+  @IsOptional() @Allow() destinatarios?: any;
+  @IsOptional() @Allow() filtros?: any;
+  @IsOptional() @Allow() formato?: any;
+  @IsOptional() @Allow() frequencia?: any;
+  @IsOptional() @Allow() titulo?: any;
+}
+
 @Controller("frota/veiculos")
 @UseGuards(AuthGuard("jwt"), PermissionsGuard)
 class VeiculosController extends BaseFrotaController {
@@ -296,7 +387,7 @@ class VeiculosController extends BaseFrotaController {
   // Com { km }: define manualmente (permite correção). O kmAtual e lido pela Revisao e pelos Pneus.
   @Post(":id/atualizar-km")
   @Permissions("frota:editar")
-  async atualizarKm(@Param("id") id: string, @Body() body: any, @Req() req: any) {
+  async atualizarKm(@Param("id") id: string, @Body() body: AtualizarKmFrotaDto, @Req() req: any) {
     const orgId = req.user?.organizationId;
     const v = await this.db.veiculo.findFirst({ where: { id, organizationId: orgId, deletedAt: null }, select: { id: true, kmAtual: true } });
     if (!v) throw new NotFoundException("Veículo não encontrado");
@@ -467,7 +558,7 @@ class MotoristasController extends BaseFrotaController {
   // POST /frota/motoristas/:id/renovar — registra renovação e atualiza a CNH
   @Post(":id/renovar")
   @Permissions("frota:editar")
-  async renovar(@Param("id") id: string, @Body() body: any, @Req() req: any) {
+  async renovar(@Param("id") id: string, @Body() body: RenovarFrotaDto, @Req() req: any) {
     const orgId = req.user?.organizationId;
     const m = await this.db.motorista.findFirst({ where: { id, organizationId: orgId, deletedAt: null } });
     if (!m) throw new NotFoundException("Motorista não encontrado");
@@ -526,7 +617,25 @@ class MotoristasController extends BaseFrotaController {
       where: { motoristaId: id, organizationId: orgId, deletedAt: null },
       orderBy: { criadoEm: "desc" },
     });
-    return anexos.map((a: any) => ({ ...a, url: `/uploads/motoristas/${id}/${a.nomeArquivo}` }));
+    return anexos.map((a: any) => ({ ...a, url: `/api/frota/motoristas/${id}/anexos/${a.id}/download` }));
+  }
+
+  /**
+   * Download autenticado. Antes o anexo saia por `/uploads/motoristas/...`,
+   * que o nginx servia sem sessao — bastava conhecer a URL, e a listagem
+   * entregava a URL exata.
+   */
+  @Get(":id/anexos/:anexoId/download")
+  @Permissions("frota:ver")
+  async baixarAnexo(@Req() req: any, @Res({ passthrough: true }) res: any, @Param("id") id: string, @Param("anexoId") anexoId: string) {
+    const anexo = await this.db.motoristaAnexo.findFirst({
+      where: { id: anexoId, motoristaId: id, organizationId: organizacaoDe(req), deletedAt: null },
+    });
+    if (!anexo) throw new NotFoundException("Anexo não encontrado");
+    return responderComAnexo(res, {
+      subdir: `motoristas/${id}`, nomeArquivo: anexo.nomeArquivo,
+      nomeOriginal: anexo.nomeOriginal, mimeType: anexo.mimeType,
+    });
   }
 
   // POST /frota/motoristas/:id/anexos — upload (cnh_frente | cnh_verso | exame | certificado)
@@ -539,14 +648,13 @@ class MotoristasController extends BaseFrotaController {
         fs.mkdirSync(dir, { recursive: true });
         cb(null, dir);
       },
-      filename: (_req, file, cb) => {
-        const ext = path.extname(file.originalname);
-        cb(null, `${Date.now()}-${Math.random().toString(36).slice(2)}${ext}`);
-      },
+      // Extensao da lista de tipos aceitos, nunca de `originalname`.
+      filename: nomeSeguroParaMulter,
     }),
     limits: { fileSize: 20 * 1024 * 1024 },
+    fileFilter: filtroDeTipo,
   }))
-  async uploadAnexo(@Param("id") id: string, @UploadedFile() file: any, @Body() body: any, @Req() req: any) {
+  async uploadAnexo(@Param("id") id: string, @UploadedFile() file: any, @Body() body: UploadAnexoFrota2Dto, @Req() req: any) {
     const orgId = req.user?.organizationId;
     const m = await this.db.motorista.findFirst({ where: { id, organizationId: orgId, deletedAt: null } });
     if (!m) throw new NotFoundException("Motorista não encontrado");
@@ -559,7 +667,7 @@ class MotoristasController extends BaseFrotaController {
         criadoPorId: req.user?.id || null,
       },
     });
-    return { ...anexo, url: `/uploads/motoristas/${id}/${anexo.nomeArquivo}` };
+    return { ...anexo, url: `/api/frota/motoristas/${id}/anexos/${anexo.id}/download` };
   }
 
   // DELETE /frota/motoristas/:id/anexos/:anexoId
@@ -596,7 +704,7 @@ class FrotaConfigController {
 
   @Put()
   @Permissions("frota:configurar")
-  async update(@Body() body: { bloqueioCnhVencida?: boolean }, @Req() req: any) {
+  async update(@Body() body: UpdateFrotaDto, @Req() req: any) {
     const orgId = req.user?.organizationId;
     const valor = body.bloqueioCnhVencida ? "true" : "false";
     const existing = await this.db.sistemaConfig.findFirst({ where: { organizationId: orgId, chave: "frota_bloqueio_cnh" } });
@@ -629,7 +737,7 @@ class PneusController extends BaseFrotaController {
   // POST /frota/pneus/:id/evento — instalacao | remocao | rodizio | recapagem | descarte
   @Post(":id/evento")
   @Permissions("frota:editar")
-  async evento(@Param("id") id: string, @Body() body: any, @Req() req: any) {
+  async evento(@Param("id") id: string, @Body() body: EventoFrotaDto, @Req() req: any) {
     const orgId = req.user?.organizationId;
     const pneu = await this.db.pneu.findFirst({ where: { id, organizationId: orgId, deletedAt: null } });
     if (!pneu) throw new NotFoundException("Pneu não encontrado");
@@ -696,7 +804,7 @@ class PneuLayoutController {
 
   @Put(":tipo")
   @Permissions("frota:configurar")
-  async put(@Param("tipo") tipo: string, @Body() body: any, @Req() req: any) {
+  async put(@Param("tipo") tipo: string, @Body() body: PutFrotaDto, @Req() req: any) {
     const orgId = req.user?.organizationId;
     const posicoes = Array.isArray(body.posicoes) ? body.posicoes : [];
     const existing = await this.db.pneuLayout.findFirst({ where: { organizationId: orgId, tipo } });
@@ -1011,7 +1119,7 @@ class ManutencoesController extends BaseFrotaController {
   @Post("importar")
   @Permissions("frota:criar")
   @UseInterceptors(FileInterceptor("file", { storage: memoryStorage(), limits: { fileSize: 30 * 1024 * 1024 } }))
-  async importar(@UploadedFile() file: any, @Body() body: any, @Req() req: any) {
+  async importar(@UploadedFile() file: any, @Body() body: ImportarFrotaDto, @Req() req: any) {
     const orgId = req.user?.organizationId;
     if (!file?.buffer) throw new BadRequestException("Arquivo obrigatório");
     const flag = (v: any) => v === "true" || v === true;
@@ -1455,7 +1563,7 @@ class ManutencoesController extends BaseFrotaController {
 
   @Post(":id/mao-obra")
   @Permissions("frota:editar")
-  async addMaoObra(@Param("id") id: string, @Body() body: any, @Req() req: any) {
+  async addMaoObra(@Param("id") id: string, @Body() body: AddMaoObraFrotaDto, @Req() req: any) {
     const orgId = req.user?.organizationId;
     const m = await this.db.manutencaoVeiculo.findFirst({ where: { id, organizationId: orgId, deletedAt: null } });
     if (!m) throw new NotFoundException("Manutenção não encontrada");
@@ -1487,7 +1595,25 @@ class ManutencoesController extends BaseFrotaController {
   async listAnexos(@Param("id") id: string, @Req() req: any) {
     const orgId = req.user?.organizationId;
     const anexos = await this.db.manutencaoAnexo.findMany({ where: { manutencaoId: id, organizationId: orgId, deletedAt: null }, orderBy: { criadoEm: "desc" } });
-    return anexos.map((a: any) => ({ ...a, url: `/uploads/manutencoes/${id}/${a.nomeArquivo}` }));
+    return anexos.map((a: any) => ({ ...a, url: `/api/frota/manutencoes/${id}/anexos/${a.id}/download` }));
+  }
+
+  /**
+   * Download autenticado. Antes o anexo saia por `/uploads/manutencoes/...`,
+   * que o nginx servia sem sessao — bastava conhecer a URL, e a listagem
+   * entregava a URL exata.
+   */
+  @Get(":id/anexos/:anexoId/download")
+  @Permissions("frota:ver")
+  async baixarAnexo(@Req() req: any, @Res({ passthrough: true }) res: any, @Param("id") id: string, @Param("anexoId") anexoId: string) {
+    const anexo = await this.db.manutencaoAnexo.findFirst({
+      where: { id: anexoId, manutencaoId: id, organizationId: organizacaoDe(req), deletedAt: null },
+    });
+    if (!anexo) throw new NotFoundException("Anexo não encontrado");
+    return responderComAnexo(res, {
+      subdir: `manutencoes/${id}`, nomeArquivo: anexo.nomeArquivo,
+      nomeOriginal: anexo.nomeOriginal, mimeType: anexo.mimeType,
+    });
   }
 
   @Post(":id/anexos")
@@ -1499,11 +1625,13 @@ class ManutencoesController extends BaseFrotaController {
         fs.mkdirSync(dir, { recursive: true });
         cb(null, dir);
       },
-      filename: (_req, file, cb) => cb(null, `${Date.now()}-${Math.random().toString(36).slice(2)}${path.extname(file.originalname)}`),
+      // Extensao da lista de tipos aceitos, nunca de `originalname`.
+      filename: nomeSeguroParaMulter,
     }),
     limits: { fileSize: 20 * 1024 * 1024 },
+    fileFilter: filtroDeTipo,
   }))
-  async uploadAnexo(@Param("id") id: string, @UploadedFile() file: any, @Body() body: any, @Req() req: any) {
+  async uploadAnexo(@Param("id") id: string, @UploadedFile() file: any, @Body() body: UploadAnexoFrotaDto, @Req() req: any) {
     const orgId = req.user?.organizationId;
     const m = await this.db.manutencaoVeiculo.findFirst({ where: { id, organizationId: orgId, deletedAt: null } });
     if (!m) throw new NotFoundException("Manutenção não encontrada");
@@ -1512,7 +1640,7 @@ class ManutencoesController extends BaseFrotaController {
     const anexo = await this.db.manutencaoAnexo.create({
       data: { id: crypto.randomUUID(), organizationId: orgId, manutencaoId: id, tipo, nomeArquivo: file.filename, nomeOriginal: file.originalname, mime: file.mimetype, tamanho: file.size, criadoPorId: req.user?.id || null },
     });
-    return { ...anexo, url: `/uploads/manutencoes/${id}/${anexo.nomeArquivo}` };
+    return { ...anexo, url: `/api/frota/manutencoes/${id}/anexos/${anexo.id}/download` };
   }
 
   @Delete(":id/anexos/:anexoId")
@@ -1580,7 +1708,25 @@ class DocumentosController extends BaseFrotaController {
   async listAnexos(@Param("id") id: string, @Req() req: any) {
     const orgId = req.user?.organizationId;
     const anexos = await this.db.documentoAnexo.findMany({ where: { documentoId: id, organizationId: orgId, deletedAt: null }, orderBy: { criadoEm: "desc" } });
-    return anexos.map((a: any) => ({ ...a, url: `/uploads/documentos/${id}/${a.nomeArquivo}` }));
+    return anexos.map((a: any) => ({ ...a, url: `/api/frota/documentos/${id}/anexos/${a.id}/download` }));
+  }
+
+  /**
+   * Download autenticado. Antes o anexo saia por `/uploads/documentos/...`,
+   * que o nginx servia sem sessao — bastava conhecer a URL, e a listagem
+   * entregava a URL exata.
+   */
+  @Get(":id/anexos/:anexoId/download")
+  @Permissions("frota:ver")
+  async baixarAnexo(@Req() req: any, @Res({ passthrough: true }) res: any, @Param("id") id: string, @Param("anexoId") anexoId: string) {
+    const anexo = await this.db.documentoAnexo.findFirst({
+      where: { id: anexoId, documentoId: id, organizationId: organizacaoDe(req), deletedAt: null },
+    });
+    if (!anexo) throw new NotFoundException("Anexo não encontrado");
+    return responderComAnexo(res, {
+      subdir: `documentos/${id}`, nomeArquivo: anexo.nomeArquivo,
+      nomeOriginal: anexo.nomeOriginal, mimeType: anexo.mimeType,
+    });
   }
 
   @Post(":id/anexos")
@@ -1592,9 +1738,11 @@ class DocumentosController extends BaseFrotaController {
         fs.mkdirSync(dir, { recursive: true });
         cb(null, dir);
       },
-      filename: (_req, file, cb) => cb(null, `${Date.now()}-${Math.random().toString(36).slice(2)}${path.extname(file.originalname)}`),
+      // Extensao da lista de tipos aceitos, nunca de `originalname`.
+      filename: nomeSeguroParaMulter,
     }),
     limits: { fileSize: 20 * 1024 * 1024 },
+    fileFilter: filtroDeTipo,
   }))
   async uploadAnexo(@Param("id") id: string, @UploadedFile() file: any, @Req() req: any) {
     const orgId = req.user?.organizationId;
@@ -1604,7 +1752,7 @@ class DocumentosController extends BaseFrotaController {
     const anexo = await this.db.documentoAnexo.create({
       data: { id: crypto.randomUUID(), organizationId: orgId, documentoId: id, nomeArquivo: file.filename, nomeOriginal: file.originalname, mime: file.mimetype, tamanho: file.size, criadoPorId: req.user?.id || null },
     });
-    return { ...anexo, url: `/uploads/documentos/${id}/${anexo.nomeArquivo}` };
+    return { ...anexo, url: `/api/frota/documentos/${id}/anexos/${anexo.id}/download` };
   }
 
   @Delete(":id/anexos/:anexoId")
@@ -2354,7 +2502,7 @@ class FrotaReportScheduleController {
 
   @Post()
   @Permissions("frota:relatorios")
-  async create(@Req() req: any, @Body() body: any) {
+  async create(@Req() req: any, @Body() body: CreateFrotaDto) {
     const orgId = req.user?.organizationId;
     const { titulo, tipoRelatorio, formato, frequencia, filtros, destinatarios } = body;
     if (!titulo || !tipoRelatorio || !formato || !frequencia || !destinatarios) {
@@ -2378,7 +2526,7 @@ class FrotaReportScheduleController {
 
   @Patch(":id")
   @Permissions("frota:relatorios")
-  async update(@Param("id") id: string, @Req() req: any, @Body() body: any) {
+  async update(@Param("id") id: string, @Req() req: any, @Body() body: UpdateFrota2Dto) {
     const orgId = req.user?.organizationId;
     const schedule = await this.db.frotaReportSchedule.findFirst({ where: { id, organizationId: orgId } });
     if (!schedule) throw new NotFoundException("Agendamento não encontrado");

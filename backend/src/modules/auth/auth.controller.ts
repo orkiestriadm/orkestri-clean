@@ -3,7 +3,7 @@ import {
   UseGuards, HttpCode, HttpException, HttpStatus,
 } from "@nestjs/common";
 import { AuthGuard } from "@nestjs/passport";
-import { IsString, IsEmail, IsOptional, IsNumber, MinLength } from "class-validator";
+import { IsEmail, IsNumber, IsOptional, IsString, MinLength } from "class-validator";
 import { Response } from "express";
 import { AuthService } from "./auth.service";
 import { CacheService } from "../cache/cache.service";
@@ -78,6 +78,12 @@ class PrimeiroAcessoDto {
 }
 
 // ─── Controller ───────────────────────────────────────────────────────────────
+
+// ── DTOs gerados: sem classe, o ValidationPipe global nao tem metadata e a
+//    rota aceita qualquer JSON. Campos derivados do tipo inline anterior.
+class EsqueciSenhaAuthDto {
+  @IsString() email: string;
+}
 
 @Controller("auth")
 export class AuthController {
@@ -210,7 +216,7 @@ export class AuthController {
 
   @Post("esqueci-senha")
   @HttpCode(200)
-  async esqueciSenha(@Body() dto: { email: string }, @Req() req: any) {
+  async esqueciSenha(@Body() dto: EsqueciSenhaAuthDto, @Req() req: any) {
     await this.enforceRate(req, "esqueci-senha", 5, 900);
     return this.auth.sendPasswordResetEmail(dto.email);
   }

@@ -1,9 +1,17 @@
 import { MARCA } from "../../common/marca";
+import { IsBoolean, IsOptional, IsString } from "class-validator";
 import { Module, Controller, Get, Post, Patch, Body, UseGuards, Req, BadRequestException } from "@nestjs/common";
 import { AuthGuard } from "@nestjs/passport";
 import { PrismaService } from "../../prisma/prisma.service";
 import { WhatsAppService } from "../notifications/whatsapp.service";
 import { NotificationsModule } from "../notifications/notifications.module";
+
+// ── DTOs gerados: sem classe, o ValidationPipe global nao tem metadata e a
+//    rota aceita qualquer JSON. Campos derivados do tipo inline anterior.
+class UpdateWhatsAppWhatsappDto {
+  @IsOptional() @IsString() whatsapp?: string;
+  @IsOptional() @IsBoolean() whatsappAlertas?: boolean;
+}
 
 @Controller("users/me")
 class UserWhatsAppController {
@@ -18,7 +26,7 @@ class UserWhatsAppController {
 
   @Patch("whatsapp")
   @UseGuards(AuthGuard("jwt"))
-  async updateWhatsApp(@Req() req: any, @Body() body: { whatsapp?: string; whatsappAlertas?: boolean }) {
+  async updateWhatsApp(@Req() req: any, @Body() body: UpdateWhatsAppWhatsappDto) {
     await this.prisma.userProfile.upsert({
       where: { userId: req.user.id },
       update: {

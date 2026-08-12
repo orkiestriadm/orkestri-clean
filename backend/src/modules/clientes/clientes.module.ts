@@ -4,10 +4,11 @@ import {
   NotFoundException, BadRequestException, ForbiddenException,
 } from "@nestjs/common";
 import { AuthGuard } from "@nestjs/passport";
-import { IsString, IsOptional, IsEmail, IsBoolean, IsNumber, IsDateString } from "class-validator";
+import { IsArray, IsBoolean, IsDateString, IsEmail, IsNumber, IsOptional, IsString } from "class-validator";
 import { PrismaService } from "../../prisma/prisma.service";
 import { Permissions } from "../auth/permissions.decorator";
 import { PermissionsGuard } from "../auth/permissions.guard";
+import { acharNaOrganizacao } from "../../common/escopo-organizacao";
 
 // ── DTOs ─────────────────────────────────────────────────────────────────────
 
@@ -27,6 +28,15 @@ class CreateClienteDto {
   @IsOptional() @IsString() notas?: string;
   @IsOptional() @IsBoolean() ativo?: boolean;
   @IsOptional() @IsString() responsavelId?: string;
+  // Oportunidade. O formulário de cadastro (clientes/page.tsx:138) envia os
+  // dois desde sempre, e eles NÃO estavam declarados aqui: com
+  // `forbidNonWhitelisted`, preencher "valor estimado" ou "probabilidade"
+  // fazia o cadastro inteiro voltar 400. Passava despercebido porque a tela só
+  // manda a chave quando o campo tem valor — vazio, ela é omitida.
+  //
+  // Persistem sozinhos: o handler faz `...rest` e o modelo já tem as colunas.
+  @IsOptional() @IsNumber() valorEstimado?: number;
+  @IsOptional() @IsNumber() probabilidade?: number;
 }
 
 class UpdateClienteDto {
@@ -45,6 +55,11 @@ class UpdateClienteDto {
   @IsOptional() @IsString() notas?: string;
   @IsOptional() @IsBoolean() ativo?: boolean;
   @IsOptional() @IsString() responsavelId?: string;
+  // Espelham o Create. A tela de edição ainda não manda estes dois, mas o
+  // handler usa o mesmo `...rest` — deixar só o Create corrigido plantaria
+  // exatamente o mesmo defeito para o dia em que a edição passar a mandá-los.
+  @IsOptional() @IsNumber() valorEstimado?: number;
+  @IsOptional() @IsNumber() probabilidade?: number;
 }
 
 class CreateContratoDto {
@@ -175,6 +190,19 @@ async function addTimelineEvent(prisma: PrismaService, data: {
 
 // ── Controller ────────────────────────────────────────────────────────────────
 
+// ── DTOs gerados: sem classe, o ValidationPipe global nao tem metadata e a
+//    rota aceita qualquer JSON. Campos derivados do tipo inline anterior.
+class ImportarClientesDto {
+  @IsArray() rows: any[];
+}
+
+class UpdateStatusClientesDto {
+  @IsString() statusLead: string;
+  @IsOptional() @IsNumber() valorEstimado?: number;
+  @IsOptional() @IsNumber() probabilidade?: number;
+  @IsOptional() @IsString() dataFechamento?: string;
+}
+
 @Controller("clientes")
 @UseGuards(AuthGuard("jwt"), PermissionsGuard)
 class ClientesController {
@@ -284,7 +312,7 @@ class ClientesController {
   // POST /clientes/importar — bulk import from CSV rows
   @Post("importar")
   @Permissions("crm:criar")
-  async importar(@Body() body: { rows: any[] }, @Req() req: any) {
+  async importar(@Body() body: ImportarClientesDto, @Req() req: any) {
     const rows = body.rows || [];
     const criados: any[] = [];
     const erros: { linha: number; erro: string }[] = [];
@@ -355,7 +383,7 @@ class ClientesController {
   async updateStatus(
     @Req() req: any,
     @Param("id") id: string,
-    @Body() body: { statusLead: string; valorEstimado?: number; probabilidade?: number; dataFechamento?: string },
+    @Body() body: UpdateStatusClientesDto,
   ) {
     const orgId = req.user?.organizationId;
     const validos = ["lead", "prospect", "oportunidade", "negociacao", "ativo", "inativo"];
@@ -398,15 +426,15 @@ class ClientesController {
 
   @Get(":id/workspace")
   @Permissions("crm:ver")
-  async workspace(@Param("id") id: string) {
-    const c = await this.prisma.cliente.findUnique({
-      where: { id },
+  async workspace(@Param("id") id: string, @Req() req: any) {
+    // <any> porque o delegate e tipado e o tipo base do modelo nao conhece as
+    // relacoes trazidas pelo include.
+    const c = await acharNaOrganizacao<any>(this.prisma.cliente, id, req, "Cliente não encontrado", {
       include: {
         responsavel: { select: { id: true, nome: true, avatar: true } },
         contratos: { where: { ativo: true }, orderBy: { criadoEm: "desc" }, take: 1 },
       },
     });
-    if (!c) throw new NotFoundException("Cliente não encontrado");
 
     const [projetos, chamadosAbertos, chamadosTotais, timeline, proximosMarcos] = await Promise.all([
       this.prisma.project.findMany({
@@ -528,8 +556,7 @@ class ClientesController {
   @Post(":id/timeline/nota")
   @Permissions("crm:editar")
   async addNota(@Param("id") id: string, @Body() dto: CreateTimelineNotaDto, @Req() req: any) {
-    const c = await this.prisma.cliente.findUnique({ where: { id } });
-    if (!c) throw new NotFoundException("Cliente não encontrado");
+    const c = await acharNaOrganizacao(this.prisma.cliente, id, req, "Cliente não encontrado");
     const evento = await (this.prisma as any).clienteTimeline.create({
       data: {
         id: require("crypto").randomUUID(),
@@ -558,8 +585,7 @@ class ClientesController {
   @Post(":id/contratos")
   @Permissions("crm:criar")
   async createContrato(@Param("id") id: string, @Body() dto: CreateContratoDto, @Req() req: any) {
-    const c = await this.prisma.cliente.findUnique({ where: { id } });
-    if (!c) throw new NotFoundException("Cliente não encontrado");
+    const c = await acharNaOrganizacao(this.prisma.cliente, id, req, "Cliente não encontrado");
     const contrato = await (this.prisma as any).contrato.create({
       data: { id: require("crypto").randomUUID(), clienteId: id, ...dto },
     });

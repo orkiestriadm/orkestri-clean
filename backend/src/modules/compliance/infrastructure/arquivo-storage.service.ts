@@ -5,10 +5,15 @@ import * as path from "path";
 /**
  * Armazenamento dos anexos das obrigações.
  *
- * DELIBERADAMENTE FORA DE `UPLOAD_DIR`. Aquele diretório é publicado por
- * `useStaticAssets` no main.ts e proxiado pelo nginx: quem tiver a URL baixa o
- * arquivo, sem login e sem checagem de organização. Contrato, licença ambiental
- * e AVCB não podem ficar num diretório público.
+ * DELIBERADAMENTE FORA DE `UPLOAD_DIR`. Aquele diretório era publicado por
+ * `useStaticAssets` e proxiado pelo nginx: quem tivesse a URL baixava o
+ * arquivo, sem login e sem checagem de organização. Contrato, licença
+ * ambiental e AVCB não podem ficar num diretório público.
+ *
+ * Desde 11/08/2026 `UPLOAD_DIR` também deixou de ser público — os anexos de
+ * chamados, contratos e frota passaram a sair por rota autenticada. A
+ * separação aqui continua valendo: mantém estes arquivos fora do caminho de
+ * qualquer futura republicação daquele diretório.
  *
  * Aqui o arquivo só sai pelo endpoint de download, que valida escopo e permissão.
  *

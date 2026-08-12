@@ -3,6 +3,7 @@ import {
   Body, Param, Query, UseGuards, Req, Res,
   Injectable, NotFoundException, BadRequestException,
 } from "@nestjs/common";
+import { IsNumber, IsOptional, IsString } from "class-validator";
 import type { Response } from "express";
 import { AuthGuard } from "@nestjs/passport";
 import { PrismaService } from "../../prisma/prisma.service";
@@ -10,6 +11,13 @@ import { Permissions } from "../auth/permissions.decorator";
 import { PermissionsGuard } from "../auth/permissions.guard";
 
 // ── CsatController ────────────────────────────────────────────────────────────
+// ── DTOs gerados: sem classe, o ValidationPipe global nao tem metadata e a
+//    rota aceita qualquer JSON. Campos derivados do tipo inline anterior.
+class AvaliarCsatDto {
+  @IsNumber() nota: number;
+  @IsOptional() @IsString() comentario?: string;
+}
+
 @Controller("csat")
 @UseGuards(AuthGuard("jwt"), PermissionsGuard)
 class CsatController {
@@ -21,7 +29,7 @@ class CsatController {
   @Permissions("chamados:ver")
   async avaliar(
     @Param("chamadoId") chamadoId: string,
-    @Body() body: { nota: number; comentario?: string },
+    @Body() body: AvaliarCsatDto,
   ) {
     const nota = Number(body.nota);
     if (!nota || nota < 1 || nota > 5) throw new BadRequestException("nota deve ser entre 1 e 5");

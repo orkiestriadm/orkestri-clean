@@ -10,6 +10,7 @@ import {
 import { PrismaService } from "../../prisma/prisma.service";
 import { Permissions } from "../auth/permissions.decorator";
 import { PermissionsGuard } from "../auth/permissions.guard";
+import { acharNaOrganizacao } from "../../common/escopo-organizacao";
 
 // ── DTOs ──────────────────────────────────────────────────────────────────────
 
@@ -341,8 +342,7 @@ class SuppliersController {
   @Put(":id")
   @Permissions("fornecedores:editar")
   async update(@Param("id") id: string, @Body() dto: UpdateSupplierDto, @Req() req: any) {
-    const existing = await (this.prisma as any).supplier.findUnique({ where: { id } });
-    if (!existing) throw new NotFoundException("Fornecedor não encontrado");
+    const existing = await acharNaOrganizacao((this.prisma as any).supplier, id, req, "Fornecedor não encontrado");
 
     const cnpj = dto.cnpj !== undefined ? cleanCnpj(dto.cnpj) : undefined;
     if (cnpj && !validateCnpj(cnpj)) throw new BadRequestException("CNPJ inválido");
@@ -394,8 +394,7 @@ class SuppliersController {
     const valid = ["ativo","inativo","bloqueado"];
     if (!valid.includes(status)) throw new BadRequestException("Status inválido");
 
-    const existing = await (this.prisma as any).supplier.findUnique({ where: { id } });
-    if (!existing) throw new NotFoundException("Fornecedor não encontrado");
+    const existing = await acharNaOrganizacao((this.prisma as any).supplier, id, req, "Fornecedor não encontrado");
 
     await (this.prisma as any).supplier.update({ where: { id }, data: { status } });
     await (this.prisma as any).supplierHistory.create({
@@ -409,9 +408,8 @@ class SuppliersController {
 
   @Delete(":id")
   @Permissions("fornecedores:excluir")
-  async remove(@Param("id") id: string) {
-    const existing = await (this.prisma as any).supplier.findUnique({ where: { id } });
-    if (!existing) throw new NotFoundException("Fornecedor não encontrado");
+  async remove(@Param("id") id: string, @Req() req: any) {
+    const existing = await acharNaOrganizacao((this.prisma as any).supplier, id, req, "Fornecedor não encontrado");
     await (this.prisma as any).supplier.delete({ where: { id } });
     return { success: true };
   }
@@ -420,9 +418,8 @@ class SuppliersController {
 
   @Get(":id/contacts")
   @Permissions("fornecedores:ver")
-  async getContacts(@Param("id") id: string) {
-    const s = await (this.prisma as any).supplier.findUnique({ where: { id } });
-    if (!s) throw new NotFoundException("Fornecedor não encontrado");
+  async getContacts(@Param("id") id: string, @Req() req: any) {
+    const s = await acharNaOrganizacao((this.prisma as any).supplier, id, req, "Fornecedor não encontrado");
     return (this.prisma as any).supplierContact.findMany({
       where: { supplierId: id },
       orderBy: [{ principal: "desc" }, { criadoEm: "asc" }],
@@ -431,9 +428,8 @@ class SuppliersController {
 
   @Post(":id/contacts")
   @Permissions("fornecedores:editar")
-  async addContact(@Param("id") id: string, @Body() dto: CreateContactDto) {
-    const s = await (this.prisma as any).supplier.findUnique({ where: { id } });
-    if (!s) throw new NotFoundException("Fornecedor não encontrado");
+  async addContact(@Param("id") id: string, @Body() dto: CreateContactDto, @Req() req: any) {
+    const s = await acharNaOrganizacao((this.prisma as any).supplier, id, req, "Fornecedor não encontrado");
     return (this.prisma as any).supplierContact.create({
       data: { id: uuid(), supplierId: id, nome: dto.nome, cargo: dto.cargo ?? null, telefone: dto.telefone ?? null, email: dto.email ?? null, principal: dto.principal ?? false },
     });
@@ -450,9 +446,8 @@ class SuppliersController {
 
   @Get(":id/history")
   @Permissions("fornecedores:ver")
-  async getHistory(@Param("id") id: string) {
-    const s = await (this.prisma as any).supplier.findUnique({ where: { id } });
-    if (!s) throw new NotFoundException("Fornecedor não encontrado");
+  async getHistory(@Param("id") id: string, @Req() req: any) {
+    const s = await acharNaOrganizacao((this.prisma as any).supplier, id, req, "Fornecedor não encontrado");
     return (this.prisma as any).supplierHistory.findMany({
       where: { supplierId: id },
       include: { usuario: { select: { id: true, nome: true } } },

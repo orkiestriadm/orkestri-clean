@@ -3,10 +3,12 @@ import {
   Body, Param, Query, UseGuards, Req,
   NotFoundException, BadRequestException, ForbiddenException,
 } from "@nestjs/common";
+import { Allow, IsArray, IsDateString, IsNumber, IsOptional, IsString } from "class-validator";
 import { AuthGuard } from "@nestjs/passport";
 import { PrismaService } from "../../prisma/prisma.service";
 import { Permissions } from "../auth/permissions.decorator";
 import { PermissionsGuard } from "../auth/permissions.guard";
+import { acharNaOrganizacao } from "../../common/escopo-organizacao";
 
 const STATUS_VALID = ["pendente", "pago", "vencido", "cancelado"];
 
@@ -21,6 +23,48 @@ function mapFatura(f: any) {
 }
 
 // ── FaturasController ─────────────────────────────────────────────────────────
+// ── DTOs gerados: sem classe, o ValidationPipe global nao tem metadata e a
+//    rota aceita qualquer JSON. Campos derivados do tipo inline anterior.
+class GerarLoteFaturasDto {
+  @IsOptional() @IsNumber() mes?: number;
+  @IsOptional() @IsNumber() ano?: number;
+}
+
+class PagarFaturasDto {
+  @IsOptional() @IsString() dataPagamento?: string;
+}
+
+class ImportarFaturasDto {
+  @IsArray() rows: any[];
+}
+
+// ── DTOs de corpo antes tipado como `any`.
+//    Campos descobertos pelo uso no handler; todos opcionais e com tipo
+//    afirmado só onde o código o torna inequívoco. O ganho é a lista
+//    fechada de campos aceitos — antes qualquer JSON passava.
+class CreateFaturasDto {
+  @IsOptional() @Allow() clienteId?: any;
+  @IsOptional() @Allow() contratoId?: any;
+  @IsOptional() @IsDateString() dataEmissao?: any;
+  @IsOptional() @IsDateString() dataPagamento?: any;
+  @IsOptional() @IsDateString() dataVencimento?: any;
+  @IsOptional() @Allow() descricao?: any;
+  @IsOptional() @Allow() observacoes?: any;
+  @IsOptional() @Allow() status?: any;
+  @IsOptional() @IsNumber() valor?: any;
+}
+
+class UpdateFaturasDto {
+  @IsOptional() @Allow() contratoId?: any;
+  @IsOptional() @IsDateString() dataEmissao?: any;
+  @IsOptional() @IsDateString() dataPagamento?: any;
+  @IsOptional() @IsDateString() dataVencimento?: any;
+  @IsOptional() @Allow() descricao?: any;
+  @IsOptional() @Allow() observacoes?: any;
+  @IsOptional() @Allow() status?: any;
+  @IsOptional() @IsNumber() valor?: any;
+}
+
 @Controller("faturas")
 @UseGuards(AuthGuard("jwt"), PermissionsGuard)
 class FaturasController {
@@ -84,7 +128,7 @@ class FaturasController {
   // POST /faturas/gerar-lote — gera faturas mensais de contratos vigentes
   @Post("gerar-lote")
   @Permissions("crm:ver")
-  async gerarLote(@Body() body: { mes?: number; ano?: number }, @Req() req: any) {
+  async gerarLote(@Body() body: GerarLoteFaturasDto, @Req() req: any) {
     const now2 = new Date();
     const mes = body.mes || (now2.getMonth() + 1);
     const ano = body.ano || now2.getFullYear();
@@ -176,9 +220,8 @@ class FaturasController {
   // GET /faturas/:id
   @Get(":id")
   @Permissions("crm:ver")
-  async findOne(@Param("id") id: string) {
-    const f = await this.db.fatura.findUnique({
-      where: { id },
+  async findOne(@Param("id") id: string, @Req() req: any) {
+    const f = await acharNaOrganizacao(this.db.fatura, id, req, "Fatura nao encontrada", {
       include: {
         cliente:  { select: { id: true, nome: true, empresa: true, email: true } },
         contrato: { select: { id: true, titulo: true, numero: true } },
@@ -191,7 +234,7 @@ class FaturasController {
   // POST /faturas
   @Post()
   @Permissions("crm:ver")
-  async create(@Body() body: any, @Req() req: any) {
+  async create(@Body() body: CreateFaturasDto, @Req() req: any) {
     if (!body.clienteId) throw new BadRequestException("clienteId obrigatorio");
     if (!body.dataVencimento) throw new BadRequestException("dataVencimento obrigatorio");
     if (body.valor === undefined || body.valor === null) throw new BadRequestException("valor obrigatorio");
@@ -227,9 +270,8 @@ class FaturasController {
   // PUT /faturas/:id
   @Put(":id")
   @Permissions("crm:ver")
-  async update(@Param("id") id: string, @Body() body: any) {
-    const existing = await this.db.fatura.findUnique({ where: { id } });
-    if (!existing) throw new NotFoundException("Fatura nao encontrada");
+  async update(@Param("id") id: string, @Body() body: UpdateFaturasDto, @Req() req: any) {
+    const existing = await acharNaOrganizacao(this.db.fatura, id, req, "Fatura nao encontrada");
 
     const data: any = { atualizadoEm: new Date() };
     if (body.descricao      !== undefined) data.descricao      = body.descricao;
@@ -255,9 +297,8 @@ class FaturasController {
   // PATCH /faturas/:id/pagar — marcar como pago
   @Patch(":id/pagar")
   @Permissions("crm:ver")
-  async pagar(@Param("id") id: string, @Body() body: { dataPagamento?: string }) {
-    const existing = await this.db.fatura.findUnique({ where: { id } });
-    if (!existing) throw new NotFoundException("Fatura nao encontrada");
+  async pagar(@Param("id") id: string, @Body() body: PagarFaturasDto, @Req() req: any) {
+    const existing = await acharNaOrganizacao(this.db.fatura, id, req, "Fatura nao encontrada");
     const updated = await this.db.fatura.update({
       where: { id },
       data: {
@@ -276,7 +317,7 @@ class FaturasController {
   // POST /faturas/importar — bulk import from CSV rows
   @Post("importar")
   @Permissions("crm:ver")
-  async importar(@Body() body: { rows: any[] }, @Req() req: any) {
+  async importar(@Body() body: ImportarFaturasDto, @Req() req: any) {
     const rows = body.rows || [];
     const criadas: any[] = [];
     const erros: { linha: number; erro: string }[] = [];
@@ -330,8 +371,7 @@ class FaturasController {
   @Permissions("crm:ver")
   async remove(@Param("id") id: string, @Req() req: any) {
     if (!req.user.isMaster) throw new ForbiddenException("Apenas masters podem remover faturas");
-    const existing = await this.db.fatura.findUnique({ where: { id } });
-    if (!existing) throw new NotFoundException("Fatura nao encontrada");
+    const existing = await acharNaOrganizacao(this.db.fatura, id, req, "Fatura nao encontrada");
     await this.db.fatura.delete({ where: { id } });
     return { message: "Fatura removida" };
   }

@@ -19,10 +19,22 @@ async function bootstrap() {
   app.use(json({ limit: "50mb" }));
   app.use(urlencoded({ extended: true, limit: "50mb" }));
 
-  // Servir uploads de arquivos (anexos de chamados)
+  // O diretório de uploads NÃO é mais publicado estaticamente.
+  //
+  // Enquanto era, `/uploads/<id>/<arquivo>` respondia a qualquer um que
+  // soubesse a URL — sem sessão, sem escopo de organização. E a URL não era
+  // segredo: a listagem de anexos a entregava pronta, inclusive para anexo de
+  // outro tenant, porque a listagem também não escopava.
+  //
+  // Agora cada anexo sai por uma rota autenticada do seu módulo
+  // (`/api/chamados/:id/anexos/:anexoId/download` e equivalentes em contratos
+  // e frota), que exige sessão, permissão e organização do registro dono. É o
+  // que o Compliance e o People já faziam com seus diretórios `secure/`.
+  //
+  // O diretório continua sendo criado: os uploads seguem gravando nele, só
+  // deixa de haver porta pública para ele.
   const uploadsDir = process.env.UPLOAD_DIR || "/app/uploads";
   if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
-  app.useStaticAssets(uploadsDir, { prefix: "/uploads" });
 
   // Cookie parsing (required for HttpOnly JWT cookies)
   app.use(cookieParser());

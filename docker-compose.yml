@@ -195,7 +195,7 @@ services:
 
   website:
     build:
-      context: ./Website
+      context: ./website
       dockerfile: Dockerfile
     image: orkestri/website:latest
     container_name: orkestri_website

@@ -3,6 +3,7 @@ import {
   Body, Param, UseGuards, Req, HttpCode, HttpStatus,
   BadRequestException, NotFoundException, ForbiddenException,
 } from "@nestjs/common";
+import { Allow, IsOptional } from "class-validator";
 import { AuthGuard } from "@nestjs/passport";
 import { JwtModule } from "@nestjs/jwt";
 import { ConfigModule, ConfigService } from "@nestjs/config";
@@ -12,12 +13,18 @@ import { AuthService } from "../auth/auth.service";
 import { AuthModule } from "../auth/auth.module";
 import { CacheService } from "../cache/cache.service";
 import { NotificationsModule } from "../notifications/notifications.module";
+import { acharNaOrganizacao, organizacaoDe } from "../../common/escopo-organizacao";
 import { randomUUID } from "crypto";
 
 const JwtAuthGuard = AuthGuard("jwt");
-const CACHE_ROLES   = "cache:roles:list";
+// Chaves POR ORGANIZACAO. Enquanto eram globais ("cache:roles:list"), a lista
+// de papeis do primeiro tenant a consultar era servida a todos os outros —
+// mesmo depois de a consulta ao banco passar a filtrar por organizacao, o
+// cache continuaria vazando. Papeis agora sao dado de cliente, nao catalogo.
+const CACHE_ROLES   = (orgId: string) => `cache:roles:list:${orgId}`;
+const CACHE_MATRIX  = (orgId: string) => `cache:rbac:matrix:${orgId}`;
+// Permissoes seguem globais de proposito: e catalogo fixo do sistema.
 const CACHE_PERMS   = "cache:perms:list";
-const CACHE_MATRIX  = "cache:rbac:matrix";
 const TTL_ROLES     = 300;  // 5 min
 const TTL_PERMS     = 3600; // 1 h
 const TTL_MATRIX    = 300;  // 5 min
@@ -36,37 +43,68 @@ function canManagePerms(user: any): boolean {
 // ──────────────────────────────────────────────
 // Controller de Papéis (Roles)
 // ──────────────────────────────────────────────
+// ── DTOs de corpo antes tipado como `any`.
+//    Campos descobertos pelo uso no handler; todos opcionais e com tipo
+//    afirmado só onde o código o torna inequívoco. O ganho é a lista
+//    fechada de campos aceitos — antes qualquer JSON passava.
+class CreateRoleRbacDto {
+  @IsOptional() @Allow() descricao?: any;
+  @IsOptional() @Allow() nivel?: any;
+  @IsOptional() @Allow() nome?: any;
+  @IsOptional() @Allow() permissoes?: any;
+}
+
+class UpdateRoleRbacDto {
+  @IsOptional() @Allow() descricao?: any;
+  @IsOptional() @Allow() nivel?: any;
+  @IsOptional() @Allow() nome?: any;
+  @IsOptional() @Allow() permissoes?: any;
+}
+
+class AssignRoleRbacDto {
+  @IsOptional() @Allow() roleId?: any;
+}
+
+class SetOverrideRbacDto {
+  @IsOptional() @Allow() conceder?: any;
+  @IsOptional() @Allow() permissionId?: any;
+}
+
 @Controller("rbac/roles")
 @UseGuards(JwtAuthGuard)
 class RolesController {
   constructor(private prisma: PrismaService, private cache: CacheService) {}
 
   @Get()
-  async listRoles() {
-    const cached = await this.cache.get(CACHE_ROLES);
+  async listRoles(@Req() req: any) {
+    const orgId = organizacaoDe(req);
+    const cached = await this.cache.get(CACHE_ROLES(orgId));
     if (cached) return cached;
 
     const roles = await this.prisma.role.findMany({
+      where: { organizationId: orgId } as any,
       orderBy: { nivel: "desc" },
       include: {
         rolePermissions: { include: { permission: true } },
         _count: { select: { userRoles: true } },
       },
     });
-    await this.cache.set(CACHE_ROLES, roles, TTL_ROLES);
+    await this.cache.set(CACHE_ROLES(orgId), roles, TTL_ROLES);
     return roles;
   }
 
   @Post()
-  async createRole(@Body() body: any, @Req() req: any) {
+  async createRole(@Body() body: CreateRoleRbacDto, @Req() req: any) {
     if (!req.user.isMaster) throw new ForbiddenException("Apenas masters");
+    const orgId = organizacaoDe(req);
     const { nome, descricao, nivel = 0, permissoes = [] } = body;
     if (!nome) throw new BadRequestException("nome é obrigatório");
-    const existing = await this.prisma.role.findUnique({ where: { nome } });
+    // Nome unico DENTRO da organizacao: dois clientes podem ter "gestor".
+    const existing = await this.prisma.role.findFirst({ where: { nome, organizationId: orgId } as any });
     if (existing) throw new BadRequestException("Papel com este nome já existe");
 
     const role = await this.prisma.role.create({
-      data: { id: randomUUID(), nome, descricao, isMaster: false, nivel },
+      data: { id: randomUUID(), organizationId: orgId, nome, descricao, isMaster: false, nivel } as any,
     });
 
     if (permissoes.length > 0) {
@@ -79,7 +117,7 @@ class RolesController {
       });
     }
 
-    await this.cache.del(CACHE_ROLES, CACHE_MATRIX);
+    await this.cache.del(CACHE_ROLES(orgId), CACHE_MATRIX(orgId));
     return this.prisma.role.findUnique({
       where: { id: role.id },
       include: { rolePermissions: { include: { permission: true } } },
@@ -87,10 +125,12 @@ class RolesController {
   }
 
   @Patch(":id")
-  async updateRole(@Param("id") id: string, @Body() body: any, @Req() req: any) {
+  async updateRole(@Param("id") id: string, @Body() body: UpdateRoleRbacDto, @Req() req: any) {
     if (!req.user.isMaster) throw new ForbiddenException("Apenas masters");
-    const role = await this.prisma.role.findUnique({ where: { id } });
-    if (!role) throw new NotFoundException("Papel não encontrado");
+    const orgId = organizacaoDe(req);
+    // Resolve DENTRO da organizacao: era aqui que um master do cliente A
+    // alcancava o papel do cliente B e reescrevia as permissoes dele.
+    const role = await acharNaOrganizacao(this.prisma.role, id, req, "Papel não encontrado");
     if (role.isMaster) throw new ForbiddenException("O papel master não pode ser alterado");
 
     const { nome, descricao, nivel, permissoes } = body;
@@ -114,7 +154,7 @@ class RolesController {
       }
     }
 
-    await this.cache.del(CACHE_ROLES, CACHE_MATRIX);
+    await this.cache.del(CACHE_ROLES(orgId), CACHE_MATRIX(orgId));
     return this.prisma.role.findUnique({
       where: { id },
       include: { rolePermissions: { include: { permission: true } } },
@@ -125,13 +165,13 @@ class RolesController {
   @HttpCode(HttpStatus.NO_CONTENT)
   async deleteRole(@Param("id") id: string, @Req() req: any) {
     if (!req.user.isMaster) throw new ForbiddenException("Apenas masters");
-    const role = await this.prisma.role.findUnique({ where: { id } });
-    if (!role) throw new NotFoundException("Papel não encontrado");
+    const orgId = organizacaoDe(req);
+    const role = await acharNaOrganizacao(this.prisma.role, id, req, "Papel não encontrado");
     if (role.isMaster) throw new ForbiddenException("O papel master não pode ser removido");
     const inUse = await this.prisma.userRole.count({ where: { roleId: id } });
     if (inUse > 0) throw new BadRequestException(`Papel em uso por ${inUse} usuário(s). Reatribua antes de remover.`);
     await this.prisma.role.delete({ where: { id } });
-    await this.cache.del(CACHE_ROLES, CACHE_MATRIX);
+    await this.cache.del(CACHE_ROLES(orgId), CACHE_MATRIX(orgId));
   }
 }
 
@@ -177,7 +217,7 @@ class UserPermissionsController {
 
   // POST /rbac/users/:userId/roles — atribuir papel
   @Post("roles")
-  async assignRole(@Param("userId") userId: string, @Body() body: any, @Req() req: any) {
+  async assignRole(@Param("userId") userId: string, @Body() body: AssignRoleRbacDto, @Req() req: any) {
     if (!canManagePerms(req.user)) throw new ForbiddenException("Sem permissao para gerenciar papeis");
     const { roleId } = body;
     if (!roleId) throw new BadRequestException("roleId é obrigatório");
@@ -218,7 +258,7 @@ class UserPermissionsController {
 
   // POST /rbac/users/:userId/overrides — criar/atualizar override
   @Post("overrides")
-  async setOverride(@Param("userId") userId: string, @Body() body: any, @Req() req: any) {
+  async setOverride(@Param("userId") userId: string, @Body() body: SetOverrideRbacDto, @Req() req: any) {
     if (!canManagePerms(req.user)) throw new ForbiddenException("Sem permissao para gerenciar permissoes");
     const { permissionId, conceder } = body;
     if (!permissionId) throw new BadRequestException("permissionId é obrigatório");
@@ -258,12 +298,14 @@ class MatrixController {
   constructor(private prisma: PrismaService, private cache: CacheService) {}
 
   @Get()
-  async getMatrix() {
-    const cached = await this.cache.get(CACHE_MATRIX);
+  async getMatrix(@Req() req: any) {
+    const orgId = organizacaoDe(req);
+    const cached = await this.cache.get(CACHE_MATRIX(orgId));
     if (cached) return cached;
 
     const [roles, permissions] = await Promise.all([
       this.prisma.role.findMany({
+        where: { organizationId: orgId } as any,
         orderBy: { nivel: "desc" },
         include: { rolePermissions: { select: { permissionId: true } } },
       }),
@@ -288,7 +330,7 @@ class MatrixController {
       })),
     };
 
-    await this.cache.set(CACHE_MATRIX, result, TTL_MATRIX);
+    await this.cache.set(CACHE_MATRIX(orgId), result, TTL_MATRIX);
     return result;
   }
 }

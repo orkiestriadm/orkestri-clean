@@ -3,10 +3,12 @@ import {
   Body, Param, Query, UseGuards, Req,
   NotFoundException, BadRequestException, ForbiddenException,
 } from "@nestjs/common";
+import { Allow, IsArray, IsBoolean, IsNumber, IsOptional, IsString } from "class-validator";
 import { AuthGuard } from "@nestjs/passport";
 import { PrismaService } from "../../prisma/prisma.service";
 import { Permissions } from "../auth/permissions.decorator";
 import { PermissionsGuard } from "../auth/permissions.guard";
+import { acharNaOrganizacao } from "../../common/escopo-organizacao";
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 function slugify(text: string): string {
@@ -39,6 +41,50 @@ const ARTIGO_SELECT_LIST = {
 };
 
 // ── Categories Controller ─────────────────────────────────────────────────────
+// ── DTOs gerados: sem classe, o ValidationPipe global nao tem metadata e a
+//    rota aceita qualquer JSON. Campos derivados do tipo inline anterior.
+class CreateConhecimento2Dto {
+  @IsString() nome: string;
+  @IsOptional() @IsString() descricao?: string;
+  @IsOptional() @IsString() icone?: string;
+  @IsOptional() @IsString() cor?: string;
+  @IsOptional() @IsNumber() ordem?: number;
+}
+
+class CreateConhecimentoDto {
+  @IsString() titulo: string;
+  @IsOptional() @IsString() resumo?: string;
+  @IsOptional() @IsString() conteudo?: string;
+  @IsOptional() @IsString() categoriaId?: string;
+  @IsOptional() @IsArray() @IsString({ each: true }) tags?: string[];
+  @IsOptional() @IsString() status?: string;
+}
+
+class PublicarConhecimentoDto {
+  @IsBoolean() publicar: boolean;
+}
+
+// ── DTOs de corpo antes tipado como `any`.
+//    Campos descobertos pelo uso no handler; todos opcionais e com tipo
+//    afirmado só onde o código o torna inequívoco. O ganho é a lista
+//    fechada de campos aceitos — antes qualquer JSON passava.
+class UpdateConhecimento2Dto {
+  @IsOptional() @IsBoolean() ativo?: any;
+  @IsOptional() @Allow() cor?: any;
+  @IsOptional() @Allow() descricao?: any;
+  @IsOptional() @Allow() icone?: any;
+  @IsOptional() @IsString() nome?: any;
+  @IsOptional() @IsNumber() ordem?: any;
+}
+
+class UpdateConhecimentoDto {
+  @IsOptional() @Allow() categoriaId?: any;
+  @IsOptional() @Allow() conteudo?: any;
+  @IsOptional() @Allow() resumo?: any;
+  @IsOptional() @Allow() tags?: any;
+  @IsOptional() @IsString() titulo?: any;
+}
+
 @Controller("conhecimento/categorias")
 @UseGuards(AuthGuard("jwt"), PermissionsGuard)
 class CategoriasController {
@@ -59,7 +105,7 @@ class CategoriasController {
 
   @Post()
   @Permissions("conhecimento:criar")
-  async create(@Body() body: { nome: string; descricao?: string; icone?: string; cor?: string; ordem?: number }, @Req() req: any) {
+  async create(@Body() body: CreateConhecimento2Dto, @Req() req: any) {
     if (!body.nome?.trim()) throw new BadRequestException("Nome obrigatorio");
     const orgId = req.user?.organizationId;
     try {
@@ -82,9 +128,8 @@ class CategoriasController {
 
   @Put(":id")
   @Permissions("conhecimento:editar")
-  async update(@Param("id") id: string, @Body() body: any) {
-    const existing = await this.db.categoriaConhecimento.findUnique({ where: { id } });
-    if (!existing) throw new NotFoundException("Categoria nao encontrada");
+  async update(@Param("id") id: string, @Body() body: UpdateConhecimento2Dto, @Req() req: any) {
+    const existing = await acharNaOrganizacao(this.db.categoriaConhecimento, id, req, "Categoria nao encontrada");
     return this.db.categoriaConhecimento.update({
       where: { id },
       data: {
@@ -100,9 +145,8 @@ class CategoriasController {
 
   @Delete(":id")
   @Permissions("conhecimento:excluir")
-  async remove(@Param("id") id: string) {
-    const existing = await this.db.categoriaConhecimento.findUnique({ where: { id } });
-    if (!existing) throw new NotFoundException("Categoria nao encontrada");
+  async remove(@Param("id") id: string, @Req() req: any) {
+    const existing = await acharNaOrganizacao(this.db.categoriaConhecimento, id, req, "Categoria nao encontrada");
     // Disassociate articles before deleting
     await this.db.artigoConhecimento.updateMany({ where: { categoriaId: id }, data: { categoriaId: null } });
     await this.db.categoriaConhecimento.delete({ where: { id } });
@@ -227,7 +271,7 @@ class ConhecimentoController {
   // POST /conhecimento — create article
   @Post()
   @Permissions("conhecimento:criar")
-  async create(@Body() body: { titulo: string; resumo?: string; conteudo?: string; categoriaId?: string; tags?: string[]; status?: string }, @Req() req: any) {
+  async create(@Body() body: CreateConhecimentoDto, @Req() req: any) {
     if (!body.titulo?.trim()) throw new BadRequestException("Titulo obrigatorio");
     const baseSlug = slugify(body.titulo);
     const slug = await uniqueSlug(this.db, baseSlug);
@@ -257,9 +301,8 @@ class ConhecimentoController {
   // PUT /conhecimento/:id — update article
   @Put(":id")
   @Permissions("conhecimento:editar")
-  async update(@Param("id") id: string, @Body() body: any, @Req() req: any) {
-    const existing = await this.db.artigoConhecimento.findUnique({ where: { id } });
-    if (!existing) throw new NotFoundException("Artigo nao encontrado");
+  async update(@Param("id") id: string, @Body() body: UpdateConhecimentoDto, @Req() req: any) {
+    const existing = await acharNaOrganizacao(this.db.artigoConhecimento, id, req, "Artigo nao encontrado");
 
     const canEdit = req.user.isMaster || req.user.permissions?.includes("*") ||
       req.user.permissions?.includes("conhecimento:editar") || existing.autorId === req.user.id;
@@ -289,9 +332,8 @@ class ConhecimentoController {
   // PATCH /conhecimento/:id/publicar — publish or unpublish
   @Patch(":id/publicar")
   @Permissions("conhecimento:publicar")
-  async publicar(@Param("id") id: string, @Body() body: { publicar: boolean }, @Req() req: any) {
-    const existing = await this.db.artigoConhecimento.findUnique({ where: { id } });
-    if (!existing) throw new NotFoundException("Artigo nao encontrado");
+  async publicar(@Param("id") id: string, @Body() body: PublicarConhecimentoDto, @Req() req: any) {
+    const existing = await acharNaOrganizacao(this.db.artigoConhecimento, id, req, "Artigo nao encontrado");
     const status = body.publicar ? "publicado" : "rascunho";
     return this.db.artigoConhecimento.update({
       where: { id },
@@ -307,8 +349,7 @@ class ConhecimentoController {
   @Delete(":id")
   @Permissions("conhecimento:excluir")
   async remove(@Param("id") id: string, @Req() req: any) {
-    const existing = await this.db.artigoConhecimento.findUnique({ where: { id } });
-    if (!existing) throw new NotFoundException("Artigo nao encontrado");
+    const existing = await acharNaOrganizacao(this.db.artigoConhecimento, id, req, "Artigo nao encontrado");
     const canDelete = req.user.isMaster || req.user.permissions?.includes("*") ||
       req.user.permissions?.includes("conhecimento:excluir") || existing.autorId === req.user.id;
     if (!canDelete) throw new ForbiddenException("Sem permissao");

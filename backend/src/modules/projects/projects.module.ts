@@ -3,11 +3,12 @@ import { FileInterceptor } from "@nestjs/platform-express";
 import { memoryStorage } from "multer";
 import { randomUUID } from "crypto";
 import { AuthGuard } from "@nestjs/passport";
-import { IsString, IsOptional, IsArray, IsDateString, IsNumber } from "class-validator";
+import { IsArray, IsBoolean, IsDateString, IsNumber, IsOptional, IsString } from "class-validator";
 import { Type } from "class-transformer";
 import { PrismaService } from "../../prisma/prisma.service";
 import { Permissions } from "../auth/permissions.decorator";
 import { PermissionsGuard } from "../auth/permissions.guard";
+import { acharNaOrganizacao } from "../../common/escopo-organizacao";
 import { WebhookService, WebhooksModule } from "../automacoes/webhooks.module";
 import { AutomacaoService, AutomacoesModule } from "../automacoes/automacoes.module";
 import { NotificacaoDispatcher } from "../notifications/notificacao-dispatcher.service";
@@ -148,6 +149,30 @@ async function createDeadlineEvent(prisma: PrismaService, project: any, userIds:
   }
 }
 
+// ── DTOs gerados: sem classe, o ValidationPipe global nao tem metadata e a
+//    rota aceita qualquer JSON. Campos derivados do tipo inline anterior.
+class CreateMilestoneProjectsDto {
+  @IsString() titulo: string;
+  @IsOptional() @IsString() descricao?: string;
+  @IsString() dataAlvo: string;
+}
+
+class UpdateMilestoneProjectsDto {
+  @IsOptional() @IsString() titulo?: string;
+  @IsOptional() @IsString() descricao?: string;
+  @IsOptional() @IsString() dataAlvo?: string;
+  @IsOptional() @IsBoolean() concluido?: boolean;
+}
+
+class AddMemberProjectsDto {
+  @IsString() userId: string;
+  @IsOptional() @IsString() papel?: string;
+}
+
+class EnviarAnexoProjectsDto {
+  @IsOptional() @IsString() titulo?: string;
+}
+
 @Controller("projects")
 @UseGuards(AuthGuard("jwt"), PermissionsGuard)
 class ProjectsController {
@@ -190,9 +215,10 @@ class ProjectsController {
 
   @Get(":id")
   @Permissions("projetos:ver")
-  async findOne(@Param("id") id: string) {
-    const p = await this.prisma.project.findUnique({
-      where: { id },
+  async findOne(@Param("id") id: string, @Req() req: any) {
+    // <any> pelo mesmo motivo do workspace de clientes: o include traz relacoes
+    // que o tipo base do modelo nao declara.
+    const p = await acharNaOrganizacao<any>(this.prisma.project, id, req, "Projeto nao encontrado", {
       include: {
         members: { include: { user: { select: { id: true, nome: true, email: true } } } },
         tasks: { include: { assignee: { select: { id: true, nome: true } }, comments: { include: { user: { select: { id: true, nome: true } } } } }, orderBy: { criadoEm: "asc" } },
@@ -200,7 +226,6 @@ class ProjectsController {
         cliente: { select: { id: true, nome: true, empresa: true, email: true, telefone: true } },
       },
     });
-    if (!p) throw new NotFoundException("Projeto nao encontrado");
     return { ...p, progressoPct: calcPct(p.tasks) };
   }
 
@@ -316,8 +341,9 @@ class ProjectsController {
   @Delete(":id")
   @Permissions("projetos:deletar")
   async remove(@Param("id") id: string, @Req() req: any) {
-    const p = await this.prisma.project.findUnique({ where: { id } });
-    if (!p) throw new NotFoundException();
+    // A checagem de autoria abaixo ja existia, mas rodava DEPOIS de resolver o
+    // projeto por id solto: um master de outra organizacao passava nela.
+    const p = await acharNaOrganizacao(this.prisma.project, id, req, "Projeto nao encontrado");
     if (p.criadoPorId !== req.user.id && !req.user.isMaster) throw new BadRequestException("Sem permissao");
     // Remove eventos de prazo
     await this.prisma.event.deleteMany({ where: { origemTipo: "projeto", origemId: id } });
@@ -462,7 +488,7 @@ class ProjectsController {
 
   @Post(":id/milestones")
   @Permissions("projetos:editar")
-  async createMilestone(@Param("id") projectId: string, @Body() body: { titulo: string; descricao?: string; dataAlvo: string }) {
+  async createMilestone(@Param("id") projectId: string, @Body() body: CreateMilestoneProjectsDto) {
     if (!body.titulo?.trim() || !body.dataAlvo) throw new BadRequestException("titulo e dataAlvo obrigatorios");
     return this.prisma.milestone.create({
       data: { projectId, titulo: body.titulo, descricao: body.descricao, dataAlvo: new Date(body.dataAlvo) },
@@ -471,7 +497,7 @@ class ProjectsController {
 
   @Patch(":id/milestones/:mid")
   @Permissions("projetos:editar")
-  async updateMilestone(@Param("mid") mid: string, @Body() body: { titulo?: string; descricao?: string; dataAlvo?: string; concluido?: boolean }) {
+  async updateMilestone(@Param("mid") mid: string, @Body() body: UpdateMilestoneProjectsDto) {
     return this.prisma.milestone.update({
       where: { id: mid },
       data: {
@@ -495,7 +521,7 @@ class ProjectsController {
   @Post(":id/members")
   @Permissions("projetos:gerenciar")
   @Permissions("projetos:editar")
-  async addMember(@Param("id") id: string, @Body() body: { userId: string; papel?: string }, @Req() req: any) {
+  async addMember(@Param("id") id: string, @Body() body: AddMemberProjectsDto, @Req() req: any) {
     const project = await this.prisma.project.findUnique({ where: { id } });
     if (!project) throw new NotFoundException();
     const member = await this.prisma.projectMember.upsert({
@@ -678,7 +704,7 @@ class ProjectsController {
   }))
   async enviarAnexo(
     @Param("id") id: string,
-    @Body() dados: { titulo?: string },
+    @Body() dados: EnviarAnexoProjectsDto,
     @UploadedFile() arquivo: any,
     @Req() req: any,
   ) {

@@ -601,7 +601,37 @@
   min-height: 120px;
   overflow: auto;
 }
-.data-table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 13px; text-align: left; white-space: nowrap; }
+.data-table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 13px; text-align: left; }
+
+/*
+ * O conteúdo da célula QUEBRA em vez de empurrar a tabela.
+ *
+ * Antes havia `white-space: nowrap` no `.data-table` inteiro. Uma célula com
+ * lista — "90, 60, 30, 15, 7, 3, 1, 0" ou três canais e quatro destinatários —
+ * esticava a tabela além da tela, e a última coluna só aparecia rolando na
+ * horizontal. Quem abria a tela via a informação cortada e nem sempre percebia
+ * que havia mais.
+ *
+ * A rolagem horizontal continua existindo no wrapper como último recurso (tela
+ * estreita, tabela com muitas colunas), mas deixa de ser o caminho normal.
+ */
+.data-table tbody td { white-space: normal; overflow-wrap: anywhere; }
+
+/* Cabeçalho fica em uma linha: são rótulos curtos, e quebrá-los desalinharia
+   a leitura das colunas. */
+.data-table thead th { white-space: nowrap; }
+
+/*
+ * Exceções — conteúdo que perde sentido quebrado no meio:
+ *   .num       valores monetários e datas, que se leem de uma vez
+ *   selo/ação  já são curtos; quebrar só aumentaria a altura da linha
+ * Listas de números separadas por vírgula NÃO entram aqui de propósito: são
+ * justamente as que precisam quebrar.
+ */
+.data-table td.num:not(.num--lista),
+.data-table td:has(> .status-badge),
+.data-table td:has(> .row-actions) { white-space: nowrap; }
+
 .data-table thead th {
   position: sticky; top: 0; z-index: 2;
   padding: 12px 16px;

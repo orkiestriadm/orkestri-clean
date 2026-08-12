@@ -2,6 +2,7 @@ import {
   Module, Controller, Get, Post, Put, Delete, Body, Param, Query,
   UseGuards, Req, BadRequestException, NotFoundException, Injectable,
 } from "@nestjs/common";
+import { Allow, IsBoolean, IsOptional, IsString } from "class-validator";
 import { AuthGuard } from "@nestjs/passport";
 import { PrismaService } from "../../prisma/prisma.service";
 import { PermissionsGuard } from "../auth/permissions.guard";
@@ -9,24 +10,24 @@ import { Permissions } from "../auth/permissions.decorator";
 import { collaboratorDisplayName } from "../../common/collaborator";
 
 class CreateSkillDto {
-  nome: string;
-  categoria?: string;
-  descricao?: string;
-  cor?: string;
+  @IsString() nome: string;
+  @IsOptional() @IsString() categoria?: string;
+  @IsOptional() @IsString() descricao?: string;
+  @IsOptional() @IsString() cor?: string;
 }
 class UpdateSkillDto {
-  nome?: string;
-  categoria?: string | null;
-  descricao?: string | null;
-  cor?: string | null;
-  ativo?: boolean;
+  @IsOptional() @IsString() nome?: string;
+  @IsOptional() @Allow() categoria?: string | null;
+  @IsOptional() @Allow() descricao?: string | null;
+  @IsOptional() @Allow() cor?: string | null;
+  @IsOptional() @IsBoolean() ativo?: boolean;
 }
 class AssignSkillDto {
-  skillId: string;
-  nivel?: string; // junior|pleno|senior|especialista
-  certificadoEm?: string;
-  validade?: string;
-  observacoes?: string;
+  @IsString() skillId: string;
+  @IsOptional() @IsString() nivel?: string; // junior|pleno|senior|especialista
+  @IsOptional() @IsString() certificadoEm?: string;
+  @IsOptional() @IsString() validade?: string;
+  @IsOptional() @IsString() observacoes?: string;
 }
 
 @Injectable()
