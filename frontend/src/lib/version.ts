@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "1.9.2";
+export const VERSAO = "1.10.0";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -23,10 +23,10 @@ export const VERSAO = "1.9.2";
  * Não é gerada no build: `new Date()` no bundle muda a cada compilação, e duas
  * builds do mesmo código pareceriam versões diferentes.
  */
-export const VERSAO_DATA = "2026-08-09";
+export const VERSAO_DATA = "2026-08-12";
 
 /** Nome da entrega, para dar contexto ao número. */
-export const VERSAO_NOME = "Sobre restrito à administração";
+export const VERSAO_NOME = "Chamados: fila, histórico e carga da equipe";
 
 /**
  * Histórico exibido na tela Sobre, do mais recente para o mais antigo.
@@ -35,6 +35,33 @@ export const VERSAO_NOME = "Sobre restrito à administração";
  * esta lista quer saber o que mudou para ele.
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
+  {
+    versao: "1.10.0",
+    data: "2026-08-12",
+    titulo: "Chamados: fila, histórico e carga da equipe",
+    itens: [
+      "A fila pública virou uma lista de triagem: duplo clique assume o chamado, e o painel ao lado mostra o relato inteiro sem precisar abrir",
+      "Setas do teclado percorrem a fila com o conteúdo acompanhando; Enter abre o chamado completo",
+      "Seleção em lote na fila, para assumir vários de uma vez",
+      "Colunas Resolvido e Fechado guardam só os últimos 5 dias — o quadro parou de ser ocupado por chamado encerrado há dois meses. O que sai fica indicado no cabeçalho e a contagem leva ao histórico",
+      "Aba Histórico com três recortes: meus chamados, os da minha equipe e todos (para quem distribui trabalho), com filtro por período",
+      "Buscar por número passou a funcionar: digitar 38 abre o chamado 38, em vez de procurar \"38\" no texto",
+      "Aba Equipe: quanto cada pessoa tem em mãos, o que está parado e há quantos dias, com a fila sem responsável em primeiro lugar",
+      "Ao mover um chamado para Aguardando, o sistema pergunta de que ele depende — e o card passa a mostrar isso e há quantos dias está parado",
+      "Chamado atribuído por outra pessoa pode ser devolvido com motivo, voltando a quem atribuiu e não para a fila",
+      "Ao abrir um chamado, dá para atribuir direto a alguém em vez de deixá-lo na fila",
+      "Chamado de frota abre ordem de serviço em Frotas com um clique, e encerrar o chamado encerra a OS",
+      "Os dois prazos do SLA — primeira resposta e resolução — passam a aparecer lado a lado; antes só um deles era mostrado",
+      "Fila e quadro dividem a altura conforme o volume: fila vazia deixa de ocupar meia tela",
+      "Papéis passam a valer por organização",
+      "Anexos de chamado, projeto e compliance saem por rota autenticada, não mais por endereço público",
+      "Corrigido: em 48 telas era possível alcançar registro de outra organização informando o endereço direto",
+      "Corrigido: as telas administrativas do portal do cliente estavam acessíveis sem autenticação",
+      "Corrigido: só o módulo de agenda vem liberado por padrão — Visão Geral, Sobre e Meu RH passam a exigir permissão, e quem não a tem cai no primeiro módulo que possui em vez de numa tela de erro",
+      "Corrigido: o painel de acesso rápido oferecia doze atalhos a todo mundo, e onze terminavam em \"sem permissão\"",
+      "Corrigido: o escalonamento automático de SLA gravava uma prioridade inexistente, e o chamado escalado aparecia como \"Média\"",
+    ],
+  },
   {
     versao: "1.9.2",
     data: "2026-08-09",
