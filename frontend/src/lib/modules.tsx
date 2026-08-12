@@ -42,7 +42,7 @@ export const NAV: NavGroup[] = [
   {
     id: "pinned", produto: null, descritor: null, icon: LayoutDashboard,
     items: [
-      { href: "/dashboard",            label: "Visão Geral", icon: LayoutDashboard, permission: null }, // dashboard is available to all
+      { href: "/dashboard",            label: "Visão Geral", icon: LayoutDashboard, permission: "dashboard:ver" }, // dashboard is available to all
       { href: "/dashboard/executivo",  label: "Executivo",   icon: TrendingUp,      permission: "relatorios:ver" },
       { href: "/dashboard/ia",         label: "IA Operacional", icon: Brain,        permission: "relatorios:ver" },
       { href: "/dashboard/relatorios", label: "Relatórios",  icon: BarChart2,       permission: "relatorios:ver" },
@@ -53,7 +53,7 @@ export const NAV: NavGroup[] = [
       // informar a versão. Esse motivo não desapareceu — quem for atender um
       // chamado agora precisa pedir a versão a um master, ou consultá-la em
       // `GET /api/health`, que continua público.
-      { href: "/dashboard/sobre", label: "Sobre", icon: Info, permission: null, access: "master" },
+      { href: "/dashboard/sobre", label: "Sobre", icon: Info, permission: "dashboard:ver", access: "master" },
     ],
   },
   {
@@ -66,14 +66,14 @@ export const NAV: NavGroup[] = [
       // Primeiro item e SEM permissão: é a única tela do módulo construída para
       // o colaborador, e não para quem cuida dele. Exigir concessão do RH para
       // alguém ver o próprio saldo de férias inverteria o controle de acesso.
-      { href: "/dashboard/meu-rh",             label: "Meu RH",        icon: UserCircle,    permission: null },
+      { href: "/dashboard/meu-rh",             label: "Meu RH",        icon: UserCircle,    permission: "meurh:ver" },
       { href: "/dashboard/people",             label: "Colaboradores", icon: Users,         permission: "colaboradores:ver" },
       { href: "/dashboard/people/cargos",      label: "Cargos",        icon: Briefcase,     permission: "people.cargo:ver" },
       { href: "/dashboard/people/ausencias",   label: "Ausências",     icon: CalendarX,     permission: "colaboradores:ver" },
       { href: "/dashboard/people/organograma", label: "Organograma",   icon: Network,       permission: "colaboradores:ver" },
       { href: "/dashboard/people/equipes",     label: "Equipes",       icon: UsersRound,    permission: "colaboradores:ver" },
       // Autosserviço: qualquer pessoa com login abre solicitação ao RH.
-      { href: "/dashboard/people/solicitacoes", label: "Solicitações", icon: Inbox,        permission: null },
+      { href: "/dashboard/people/solicitacoes", label: "Solicitações", icon: Inbox,        permission: "solicitacoes:ver" },
       // O passivo é visão do quadro inteiro: o backend o protege com
       // relatorio:ver, não com ferias:ver. Espelhar evita um link que dá 403.
       { href: "/dashboard/people/ferias",      label: "Férias",        icon: CalendarClock, permission: "people.relatorio:ver" },

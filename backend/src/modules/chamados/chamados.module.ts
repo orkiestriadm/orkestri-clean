@@ -97,6 +97,8 @@ function mapChamado(c: any) {
     slaRespostaStatus,
     avaliacao: c.avaliacao, avaliacaoNota: c.avaliacaoNota,
     resolvidoEm: c.resolvidoEm, fechadoEm: c.fechadoEm,
+    aguardandoMotivo: c.aguardandoMotivo ?? null,
+    aguardandoDesde: c.aguardandoDesde ?? null,
     atribuidoPorId: c.atribuidoPorId ?? null,
     atribuidoPor: c.atribuidoPor ?? null,
     veiculoId: c.veiculoId ?? null,
@@ -225,7 +227,28 @@ class ChamadosController {
   //  • default  → "meus" + "fila" combinados (compatível com a tela antiga)
   //
   // Sempre escopado por organizationId — multi-tenant intransponível.
-  private buildWhere(req: any, scope: string | undefined): any {
+  /** Quem pode ver o histórico da organização inteira: master ou quem
+   *  distribui trabalho (atribuir é o sinal de supervisão que já existe). */
+  private podeVerTudo(req: any): boolean {
+    const perms: string[] = req.user?.permissions || [];
+    return !!req.user?.isMaster || perms.includes("*") || perms.includes("chamados:atribuir");
+  }
+
+  /** Ids de quem divide o setor com o usuário. Vazio se ele não tem setor —
+   *  e aí "minha equipe" não tem o que mostrar, em vez de mostrar tudo. */
+  private async idsDaMinhaEquipe(userId: string, orgId?: string): Promise<string[]> {
+    const meu = await (this.prisma as any).userProfile.findUnique({
+      where: { userId }, select: { setorId: true },
+    });
+    if (!meu?.setorId) return [];
+    const colegas = await (this.prisma as any).userProfile.findMany({
+      where: { setorId: meu.setorId, ...(orgId ? { user: { is: { organizationId: orgId } } } : {}) },
+      select: { userId: true },
+    });
+    return colegas.map((c: any) => c.userId);
+  }
+
+  private async buildWhere(req: any, scope: string | undefined): Promise<any> {
     const userId   = req.user.id;
     const isMaster = !!req.user.isMaster;
     const orgId    = req.user?.organizationId;
@@ -236,16 +259,93 @@ class ChamadosController {
 
     if (scope === "fila") return { ...base, ...filaCond };
     if (scope === "meus") return { ...base, ...meusCond };
-    if (scope === "todos" && isMaster) return base;
+    if (scope === "equipe") {
+      const ids = await this.idsDaMinhaEquipe(userId, orgId);
+      // Sem setor não há equipe: devolve o próprio escopo em vez de vazar tudo.
+      if (!ids.length) return { ...base, ...meusCond };
+      return { ...base, OR: [{ solicitanteId: { in: ids } }, { atendenteId: { in: ids } }] };
+    }
+    if (scope === "todos" && this.podeVerTudo(req)) return base;
     // default: o que o usuário pode ver = seus + fila pública
     if (isMaster) return base;
     return { ...base, OR: [...meusCond.OR, filaCond] };
   }
 
+  /** Carga por pessoa do time.
+   *
+   *  O quadro pessoal responde "o que eu tenho para fazer". Isto responde a
+   *  outra pergunta, que não tinha tela: quem está afogado, quem tem chamado
+   *  apodrecendo, e o que ninguém pegou.
+   *
+   *  Conta só o que está VIVO — resolvido e fechado não são carga. */
+  @Get("carga-equipe")
+  @Permissions("chamados:ver")
+  async cargaEquipe(@Req() req: any, @Query("escopo") escopo?: string) {
+    const orgId = req.user?.organizationId;
+    const alcance = escopo === "todos" && this.podeVerTudo(req) ? "todos" : "equipe";
+    const where = await this.buildWhere(req, alcance);
+
+    const ativos = await this.prisma.chamado.findMany({
+      where: { ...where, status: { notIn: ["resolvido", "fechado"] } },
+      select: {
+        id: true, numero: true, status: true, prioridade: true, criadoEm: true,
+        slaHoras: true, atendenteId: true, aguardandoDesde: true,
+        atendente: { select: { id: true, nome: true, avatar: true } },
+      },
+    });
+
+    const agora = Date.now();
+    const venceu = (c: any) => !!c.slaHoras && agora > new Date(c.criadoEm).getTime() + c.slaHoras * 3600000;
+
+    // Chave nula agrupa a fila: "ninguém" também é uma linha da carga, e é
+    // justamente a que o gestor precisa ver primeiro.
+    const porPessoa = new Map<string, any>();
+    for (const c of ativos) {
+      const chave = c.atendenteId || "__fila__";
+      if (!porPessoa.has(chave)) {
+        porPessoa.set(chave, {
+          userId: c.atendenteId || null,
+          nome: c.atendente?.nome || "Sem responsável",
+          avatar: c.atendente?.avatar || null,
+          total: 0, emAtendimento: 0, aguardando: 0, abertos: 0,
+          slaViolado: 0, criticos: 0,
+          maisAntigoDias: 0, esperaMaisLongaDias: 0,
+        });
+      }
+      const p = porPessoa.get(chave);
+      p.total++;
+      if (c.status === "em_atendimento") p.emAtendimento++;
+      else if (c.status === "aguardando") p.aguardando++;
+      else if (c.status === "aberto") p.abertos++;
+      if (venceu(c)) p.slaViolado++;
+      if (c.prioridade === "critica") p.criticos++;
+      const dias = Math.floor((agora - new Date(c.criadoEm).getTime()) / 86400000);
+      if (dias > p.maisAntigoDias) p.maisAntigoDias = dias;
+      if (c.aguardandoDesde) {
+        const parado = Math.floor((agora - new Date(c.aguardandoDesde).getTime()) / 86400000);
+        if (parado > p.esperaMaisLongaDias) p.esperaMaisLongaDias = parado;
+      }
+    }
+
+    // Fila primeiro (é o que precisa de ação), depois quem tem mais SLA
+    // estourado, depois quem tem mais volume.
+    const linhas = [...porPessoa.values()].sort((a, b) => {
+      if (!a.userId) return -1;
+      if (!b.userId) return 1;
+      return b.slaViolado - a.slaViolado || b.total - a.total;
+    });
+
+    return {
+      escopo: alcance,
+      totalAtivos: ativos.length,
+      pessoas: linhas,
+    };
+  }
+
   @Get("stats")
   @Permissions("chamados:ver")
   async getStats(@Req() req: any, @Query("scope") scope?: string) {
-    const where = this.buildWhere(req, scope);
+    const where = await this.buildWhere(req, scope);
     const userId   = req.user.id;
     const isMaster = !!req.user.isMaster;
     const orgId    = req.user?.organizationId;
@@ -299,16 +399,32 @@ class ChamadosController {
     @Query("clienteId") clienteId?: string,
     @Query("q") q?: string,
     @Query("scope") scope?: string,
+    @Query("desde") desde?: string,
+    @Query("ate") ate?: string,
+    @Query("limit") limitQ?: string,
   ) {
-    // Base scope (fila / meus / todos) já aplica organizationId e regras de visibilidade
-    const where: any = this.buildWhere(req, scope);
+    // Base scope (fila / meus / equipe / todos) já aplica organizationId e as
+    // regras de visibilidade.
+    const where: any = await this.buildWhere(req, scope);
+    // Período pelo fechamento quando houver, senão pela abertura: no histórico
+    // o que interessa é quando o caso terminou, não quando começou.
+    if (desde || ate) {
+      const faixa: any = {};
+      if (desde) faixa.gte = new Date(desde + "T00:00:00");
+      if (ate) faixa.lte = new Date(ate + "T23:59:59");
+      where.AND = [...(where.AND || []), { OR: [{ fechadoEm: faixa }, { fechadoEm: null, criadoEm: faixa }] }];
+    }
     if (status)     where.status = status;
     if (prioridade) where.prioridade = prioridade;
     if (categoria)  where.categoria = categoria;
     if (atendenteId) where.atendenteId = atendenteId;
     if (clienteId)   where.clienteId = clienteId;
     // Busca textual: usamos AND para preservar o OR de visibilidade já no `where`
-    if (q) {
+    // Só dígitos = número do chamado. Procurar "38" como texto não acha o #38,
+    // e é a primeira coisa que se digita quando alguém cita um chamado.
+    if (q && /^#?\d+$/.test(q.trim())) {
+      where.AND = [...(where.AND || []), { numero: parseInt(q.trim().replace("#", ""), 10) }];
+    } else if (q) {
       where.AND = [
         ...(where.AND || []),
         { OR: [
@@ -319,6 +435,7 @@ class ChamadosController {
     }
     const chamados = await this.prisma.chamado.findMany({
       where, include: INCLUDE_LIST, orderBy: [{ prioridade: "asc" }, { criadoEm: "desc" }],
+      take: Math.min(Number(limitQ) || 500, 2000),
     });
     return chamados.map(c => mapChamado(c));
   }
@@ -604,7 +721,7 @@ class ChamadosController {
 
   @Patch(":id/status")
   @Permissions("chamados:editar")
-  async changeStatus(@Param("id") id: string, @Body() body: { status: string }, @Req() req: any) {
+  async changeStatus(@Param("id") id: string, @Body() body: { status: string; aguardandoMotivo?: string }, @Req() req: any) {
     if (!STATUS_VALID.includes(body.status)) throw new BadRequestException("Status invalido");
     const existing = await this.prisma.chamado.findUnique({ where: { id } });
     if (!existing) throw new NotFoundException("Chamado nao encontrado");
@@ -620,9 +737,25 @@ class ChamadosController {
     }
     const resolvidoEm = body.status === "resolvido" && existing.status !== "resolvido" ? new Date() : undefined;
     const fechadoEm   = body.status === "fechado"   && existing.status !== "fechado"   ? new Date() : undefined;
+    // Entrar em "aguardando" carimba a data; sair limpa. Sem isso o contador
+    // mediria a idade do chamado, não a da espera — que é o que importa aqui.
+    const entrouEmEspera = body.status === "aguardando" && existing.status !== "aguardando";
+    const saiuDaEspera = body.status !== "aguardando" && existing.status === "aguardando";
+    const espera: any = {};
+    if (entrouEmEspera) {
+      espera.aguardandoDesde = new Date();
+      espera.aguardandoMotivo = (body.aguardandoMotivo || "").trim() || null;
+    } else if (saiuDaEspera) {
+      espera.aguardandoDesde = null;
+      espera.aguardandoMotivo = null;
+    } else if (body.status === "aguardando" && body.aguardandoMotivo !== undefined) {
+      // Corrigir o motivo sem sair do estado não reinicia o relógio.
+      espera.aguardandoMotivo = (body.aguardandoMotivo || "").trim() || null;
+    }
+
     const updated = await this.prisma.chamado.update({
       where: { id },
-      data: { status: body.status, ...(resolvidoEm && { resolvidoEm }), ...(fechadoEm && { fechadoEm }) },
+      data: { ...espera, status: body.status, ...(resolvidoEm && { resolvidoEm }), ...(fechadoEm && { fechadoEm }) },
       include: INCLUDE_DETAIL,
     });
     if (existing.solicitanteId !== req.user.id) {

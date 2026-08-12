@@ -6,7 +6,7 @@ import { api } from "@/lib/api";
 import {
   Plus, Search, X, Send, Tag, Building2, Star, Loader2, RefreshCw,
   MessageSquare, ExternalLink, BookOpen, Hand, Inbox, User as UserIcon,
-  Globe2, History, AlertCircle, CheckCircle2, Download, Clock, Truck,
+  Globe2, History, AlertCircle, CheckCircle2, Download, Clock, Truck, Users,
   SlidersHorizontal, ChevronDown,
 } from "lucide-react";
 import Topbar from "@/components/layout/Topbar";
@@ -29,6 +29,8 @@ type Chamado = {
   solicitante: { id: string; nome: string; email: string };
   atendente?: { id: string; nome: string; email: string };
   cliente?: { id: string; nome: string; empresa?: string };
+  aguardandoMotivo?: string | null;
+  aguardandoDesde?: string | null;
   atribuidoPorId?: string | null;
   atribuidoPor?: { id: string; nome: string; email?: string } | null;
   veiculoId?: string | null;
@@ -68,6 +70,24 @@ const STATUS_COLS = [
  *  existe sem atendente — e esse é exatamente o conjunto da fila pública,
  *  logo acima na mesma tela. A coluna era duplicata. */
 const COLS_KANBAN = STATUS_COLS.filter(c => c.key !== "aberto");
+
+/** Colunas terminais: o chamado já saiu do fluxo e só continua ali para o caso
+ *  de precisar reabrir ou conferir. Passado esse prazo, isso não acontece mais
+ *  — e o quadro fica ocupado por trabalho morto. */
+const COLS_TERMINAIS = ["resolvido", "fechado"];
+const DIAS_TERMINAL = 5;
+const TETO_TERMINAL = 6;
+
+/** Recorta uma coluna terminal ao que ainda é recente.
+ *  Devolve o que mostrar E quanto ficou de fora — o corte precisa ser dito. */
+function recorteTerminal(itens: Chamado[]) {
+  const limite = Date.now() - DIAS_TERMINAL * 86400000;
+  const quando = (c: Chamado) => new Date(c.fechadoEm || c.resolvidoEm || c.atualizadoEm).getTime();
+  const recentes = itens
+    .filter(c => quando(c) >= limite)
+    .sort((a, b) => quando(b) - quando(a));
+  return { visiveis: recentes.slice(0, TETO_TERMINAL), ocultos: itens.length - Math.min(recentes.length, TETO_TERMINAL) };
+}
 const PRIORIDADE_MAP: Record<string, { label: string; color: string; dot: string }> = {
   baixa:   { label: "Baixa",   color: "text-muted-o",  dot: "bg-[var(--text-muted)]"  },
   media:   { label: "Média",   color: "text-blue-400",   dot: "bg-blue-400"   },
@@ -253,6 +273,336 @@ function ordenarFila(lista: Chamado[], coluna: ColunaOrdem, desc: boolean): Cham
   return desc ? ordenada.reverse() : ordenada;
 }
 
+/** Há quanto tempo o chamado está travado, e por quê.
+ *
+ *  Espera sem prazo é o que faz chamado sumir por semanas: ninguém lembra do
+ *  que estava esperando. A cor esquenta com o tempo porque 2 dias e 3 semanas
+ *  não são o mesmo problema. */
+function EsperaBadge({ desde, motivo }: { desde?: string | null; motivo?: string | null }) {
+  if (!desde) return null;
+  const dias = Math.floor((Date.now() - new Date(desde).getTime()) / 86400000);
+  const cor = dias >= 7 ? "var(--accent-red)" : dias >= 3 ? "var(--accent-amber)" : "var(--text-muted)";
+  const rotulo = dias === 0 ? "hoje" : dias === 1 ? "1 dia" : `${dias} dias`;
+  return (
+    <span
+      className="inline-flex items-center gap-1 text-[10px] font-medium"
+      style={{ color: cor }}
+      title={motivo ? `Aguardando ${motivo} — parado há ${rotulo}` : `Parado há ${rotulo}`}
+    >
+      <Clock size={10} />
+      {rotulo}
+      {motivo && <span className="text-[var(--text-muted)] font-normal truncate max-w-[14ch]">· {motivo}</span>}
+    </span>
+  );
+}
+
+/** Os dois relógios do SLA: resposta e resolução.
+ *
+ *  O backend sempre calculou os dois; a tela mostrava só o de resolução. Um
+ *  chamado pode estar dentro do prazo de resolução e já ter estourado o de
+ *  primeira resposta — que é a reclamação que chega antes. */
+function SlaDuplo({ resposta, resolucao }: { resposta?: string; resolucao?: string }) {
+  const cor = (e?: string) =>
+    e === "violado" ? "var(--accent-red)"
+    : e === "risco" ? "var(--accent-amber)"
+    : e === "cumprido" || e === "ok" ? "var(--accent-green)"
+    : "var(--border-medium)";
+  const texto = (e?: string) =>
+    e === "violado" ? "estourado" : e === "risco" ? "em risco"
+    : e === "cumprido" ? "cumprido" : e === "ok" ? "no prazo" : "sem prazo";
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      <span className="w-2 h-2 rounded-full shrink-0" style={{ background: cor(resposta) }}
+        title={`Resposta: ${texto(resposta)}`} />
+      <span className="w-2 h-2 rounded-full shrink-0" style={{ background: cor(resolucao) }}
+        title={`Resolução: ${texto(resolucao)}`} />
+    </span>
+  );
+}
+
+// ── Preview ───────────────────────────────────────────────────────────────────
+/** Lê o chamado sem abrir nada.
+ *
+ *  Triar era 20 aberturas de drawer para 20 chamados. Aqui o relato aparece ao
+ *  lado da lista e acompanha a navegação pelas setas — decidir "é meu?" deixa
+ *  de custar dois cliques e um fechamento.
+ *
+ *  Tudo vem do que a lista já carregou: nenhuma consulta extra por chamado. */
+function PreviewChamado({ chamado, podeAssumir, onAssumir, onAbrir, onFechar }: {
+  chamado: Chamado; podeAssumir: boolean;
+  onAssumir: (c: Chamado) => void; onAbrir: (c: Chamado) => void; onFechar: () => void;
+}) {
+  const col = STATUS_COLS.find(x => x.key === chamado.status);
+  return (
+    <aside className="w-[340px] shrink-0 border-l border-[var(--border-subtle)] flex flex-col overflow-hidden bg-[var(--bg-card)]">
+      <div className="px-4 py-2 border-b border-[var(--border-subtle)] flex items-center gap-2 shrink-0">
+        <span className="font-mono text-[11px] text-[var(--text-muted)] tabular-nums">#{chamado.numero}</span>
+        <PrioridadeBadge prioridade={chamado.prioridade} />
+        <span className="ml-auto flex items-center gap-1">
+          <button onClick={() => onAbrir(chamado)} title="Abrir completo (Enter)"
+            className="p-1 rounded hover:bg-[var(--bg-hover)] text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors">
+            <ExternalLink size={13} />
+          </button>
+          <button onClick={onFechar} title="Fechar preview (Esc)"
+            className="p-1 rounded hover:bg-[var(--bg-hover)] text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors">
+            <X size={13} />
+          </button>
+        </span>
+      </div>
+
+      <div className="flex-1 overflow-auto px-4 py-3 space-y-3">
+        <h3 className="text-[14px] font-semibold text-[var(--text-primary)] leading-snug">{chamado.titulo}</h3>
+
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-[var(--text-muted)]">
+          <span className="inline-flex items-center gap-1.5" style={{ color: col?.color }}>
+            <span className="w-1.5 h-1.5 rounded-full" style={{ background: col?.color }} />
+            {col?.label || chamado.status}
+          </span>
+          {chamado.categoria && <span>· {chamado.categoria}</span>}
+          <span>· aberto há {relTime(chamado.criadoEm)}</span>
+        </div>
+
+        {/* O relato inteiro: é por ele que se decide pegar ou não. */}
+        <p className="text-[13px] text-[var(--text-secondary)] whitespace-pre-wrap leading-relaxed">
+          {chamado.descricao || <span className="text-[var(--text-muted)] italic">Sem descrição.</span>}
+        </p>
+
+        <div className="pt-1 space-y-1.5 text-[12px]">
+          <div className="flex items-center gap-2">
+            <span className="text-[var(--text-muted)] w-20 shrink-0">Solicitante</span>
+            <span className="flex items-center gap-1.5 min-w-0">
+              <Avatar nome={chamado.solicitante?.nome || "?"} size={4.5} />
+              <span className="text-[var(--text-secondary)] truncate">{chamado.solicitante?.nome}</span>
+            </span>
+          </div>
+          {chamado.atendente && (
+            <div className="flex items-center gap-2">
+              <span className="text-[var(--text-muted)] w-20 shrink-0">Atendente</span>
+              <span className="flex items-center gap-1.5 min-w-0">
+                <Avatar nome={chamado.atendente.nome} size={4.5} />
+                <span className="text-[var(--text-secondary)] truncate">{chamado.atendente.nome}</span>
+              </span>
+            </div>
+          )}
+          {chamado.veiculo && (
+            <div className="flex items-center gap-2">
+              <span className="text-[var(--text-muted)] w-20 shrink-0">Veículo</span>
+              <span className="font-mono text-[var(--text-secondary)]">{chamado.veiculo.placa}</span>
+            </div>
+          )}
+          <div className="flex items-center gap-2">
+            <span className="text-[var(--text-muted)] w-20 shrink-0">SLA</span>
+            <span className="flex items-center gap-2">
+              <SlaDuplo resposta={(chamado as any).slaRespostaStatus} resolucao={chamado.slaStatus} />
+              {chamado.slaStatus && chamado.slaStatus !== "ok" && <SlaBadge slaStatus={chamado.slaStatus} />}
+            </span>
+          </div>
+          {!!(chamado as any).totalComentarios && (
+            <div className="flex items-center gap-2">
+              <span className="text-[var(--text-muted)] w-20 shrink-0">Comentários</span>
+              <span className="text-[var(--text-secondary)]">{(chamado as any).totalComentarios}</span>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {podeAssumir && (
+        <div className="px-4 py-2.5 border-t border-[var(--border-subtle)] shrink-0">
+          <button onClick={() => onAssumir(chamado)}
+            className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md text-[12px] font-semibold text-white bg-[var(--accent-violet)] hover:opacity-90 transition-opacity">
+            <Hand size={12} /> Assumir chamado
+          </button>
+        </div>
+      )}
+    </aside>
+  );
+}
+
+// ── Carga da equipe ───────────────────────────────────────────────────────────
+/** Quem está com o quê, e o que está travado em cada um.
+ *
+ *  O quadro pessoal responde "o que eu tenho para fazer". Esta responde a
+ *  pergunta que não tinha tela: como está o time. A barra existe porque volume
+ *  se compara de relance melhor que número lido um a um. */
+function CargaEquipe({ dados, loading }: { dados: any; loading: boolean }) {
+  if (loading && !dados) {
+    return <div className="flex items-center justify-center h-full"><Loader2 size={22} className="animate-spin text-[var(--text-muted)]" /></div>;
+  }
+  const pessoas: any[] = dados?.pessoas || [];
+  if (!pessoas.length) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full gap-1.5 text-center px-4">
+        <CheckCircle2 size={20} className="text-emerald-400" />
+        <p className="text-[13px] text-[var(--text-secondary)]">Nenhum chamado em aberto</p>
+        <p className="text-[11px] text-[var(--text-muted)]">Ninguém do time tem trabalho pendente.</p>
+      </div>
+    );
+  }
+
+  const maior = Math.max(...pessoas.map(p => p.total), 1);
+
+  return (
+    <div className="h-full overflow-auto">
+      <table className="w-full border-collapse table-auto">
+        <thead className="sticky top-0 z-10 bg-[var(--bg-secondary)]">
+          <tr className="text-left">
+            {["Pessoa", "Carga", "Em atendimento", "Aguardando", "SLA estourado", "Crítico", "Mais antigo", "Espera mais longa"].map((h, i) => (
+              <th key={h} className={`${i === 1 ? "w-full" : "w-px"} px-3 py-1.5 border-b border-[var(--border-subtle)] whitespace-nowrap
+                font-mono text-[9px] font-medium uppercase tracking-[0.14em] text-[var(--text-muted)]`}>{h}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {pessoas.map(p => {
+            const semDono = !p.userId;
+            return (
+              <tr key={p.userId || "fila"}
+                className={`border-b border-[var(--border-subtle)] hover:bg-[var(--bg-hover)] transition-colors
+                  ${semDono ? "bg-[var(--accent-violet)]/5" : ""}`}>
+                <td className="w-px px-3 py-1.5 whitespace-nowrap">
+                  <span className="flex items-center gap-2">
+                    {semDono
+                      ? <Globe2 size={14} className="text-[var(--accent-violet)]" />
+                      : <Avatar nome={p.nome} size={5} />}
+                    <span className={`text-[12.5px] ${semDono ? "text-[var(--accent-violet)] font-semibold" : "text-[var(--text-primary)] font-medium"}`}>
+                      {p.nome}
+                    </span>
+                  </span>
+                </td>
+                <td className="w-full px-3 py-1.5 min-w-[120px]">
+                  <span className="flex items-center gap-2">
+                    <span className="flex-1 h-1.5 rounded-full bg-[var(--bg-hover)] overflow-hidden min-w-[60px]">
+                      <span className="block h-full rounded-full transition-all"
+                        style={{
+                          width: `${Math.round((p.total / maior) * 100)}%`,
+                          background: semDono ? "var(--accent-violet)" : "var(--accent-green)",
+                        }} />
+                    </span>
+                    <span className="font-mono text-[12px] font-bold text-[var(--text-secondary)] tabular-nums w-6 text-right">{p.total}</span>
+                  </span>
+                </td>
+                <td className="w-px px-3 py-1.5 text-center font-mono text-[12px] tabular-nums text-[var(--text-secondary)]">{p.emAtendimento || "—"}</td>
+                <td className="w-px px-3 py-1.5 text-center font-mono text-[12px] tabular-nums text-[var(--text-secondary)]">{p.aguardando || "—"}</td>
+                {/* Colorir só o que não é zero: marcar o normal é o que
+                    transforma tabela em ruído. */}
+                <td className="w-px px-3 py-1.5 text-center font-mono text-[12px] tabular-nums"
+                  style={{ color: p.slaViolado ? "var(--accent-red)" : "var(--text-muted)", fontWeight: p.slaViolado ? 700 : 400 }}>
+                  {p.slaViolado || "—"}
+                </td>
+                <td className="w-px px-3 py-1.5 text-center font-mono text-[12px] tabular-nums"
+                  style={{ color: p.criticos ? "var(--accent-red)" : "var(--text-muted)", fontWeight: p.criticos ? 700 : 400 }}>
+                  {p.criticos || "—"}
+                </td>
+                <td className="w-px px-3 py-1.5 text-center font-mono text-[12px] tabular-nums"
+                  style={{ color: p.maisAntigoDias >= 7 ? "var(--accent-amber)" : "var(--text-muted)" }}>
+                  {p.maisAntigoDias ? `${p.maisAntigoDias}d` : "—"}
+                </td>
+                <td className="w-px px-3 py-1.5 text-center font-mono text-[12px] tabular-nums"
+                  style={{ color: p.esperaMaisLongaDias >= 7 ? "var(--accent-red)" : p.esperaMaisLongaDias >= 3 ? "var(--accent-amber)" : "var(--text-muted)" }}>
+                  {p.esperaMaisLongaDias ? `${p.esperaMaisLongaDias}d` : "—"}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+// ── Histórico em grade ────────────────────────────────────────────────────────
+/** O passado responde outras perguntas que o quadro: quem atendeu, quanto
+ *  tempo levou, quando encerrou. Por isso a grade é outra — não reaproveita a
+ *  da fila, que existe para triagem. */
+function HistoricoGrid({ chamados, loading, onOpen }: {
+  chamados: Chamado[]; loading: boolean; onOpen: (c: Chamado) => void;
+}) {
+  if (loading && !chamados.length) {
+    return <div className="flex items-center justify-center h-full"><Loader2 size={22} className="animate-spin text-[var(--text-muted)]" /></div>;
+  }
+  if (!chamados.length) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full gap-1.5 text-center px-4">
+        <History size={20} className="text-[var(--text-muted)]" />
+        <p className="text-[13px] text-[var(--text-secondary)]">Nenhum chamado no período</p>
+        <p className="text-[11px] text-[var(--text-muted)]">Ajuste o recorte, a busca ou as datas.</p>
+      </div>
+    );
+  }
+
+  const encerrado = (c: Chamado) => c.fechadoEm || c.resolvidoEm || null;
+  // Duração real do atendimento: da abertura ao encerramento. Em aberto, conta
+  // até agora — é o que diz se está demorando.
+  const duracao = (c: Chamado) => {
+    const fim = encerrado(c) ? new Date(encerrado(c)!).getTime() : Date.now();
+    const h = Math.max(0, Math.round((fim - new Date(c.criadoEm).getTime()) / 3600000));
+    return h < 24 ? `${h}h` : `${Math.round(h / 24)}d`;
+  };
+
+  const ordenados = [...chamados].sort((a, b) => {
+    const ta = new Date(encerrado(a) || a.atualizadoEm).getTime();
+    const tb = new Date(encerrado(b) || b.atualizadoEm).getTime();
+    return tb - ta;
+  });
+
+  return (
+    <div className="h-full overflow-auto">
+      <table className="w-full border-collapse table-auto">
+        <thead className="sticky top-0 z-10 bg-[var(--bg-secondary)]">
+          <tr className="text-left">
+            {["Nº", "Chamado", "Status", "Prioridade", "Solicitante", "Atendente", "Duração", "Encerrado"].map((h, i) => (
+              <th key={h} className={`${i === 1 ? "w-full" : "w-px"} px-3 py-1.5 border-b border-[var(--border-subtle)] whitespace-nowrap
+                font-mono text-[9px] font-medium uppercase tracking-[0.14em] text-[var(--text-muted)]`}>{h}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {ordenados.map(c => {
+            const col = STATUS_COLS.find(x => x.key === c.status);
+            return (
+              <tr key={c.id} onClick={() => onOpen(c)}
+                className="border-b border-[var(--border-subtle)] hover:bg-[var(--bg-hover)] transition-colors cursor-pointer">
+                <td className="w-px px-3 py-1 font-mono text-[11px] text-[var(--text-muted)] tabular-nums whitespace-nowrap">{c.numero}</td>
+                <td className="w-full px-3 py-1 min-w-0">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="text-[13px] font-medium text-[var(--text-primary)] truncate" title={c.titulo}>{c.titulo}</span>
+                    {c.categoria && <span className="shrink-0 text-[10px] px-1.5 py-px rounded bg-[var(--bg-hover)] text-[var(--text-muted)]">{c.categoria}</span>}
+                  </div>
+                </td>
+                <td className="w-px px-3 py-1 whitespace-nowrap">
+                  <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold" style={{ color: col?.color }}>
+                    <span className="w-1.5 h-1.5 rounded-full" style={{ background: col?.color }} />
+                    {col?.label || c.status}
+                  </span>
+                </td>
+                <td className="w-px px-3 py-1 whitespace-nowrap"><PrioridadeBadge prioridade={c.prioridade} /></td>
+                <td className="w-px px-3 py-1 whitespace-nowrap">
+                  <span className="flex items-center gap-1.5">
+                    <Avatar nome={c.solicitante?.nome || "?"} size={4.5} />
+                    <span className="text-[12px] text-[var(--text-secondary)] truncate max-w-[14ch]">{c.solicitante?.nome}</span>
+                  </span>
+                </td>
+                <td className="w-px px-3 py-1 whitespace-nowrap">
+                  {c.atendente ? (
+                    <span className="flex items-center gap-1.5">
+                      <Avatar nome={c.atendente.nome} size={4.5} />
+                      <span className="text-[12px] text-[var(--text-secondary)] truncate max-w-[14ch]">{c.atendente.nome}</span>
+                    </span>
+                  ) : <span className="text-[11px] text-[var(--text-muted)]">—</span>}
+                </td>
+                <td className="w-px px-3 py-1 text-[11px] text-[var(--text-muted)] tabular-nums whitespace-nowrap">{duracao(c)}</td>
+                <td className="w-px px-3 py-1 text-[11px] text-[var(--text-muted)] whitespace-nowrap">
+                  {encerrado(c) ? formatDate(encerrado(c)!) : <span className="text-[var(--accent-amber)]">em aberto</span>}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 // ── Fila pública em grade ─────────────────────────────────────────────────────
 /**
  * A fila é uma lista de triagem, não um quadro. O gesto que importa é um só —
@@ -260,12 +610,14 @@ function ordenarFila(lista: Chamado[], coluna: ColunaOrdem, desc: boolean): Cham
  *
  * Um clique abre o chamado para ler antes de decidir.
  */
-function FilaGrid({ chamados, loading, onOpen, onAssumir, onAssumirVarios, podeAssumir }: {
+function FilaGrid({ chamados, loading, onOpen, onAssumir, onAssumirVarios, podeAssumir, preview, onPreview }: {
   chamados: Chamado[]; loading: boolean;
   onOpen: (c: Chamado) => void;
   onAssumir: (id: string) => void;
   onAssumirVarios: (ids: string[]) => void;
   podeAssumir: boolean;
+  preview: string | null;
+  onPreview: (c: Chamado | null) => void;
 }) {
   const [assumindo, setAssumindo] = useState<string | null>(null);
   const [coluna, setColuna] = useState<ColunaOrdem>("urgencia");
@@ -294,30 +646,33 @@ function FilaGrid({ chamados, loading, onOpen, onAssumir, onAssumirVarios, podeA
     try { await onAssumir(c.id); } finally { setAssumindo(null); }
   }
 
-  // Árbitro entre "abrir" e "assumir".
+  // Clique simples abre o PREVIEW, não o drawer.
   //
-  // Sem ele o clique simples abria o drawer, o segundo clique do duplo caía no
-  // fundo do modal em vez da linha, e o `dblclick` — que exige o mesmo alvo nos
-  // dois cliques — nunca disparava. Aqui a abertura espera o tempo de um duplo
-  // clique antes de acontecer.
-  const cliqueAdiado = useRef<ReturnType<typeof setTimeout> | null>(null);
-  useEffect(() => () => { if (cliqueAdiado.current) clearTimeout(cliqueAdiado.current); }, []);
+  // Antes ele montava um modal em cima da lista, o segundo clique do duplo caía
+  // no fundo desse modal e o `dblclick` — que exige o mesmo alvo nos dois
+  // cliques — nunca disparava. Eu tinha resolvido com um temporizador de 240ms;
+  // com o preview o modal não entra mais no caminho, os dois cliques caem na
+  // linha e o remendo pôde sair.
+  function aoClicar(c: Chamado) { onPreview(c); }
+  function aoDuploClicar(c: Chamado) { assumir(c); }
 
-  function cancelarAbertura() {
-    if (cliqueAdiado.current) { clearTimeout(cliqueAdiado.current); cliqueAdiado.current = null; }
-  }
-
-  function aoClicar(c: Chamado) {
-    // Quem não pode assumir não tem duplo clique a esperar.
-    if (!podeAssumir) { onOpen(c); return; }
-    cancelarAbertura();
-    cliqueAdiado.current = setTimeout(() => { cliqueAdiado.current = null; onOpen(c); }, 240);
-  }
-
-  function aoDuploClicar(c: Chamado) {
-    cancelarAbertura();
-    assumir(c);
-  }
+  // Setas descem pela fila com o preview acompanhando; Enter abre inteiro,
+  // Esc fecha. É o que torna a triagem contínua em vez de um clique por vez.
+  useEffect(() => {
+    if (!preview) return;
+    function aoTeclar(e: KeyboardEvent) {
+      const alvo = e.target as HTMLElement;
+      if (alvo && ["INPUT", "TEXTAREA", "SELECT"].includes(alvo.tagName)) return;
+      const i = ordenados.findIndex(c => c.id === preview);
+      if (i < 0) return;
+      if (e.key === "ArrowDown" && i < ordenados.length - 1) { e.preventDefault(); onPreview(ordenados[i + 1]); }
+      else if (e.key === "ArrowUp" && i > 0) { e.preventDefault(); onPreview(ordenados[i - 1]); }
+      else if (e.key === "Enter") { e.preventDefault(); onOpen(ordenados[i]); }
+      else if (e.key === "Escape") { e.preventDefault(); onPreview(null); }
+    }
+    window.addEventListener("keydown", aoTeclar);
+    return () => window.removeEventListener("keydown", aoTeclar);
+  }, [preview, ordenados, onPreview, onOpen]);
 
   function alternar(id: string) {
     setSel(prev => {
@@ -378,6 +733,7 @@ function FilaGrid({ chamados, loading, onOpen, onAssumir, onAssumirVarios, podeA
         </div>
       )}
 
+      <div className="flex-1 flex overflow-hidden">
       <div className="flex-1 overflow-auto">
         <table className="w-full border-collapse table-auto">
           <thead className="sticky top-0 z-10 bg-[var(--bg-secondary)]">
@@ -405,7 +761,8 @@ function FilaGrid({ chamados, loading, onOpen, onAssumir, onAssumirVarios, podeA
                 onClick={() => aoClicar(c)}
                 onDoubleClick={() => aoDuploClicar(c)}
                 title={podeAssumir ? "Duplo clique assume o chamado" : undefined}
-                className="linha-fila group border-b border-[var(--border-subtle)] hover:bg-[var(--bg-hover)] transition-colors cursor-pointer"
+                className={`linha-fila group border-b border-[var(--border-subtle)] transition-colors cursor-pointer
+                  ${preview === c.id ? "bg-[var(--accent-violet)]/10" : "hover:bg-[var(--bg-hover)]"}`}
                 style={{ opacity: assumindo === c.id ? 0.45 : 1 }}
               >
                 {podeAssumir && (
@@ -452,13 +809,16 @@ function FilaGrid({ chamados, loading, onOpen, onAssumir, onAssumirVarios, podeA
                 {/* "No prazo" não vira selo: a maioria está no prazo, e marcar
                     o normal é o que transforma lista em ruído. */}
                 <td className="w-px px-3 py-1 whitespace-nowrap">
-                  {c.slaStatus && c.slaStatus !== "ok" ? <SlaBadge slaStatus={c.slaStatus} /> : null}
+                  <span className="flex items-center gap-2">
+                    <SlaDuplo resposta={(c as any).slaRespostaStatus} resolucao={c.slaStatus} />
+                    {c.slaStatus && c.slaStatus !== "ok" && <SlaBadge slaStatus={c.slaStatus} />}
+                  </span>
                 </td>
 
                 <td className="w-px pl-2 pr-4 py-1 text-right whitespace-nowrap">
                   {podeAssumir && (
                     <button
-                      onClick={e => { e.stopPropagation(); cancelarAbertura(); assumir(c); }}
+                      onClick={e => { e.stopPropagation(); assumir(c); }}
                       disabled={assumindo === c.id}
                       title={`Assumir chamado ${c.numero}`}
                       // Só some onde existe hover. Em toque continua visível —
@@ -478,6 +838,19 @@ function FilaGrid({ chamados, loading, onOpen, onAssumir, onAssumirVarios, podeA
             ))}
           </tbody>
         </table>
+      </div>
+      {preview && (() => {
+        const c = ordenados.find(x => x.id === preview);
+        return c ? (
+          <PreviewChamado
+            chamado={c}
+            podeAssumir={podeAssumir}
+            onAssumir={assumir}
+            onAbrir={onOpen}
+            onFechar={() => onPreview(null)}
+          />
+        ) : null;
+      })()}
       </div>
     </div>
   );
@@ -567,6 +940,9 @@ function ChamadoCard({ chamado, onClick, selected, onSelect, onAssumir, canAssum
             </>
           )}
         </span>
+        {chamado.status === "aguardando" && (
+          <EsperaBadge desde={chamado.aguardandoDesde} motivo={chamado.aguardandoMotivo} />
+        )}
         {chamado.slaStatus && chamado.slaStatus !== "ok" && <SlaBadge slaStatus={chamado.slaStatus} />}
         <span className="shrink-0 text-[var(--text-muted)] tabular-nums">{relTime(chamado.criadoEm)}</span>
       </div>
@@ -1654,13 +2030,33 @@ export default function ChamadosPage() {
   const [scope, setScope] = useState<Scope>(() => (searchParams?.get("scope") as Scope) || "meus");
   // Filtros recolhidos por padrão: são três campos que quase nunca mudam e
   // custavam uma faixa inteira da tela.
-  const [aba, setAba] = useState<"chamados" | "filtros">("chamados");
+  const [aba, setAba] = useState<"chamados" | "equipe" | "historico" | "filtros">("chamados");
+  // Id do chamado em preview. Guardado na pagina, nao no grid, para o painel
+  // sobreviver a recarga da lista depois de assumir.
+  const [previewId, setPreviewId] = useState<string | null>(null);
+  // Carga do time. Só carrega quando a aba abre — é agregação e não faz
+  // sentido pagá-la em toda visita à tela.
+  const [cargaEscopo, setCargaEscopo] = useState<"equipe" | "todos">("equipe");
+  const [carga, setCarga] = useState<any>(null);
+  const [cargaLoading, setCargaLoading] = useState(false);
+  // Histórico: recorte, período e resultado. Carrega só quando a aba abre —
+  // é consulta ampla e não faz sentido pagá-la em toda visita à tela.
+  const [histEscopo, setHistEscopo] = useState<"meus" | "equipe" | "todos">("meus");
+  const [histDesde, setHistDesde] = useState("");
+  const [histAte, setHistAte] = useState("");
+  const [histBusca, setHistBusca] = useState("");
+  const [histItens, setHistItens] = useState<Chamado[]>([]);
+  const [histLoading, setHistLoading] = useState(false);
   const [bulkIds, setBulkIds] = useState<Set<string>>(new Set());
   const [bulkUsers, setBulkUsers] = useState<Usuario[]>([]);
   const [toast, setToast] = useState<{ type: "ok" | "err"; msg: string } | null>(null);
   // Drag-and-drop
   const [dragId, setDragId] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState<string | null>(null);
+  // Arrastar para "aguardando" pergunta de que o chamado depende. O atrito é
+  // o ponto: sem essa resposta o estado vira buraco negro.
+  const [perguntaEspera, setPerguntaEspera] = useState<{ id: string; numero: number } | null>(null);
+  const [motivoEspera, setMotivoEspera] = useState("");
 
   // Quem pode editar/assumir chamado: master OU permissão chamados:editar/*
   const canEditar = !!(user?.isMaster
@@ -1689,6 +2085,14 @@ export default function ChamadosPage() {
     if (!dragId || !newStatus) return;
     const chamado = chamadosMeus.find(c => c.id === dragId);
     if (!chamado || chamado.status === newStatus) { setDragId(null); setDragOver(null); return; }
+    // Antes de mover para a espera, pergunta o motivo — depois o chamado some
+    // do radar e ninguém lembra do que dependia.
+    if (newStatus === "aguardando") {
+      setPerguntaEspera({ id: chamado.id, numero: chamado.numero });
+      setMotivoEspera("");
+      setDragId(null); setDragOver(null);
+      return;
+    }
     // Otimista: atualiza localmente primeiro
     setChamadosMeus(prev => prev.map(c => c.id === dragId ? { ...c, status: newStatus } : c));
     setDragId(null); setDragOver(null);
@@ -1701,6 +2105,27 @@ export default function ChamadosPage() {
       setToast({ type: "err", msg: "Não foi possível mover o chamado." });
     }
   }, [dragId, chamadosMeus]);
+
+  async function confirmarEspera() {
+    if (!perguntaEspera) return;
+    const alvo = perguntaEspera;
+    setPerguntaEspera(null);
+    // Otimista, igual ao arrastar normal: a coluna reage na hora.
+    setChamadosMeus(prev => prev.map(c => c.id === alvo.id
+      ? { ...c, status: "aguardando", aguardandoDesde: new Date().toISOString(), aguardandoMotivo: motivoEspera.trim() || null }
+      : c));
+    try {
+      await api.patch(`/chamados/${alvo.id}/status`, {
+        status: "aguardando",
+        aguardandoMotivo: motivoEspera.trim() || undefined,
+      });
+      setToast({ type: "ok", msg: `#${alvo.numero} em espera.` });
+      load();
+    } catch {
+      setToast({ type: "err", msg: "Não foi possível mover o chamado." });
+      load();
+    }
+  }
 
   function toggleBulk(id: string) {
     setBulkIds(prev => {
@@ -1749,6 +2174,7 @@ export default function ChamadosPage() {
     try {
       await api.patch(`/chamados/${id}/assumir`);
       setToast({ type: "ok", msg: `#${alvo?.numero ?? ""} agora é seu.` });
+      if (previewId === id) setPreviewId(null);
       load();
     } catch (err: any) {
       const status = err?.response?.status;
@@ -1779,11 +2205,48 @@ export default function ChamadosPage() {
 
   useEffect(() => { load(); }, [load]);
 
+  const carregarHistorico = useCallback(async () => {
+    setHistLoading(true);
+    try {
+      const p = new URLSearchParams();
+      p.set("scope", histEscopo);
+      if (histBusca.trim()) p.set("q", histBusca.trim());
+      if (histDesde) p.set("desde", histDesde);
+      if (histAte) p.set("ate", histAte);
+      const r = await api.get(`/chamados?${p}`);
+      setHistItens(Array.isArray(r.data) ? r.data : []);
+    } catch { setHistItens([]); } finally { setHistLoading(false); }
+  }, [histEscopo, histBusca, histDesde, histAte]);
+
+  useEffect(() => { if (aba === "historico") carregarHistorico(); }, [aba, carregarHistorico]);
+
+  const carregarCarga = useCallback(async () => {
+    setCargaLoading(true);
+    try {
+      const r = await api.get(`/chamados/carga-equipe?escopo=${cargaEscopo}`);
+      setCarga(r.data);
+    } catch { setCarga(null); } finally { setCargaLoading(false); }
+  }, [cargaEscopo]);
+
+  useEffect(() => { if (aba === "equipe") carregarCarga(); }, [aba, carregarCarga]);
+
   useEffect(() => {
     if (user?.isMaster) api.get("/users").then(r => setBulkUsers(Array.isArray(r.data) ? r.data : [])).catch(() => {});
   }, [user?.isMaster]);
 
+  // Mesma regra do backend: distribuir trabalho e o sinal de supervisao.
+  const podeVerTudo = !!user?.isMaster
+    || (user as any)?.permissions?.includes("*")
+    || (user as any)?.permissions?.includes("chamados:atribuir");
   const qtdFiltros = [filterStatus, filterPrio, filterCat].filter(Boolean).length;
+
+  // Proporção elástica entre fila e quadro. Era 50/50 fixo: com a fila vazia,
+  // metade da tela exibia um aviso de "nada aqui" enquanto o quadro se
+  // espremia. O peso acompanha o volume, com piso e teto para nenhum dos dois
+  // engolir o outro.
+  const filaVazia = chamadosFila.length === 0;
+  const pesoFila = Math.min(6, Math.max(3, chamadosFila.length));
+  const pesoMeus = Math.min(7, Math.max(4, chamadosMeus.length || 4));
 
   // Derivado das listas em tela, não de uma consulta paralela: é o que garante
   // que o número nunca discorde do que está logo abaixo dele.
@@ -1803,10 +2266,12 @@ export default function ChamadosPage() {
       new Date(a.criadoEm).getTime() <= new Date(b.criadoEm).getTime() ? a : b);
   }, [chamadosFila]);
 
-  const byCols = COLS_KANBAN.map(col => ({
-    ...col,
-    items: chamadosMeus.filter(c => c.status === col.key),
-  }));
+  const byCols = COLS_KANBAN.map(col => {
+    const todos = chamadosMeus.filter(c => c.status === col.key);
+    if (!COLS_TERMINAIS.includes(col.key)) return { ...col, items: todos, ocultos: 0, total: todos.length };
+    const { visiveis, ocultos } = recorteTerminal(todos);
+    return { ...col, items: visiveis, ocultos, total: todos.length };
+  });
 
   const topbarActions = (
     <>
@@ -1840,6 +2305,8 @@ export default function ChamadosPage() {
         <div className="flex items-center gap-1">
           {([
             { k: "chamados" as const, label: "Chamados", icon: Inbox, count: chamadosFila.length + chamadosMeus.length },
+            { k: "equipe" as const, label: "Equipe", icon: Users, count: undefined },
+            { k: "historico" as const, label: "Histórico", icon: History, count: undefined },
             { k: "filtros" as const,  label: "Filtros",  icon: SlidersHorizontal, count: qtdFiltros || undefined },
           ]).map(t => {
             const ativo = aba === t.k;
@@ -1864,7 +2331,79 @@ export default function ChamadosPage() {
         </div>
       </div>
 
-      {aba === "filtros" ? (
+      {aba === "equipe" ? (
+        <div className="flex-1 flex flex-col overflow-hidden">
+          <div className="px-6 py-3 border-b border-[var(--border-subtle)] flex-shrink-0 flex items-center gap-3 bg-[var(--bg-primary)]">
+            <div className="flex gap-1">
+              {([["equipe","Minha equipe"],["todos","Toda a organização"]] as const)
+                .filter(([k]) => k !== "todos" || podeVerTudo)
+                .map(([k, rotulo]) => (
+                <button key={k} onClick={() => setCargaEscopo(k)}
+                  className={`px-3 py-1.5 rounded-lg text-[12px] font-medium border transition-colors
+                    ${cargaEscopo === k ? "border-[var(--accent-violet)] bg-[var(--accent-violet)]/10 text-[var(--accent-violet)]"
+                                       : "border-[var(--border-subtle)] text-[var(--text-muted)] hover:bg-[var(--bg-hover)]"}`}>
+                  {rotulo}
+                </button>
+              ))}
+            </div>
+            <span className="ml-auto text-[11px] text-[var(--text-muted)]">
+              {cargaLoading ? "calculando..." : `${carga?.totalAtivos ?? 0} chamado(s) em aberto`}
+            </span>
+          </div>
+          <div className="flex-1 overflow-hidden">
+            <CargaEquipe dados={carga} loading={cargaLoading} />
+          </div>
+        </div>
+      ) : aba === "historico" ? (
+        <div className="flex-1 flex flex-col overflow-hidden">
+          <div className="px-6 py-3 border-b border-[var(--border-subtle)] flex-shrink-0 flex items-end gap-3 flex-wrap bg-[var(--bg-primary)]">
+            <div>
+              <label className="text-[10px] text-[var(--text-muted)] font-mono block mb-1 uppercase tracking-wider">Recorte</label>
+              <div className="flex gap-1">
+                {([["meus","Meus"],["equipe","Minha equipe"],["todos","Todos"]] as const)
+                  .filter(([k]) => k !== "todos" || podeVerTudo)
+                  .map(([k, rotulo]) => (
+                  <button key={k} onClick={() => setHistEscopo(k)}
+                    className={`px-3 py-1.5 rounded-lg text-[12px] font-medium border transition-colors
+                      ${histEscopo === k ? "border-[var(--accent-violet)] bg-[var(--accent-violet)]/10 text-[var(--accent-violet)]"
+                                         : "border-[var(--border-subtle)] text-[var(--text-muted)] hover:bg-[var(--bg-hover)]"}`}>
+                    {rotulo}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="flex-1 min-w-48">
+              <label className="text-[10px] text-[var(--text-muted)] font-mono block mb-1 uppercase tracking-wider">Buscar</label>
+              <div className="relative">
+                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
+                <input className="input-o pl-9 py-1.5 text-[13px]" placeholder="Título, descrição ou número (ex.: 38)..."
+                  value={histBusca} onChange={e => setHistBusca(e.target.value)} />
+              </div>
+            </div>
+            <div>
+              <label className="text-[10px] text-[var(--text-muted)] font-mono block mb-1 uppercase tracking-wider">De</label>
+              <input type="date" className="input-o py-1.5 w-auto text-[13px]" value={histDesde} onChange={e => setHistDesde(e.target.value)} />
+            </div>
+            <div>
+              <label className="text-[10px] text-[var(--text-muted)] font-mono block mb-1 uppercase tracking-wider">Até</label>
+              <input type="date" className="input-o py-1.5 w-auto text-[13px]" value={histAte} onChange={e => setHistAte(e.target.value)} />
+            </div>
+            {(histBusca || histDesde || histAte) && (
+              <button onClick={() => { setHistBusca(""); setHistDesde(""); setHistAte(""); }}
+                className="btn btn-ghost py-1.5 px-3 text-[12px] text-[var(--accent-red)] hover:bg-red-500/10">
+                Limpar
+              </button>
+            )}
+            <span className="ml-auto text-[11px] text-[var(--text-muted)]">
+              {histLoading ? "buscando..." : `${histItens.length} chamado(s)`}
+              {histItens.length >= 500 && " (teto de 500 — refine o período)"}
+            </span>
+          </div>
+          <div className="flex-1 overflow-hidden">
+            <HistoricoGrid chamados={histItens} loading={histLoading} onOpen={c => setSelected(c)} />
+          </div>
+        </div>
+      ) : aba === "filtros" ? (
         /* Tela de ajuste: sem lista e sem "assumir". Quem veio filtrar não veio
            agir — misturar as duas coisas foi o que encheu a tela antes. */
         <div className="flex-1 overflow-auto px-6 py-6">
@@ -1921,7 +2460,10 @@ export default function ChamadosPage() {
         /* Fila em cima, meus embaixo. As duas são o mesmo trabalho em momentos
            diferentes — triar e tocar — e alternar aba escondia metade dele. */
         <div className="flex-1 flex flex-col overflow-hidden">
-          <section className="h-1/2 flex flex-col overflow-hidden border-b-2 border-[var(--border-subtle)]">
+          <section
+            className="flex flex-col overflow-hidden border-b-2 border-[var(--border-subtle)] transition-[flex-grow] duration-300"
+            style={filaVazia ? { flex: "0 0 auto" } : { flex: `${pesoFila} 1 0` }}
+          >
             {/* alertas-no-cabecalho: o que era uma barra própria acima das abas
                 mora aqui. SLA e tempo de espera são assunto DESTA lista, e como
                 título de seção eles custam zero altura extra. */}
@@ -1933,6 +2475,23 @@ export default function ChamadosPage() {
               </span>
               {canEditar && chamadosFila.length > 0 && (
                 <span className="text-[11px] text-[var(--text-muted)] ml-1">duplo clique assume</span>
+              )}
+              {/* Contagem explícita: evita a dúvida de "será que tem mais?". */}
+              {chamadosFila.length > 0 && (
+                <span className="text-[11px] text-[var(--text-muted)]">
+                  · exibindo {chamadosFila.length}
+                </span>
+              )}
+              {chamadosFila.length > 0 && (
+                <button
+                  onClick={() => setPreviewId(previewId ? null : chamadosFila[0].id)}
+                  title="Ler o chamado ao lado da lista, sem abrir"
+                  className={`ml-auto inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md border text-[11px] font-medium transition-colors
+                    ${previewId ? "border-[var(--accent-violet)] bg-[var(--accent-violet)]/10 text-[var(--accent-violet)]"
+                                : "border-[var(--border-subtle)] text-[var(--text-muted)] hover:bg-[var(--bg-hover)]"}`}
+                >
+                  <BookOpen size={11} /> Preview
+                </button>
               )}
 
               <span className="flex-1" />
@@ -1972,6 +2531,9 @@ export default function ChamadosPage() {
                 )}
               </div>
             </div>
+            {/* Fila vazia não precisa de área de conteúdo: o cabeçalho já diz
+                que está vazia, e a altura volta para o quadro. */}
+            {!filaVazia && (
             <div className="flex-1 overflow-hidden">
               <FilaGrid
                 chamados={chamadosFila}
@@ -1980,11 +2542,14 @@ export default function ChamadosPage() {
                 onAssumir={handleAssumir}
                 onAssumirVarios={handleAssumirVarios}
                 podeAssumir={canEditar}
+                preview={previewId}
+                onPreview={c => setPreviewId(c ? c.id : null)}
               />
             </div>
+            )}
           </section>
 
-          <section className="h-1/2 flex flex-col overflow-hidden">
+          <section className="flex flex-col overflow-hidden" style={{ flex: `${pesoMeus} 1 0` }}>
             <div className="px-6 py-2 flex items-center gap-2 flex-shrink-0 bg-[var(--bg-primary)]">
               <UserIcon size={13} className="text-[var(--text-muted)]" />
               <span className="text-[12px] font-bold text-[var(--text-secondary)] uppercase tracking-wide">Meus chamados</span>
@@ -2013,8 +2578,19 @@ export default function ChamadosPage() {
                           <span className="w-2 h-2 rounded-full" style={{ background: col.color, boxShadow: `0 0 8px ${col.color}80` }} />
                           <span className="text-[11px] font-bold text-[var(--text-secondary)] tracking-wide uppercase">{col.label}</span>
                         </div>
-                        <span className="text-[10px] font-mono text-[var(--text-muted)] bg-[var(--bg-hover)] border border-[var(--border-subtle)] rounded-full px-1.5">
-                          {col.items.length}
+                        <span className="flex items-center gap-1.5">
+                          <span className="text-[10px] font-mono text-[var(--text-muted)] bg-[var(--bg-hover)] border border-[var(--border-subtle)] rounded-full px-1.5">
+                            {(col as any).ocultos > 0 ? `${col.items.length} de ${(col as any).total}` : col.items.length}
+                          </span>
+                          {/* O corte precisa ser dito. Chamado que some sem
+                              explicação faz desconfiar da tela inteira. */}
+                          {(col as any).ocultos > 0 && (
+                            <button onClick={() => setAba("historico")}
+                              title={`${(col as any).ocultos} fora deste período — ver no histórico`}
+                              className="text-[10px] text-[var(--accent-violet)] hover:underline">
+                              +{(col as any).ocultos}
+                            </button>
+                          )}
                         </span>
                       </div>
                       <div className={`flex-1 overflow-y-auto space-y-2 px-1 pb-2 rounded-lg transition-all ${dragOver === col.key && dragId ? "bg-[var(--bg-hover)] ring-2 ring-inset ring-[var(--border-medium)]" : ""}`}>
@@ -2056,6 +2632,42 @@ export default function ChamadosPage() {
           onDone={() => { setBulkIds(new Set()); load(); }}
           onCancel={() => setBulkIds(new Set())}
         />
+      )}
+
+      {/* Espera: o motivo é o que impede o chamado de virar buraco negro. */}
+      {perguntaEspera && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+          onClick={() => setPerguntaEspera(null)}>
+          <div className="bg-card border border-border rounded-2xl w-full max-w-md shadow-2xl" onClick={e => e.stopPropagation()}>
+            <div className="px-6 py-4 border-b border-border">
+              <div className="text-sm font-semibold text-foreground">Colocar #{perguntaEspera.numero} em espera</div>
+              <div className="text-[11px] text-[var(--text-muted)]">Do que este chamado depende para continuar?</div>
+            </div>
+            <div className="p-6 space-y-3">
+              <input
+                value={motivoEspera}
+                onChange={e => setMotivoEspera(e.target.value)}
+                onKeyDown={e => { if (e.key === "Enter") confirmarEspera(); }}
+                autoFocus
+                placeholder="Ex.: retorno do fornecedor, aprovação de compra, peça em trânsito..."
+                className="input-o text-[13px]"
+              />
+              <p className="text-[11px] text-[var(--text-muted)]">
+                Fica visível no card e o contador começa agora. Sem isso, daqui a três semanas ninguém lembra do que se esperava.
+              </p>
+              <div className="flex gap-2 pt-1">
+                <button onClick={confirmarEspera}
+                  className="px-3 py-1.5 rounded-md text-[12px] font-semibold text-white bg-[var(--accent-violet)] hover:opacity-90 transition-opacity">
+                  Colocar em espera
+                </button>
+                <button onClick={() => setPerguntaEspera(null)}
+                  className="px-3 py-1.5 rounded-md text-[12px] text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors">
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Modals / Drawers */}

@@ -111,6 +111,7 @@ const ALL_PERMISSIONS: { recurso: string; acao: string; descricao: string }[] = 
   // A tela inicial checa dashboard:ver; sem a permissao no catalogo ela nunca
   // poderia ser concedida.
   { recurso: "dashboard",     acao: "ver",         descricao: "Ver a tela inicial" },
+  { recurso: "meurh",         acao: "ver",         descricao: "Ver o próprio RH (Meu RH)" },
   // Financeiro
   { recurso: "financeiro",    acao: "ver",         descricao: "Ver módulo financeiro (contas a pagar, dashboard)" },
   { recurso: "financeiro",    acao: "gerenciar",   descricao: "Criar, editar e excluir títulos financeiros" },
@@ -135,9 +136,10 @@ const ALL_PERMISSIONS: { recurso: string; acao: string; descricao: string }[] = 
 ];
 
 // Permissões base — todo usuário recebe automaticamente, independente do papel
+// Único módulo que todo usuário recebe sem precisar de papel. Qualquer outra
+// tela — inclusive a Visão Geral — exige permissão explícita.
 const BASE_PERMISSIONS = [
   "agenda:ver", "agenda:criar", "agenda:editar", "agenda:deletar",
-  "whatsapp:ver",
 ];
 
 // Permissões por papel padrão (master ignora — tem acesso total via isMaster)
@@ -153,6 +155,7 @@ const ROLE_DEFAULTS: Record<string, { nivel: number; descricao: string; permisso
     nivel: 60,
     descricao: "Gestão de projetos, equipes, relatórios e chamados",
     permissoes: [
+      "dashboard:ver", "meurh:ver",
       "agenda:ver","agenda:criar","agenda:editar","agenda:deletar",
       "projetos:ver","projetos:criar","projetos:editar","projetos:deletar","projetos:gerenciar",
       "crm:ver","crm:criar","crm:editar","crm:deletar",
@@ -190,6 +193,7 @@ const ROLE_DEFAULTS: Record<string, { nivel: number; descricao: string; permisso
     nivel: 30,
     descricao: "Perfil operacional padrão — agenda, KEEP, projetos e tarefas",
     permissoes: [
+      "dashboard:ver", "meurh:ver",
       "agenda:ver","agenda:criar","agenda:editar","agenda:deletar",
       "projetos:ver","projetos:criar","projetos:editar",
       "keep:ver","keep:criar","keep:editar","keep:deletar",
@@ -210,6 +214,7 @@ const ROLE_DEFAULTS: Record<string, { nivel: number; descricao: string; permisso
     nivel: 20,
     descricao: "Foco em chamados e execução operacional",
     permissoes: [
+      "dashboard:ver", "meurh:ver",
       "agenda:ver","agenda:criar","agenda:editar","agenda:deletar",
       "chamados:ver","chamados:criar","chamados:editar","chamados:fechar",
       "whatsapp:ver",
@@ -225,6 +230,7 @@ const ROLE_DEFAULTS: Record<string, { nivel: number; descricao: string; permisso
     nivel: 10,
     descricao: "Somente leitura em todos os módulos",
     permissoes: [
+      "dashboard:ver", "meurh:ver",
       ...ALL_PERMISSIONS.filter(p => p.acao === "ver").map(p => `${p.recurso}:${p.acao}`),
       "whatsapp:ver",
     ],
@@ -233,6 +239,7 @@ const ROLE_DEFAULTS: Record<string, { nivel: number; descricao: string; permisso
     nivel: 50,
     descricao: "Supervisiona equipes e monitora operações — visão ampla com edição limitada",
     permissoes: [
+      "dashboard:ver", "meurh:ver",
       "agenda:ver","agenda:criar","agenda:editar","agenda:deletar",
       "projetos:ver","projetos:criar","projetos:editar",
       "crm:ver","crm:criar","crm:editar",
@@ -262,6 +269,7 @@ const ROLE_DEFAULTS: Record<string, { nivel: number; descricao: string; permisso
     nivel: 15,
     descricao: "Perfil operacional básico — executa tarefas atribuídas em chamados e projetos",
     permissoes: [
+      "dashboard:ver", "meurh:ver",
       "agenda:ver","agenda:criar","agenda:editar",
       "projetos:ver",
       "keep:ver","keep:criar",
@@ -279,6 +287,7 @@ const ROLE_DEFAULTS: Record<string, { nivel: number; descricao: string; permisso
     nivel: 40,
     descricao: "Acesso somente-leitura a todos os módulos incluindo trilha de auditoria",
     permissoes: [
+      "dashboard:ver", "meurh:ver",
       ...ALL_PERMISSIONS.filter(p => p.acao === "ver").map(p => `${p.recurso}:${p.acao}`),
       "relatorios:exportar",
       // Conformidade exige enxergar a organização inteira, não só a própria equipe.
@@ -292,6 +301,7 @@ const ROLE_DEFAULTS: Record<string, { nivel: number; descricao: string; permisso
     nivel: 5,
     descricao: "Acesso ao portal do cliente — abertura e acompanhamento de chamados próprios",
     permissoes: [
+      "dashboard:ver", "meurh:ver",
       "portal:acessar",
       "chamados:ver","chamados:criar",
       "conhecimento:ver",

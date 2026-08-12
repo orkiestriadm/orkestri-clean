@@ -1582,6 +1582,9 @@ model Chamado {
   @@index([organizationId, status, atendenteId])
     /// Quem atribuiu o chamado. Resgatado de homologacao em 08/2026.
   atribuidoPorId     String?              @map("atribuido_por_id")
+  /// O que trava o chamado e desde quando. So valem em status=aguardando.
+  aguardandoMotivo   String?              @map("aguardando_motivo")
+  aguardandoDesde    DateTime?            @map("aguardando_desde")
   /// Veiculo do chamado. Presente = o chamado e de frota e pode virar OS.
   veiculoId          String?              @map("veiculo_id")
   /// Condicao do veiculo RELATADA por quem abriu: "inoperante" ou
