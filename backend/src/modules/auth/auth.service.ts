@@ -135,11 +135,20 @@ const ALL_PERMISSIONS: { recurso: string; acao: string; descricao: string }[] = 
   ...COMPLIANCE_PERMISSION_CATALOG,
 ];
 
-// Permissões base — todo usuário recebe automaticamente, independente do papel
-// Único módulo que todo usuário recebe sem precisar de papel. Qualquer outra
-// tela — inclusive a Visão Geral — exige permissão explícita.
+// Permissões base — todo usuário recebe automaticamente, independente do papel.
+//
+// Agenda e Keep são os dois módulos que acompanham a conta: ferramenta pessoal,
+// sem dado de terceiro dentro, que não faz sentido alguém ter de pedir ao
+// administrador. Qualquer outra tela — inclusive a Visão Geral — exige
+// permissão explícita, vinda de papel ou de concessão direta.
+//
+// O WhatsApp do menu NÃO entra aqui, e a razão não é obvia pelo nome: aquela
+// tela não é conversa, é o console de pareamento da organização. Quem a abre vê
+// o QR Code e pode desconectar o número da empresa, o que para o envio de
+// mensagem de todo mundo. Isso é ato de administrador, não item de boas-vindas.
 const BASE_PERMISSIONS = [
   "agenda:ver", "agenda:criar", "agenda:editar", "agenda:deletar",
+  "keep:ver", "keep:criar", "keep:editar", "keep:deletar",
 ];
 
 /**

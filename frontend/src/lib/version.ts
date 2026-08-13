@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "1.10.1";
+export const VERSAO = "1.10.3";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -23,10 +23,10 @@ export const VERSAO = "1.10.1";
  * Não é gerada no build: `new Date()` no bundle muda a cada compilação, e duas
  * builds do mesmo código pareceriam versões diferentes.
  */
-export const VERSAO_DATA = "2026-08-12";
+export const VERSAO_DATA = "2026-08-13";
 
 /** Nome da entrega, para dar contexto ao número. */
-export const VERSAO_NOME = "Cabeçalho fixo no grid do Orçamento";
+export const VERSAO_NOME = "A marca do menu vem do ambiente";
 
 /**
  * Histórico exibido na tela Sobre, do mais recente para o mais antigo.
@@ -35,6 +35,25 @@ export const VERSAO_NOME = "Cabeçalho fixo no grid do Orçamento";
  * esta lista quer saber o que mudou para ele.
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
+  {
+    versao: "1.10.3",
+    data: "2026-08-13",
+    titulo: "A marca do menu vem do ambiente",
+    itens: [
+      "O logotipo do menu lateral passa a vir da configuração da instalação, como o da tela de login já vinha — cada ambiente exibe a sua marca, e ela deixa de depender do que está escrito no código",
+      "Instalação sem logotipo próprio exibe o símbolo do produto",
+    ],
+  },
+  {
+    versao: "1.10.2",
+    data: "2026-08-13",
+    titulo: "Usuário novo entra só com Agenda e Keep",
+    itens: [
+      "Usuário recém-criado passa a ver apenas Agenda e Keep. Todo o resto — Visão Geral, Compliance, People, chamados — só aparece por papel ou permissão concedida",
+      "O Keep passou a acompanhar a conta, como a Agenda já acompanhava: são ferramentas pessoais, e pedir permissão ao administrador para usar o próprio bloco de notas não fazia sentido",
+      "Corrigido: o grupo Compliance aparecia no menu de qualquer pessoa, mesmo sem nenhuma permissão do módulo, por causa da tela Minhas. Quem responde por uma licença continua vendo as próprias pendências, agora pela permissão de obrigações",
+    ],
+  },
   {
     versao: "1.10.1",
     data: "2026-08-12",

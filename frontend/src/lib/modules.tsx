@@ -97,11 +97,18 @@ export const NAV: NavGroup[] = [
     items: [
       { href: "/dashboard/compliance",             label: "Painel",      icon: LayoutDashboard, permission: "compliance.relatorio:ver" },
       { href: "/dashboard/compliance/obrigacoes",  label: "Obrigações",  icon: ClipboardCheck,  permission: "compliance.obrigacao:ver" },
-      // Sem permissão: é a tela do responsável pela licença, não de quem
-      // administra o módulo. O backend só devolve aquilo em que a pessoa está
-      // nomeada — exigir concessão para ver as próprias pendências inverteria
-      // o controle de acesso.
-      { href: "/dashboard/compliance/minhas",      label: "Minhas",      icon: UserCircle,      permission: null },
+      // Exige a mesma permissão das demais telas do módulo, e não `null`.
+      //
+      // O motivo de ser aberta era legítimo — é a tela de quem responde pela
+      // licença, e o backend só devolve aquilo em que a pessoa está nomeada.
+      // Só que item sem permissão nenhuma coloca o GRUPO INTEIRO no menu: um
+      // usuário recém-criado, sem nada de Compliance, abria o sistema com
+      // "Compliance / Obrigações" na lateral. Era o único grupo que ainda
+      // vazava depois de Visão Geral e Meu RH passarem a exigir concessão.
+      //
+      // Quem for nomeado responsável recebe `compliance.obrigacao:ver` pelo
+      // papel; a tela continua mostrando só o que é dele.
+      { href: "/dashboard/compliance/minhas",      label: "Minhas",      icon: UserCircle,      permission: "compliance.obrigacao:ver" },
       { href: "/dashboard/compliance/calendario",  label: "Calendário",  icon: CalendarClock,   permission: "compliance.obrigacao:ver" },
       { href: "/dashboard/compliance/relatorios",  label: "Relatórios",  icon: BarChart3,       permission: "compliance.relatorio:ver" },
       { href: "/dashboard/compliance/categorias",  label: "Categorias",  icon: Library,         permission: "compliance.categoria:ver" },

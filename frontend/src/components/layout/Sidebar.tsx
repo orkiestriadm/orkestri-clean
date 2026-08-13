@@ -8,6 +8,8 @@ import { authApi } from "@/lib/api";
 import UserStatus from "@/components/ui/UserStatus";
 import { cn } from "@/lib/utils";
 import { NAV, canAccessGroup, canAccessItemLevel, type NavGroup, type NavItem as NavItemT } from "@/lib/modules";
+import { BrandLogo } from "@/components/ui/logo";
+import { MARCA, LOGO_ARQUIVO, LOGO_ARQUIVO_CLARO } from "@/lib/marca";
 
 const ALL_ITEMS: NavItemT[] = NAV.flatMap(g => g.items);
 
@@ -157,12 +159,25 @@ export default function Sidebar() {
   return (
     <aside className="sidebar">
       {/* ── Logo ── */}
-      {/* Marca do CLIENTE (Triunfo Transbrasiliana), nao a do produto.
-          Customizacao local deste servidor de homologacao — nao replicar
-          para o checkout principal nem para producao. */}
+      {/* A marca vem do AMBIENTE, nunca do código.
+          Aqui já esteve escrito `logo-ttbr-colorida.png` direto no JSX, com um
+          comentário pedindo para não replicar. O pedido não se sustentou: em
+          09/08/2026 uma sincronização trouxe a árvore de homologação para o git
+          e a marca do cliente foi junto — produção passou a exibir a logo da
+          Triunfo Transbrasiliana no menu. Comentário não impede cópia; caminho
+          vindo de variável, sim.
+          Sem logotipo configurado (produção), cai no símbolo do produto. */}
       <div className="flex items-center justify-center h-16 border-b border-[var(--sidebar-border)] shrink-0 px-4">
-        <img src="/branding/logo-ttbr-colorida.png" alt="Triunfo TBR" className="h-8 w-auto block dark:hidden" />
-        <img src="/branding/logo-ttbr-branca.png" alt="Triunfo TBR" className="h-8 w-auto hidden dark:block" />
+        {LOGO_ARQUIVO ? (
+          <>
+            {/* Duas variantes porque o menu acompanha o tema: logotipo branco
+                sobre fundo claro fica invisível. */}
+            <img src={LOGO_ARQUIVO_CLARO} alt={MARCA} className="h-8 w-auto block dark:hidden object-contain" />
+            <img src={LOGO_ARQUIVO}       alt={MARCA} className="h-8 w-auto hidden dark:block object-contain" />
+          </>
+        ) : (
+          <BrandLogo size="sm" />
+        )}
       </div>
 
       {/* ── Navigation ── */}
