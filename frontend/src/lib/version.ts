@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "1.10.0";
+export const VERSAO = "1.10.1";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -26,7 +26,7 @@ export const VERSAO = "1.10.0";
 export const VERSAO_DATA = "2026-08-12";
 
 /** Nome da entrega, para dar contexto ao número. */
-export const VERSAO_NOME = "Chamados: fila, histórico e carga da equipe";
+export const VERSAO_NOME = "Cabeçalho fixo no grid do Orçamento";
 
 /**
  * Histórico exibido na tela Sobre, do mais recente para o mais antigo.
@@ -35,6 +35,14 @@ export const VERSAO_NOME = "Chamados: fila, histórico e carga da equipe";
  * esta lista quer saber o que mudou para ele.
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
+  {
+    versao: "1.10.1",
+    data: "2026-08-12",
+    titulo: "Cabeçalho fixo no grid do Orçamento",
+    itens: [
+      "No Orçamento, a linha de referência do grid (item, os doze meses, previsto, realizado e execução) fica fixa no topo enquanto a lista rola — descer até o trigésimo item não faz mais perder de vista qual coluna é qual mês. Vale para OPEX e CAPEX",
+    ],
+  },
   {
     versao: "1.10.0",
     data: "2026-08-12",

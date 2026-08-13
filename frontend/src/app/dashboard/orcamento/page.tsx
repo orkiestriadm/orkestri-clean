@@ -582,9 +582,15 @@ function TabItens({ tipo, cicloId, categorias, centrosCusto, fornecedores, podeE
         ))}
       </div>
 
-      {/* Grid header */}
-      <div className="bg-card border border-border rounded-xl overflow-hidden">
-        <div className="grid text-[10px] font-medium text-muted-foreground uppercase tracking-wide border-b border-border bg-white/3"
+      {/* Grid header — fica fixo no topo enquanto a lista rola; sem isso, quem
+          desce até o item 30 não sabe mais qual coluna é qual mês.
+          O card usa `overflow-x-clip` e não `overflow-hidden` porque `hidden`
+          faria dele um scrollport próprio (que não rola) e o `sticky` nunca sairia
+          do lugar; `clip` recorta o excesso horizontal igual, mas mantém o eixo
+          vertical `visible`. E o fundo precisa ser opaco (`bg-card`, não
+          `bg-white/3`), senão as linhas passam por baixo do cabeçalho. */}
+      <div className="bg-card border border-border rounded-xl overflow-x-clip">
+        <div className="sticky top-0 z-20 grid text-[10px] font-medium text-muted-foreground uppercase tracking-wide border-b border-border bg-card rounded-t-xl"
           style={{gridTemplateColumns:"1fr repeat(12,56px) 80px 80px 72px 64px"}}>
           <div className="px-4 py-2.5">Item</div>
           {MESES.map(m=><div key={m} className="py-2.5 text-center">{m}</div>)}
