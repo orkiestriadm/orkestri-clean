@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "1.10.1";
+export const VERSAO = "1.10.4";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -23,7 +23,7 @@ export const VERSAO = "1.10.1";
  * Não é gerada no build: `new Date()` no bundle muda a cada compilação, e duas
  * builds do mesmo código pareceriam versões diferentes.
  */
-export const VERSAO_DATA = "2026-08-12";
+export const VERSAO_DATA = "2026-08-13";
 
 /** Nome da entrega, para dar contexto ao número. */
 export const VERSAO_NOME = "Formulários de Frotas";
@@ -36,8 +36,8 @@ export const VERSAO_NOME = "Formulários de Frotas";
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
   {
-    versao: "1.10.1",
-    data: "2026-08-12",
+    versao: "1.10.4",
+    data: "2026-08-13",
     titulo: "Formulários de Frotas",
     itens: [
       "Cadastro de veículo organizado em blocos — Identificação, Veículo, Operação, Abastecimento, Aquisição e Anotações — em vez de vinte e seis campos em lista corrida",
@@ -48,6 +48,33 @@ export const HISTORICO: { versao: string; data: string; titulo: string; itens: s
       "Na revisão, \"KM previsto\" passou a se chamar \"KM atual\", inclusive no relatório exportado, e o formulário separa o que foi planejado do que foi feito",
       "Corrigido: as telas de ordem de serviço e de categoria diziam \"Novo ordem de serviço\" e \"Novo categoria\"",
       "Explicações que estavam entre parênteses no rótulo passaram para baixo do campo, onde cabem inteiras",
+    ],
+  },
+  {
+    versao: "1.10.3",
+    data: "2026-08-13",
+    titulo: "A marca do menu vem do ambiente",
+    itens: [
+      "O logotipo do menu lateral passa a vir da configuração da instalação, como o da tela de login já vinha — cada ambiente exibe a sua marca, e ela deixa de depender do que está escrito no código",
+      "Instalação sem logotipo próprio exibe o símbolo do produto",
+    ],
+  },
+  {
+    versao: "1.10.2",
+    data: "2026-08-13",
+    titulo: "Usuário novo entra só com Agenda e Keep",
+    itens: [
+      "Usuário recém-criado passa a ver apenas Agenda e Keep. Todo o resto — Visão Geral, Compliance, People, chamados — só aparece por papel ou permissão concedida",
+      "O Keep passou a acompanhar a conta, como a Agenda já acompanhava: são ferramentas pessoais, e pedir permissão ao administrador para usar o próprio bloco de notas não fazia sentido",
+      "Corrigido: o grupo Compliance aparecia no menu de qualquer pessoa, mesmo sem nenhuma permissão do módulo, por causa da tela Minhas. Quem responde por uma licença continua vendo as próprias pendências, agora pela permissão de obrigações",
+    ],
+  },
+  {
+    versao: "1.10.1",
+    data: "2026-08-12",
+    titulo: "Cabeçalho fixo no grid do Orçamento",
+    itens: [
+      "No Orçamento, a linha de referência do grid (item, os doze meses, previsto, realizado e execução) fica fixa no topo enquanto a lista rola — descer até o trigésimo item não faz mais perder de vista qual coluna é qual mês. Vale para OPEX e CAPEX",
     ],
   },
   {

@@ -43,3 +43,16 @@ export const LOGIN_FUNDO =
  * nenhum código a referenciando.
  */
 export const LOGO_ARQUIVO = process.env.NEXT_PUBLIC_LOGO_ARQUIVO?.trim() || "";
+
+/**
+ * Variante do logotipo para FUNDO CLARO.
+ *
+ * Existe porque o menu lateral acompanha o tema: no claro, um logotipo branco
+ * fica invisível. Onde o fundo é sempre escuro — a tela de login, sobre a foto
+ * — `LOGO_ARQUIVO` basta e esta variante nem é consultada.
+ *
+ * O padrão cai em `LOGO_ARQUIVO` de propósito: um ambiente que só tenha uma
+ * versão da marca continua funcionando, e quem tiver as duas configura as duas.
+ */
+export const LOGO_ARQUIVO_CLARO =
+  process.env.NEXT_PUBLIC_LOGO_ARQUIVO_CLARO?.trim() || LOGO_ARQUIVO;

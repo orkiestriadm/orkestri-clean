@@ -36,10 +36,16 @@ ENV NEXT_PUBLIC_APP_DOMINIO=$NEXT_PUBLIC_APP_DOMINIO
 # Vazio em LOGO_ARQUIVO mantém o símbolo vetorial do produto. Os dois arquivos
 # de imagem ja vivem em `public/branding`, versionados: o ambiente escolhe qual
 # usar em vez de sobrescrever um pelo outro em disco.
+#
+# LOGO_ARQUIVO_CLARO é a mesma marca em versão para fundo claro. O menu lateral
+# acompanha o tema, e logotipo branco sobre fundo branco não aparece. Vazio cai
+# no LOGO_ARQUIVO, então ambiente com uma única versão da marca segue igual.
 ARG NEXT_PUBLIC_LOGIN_FUNDO=/branding/planeta.jpg
 ARG NEXT_PUBLIC_LOGO_ARQUIVO=
+ARG NEXT_PUBLIC_LOGO_ARQUIVO_CLARO=
 ENV NEXT_PUBLIC_LOGIN_FUNDO=$NEXT_PUBLIC_LOGIN_FUNDO
 ENV NEXT_PUBLIC_LOGO_ARQUIVO=$NEXT_PUBLIC_LOGO_ARQUIVO
+ENV NEXT_PUBLIC_LOGO_ARQUIVO_CLARO=$NEXT_PUBLIC_LOGO_ARQUIVO_CLARO
 # Teto explícito de heap durante o build. Sem isso, o Node pode crescer até o
 # cgroup limit e ser OOM-killed silenciosamente em hosts pequenos como Lightsail 2GB.
 ENV NODE_OPTIONS="--max-old-space-size=1024"
