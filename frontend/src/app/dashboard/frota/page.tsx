@@ -7,7 +7,7 @@ import Link from "next/link";
 import Topbar from "@/components/layout/Topbar";
 import { api } from "@/lib/api";
 import {
-  Truck, CheckCircle2, Wrench, CalendarDays, CreditCard, Package, Activity, DollarSign, BarChart2, TrendingUp, Filter, RefreshCw, ChevronRight, X
+  Truck, CheckCircle2, Wrench, CalendarDays, CreditCard, Package, Activity, DollarSign, BarChart2, TrendingUp, Filter, RefreshCw, ChevronRight, X, AlertTriangle
 } from "lucide-react";
 import {
   ResponsiveContainer, BarChart, Bar, LineChart, Line, ComposedChart, PieChart, Pie, Cell,
@@ -151,14 +151,18 @@ export default function FrotaDashboardPage() {
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-6">
                 <KpiCard index={0} label="Total de Veículos" valor={k.totalVeiculos.toLocaleString("pt-BR")} icon={<Truck size={18} />} color="var(--accent-red)" />
                 <KpiCard index={1} label="Veículos Ativos" valor={k.ativos.toLocaleString("pt-BR")} icon={<CheckCircle2 size={18} />} color="var(--accent-green)" />
-                <KpiCard index={2} label="Em Manutenção" valor={k.emManutencao.toLocaleString("pt-BR")} icon={<Wrench size={18} />} color="var(--accent-amber)" />
-                <KpiCard index={3} label="Próximas Revisões" valor={k.proximasRevisoes.toLocaleString("pt-BR")} icon={<CalendarDays size={18} />} color="var(--accent-cyan)" />
-                <KpiCard index={4} label="CNHs a Vencer" valor={k.cnhVencer.toLocaleString("pt-BR")} icon={<CreditCard size={18} />} color="#f97316" />
-                <KpiCard index={5} label="Pneus em Estoque" valor={k.pneusEstoque.toLocaleString("pt-BR")} icon={<Package size={18} />} color="#8b5cf6" />
-                <KpiCard index={6} label="Pneus em Uso" valor={k.pneusUso.toLocaleString("pt-BR")} icon={<Activity size={18} />} color="#0d9488" />
-                <KpiCard index={7} label="Custos do Mês" valor={R(k.custoMes)} icon={<DollarSign size={18} />} color="var(--accent-green)" />
-                <KpiCard index={8} label="Custo por Veículo" valor={R(k.custoPorVeiculo)} icon={<BarChart2 size={18} />} color="var(--accent-amber)" />
-                <KpiCard index={9} label="Disponibilidade" valor={`${k.disponibilidade}%`} icon={<TrendingUp size={18} />} color={k.disponibilidade >= 70 ? "var(--accent-green)" : "var(--accent-red)"} />
+                {/* Parado e com avaria vem das ORDENS DE SERVICO, mesma fonte do
+                    Farol. Cor so acende quando ha o que acender: ambar fixo fazia
+                    zero e sete parecerem a mesma coisa. */}
+                <KpiCard index={2} label="Em Manutenção" valor={k.emManutencao.toLocaleString("pt-BR")} icon={<Wrench size={18} />} color={k.emManutencao > 0 ? "var(--accent-red)" : "var(--text-muted)"} />
+                <KpiCard index={3} label="Com Avaria" valor={(k.comAvaria ?? 0).toLocaleString("pt-BR")} icon={<AlertTriangle size={18} />} color={(k.comAvaria ?? 0) > 0 ? "var(--accent-amber)" : "var(--text-muted)"} />
+                <KpiCard index={4} label="Próximas Revisões" valor={k.proximasRevisoes.toLocaleString("pt-BR")} icon={<CalendarDays size={18} />} color="var(--accent-cyan)" />
+                <KpiCard index={5} label="CNHs a Vencer" valor={k.cnhVencer.toLocaleString("pt-BR")} icon={<CreditCard size={18} />} color="#f97316" />
+                <KpiCard index={6} label="Pneus em Estoque" valor={k.pneusEstoque.toLocaleString("pt-BR")} icon={<Package size={18} />} color="#8b5cf6" />
+                <KpiCard index={7} label="Pneus em Uso" valor={k.pneusUso.toLocaleString("pt-BR")} icon={<Activity size={18} />} color="#0d9488" />
+                <KpiCard index={8} label="Custos do Mês" valor={R(k.custoMes)} icon={<DollarSign size={18} />} color="var(--accent-green)" />
+                <KpiCard index={9} label="Custo por Veículo" valor={R(k.custoPorVeiculo)} icon={<BarChart2 size={18} />} color="var(--accent-amber)" />
+                <KpiCard index={10} label="Disponibilidade" valor={`${k.disponibilidade}%`} icon={<TrendingUp size={18} />} color={k.disponibilidade >= 70 ? "var(--accent-green)" : "var(--accent-red)"} />
               </div>
 
               {/* Charts row 1 */}

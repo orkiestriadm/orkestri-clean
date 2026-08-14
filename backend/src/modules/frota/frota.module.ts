@@ -2338,8 +2338,23 @@ class FrotaDashboardController {
     ]);
 
     const totalVeiculos = veiculos.length;
-    const ativos = veiculos.filter((v: any) => v.status === "ativo").length;
-    const emManutencao = veiculos.filter((v: any) => v.status === "manutencao").length;
+
+    // O estado operacional vem do FAROL, não do `status` do cadastro — aquele
+    // campo depende de alguém editar o veículo à mão, e ninguém edita: a frota
+    // inteira ficava "ativo", inclusive quem estava na oficina, e a dashboard
+    // anunciava 100% de disponibilidade contra sete parados no Farol.
+    //
+    // CHAMA o Farol em vez de repetir a regra dele. Tentei recalcular aqui com
+    // `farolDoVeiculo` e errei: o farol também fica amarelo por revisão
+    // atrasada, não só por OS, e treze veículos sumiam da conta. Duas
+    // implementações da mesma regra divergem assim que uma evolui.
+    const totaisFarol = (await this.relService.statusFrota(orgId, {})).totais;
+    const emManutencao = totaisFarol.parado;
+    const comAvaria = totaisFarol.operandoComAvaria;
+    // "Ativos" é o que roda: operando + operando com avaria. Um veículo com
+    // defeito continua rodando — contá-lo fora faria o número despencar assim
+    // que alguém registrasse a primeira avaria.
+    const ativos = totaisFarol.operando + totaisFarol.operandoComAvaria;
     const custoMes = (sManut._sum.custo || 0) + (sAbast._sum.valorTotal || 0) + (sRev._sum.custo || 0) + (sDoc._sum.valor || 0);
 
     // Buckets mensais
@@ -2385,7 +2400,12 @@ class FrotaDashboardController {
         totalVeiculos, ativos, emManutencao, proximasRevisoes, cnhVencer, pneusEstoque, pneusUso,
         custoMes: Number(custoMes.toFixed(2)),
         custoPorVeiculo: totalVeiculos ? Number((custoMes / totalVeiculos).toFixed(2)) : 0,
+        // Mesma conta do Farol: quem roda sobre o total. Antes dividia
+        // `status == "ativo"` pelo total, o que dava 100% sempre.
         disponibilidade: totalVeiculos ? Math.round((ativos / totalVeiculos) * 100) : 0,
+        // Trinta veículos rodando com defeito não apareciam em lugar nenhum da
+        // dashboard — o dado existia e ninguém via.
+        comAvaria,
       },
       charts: { custosMensais, custosPorVeiculo, custosPorUnidade, manutencoes, revisoes, consumo, trocasPneus, vencimentos },
     };
