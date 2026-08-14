@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "1.10.0";
+export const VERSAO = "1.10.1";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -26,7 +26,7 @@ export const VERSAO = "1.10.0";
 export const VERSAO_DATA = "2026-08-12";
 
 /** Nome da entrega, para dar contexto ao número. */
-export const VERSAO_NOME = "Chamados: fila, histórico e carga da equipe";
+export const VERSAO_NOME = "Formulários de Frotas";
 
 /**
  * Histórico exibido na tela Sobre, do mais recente para o mais antigo.
@@ -35,6 +35,21 @@ export const VERSAO_NOME = "Chamados: fila, histórico e carga da equipe";
  * esta lista quer saber o que mudou para ele.
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
+  {
+    versao: "1.10.1",
+    data: "2026-08-12",
+    titulo: "Formulários de Frotas",
+    itens: [
+      "Cadastro de veículo organizado em blocos — Identificação, Veículo, Operação, Abastecimento, Aquisição e Anotações — em vez de vinte e seis campos em lista corrida",
+      "Saíram do cadastro de veículo os campos Categoria, Unidade, Responsável e Motorista padrão, que não eram usados; as colunas correspondentes também saíram da listagem, onde só mostravam traço",
+      "Ordem de serviço reorganizada, com o problema relatado logo no início e as três datas de prazo juntas",
+      "Na ordem de serviço, a marcação de veículo parado ganhou destaque e passou a explicar o efeito: marcada, o veículo fica vermelho no Farol da Frota; desmarcada, amarelo",
+      "O campo de problema da ordem de serviço virou caixa de texto — era uma linha só para relatos que passam de mil caracteres",
+      "Na revisão, \"KM previsto\" passou a se chamar \"KM atual\", inclusive no relatório exportado, e o formulário separa o que foi planejado do que foi feito",
+      "Corrigido: as telas de ordem de serviço e de categoria diziam \"Novo ordem de serviço\" e \"Novo categoria\"",
+      "Explicações que estavam entre parênteses no rótulo passaram para baixo do campo, onde cabem inteiras",
+    ],
+  },
   {
     versao: "1.10.0",
     data: "2026-08-12",

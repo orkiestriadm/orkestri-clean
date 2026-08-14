@@ -61,7 +61,7 @@ const downloadAnexos = async (id: string) => {
 };
 
 const config: CrudConfig = {
-  endpoint: "/frota/manutencoes", tabela: "manutencoes_veiculo", singular: "ordem de serviço", plural: "Manutenções (OS)",
+  endpoint: "/frota/manutencoes", tabela: "manutencoes_veiculo", singular: "ordem de serviço", genero: "f", plural: "Manutenções (OS)",
   defaults: { tipo: "corretiva", status: "aberta", imobiliza: true },
   detailHref: r => `/dashboard/frota/manutencoes/${r.id}`,
   filters: [
@@ -89,26 +89,43 @@ const config: CrudConfig = {
     { key: "status", label: "Status", render: r => <Badge color={STATUS[r.status]}>{STATUS_OPTS.find(s => s.value === r.status)?.label || r.status}</Badge> },
   ],
   fields: [
-    { key: "numeroOs", label: "Número OS (auto se vazio)", placeholder: "OS-00001" },
-    { key: "veiculoId", label: "Veículo", type: "select", source: "veiculos", required: true },
-    { key: "tipo", label: "Tipo", type: "select", options: TIPO_OPTS },
-    { key: "status", label: "Status", type: "select", options: STATUS_OPTS },
-    { key: "solicitanteId", label: "Solicitante", type: "select", source: "users" },
-    { key: "oficina", label: "Oficina" },
-    { key: "fornecedor", label: "Fornecedor" },
-    { key: "dataAbertura", label: "Data de abertura", type: "date" },
-    { key: "previsaoLiberacao", label: "Previsão de liberação", type: "date" },
-    { key: "dataFechamento", label: "Data de fechamento", type: "date" },
-    { key: "localizacao", label: "Localização do veículo", placeholder: "Oficina, base, pátio..." },
-    // O que separa "Parado" (vermelho) de "Operando com Avaria" (amarelo) no
-    // Farol da Frota. Marcado por padrão = comportamento anterior.
-    { key: "imobiliza", label: "Veículo imobilizado (não pode operar)", type: "checkbox" },
-    { key: "km", label: "KM", type: "number" },
-    { key: "custoPecas", label: "Custo peças (R$)", type: "number", step: 0.01 },
-    { key: "custoServicos", label: "Custo serviços (R$)", type: "number", step: 0.01 },
-    { key: "custoTerceiros", label: "Custo terceiros (R$)", type: "number", step: 0.01 },
-    { key: "descricao", label: "Descrição", full: true },
-    { key: "observacoes", label: "Observações", type: "textarea" },
+    // ── O que a ordem é. ───────────────────────────────────────────────────
+    { key: "veiculoId", label: "Veículo", type: "select", source: "veiculos", required: true, secao: "A ordem" },
+    { key: "numeroOs", label: "Número da OS", placeholder: "gerado se vazio", secao: "A ordem",
+      ajuda: "Deixe em branco para o sistema numerar" },
+    { key: "tipo", label: "Tipo", type: "select", options: TIPO_OPTS, secao: "A ordem" },
+    { key: "status", label: "Status", type: "select", options: STATUS_OPTS, secao: "A ordem" },
+
+    // ── O problema, primeiro: é por ele que a OS existe. ───────────────────
+    { key: "descricao", label: "Problema relatado", type: "textarea", full: true, secao: "O problema",
+      ajuda: "O que o motorista ou a inspeção encontrou" },
+
+    // ── Decide a cor do veículo no Farol da Frota, então vem sozinho e no
+    //    topo do bloco — antes ficava enterrado entre Localização e KM, com
+    //    cara de detalhe. ────────────────────────────────────────────────────
+    { key: "imobiliza", label: "Veículo está parado", type: "checkbox", full: true, secao: "Situação do veículo",
+      placeholder: "Não pode operar",
+      ajuda: "Marcado, o veículo fica vermelho no Farol; desmarcado, amarelo (operando com avaria)" },
+    { key: "localizacao", label: "Onde está", placeholder: "Oficina, base, pátio...", secao: "Situação do veículo" },
+    { key: "km", label: "Hodômetro (km)", type: "number", secao: "Situação do veículo" },
+
+    // ── Quem atende. ──────────────────────────────────────────────────────
+    { key: "oficina", label: "Oficina", secao: "Atendimento" },
+    { key: "fornecedor", label: "Fornecedor", secao: "Atendimento" },
+    { key: "solicitanteId", label: "Solicitante", type: "select", source: "users", secao: "Atendimento" },
+
+    // ── As três datas juntas: é a leitura de prazo. ───────────────────────
+    { key: "dataAbertura", label: "Abertura", type: "date", secao: "Prazos" },
+    { key: "previsaoLiberacao", label: "Previsão de liberação", type: "date", secao: "Prazos",
+      ajuda: "Vencida e sem fechamento, a OS é sinalizada no Farol" },
+    { key: "dataFechamento", label: "Fechamento", type: "date", secao: "Prazos" },
+
+    // ── Custos separados por natureza, como o relatório cobra. ────────────
+    { key: "custoPecas", label: "Peças (R$)", type: "number", step: 0.01, secao: "Custos" },
+    { key: "custoServicos", label: "Serviços (R$)", type: "number", step: 0.01, secao: "Custos" },
+    { key: "custoTerceiros", label: "Terceiros (R$)", type: "number", step: 0.01, secao: "Custos" },
+
+    { key: "observacoes", label: "Observações", type: "textarea", full: true, secao: "Anotações" },
   ],
 };
 

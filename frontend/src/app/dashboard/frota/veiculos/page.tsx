@@ -35,38 +35,46 @@ const config: CrudConfig = {
     { key: "modelo", label: "Marca/Modelo", render: r => [r.marca, r.modelo].filter(Boolean).join(" ") || "—" },
     { key: "descricao", label: "Descrição", render: r => <span title={r.descricao || ""} style={{ display: "inline-block", maxWidth: 220, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", verticalAlign: "bottom", color: r.descricao ? "var(--text-primary)" : "var(--text-muted)" }}>{r.descricao || "—"}</span> },
     { key: "setor", label: "Setor", render: r => r.setor ? <Badge color={r.setor.cor}>{r.setor.nome}</Badge> : "—" },
-    { key: "categoria", label: "Categoria", render: r => r.categoria ? <Badge color={r.categoria.cor}>{r.categoria.nome}</Badge> : "—" },
-    { key: "responsavel", label: "Responsável", render: r => r.responsavel?.nome || "—" },
     { key: "kmAtual", label: "Hodômetro", align: "right", render: r => (r.kmAtual ?? 0).toLocaleString("pt-BR") },
     { key: "status", label: "Status", render: r => <Badge color={STATUS[r.status]}>{STATUS_OPTS.find(s => s.value === r.status)?.label || r.status}</Badge> },
   ],
   fields: [
-    { key: "codigo", label: "Código interno (auto se vazio)", placeholder: "FRT-00001" },
-    { key: "identificacao", label: "Identificação (apelido operacional)", placeholder: "GL1, GP-2, TR04, IT08..." },
-    { key: "placa", label: "Placa", required: true, placeholder: "ABC1D23" },
-    { key: "renavam", label: "RENAVAM" },
-    { key: "chassi", label: "Chassi" },
-    { key: "marca", label: "Marca" },
-    { key: "modelo", label: "Modelo" },
-    { key: "descricao", label: "Descrição", type: "textarea", full: true },
-    { key: "anoFabricacao", label: "Ano fabricação", type: "number" },
-    { key: "anoModelo", label: "Ano modelo", type: "number" },
-    { key: "cor", label: "Cor" },
-    { key: "tipo", label: "Tipo", type: "select", options: TIPO_OPTS },
-    { key: "categoriaId", label: "Categoria", type: "select", source: "categorias" },
-    { key: "centroCusto", label: "Centro de custo" },
-    { key: "unidade", label: "Unidade" },
-    { key: "setorId", label: "Setor", type: "select", source: "setores" },
-    { key: "responsavelId", label: "Responsável", type: "select", source: "users" },
-    { key: "motoristaId", label: "Motorista padrão", type: "select", source: "motoristas" },
-    { key: "combustivel", label: "Combustível", type: "select", options: COMB_OPTS },
-    { key: "capacidadeTanque", label: "Capacidade do tanque (L)", type: "number", step: 0.1 },
-    { key: "kmAtual", label: "Hodômetro atual (km)", type: "number" },
-    { key: "horimetroAtual", label: "Horímetro atual (h)", type: "number" },
-    { key: "dataAquisicao", label: "Data de aquisição", type: "date" },
-    { key: "valorAquisicao", label: "Valor de aquisição (R$)", type: "number", step: 0.01 },
-    { key: "status", label: "Status", type: "select", options: STATUS_OPTS },
-    { key: "observacoes", label: "Observações", type: "textarea" },
+    // ── O que identifica o veículo. É por aqui que se procura. ──────────────
+    { key: "placa", label: "Placa", required: true, placeholder: "ABC1D23", secao: "Identificação" },
+    { key: "identificacao", label: "Identificação", placeholder: "GL1, TR04, IT08...", secao: "Identificação",
+      ajuda: "Apelido que a operação usa no dia a dia" },
+    { key: "codigo", label: "Código interno", placeholder: "gerado se vazio", secao: "Identificação",
+      ajuda: "Patrimônio. Deixe em branco para o sistema numerar" },
+    { key: "tipo", label: "Tipo", type: "select", options: TIPO_OPTS, secao: "Identificação" },
+
+    // ── A ficha do veículo: o que ele é, e não muda. ────────────────────────
+    { key: "marca", label: "Marca", secao: "Veículo" },
+    { key: "modelo", label: "Modelo", secao: "Veículo" },
+    { key: "cor", label: "Cor", secao: "Veículo" },
+    { key: "anoFabricacao", label: "Ano de fabricação", type: "number", secao: "Veículo" },
+    { key: "anoModelo", label: "Ano do modelo", type: "number", secao: "Veículo" },
+    { key: "renavam", label: "RENAVAM", secao: "Veículo" },
+    { key: "chassi", label: "Chassi", secao: "Veículo" },
+
+    // ── Onde está e como está. Muda com o uso. ──────────────────────────────
+    { key: "status", label: "Situação", type: "select", options: STATUS_OPTS, secao: "Operação" },
+    { key: "setorId", label: "Setor", type: "select", source: "setores", secao: "Operação" },
+    { key: "centroCusto", label: "Centro de custo", secao: "Operação" },
+    { key: "kmAtual", label: "Hodômetro (km)", type: "number", secao: "Operação" },
+    { key: "horimetroAtual", label: "Horímetro (h)", type: "number", secao: "Operação",
+      ajuda: "Para máquina que conta hora, não quilômetro" },
+
+    // ── Abastecimento: separado porque alimenta o cálculo de consumo. ───────
+    { key: "combustivel", label: "Combustível", type: "select", options: COMB_OPTS, secao: "Abastecimento" },
+    { key: "capacidadeTanque", label: "Capacidade do tanque (L)", type: "number", step: 0.1, secao: "Abastecimento" },
+
+    // ── Aquisição: preenchido uma vez, quase nunca revisitado. ──────────────
+    { key: "dataAquisicao", label: "Data de aquisição", type: "date", secao: "Aquisição" },
+    { key: "valorAquisicao", label: "Valor de aquisição (R$)", type: "number", step: 0.01, secao: "Aquisição" },
+
+    // ── Texto livre, por último: ocupa a linha inteira e não compete. ───────
+    { key: "descricao", label: "Descrição", type: "textarea", full: true, secao: "Anotações" },
+    { key: "observacoes", label: "Observações", type: "textarea", full: true, secao: "Anotações" },
   ],
 };
 

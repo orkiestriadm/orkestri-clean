@@ -108,7 +108,7 @@ function BloqueioCnhConfig() {
 }
 
 const config: CrudConfig = {
-  endpoint: "/frota/categorias", tabela: "categorias_veiculo", singular: "categoria", plural: "Categorias de veículo",
+  endpoint: "/frota/categorias", tabela: "categorias_veiculo", singular: "categoria", genero: "f", plural: "Categorias de veículo",
   defaults: { ativo: true, cor: "#0ea5e9", icone: "car" },
   columns: [
     { key: "nome", label: "Nome", render: r => <span style={{ fontWeight: 600 }}>{r.nome}</span> },

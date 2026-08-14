@@ -136,6 +136,12 @@ function RegistroModal({ registro, veiculos, onSaved, onClose }: { registro?: an
           <button className="btn-icon" onClick={onClose}><X size={16} /></button>
         </div>
         {err && <div style={{ fontSize: 12, color: "var(--accent-red)" }}>{err}</div>}
+        {/* Três blocos, na ordem em que a revisão acontece: o que ela é, o que
+            foi planejado, o que foi feito. Antes eram onze campos numa grade
+            corrida, com as datas previstas e realizadas se alternando — quem
+            registra uma revisão já feita lia quatro campos de previsão antes de
+            chegar no que interessa. */}
+        <Secao titulo="A revisão" />
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
           <FieldLabel label="VEÍCULO *">
             <select className="input-o" value={d.veiculoId || ""} onChange={e => set("veiculoId", e.target.value)}>
@@ -145,8 +151,19 @@ function RegistroModal({ registro, veiculos, onSaved, onClose }: { registro?: an
           <FieldLabel label="TIPO"><select className="input-o" value={d.tipo || "troca_oleo"} onChange={e => set("tipo", e.target.value)}>{TIPO_OPTS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}</select></FieldLabel>
           <FieldLabel label="STATUS"><select className="input-o" value={d.status || "agendada"} onChange={e => set("status", e.target.value)}>{STATUS_OPTS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}</select></FieldLabel>
           <FieldLabel label="OFICINA"><input className="input-o" value={d.oficina || ""} onChange={e => set("oficina", e.target.value)} /></FieldLabel>
+        </div>
+
+        <Secao titulo="Planejamento" />
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
           <FieldLabel label="DATA PREVISTA"><input className="input-o" type="date" value={d.dataPrevista ? String(d.dataPrevista).slice(0, 10) : ""} onChange={e => set("dataPrevista", e.target.value || null)} /></FieldLabel>
-          <FieldLabel label="KM PREVISTO"><input className="input-o" type="number" value={d.kmPrevisto ?? ""} onChange={e => set("kmPrevisto", e.target.value === "" ? null : Number(e.target.value))} /></FieldLabel>
+          {/* Renomeado a pedido: é o hodômetro do veículo no momento do
+              registro, não uma previsão. A coluna no banco segue `kmPrevisto` —
+              renomear custaria migration sem ganho de função. */}
+          <FieldLabel label="KM ATUAL"><input className="input-o" type="number" value={d.kmPrevisto ?? ""} onChange={e => set("kmPrevisto", e.target.value === "" ? null : Number(e.target.value))} /></FieldLabel>
+        </div>
+
+        <Secao titulo="O que foi feito" />
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
           <FieldLabel label="DATA REALIZADA"><input className="input-o" type="date" value={d.dataRealizada ? String(d.dataRealizada).slice(0, 10) : ""} onChange={e => set("dataRealizada", e.target.value || null)} /></FieldLabel>
           <FieldLabel label="KM REALIZADO"><input className="input-o" type="number" value={d.kmRealizado ?? ""} onChange={e => set("kmRealizado", e.target.value === "" ? null : Number(e.target.value))} /></FieldLabel>
           <FieldLabel label="HORÍMETRO"><input className="input-o" type="number" value={d.horimetro ?? ""} onChange={e => set("horimetro", e.target.value === "" ? null : Number(e.target.value))} /></FieldLabel>
@@ -158,6 +175,21 @@ function RegistroModal({ registro, veiculos, onSaved, onClose }: { registro?: an
           <button className="btn btn-violet" onClick={save} disabled={saving}>{saving ? "Salvando..." : "Salvar"}</button>
         </div>
       </div>
+    </div>
+  );
+}
+
+/** Título de bloco do formulário. A linha que segue o texto separa sem pesar:
+ *  borda cheia dividiria o modal em caixas e ele ficaria maior do que é. */
+function Secao({ titulo }: { titulo: string }) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 4 }}>
+      <span style={{
+        fontFamily: "var(--font-mono)", fontSize: 10, fontWeight: 600,
+        letterSpacing: "0.14em", textTransform: "uppercase",
+        color: "var(--text-muted)", whiteSpace: "nowrap",
+      }}>{titulo}</span>
+      <span style={{ flex: 1, height: 1, background: "var(--border-subtle)" }} />
     </div>
   );
 }

@@ -866,7 +866,7 @@ export class FrotaRelatoriosService {
         { header: "Tipo", get: l => l.tipo || "" },
         { header: "Descrição", get: l => l.descricao || "" },
         { header: "Data Prevista", get: l => fmtData(l.dataPrevista) },
-        { header: "KM Previsto", get: l => num(l.kmPrevisto) },
+        { header: "KM Atual", get: l => num(l.kmPrevisto) },
         { header: "Data Realizada", get: l => fmtData(l.dataRealizada) },
         { header: "KM Realizado", get: l => num(l.kmRealizado) },
         { header: "Status", get: l => l.status },

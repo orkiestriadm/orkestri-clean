@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Topbar from "@/components/layout/Topbar";
@@ -34,6 +34,11 @@ export type Field = {
   key: string; label: string; type?: FieldType;
   options?: Option[]; source?: SourceKey;
   required?: boolean; placeholder?: string; step?: number; full?: boolean;
+  /** Agrupa o campo sob um título no formulário. Opcional: sem `secao` em
+   *  nenhum campo, o formulário renderiza a lista corrida de sempre. */
+  secao?: string;
+  /** Texto curto sob o campo, para o que o rótulo não cabe explicar. */
+  ajuda?: string;
 };
 export type Lookups = Record<SourceKey, Option[]>;
 export type Column = {
@@ -43,6 +48,9 @@ export type Column = {
 };
 export type Filter = { key: string; label: string; options?: Option[]; source?: SourceKey };
 export type CrudConfig = {
+  /** Gênero do `singular`, para o título do modal concordar. Sem declarar,
+   *  assume masculino — que era o comportamento fixo antes. */
+  genero?: "m" | "f";
   endpoint: string;   // ex.: "/frota/veiculos"
   tabela: string;     // ex.: "veiculos" (para histórico/auditoria)
   singular: string;   // ex.: "veículo"
@@ -148,6 +156,19 @@ export function FormModal({ config, lookups, initial, onSaved, onClose }: {
   const optionsFor = (f: Field): Option[] =>
     f.source ? (lookups[f.source] || []) : (f.options || []);
 
+  // Agrupa preservando a ORDEM em que as seções aparecem na configuração —
+  // ordenar alfabeticamente embaralharia a sequência pensada de preenchimento.
+  const agrupado = useMemo(() => {
+    const ordem: string[] = [];
+    const mapa = new Map<string, Field[]>();
+    for (const f of config.fields) {
+      const s = f.secao || "";
+      if (!mapa.has(s)) { mapa.set(s, []); ordem.push(s); }
+      mapa.get(s)!.push(f);
+    }
+    return ordem.map(secao => ({ secao, campos: mapa.get(secao)! }));
+  }, [config.fields]);
+
   const save = async () => {
     for (const f of config.fields) {
       if (f.required && (d[f.key] === undefined || d[f.key] === null || String(d[f.key]).trim() === "")) {
@@ -169,14 +190,34 @@ export function FormModal({ config, lookups, initial, onSaved, onClose }: {
       <div className="modal-box" style={{ maxWidth: 680 }} onClick={e => e.stopPropagation()}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
           <h3 style={{ fontFamily: "var(--font-display)", fontSize: 16, fontWeight: 700 }}>
-            {isEdit ? `Editar ${config.singular}` : `Novo ${config.singular}`}
+            {isEdit
+              ? `Editar ${config.singular}`
+              : `${config.genero === "f" ? "Nova" : "Novo"} ${config.singular}`}
           </h3>
           <button className="btn-icon" onClick={onClose}><X size={16} /></button>
         </div>
         {err && <div style={{ fontSize: 12, color: "var(--accent-red)", padding: "8px 12px", background: "rgba(239,68,68,0.08)", borderRadius: 8, marginBottom: 14 }}>{err}</div>}
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, maxHeight: "68vh", overflowY: "auto", paddingRight: 4 }}>
-          {config.fields.map((f) => {
+        <div style={{ maxHeight: "68vh", overflowY: "auto", paddingRight: 4 }}>
+        {agrupado.map(({ secao, campos }, iSecao) => (
+        <div key={secao || "_"}>
+          {/* Cabeçalho da seção. Vinte e seis campos em lista corrida obrigam a
+              varrer tudo para achar um; o título dá âncora para o olho. */}
+          {secao && (
+            <div style={{
+              display: "flex", alignItems: "center", gap: 10,
+              marginTop: iSecao === 0 ? 0 : 22, marginBottom: 12,
+            }}>
+              <span style={{
+                fontFamily: "var(--font-mono)", fontSize: 10, fontWeight: 600,
+                letterSpacing: "0.14em", textTransform: "uppercase",
+                color: "var(--text-muted)", whiteSpace: "nowrap",
+              }}>{secao}</span>
+              <span style={{ flex: 1, height: 1, background: "var(--border-subtle)" }} />
+            </div>
+          )}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+          {campos.map((f) => {
             const type = f.type || "text";
             const wrap = (child: React.ReactNode) => (
               <div key={f.key} style={f.full || type === "textarea" ? { gridColumn: "1/-1" } : undefined}>
@@ -184,6 +225,9 @@ export function FormModal({ config, lookups, initial, onSaved, onClose }: {
                   {f.label}{f.required ? " *" : ""}
                 </label>
                 {child}
+                {f.ajuda && (
+                  <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 4 }}>{f.ajuda}</div>
+                )}
               </div>
             );
             if (type === "select") return wrap(
@@ -211,6 +255,9 @@ export function FormModal({ config, lookups, initial, onSaved, onClose }: {
               <input className="input-o" value={d[f.key] ?? ""} onChange={e => set(f.key, e.target.value)} placeholder={f.placeholder} />
             );
           })}
+          </div>
+        </div>
+        ))}
         </div>
 
         <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 20 }}>
