@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "1.10.4";
+export const VERSAO = "1.10.5";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -23,10 +23,10 @@ export const VERSAO = "1.10.4";
  * Não é gerada no build: `new Date()` no bundle muda a cada compilação, e duas
  * builds do mesmo código pareceriam versões diferentes.
  */
-export const VERSAO_DATA = "2026-08-13";
+export const VERSAO_DATA = "2026-08-14";
 
 /** Nome da entrega, para dar contexto ao número. */
-export const VERSAO_NOME = "Formulários de Frotas";
+export const VERSAO_NOME = "Dashboard de Frotas com dado real";
 
 /**
  * Histórico exibido na tela Sobre, do mais recente para o mais antigo.
@@ -35,6 +35,16 @@ export const VERSAO_NOME = "Formulários de Frotas";
  * esta lista quer saber o que mudou para ele.
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
+  {
+    versao: "1.10.5",
+    data: "2026-08-14",
+    titulo: "Dashboard de Frotas com dado real",
+    itens: [
+      "A dashboard de Frotas passou a ler o estado dos veículos das ordens de serviço, e não do campo Status do cadastro — ela anunciava 100% de disponibilidade e nenhum veículo em manutenção enquanto o Farol, na tela ao lado, mostrava sete parados",
+      "Novo indicador \"Com Avaria\": veículos que continuam rodando com defeito aberto, um número que o sistema já tinha e não mostrava em lugar nenhum",
+      "\"Em Manutenção\" só acende quando há veículo parado — antes ficava colorido mesmo em zero, e zero e sete pareciam a mesma coisa",
+    ],
+  },
   {
     versao: "1.10.4",
     data: "2026-08-13",
