@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "1.10.5";
+export const VERSAO = "1.11.0";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -23,10 +23,10 @@ export const VERSAO = "1.10.5";
  * Não é gerada no build: `new Date()` no bundle muda a cada compilação, e duas
  * builds do mesmo código pareceriam versões diferentes.
  */
-export const VERSAO_DATA = "2026-08-14";
+export const VERSAO_DATA = "2026-08-15";
 
 /** Nome da entrega, para dar contexto ao número. */
-export const VERSAO_NOME = "Dashboard de Frotas com dado real";
+export const VERSAO_NOME = "Frotas: o KM do abastecimento manda";
 
 /**
  * Histórico exibido na tela Sobre, do mais recente para o mais antigo.
@@ -35,6 +35,24 @@ export const VERSAO_NOME = "Dashboard de Frotas com dado real";
  * esta lista quer saber o que mudou para ele.
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
+  {
+    versao: "1.11.0",
+    data: "2026-08-15",
+    titulo: "Frotas: o KM do abastecimento manda",
+    itens: [
+      "O quilômetro lançado no abastecimento passa a atualizar o hodômetro do veículo em todas as situações — inclusive ao corrigir ou excluir um lançamento, que antes não mexiam em nada. É desse número que a revisão por KM depende, e ele podia estar semanas atrasado sem nenhum aviso na tela",
+      "Leitura fora do razoável — um salto de mais de 30.000 km sobre o hodômetro atual — deixa de ser aceita, e a tela diz quantas foram recusadas em vez de informar apenas \"0 atualizados\"",
+      "O pneu montado passa a acompanhar a quilometragem do veículo: o aviso de rodízio e o custo por quilômetro estavam parados no número do dia da instalação",
+      "A agenda de revisão preventiva passa a gerar aviso. Ela mostrava vermelho na tela e não avisava ninguém, porque o alerta ainda olhava o agendamento por data, que deixou de ser usado",
+      "Ao abrir chamado de frota, a situação relatada — inoperante ou operando com avaria — chega ao módulo de Manutenção e sugere a cor do Farol. A decisão continua sendo de quem atende, agora com dois botões e a consequência escrita na própria ordem de serviço",
+      "A lista de ordens de serviço mostra de qual chamado cada uma nasceu e o que foi relatado na abertura",
+      "O controle de CNH deixa de cobrar motorista inativo: a conta passa a ser de quem está ativo, e desligados e afastados aparecem quando pedidos",
+      "Com o bloqueio de CNH ligado, motorista com habilitação vencida some dos campos de seleção — antes o bloqueio só pintava um aviso e a pessoa seguia selecionável",
+      "A dashboard de Frotas exporta em Excel e PDF, levando o mesmo recorte de filtros que está na tela",
+      "Estoque de pneus avulsos ganhou tela, com a quebra por medida — a pergunta de quem vai trocar não é quantos pneus existem, é se existe daquela medida",
+      "Corrigido: ordem de serviço já finalizada continuava disparando aviso de manutenção atrasada, todos os dias",
+    ],
+  },
   {
     versao: "1.10.5",
     data: "2026-08-14",
