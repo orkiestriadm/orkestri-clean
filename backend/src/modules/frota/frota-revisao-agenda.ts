@@ -153,6 +153,13 @@ function planoServeAoVeiculo(p: PlanoAgenda, v: VeiculoAgenda): boolean {
  *
  * `agora` entra por parâmetro para o teste não depender do relógio.
  */
+/** Resumo zerado — uma definição só, para o caminho vazio e o normal terem o
+ *  MESMO formato. Antes o retorno antecipado de frota vazia omitia `suspeitos`,
+ *  e quem consumisse a chave receberia `undefined` só naquele caso. */
+export function resumoVazio(): Record<string, number> {
+  return { vermelho: 0, laranja: 0, amarelo: 0, verde: 0, cinza: 0, suspeitos: 0 };
+}
+
 export function projetarAgendaRevisao(
   veiculos: VeiculoAgenda[],
   planos: PlanoAgenda[],
@@ -225,7 +232,7 @@ export function projetarAgendaRevisao(
     (SEVERIDADE_FAROL[a.farol] - SEVERIDADE_FAROL[b.farol]) ||
     ((a.restante ?? 1e12) - (b.restante ?? 1e12)));
 
-  const resumo: Record<string, number> = { vermelho: 0, laranja: 0, amarelo: 0, verde: 0, cinza: 0, suspeitos: 0 };
+  const resumo = resumoVazio();
   for (const i of itens) {
     resumo[i.farol] = (resumo[i.farol] || 0) + 1;
     if (i.suspeita) resumo.suspeitos++;
@@ -258,9 +265,7 @@ export async function carregarAgendaRevisao(
     }),
     db.planoRevisao.findMany({ where: { ...escopo, deletedAt: null, ativo: true } }),
   ]);
-  if (!veiculos.length || !planos.length) {
-    return { itens: [], resumo: { vermelho: 0, laranja: 0, amarelo: 0, verde: 0, cinza: 0 } };
-  }
+  if (!veiculos.length || !planos.length) return { itens: [], resumo: resumoVazio() };
 
   const sync = await sincronizarKmPorAbastecimento(db, {
     orgId: orgId ?? undefined,

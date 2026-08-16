@@ -116,17 +116,46 @@ const CATEGORIA_FROTAS = "Frotas";
 const CONDICOES_VEICULO = [
   {
     valor: "inoperante",
-    rotulo: "Inoperante",
-    ajuda: "Não roda. Parado.",
+    // Rótulos viraram RESPOSTA a uma pergunta. "Inoperante" e "operando com
+    // avaria" são termos de quem já conhece a regra; um chamado real chegou
+    // marcado como "operando com avaria" com o texto dizendo "TRATOR NÃO
+    // FUNCIONA". "Não, está parado" ninguém marca por engano num trator que
+    // não liga.
+    rotulo: "Não, está parado",
+    // `rotulo` responde à pergunta do formulário; `estado` nomeia a situação
+    // onde ela é só exibida. "Sim, mas com defeito" como legenda de painel não
+    // quer dizer nada fora da pergunta que a originou.
+    estado: "Parado",
+    ajuda: "Não sai do lugar, ou não pode rodar assim",
     cor: "var(--accent-red)",
   },
   {
     valor: "operando_com_avaria",
-    rotulo: "Operando com avaria",
-    ajuda: "Roda, mas com defeito.",
+    rotulo: "Sim, mas com defeito",
+    estado: "Operando com avaria",
+    ajuda: "Continua rodando, com o problema relatado",
     cor: "var(--accent-amber)",
   },
 ] as const;
+
+/**
+ * Sinais, no texto do chamado, de veículo que NÃO roda.
+ *
+ * Serve para um único aviso: o relato diz que parou e a escolha diz que anda.
+ * É dica, não trava — quem abre pode ter escrito "não funciona o ar" num
+ * caminhão que roda perfeitamente, e bloquear por causa disso trocaria um erro
+ * ocasional por um atrito diário.
+ */
+const TEXTO_DE_PARADO = [
+  "nao funciona", "não funciona", "nao liga", "não liga", "nao pega", "não pega",
+  "nao anda", "não anda", "nao sai", "não sai", "nao roda", "não roda",
+  "parado", "quebrado", "quebrou", "guincho", "rebocad", "fundiu", "travou",
+];
+
+function textoSugereParado(...partes: string[]): string | null {
+  const t = partes.join(" ").toLowerCase();
+  return TEXTO_DE_PARADO.find(p => t.includes(p)) || null;
+}
 const CATEGORIAS = ["Suporte Técnico","Financeiro","Comercial","RH","TI","Infraestrutura",CATEGORIA_FROTAS,"Dúvida","Solicitação","Reclamação","Outro"];
 
 /** Rótulos das OS do módulo de Frotas. */
@@ -1042,6 +1071,14 @@ function NovoChamadoModal({ onClose, onCreated }: { onClose: () => void; onCreat
       setError("Selecione o veículo do chamado de frotas.");
       return;
     }
+    // Obrigatória: era opcional, e "não informado" chegava na oficina sem
+    // dizer se o veículo parou — que é justamente o que decide atender agora
+    // ou depois. São dois cliques para quem abre e um turno de diferença para
+    // quem atende.
+    if (form.categoria === CATEGORIA_FROTAS && form.veiculoId && !form.condicaoVeiculo) {
+      setError("Responda se o veículo consegue rodar.");
+      return;
+    }
     if (!form.titulo.trim() || !form.descricao.trim()) {
       setError("Título e descrição são obrigatórios");
       return;
@@ -1202,7 +1239,7 @@ function NovoChamadoModal({ onClose, onCreated }: { onClose: () => void; onCreat
                   relato de quem abriu, não uma medição. */}
               <div className="mt-3">
                 <label className="text-[11px] text-[var(--text-muted)] font-mono block mb-1.5 uppercase tracking-wider">
-                  Condição do veículo
+                  O veículo consegue rodar? *
                 </label>
                 <div className="flex gap-2">
                   {CONDICOES_VEICULO.map(c => {
@@ -1211,7 +1248,10 @@ function NovoChamadoModal({ onClose, onCreated }: { onClose: () => void; onCreat
                       <button
                         key={c.valor}
                         type="button"
-                        onClick={() => setForm(f => ({ ...f, condicaoVeiculo: ativo ? "" : c.valor }))}
+                        // Sem alternar de volta para vazio: a resposta é
+                        // obrigatória, e um segundo clique que apagava a escolha
+                        // era um jeito silencioso de mandar "não informado".
+                        onClick={() => setForm(f => ({ ...f, condicaoVeiculo: c.valor }))}
                         aria-pressed={ativo}
                         className="flex-1 rounded-[10px] border px-3 py-2 text-left transition-colors"
                         style={{
@@ -1227,8 +1267,28 @@ function NovoChamadoModal({ onClose, onCreated }: { onClose: () => void; onCreat
                     );
                   })}
                 </div>
+
+                {/* O relato diz que parou e a resposta diz que anda. Avisa, não
+                    trava: "não funciona o ar" num caminhão que roda todo dia é
+                    um chamado legítimo, e bloquear trocaria um erro ocasional
+                    por um atrito diário. */}
+                {form.condicaoVeiculo === "operando_com_avaria" && (() => {
+                  const pista = textoSugereParado(form.titulo, form.descricao);
+                  if (!pista) return null;
+                  return (
+                    <div
+                      className="mt-2 rounded-[10px] border px-3 py-2 text-[11px]"
+                      style={{ borderColor: "var(--accent-amber)", background: "color-mix(in srgb, var(--accent-red) 8%, transparent)", color: "var(--text-secondary)" }}
+                    >
+                      O relato menciona <b>&ldquo;{pista}&rdquo;</b>, que soa como veículo parado — confira se
+                      ele realmente continua rodando.
+                    </div>
+                  );
+                })()}
+
                 <p className="text-[11px] text-[var(--text-muted)] mt-1.5">
-                  Só orienta quem vai atender. Não muda o farol do veículo em Frotas.
+                  Orienta quem vai atender e vira a sugestão do farol quando a ordem de serviço
+                  for aberta em Frotas. Quem decide o farol é quem atende, no módulo de Frotas.
                 </p>
               </div>
             </div>
@@ -1371,7 +1431,7 @@ function PainelFrota({ detail, canEditar, onUpdated }: {
             }}
           >
             <span className="block text-[13px] font-semibold" style={{ color: c.cor }}>
-              {c.rotulo}
+              {c.estado}
             </span>
             <span className="block text-[11px] text-[var(--text-muted)] mt-0.5">
               Relatado na abertura. Não reflete o farol do veículo em Frotas.

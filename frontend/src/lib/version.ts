@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "1.11.1";
+export const VERSAO = "1.11.2";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -26,7 +26,7 @@ export const VERSAO = "1.11.1";
 export const VERSAO_DATA = "2026-08-16";
 
 /** Nome da entrega, para dar contexto ao número. */
-export const VERSAO_NOME = "Atraso implausível não vira alerta";
+export const VERSAO_NOME = "Chamado de frota pergunta se o veículo roda";
 
 /**
  * Histórico exibido na tela Sobre, do mais recente para o mais antigo.
@@ -35,6 +35,16 @@ export const VERSAO_NOME = "Atraso implausível não vira alerta";
  * esta lista quer saber o que mudou para ele.
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
+  {
+    versao: "1.11.2",
+    data: "2026-08-16",
+    titulo: "Chamado de frota pergunta se o veículo roda",
+    itens: [
+      "Ao abrir chamado de frota, a condição do veículo virou uma pergunta direta — \"O veículo consegue rodar?\", com as respostas \"Não, está parado\" e \"Sim, mas com defeito\". Os rótulos anteriores eram termos de quem já conhece a regra, e um chamado real chegou marcado como \"operando com avaria\" descrevendo um trator que não funciona",
+      "Responder passou a ser obrigatório: sem isso o chamado chegava na oficina sem dizer se o veículo parou, que é justamente o que decide atender agora ou depois",
+      "Se o texto do chamado menciona algo como \"não liga\" ou \"quebrado\" e a resposta diz que o veículo roda, a tela avisa da contradição — sem impedir de salvar, porque \"não funciona o ar\" num caminhão que roda todo dia é chamado legítimo",
+    ],
+  },
   {
     versao: "1.11.1",
     data: "2026-08-16",
