@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "1.11.0";
+export const VERSAO = "1.11.1";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -23,10 +23,10 @@ export const VERSAO = "1.11.0";
  * Não é gerada no build: `new Date()` no bundle muda a cada compilação, e duas
  * builds do mesmo código pareceriam versões diferentes.
  */
-export const VERSAO_DATA = "2026-08-15";
+export const VERSAO_DATA = "2026-08-16";
 
 /** Nome da entrega, para dar contexto ao número. */
-export const VERSAO_NOME = "Frotas: o KM do abastecimento manda";
+export const VERSAO_NOME = "Atraso implausível não vira alerta";
 
 /**
  * Histórico exibido na tela Sobre, do mais recente para o mais antigo.
@@ -35,6 +35,16 @@ export const VERSAO_NOME = "Frotas: o KM do abastecimento manda";
  * esta lista quer saber o que mudou para ele.
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
+  {
+    versao: "1.11.1",
+    data: "2026-08-16",
+    titulo: "Atraso implausível não vira alerta",
+    itens: [
+      "Na agenda de revisão, atraso grande demais para ser verdade — mais de dez vezes o intervalo do plano — deixa de aparecer como revisão vencida e passa a pedir a conferência do hodômetro. Dois veículos apareciam \"vencidos\" por 3.304.493 e 571.442 km, herança de leituras de abastecimento gravadas antes de existir checagem",
+      "Esses casos também deixam de gerar aviso no WhatsApp: número absurdo na mensagem tira a credibilidade dos avisos que estão certos",
+      "A revisão realmente atrasada continua vermelha e continua avisando",
+    ],
+  },
   {
     versao: "1.11.0",
     data: "2026-08-15",

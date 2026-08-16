@@ -7,7 +7,7 @@ import { useAuthStore } from "@/lib/store";
 import { api } from "@/lib/api";
 import { Badge, fmtDate, fmtMoney } from "../_components/crud";
 import { PageBody, BackLink, PageHeader, StatGrid, StatCard } from "../_components/ui";
-import { Plus, Pencil, Trash2, X, CheckCircle2, ChevronLeft, CalendarDays, RefreshCw, Search, Filter } from "lucide-react";
+import { Plus, Pencil, Trash2, X, CheckCircle2, ChevronLeft, CalendarDays, RefreshCw, Search, Filter, AlertTriangle } from "lucide-react";
 
 const TIPO_OPTS = [
   { value: "troca_oleo", label: "Troca de óleo" }, { value: "filtros", label: "Filtros" },
@@ -432,8 +432,16 @@ export default function RevisoesPage() {
                           <span style={{ width: 10, height: 10, borderRadius: "50%", background: c, boxShadow: `0 0 12px ${c}`, flexShrink: 0 }} />
                           <span style={{ fontFamily: "var(--font-mono)", fontWeight: 700, fontSize: 15, letterSpacing: "0.02em", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{i.placa}</span>
                         </div>
-                        <span style={{ fontSize: 9, fontFamily: "var(--font-mono)", textTransform: "uppercase", letterSpacing: "0.08em", color: c, background: `${c}18`, border: `1px solid ${c}40`, borderRadius: 6, padding: "3px 8px", whiteSpace: "nowrap", flexShrink: 0 }}>{FAROL[i.farol].label}</span>
+                        <span style={{ fontSize: 9, fontFamily: "var(--font-mono)", textTransform: "uppercase", letterSpacing: "0.08em", color: c, background: `${c}18`, border: `1px solid ${c}40`, borderRadius: 6, padding: "3px 8px", whiteSpace: "nowrap", flexShrink: 0 }}>{i.suspeita ? "Conferir" : FAROL[i.farol].label}</span>
                       </div>
+                      {/* Atraso grande demais para ser verdade não é revisão vencida —
+                          é leitura errada. O card diz o que conferir em vez de
+                          exibir "vencida há 3.304.493 km", que ninguém sabe usar. */}
+                      {i.suspeita && (
+                        <div style={{ fontSize: 11, color: "var(--accent-amber)", background: "rgba(245,158,11,0.10)", border: "1px solid rgba(245,158,11,0.30)", borderRadius: 8, padding: "6px 9px", marginBottom: 10, display: "flex", alignItems: "center", gap: 6 }}>
+                          <AlertTriangle size={12} style={{ flexShrink: 0 }} /> {i.suspeita}
+                        </div>
+                      )}
                       <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 14, display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
                         {tipoLabel(i.tipo)} <span style={{ color: "var(--text-muted)" }}>· {BASE_OPTS.find(b => b.value === i.baseTipo)?.label}</span>
                         {i.agendamento && <span style={{ fontSize: 9, fontFamily: "var(--font-mono)", textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--accent-violet)", background: "var(--accent-violet-dim)", border: "1px solid rgba(124,58,237,0.3)", borderRadius: 5, padding: "1px 6px" }}>Agendada</span>}
@@ -446,7 +454,7 @@ export default function RevisoesPage() {
                         <div className="rev-bar-fill" style={{ position: "relative", overflow: "hidden", height: "100%", width: `${Math.max(3, pct)}%`, borderRadius: 6, background: `linear-gradient(90deg, ${c}aa, ${c})`, boxShadow: `0 0 12px ${c}88` }} />
                       </div>
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                        <span style={{ fontSize: 11, color: "var(--text-muted)" }}>{i.semDado ? "sem dado" : (i.restante != null && i.restante <= 0 ? restVal(i) : `faltam ${restVal(i)}`)}</span>
+                        <span style={{ fontSize: 11, color: "var(--text-muted)" }}>{i.suspeita ? "atraso não confiável" : i.semDado ? "sem dado" : (i.restante != null && i.restante <= 0 ? restVal(i) : `faltam ${restVal(i)}`)}</span>
                         <span style={{ fontSize: 11, fontFamily: "var(--font-mono)", fontWeight: 700, color: c }}>{pct}%</span>
                       </div>
                       {canEdit && !i.semDado && (

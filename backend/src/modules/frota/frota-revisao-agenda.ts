@@ -35,6 +35,43 @@ export const SEVERIDADE_FAROL: Record<string, number> = {
   vermelho: 0, laranja: 1, amarelo: 2, verde: 3, cinza: 4,
 };
 
+/**
+ * Atraso a partir do qual o número deixa de ser sinal de manutenção.
+ *
+ * Medido na base real de homologação em 15/08/2026: dois veículos apareceram
+ * "vencidos" por 3.304.493 km e 571.442 km. Não é revisão atrasada — é
+ * hodômetro impossível (um VW 13-190 marcando 3,6 milhões de km), herdado da
+ * época em que o abastecimento escrevia o KM do veículo sem checagem nenhuma.
+ *
+ * Dez intervalos é o corte. Num plano de 10.000 km isso é 100.000 km sem troca
+ * de óleo: quem opera não deixa chegar aí, e quem lê o alerta não acredita.
+ * Abaixo disso o atraso é grande mas crível, e continua acendendo vermelho.
+ *
+ * A escolha é deliberada: em vez de esconder a linha, ela vira "conferir
+ * hodômetro". O veículo continua na tela — com um problema que dá para
+ * resolver, em vez de um número absurdo que ninguém sabe o que fazer com.
+ */
+export const FATOR_ATRASO_IMPLAUSIVEL = 10;
+
+/**
+ * O atraso é grande demais para ser verdade?
+ *
+ * Devolve o texto do que conferir, ou `null` quando o atraso é crível.
+ */
+function suspeitaDeDado(
+  restante: number,
+  intervalo: number | null | undefined,
+  temHistorico: boolean,
+  unidade: string,
+): string | null {
+  if (restante >= 0 || !intervalo) return null;
+  if (Math.abs(restante) <= intervalo * FATOR_ATRASO_IMPLAUSIVEL) return null;
+  if (!temHistorico) return "Sem revisão registrada — conferir histórico";
+  return unidade === "dias"
+    ? "Sem revisão há tempo demais — conferir histórico"
+    : "Hodômetro implausível — conferir a leitura do veículo";
+}
+
 export type VeiculoAgenda = {
   id: string;
   placa?: string | null;
@@ -90,6 +127,9 @@ export type ItemAgendaRevisao = {
   intervalo?: number;
   pct?: number;
   semDado?: boolean;
+  /** Preenchido quando o atraso é grande demais para ser verdade — ver
+   *  `FATOR_ATRASO_IMPLAUSIVEL`. Item fica cinza e NÃO gera alerta. */
+  suspeita?: string;
   farol: FarolAgenda;
 };
 
@@ -144,10 +184,11 @@ export function projetarAgendaRevisao(
         const lastKm = last?.kmRealizado ?? atual;
         const prox = lastKm + p.intervaloKm;
         const restante = prox - atual;
+        const suspeita = suspeitaDeDado(restante, p.intervaloKm, !!last, "km");
         itens.push({
           ...base, proximaKm: prox, atual, restante, unidade: "km", intervalo: p.intervaloKm,
           pct: Math.max(0, Math.min(1, 1 - restante / p.intervaloKm)),
-          farol: farolFromPct(restante / p.intervaloKm),
+          ...(suspeita ? { suspeita, farol: "cinza" as FarolAgenda } : { farol: farolFromPct(restante / p.intervaloKm) }),
         });
       } else if (p.base === "data" && p.intervaloDias) {
         const lastData = last?.dataRealizada
@@ -155,10 +196,11 @@ export function projetarAgendaRevisao(
           : (v.dataAquisicao ? new Date(v.dataAquisicao) : new Date(v.criadoEm || agora));
         const prox = new Date(lastData.getTime() + p.intervaloDias * 86400000);
         const restante = Math.ceil((prox.getTime() - agora.getTime()) / 86400000);
+        const suspeita = suspeitaDeDado(restante, p.intervaloDias, !!last?.dataRealizada, "dias");
         itens.push({
           ...base, proximaData: prox, restante, unidade: "dias", intervalo: p.intervaloDias,
           pct: Math.max(0, Math.min(1, 1 - restante / p.intervaloDias)),
-          farol: farolFromPct(restante / p.intervaloDias),
+          ...(suspeita ? { suspeita, farol: "cinza" as FarolAgenda } : { farol: farolFromPct(restante / p.intervaloDias) }),
         });
       } else if (p.base === "horimetro" && p.intervaloHorimetro) {
         if (v.horimetroAtual == null) {
@@ -167,11 +209,12 @@ export function projetarAgendaRevisao(
           const lastH = last?.horimetro ?? v.horimetroAtual;
           const prox = lastH + p.intervaloHorimetro;
           const restante = prox - v.horimetroAtual;
+          const suspeita = suspeitaDeDado(restante, p.intervaloHorimetro, last?.horimetro != null, "h");
           itens.push({
             ...base, proximaHorimetro: prox, atual: v.horimetroAtual, restante, unidade: "h",
             intervalo: p.intervaloHorimetro,
             pct: Math.max(0, Math.min(1, 1 - restante / p.intervaloHorimetro)),
-            farol: farolFromPct(restante / p.intervaloHorimetro),
+            ...(suspeita ? { suspeita, farol: "cinza" as FarolAgenda } : { farol: farolFromPct(restante / p.intervaloHorimetro) }),
           });
         }
       }
@@ -182,8 +225,11 @@ export function projetarAgendaRevisao(
     (SEVERIDADE_FAROL[a.farol] - SEVERIDADE_FAROL[b.farol]) ||
     ((a.restante ?? 1e12) - (b.restante ?? 1e12)));
 
-  const resumo: Record<string, number> = { vermelho: 0, laranja: 0, amarelo: 0, verde: 0, cinza: 0 };
-  for (const i of itens) resumo[i.farol] = (resumo[i.farol] || 0) + 1;
+  const resumo: Record<string, number> = { vermelho: 0, laranja: 0, amarelo: 0, verde: 0, cinza: 0, suspeitos: 0 };
+  for (const i of itens) {
+    resumo[i.farol] = (resumo[i.farol] || 0) + 1;
+    if (i.suspeita) resumo.suspeitos++;
+  }
   return { itens, resumo };
 }
 

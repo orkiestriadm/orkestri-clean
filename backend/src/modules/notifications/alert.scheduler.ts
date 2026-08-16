@@ -576,7 +576,20 @@ export class AlertScheduler implements OnModuleInit {
         const { itens } = cicloPesado
           ? await carregarAgendaRevisao(this.prisma as any, null, now)
           : { itens: [] as ItemAgendaRevisao[] };
+        // Atraso implausível é hodômetro errado, não revisão vencida: alertar
+        // "passou 3.304.493 km do previsto" queima a credibilidade dos outros
+        // avisos junto. Fica na tela como "conferir hodômetro" e não vira
+        // mensagem — mas sai no log, porque cobertura que encolhe em silêncio
+        // se lê como cobertura completa.
+        const suspeitos = (itens as ItemAgendaRevisao[]).filter(i => i.suspeita);
+        if (suspeitos.length) {
+          this.logger.warn(
+            `Agenda de revisão: ${suspeitos.length} item(ns) fora do alerta por atraso implausível — ` +
+            suspeitos.slice(0, 5).map(i => `${i.placa || i.veiculoId} (${i.suspeita})`).join(", "));
+        }
+
         for (const it of itens as ItemAgendaRevisao[]) {
+          if (it.suspeita) continue;
           if (it.farol !== "vermelho" && it.farol !== "laranja") continue;
           if (!it.organizationId) continue;
           const veic = it.placa || it.codigo || "veículo";
