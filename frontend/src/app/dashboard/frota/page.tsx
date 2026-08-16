@@ -6,8 +6,9 @@ import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import Topbar from "@/components/layout/Topbar";
 import { api } from "@/lib/api";
+import { useToastStore } from "@/lib/toast";
 import {
-  Truck, CheckCircle2, Wrench, CalendarDays, CreditCard, Package, Activity, DollarSign, BarChart2, TrendingUp, Filter, RefreshCw, ChevronRight, X, AlertTriangle
+  Truck, CheckCircle2, Wrench, CalendarDays, CreditCard, Package, Activity, DollarSign, BarChart2, TrendingUp, Filter, RefreshCw, ChevronRight, X, AlertTriangle, Download, FileText
 } from "lucide-react";
 import {
   ResponsiveContainer, BarChart, Bar, LineChart, Line, ComposedChart, PieChart, Pie, Cell,
@@ -20,6 +21,77 @@ const TIPO_OPTS = [{ value: "carro", label: "Carro" }, { value: "moto", label: "
 const MANUT_LABEL: Record<string, string> = { aberta: "Aberta", em_andamento: "Em andamento", aguardando_pecas: "Aguard. peças", finalizada: "Finalizada", cancelada: "Cancelada" };
 const REV_LABEL: Record<string, string> = { agendada: "Agendada", realizada: "Realizada", atrasada: "Atrasada", cancelada: "Cancelada" };
 const PNEU_LABEL: Record<string, string> = { instalacao: "Instalação", remocao: "Remoção", rodizio: "Rodízio", recapagem: "Recapagem", descarte: "Descarte" };
+
+/**
+ * A dashboard em tabelas — definição ÚNICA, usada pelo Excel e pelo PDF.
+ *
+ * A lição vem dos relatórios: as colunas viviam em quatro mapeamentos separados
+ * (CSV, Excel, PDF, e-mail) e divergiram entre si até virarem uma definição só.
+ * Aqui já nasce assim — um exportador novo consome esta lista, não recopia os
+ * gráficos.
+ *
+ * O gráfico responde "como está"; a planilha responde "quanto exatamente", que
+ * é o que vai para reunião e para quem cobra o número. Por isso o Excel recebe
+ * NÚMERO, não texto formatado: célula com "R$ 1.234" não soma.
+ */
+type BlocoExport = { nome: string; headers: string[]; rows: (string | number)[][] };
+
+function blocosDaDashboard(k: any, c: any): BlocoExport[] {
+  const blocos: BlocoExport[] = [];
+  const add = (nome: string, headers: string[], linhas: any[], mapa: (x: any) => (string | number)[]) => {
+    if (!linhas?.length) return;
+    blocos.push({ nome, headers, rows: linhas.map(mapa) });
+  };
+
+  blocos.push({
+    nome: "Indicadores",
+    headers: ["Indicador", "Valor"],
+    rows: [
+      ["Total de veículos", k.totalVeiculos ?? 0],
+      ["Veículos ativos (operando + com avaria)", k.ativos ?? 0],
+      ["Em manutenção (parados)", k.emManutencao ?? 0],
+      ["Com avaria (rodando)", k.comAvaria ?? 0],
+      ["Próximas revisões", k.proximasRevisoes ?? 0],
+      ["CNHs a vencer", k.cnhVencer ?? 0],
+      ["Pneus em estoque", k.pneusEstoque ?? 0],
+      ["Pneus em uso", k.pneusUso ?? 0],
+      ["Custos do mês (R$)", k.custoMes ?? 0],
+      ["Custo por veículo (R$)", k.custoPorVeiculo ?? 0],
+      ["Disponibilidade (%)", k.disponibilidade ?? 0],
+    ],
+  });
+
+  add("Custos mensais", ["Mês", "Manutenção", "Abastecimento", "Revisão", "Documento", "Total"],
+    c.custosMensais, (x: any) => [x.label, num(x.manut), num(x.abast), num(x.revisao), num(x.doc),
+      num(x.manut) + num(x.abast) + num(x.revisao) + num(x.doc)]);
+  add("Custos por veículo", ["Veículo", "Total"], c.custosPorVeiculo, (x: any) => [x.placa || "—", num(x.total)]);
+  add("Custos por unidade", ["Unidade", "Total"], c.custosPorUnidade, (x: any) => [x.unidade || "—", num(x.total)]);
+  add("Consumo", ["Mês", "Litros", "km/L"], c.consumo, (x: any) => [x.label, num(x.litros), num(x.kmL)]);
+  add("Manutenções por status", ["Status", "Quantidade"], c.manutencoes,
+    (x: any) => [MANUT_LABEL[x.status] || x.status, num(x.count)]);
+  add("Revisões por status", ["Status", "Quantidade"], c.revisoes,
+    (x: any) => [REV_LABEL[x.status] || x.status, num(x.count)]);
+  add("Trocas de pneus", ["Evento", "Quantidade"], c.trocasPneus,
+    (x: any) => [PNEU_LABEL[x.tipo] || x.tipo, num(x.count)]);
+  add("Vencimentos de documentos", ["Faixa", "Quantidade"], c.vencimentos,
+    (x: any) => [x.faixa, num(x.count)]);
+
+  return blocos;
+}
+
+const num = (v: any) => Number(v || 0);
+
+/** Filtros ativos em texto — sem isso a planilha não diz de que recorte ela é. */
+function descreverFiltros(f: any, veiculos: any[], motoristas: any[]): string {
+  const partes: string[] = [];
+  if (f.from || f.to) partes.push(`Período: ${f.from || "início"} a ${f.to || "hoje"}`);
+  if (f.unidade) partes.push(`Unidade: ${f.unidade}`);
+  if (f.centroCusto) partes.push(`Centro de custo: ${f.centroCusto}`);
+  if (f.tipo) partes.push(`Tipo: ${TIPO_OPTS.find(t => t.value === f.tipo)?.label || f.tipo}`);
+  if (f.veiculoId) partes.push(`Veículo: ${veiculos.find(v => v.id === f.veiculoId)?.placa || f.veiculoId}`);
+  if (f.motoristaId) partes.push(`Motorista: ${motoristas.find(m => m.id === f.motoristaId)?.nome || f.motoristaId}`);
+  return partes.length ? partes.join(" · ") : "Sem filtros — frota inteira";
+}
 
 function KpiCard({ label, valor, icon, color, index = 0 }: { label: string; valor: string; icon: React.ReactNode; color: string; index?: number }) {
   return (
@@ -44,6 +116,7 @@ export default function FrotaDashboardPage() {
   const [motoristas, setMotoristas] = useState<any[]>([]);
   const [f, setF] = useState<any>({ from: "", to: "", unidade: "", centroCusto: "", tipo: "", veiculoId: "", motoristaId: "" });
   const [showFilters, setShowFilters] = useState(false);
+  const [exportando, setExportando] = useState("");
 
   const setFilter = (k: string, v: string) => setF((p: any) => ({ ...p, [k]: v }));
 
@@ -66,6 +139,75 @@ export default function FrotaDashboardPage() {
   const k = d?.kpis || { totalVeiculos: 0, ativos: 0, emManutencao: 0, proximasRevisoes: 0, cnhVencer: 0, pneusEstoque: 0, pneusUso: 0, custoMes: 0, custoPorVeiculo: 0, disponibilidade: 0 };
   const c = d?.charts || {};
 
+  const stamp = () => new Date().toISOString().slice(0, 10);
+
+  const exportarExcel = async () => {
+    if (!d) return;
+    setExportando("excel");
+    try {
+      const XLSX: any = await import("xlsx");
+      const wb = XLSX.utils.book_new();
+      const cabecalho = [
+        ["Dashboard de Frota"],
+        [descreverFiltros(f, veiculos, motoristas)],
+        [`Gerado em ${new Date().toLocaleString("pt-BR")}`],
+        [],
+      ];
+      for (const b of blocosDaDashboard(k, c)) {
+        const ws = XLSX.utils.aoa_to_sheet([
+          // Cada aba repete o recorte: aba solta em anexo de e-mail sem dizer de
+          // que período é já causou discussão sobre número "errado" que estava certo.
+          ...cabecalho, [b.nome], b.headers, ...b.rows,
+        ]);
+        ws["!cols"] = b.headers.map(h => ({ wch: Math.max(h.length + 4, 14) }));
+        // Nome de aba do Excel: 31 caracteres, sem : \ / ? * [ ]
+        XLSX.utils.book_append_sheet(wb, ws, b.nome.slice(0, 31));
+      }
+      XLSX.writeFile(wb, `dashboard-frota-${stamp()}.xlsx`);
+    } catch (e: any) {
+      useToastStore.getState().error("Erro", "Não foi possível gerar a planilha. " + (e?.message || ""));
+    } finally { setExportando(""); }
+  };
+
+  const exportarPDF = async () => {
+    if (!d) return;
+    setExportando("pdf");
+    try {
+      const { jsPDF }: any = await import("jspdf");
+      await import("jspdf-autotable");
+      const doc: any = new jsPDF({ orientation: "portrait" });
+
+      doc.setFont("helvetica", "bold"); doc.setFontSize(16);
+      doc.text("Dashboard de Frota", 14, 18);
+      doc.setFont("helvetica", "normal"); doc.setFontSize(9);
+      doc.text(descreverFiltros(f, veiculos, motoristas), 14, 25, { maxWidth: 180 });
+      doc.text(`Gerado em ${new Date().toLocaleString("pt-BR")}`, 14, 31);
+
+      let y = 38;
+      const alturaPagina = doc.internal.pageSize.getHeight();
+      for (const b of blocosDaDashboard(k, c)) {
+        // Título e tabela precisam caber juntos: título sozinho no pé da página
+        // vira legenda de nada.
+        if (y > alturaPagina - 45) { doc.addPage(); y = 20; }
+        doc.setFont("helvetica", "bold"); doc.setFontSize(11);
+        doc.text(b.nome, 14, y);
+        doc.autoTable({
+          startY: y + 3,
+          head: [b.headers],
+          body: b.rows.map(r => r.map(v => typeof v === "number" ? v.toLocaleString("pt-BR") : v)),
+          theme: "striped",
+          headStyles: { fillColor: [30, 27, 75], textColor: [255, 255, 255] },
+          styles: { fontSize: 8, cellPadding: 2.5 },
+          margin: { left: 14, right: 14 },
+        });
+        y = (doc.lastAutoTable?.finalY || y) + 12;
+      }
+      doc.save(`dashboard-frota-${stamp()}.pdf`);
+    } catch (e: any) {
+      useToastStore.getState().error("Erro", "Não foi possível gerar o PDF. " + (e?.message || ""));
+    } finally { setExportando(""); }
+  };
+
   return (
     <div className="flex flex-col h-full bg-[var(--bg-primary)] text-[var(--text-primary)] animate-in fade-in slide-in-from-bottom-4 duration-500">
       <Topbar />
@@ -85,6 +227,14 @@ export default function FrotaDashboardPage() {
                 <Filter size={14} /> Filtros
               </button>
               <button onClick={load} className="btn btn-ghost" style={{ fontSize: 12 }} title="Recarregar"><RefreshCw size={14} className={loading ? "animate-spin" : ""} /></button>
+              {/* Exporta o MESMO recorte que está na tela — os filtros valem para
+                  o arquivo, senão a planilha contradiz o gráfico ao lado. */}
+              <button onClick={exportarExcel} disabled={!d || !!exportando} className="btn btn-ghost" style={{ fontSize: 12, gap: 6 }} title="Baixar os números da dashboard em Excel">
+                <Download size={14} /> {exportando === "excel" ? "Gerando..." : "Excel"}
+              </button>
+              <button onClick={exportarPDF} disabled={!d || !!exportando} className="btn btn-ghost" style={{ fontSize: 12, gap: 6 }} title="Baixar os números da dashboard em PDF">
+                <FileText size={14} /> {exportando === "pdf" ? "Gerando..." : "PDF"}
+              </button>
               <Link href="/dashboard/frota/relatorios" className="btn btn-violet" style={{ fontSize: 12, textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 6 }}>
                 Central de Relatórios <ChevronRight size={14} />
               </Link>

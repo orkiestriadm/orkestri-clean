@@ -92,6 +92,13 @@ const SOURCE_EP: Record<SourceKey, string> = {
   setores:      "/setores",
   users:        "/users/picklist",
 };
+
+// Parâmetros extras por fonte. `paraSelecao` diz ao backend que esta lista vai
+// preencher um campo, não uma consulta: motorista inativo sai, e com o bloqueio
+// de CNH ligado quem está com a habilitação vencida também.
+const SOURCE_PARAMS: Partial<Record<SourceKey, Record<string, any>>> = {
+  motoristas: { paraSelecao: true },
+};
 function sourceLabel(key: SourceKey, row: any): string {
   if (key === "veiculos")     return `${row.placa || row.codigo}${row.modelo ? " — " + row.modelo : ""}${row.descricao ? " · " + String(row.descricao).slice(0, 30) : ""}`;
   return row.nome || row.placa || row.id;
@@ -153,8 +160,21 @@ export function FormModal({ config, lookups, initial, onSaved, onClose }: {
   const set = (k: string, v: any) => setD((p: any) => ({ ...p, [k]: v }));
   const isEdit = !!initial?.id;
 
-  const optionsFor = (f: Field): Option[] =>
-    f.source ? (lookups[f.source] || []) : (f.options || []);
+  /**
+   * Opções do campo, com o valor já gravado garantido na lista.
+   *
+   * As fontes filtram (motorista inativo não aparece para ser escolhido), e sem
+   * isso abrir um registro antigo mostraria o select em branco — e salvar
+   * apagaria o vínculo sem ninguém pedir. O valor atual entra como opção extra,
+   * marcado, e some assim que o usuário escolher outro.
+   */
+  const optionsFor = (f: Field): Option[] => {
+    const base = f.source ? (lookups[f.source] || []) : (f.options || []);
+    const atual = d?.[f.key];
+    if (!atual || typeof atual !== "string" || base.some(o => o.value === atual)) return base;
+    if (!f.source) return base;
+    return [{ value: atual, label: "— vínculo atual (fora da lista) —" }, ...base];
+  };
 
   // Agrupa preservando a ORDEM em que as seções aparecem na configuração —
   // ordenar alfabeticamente embaralharia a sequência pensada de preenchimento.
@@ -297,7 +317,7 @@ export default function CrudView({ config, intro }: { config: CrudConfig; intro?
     config.fields.forEach(f => f.source && used.add(f.source));
     config.filters?.forEach(f => f.source && used.add(f.source));
     used.forEach((key) => {
-      api.get(SOURCE_EP[key], { params: { limit: 200 }, silent: true })
+      api.get(SOURCE_EP[key], { params: { limit: 200, ...(SOURCE_PARAMS[key] || {}) }, silent: true })
         .then(r => {
           const rows = r.data?.items ?? r.data?.users ?? r.data ?? [];
           setLookups(prev => ({ ...prev, [key]: rows.map((row: any) => ({ value: row.id, label: sourceLabel(key, row) })) }));

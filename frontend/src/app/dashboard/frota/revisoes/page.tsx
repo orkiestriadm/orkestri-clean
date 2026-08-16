@@ -222,7 +222,13 @@ export default function RevisoesPage() {
     setSyncing(true);
     try {
       const r = await api.post("/frota/veiculos/km/sincronizar");
-      showMsg(`KM atualizado via abastecimento: ${r.data?.atualizados ?? 0} veiculo(s).`);
+      // "0 atualizados" tem duas causas muito diferentes: nada novo para puxar,
+      // ou leitura suspeita recusada pelo teto de salto. Sem separar as duas, o
+      // usuário conclui que o botão não faz nada.
+      const recusados = r.data?.recusados ?? 0;
+      showMsg(
+        `KM atualizado via abastecimento: ${r.data?.atualizados ?? 0} veiculo(s).` +
+        (recusados ? ` ${recusados} leitura(s) recusada(s) por salto implausivel — confira o abastecimento.` : ""));
       loadAgenda();
     } catch (e: any) { showMsg("Erro ao atualizar KM: " + (e?.response?.data?.message || "")); }
     finally { setSyncing(false); }

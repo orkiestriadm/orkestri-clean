@@ -165,6 +165,7 @@ export default function MotoristasPage() {
   const [loading, setLoading] = useState(false);
   const [q, setQ] = useState("");
   const [activeFilter, setActiveFilter] = useState("");
+  const [mostrarInativos, setMostrarInativos] = useState(false);
   const [editing, setEditing] = useState<Motorista | null>(null);
   const [creating, setCreating] = useState(false);
   const [msg, setMsg] = useState("");
@@ -194,20 +195,35 @@ export default function MotoristasPage() {
     catch { showMsg("Erro ao excluir"); }
   };
 
-  const filteredItems = items.filter(m => {
+  /**
+   * Quem saiu da empresa não é problema de CNH.
+   *
+   * "Vencidas" contava a frota inteira, inclusive desligados e afastados, e o
+   * número virava uma dívida que ninguém podia pagar — renovar a CNH de quem
+   * não dirige mais aqui não é tarefa de ninguém. A base de trabalho passa a ser
+   * só quem está ativo; o inativo aparece quando for pedido, clicando o card
+   * "Inativos" ou marcando a caixa ao lado da busca.
+   */
+  const verInativos = mostrarInativos || activeFilter === "inativos";
+  const base = verInativos ? items : items.filter(m => m.status === "ativo");
+
+  const filteredItems = base.filter(m => {
     if (q && !`${m.nome} ${m.matricula} ${m.cnh}`.toLowerCase().includes(q.toLowerCase())) return false;
     if (activeFilter === "vencidas") return getMotoristaCnhGroup(m.validadeCnh) === "vencida";
     if (activeFilter === "validas") return getMotoristaCnhGroup(m.validadeCnh) === "validas";
     if (activeFilter === "ativos") return m.status === "ativo";
-    if (activeFilter === "inativos") return m.status === "inativo";
+    if (activeFilter === "inativos") return m.status !== "ativo";
     return true;
   });
 
   const counts = {
-    vencidas: items.filter(m => getMotoristaCnhGroup(m.validadeCnh) === "vencida").length,
-    validas: items.filter(m => getMotoristaCnhGroup(m.validadeCnh) === "validas").length,
+    // Vencidas/Válidas seguem a base visível; Ativos/Inativos contam sempre a
+    // lista inteira, senão o card "Inativos" mostraria 0 e não haveria como
+    // chegar neles.
+    vencidas: base.filter(m => getMotoristaCnhGroup(m.validadeCnh) === "vencida").length,
+    validas: base.filter(m => getMotoristaCnhGroup(m.validadeCnh) === "validas").length,
     ativos: items.filter(m => m.status === "ativo").length,
-    inativos: items.filter(m => m.status === "inativo").length,
+    inativos: items.filter(m => m.status !== "ativo").length,
   };
 
   const exportCSV = () => {
@@ -281,8 +297,23 @@ export default function MotoristasPage() {
 
           <Toolbar>
             <SearchInput value={q} onChange={setQ} placeholder="Pesquisar por motorista, matrícula ou CNH..." />
-            {(q || activeFilter) && (
-              <button className="btn btn-ghost" style={{ fontSize: 11 }} onClick={() => { setQ(""); setActiveFilter(""); }}>
+            <label
+              style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 11, color: "var(--text-muted)", cursor: "pointer" }}
+              title="Desligados e afastados ficam fora da conta de CNH até serem pedidos aqui."
+            >
+              <input
+                type="checkbox"
+                checked={verInativos}
+                disabled={activeFilter === "inativos"}
+                onChange={e => setMostrarInativos(e.target.checked)}
+              />
+              Incluir inativos
+              {counts.inativos > 0 && !verInativos && (
+                <span className="num" style={{ color: "var(--text-faint)" }}>({counts.inativos} ocultos)</span>
+              )}
+            </label>
+            {(q || activeFilter || mostrarInativos) && (
+              <button className="btn btn-ghost" style={{ fontSize: 11 }} onClick={() => { setQ(""); setActiveFilter(""); setMostrarInativos(false); }}>
                 Limpar filtros
               </button>
             )}

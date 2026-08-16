@@ -6,6 +6,9 @@ import { ConfigService } from "@nestjs/config";
 import * as crypto from "crypto";
 import { EmailService } from "./email.service";
 import { FrotaRelatoriosService } from "../frota/frota-relatorios.service";
+import { OS_ENCERRADAS } from "../frota/frota-status";
+import { carregarAgendaRevisao, ItemAgendaRevisao } from "../frota/frota-revisao-agenda";
+import { sincronizarKmPorAbastecimento } from "../frota/frota-km";
 
 const DEFAULT_CONFIGS = [
   { id:"d60", minutos:60, ativo:true, emoji:"ðŸ””", titulo:"Lembrete 1 hora",    mensagem:"Voce tem um evento em 60 minutos:\n\n*{evento}*\n{horario}\n\n{url}" },
@@ -31,6 +34,8 @@ function fmtHorario(date: Date): string {
 export class AlertScheduler implements OnModuleInit {
   private readonly logger = new Logger(AlertScheduler.name);
   private sent = new Map<string, number>();
+  /** Último ciclo em que a frota foi varrida por inteiro (KM + agenda). */
+  private ultimoCicloPesadoFrota = 0;
 
   constructor(
     private prisma: PrismaService,
@@ -403,6 +408,23 @@ export class AlertScheduler implements OnModuleInit {
       const em7  = new Date(hoje.getTime() + 7 * 86400000);
       const diaKey = hoje.toISOString().slice(0, 10);
 
+      // Este método roda a cada 30 segundos. Reconciliar hodômetro e projetar a
+      // agenda de revisão da frota inteira nessa cadência seria varrer o banco
+      // 2.880 vezes por dia para responder a mesma coisa: nada disso muda de
+      // minuto a minuto, e os alertas são deduplicados por marco. De hora em
+      // hora dá folga de sobra para o alerta sair no mesmo dia do fato.
+      const cicloPesado = now.getTime() - this.ultimoCicloPesadoFrota >= 3600_000;
+      if (cicloPesado) this.ultimoCicloPesadoFrota = now.getTime();
+
+      // Reconcilia o hodômetro com o abastecimento antes de ler pneu e agenda.
+      // Rodízio e desgaste saem do KM, e o KM real da frota chega pelo
+      // abastecimento — alertar sobre o número velho é alertar sobre a frota de
+      // semanas atrás.
+      if (cicloPesado) {
+        const kmSync = await sincronizarKmPorAbastecimento(this.prisma as any, {}).catch(() => null);
+        if (kmSync?.atualizados) this.logger.log(`KM reconciliado por abastecimento: ${kmSync.atualizados} veículo(s)`);
+      }
+
       // Coleta os registros que precisam de alerta (todas as orgs, escopo respeitado por org abaixo)
       const [motoristas, documentos, revisoes, manutencoes] = await Promise.all([
         (this.prisma as any).motorista.findMany({
@@ -417,8 +439,11 @@ export class AlertScheduler implements OnModuleInit {
           where: { deletedAt: null, status: "agendada", dataPrevista: { not: null, lte: em7 } },
           select: { id: true, dataPrevista: true, organizationId: true, veiculo: { select: { placa: true } } },
         }).catch(() => []),
+        // OS_ENCERRADAS em vez da lista escrita à mão: o formulário grava
+        // `finalizada`, que não estava aqui — toda OS já finalizada seguia
+        // disparando "manutenção atrasada" todo dia. Mesma lista do farol.
         (this.prisma as any).manutencaoVeiculo.findMany({
-          where: { deletedAt: null, status: { notIn: ["concluida", "cancelada"] }, dataAgendada: { not: null, lte: em7 } },
+          where: { deletedAt: null, status: { notIn: OS_ENCERRADAS }, dataAgendada: { not: null, lte: em7 } },
           select: { id: true, descricao: true, dataAgendada: true, organizationId: true, veiculo: { select: { placa: true } } },
         }).catch(() => []),
       ]);
@@ -533,6 +558,52 @@ export class AlertScheduler implements OnModuleInit {
             alertas.push({ org: p.organizationId, tipo: "frota_pneu_desgaste", titulo: `⚠️ Desgaste de pneu — ${placa}`, mensagem: `Pneu ${ident} (${pos}) em ${Math.round(pct * 100)}% da vida útil.`, refTipo: "pneu", refId: p.id, key: `frota-pneu-desg::${p.id}::${vida}` });
           }
         }
+      }
+
+      // Agenda preventiva — a projeção por plano (KM / horímetro / data).
+      //
+      // Este bloco faltava inteiro. O alerta de revisão acima lê registros
+      // `agendada` com `dataPrevista`, que é o modelo de agendamento manual
+      // DESCARTADO em 13/07/2026: a frota é controlada por quilometragem, e o
+      // KM chega sozinho pela importação do cartão-combustível. Ou seja, a
+      // agenda que a tela mostra em vermelho não gerava aviso nenhum — e as
+      // revisões atrasadas são justamente o que hoje pinta os veículos de
+      // amarelo no Farol da Frota.
+      //
+      // Só vermelho e laranja viram alerta: amarelo é a faixa dos 30% finais,
+      // ainda tem folga, e alertar nela transformaria o WhatsApp em ruído.
+      try {
+        const { itens } = cicloPesado
+          ? await carregarAgendaRevisao(this.prisma as any, null, now)
+          : { itens: [] as ItemAgendaRevisao[] };
+        for (const it of itens as ItemAgendaRevisao[]) {
+          if (it.farol !== "vermelho" && it.farol !== "laranja") continue;
+          if (!it.organizationId) continue;
+          const veic = it.placa || it.codigo || "veículo";
+          const restante = it.restante ?? 0;
+          const un = it.unidade === "dias" ? "dia(s)" : (it.unidade || "km");
+          // O marco é o alvo da revisão (KM/data/horímetro previstos), então cada
+          // ciclo alerta uma vez por faixa em vez de todo dia. Quando a revisão é
+          // registrada, o alvo muda e o próximo ciclo volta a poder avisar.
+          const marco = it.proximaKm ?? it.proximaHorimetro ??
+            (it.proximaData ? new Date(it.proximaData).toISOString().slice(0, 10) : "s/alvo");
+          const venceu = restante <= 0;
+          alertas.push({
+            org: it.organizationId,
+            tipo: venceu ? "frota_revisao_vencida" : "frota_revisao_proxima",
+            titulo: venceu
+              ? `🔧 Revisão vencida — ${veic}`
+              : `🔧 Revisão em ${Math.abs(restante).toLocaleString("pt-BR")} ${un} — ${veic}`,
+            mensagem: venceu
+              ? `${it.tipo} do veículo ${veic} passou ${Math.abs(restante).toLocaleString("pt-BR")} ${un} do previsto (plano de ${(it.intervalo ?? 0).toLocaleString("pt-BR")} ${un}).`
+              : `${it.tipo} do veículo ${veic} vence em ${restante.toLocaleString("pt-BR")} ${un}.`,
+            refTipo: "veiculo", refId: it.veiculoId,
+            key: `frota-rev-agenda::${it.planoId}::${it.veiculoId}::${marco}::${it.farol}`,
+          });
+        }
+      } catch (e: any) {
+        // A agenda falhar não pode derrubar CNH, documento e pneu junto.
+        this.logger.error("Agenda de revisão (alerta) erro: " + e.message);
       }
 
       if (!alertas.length) return;

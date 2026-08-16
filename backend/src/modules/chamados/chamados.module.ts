@@ -966,8 +966,17 @@ class ChamadosController {
 
     const agora = new Date();
     // `imobiliza` decide a cor do veículo no farol: parado (vermelho) ou
-    // operando com avaria (amarelo). Só quem abre a OS sabe qual é o caso.
-    const imobiliza = body.imobiliza !== false;
+    // operando com avaria (amarelo).
+    //
+    // A DECISÃO É DE QUEM ATENDE, na Manutenção — quem abriu o chamado relatou
+    // o que viu, não determina o estado da frota. Mas o relato é a melhor
+    // informação disponível no momento da abertura da OS, então vira o VALOR
+    // SUGERIDO. Antes o default era "imobiliza" fixo: um chamado aberto como
+    // "operando com avaria" nascia OS imobilizante e pintava de vermelho um
+    // veículo que estava rodando.
+    const imobiliza = body.imobiliza != null
+      ? body.imobiliza !== false
+      : chamado.condicaoVeiculo !== "operando_com_avaria";
     const manutencao = await (this.prisma as any).manutencaoVeiculo.create({
       data: {
         organizationId: orgId,

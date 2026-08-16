@@ -1322,7 +1322,10 @@ function PainelFrota({ detail, canEditar, onUpdated }: {
   detail: Chamado; canEditar: boolean; onUpdated: () => void;
 }) {
   const [abrindo, setAbrindo] = useState(false);
-  const [imobiliza, setImobiliza] = useState(true);
+  // Começa no que o solicitante relatou. Ele não decide o farol — quem atende
+  // decide, aqui ou depois na OS — mas partir de "parado" com um chamado aberto
+  // como "operando com avaria" fazia a decisão contrariar o relato por descuido.
+  const [imobiliza, setImobiliza] = useState((detail as any).condicaoVeiculo !== "operando_com_avaria");
   const [erro, setErro] = useState("");
   const os = detail.manutencoes || [];
   const emAberto = os.filter(o => !["finalizada", "cancelada"].includes(o.status));
@@ -1405,10 +1408,15 @@ function PainelFrota({ detail, canEditar, onUpdated }: {
 
       {emAberto.length === 0 && canEditar && (
         <>
-          <label className="flex items-center gap-2 mb-3 text-[12px] text-[var(--text-secondary)] cursor-pointer">
+          <label className="flex items-center gap-2 mb-1 text-[12px] text-[var(--text-secondary)] cursor-pointer">
             <input type="checkbox" checked={imobiliza} onChange={e => setImobiliza(e.target.checked)} />
             Veículo está parado (sem o marcar, entra como operando com avaria)
           </label>
+          <p className="text-[11px] text-[var(--text-muted)] mb-3">
+            É esta escolha que pinta o veículo no Farol da Frota — vermelho quando marcada,
+            amarelo quando não. Pode ser revista a qualquer momento na própria OS, no módulo
+            de Manutenção.
+          </p>
           <button onClick={abrir} disabled={abrindo} className="btn btn-violet text-[12px] disabled:opacity-50">
             {abrindo ? "Abrindo..." : "Abrir manutenção"}
           </button>

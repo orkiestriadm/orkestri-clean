@@ -27,6 +27,11 @@ const TIPO_OPTS = [
   { value: "preventiva", label: "Preventiva" }, { value: "corretiva", label: "Corretiva" }, { value: "emergencial", label: "Emergencial" },
 ];
 const TIPO_COLOR: Record<string, string> = { preventiva: "var(--accent-cyan)", corretiva: "var(--accent-amber)", emergencial: "var(--accent-red)" };
+/** Situação que quem abriu o chamado relatou — informa a decisão, não é a decisão. */
+const CONDICAO_RELATADA: Record<string, { rotulo: string; cor: string }> = {
+  inoperante: { rotulo: "Inoperante", cor: "var(--accent-red)" },
+  operando_com_avaria: { rotulo: "Operando c/ avaria", cor: "var(--accent-amber)" },
+};
 
 const downloadAnexos = async (id: string) => {
   try {
@@ -82,6 +87,19 @@ const config: CrudConfig = {
       </div>
     ) },
     { key: "veiculo", label: "Veículo", render: r => r.veiculo?.placa || "—" },
+    // Origem + o que foi relatado na abertura. A OS nascida de chamado chegava
+    // aqui sem nenhuma marca, e quem atende não tinha como saber que existia um
+    // solicitante do outro lado esperando — nem o que ele viu no veículo.
+    { key: "chamado", label: "Origem", render: r => {
+      if (!r.chamado) return <span style={{ color: "var(--text-faint)" }}>Interna</span>;
+      const cond = CONDICAO_RELATADA[r.chamado.condicaoVeiculo];
+      return (
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+          <Badge color="var(--accent-cyan)">#{r.chamado.numero}</Badge>
+          {cond && <span style={{ fontSize: 11, color: cond.cor }} title="Situação relatada na abertura do chamado">{cond.rotulo}</span>}
+        </span>
+      );
+    } },
     { key: "tipo", label: "Tipo", render: r => <Badge color={TIPO_COLOR[r.tipo]}>{TIPO_OPTS.find(t => t.value === r.tipo)?.label || r.tipo}</Badge> },
     { key: "solicitante", label: "Solicitante", render: r => r.solicitante?.nome || "—" },
     { key: "dataAbertura", label: "Abertura", render: r => fmtDate(r.dataAbertura) },

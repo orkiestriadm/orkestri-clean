@@ -31,7 +31,7 @@
  */
 
 /** Status da OS que significa "ainda aberta" — o veículo ainda está nela. */
-const OS_ENCERRADAS = ["finalizada", "cancelada", "concluida"];
+export const OS_ENCERRADAS = ["finalizada", "cancelada", "concluida"];
 
 /**
  * `concluida` entra na lista por segurança: o dashboard filtrava por esse nome

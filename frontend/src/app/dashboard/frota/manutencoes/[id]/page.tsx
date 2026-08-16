@@ -21,6 +21,107 @@ const ANEXO_CATS = [
 ];
 const hasPerms = (user: any, ...perms: string[]) => user?.isMaster || user?.permissions?.includes("*") || perms.some((p: string) => user?.permissions?.includes(p));
 
+/** Mesma lista de `frota-status.ts`: OS encerrada não segura mais o veículo. */
+const OS_ENCERRADAS = ["finalizada", "cancelada", "concluida"];
+/** O que o solicitante relatou ao abrir o chamado — relato, não decisão. */
+const CONDICAO_RELATADA: Record<string, { rotulo: string; cor: string }> = {
+  inoperante: { rotulo: "Inoperante", cor: "var(--accent-red)" },
+  operando_com_avaria: { rotulo: "Operando com avaria", cor: "var(--accent-amber)" },
+};
+
+/**
+ * A decisão do farol, no lugar onde ela é tomada.
+ *
+ * O farol da frota é derivado das OS abertas, e `imobiliza` é o campo que
+ * decide entre vermelho (parado) e amarelo (operando com avaria). Quem abre o
+ * chamado relata o que viu; quem ATENDE, aqui na Manutenção, é que determina.
+ *
+ * Estava só como uma caixinha no formulário de edição — para trocar era preciso
+ * abrir "Editar" e achar o campo, e não havia nada na tela dizendo que aquele
+ * clique pintava o veículo na dashboard. Aqui a consequência está escrita.
+ */
+function FarolDaOs({ m, canEdit, onChange }: { m: any; canEdit: boolean; onChange: () => void }) {
+  const [salvando, setSalvando] = useState(false);
+  const [erro, setErro] = useState("");
+  const encerrada = OS_ENCERRADAS.includes(String(m.status || "").toLowerCase());
+  const parado = m.imobiliza !== false;
+  const relato = CONDICAO_RELATADA[String(m.chamado?.condicaoVeiculo || "")];
+  const cor = encerrada ? "var(--text-muted)" : (parado ? "var(--accent-red)" : "var(--accent-amber)");
+
+  const definir = async (v: boolean) => {
+    if (v === parado) return;
+    setSalvando(true); setErro("");
+    try { await api.put(`/frota/manutencoes/${m.id}`, { imobiliza: v }); onChange(); }
+    catch (e: any) { setErro(e?.response?.data?.message || "Não foi possível salvar."); }
+    finally { setSalvando(false); }
+  };
+
+  return (
+    <div className="surface-card rounded-2xl border border-subtle-o shadow-sm p-6 mb-8">
+      <div className="text-[10px] uppercase tracking-wider text-muted-o font-semibold mb-3">
+        Situação do veículo no Farol da Frota
+      </div>
+
+      <div className="flex items-center gap-3 flex-wrap mb-2">
+        <span className="inline-flex items-center gap-2 text-sm font-semibold" style={{ color: cor }}>
+          <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ background: cor }} />
+          {encerrada ? "Sem efeito — OS encerrada" : (parado ? "Parado" : "Operando com avaria")}
+        </span>
+        {relato && (
+          <span className="text-[11px] text-muted-o">
+            Relatado na abertura: <span style={{ color: relato.cor }}>{relato.rotulo}</span>
+            {m.chamado?.numero != null && (
+              <> · <a className="underline" href={`/dashboard/chamados?chamado=${m.chamado.id}`}>chamado #{m.chamado.numero}</a></>
+            )}
+          </span>
+        )}
+      </div>
+
+      {!encerrada && canEdit && (
+        <>
+          <div className="flex gap-2 mt-3">
+            {[
+              { v: true, rotulo: "Parado", ajuda: "Não pode operar", cor: "var(--accent-red)" },
+              { v: false, rotulo: "Operando com avaria", ajuda: "Roda com defeito", cor: "var(--accent-amber)" },
+            ].map(op => {
+              const ativo = op.v === parado;
+              return (
+                <button
+                  key={String(op.v)}
+                  type="button"
+                  disabled={salvando}
+                  aria-pressed={ativo}
+                  onClick={() => definir(op.v)}
+                  className="flex-1 rounded-[10px] border px-3 py-2 text-left transition-colors disabled:opacity-50"
+                  style={{
+                    borderColor: ativo ? op.cor : "var(--border-subtle)",
+                    background: ativo ? `color-mix(in srgb, ${op.cor} 10%, transparent)` : "transparent",
+                  }}
+                >
+                  <span className="block text-[13px] font-semibold" style={{ color: ativo ? op.cor : "var(--text-secondary)" }}>
+                    {op.rotulo}
+                  </span>
+                  <span className="block text-[11px] text-muted-o">{op.ajuda}</span>
+                </button>
+              );
+            })}
+          </div>
+          <p className="text-[11px] text-muted-o mt-2">
+            Enquanto esta OS estiver aberta, é esta escolha que pinta o veículo na dashboard e
+            no Farol da Frota. Ao finalizar a OS, o veículo volta a operar.
+          </p>
+        </>
+      )}
+      {encerrada && (
+        <p className="text-[11px] text-muted-o mt-1">
+          O veículo só é segurado por OS aberta. Reabrir esta OS devolve o efeito no farol.
+        </p>
+      )}
+      {erro && <p className="text-[11px] text-[var(--accent-red)] mt-2">{erro}</p>}
+    </div>
+  );
+}
+
 // ── Modal mão de obra ──────────────────────────────────────────────────────────
 function MaoObraModal({ manutencaoId, onSaved, onClose }: { manutencaoId: string; onSaved: () => void; onClose: () => void }) {
   const [d, setD] = useState<any>({});
@@ -210,6 +311,8 @@ export default function ManutencaoDetailPage() {
               ))}
             </div>
           </div>
+
+          <FarolDaOs m={m} canEdit={canEdit} onChange={load} />
 
           {/* Custos */}
           <div className="text-xs uppercase tracking-widest text-muted-o font-bold mb-3 pl-1">Custos da Manutenção</div>

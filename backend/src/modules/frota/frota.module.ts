@@ -24,6 +24,8 @@ import { EmailService } from "../notifications/email.service";
 import { NotificationsModule } from "../notifications/notifications.module";
 import { FrotaRelatoriosService } from "./frota-relatorios.service";
 import { janelaManutencao, janelaRevisao, dataQueryLocal } from "./frota-datas";
+import { carregarAgendaRevisao } from "./frota-revisao-agenda";
+import { sincronizarKmPorAbastecimento, propagarKmAosPneus, kmPlausivel, KM_SALTO_MAX } from "./frota-km";
 import { ReservasModule } from "./reservas/reservas.module";
 
 const FROTA_UPLOAD_DIR = process.env.UPLOAD_DIR || "/app/uploads";
@@ -130,6 +132,9 @@ abstract class BaseFrotaController {
     return { organizationId: req.user?.organizationId, deletedAt: null, ...extra };
   }
 
+  /** Filtro extra da listagem, decidido pela subclasse a partir da query.
+   *  Vai para dentro de um `AND` para não brigar com o `OR` da busca textual. */
+  protected async whereExtra(_query: any, _req: any): Promise<any> { return {}; }
   /** Hook opcional executado antes do create (ex.: gerar código). */
   protected async beforeCreate(_data: any, _req: any): Promise<void> {}
   /** Hook opcional antes do update. `existing` é o registro atual no banco —
@@ -137,6 +142,8 @@ abstract class BaseFrotaController {
   protected async beforeUpdate(_data: any, _existing: any, _req: any): Promise<void> {}
   /** Hook opcional após persistir (create/update). */
   protected async afterWrite(_row: any, _req: any, _acao: string): Promise<void> {}
+  /** Hook opcional após o soft-delete. Recebe o registro como estava. */
+  protected async afterRemove(_existing: any, _req: any): Promise<void> {}
 
   @Get()
   @Permissions("frota:ver")
@@ -156,6 +163,8 @@ abstract class BaseFrotaController {
         return { [f]: { contains: query.q } };
       });
     }
+    const extra = await this.whereExtra(query, req);
+    if (extra && Object.keys(extra).length) where.AND = [...(where.AND || []), extra];
     const [items, total] = await Promise.all([
       this.delegate.findMany({ where, include: this.include, orderBy: this.orderBy, take, skip }),
       this.delegate.count({ where }),
@@ -235,6 +244,7 @@ abstract class BaseFrotaController {
     const existing = await this.delegate.findFirst({ where: this.scope(req, { id }) });
     if (!existing) throw new NotFoundException("Registro não encontrado");
     await this.delegate.update({ where: { id }, data: { deletedAt: new Date(), atualizadoPorId: req.user?.id || null } });
+    await this.afterRemove(existing, req);
     await this.audit.log({
       organizationId: req.user?.organizationId, userId: req.user?.id, modulo: "frota", tabela: this.tabela, registroId: id,
       acao: "excluir", descricao: `Excluiu (lógico) ${this.tabela}`, ip: req.ip,
@@ -393,24 +403,36 @@ class VeiculosController extends BaseFrotaController {
     if (!v) throw new NotFoundException("Veículo não encontrado");
 
     const manual = body?.km != null && body.km !== "";
-    let novoKm: number | null = manual ? Math.trunc(Number(body.km)) : null;
-    let fonte = "manual";
-    let ultimoAbastecimento: Date | null = null;
-    if (!manual) {
-      const ab = await this.db.abastecimento.findFirst({
-        where: { veiculoId: id, organizationId: orgId, deletedAt: null, kmAtual: { not: null } },
-        orderBy: { kmAtual: "desc" }, select: { kmAtual: true, data: true },
-      });
-      novoKm = ab?.kmAtual ?? null;
-      ultimoAbastecimento = ab?.data ?? null;
-      fonte = "abastecimento";
-    }
-    if (novoKm == null || isNaN(novoKm)) throw new BadRequestException("Nenhum KM de abastecimento encontrado. Informe o KM manualmente.");
 
-    // Abastecimento so atualiza para cima (hodometro e monotonico); ajuste manual pode corrigir.
-    const aplicado = manual ? true : novoKm > (v.kmAtual ?? 0);
-    if (aplicado) await this.db.veiculo.update({ where: { id }, data: { kmAtual: novoKm } });
-    return { aplicado, fonte, anterior: v.kmAtual ?? null, kmAtual: aplicado ? novoKm : (v.kmAtual ?? null), ultimoAbastecimento };
+    // Ajuste manual é o único caminho que pode BAIXAR o hodômetro: alguém
+    // olhando o painel do veículo tem informação que o sistema não tem.
+    if (manual) {
+      const novoKm = Math.trunc(Number(body.km));
+      if (isNaN(novoKm)) throw new BadRequestException("KM inválido.");
+      await this.db.veiculo.update({ where: { id }, data: { kmAtual: novoKm } });
+      const pneus = await propagarKmAosPneus(this.db, id, novoKm);
+      return { aplicado: true, fonte: "manual", anterior: v.kmAtual ?? null, kmAtual: novoKm, pneusAtualizados: pneus, ultimoAbastecimento: null };
+    }
+
+    const ab = await this.db.abastecimento.findFirst({
+      where: { veiculoId: id, organizationId: orgId, deletedAt: null, kmAtual: { not: null } },
+      orderBy: { kmAtual: "desc" }, select: { kmAtual: true, data: true },
+    });
+    if (ab?.kmAtual == null) throw new BadRequestException("Nenhum KM de abastecimento encontrado. Informe o KM manualmente.");
+
+    const sync = await sincronizarKmPorAbastecimento(this.db, { orgId, veiculoIds: [id] });
+    const recusado = sync.recusados[0];
+    if (recusado) {
+      throw new BadRequestException(
+        `O maior KM lançado em abastecimento (${recusado.kmAbastecimento.toLocaleString("pt-BR")}) ` +
+        `salta mais de ${KM_SALTO_MAX.toLocaleString("pt-BR")} km sobre o hodômetro atual ` +
+        `(${recusado.kmAtual.toLocaleString("pt-BR")}). Confira o lançamento ou informe o KM manualmente.`);
+    }
+    return {
+      aplicado: sync.atualizados > 0, fonte: "abastecimento",
+      anterior: v.kmAtual ?? null, kmAtual: sync.km.get(id) ?? v.kmAtual ?? null,
+      ultimoAbastecimento: ab.data ?? null,
+    };
   }
 
   // POST /frota/veiculos/km/sincronizar — sincroniza o KM de TODOS os veiculos a partir do
@@ -418,20 +440,11 @@ class VeiculosController extends BaseFrotaController {
   @Post("km/sincronizar")
   @Permissions("frota:editar")
   async sincronizarKm(@Req() req: any) {
-    const orgId = req.user?.organizationId;
-    const veiculos = await this.db.veiculo.findMany({ where: { organizationId: orgId, deletedAt: null }, select: { id: true, kmAtual: true } });
-    let atualizados = 0;
-    for (const v of veiculos) {
-      const ab = await this.db.abastecimento.findFirst({
-        where: { veiculoId: v.id, organizationId: orgId, deletedAt: null, kmAtual: { not: null } },
-        orderBy: { kmAtual: "desc" }, select: { kmAtual: true },
-      });
-      if (ab?.kmAtual != null && ab.kmAtual > (v.kmAtual ?? 0)) {
-        await this.db.veiculo.update({ where: { id: v.id }, data: { kmAtual: ab.kmAtual } });
-        atualizados++;
-      }
-    }
-    return { atualizados, total: veiculos.length };
+    const sync = await sincronizarKmPorAbastecimento(this.db, { orgId: req.user?.organizationId });
+    // `recusados` é o que a tela precisa mostrar: dar "0 atualizados" quando na
+    // verdade existem leituras suspeitas recusadas fez o usuário concluir que a
+    // sincronização não fazia nada.
+    return { atualizados: sync.atualizados, total: sync.total, recusados: sync.recusados.length };
   }
 
   // GET /frota/veiculos/:id/timeline — linha do tempo completa do veículo
@@ -508,12 +521,39 @@ class MotoristasController extends BaseFrotaController {
     { k: "status", t: "string" }, { k: "observacoes", t: "string" },
   ];
 
+  /**
+   * `?paraSelecao=true` — a lista para preencher um campo "Motorista".
+   *
+   * Escolher condutor é diferente de consultar cadastro: aqui inativo é ruído
+   * e, com o bloqueio de CNH ligado, motorista com habilitação vencida não pode
+   * ser designado. O toggle `frota_bloqueio_cnh` só pintava um badge — dizia
+   * "bloqueio" e não bloqueava nada, e a pessoa seguia selecionável na lista.
+   *
+   * Sem CNH cadastrada continua aparecendo: falta de dado não é habilitação
+   * vencida, e sumir com ela esconderia justamente quem precisa de cadastro.
+   */
+  protected async whereExtra(query: any, req: any): Promise<any> {
+    if (query?.paraSelecao !== "true" && query?.paraSelecao !== true) return {};
+    const cond: any = { status: "ativo" };
+    if (await this.getBloqueioCnh(req.user?.organizationId)) {
+      const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+      cond.OR = [{ validadeCnh: null }, { validadeCnh: { gte: hoje } }];
+    }
+    return cond;
+  }
+
   // GET /frota/motoristas/cnh/dashboard — estatísticas de vencimento da CNH
+  //
+  // Conta só motorista ATIVO por padrão. Contar desligado e afastado inflava
+  // "CNH vencida" com gente que não dirige mais aqui — dívida que ninguém pode
+  // pagar, e que fazia o número perder o sentido de tarefa. `incluirInativos=true`
+  // devolve a frota inteira quando alguém pedir explicitamente.
   @Get("cnh/dashboard")
   @Permissions("frota:ver")
-  async cnhDashboard(@Req() req: any) {
+  async cnhDashboard(@Req() req: any, @Query() query: any) {
     const orgId = req.user?.organizationId;
-    const base = { organizationId: orgId, deletedAt: null } as any;
+    const incluirInativos = query?.incluirInativos === "true" || query?.incluirInativos === true;
+    const base = { organizationId: orgId, deletedAt: null, ...(incluirInativos ? {} : { status: "ativo" }) } as any;
     const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
     const dia = (n: number) => new Date(hoje.getTime() + n * 86400000);
 
@@ -534,7 +574,16 @@ class MotoristasController extends BaseFrotaController {
       orderBy: { validadeCnh: "asc" }, take: 30,
     });
     const bloqueio = await this.getBloqueioCnh(orgId);
-    return { total, semCnh, vencida, vence7: d7, vence15: d15, vence30: d30, vence60: d60, vence90: d90, validas, proximos, bloqueioCnhVencida: bloqueio };
+    const inativos = incluirInativos ? 0 : await this.db.motorista.count({
+      where: { organizationId: orgId, deletedAt: null, status: { not: "ativo" } },
+    });
+    return {
+      total, semCnh, vencida, vence7: d7, vence15: d15, vence30: d30, vence60: d60, vence90: d90,
+      validas, proximos, bloqueioCnhVencida: bloqueio,
+      // A tela precisa poder dizer o que ficou de fora — número que encolhe sem
+      // explicação lê como dado perdido.
+      incluiInativos: incluirInativos, inativosOcultos: inativos,
+    };
   }
 
   // GET /frota/motoristas/lookup/:userId — dados do usuário p/ preencher cadastro
@@ -785,6 +834,62 @@ class PneusController extends BaseFrotaController {
     const orgId = req.user?.organizationId;
     return this.db.pneuEvento.findMany({ where: { pneuId: id, organizationId: orgId }, orderBy: { data: "desc" } });
   }
+
+  /**
+   * GET /frota/pneus/estoque — o que existe FORA de veículo.
+   *
+   * A dashboard tinha o KPI "Pneus em Estoque" e nada atrás dele: o número era
+   * um beco sem saída — 52 pneus em uso e 0 sobressalentes, sem tela para dizer
+   * se isso é a verdade ou cadastro incompleto.
+   *
+   * Agrupa por MEDIDA porque é a pergunta real do almoxarifado: "tenho pneu
+   * 275/80 R22.5 para trocar hoje?". Total de pneus é curiosidade; medida
+   * disponível é decisão.
+   */
+  @Get("estoque/resumo")
+  @Permissions("frota:ver")
+  async estoque(@Req() req: any) {
+    const orgId = req.user?.organizationId;
+    const avulsos = await this.db.pneu.findMany({
+      where: { organizationId: orgId, deletedAt: null, veiculoId: null },
+      select: {
+        id: true, numeroFogo: true, codigo: true, marca: true, modelo: true, medida: true,
+        status: true, valorCompra: true, vidaUtilKm: true, kmInicial: true, kmAtual: true,
+        dataFabricacao: true, fornecedor: true,
+      },
+      orderBy: [{ medida: "asc" }, { criadoEm: "desc" }],
+    });
+
+    const zero = () => ({ estoque: 0, reserva: 0, recapagem: 0, descarte: 0, outros: 0 });
+    const porStatus = zero();
+    const porMedida = new Map<string, { medida: string; total: number } & ReturnType<typeof zero>>();
+    let valorEstoque = 0;
+
+    for (const p of avulsos) {
+      const st = String(p.status || "").toLowerCase();
+      const chave = (["estoque", "reserva", "recapagem", "descarte"].includes(st) ? st : "outros") as keyof ReturnType<typeof zero>;
+      porStatus[chave]++;
+
+      // Valor imobilizado conta só o que dá para montar hoje. Pneu em recapagem
+      // ou descartado não é estoque disponível, e somá-lo inflaria o número.
+      if (chave === "estoque" || chave === "reserva") valorEstoque += Number(p.valorCompra || 0);
+
+      const med = (p.medida || "sem medida").trim();
+      if (!porMedida.has(med)) porMedida.set(med, { medida: med, total: 0, ...zero() });
+      const linha = porMedida.get(med)!;
+      linha.total++; linha[chave]++;
+    }
+
+    const emUso = await this.db.pneu.count({
+      where: { organizationId: orgId, deletedAt: null, status: "em_uso", veiculoId: { not: null } },
+    });
+
+    return {
+      totais: { ...porStatus, avulsos: avulsos.length, emUso, disponiveis: porStatus.estoque + porStatus.reserva, valorEstoque },
+      porMedida: [...porMedida.values()].sort((a, b) => b.total - a.total),
+      itens: avulsos,
+    };
+  }
 }
 
 // ── Layout de posições de pneus (configurável por tipo de veículo) ──────────────
@@ -869,13 +974,9 @@ class PlanosRevisaoController extends BaseFrotaController {
 }
 
 // ── Agenda de revisões (cálculo automático da próxima revisão + farol) ─────────
-function farolFromPct(pct: number): string {
-  if (pct <= 0) return "vermelho";
-  if (pct <= 0.10) return "laranja";
-  if (pct <= 0.30) return "amarelo";
-  return "verde";
-}
-
+// A projeção mora em `frota-revisao-agenda.ts`: a tela e o alerta diário
+// precisam da MESMA regra, e enquanto ela viveu aqui dentro o scheduler não
+// tinha como enxergá-la (alertava só o modelo por data, que foi descartado).
 @Controller("frota/revisoes-agenda")
 @UseGuards(AuthGuard("jwt"), PermissionsGuard)
 class RevisaoAgendaController {
@@ -885,62 +986,7 @@ class RevisaoAgendaController {
   @Get()
   @Permissions("frota:ver")
   async agenda(@Req() req: any) {
-    const orgId = req.user?.organizationId;
-    const [veiculos, planos] = await Promise.all([
-      this.db.veiculo.findMany({
-        where: { organizationId: orgId, deletedAt: null, status: { in: ["ativo", "manutencao"] } },
-        select: { id: true, placa: true, codigo: true, modelo: true, marca: true, kmAtual: true, horimetroAtual: true, dataAquisicao: true, criadoEm: true },
-      }),
-      this.db.planoRevisao.findMany({ where: { organizationId: orgId, deletedAt: null, ativo: true } }),
-    ]);
-    if (!veiculos.length || !planos.length) return { itens: [] };
-
-    const revisoes = await this.db.revisaoVeiculo.findMany({
-      where: { organizationId: orgId, deletedAt: null, status: "realizada", veiculoId: { in: veiculos.map((v: any) => v.id) } },
-      select: { veiculoId: true, tipo: true, dataRealizada: true, kmRealizado: true, horimetro: true },
-      orderBy: { dataRealizada: "desc" },
-    });
-    const lastByKey: Record<string, any> = {};
-    for (const r of revisoes) { const k = `${r.veiculoId}::${r.tipo}`; if (!lastByKey[k]) lastByKey[k] = r; }
-
-    const norm = (s: string) => (s || "").trim().toLowerCase();
-    const itens: any[] = [];
-    for (const v of veiculos) {
-      // Plano vinculado a um veículo específico aplica só a ele; senão, casa por modelo (+marca).
-      const planosV = planos.filter((p: any) => p.veiculoId
-        ? p.veiculoId === v.id
-        : (norm(p.modelo) === norm(v.modelo) && (!p.marca || norm(p.marca) === norm(v.marca))));
-      for (const p of planosV) {
-        const last = lastByKey[`${v.id}::${p.tipo}`];
-        const base: any = { veiculoId: v.id, placa: v.placa, codigo: v.codigo, modelo: v.modelo, tipo: p.tipo, baseTipo: p.base, planoId: p.id, kmAtual: v.kmAtual, ultimaData: last?.dataRealizada || null, ultimaKm: last?.kmRealizado ?? null };
-        if (p.base === "km" && p.intervaloKm) {
-          const lastKm = last?.kmRealizado ?? v.kmAtual;
-          const prox = lastKm + p.intervaloKm;
-          const restante = prox - v.kmAtual;
-          itens.push({ ...base, proximaKm: prox, atual: v.kmAtual, restante, unidade: "km", intervalo: p.intervaloKm, pct: Math.max(0, Math.min(1, 1 - restante / p.intervaloKm)), farol: farolFromPct(restante / p.intervaloKm) });
-        } else if (p.base === "data" && p.intervaloDias) {
-          const lastData = last?.dataRealizada ? new Date(last.dataRealizada) : (v.dataAquisicao ? new Date(v.dataAquisicao) : new Date(v.criadoEm));
-          const prox = new Date(lastData.getTime() + p.intervaloDias * 86400000);
-          const restante = Math.ceil((prox.getTime() - Date.now()) / 86400000);
-          itens.push({ ...base, proximaData: prox, restante, unidade: "dias", intervalo: p.intervaloDias, pct: Math.max(0, Math.min(1, 1 - restante / p.intervaloDias)), farol: farolFromPct(restante / p.intervaloDias) });
-        } else if (p.base === "horimetro" && p.intervaloHorimetro) {
-          if (v.horimetroAtual == null) { itens.push({ ...base, semDado: true, unidade: "h", farol: "cinza" }); }
-          else {
-            const lastH = last?.horimetro ?? v.horimetroAtual;
-            const prox = lastH + p.intervaloHorimetro;
-            const restante = prox - v.horimetroAtual;
-            itens.push({ ...base, proximaHorimetro: prox, atual: v.horimetroAtual, restante, unidade: "h", intervalo: p.intervaloHorimetro, pct: Math.max(0, Math.min(1, 1 - restante / p.intervaloHorimetro)), farol: farolFromPct(restante / p.intervaloHorimetro) });
-          }
-        }
-      }
-    }
-    // Agenda controlada só por PLANO (KM/data/horímetro). Agendamentos avulsos por data
-    // (registros agendada/atrasada) NÃO entram mais na agenda — o controle é pelo plano.
-    const sev: Record<string, number> = { vermelho: 0, laranja: 1, amarelo: 2, verde: 3, cinza: 4 };
-    itens.sort((a, b) => (sev[a.farol] - sev[b.farol]) || ((a.restante ?? 1e12) - (b.restante ?? 1e12)));
-    const resumo = { vermelho: 0, laranja: 0, amarelo: 0, verde: 0, cinza: 0 } as Record<string, number>;
-    for (const i of itens) resumo[i.farol] = (resumo[i.farol] || 0) + 1;
-    return { itens, resumo };
+    return carregarAgendaRevisao(this.db, req.user?.organizationId);
   }
 }
 
@@ -954,14 +1000,26 @@ class ManutencoesController extends BaseFrotaController {
   protected searchFields = ["numeroOs", "tipo", "descricao", "oficina", "fornecedor"];
   protected requiredFields = ["veiculoId"];
   protected filterKeys = ["status", "veiculoId", "tipo"];
+  // O chamado vem junto por causa de `condicaoVeiculo`: é a situação que quem
+  // ABRIU relatou (inoperante / operando com avaria). Não decide o farol — quem
+  // decide é `imobiliza`, definido aqui na Manutenção por quem atende — mas
+  // precisa estar à vista de quem decide, senão a decisão é tomada às cegas.
+  private static readonly CHAMADO_ORIGEM = {
+    select: {
+      id: true, numero: true, titulo: true, condicaoVeiculo: true, status: true,
+      solicitante: { select: { id: true, nome: true } },
+    },
+  };
   protected include = {
     veiculo: { select: { id: true, placa: true, codigo: true } },
     solicitante: { select: { id: true, nome: true, avatar: true } },
+    chamado: ManutencoesController.CHAMADO_ORIGEM,
     _count: { select: { anexos: { where: { deletedAt: null } } } },
   };
   protected includeOne = {
     veiculo: { select: { id: true, placa: true, codigo: true } },
     solicitante: { select: { id: true, nome: true, email: true, avatar: true } },
+    chamado: ManutencoesController.CHAMADO_ORIGEM,
     maoObra: { orderBy: { criadoEm: "desc" } },
   };
   protected fields: FieldDef[] = [
@@ -1802,7 +1860,8 @@ function parseDataHora(v: any): Date | null {
   const dt = new Date(s);
   return isNaN(dt.getTime()) ? null : dt;
 }
-const KM_SALTO_MAX = 30000; // avanço plausível de hodômetro numa importação
+// KM_SALTO_MAX e a regra de plausibilidade vêm de `frota-km.ts` — a importação
+// e a reconciliação diária precisam recusar exatamente as mesmas leituras.
 
 // ── Helpers da importação de manutenções corretivas (planilha FORFT_0005) ──────
 
@@ -1971,13 +2030,32 @@ class AbastecimentosController extends BaseFrotaController {
         }
       }
     }
-    // mantém o km do veículo atualizado
-    if (data.kmAtual != null) {
-      await this.db.veiculo.updateMany({
-        where: { id: data.veiculoId, kmAtual: { lt: data.kmAtual } },
-        data: { kmAtual: data.kmAtual },
-      }).catch(() => {});
-    }
+  }
+
+  /**
+   * O abastecimento é a fonte do hodômetro — quem escreve aqui move a agenda de
+   * revisão por KM, o desgaste de pneu e o custo/km.
+   *
+   * Ficava só no `beforeCreate` e escrevia direto no veículo. Duas consequências
+   * ruins: corrigir o KM de um lançamento errado não corrigia nada, e a escrita
+   * direta pulava a checagem de plausibilidade que a importação já fazia — um
+   * 999999 digitado à mão entrava e travava a agenda daquele veículo em
+   * vermelho para sempre.
+   */
+  protected async afterWrite(row: any, _req: any, _acao: string): Promise<void> {
+    if (row?.veiculoId) await sincronizarKmPorAbastecimento(this.db, { veiculoIds: [row.veiculoId] });
+  }
+
+  /**
+   * Apagar o abastecimento não faz o hodômetro voltar.
+   *
+   * Reconcilia para cima porque outro lançamento pode ter passado a ser o maior,
+   * mas o veículo não "desanda" quilômetros: o hodômetro é físico e baixar o
+   * número faria uma revisão vencida voltar a parecer em dia. Correção para
+   * baixo continua sendo decisão humana, pelo botão "Atualizar KM".
+   */
+  protected async afterRemove(existing: any, _req: any): Promise<void> {
+    if (existing?.veiculoId) await sincronizarKmPorAbastecimento(this.db, { veiculoIds: [existing.veiculoId] });
   }
 
   // POST /frota/abastecimentos/importar — importa planilha de transações de cartão-combustível.
@@ -2093,9 +2171,7 @@ class AbastecimentosController extends BaseFrotaController {
       await this.db.abastecimento.create({ data: { id: crypto.randomUUID(), organizationId: orgId, veiculoId: vid, data: p.data, kmAtual: p.km, litros: p.litros, valorLitro: p.valorLitro, valorTotal, tipoCombustivel: p.comb || null, posto: p.posto, consumoKmL, custoKm, criadoPorId: req.user?.id || null } as any });
       inseridos++;
       if (p.km != null) {
-        const atual = p.veiculo.kmAtual ?? 0;
-        const plausivel = atual === 0 ? (p.km > 0 && p.km < 2000000) : (p.km > atual && (p.km - atual) <= KM_SALTO_MAX);
-        if (plausivel) kmPorVeiculo.set(vid, Math.max(kmPorVeiculo.get(vid) ?? 0, p.km));
+        if (kmPlausivel(p.veiculo.kmAtual, p.km)) kmPorVeiculo.set(vid, Math.max(kmPorVeiculo.get(vid) ?? 0, p.km));
       }
     }
     let kmAtualizados = 0;
@@ -2103,6 +2179,7 @@ class AbastecimentosController extends BaseFrotaController {
       // Veículos novos são criados com kmAtual 0 e os existentes têm valor; só avança para cima.
       const rr = await this.db.veiculo.updateMany({ where: { id: vid, kmAtual: { lt: km } }, data: { kmAtual: km } });
       kmAtualizados += rr.count;
+      if (rr.count) await propagarKmAosPneus(this.db, vid, km);
     }
     return { dryRun: false, resumo: { ...resumo, inseridos, veiculosCadastrados: novos.size, kmAtualizados } };
   }
