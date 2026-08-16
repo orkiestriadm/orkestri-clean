@@ -23,8 +23,15 @@
 #   bash scripts/deploy.sh producao
 #   SERVICOS="frontend" bash scripts/deploy.sh homologacao     # só um serviço
 #   bash scripts/deploy.sh producao origin/main~1              # voltar uma versão
+#   ESPERA_MAX=5400 bash scripts/deploy.sh producao            # teto de espera maior
 #
 # Produção pede confirmação digitada. Para automação: CONFIRMA=sim.
+#
+# O build roda solto da sessão ssh (ver a seção "Publicação"): cair a conexão
+# não interrompe mais nada, e dá para desligar a máquina no meio. Para
+# acompanhar de outro terminal, ou depois de um teto de espera estourado:
+#
+#   ssh <alvo> tail -f /tmp/orkestri-deploy-<ambiente>.log
 
 set -uo pipefail
 
@@ -90,6 +97,26 @@ if [ "$AMBIENTE" = "producao" ] && [ "${CONFIRMA:-}" != "sim" ]; then
 fi
 
 # ── Publicação ──────────────────────────────────────────────────────────────
+#
+# O build roda SOLTO da sessão ssh, e não dentro dela.
+#
+# Em 15/08/2026 o deploy de produção morreu com `Connection reset by peer` no
+# meio do build do frontend. A instância tem 1,9 GB e o build passa de vinte
+# minutos lá (só o `nest build` levou 674s); a sessão ssh não sobreviveu, e
+# levou o build junto. Nada de OOM no kernel, disco em 29% — foi só a conexão.
+#
+# Produção não caiu, porque build que falha não troca container. Mas o
+# `git checkout` já tinha rodado, e o servidor ficou num estado misto: a árvore
+# à frente do que estava rodando, a paridade dizendo "idêntico ao ref" e o
+# /api/health ainda respondendo a versão anterior.
+#
+# Com `setsid nohup` o build sobrevive à queda da conexão, e o polling reconecta
+# quantas vezes precisar. O preço é ter que descobrir o desfecho por um sentinela
+# no log, em vez de pelo código de saída do ssh.
+LOG_REMOTO="/tmp/orkestri-deploy-$AMBIENTE.log"
+SENTINELA="__DEPLOY_FIM__"
+ESPERA_MAX=${ESPERA_MAX:-3600}   # 1h: o build de produção passa de 20 min
+
 echo "==> publicando em $AMBIENTE ($SSH_ALVO:$DIR)"
 
 ssh -o BatchMode=yes "$SSH_ALVO" "
@@ -108,12 +135,53 @@ IFS=',' ; for c in \$CONFIG ; do ARGS=\"\$ARGS -f \$c\" ; done ; unset IFS
 [ -z \"\$ARGS\" ] && ARGS='-f docker-compose.yml -f docker-compose.override.yml'
 echo \"    compose:\$ARGS\"
 
-$SUDO docker compose \$ARGS up -d --build $SERVICOS
+# O sentinela carrega o código de saída do compose: é por ele que o lado de cá
+# distingue 'terminou bem' de 'quebrou' de 'ainda rodando'.
+$SUDO bash -c \"setsid nohup bash -c '
+  docker compose \$ARGS up -d --build $SERVICOS
+  echo \\\"$SENTINELA rc=\\\$?\\\"
+' > $LOG_REMOTO 2>&1 < /dev/null &\"
+sleep 2
+echo '    build solto do terminal; log em $LOG_REMOTO'
+" || falhar "não consegui iniciar a publicação no servidor."
+
+# ── Espera ──────────────────────────────────────────────────────────────────
+# Falha de ssh aqui NÃO é falha de deploy: o build está solto e segue de pé. Só
+# desiste no teto de tempo.
+echo "==> acompanhando o build (até $((ESPERA_MAX / 60)) min; queda de conexão não interrompe)"
+INICIO=$(date +%s)
+RC_BUILD=""
+ULTIMA=""
+while : ; do
+  SAIDA="$(ssh -o BatchMode=yes -o ConnectTimeout=15 "$SSH_ALVO" \
+    "grep -m1 '$SENTINELA' $LOG_REMOTO 2>/dev/null; tail -n 1 $LOG_REMOTO 2>/dev/null" 2>/dev/null || true)"
+
+  case "$SAIDA" in
+    *"$SENTINELA"*)
+      RC_BUILD="$(printf '%s\n' "$SAIDA" | sed -n "s/.*$SENTINELA rc=\([0-9]*\).*/\1/p" | head -1)"
+      break ;;
+  esac
+
+  # Só imprime quando muda, para o acompanhamento não virar mil linhas iguais.
+  LINHA="$(printf '%s\n' "$SAIDA" | tail -n 1)"
+  [ -n "$LINHA" ] && [ "$LINHA" != "$ULTIMA" ] && { echo "    $LINHA"; ULTIMA="$LINHA"; }
+
+  DECORRIDO=$(( $(date +%s) - INICIO ))
+  [ "$DECORRIDO" -ge "$ESPERA_MAX" ] && falhar "o build passou de $((ESPERA_MAX / 60)) min sem terminar. Ele CONTINUA rodando no servidor: acompanhe com 'ssh $SSH_ALVO tail -f $LOG_REMOTO'."
+  sleep 15
+done
+
+if [ "${RC_BUILD:-1}" != "0" ]; then
+  echo
+  ssh -o BatchMode=yes "$SSH_ALVO" "tail -n 25 $LOG_REMOTO" 2>/dev/null || true
+  falhar "o build falhou no servidor (rc=${RC_BUILD:-?}). Os containers antigos continuam no ar; a ÁRVORE já está em $REF, então quem responde 'o que está publicado' agora é a versão da API, não a paridade."
+fi
+echo "    build concluído"
 
 # nginx guarda o IP do container; sem o reload ele fala com quem não existe
 # mais. Erro aqui não derruba o deploy — o container pode nem existir.
-$SUDO docker exec orkestri_nginx nginx -s reload 2>/dev/null && echo '    nginx recarregado' || true
-" || falhar "a publicação falhou no servidor. Nada foi verificado; olhe os logs."
+ssh -o BatchMode=yes "$SSH_ALVO" \
+  "$SUDO docker exec orkestri_nginx nginx -s reload 2>/dev/null && echo '    nginx recarregado' || true" 2>/dev/null || true
 
 # ── Verificação ─────────────────────────────────────────────────────────────
 # Um deploy sem verificação é uma esperança. Estas duas provam coisas
