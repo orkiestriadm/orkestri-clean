@@ -231,6 +231,45 @@ export default function MonitoramentoDashboard() {
   }, [visiveis, desdeMap]);
 
   /**
+   * Urgência DENTRO do que está quebrado.
+   *
+   * Pôr o problema em primeiro lugar resolveu metade; a outra metade foi um
+   * erro meu, visto na tela: 57 cartões vermelhos de peso idêntico, 19
+   * fileiras de alarme. Medido na base real, 44 desses 57 estão fora do ar há
+   * 66 dias — a câmera que caiu há um minuto e a que morreu em junho gritavam
+   * igual, e a tela virou uma parede vermelha que não se lê.
+   *
+   * Três faixas, com peso decrescente:
+   *   agora   (< 2h)   cartão, ordenado pela queda mais recente
+   *   hoje    (2–24h)  linha simples, sem fundo tingido
+   *   antigos (> 24h)  recolhido: contagem e o mais antigo
+   *
+   * O corte de 24 horas é da operação, não do código: passou o dia, deixou de
+   * ser incidente e virou pendência de campo.
+   */
+  const faixas = useMemo(() => {
+    const agoraMs = Date.now();
+    const idade = (a: Asset) => {
+      const d = desdeMap[a.id] || a.desdeEm;
+      // Sem evento registrado não dá para afirmar que é recente: trata como antigo.
+      return d ? agoraMs - new Date(d).getTime() : Number.MAX_SAFE_INTEGER;
+    };
+    const agora: Asset[] = [], hoje: Asset[] = [], antigos: Asset[] = [];
+    for (const a of grupos.OFFLINE) {
+      const ms = idade(a);
+      if (ms < 2 * 3_600_000) agora.push(a);
+      else if (ms < 86_400_000) hoje.push(a);
+      else antigos.push(a);
+    }
+    const maisAntigo = antigos.length
+      ? antigos.reduce((pior, a) => (idade(a) > idade(pior) ? a : pior), antigos[0])
+      : null;
+    return { agora, hoje, antigos, maisAntigo };
+  }, [grupos.OFFLINE, desdeMap]);
+
+  const [verAntigos, setVerAntigos] = useState(false);
+
+  /**
    * Online somado — por unidade quando existe, senão por categoria.
    *
    * O agrupamento nasceu só por unidade e não servia para nada: medido em
@@ -629,11 +668,57 @@ export default function MonitoramentoDashboard() {
                   {expandido && (critico
                     // Quebrado vira LINHA larga: o nome carrega o KM e o sentido,
                     // e era exatamente o fim do nome que o cartão de 260px cortava.
-                    ? (
+                    ? (st === "OFFLINE" ? (
+                      <div style={{ marginTop: 6 }}>
+                        {faixas.agora.length > 0 && (
+                          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(420px, 1fr))", gap: 8 }}>
+                            {faixas.agora.map(a => <AssetRow key={a.id} a={a} desde={desdeDe(a)} micro={micro[a.id]} />)}
+                          </div>
+                        )}
+
+                        {/* Caiu hoje, mas não agora: linha simples. Mesmo dado,
+                            um terço do peso visual. */}
+                        {faixas.hoje.length > 0 && (
+                          <div style={{ marginTop: faixas.agora.length ? 12 : 0 }}>
+                            <div className="mon-faixa__rot">nas últimas 24 horas · {faixas.hoje.length}</div>
+                            <div className="mon-chips">
+                              {faixas.hoje.map(a => <LinhaQuieta key={a.id} a={a} desde={desdeDe(a)} />)}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Fora do ar há mais de um dia: deixou de ser incidente
+                            e virou pendência de campo. Fica recolhido, mas NÃO
+                            some — some é como o problema envelhece sem dono. */}
+                        {faixas.antigos.length > 0 && (
+                          <div style={{ marginTop: 12 }}>
+                            <button onClick={() => setVerAntigos(v => !v)} className="mon-antigos">
+                              {verAntigos ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
+                              <b className="num">{faixas.antigos.length}</b>
+                              <span>sem resposta há mais de um dia</span>
+                              {faixas.maisAntigo && (
+                                <span style={{ color: "var(--text-muted)" }}>
+                                  · o mais antigo {fmtDuracao(desdeDe(faixas.maisAntigo))}
+                                </span>
+                              )}
+                              <span style={{ flex: 1 }} />
+                              <span style={{ color: "var(--text-muted)", fontSize: 11 }}>
+                                {verAntigos ? "recolher" : "ver lista"}
+                              </span>
+                            </button>
+                            {verAntigos && (
+                              <div className="mon-chips" style={{ marginTop: 6 }}>
+                                {faixas.antigos.map(a => <LinhaQuieta key={a.id} a={a} desde={desdeDe(a)} />)}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    ) : (
                       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(420px, 1fr))", gap: 8, marginTop: 6 }}>
                         {lista.map(a => <AssetRow key={a.id} a={a} desde={desdeDe(a)} micro={micro[a.id]} />)}
                       </div>
-                    )
+                    ))
                     // Saudável entra denso e agrupado por tipo. O cartão continua
                     // existindo para UM caso: com as miniaturas ligadas, o que se
                     // quer ver é a imagem da câmera, e aí o tamanho é o ponto.
@@ -814,6 +899,35 @@ function ChipAtivo({ a }: { a: Asset }) {
       <span className="mon-chip__nome">{a.nome}</span>
       <span className="mon-chip__lat num" style={{ color: latencyColor(a.ultimaLatenciaMs) }}>
         {a.ultimaLatenciaMs != null ? `${a.ultimaLatenciaMs}ms` : "—"}
+      </span>
+    </button>
+  );
+}
+
+/**
+ * Equipamento parado sem ser novidade.
+ *
+ * Mesmo dado da linha larga, um terço do peso: sem fundo tingido, sem borda
+ * lateral, sem badge. O que sobra é o essencial — bolinha, nome e há quanto
+ * tempo. Cinquenta e sete cartões vermelhos empilhados não se leem; cinquenta
+ * e sete linhas, sim.
+ */
+function LinhaQuieta({ a, desde }: { a: Asset; desde?: string | null }) {
+  const s = STATUS[a.ultimoStatus] || STATUS.NAO_MONITORADO;
+  const { onClick, onDoubleClick, hasLink } = useAbrirAtivo(a);
+  const detalhe = [a.ip, a.tipo, a.unidade?.nome].filter(Boolean).join(" · ");
+
+  return (
+    <button
+      onClick={onClick} onDoubleClick={onDoubleClick}
+      title={`${a.nome}\n${detalhe}`}
+      className="mon-chip"
+      style={{ cursor: hasLink ? "alias" : "pointer" }}
+    >
+      <span className="mon-chip__dot" style={{ background: s.dot }} />
+      <span className="mon-chip__nome">{a.nome}</span>
+      <span className="mon-chip__lat" style={{ color: "var(--text-muted)", fontWeight: 500 }}>
+        {fmtDuracao(desde)?.replace("há ", "") || "—"}
       </span>
     </button>
   );

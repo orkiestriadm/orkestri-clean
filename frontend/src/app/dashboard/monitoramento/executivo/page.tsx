@@ -28,6 +28,7 @@ export default function ExecutivoPage() {
   const [eventos, setEventos] = useState<any[]>([]);
   const [metas, setMetas] = useState<Record<string, number>>({});
   const [showMetas, setShowMetas] = useState(false);
+  const [verSemResposta, setVerSemResposta] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -218,7 +219,9 @@ export default function ExecutivoPage() {
             </div>
             <div style={{ height: 230 }}>
               <ResponsiveContainer>
-                <BarChart data={porCat} margin={{ left: 0, right: 20, top: 10 }}>
+                {/* Margem à direita para o rótulo da meta caber: com 20px ele
+                    era cortado e aparecia "me" na borda. */}
+                <BarChart data={porCat} margin={{ left: 0, right: 78, top: 14 }}>
                   <CartesianGrid stroke="var(--border-subtle)" strokeDasharray="3 3" />
                   <XAxis dataKey="categoria" tick={{ fontSize: 11 }} />
                   <YAxis domain={[0, 100]} tick={{ fontSize: 10 }} unit="%" />
@@ -234,7 +237,11 @@ export default function ExecutivoPage() {
                     />
                   )}
                   <Bar dataKey="media" radius={[4,4,0,0]}>
-                    {porCat.map((d, i) => <Cell key={i} fill={(d.media||0) >= d.meta ? "var(--mon-ok)" : (d.media||0) >= d.meta - 5 ? "var(--mon-warn)" : "var(--mon-down)"} />)}
+                    {/* Banda de 1 ponto, não de 5. Com meta 99, a faixa antiga
+                        pintava de "quase lá" desde 94% — e 94% contra 99% num
+                        SLA é um desvio grande, não um detalhe. Resultado na
+                        tela: quatro categorias diferentes, todas da mesma cor. */}
+                    {porCat.map((d, i) => <Cell key={i} fill={(d.media||0) >= d.meta ? "var(--mon-ok)" : (d.media||0) >= d.meta - 1 ? "var(--mon-warn)" : "var(--mon-down)"} />)}
                     <LabelList dataKey="media" position="top" formatter={(v: any) => `${v}%`} style={{ fontSize: 10, fill: "var(--text-secondary)" }} />
                     {/* Metas diferentes por categoria não cabem numa régua só:
                         aí cada barra carrega a sua. */}
@@ -259,23 +266,36 @@ export default function ExecutivoPage() {
             {/* Quem não respondeu NENHUMA vez sai do ranking e vira lista.
                 No gráfico eles empatavam em 100% e ocupavam as dez posições,
                 escondendo quem oscila — que é o problema com conserto. */}
+            {/* Uma linha, não um bloco. Com 39 nomes em fichas monoespaçadas e
+                um parágrafo de explicação, isto ocupava metade do painel e
+                empurrava o gráfico — que é o conteúdo — para fora da dobra. */}
             {semResposta.length > 0 && (
-              <div style={{ marginBottom: 12, padding: "10px 12px", borderRadius: 8, background: "var(--mon-down-soft)", border: "1px solid var(--mon-down-line)" }}>
-                <div style={{ fontSize: 12, fontWeight: 700, color: "var(--mon-down)", marginBottom: 6 }}>
-                  {semResposta.length} sem responder o período inteiro
-                </div>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
-                  {semResposta.slice(0, 14).map((s, i) => (
-                    <span key={i} title={s.ip || s.nome}
-                      style={{ fontSize: 10, fontFamily: "var(--font-mono)", padding: "2px 6px", borderRadius: 4, background: "var(--bg-hover)", color: "var(--text-secondary)" }}>
-                      {s.nome}
-                    </span>
-                  ))}
-                  {semResposta.length > 14 && <span style={{ fontSize: 10, color: "var(--text-muted)" }}>+{semResposta.length - 14}</span>}
-                </div>
-                <div style={{ fontSize: 10.5, color: "var(--text-muted)", marginTop: 7 }}>
-                  Zero resposta costuma ser equipamento desativado ainda cadastrado, ou obra pendente — e cada um deles puxa a disponibilidade geral para baixo.
-                </div>
+              <div style={{ marginBottom: 10 }}>
+                <button
+                  onClick={() => setVerSemResposta(v => !v)}
+                  style={{
+                    display: "flex", alignItems: "center", gap: 7, width: "100%",
+                    padding: "8px 11px", borderRadius: 8, cursor: "pointer", textAlign: "left",
+                    border: "1px dashed var(--border-medium)", background: "transparent",
+                    color: "var(--text-secondary)", fontSize: 12,
+                  }}
+                  title="Zero resposta costuma ser equipamento desativado ainda cadastrado, ou obra pendente — e cada um puxa a disponibilidade geral para baixo."
+                >
+                  <b className="num" style={{ color: "var(--mon-down)" }}>{semResposta.length}</b>
+                  <span>sem responder o período inteiro</span>
+                  <span style={{ flex: 1 }} />
+                  <span style={{ fontSize: 11, color: "var(--text-muted)" }}>{verSemResposta ? "recolher" : "ver lista"}</span>
+                </button>
+                {verSemResposta && (
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 7 }}>
+                    {semResposta.map((s, i) => (
+                      <span key={i} title={s.ip || s.nome}
+                        style={{ fontSize: 10, fontFamily: "var(--font-mono)", padding: "2px 6px", borderRadius: 4, background: "var(--bg-hover)", color: "var(--text-secondary)" }}>
+                        {s.nome}
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
 
@@ -313,7 +333,12 @@ export default function ExecutivoPage() {
                     <YAxis type="category" dataKey="nome" tick={{ fontSize: 10 }} width={130} />
                     <Tooltip formatter={(v: any, _n: any, p: any) => [`${v}ms`, p.payload.full]} />
                     <Bar dataKey="ms" radius={[0,4,4,0]}>
-                      {latData.map((d, i) => <Cell key={i} fill={latColor(d.ms)} />)}
+                      {/* Este gráfico já É o ranking dos dez piores: pintar cada
+                          barra pelo limiar absoluto deixa as dez da mesma cor e
+                          a cor para de informar. Quem compara aqui é o
+                          comprimento; a cor fica reservada para quem passa do
+                          limite que dói de verdade. */}
+                      {latData.map((d, i) => <Cell key={i} fill={d.ms >= 200 ? "var(--mon-down)" : "var(--accent-cyan)"} />)}
                       <LabelList dataKey="ms" position="right" formatter={(v: any) => `${v}ms`} style={{ fontSize: 10, fill: "var(--text-secondary)" }} />
                     </Bar>
                   </BarChart>

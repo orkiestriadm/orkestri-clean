@@ -90,9 +90,15 @@
   --mon-down:      var(--accent-red);
   --mon-down-soft: color-mix(in srgb, var(--accent-red) 12%, transparent);
   --mon-down-line: color-mix(in srgb, var(--accent-red) 32%, transparent);
-  --mon-warn:      var(--accent-amber);
-  --mon-warn-soft: color-mix(in srgb, var(--accent-amber) 14%, transparent);
-  --mon-warn-line: color-mix(in srgb, var(--accent-amber) 32%, transparent);
+  /* Atenção tem amarelo PRÓPRIO, e não `--accent-amber`.
+     O acento âmbar (#d97706) é quase o mesmo tom do laranja da marca
+     (#f97316). Ao derivar o estado dele, "atenção" virou a cor da marca: no
+     Dashboard Executivo as barras de disponibilidade ficaram todas laranja —
+     96,2%, 94,2%, 98,4% e 98,9% pintadas igual — e o painel perdeu contraste.
+     Amarelo se separa do laranja mesmo em tela de telão e a distância. */
+  --mon-warn:      #ca8a04;
+  --mon-warn-soft: color-mix(in srgb, #ca8a04 14%, transparent);
+  --mon-warn-line: color-mix(in srgb, #ca8a04 32%, transparent);
   --mon-idle:      var(--text-muted);
   --mon-idle-soft: color-mix(in srgb, var(--text-muted) 12%, transparent);
   --mon-idle-line: color-mix(in srgb, var(--text-muted) 25%, transparent);
@@ -427,6 +433,22 @@
   font-family: var(--font-mono); font-size: 10.5px; font-weight: 600;
   font-variant-numeric: tabular-nums; flex-shrink: 0;
 }
+
+/* Rótulo de faixa: hierarquia dentro do problema, sem virar outro cabeçalho. */
+.mon-faixa__rot {
+  font-family: var(--font-mono); font-size: 10px; font-weight: 600;
+  letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--text-muted); margin: 0 0 5px 2px;
+}
+.mon-antigos {
+  display: flex; align-items: center; gap: 7px; width: 100%;
+  padding: 9px 12px; border-radius: 10px;
+  border: 1px dashed var(--border-medium); background: transparent;
+  color: var(--text-secondary); font-size: 12px; cursor: pointer; text-align: left;
+  transition: background 160ms ease, border-color 160ms ease;
+}
+.mon-antigos:hover { background: var(--bg-hover); border-color: var(--border-strong); }
+.mon-antigos:focus-visible { outline: 2px solid var(--accent-violet); outline-offset: 1px; }
 
 .mon-grupo__head {
   display: flex; align-items: center; gap: 8px; width: 100%;

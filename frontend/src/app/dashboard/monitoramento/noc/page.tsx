@@ -12,6 +12,8 @@ type Asset = {
   id: string; nome: string; ip: string; categoria: string;
   ultimoStatus: "ONLINE"|"OFFLINE"|"INSTAVEL"|"NAO_MONITORADO";
   ultimaLatenciaMs: number | null;
+  /** Desde quando está neste estado — o backend só preenche para não-ONLINE. */
+  desdeEm?: string | null;
 };
 type EvItem = {
   id: string; assetId: string; statusAnterior: string; statusNovo: string;
@@ -145,9 +147,19 @@ export default function NocPage() {
   const alarme = assets
     .filter(a => a.ultimoStatus === "OFFLINE" || a.ultimoStatus === "INSTAVEL")
     .sort((x, y) => (x.ultimoStatus === y.ultimoStatus ? 0 : x.ultimoStatus === "OFFLINE" ? -1 : 1));
+  // Mesmo corte de 24h da tela padrão: passou o dia, virou pendência de campo.
+  const dia = 86_400_000;
+  const recente = (a: Asset) => a.desdeEm != null && Date.now() - new Date(a.desdeEm).getTime() < dia;
+  const alarmeRecente = alarme.filter(recente);
+  const alarmeAntigo  = alarme.filter(a => !recente(a));
 
   return (
-    <div style={{ background: "#000", color: "#e5e7eb", minHeight: "100vh", padding: 20, fontFamily: "var(--font-display)", display: "grid", gridTemplateColumns: "1fr 320px", gap: 16 }}>
+    /* Ocupa a tela inteira, por cima da casca do sistema.
+       O modo NOC existe para virar telão de parede, e rodava dentro do layout
+       do dashboard — a barra lateral comia 190px de largura mostrando menu de
+       navegação que ninguém usa numa parede. `fixed` cobre a casca sem exigir
+       que o layout saiba da existência desta página. */
+    <div style={{ background: "#000", color: "#e5e7eb", position: "fixed", inset: 0, zIndex: 60, overflow: "auto", padding: 20, fontFamily: "var(--font-display)", display: "grid", gridTemplateColumns: "1fr 320px", gap: 16, alignContent: "start" }}>
       {/* COLUNA PRINCIPAL */}
       <div>
         {/* Banner conexão perdida */}
@@ -215,8 +227,13 @@ export default function NocPage() {
               <span style={{ fontSize: 14, fontWeight: 800, color: "#ef4444", fontFamily: "var(--font-mono)" }}>{alarme.length}</span>
               <span style={{ flex: 1, height: 1, background: "#1f2937" }} />
             </div>
+            {/* Só o que mudou nas últimas horas ganha cartão.
+                Sessenta e seis cartões vermelhos tomavam a parede inteira e
+                empurravam a visão da frota para fora dela — e a maioria está
+                fora do ar há meses, sem novidade nenhuma para quem olha o
+                telão. O resto vira uma linha de contagem. */}
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 8 }}>
-              {alarme.map(a => {
+              {alarmeRecente.map(a => {
                 const c = STATUS[a.ultimoStatus] || STATUS.NAO_MONITORADO;
                 return (
                   <div key={a.id} style={{ background: c.bg, border: `2px solid ${c.border}`, borderRadius: 8, padding: "12px 14px" }}>
@@ -231,6 +248,12 @@ export default function NocPage() {
                 );
               })}
             </div>
+            {alarmeAntigo.length > 0 && (
+              <div style={{ marginTop: 8, padding: "9px 13px", borderRadius: 8, border: "1px dashed #3f3f4a", color: "#94a3b8", fontSize: 13, display: "flex", alignItems: "center", gap: 8 }}>
+                <b style={{ color: "#cbd5e1", fontFamily: "var(--font-mono)", fontSize: 16 }}>{alarmeAntigo.length}</b>
+                <span>sem resposta há mais de um dia — pendência de campo, não incidente novo</span>
+              </div>
+            )}
           </div>
         )}
 
