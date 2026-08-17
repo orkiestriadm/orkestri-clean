@@ -357,7 +357,7 @@ export default function MonitoramentoDashboard() {
   return (
     <>
       <Topbar />
-      <div className="page-content" style={{ padding: "24px 28px 60px", maxWidth: 1600, margin: "0 auto" }}>
+      <div className="page-content mon-console" style={{ padding: "24px 28px 60px", maxWidth: 1600, margin: "0 auto" }}>
         {/* ── Hero ─────────────────────────────────────────── */}
         <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 24, marginBottom: 22, flexWrap: "wrap" }}>
           <div>

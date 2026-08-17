@@ -141,7 +141,7 @@ export default function ExecutivoPage() {
   return (
     <>
       <Topbar />
-      <div className="page-content" style={{ padding: 24, maxWidth: 1500, margin: "0 auto" }}>
+      <div className="page-content mon-console" style={{ padding: 24, maxWidth: 1500, margin: "0 auto" }}>
         <Link href="/dashboard/monitoramento" style={{ fontSize: 12, color: "var(--text-muted)", textDecoration: "none" }}>
           <ChevronLeft size={12} style={{ display: "inline" }} /> Monitoramento
         </Link>
@@ -213,7 +213,7 @@ export default function ExecutivoPage() {
                   <Pie data={statusData} dataKey="value" nameKey="name" innerRadius={58} outerRadius={85} paddingAngle={2} stroke="none">
                     {statusData.map(d => <Cell key={d.key} fill={STATUS_COR[d.key]} />)}
                   </Pie>
-                  <Tooltip formatter={(v: any, n: any) => [`${v}`, n]} />
+                  <Tooltip contentStyle={{ background: "var(--bg-card)", border: "1px solid var(--border-medium)", borderRadius: 8, fontSize: 12, color: "var(--text-primary)" }} itemStyle={{ color: "var(--text-primary)" }} formatter={(v: any, n: any) => [`${v}`, n]} />
                   <Legend wrapperStyle={{ fontSize: 11 }} />
                 </PieChart>
               </ResponsiveContainer>
@@ -330,9 +330,9 @@ export default function ExecutivoPage() {
                 <ResponsiveContainer>
                   <BarChart data={topIndisp} layout="vertical" margin={{ left: 70, right: 40 }}>
                     <CartesianGrid stroke="var(--border-subtle)" strokeDasharray="3 3" />
-                    <XAxis type="number" domain={[0, "dataMax"]} tick={{ fontSize: 10 }} unit="%" />
-                    <YAxis type="category" dataKey="nome" tick={{ fontSize: 10 }} width={130} />
-                    <Tooltip formatter={(v: any, _n: any, p: any) => [`${v}% indisponível · ${p.payload.pct.toFixed(2)}% disponível`, p.payload.full]} />
+                    <XAxis type="number" domain={[0, "dataMax"]} tick={{ fontSize: 10, fill: "var(--text-muted)" }} unit="%" />
+                    <YAxis type="category" dataKey="nome" tick={{ fontSize: 10, fill: "var(--text-muted)" }} width={130} />
+                    <Tooltip contentStyle={{ background: "var(--bg-card)", border: "1px solid var(--border-medium)", borderRadius: 8, fontSize: 12, color: "var(--text-primary)" }} itemStyle={{ color: "var(--text-primary)" }} formatter={(v: any, _n: any, p: any) => [`${v}% indisponível · ${p.payload.pct.toFixed(2)}% disponível`, p.payload.full]} />
                     <Bar dataKey="indisp" fill="var(--mon-down)" radius={[0,4,4,0]}>
                       <LabelList dataKey="indisp" position="right" formatter={(v: any) => `${v}%`} style={{ fontSize: 10, fill: "var(--text-secondary)" }} />
                     </Bar>
@@ -353,9 +353,9 @@ export default function ExecutivoPage() {
                 <ResponsiveContainer>
                   <BarChart data={latData} layout="vertical" margin={{ left: 70, right: 48 }}>
                     <CartesianGrid stroke="var(--border-subtle)" strokeDasharray="3 3" />
-                    <XAxis type="number" tick={{ fontSize: 10 }} unit="ms" />
-                    <YAxis type="category" dataKey="nome" tick={{ fontSize: 10 }} width={130} />
-                    <Tooltip formatter={(v: any, _n: any, p: any) => [`${v}ms`, p.payload.full]} />
+                    <XAxis type="number" tick={{ fontSize: 10, fill: "var(--text-muted)" }} unit="ms" />
+                    <YAxis type="category" dataKey="nome" tick={{ fontSize: 10, fill: "var(--text-muted)" }} width={130} />
+                    <Tooltip contentStyle={{ background: "var(--bg-card)", border: "1px solid var(--border-medium)", borderRadius: 8, fontSize: 12, color: "var(--text-primary)" }} itemStyle={{ color: "var(--text-primary)" }} formatter={(v: any, _n: any, p: any) => [`${v}ms`, p.payload.full]} />
                     <Bar dataKey="ms" radius={[0,4,4,0]}>
                       {/* Este gráfico já É o ranking dos dez piores: pintar cada
                           barra pelo limiar absoluto deixa as dez da mesma cor e
@@ -448,17 +448,18 @@ export default function ExecutivoPage() {
  */
 function Kpi({ label, value, color, sub, destaque }: { label: string; value: any; color: string; sub?: string; destaque?: boolean }) {
   return (
+    /* Sem a borda colorida de 3px à esquerda: é o detalhe que mais datava a
+       tela. No console quem carrega a cor é o número; a moldura é neutra. */
     <div
       className="card"
       style={{
-        padding: destaque ? "18px 20px" : 16,
-        borderLeft: `3px solid ${color}`,
-        background: destaque ? `color-mix(in srgb, ${color} 6%, var(--bg-card))` : undefined,
+        padding: destaque ? "16px 18px" : "14px 16px",
+        background: destaque ? "color-mix(in srgb, var(--text-primary) 4%, var(--bg-card))" : undefined,
       }}
     >
-      <div style={{ fontSize: 10, color: "var(--text-muted)", fontFamily: "var(--font-mono)", textTransform: "uppercase", letterSpacing: 1 }}>{label}</div>
-      <div className="metric" style={{ fontSize: destaque ? 36 : 25, color, marginTop: 4, fontVariantNumeric: "tabular-nums" }}>{value}</div>
-      {sub && <div style={{ fontSize: 10, color: "var(--text-muted)", marginTop: 2 }}>{sub}</div>}
+      <div style={{ fontSize: 10, color: "var(--text-muted)", fontFamily: "var(--font-mono)", textTransform: "uppercase", letterSpacing: "0.12em" }}>{label}</div>
+      <div className="metric" style={{ fontSize: destaque ? 34 : 26, color, marginTop: 6, letterSpacing: "-0.02em", fontVariantNumeric: "tabular-nums" }}>{value}</div>
+      {sub && <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 3 }}>{sub}</div>}
     </div>
   );
 }

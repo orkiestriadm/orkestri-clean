@@ -434,6 +434,65 @@
   font-variant-numeric: tabular-nums; flex-shrink: 0;
 }
 
+/* ── Console de operação ───────────────────────────────────────────────────
+   O módulo de monitoramento é a única parte do produto que se olha o dia
+   inteiro, e o usuário escolheu a direção "ferramenta": escura, densa,
+   numeral monoespaçado. Fica coerente com o Modo NOC, que já era escuro.
+
+   A implementação REDEFINE OS TOKENS dentro do escopo, em vez de reescrever
+   cada componente. Tudo que já lê `var(--bg-card)` ou `var(--text-primary)`
+   troca de pele sozinho — e nada fora de `.mon-console` é afetado, então o
+   resto do produto segue o tema do usuário.
+
+   Vale para os dois temas do sistema: aqui dentro é sempre console. */
+.mon-console {
+  --bg-primary:   #0d0d10;
+  --bg-secondary: #16161b;
+  --bg-card:      #16161b;
+  --bg-hover:     rgba(255, 255, 255, 0.045);
+  --bg-active:    rgba(255, 255, 255, 0.07);
+  --border-subtle: #23232b;
+  --border-medium: #2e2e38;
+  --border-strong: #3a3a46;
+  --text-primary:   #e9e9f0;
+  --text-secondary: #a6a6b4;
+  --text-muted:     #6e6e7a;
+  --text-faint:     #4a4a55;
+
+  /* Paleta de estado calibrada para fundo escuro: os tons do tema claro
+     ficam apagados aqui, e verde/vermelho precisam separar de longe. */
+  --mon-ok:   #2fbf6b; --mon-ok-soft:   rgba(47, 191, 107, 0.13); --mon-ok-line:   rgba(47, 191, 107, 0.30);
+  --mon-down: #f2555a; --mon-down-soft: rgba(242, 85, 90, 0.13);  --mon-down-line: rgba(242, 85, 90, 0.32);
+  --mon-warn: #e0b341; --mon-warn-soft: rgba(224, 179, 65, 0.13); --mon-warn-line: rgba(224, 179, 65, 0.32);
+  --mon-idle: #6e6e7a; --mon-idle-soft: rgba(110, 110, 122, 0.15); --mon-idle-line: rgba(110, 110, 122, 0.28);
+
+  --shadow-card: none;
+  --shadow-elevated: 0 12px 32px rgba(0, 0, 0, 0.5);
+
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  min-height: 100%;
+}
+/* Numeral tabular em TODA a área: coluna de número que dança de linha para
+   linha é o que mais faz painel parecer amador. */
+.mon-console .num,
+.mon-console .metric,
+.mon-console [class*="metric"] { font-variant-numeric: tabular-nums; }
+
+.mon-console .card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  box-shadow: none;
+}
+/* Sem sombra e sem elevação no hover: em superfície escura, sombra não
+   aparece — quem separa os planos é a borda. */
+.mon-console .card:hover { box-shadow: none; border-color: var(--border-medium); }
+
+.mon-console input,
+.mon-console select { background: var(--bg-secondary); color: var(--text-primary); }
+.mon-console input::placeholder { color: var(--text-faint); }
+
 /* Modo NOC: telão de parede, sem a casca do sistema.
    A página se anuncia pondo `noc-mode` no body; a barra lateral é quem sai. */
 body.noc-mode .sidebar { display: none; }
