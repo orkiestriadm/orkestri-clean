@@ -203,17 +203,12 @@ export default function ExecutivoPage() {
             {/* O buraco do donut estava vazio. É o lugar mais visível do
                 gráfico e vale o número que resume tudo: quanto da frota está
                 de pé agora. */}
+            {/* O texto do centro vai DEPOIS do gráfico e por cima.
+                Colocado antes, o ResponsiveContainer media largura zero na
+                primeira renderização e o donut saía como um risco — defeito
+                que só apareceu abrindo a tela. */}
             <div style={{ height: 230, position: "relative" }}>
-              <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>
-                <span className="metric" style={{ fontSize: 26, lineHeight: 1, color: "var(--text-primary)" }}>
-                  {summary ? Math.round((summary.online / Math.max(1, summary.monitorados)) * 100) : 0}%
-                </span>
-                <span style={{ fontSize: 10, color: "var(--text-muted)", marginTop: 3 }}>no ar agora</span>
-                <span className="num" style={{ fontSize: 10, color: "var(--text-faint)" }}>
-                  {summary?.online ?? 0} de {summary?.monitorados ?? 0}
-                </span>
-              </div>
-              <ResponsiveContainer>
+              <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie data={statusData} dataKey="value" nameKey="name" innerRadius={58} outerRadius={85} paddingAngle={2} stroke="none">
                     {statusData.map(d => <Cell key={d.key} fill={STATUS_COR[d.key]} />)}
@@ -222,6 +217,15 @@ export default function ExecutivoPage() {
                   <Legend wrapperStyle={{ fontSize: 11 }} />
                 </PieChart>
               </ResponsiveContainer>
+              <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", pointerEvents: "none", paddingBottom: 26 }}>
+                <span className="metric" style={{ fontSize: 26, lineHeight: 1, color: "var(--text-primary)" }}>
+                  {summary ? Math.round((summary.online / Math.max(1, summary.monitorados)) * 100) : 0}%
+                </span>
+                <span style={{ fontSize: 10, color: "var(--text-muted)", marginTop: 3 }}>no ar agora</span>
+                <span className="num" style={{ fontSize: 10, color: "var(--text-faint)" }}>
+                  {summary?.online ?? 0} de {summary?.monitorados ?? 0}
+                </span>
+              </div>
             </div>
           </div>
 
