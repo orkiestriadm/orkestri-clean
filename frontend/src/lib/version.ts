@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "1.11.2";
+export const VERSAO = "1.11.3";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -23,10 +23,10 @@ export const VERSAO = "1.11.2";
  * Não é gerada no build: `new Date()` no bundle muda a cada compilação, e duas
  * builds do mesmo código pareceriam versões diferentes.
  */
-export const VERSAO_DATA = "2026-08-16";
+export const VERSAO_DATA = "2026-08-17";
 
 /** Nome da entrega, para dar contexto ao número. */
-export const VERSAO_NOME = "Chamado de frota pergunta se o veículo roda";
+export const VERSAO_NOME = "Monitoramento mostra o problema primeiro";
 
 /**
  * Histórico exibido na tela Sobre, do mais recente para o mais antigo.
@@ -35,6 +35,19 @@ export const VERSAO_NOME = "Chamado de frota pergunta se o veículo roda";
  * esta lista quer saber o que mudou para ele.
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
+  {
+    versao: "1.11.3",
+    data: "2026-08-17",
+    titulo: "Monitoramento mostra o problema primeiro",
+    itens: [
+      "A tela de Monitoramento passou a ser organizada por gravidade: o que está fora do ar e o que está instável aparecem primeiro e já abertos, e os equipamentos saudáveis vêm somados por unidade, para abrir só quando interessar. Antes os 55 offline ficavam espalhados no meio de 406 cartões verdes e só apareciam usando o filtro",
+      "Equipamento com problema virou linha larga, com o nome inteiro — o cartão anterior cortava justamente o fim, que é onde está o KM e o sentido da via",
+      "O tempo mostrado no equipamento fora do ar passou a ser há quanto tempo ele caiu. Antes aparecia o intervalo do último ping, então um equipamento parado há três dias exibia \"28s\" e parecia ter caído naquele instante",
+      "Equipamento instável mostra o desenho da oscilação das últimas duas horas e a perda de pacote — latência média igual pode ser rede estável ou serrote, e são problemas diferentes",
+      "A correlação de falhas (\"um switch caiu e levou 12 câmeras\") subiu para o topo da página, antes dos indicadores",
+      "O vermelho ficou reservado para alarme: a etiqueta de tempo real ficou neutra e a disponibilidade geral agora muda de cor conforme o valor, em vez de ser sempre vermelha",
+    ],
+  },
   {
     versao: "1.11.2",
     data: "2026-08-16",

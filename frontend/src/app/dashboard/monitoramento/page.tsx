@@ -64,6 +64,29 @@ const fmtAgo = (s: string | null) => {
   return `${Math.round(diff/3_600_000)}h`;
 };
 
+/**
+ * Duração escrita por extenso, para o tempo de queda.
+ *
+ * `fmtAgo` responde "quando foi o último ping" — e num equipamento OFFLINE esse
+ * número continua andando de 30 em 30 segundos, porque o probe segue tentando.
+ * "28s" ao lado de um card vermelho lê como "caiu agora", quando pode estar fora
+ * do ar há três dias. Aqui o eixo é o INÍCIO da queda, que vem do evento de
+ * mudança de status.
+ */
+const fmtDuracao = (s: string | null | undefined) => {
+  if (!s) return null;
+  const diff = Date.now() - new Date(s).getTime();
+  if (diff < 60_000)     return "há menos de 1 min";
+  if (diff < 3_600_000)  return `há ${Math.round(diff / 60_000)} min`;
+  if (diff < 86_400_000) {
+    const h = Math.floor(diff / 3_600_000);
+    const m = Math.round((diff % 3_600_000) / 60_000);
+    return m ? `há ${h}h ${m}min` : `há ${h}h`;
+  }
+  const d = Math.floor(diff / 86_400_000);
+  return `há ${d} ${d === 1 ? "dia" : "dias"}`;
+};
+
 const latencyColor = (ms: number | null) => {
   if (ms == null) return "var(--text-muted)";
   if (ms < 50)  return "#22c55e";
@@ -94,6 +117,21 @@ export default function MonitoramentoDashboard() {
     return () => clearInterval(t);
   }, [snapshots]);
 
+  // Início da queda por ativo. Sem isto, um equipamento fora do ar há três dias
+  // mostra "28s" — o intervalo do último ping, não o tempo de indisponibilidade.
+  const [desdeMap, setDesde] = useState<Record<string, string>>({});
+
+  const carregarEventos = useCallback(async () => {
+    try {
+      const { data } = await api.get("/monitoramento/events", { params: { limit: 500 } });
+      // Eventos vêm do mais recente para o mais antigo: o PRIMEIRO de cada ativo
+      // é o que descreve o estado atual dele.
+      const m: Record<string, string> = {};
+      for (const ev of data || []) if (ev.assetId && !m[ev.assetId]) m[ev.assetId] = ev.iniciadoEm;
+      setDesde(m);
+    } catch { /* sem eventos, os cartões só omitem a duração */ }
+  }, []);
+
   const load = useCallback(async () => {
     try {
       const [a, s, c, inc] = await Promise.all([
@@ -103,8 +141,9 @@ export default function MonitoramentoDashboard() {
         api.get("/monitoramento/dashboard/incidentes").catch(() => ({ data: null })),
       ]);
       setAssets(a.data); setSummary(s.data); setPorCat(c.data); setIncidentes(inc.data);
+      carregarEventos();
     } finally { setLoading(false); }
-  }, []);
+  }, [carregarEventos]);
   useEffect(() => { load(); }, [load]);
   // recarrega incidentes a cada mudança de status (via WS) com debounce leve
   const recarregaIncidentes = useCallback(() => {
@@ -117,6 +156,9 @@ export default function MonitoramentoDashboard() {
     const onStatus = (ev: StatusChange) => {
       setAssets(prev => prev.map(a => a.id === ev.assetId
         ? { ...a, ultimoStatus: ev.novo as Status, ultimoCheckEm: ev.ts } : a));
+      // Mudou de estado agora: o relógio da queda reinicia neste instante, sem
+      // esperar o próximo carregamento de eventos.
+      setDesde(prev => ({ ...prev, [ev.assetId]: ev.ts }));
       api.get("/monitoramento/dashboard/summary").then(r => setSummary(r.data)).catch(() => {});
       recarregaIncidentes();
     };
@@ -151,6 +193,95 @@ export default function MonitoramentoDashboard() {
     });
   }, [assets, q, statusFilter, catFilter]);
 
+  /**
+   * A tela é organizada por SEVERIDADE, não por ordem de cadastro.
+   *
+   * Antes a lista saía na ordem que a API devolvia, e com 55 offline entre 474 o
+   * que estava quebrado ficava espalhado no meio de centenas de cartões verdes —
+   * o operador só achava o problema clicando no filtro. Num painel de operação a
+   * exceção tem que subir sozinha; o que está bem pode ficar somado.
+   */
+  const grupos = useMemo(() => {
+    const inicio = (a: Asset) => (desdeMap[a.id] ? new Date(desdeMap[a.id]).getTime() : 0);
+    const b: Record<Status, Asset[]> = { OFFLINE: [], INSTAVEL: [], NAO_MONITORADO: [], ONLINE: [] };
+    for (const a of visiveis) (b[a.ultimoStatus] || b.NAO_MONITORADO).push(a);
+    // Queda mais recente primeiro: incidente novo é o que ainda dá para agir.
+    // Sem evento registrado o ativo vai para o fim, não para o topo.
+    const porQueda = (x: Asset, y: Asset) => inicio(y) - inicio(x);
+    b.OFFLINE.sort(porQueda);
+    b.INSTAVEL.sort(porQueda);
+    const porNome = (x: Asset, y: Asset) => x.nome.localeCompare(y.nome, "pt-BR");
+    b.ONLINE.sort(porNome);
+    b.NAO_MONITORADO.sort(porNome);
+    return b;
+  }, [visiveis, desdeMap]);
+
+  /** Online somado por unidade: "a praça inteira de pé" em uma linha. */
+  const onlinePorUnidade = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const a of grupos.ONLINE) {
+      const k = a.unidade?.nome || "Sem unidade";
+      m.set(k, (m.get(k) || 0) + 1);
+    }
+    return [...m.entries()].sort((x, y) => y[1] - x[1]);
+  }, [grupos.ONLINE]);
+
+  // Offline e instável abrem por padrão; o que está saudável fica somado.
+  const [aberto, setAberto] = useState<Record<string, boolean>>({
+    OFFLINE: true, INSTAVEL: true, NAO_MONITORADO: false, ONLINE: false,
+  });
+  const alterna = (k: string) => setAberto(p => ({ ...p, [k]: !p[k] }));
+
+  /**
+   * Detalhe fino só de quem está instável: forma da oscilação e perda de pacote.
+   *
+   * É uma requisição por ativo, então NÃO vem no carregamento da página — só
+   * quando a seção está aberta, e com teto. Instável costuma ser um punhado; se
+   * um dia for a frota inteira, o teto evita disparar 400 requisições para
+   * enfeitar uma tela.
+   */
+  const [micro, setMicro] = useState<Record<string, Micro>>({});
+  // Quem já foi pedido, num ref. Depender de `micro` aqui faria o efeito
+  // re-rodar a cada resposta e disparar a mesma requisição de novo.
+  const microPedidos = useRef<Set<string>>(new Set());
+  const TETO_MICRO = 24;
+
+  useEffect(() => {
+    if (!aberto.INSTAVEL) return;
+    const alvo = grupos.INSTAVEL.slice(0, TETO_MICRO).filter(a => !microPedidos.current.has(a.id));
+    if (!alvo.length) return;
+    alvo.forEach(a => microPedidos.current.add(a.id));
+
+    let vivo = true;
+    (async () => {
+      for (const a of alvo) {
+        if (!vivo) return;
+        try {
+          const { data } = await api.get(`/monitoramento/events/${a.id}/historico`, { params: { horas: 2 }, silent: true } as any);
+          const serie: any[] = data?.serie || [];
+          if (!vivo || !serie.length) continue;
+          const total = serie.reduce((s, r) => s + Number(r.total || 0), 0);
+          const ok    = serie.reduce((s, r) => s + Number(r.ok || 0), 0);
+          setMicro(prev => ({
+            ...prev,
+            [a.id]: {
+              serie: serie.slice(-30).map(r => Number(r.avg_lat_ms || 0)),
+              perdaPct: total ? Math.max(0, (1 - ok / total) * 100) : null,
+            },
+          }));
+        } catch { /* ativo sem rollup ainda: a linha só não mostra o detalhe */ }
+      }
+    })();
+    return () => { vivo = false; };
+  }, [grupos.INSTAVEL, aberto.INSTAVEL]);
+
+  // Relógio de 30s só para as durações ("caído há 14 min") não congelarem.
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => setTick(x => x + 1), 30_000);
+    return () => clearInterval(t);
+  }, []);
+
   const catSelecionada = CATEGORIAS.find(c => c.v === catFilter);
 
   // KPI ring (disponibilidade) — visual
@@ -165,9 +296,14 @@ export default function MonitoramentoDashboard() {
         {/* ── Hero ─────────────────────────────────────────── */}
         <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 24, marginBottom: 22, flexWrap: "wrap" }}>
           <div>
-            <div style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "4px 10px 4px 8px", borderRadius: 999, background: "rgba(211,47,47,0.08)", border: "1px solid rgba(211,47,47,0.15)", marginBottom: 12 }}>
+            {/* Chip neutro, de propósito. Ele era vermelho da marca, e nesta tela
+                vermelho tem UM significado: equipamento fora do ar. Com o chip,
+                o botão do NOC e o alarme todos vermelhos, a cor parava de avisar.
+                Aqui quem carrega o estado é o dot — verde quando a rede está de
+                pé, vermelho quando não. */}
+            <div style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "4px 10px 4px 8px", borderRadius: 999, background: "var(--bg-secondary)", border: "1px solid var(--border-subtle)", marginBottom: 12 }}>
               <span className="dot-live" style={{ width: 6, height: 6, background: disponPct > 90 ? "#22c55e" : "#ef4444" }} />
-              <span style={{ fontSize: 10, fontFamily: "var(--font-mono)", color: "#D32F2F", fontWeight: 700, letterSpacing: 1.2, textTransform: "uppercase" }}>ICMP · tempo real</span>
+              <span style={{ fontSize: 10, fontFamily: "var(--font-mono)", color: "var(--text-secondary)", fontWeight: 700, letterSpacing: 1.2, textTransform: "uppercase" }}>ICMP · tempo real</span>
             </div>
             <h1 style={{ fontSize: 30, fontWeight: 800, fontFamily: "var(--font-display)", letterSpacing: "-0.025em", lineHeight: 1.1 }}>
               Monitoramento Operacional
@@ -205,6 +341,13 @@ export default function MonitoramentoDashboard() {
           </div>
         </div>
 
+        {/* ── Incidentes: PRIMEIRA coisa da página ───────────────────────────
+            Estava abaixo dos KPIs e dos chips de categoria. É a parte inteligente
+            do módulo — dizer que 12 câmeras caíram porque UM switch caiu — e
+            valia mais que qualquer contador. Quando não há incidente, não ocupa
+            espaço nenhum. */}
+        <PainelIncidentes incidentes={incidentes} />
+
         {/* ── KPI principal + secundarios ───────────────────────────────────── */}
         <div className="grid grid-cols-1 lg:grid-cols-[380px_1fr] gap-4 mb-6">
           {/* Disponibilidade — destaque com ring */}
@@ -226,7 +369,10 @@ export default function MonitoramentoDashboard() {
             </svg>
             <div>
               <div style={{ fontSize: 10, color: "var(--text-muted)", fontFamily: "var(--font-mono)", textTransform: "uppercase", letterSpacing: 1.5 }}>Disponibilidade geral</div>
-              <div className="metric" style={{ fontSize: 34, marginTop: 2, color: "var(--accent-red)" }}>
+              {/* O número acompanha o anel: verde acima de 95, âmbar acima de 80,
+                  vermelho abaixo. Fixo em vermelho, ele gritava com a rede em
+                  99,8% — e deixava de significar qualquer coisa quando caía. */}
+              <div className="metric" style={{ fontSize: 34, marginTop: 2, color: disponPct >= 95 ? "#16a34a" : disponPct >= 80 ? "#b45309" : "#dc2626" }}>
                 {disponPct.toFixed(1)}<span style={{ fontSize: 18, color: "var(--text-muted)" }}>%</span>
               </div>
               <div style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 4 }}>
@@ -280,45 +426,6 @@ export default function MonitoramentoDashboard() {
             );
           })}
         </div>
-
-        {/* ── Incidentes (correlação / causa-raiz) ──────────────────────────── */}
-        {incidentes && incidentes.incidentes && incidentes.incidentes.length > 0 && (
-          <div style={{ marginBottom: 16, display: "flex", flexDirection: "column", gap: 8 }}>
-            {incidentes.incidentes.map((inc: any, i: number) => {
-              const isRoot = inc.tipo === "causa_raiz";
-              const cor = isRoot ? "#ef4444" : "#f59e0b";
-              return (
-                <div key={i} className="card" style={{ padding: "12px 16px", borderLeft: `3px solid ${cor}`, background: `${cor}08` }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                    <AlertTriangle size={15} style={{ color: cor }} />
-                    {isRoot ? (
-                      <span style={{ fontSize: 13 }}>
-                        <b style={{ color: cor }}>Causa provável:</b>{" "}
-                        <b>{inc.causa.nome}</b> <span style={{ color: "var(--text-muted)", fontFamily: "var(--font-mono)", fontSize: 11 }}>({inc.causa.ip})</span> offline
-                        {" — "}<b>{inc.afetados.length}</b> equipamento(s) dependente(s) afetado(s)
-                        {inc.unidade && <span style={{ color: "var(--text-muted)" }}> · {inc.unidade}</span>}
-                      </span>
-                    ) : (
-                      <span style={{ fontSize: 13 }}>
-                        <b style={{ color: cor }}>Falha em massa:</b>{" "}
-                        <b>{inc.total}</b> equipamentos offline na unidade <b>{inc.unidade}</b>
-                        <span style={{ color: "var(--text-muted)" }}> — {inc.dica}</span>
-                      </span>
-                    )}
-                  </div>
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 8, marginLeft: 23 }}>
-                    {inc.afetados.slice(0, 12).map((f: any) => (
-                      <span key={f.id} style={{ fontSize: 10, padding: "2px 6px", borderRadius: 4, background: "var(--bg-hover)", color: "var(--text-secondary)", fontFamily: "var(--font-mono)" }}>
-                        {f.nome}
-                      </span>
-                    ))}
-                    {inc.afetados.length > 12 && <span style={{ fontSize: 10, color: "var(--text-muted)" }}>+{inc.afetados.length - 12}</span>}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
 
         {/* ── Filtro bar (sticky) ───────────────────────────────────────────── */}
         <div style={{ position: "sticky", top: 0, zIndex: 30, background: "var(--bg-primary)", padding: "10px 0", marginBottom: 10 }}>
@@ -435,13 +542,81 @@ export default function MonitoramentoDashboard() {
         )}
 
         {!loading && visiveis.length > 0 && (
-          <motion.div
-            initial="hidden" animate="show"
-            variants={{ hidden: {}, show: { transition: { staggerChildren: 0.012 } } }}
-            style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 10 }}
-          >
-            {visiveis.map(a => <AssetCard key={a.id} a={a} showSnap={snapshots} snapTick={snapTick} />)}
-          </motion.div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+            {(["OFFLINE", "INSTAVEL", "NAO_MONITORADO", "ONLINE"] as Status[]).map(st => {
+              const lista = grupos[st];
+              if (!lista.length) return null;
+              const s = STATUS[st];
+              // Filtro de status explícito manda: aí a seção escolhida abre.
+              const expandido = statusFilter === st ? true : !!aberto[st];
+              const critico = st === "OFFLINE" || st === "INSTAVEL";
+
+              return (
+                <section key={st}>
+                  <button
+                    onClick={() => alterna(st)}
+                    style={{
+                      display: "flex", alignItems: "center", gap: 10, width: "100%",
+                      background: "transparent", border: 0, cursor: "pointer", padding: "6px 2px",
+                      textAlign: "left", color: "var(--text-primary)",
+                    }}
+                  >
+                    {expandido ? <ChevronDown size={15} style={{ color: "var(--text-muted)" }} />
+                               : <ChevronRight size={15} style={{ color: "var(--text-muted)" }} />}
+                    <span style={{ width: 8, height: 8, borderRadius: 4, background: s.dot, flexShrink: 0 }} />
+                    <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 700, letterSpacing: 1.4, textTransform: "uppercase", color: critico ? s.fg : "var(--text-secondary)" }}>
+                      {s.label}
+                    </span>
+                    <span className="metric" style={{ fontSize: 16, color: critico ? s.fg : "var(--text-primary)" }}>{lista.length}</span>
+                    {critico && (
+                      <span style={{ fontSize: 11, color: "var(--text-muted)" }}>
+                        · queda mais recente primeiro
+                      </span>
+                    )}
+                    <span style={{ flex: 1 }} />
+                    {!expandido && (
+                      <span style={{ fontSize: 11, color: "var(--text-muted)" }}>ver equipamentos</span>
+                    )}
+                  </button>
+
+                  {/* Resumo por unidade: com a seção fechada, o verde ainda diz
+                      onde está de pé — 406 cartões idênticos não dizem. */}
+                  {st === "ONLINE" && !expandido && onlinePorUnidade.length > 0 && (
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6, padding: "2px 2px 0 33px" }}>
+                      {onlinePorUnidade.map(([nome, n]) => (
+                        <span key={nome} style={{
+                          display: "inline-flex", alignItems: "center", gap: 6, fontSize: 11,
+                          padding: "4px 10px", borderRadius: 999,
+                          background: "var(--bg-secondary)", border: "1px solid var(--border-subtle)",
+                          color: "var(--text-secondary)",
+                        }}>
+                          {nome}
+                          <b className="num" style={{ color: "#16a34a" }}>{n}</b>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+
+                  {expandido && (critico
+                    // Quebrado vira LINHA larga: o nome carrega o KM e o sentido,
+                    // e era exatamente o fim do nome que o cartão de 260px cortava.
+                    ? (
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(420px, 1fr))", gap: 8, marginTop: 6 }}>
+                        {lista.map(a => <AssetRow key={a.id} a={a} desde={desdeMap[a.id]} micro={micro[a.id]} />)}
+                      </div>
+                    )
+                    : (
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: 8, marginTop: 6 }}>
+                        {lista.map(a => (
+                          <AssetCard key={a.id} a={a} showSnap={snapshots} snapTick={snapTick} escondeTipo={!!catFilter} />
+                        ))}
+                      </div>
+                    )
+                  )}
+                </section>
+              );
+            })}
+          </div>
         )}
       </div>
     </>
@@ -451,6 +626,65 @@ export default function MonitoramentoDashboard() {
 // ──────────────────────────────────────────────────────────────────────────────
 // Sub-componentes
 // ──────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Correlação de falhas — causa-raiz e falha em massa.
+ *
+ * Vive no topo da página porque responde a pergunta que os contadores não
+ * respondem: "são 12 problemas ou é UM problema com 12 sintomas?". Um switch de
+ * praça caído derruba as câmeras dependentes, e tratar cada câmera como
+ * incidente separado manda o time para o lugar errado doze vezes.
+ */
+function PainelIncidentes({ incidentes }: { incidentes: any }) {
+  const lista = incidentes?.incidentes;
+  if (!lista?.length) return null;
+
+  return (
+    <div style={{ marginBottom: 18, display: "flex", flexDirection: "column", gap: 8 }}>
+      {lista.map((inc: any, i: number) => {
+        const isRoot = inc.tipo === "causa_raiz";
+        const cor = isRoot ? "#ef4444" : "#f59e0b";
+        return (
+          <motion.div
+            key={i}
+            initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }}
+            className="card"
+            style={{ padding: "14px 16px", borderLeft: `4px solid ${cor}`, background: `${cor}0d` }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: 9, flexWrap: "wrap" }}>
+              <AlertTriangle size={16} style={{ color: cor, flexShrink: 0 }} />
+              {isRoot ? (
+                <span style={{ fontSize: 13.5 }}>
+                  <b style={{ color: cor, fontFamily: "var(--font-mono)", fontSize: 11, letterSpacing: 1, textTransform: "uppercase" }}>Causa provável</b>
+                  <span style={{ margin: "0 8px", color: "var(--border-medium)" }}>|</span>
+                  <b>{inc.causa.nome}</b> <span style={{ color: "var(--text-muted)", fontFamily: "var(--font-mono)", fontSize: 11 }}>({inc.causa.ip})</span> offline
+                  {" — "}<b>{inc.afetados.length}</b> dependente(s) caíram com ele
+                  {inc.unidade && <span style={{ color: "var(--text-muted)" }}> · {inc.unidade}</span>}
+                </span>
+              ) : (
+                <span style={{ fontSize: 13.5 }}>
+                  <b style={{ color: cor, fontFamily: "var(--font-mono)", fontSize: 11, letterSpacing: 1, textTransform: "uppercase" }}>Falha em massa</b>
+                  <span style={{ margin: "0 8px", color: "var(--border-medium)" }}>|</span>
+                  <b>{inc.total}</b> equipamentos offline na unidade <b>{inc.unidade}</b>
+                  <span style={{ color: "var(--text-muted)" }}> — {inc.dica}</span>
+                </span>
+              )}
+            </div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 9, marginLeft: 25 }}>
+              {inc.afetados.slice(0, 12).map((f: any) => (
+                <span key={f.id} style={{ fontSize: 10, padding: "2px 7px", borderRadius: 4, background: "var(--bg-hover)", color: "var(--text-secondary)", fontFamily: "var(--font-mono)" }}>
+                  {f.nome}
+                </span>
+              ))}
+              {inc.afetados.length > 12 && <span style={{ fontSize: 10, color: "var(--text-muted)" }}>+{inc.afetados.length - 12}</span>}
+            </div>
+          </motion.div>
+        );
+      })}
+    </div>
+  );
+}
+
 function KpiTile({ label, value, colorName, onClick, active, clickable }: {
   label: string; value: any; colorName: string; icon?: React.ReactNode;
   onClick?: () => void; active?: boolean; clickable?: boolean;
@@ -485,17 +719,18 @@ function KpiTile({ label, value, colorName, onClick, active, clickable }: {
   );
 }
 
-function AssetCard({ a, showSnap, snapTick }: { a: Asset; showSnap?: boolean; snapTick?: number }) {
-  const s = STATUS[a.ultimoStatus] || STATUS.NAO_MONITORADO;
+/**
+ * Clique abre o histórico; duplo-clique abre a câmera.
+ *
+ * O debounce de 250ms existe porque as duas ações moram no mesmo alvo: sem ele,
+ * o duplo-clique disparava a navegação antes de o segundo clique chegar.
+ */
+function useAbrirAtivo(a: Asset) {
   const router = useRouter();
   const hasLink = !!a.link;
-  const [snapErr, setSnapErr] = useState(false);
-  // Miniatura: so pra ITS com link, quando ligado e o ativo nao esta offline.
-  const podeSnap = !!showSnap && a.categoria === "ITS" && hasLink && a.ultimoStatus !== "OFFLINE" && a.ultimoStatus !== "NAO_MONITORADO";
-  // Debounce: single-click vai pro historico apos 250ms; dblclick cancela e abre o link
   const clickTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const handleClick = (e: React.MouseEvent) => {
+  const onClick = (e: React.MouseEvent) => {
     e.preventDefault();
     if (clickTimer.current) return;
     clickTimer.current = setTimeout(() => {
@@ -503,12 +738,142 @@ function AssetCard({ a, showSnap, snapTick }: { a: Asset; showSnap?: boolean; sn
       router.push(`/dashboard/monitoramento/historico?assetId=${a.id}`);
     }, 250);
   };
-  const handleDblClick = (e: React.MouseEvent) => {
+  const onDoubleClick = (e: React.MouseEvent) => {
     e.preventDefault();
     if (clickTimer.current) { clearTimeout(clickTimer.current); clickTimer.current = null; }
     if (hasLink) window.open(normalizeLink(a.link as string), "_blank", "noopener,noreferrer");
     else router.push(`/dashboard/monitoramento/historico?assetId=${a.id}`);
   };
+  const title = hasLink ? `Clique: histórico · Duplo-clique: abrir ${a.link}` : "Clique: histórico";
+  return { onClick, onDoubleClick, title, hasLink };
+}
+
+/** Série de latência dos últimos minutos, do rollup por minuto. */
+type Micro = { serie: number[]; perdaPct: number | null };
+
+/**
+ * Sparkline em SVG puro — sem biblioteca.
+ *
+ * "Instável" é um estado que um número só não descreve: 15ms de média pode ser
+ * 15ms constante ou um serrote entre 2ms e 400ms, e são problemas diferentes.
+ * A forma da linha responde isso num relance.
+ */
+function Sparkline({ serie, cor }: { serie: number[]; cor: string }) {
+  if (serie.length < 2) return null;
+  const w = 62, h = 16;
+  const max = Math.max(...serie, 1);
+  const pts = serie.map((v, i) => {
+    const x = (i / (serie.length - 1)) * w;
+    const y = h - (v / max) * (h - 2) - 1;
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  }).join(" ");
+  return (
+    <svg width={w} height={h} style={{ display: "block", overflow: "visible" }} aria-hidden>
+      <polyline points={pts} fill="none" stroke={cor} strokeWidth="1.4" strokeLinejoin="round" strokeLinecap="round" opacity={0.9} />
+    </svg>
+  );
+}
+
+/**
+ * O equipamento com problema, em linha larga.
+ *
+ * Cartão de 260px truncava o nome em "CFTV 011 - KM 025+500 (S..." — e em 143
+ * câmeras que só diferem pelo KM e pelo sentido, o fim do nome É a identidade.
+ * Aqui o nome tem a largura toda e quebra em duas linhas se precisar.
+ *
+ * O número em destaque é o TEMPO DE QUEDA, não o último ping: é ele que decide
+ * quem atende primeiro.
+ */
+function AssetRow({ a, desde, micro }: { a: Asset; desde?: string; micro?: Micro }) {
+  const s = STATUS[a.ultimoStatus] || STATUS.NAO_MONITORADO;
+  const { onClick, onDoubleClick, title, hasLink } = useAbrirAtivo(a);
+  const duracao = fmtDuracao(desde);
+
+  return (
+    <motion.div
+      variants={{ hidden: { opacity: 0, y: 6 }, show: { opacity: 1, y: 0 } }}
+      whileHover={{ x: 2 }}
+      transition={{ type: "spring", stiffness: 340, damping: 28 }}
+    >
+      <div
+        role="button" tabIndex={0}
+        onClick={onClick} onDoubleClick={onDoubleClick} title={title}
+        className="card"
+        style={{
+          padding: "12px 14px", borderLeft: `3px solid ${s.dot}`,
+          background: `linear-gradient(90deg, ${s.bg}, transparent 55%)`,
+          cursor: hasLink ? "alias" : "pointer", userSelect: "none",
+          display: "flex", alignItems: "flex-start", gap: 12,
+        }}
+      >
+        <span style={{ width: 9, height: 9, borderRadius: 5, background: s.dot, flexShrink: 0, marginTop: 4, boxShadow: `0 0 8px ${s.dot}` }} />
+
+        <div style={{ minWidth: 0, flex: 1 }}>
+          <div style={{ fontSize: 13.5, fontWeight: 700, lineHeight: 1.25, display: "flex", alignItems: "center", gap: 5 }}>
+            <span>{a.nome}</span>
+            {hasLink && <ExternalLink size={11} style={{ color: "var(--text-muted)", flexShrink: 0 }} />}
+          </div>
+          <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 3, display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+            <span style={{ fontFamily: "var(--font-mono)" }}>{a.ip}</span>
+            {a.tipo && <><span>·</span><span>{a.tipo}</span></>}
+            {a.unidade?.nome && <><span>·</span><span>{a.unidade.nome}</span></>}
+          </div>
+
+          {(a.supressedByDep || a.latenciaAnomala) && (
+            <div style={{ display: "flex", gap: 5, marginTop: 7, flexWrap: "wrap" }}>
+              {a.supressedByDep && (
+                <span style={{ fontSize: 9.5, fontWeight: 700, padding: "2px 6px", borderRadius: 4, background: "rgba(148,163,184,0.15)", color: "#64748b" }}
+                  title={`Consequência, não causa: o uplink "${a.dependeDe?.nome}" está offline`}>
+                  ⛓ por dependência
+                </span>
+              )}
+              {a.latenciaAnomala && (
+                <span style={{ fontSize: 9.5, fontWeight: 700, padding: "2px 6px", borderRadius: 4, background: "rgba(245,158,11,0.15)", color: "#b45309" }}
+                  title={`Latência ${a.ultimaLatenciaMs}ms muito acima do normal (~${Math.round(a.latenciaBaseMs || 0)}ms)`}>
+                  ⚡ latência alta
+                </span>
+              )}
+            </div>
+          )}
+        </div>
+
+        <div style={{ textAlign: "right", flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 3 }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: s.fg, whiteSpace: "nowrap" }}>
+            {duracao || s.label}
+          </div>
+          <div style={{ fontSize: 10.5, color: "var(--text-muted)", fontFamily: "var(--font-mono)", whiteSpace: "nowrap" }}>
+            {a.ultimaLatenciaMs != null
+              ? <span style={{ color: latencyColor(a.ultimaLatenciaMs) }}>{a.ultimaLatenciaMs}ms</span>
+              : "sem resposta"}
+            <span style={{ margin: "0 4px" }}>·</span>
+            {/* Último ping: prova que o probe continua tentando. */}
+            ping {fmtAgo(a.ultimoCheckEm)}
+          </div>
+          {/* Instável só faz sentido com a FORMA da oscilação e a perda de
+              pacote. Vem do rollup por minuto, carregado sob demanda. */}
+          {micro && (micro.serie.length > 1 || micro.perdaPct != null) && (
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <Sparkline serie={micro.serie} cor={s.dot} />
+              {micro.perdaPct != null && micro.perdaPct > 0 && (
+                <span style={{ fontSize: 10, fontFamily: "var(--font-mono)", color: s.fg, whiteSpace: "nowrap" }}
+                  title="Pacotes sem resposta nas últimas 2 horas">
+                  perda {micro.perdaPct.toFixed(0)}%
+                </span>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
+function AssetCard({ a, showSnap, snapTick, escondeTipo }: { a: Asset; showSnap?: boolean; snapTick?: number; escondeTipo?: boolean }) {
+  const s = STATUS[a.ultimoStatus] || STATUS.NAO_MONITORADO;
+  const [snapErr, setSnapErr] = useState(false);
+  const { onClick: handleClick, onDoubleClick: handleDblClick, title: cardTitle, hasLink } = useAbrirAtivo(a);
+  // Miniatura: so pra ITS com link, quando ligado e o ativo nao esta offline.
+  const podeSnap = !!showSnap && a.categoria === "ITS" && hasLink && a.ultimoStatus !== "OFFLINE" && a.ultimoStatus !== "NAO_MONITORADO";
 
   return (
     <motion.div
@@ -522,7 +887,7 @@ function AssetCard({ a, showSnap, snapTick }: { a: Asset; showSnap?: boolean; sn
         tabIndex={0}
         onClick={handleClick}
         onDoubleClick={handleDblClick}
-        title={hasLink ? `Clique: histórico · Duplo-clique: abrir ${a.link}` : "Clique: histórico"}
+        title={cardTitle}
         className="card"
         style={{
           padding: "12px 14px", display: "block", textDecoration: "none", color: "inherit",
@@ -531,8 +896,6 @@ function AssetCard({ a, showSnap, snapTick }: { a: Asset; showSnap?: boolean; sn
           cursor: hasLink ? "alias" : "pointer", userSelect: "none",
         }}
       >
-        {/* sutil glow do status */}
-        <div aria-hidden style={{ position: "absolute", top: -20, right: -20, width: 80, height: 80, borderRadius: "50%", background: s.bg, filter: "blur(20px)", opacity: 0.6 }} />
 
         {/* miniatura da camera (opt-in) */}
         {podeSnap && !snapErr && (
@@ -544,22 +907,29 @@ function AssetCard({ a, showSnap, snapTick }: { a: Asset; showSnap?: boolean; sn
           />
         )}
 
-        <div style={{ position: "relative", display: "flex", justifyContent: "space-between", alignItems: "start", gap: 8 }}>
+        {/* Cabeçalho: nome em DUAS linhas antes de truncar.
+            O nome carrega o KM e o sentido, e cortar no meio ("KM 025+500 (S...")
+            apaga justamente o que distingue uma câmera da outra.
+            A pílula de status saiu: este cartão só é usado no que está saudável,
+            e repetir "Online" 406 vezes rouba a atenção das 55 que importam —
+            o dot pulsando já diz. */}
+        <div style={{ position: "relative", display: "flex", alignItems: "start", gap: 8 }}>
+          <motion.span
+            style={{ display: "inline-block", width: 7, height: 7, borderRadius: 4, background: s.dot, flexShrink: 0, marginTop: 5 }}
+            animate={a.ultimoStatus === "ONLINE" ? { opacity: [1, 0.35, 1] } : {}}
+            transition={a.ultimoStatus === "ONLINE" ? { duration: 2.4, repeat: Infinity } : {}}
+            title={s.label}
+          />
           <div style={{ minWidth: 0, flex: 1 }}>
-            <div style={{ fontSize: 13, fontWeight: 700, lineHeight: 1.2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: 5 }}>
-              <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1, minWidth: 0 }}>{a.nome}</span>
-              {hasLink && <ExternalLink size={11} style={{ color: "#D32F2F", opacity: 0.7, flexShrink: 0 }} />}
+            <div style={{ fontSize: 12.5, fontWeight: 700, lineHeight: 1.25, display: "flex", alignItems: "flex-start", gap: 5 }}>
+              <span style={{
+                display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical",
+                overflow: "hidden", minWidth: 0,
+              } as any}>{a.nome}</span>
+              {hasLink && <ExternalLink size={10} style={{ color: "var(--text-muted)", flexShrink: 0, marginTop: 2 }} />}
             </div>
-            <div style={{ fontSize: 11, color: "var(--text-muted)", fontFamily: "var(--font-mono)", marginTop: 3 }}>{a.ip}</div>
+            <div style={{ fontSize: 10.5, color: "var(--text-muted)", fontFamily: "var(--font-mono)", marginTop: 3 }}>{a.ip}</div>
           </div>
-          <span style={{ display: "inline-flex", alignItems: "center", gap: 5, background: s.bg, color: s.fg, fontSize: 10, fontWeight: 700, padding: "3px 8px", borderRadius: 999, whiteSpace: "nowrap", boxShadow: `inset 0 0 0 1px ${s.ring}` }}>
-            <motion.span
-              style={{ display: "inline-block", width: 6, height: 6, borderRadius: 3, background: s.dot }}
-              animate={a.ultimoStatus === "ONLINE" ? { opacity: [1, 0.4, 1] } : {}}
-              transition={a.ultimoStatus === "ONLINE" ? { duration: 1.6, repeat: Infinity } : {}}
-            />
-            {s.label}
-          </span>
         </div>
 
         {/* Badges de inteligência: dependência / anomalia */}
@@ -580,8 +950,10 @@ function AssetCard({ a, showSnap, snapTick }: { a: Asset; showSnap?: boolean; sn
           </div>
         )}
 
-        <div style={{ position: "relative", display: "flex", justifyContent: "space-between", marginTop: 10, fontSize: 11 }}>
-          <span style={{ color: "var(--text-muted)" }}>{a.tipo || a.categoria}</span>
+        {/* Rodapé. O tipo sai quando a categoria já está filtrada: com o filtro
+            em ITS, "CFTV" repetido em 143 cartões não informa nada. */}
+        <div style={{ position: "relative", display: "flex", justifyContent: "space-between", marginTop: 9, fontSize: 10.5 }}>
+          <span style={{ color: "var(--text-muted)" }}>{escondeTipo ? (a.unidade?.nome || "") : (a.tipo || a.categoria)}</span>
           <span style={{ fontFamily: "var(--font-mono)" }}>
             <span style={{ color: latencyColor(a.ultimaLatenciaMs), fontWeight: 700 }}>{a.ultimaLatenciaMs != null ? `${a.ultimaLatenciaMs}ms` : "—"}</span>
             <span style={{ color: "var(--text-muted)", margin: "0 4px" }}>·</span>
