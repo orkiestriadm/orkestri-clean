@@ -479,7 +479,13 @@ body.mon-console-mode .app-topbar {
 
   --shadow-card: none;
   --shadow-elevated: 0 12px 32px rgba(0, 0, 0, 0.5);
+}
 
+/* Só a PÁGINA recebe as propriedades de layout. Quando `min-height: 100%`
+   estava no bloco compartilhado, a topbar herdava junto e esticava pela altura
+   inteira — a tela virava uma faixa preta com o cabeçalho no meio. Variável se
+   compartilha; layout, não. */
+.mon-console {
   background: var(--bg-primary);
   color: var(--text-primary);
   min-height: 100%;
