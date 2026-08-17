@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "1.11.3";
+export const VERSAO = "1.11.4";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -26,7 +26,7 @@ export const VERSAO = "1.11.3";
 export const VERSAO_DATA = "2026-08-17";
 
 /** Nome da entrega, para dar contexto ao número. */
-export const VERSAO_NOME = "Monitoramento mostra o problema primeiro";
+export const VERSAO_NOME = "Tempo de queda para todos os equipamentos";
 
 /**
  * Histórico exibido na tela Sobre, do mais recente para o mais antigo.
@@ -35,6 +35,15 @@ export const VERSAO_NOME = "Monitoramento mostra o problema primeiro";
  * esta lista quer saber o que mudou para ele.
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
+  {
+    versao: "1.11.4",
+    data: "2026-08-17",
+    titulo: "Tempo de queda para todos os equipamentos",
+    itens: [
+      "Na tela de Monitoramento, o tempo de queda passou a aparecer em todos os equipamentos fora do ar. Na 1.11.3 ele só aparecia nos que caíram recentemente — dos 54 offline, 44 mostravam apenas \"Offline\", sem dizer há quanto tempo, justamente os que estavam caídos há mais tempo",
+      "O resumo dos equipamentos saudáveis passa a agrupar por categoria quando a unidade não está cadastrada. Como nenhum equipamento tem unidade preenchida, o resumo inteiro se resumia a um rótulo \"Sem unidade\"",
+    ],
+  },
   {
     versao: "1.11.3",
     data: "2026-08-17",

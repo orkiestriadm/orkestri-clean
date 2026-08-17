@@ -100,7 +100,48 @@ export class MonitoramentoService implements OnModuleInit {
       orderBy: [{ ultimoStatus: "asc" }, { nome: "asc" }],
       take: 2000,
     });
-    return rows.map((a: any) => this.enrich(a));
+    const desde = await this.inicioDoEstadoAtual(orgId, rows);
+    return rows.map((a: any) => ({ ...this.enrich(a), desdeEm: desde.get(a.id) || null }));
+  }
+
+  /**
+   * Desde quando cada ativo está no estado atual.
+   *
+   * `ultimoCheckEm` responde "quando foi o último ping" — e num ativo OFFLINE
+   * esse número continua andando a cada ciclo do probe, porque ele segue
+   * tentando. A tela mostrava "28s" para equipamento fora do ar há três dias.
+   *
+   * A tela chegou a resolver isso sozinha, lendo os 500 eventos mais recentes.
+   * Não funciona: medido em 17/08/2026, esses 500 eventos cobriam só 34 ativos
+   * distintos, porque quem fica oscilando domina o histórico — 44 dos 54 ativos
+   * offline não apareciam ali, justamente os que estão caídos há mais tempo.
+   *
+   * Aqui a pergunta é feita direito: o evento MAIS RECENTE que levou o ativo ao
+   * estado em que ele está. Só para quem não está ONLINE — é aí que a duração
+   * significa algo, e limitar mantém a consulta pequena.
+   */
+  private async inicioDoEstadoAtual(orgId: string, rows: any[]): Promise<Map<string, Date>> {
+    const alvo = rows.filter(a => a.ultimoStatus === "OFFLINE" || a.ultimoStatus === "INSTAVEL");
+    const mapa = new Map<string, Date>();
+    if (!alvo.length) return mapa;
+
+    const grupos: any[] = await this.db.monStatusEvent.groupBy({
+      by: ["assetId", "statusNovo"],
+      where: {
+        organizationId: orgId,
+        assetId:    { in: alvo.map(a => a.id) },
+        statusNovo: { in: ["OFFLINE", "INSTAVEL"] },
+      },
+      _max: { iniciadoEm: true },
+    }).catch(() => []);
+
+    // Um ativo pode ter evento nos dois estados; vale o do estado ATUAL dele.
+    const statusAtual = new Map(alvo.map(a => [a.id, a.ultimoStatus]));
+    for (const g of grupos) {
+      if (g.statusNovo !== statusAtual.get(g.assetId)) continue;
+      if (g._max?.iniciadoEm) mapa.set(g.assetId, g._max.iniciadoEm);
+    }
+    return mapa;
   }
 
   // Deriva supressao por dependencia e anomalia de latencia (read-time).

@@ -21,6 +21,8 @@ type Asset = {
   id: string; nome: string; ip: string; hostname?: string; categoria: string; tipo: string;
   link?: string | null;
   ultimoStatus: Status; ultimaLatenciaMs: number | null; ultimoCheckEm: string | null;
+  /** Desde quando está neste estado. Vem do backend, só para não-ONLINE. */
+  desdeEm?: string | null;
   unidade?: { id: string; nome: string };
   supressedByDep?: boolean; latenciaAnomala?: boolean; latenciaBaseMs?: number | null;
   dependeDe?: { id: string; nome: string; ultimoStatus: string } | null;
@@ -117,20 +119,16 @@ export default function MonitoramentoDashboard() {
     return () => clearInterval(t);
   }, [snapshots]);
 
-  // Início da queda por ativo. Sem isto, um equipamento fora do ar há três dias
-  // mostra "28s" — o intervalo do último ping, não o tempo de indisponibilidade.
+  /**
+   * Início do estado atual, por ativo.
+   *
+   * O valor de partida é o `desdeEm` que o backend calcula — a primeira versão
+   * disto lia os 500 eventos mais recentes aqui no cliente e cobria só 34 dos
+   * 474 ativos, deixando 44 dos 54 offline sem duração. Este mapa agora serve
+   * para uma coisa só: registrar as mudanças que chegam pelo WebSocket sem
+   * esperar o próximo carregamento.
+   */
   const [desdeMap, setDesde] = useState<Record<string, string>>({});
-
-  const carregarEventos = useCallback(async () => {
-    try {
-      const { data } = await api.get("/monitoramento/events", { params: { limit: 500 } });
-      // Eventos vêm do mais recente para o mais antigo: o PRIMEIRO de cada ativo
-      // é o que descreve o estado atual dele.
-      const m: Record<string, string> = {};
-      for (const ev of data || []) if (ev.assetId && !m[ev.assetId]) m[ev.assetId] = ev.iniciadoEm;
-      setDesde(m);
-    } catch { /* sem eventos, os cartões só omitem a duração */ }
-  }, []);
 
   const load = useCallback(async () => {
     try {
@@ -141,9 +139,11 @@ export default function MonitoramentoDashboard() {
         api.get("/monitoramento/dashboard/incidentes").catch(() => ({ data: null })),
       ]);
       setAssets(a.data); setSummary(s.data); setPorCat(c.data); setIncidentes(inc.data);
-      carregarEventos();
+      // Recarregar zera o que o WebSocket acumulou: o `desdeEm` que acabou de
+      // chegar nos ativos é mais confiável que o registro local.
+      setDesde({});
     } finally { setLoading(false); }
-  }, [carregarEventos]);
+  }, []);
   useEffect(() => { load(); }, [load]);
   // recarrega incidentes a cada mudança de status (via WS) com debounce leve
   const recarregaIncidentes = useCallback(() => {
@@ -201,8 +201,14 @@ export default function MonitoramentoDashboard() {
    * o operador só achava o problema clicando no filtro. Num painel de operação a
    * exceção tem que subir sozinha; o que está bem pode ficar somado.
    */
+  // Mudança recebida ao vivo tem precedência sobre o valor que veio na carga.
+  const desdeDe = useCallback(
+    (a: Asset) => desdeMap[a.id] || a.desdeEm || null,
+    [desdeMap],
+  );
+
   const grupos = useMemo(() => {
-    const inicio = (a: Asset) => (desdeMap[a.id] ? new Date(desdeMap[a.id]).getTime() : 0);
+    const inicio = (a: Asset) => { const d = desdeMap[a.id] || a.desdeEm; return d ? new Date(d).getTime() : 0; };
     const b: Record<Status, Asset[]> = { OFFLINE: [], INSTAVEL: [], NAO_MONITORADO: [], ONLINE: [] };
     for (const a of visiveis) (b[a.ultimoStatus] || b.NAO_MONITORADO).push(a);
     // Queda mais recente primeiro: incidente novo é o que ainda dá para agir.
@@ -216,14 +222,26 @@ export default function MonitoramentoDashboard() {
     return b;
   }, [visiveis, desdeMap]);
 
-  /** Online somado por unidade: "a praça inteira de pé" em uma linha. */
-  const onlinePorUnidade = useMemo(() => {
+  /**
+   * Online somado — por unidade quando existe, senão por categoria.
+   *
+   * O agrupamento nasceu só por unidade e não servia para nada: medido em
+   * homologação, `unidade` é null em 408 de 408 ativos online, então o resumo
+   * inteiro virava um chip único dizendo "Sem unidade · 408". Categoria está
+   * sempre preenchida, então é ela que sustenta a leitura enquanto as unidades
+   * não estiverem cadastradas — e quando estiverem, elas assumem sozinhas.
+   */
+  const onlineAgrupado = useMemo(() => {
+    const temUnidade = grupos.ONLINE.some(a => a.unidade?.nome);
+    const rotulo = (a: Asset) => temUnidade
+      ? (a.unidade?.nome || "Sem unidade")
+      : (CATEGORIAS.find(c => c.v === a.categoria)?.label || a.categoria);
     const m = new Map<string, number>();
     for (const a of grupos.ONLINE) {
-      const k = a.unidade?.nome || "Sem unidade";
+      const k = rotulo(a);
       m.set(k, (m.get(k) || 0) + 1);
     }
-    return [...m.entries()].sort((x, y) => y[1] - x[1]);
+    return { por: temUnidade ? "unidade" : "categoria", grupos: [...m.entries()].sort((x, y) => y[1] - x[1]) };
   }, [grupos.ONLINE]);
 
   // Offline e instável abrem por padrão; o que está saudável fica somado.
@@ -581,9 +599,12 @@ export default function MonitoramentoDashboard() {
 
                   {/* Resumo por unidade: com a seção fechada, o verde ainda diz
                       onde está de pé — 406 cartões idênticos não dizem. */}
-                  {st === "ONLINE" && !expandido && onlinePorUnidade.length > 0 && (
-                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6, padding: "2px 2px 0 33px" }}>
-                      {onlinePorUnidade.map(([nome, n]) => (
+                  {st === "ONLINE" && !expandido && onlineAgrupado.grupos.length > 0 && (
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6, alignItems: "center", padding: "2px 2px 0 33px" }}>
+                      <span style={{ fontSize: 10, fontFamily: "var(--font-mono)", color: "var(--text-faint)", textTransform: "uppercase", letterSpacing: 0.8 }}>
+                        por {onlineAgrupado.por}
+                      </span>
+                      {onlineAgrupado.grupos.map(([nome, n]) => (
                         <span key={nome} style={{
                           display: "inline-flex", alignItems: "center", gap: 6, fontSize: 11,
                           padding: "4px 10px", borderRadius: 999,
@@ -602,7 +623,7 @@ export default function MonitoramentoDashboard() {
                     // e era exatamente o fim do nome que o cartão de 260px cortava.
                     ? (
                       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(420px, 1fr))", gap: 8, marginTop: 6 }}>
-                        {lista.map(a => <AssetRow key={a.id} a={a} desde={desdeMap[a.id]} micro={micro[a.id]} />)}
+                        {lista.map(a => <AssetRow key={a.id} a={a} desde={desdeDe(a)} micro={micro[a.id]} />)}
                       </div>
                     )
                     : (
