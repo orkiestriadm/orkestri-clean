@@ -77,6 +77,22 @@ export default function NocPage() {
     if (!d.fullscreenElement) d.documentElement.requestFullscreen?.().catch(() => {});
     else d.exitFullscreen?.().catch(() => {});
   }, []);
+  /**
+   * Some com a casca do sistema enquanto o NOC estiver aberto.
+   *
+   * A primeira tentativa foi `position: fixed` com z-index alto, e não
+   * funcionou: a barra lateral seguiu pintando POR CIMA e cortando 190px do
+   * telão. z-index não atravessa contexto de empilhamento — o container do
+   * conteúdo cria o seu, e qualquer valor daqui de dentro fica preso nele.
+   *
+   * Uma classe no `body` resolve na origem: quem esconde a barra é a própria
+   * barra, e o efeito morre junto com a página.
+   */
+  useEffect(() => {
+    document.body.classList.add("noc-mode");
+    return () => document.body.classList.remove("noc-mode");
+  }, []);
+
   useEffect(() => {
     const onFs = () => setCheia(!!document.fullscreenElement);
     const onKey = (e: KeyboardEvent) => {

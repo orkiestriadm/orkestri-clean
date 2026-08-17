@@ -434,6 +434,10 @@
   font-variant-numeric: tabular-nums; flex-shrink: 0;
 }
 
+/* Modo NOC: telão de parede, sem a casca do sistema.
+   A página se anuncia pondo `noc-mode` no body; a barra lateral é quem sai. */
+body.noc-mode .sidebar { display: none; }
+
 /* Rótulo de faixa: hierarquia dentro do problema, sem virar outro cabeçalho. */
 .mon-faixa__rot {
   font-family: var(--font-mono); font-size: 10px; font-weight: 600;
