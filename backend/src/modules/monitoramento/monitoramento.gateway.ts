@@ -27,6 +27,19 @@ export class MonitoramentoGateway implements OnGatewayConnection, OnGatewayDisco
 
   constructor(private readonly jwt: JwtService) {}
 
+  /**
+   * O token do handshake — e o COOKIE é o caminho que funciona.
+   *
+   * As três primeiras fontes assumem um token que o JavaScript possa ler. Não
+   * existe mais: desde que a autenticação virou cookie HttpOnly, o store do
+   * frontend deixou de guardar o token em `localStorage` — e o cliente do
+   * socket seguiu procurando lá, mandando `null` no handshake. Toda conexão
+   * era rejeitada aqui, silenciosamente, e a tela ficava em "conexão em tempo
+   * real perdida" tentando reconectar para sempre.
+   *
+   * O navegador manda o cookie no handshake (mesma origem), então é dele que
+   * sai o token. As outras fontes ficam para chamadas de fora do navegador.
+   */
   private extractToken(client: Socket): string | null {
     const auth: any = client.handshake.auth || {};
     if (auth.token) return String(auth.token);
@@ -34,6 +47,17 @@ export class MonitoramentoGateway implements OnGatewayConnection, OnGatewayDisco
     if (q.token) return String(q.token);
     const header = client.handshake.headers["authorization"];
     if (typeof header === "string" && header.startsWith("Bearer ")) return header.slice(7);
+
+    const raw = client.handshake.headers["cookie"];
+    if (typeof raw === "string") {
+      for (const parte of raw.split(";")) {
+        const i = parte.indexOf("=");
+        if (i < 0) continue;
+        if (parte.slice(0, i).trim() === "orkestri_token") {
+          return decodeURIComponent(parte.slice(i + 1).trim());
+        }
+      }
+    }
     return null;
   }
 

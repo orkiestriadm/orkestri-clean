@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "1.11.9";
+export const VERSAO = "1.11.10";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -26,7 +26,7 @@ export const VERSAO = "1.11.9";
 export const VERSAO_DATA = "2026-08-17";
 
 /** Nome da entrega, para dar contexto ao número. */
-export const VERSAO_NOME = "Disponibilidade medida contra a meta";
+export const VERSAO_NOME = "O tempo real do monitoramento volta a funcionar";
 
 /**
  * Histórico exibido na tela Sobre, do mais recente para o mais antigo.
@@ -35,6 +35,15 @@ export const VERSAO_NOME = "Disponibilidade medida contra a meta";
  * esta lista quer saber o que mudou para ele.
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
+  {
+    versao: "1.11.10",
+    data: "2026-08-17",
+    titulo: "O tempo real do monitoramento volta a funcionar",
+    itens: [
+      "As telas de Monitoramento voltaram a atualizar sozinhas. A conexão em tempo real estava sendo recusada desde que o acesso passou a usar cookie seguro: o navegador não enviava a credencial no momento de abrir a conexão, e as telas só mudavam ao recarregar a página",
+      "O Modo NOC deixa de exibir o aviso permanente de conexão perdida",
+    ],
+  },
   {
     versao: "1.11.7",
     data: "2026-08-17",

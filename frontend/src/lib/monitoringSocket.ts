@@ -10,6 +10,7 @@
  *   probe_tick    { organizationId, assetId, ok, latenciaMs, status, ts }
  */
 import { io, Socket } from "socket.io-client";
+import { useAuthStore } from "./store";
 
 export type StatusChange = {
   organizationId: string;
@@ -35,12 +36,22 @@ export type ProbeTick = {
 let socket: Socket | null = null;
 let refs = 0;
 
+/**
+ * Não existe token para o JavaScript ler.
+ *
+ * Esta função procurava em `localStorage["orkestri-auth"]`, que nunca existiu:
+ * o store de autenticação é um `create` puro do zustand, sem `persist`. Desde
+ * que o login passou a gravar cookie HttpOnly, a única cópia do token está
+ * fora do alcance do JS — de propósito.
+ *
+ * Quem autentica o handshake agora é o cookie, enviado pelo navegador por
+ * `withCredentials` (mesma origem). Mantida só para a sessão em memória logo
+ * após o login, onde o token existe sem recarga de página.
+ */
 function getToken(): string | null {
   try {
-    const fromStore = JSON.parse(localStorage.getItem("orkestri-auth") || "{}")?.state?.token;
-    if (fromStore) return fromStore;
+    return useAuthStore.getState().token ?? null;
   } catch {}
-  // fallback: cookie csrf (nao serve), token vem do auth store
   return null;
 }
 
@@ -53,6 +64,9 @@ export function connectMonitoringSocket(): Socket {
   socket = io(url, {
     path: "/socket.io",
     transports: ["websocket", "polling"],
+    // O cookie HttpOnly é quem autentica o handshake. Sem isto o navegador não
+    // o envia, e o gateway derruba a conexão por falta de token.
+    withCredentials: true,
     auth: { token },
     reconnection: true,
     reconnectionDelay: 2000,
