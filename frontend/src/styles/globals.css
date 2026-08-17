@@ -445,11 +445,13 @@
    resto do produto segue o tema do usuário.
 
    Vale para os dois temas do sistema: aqui dentro é sempre console. */
-/* A classe no `body` estende o console até a topbar, que fica FORA da árvore
-   da página. A barra lateral não entra: ela tem tokens próprios
-   (`--sidebar-*`) e segue o tema do usuário, que é o pedido. */
+/* A topbar fica FORA da árvore da página, então a classe vai no `body` — mas
+   os tokens são aplicados só nela, nunca no body inteiro.
+   Aplicados no body, escureciam também o cartão de usuário no rodapé da barra
+   lateral: ele usa `--bg-card`, e virou um bloco preto dentro de uma barra
+   clara. Escopo estreito resolve, e a barra segue o tema do usuário. */
 .mon-console,
-body.mon-console-mode {
+body.mon-console-mode .app-topbar {
   /* shadcn: a topbar herda a cor do texto de `--foreground`. Sem redefinir,
      o cabeçalho ficaria com texto escuro sobre fundo escuro. */
   --background: 240 12% 5%;
@@ -501,6 +503,17 @@ body.mon-console-mode {
 .mon-console input,
 .mon-console select { background: var(--bg-secondary); color: var(--text-primary); }
 .mon-console input::placeholder { color: var(--text-faint); }
+
+/* A topbar em si: a cor de fundo dela vem de `--bg-primary`, já redefinido
+   acima, mas o texto herda de fora do escopo — daí a cor explícita. */
+body.mon-console-mode .app-topbar {
+  background: #0d0d10;
+  color: #e9e9f0;
+  border-bottom-color: #23232b;
+}
+/* Área de conteúdo atrás da página: sem isto, sobra uma faixa clara em volta
+   do console quando a página não preenche a altura toda. */
+body.mon-console-mode .page-content { background: #0d0d10; }
 
 /* Modo NOC: telão de parede, sem a casca do sistema.
    A página se anuncia pondo `noc-mode` no body; a barra lateral é quem sai. */
