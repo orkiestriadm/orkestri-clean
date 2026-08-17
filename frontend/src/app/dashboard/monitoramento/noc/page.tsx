@@ -1,6 +1,10 @@
 "use client";
 export const dynamic = "force-dynamic";
 import { useState, useEffect, useCallback, useRef } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { ArrowLeft, Maximize2, Minimize2, Volume2, VolumeX, Check } from "lucide-react";
+import { MARCA } from "@/lib/marca";
 import { api } from "@/lib/api";
 import { connectMonitoringSocket, disconnectMonitoringSocket, getMonitoringSocket, type StatusChange, type ProbeTick } from "@/lib/monitoringSocket";
 
@@ -49,6 +53,7 @@ function playAlert(kind: "down" | "up") {
 const fmtTime = (s: string) => new Date(s).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
 
 export default function NocPage() {
+  const router = useRouter();
   const [assets, setAssets] = useState<Asset[]>([]);
   const [summary, setSummary] = useState<any>(null);
   const [now, setNow] = useState(new Date());
@@ -57,6 +62,31 @@ export default function NocPage() {
   const [muted, setMuted] = useState(false);
   const mutedRef = useRef(false);
   useEffect(() => { mutedRef.current = muted; }, [muted]);
+
+  /**
+   * Tela cheia — é para isso que este modo existe.
+   *
+   * O NOC costuma viver num telão de parede, onde a barra do navegador só
+   * rouba altura. A tecla F faz o mesmo, para quem chega no teclado.
+   */
+  const [cheia, setCheia] = useState(false);
+  const telaCheia = useCallback(() => {
+    const d: any = document;
+    if (!d.fullscreenElement) d.documentElement.requestFullscreen?.().catch(() => {});
+    else d.exitFullscreen?.().catch(() => {});
+  }, []);
+  useEffect(() => {
+    const onFs = () => setCheia(!!document.fullscreenElement);
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "f" || e.key === "F") telaCheia();
+      // Esc já sai da tela cheia sozinho; aqui ele volta ao modo padrão quando
+      // não há tela cheia para fechar.
+      if (e.key === "Escape" && !document.fullscreenElement) router.push("/dashboard/monitoramento");
+    };
+    document.addEventListener("fullscreenchange", onFs);
+    window.addEventListener("keydown", onKey);
+    return () => { document.removeEventListener("fullscreenchange", onFs); window.removeEventListener("keydown", onKey); };
+  }, [telaCheia, router]);
 
   const load = useCallback(async () => {
     const [a, s, e] = await Promise.all([
@@ -111,6 +141,10 @@ export default function NocPage() {
 
   const grouped = (cat: string) => assets.filter(a => a.categoria === cat);
   const pendentes = events.filter(e => !e.reconhecidoEm);
+  // Offline antes de instável: o telão é lido de longe, na ordem de urgência.
+  const alarme = assets
+    .filter(a => a.ultimoStatus === "OFFLINE" || a.ultimoStatus === "INSTAVEL")
+    .sort((x, y) => (x.ultimoStatus === y.ultimoStatus ? 0 : x.ultimoStatus === "OFFLINE" ? -1 : 1));
 
   return (
     <div style={{ background: "#000", color: "#e5e7eb", minHeight: "100vh", padding: 20, fontFamily: "var(--font-display)", display: "grid", gridTemplateColumns: "1fr 320px", gap: 16 }}>
@@ -125,30 +159,80 @@ export default function NocPage() {
           </div>
         )}
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr auto", marginBottom: 16, alignItems: "center" }}>
-          <div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr auto", marginBottom: 16, alignItems: "center", gap: 16 }}>
+          <div style={{ minWidth: 0 }}>
+            {/* Saída do modo NOC. Faltava: quem entrava aqui só voltava pelo
+                botão do navegador ou digitando a URL — e num telão em quiosque
+                não existe botão de voltar. */}
+            <Link href="/dashboard/monitoramento" className="noc-btn" style={{ marginBottom: 10, display: "inline-flex", textDecoration: "none" }}>
+              <ArrowLeft size={14} /> Voltar ao modo padrão
+            </Link>
             <div style={{ fontSize: 28, fontWeight: 800, letterSpacing: "-0.02em" }}>Network Operations Center</div>
-            <div style={{ fontSize: 13, color: "#94a3b8" }}>Triunfo Transbrasiliana · Monitoramento Operacional</div>
+            <div style={{ fontSize: 13, color: "#94a3b8" }}>{MARCA} · Monitoramento Operacional</div>
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            {/* Ícones no lugar de emoji: emoji muda de desenho por sistema e não
+                aceita cor do tema — num telão o que se vê é o emoji do SO. */}
+            <button onClick={telaCheia} className="noc-btn" title="Tela cheia (F11 ou tecla F)">
+              {cheia ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
+              {cheia ? "Sair da tela cheia" : "Tela cheia"}
+            </button>
             <button onClick={() => setMuted(m => !m)} title={muted ? "Ativar som" : "Silenciar"}
-              style={{ background: muted ? "#3f1d1d" : "#0a2a18", border: `1px solid ${muted ? "#ef4444" : "#16a34a"}`, color: muted ? "#fca5a5" : "#22c55e", borderRadius: 8, padding: "8px 12px", cursor: "pointer", fontSize: 12, fontWeight: 700 }}>
-              {muted ? "🔇 Mudo" : "🔊 Som"}
+              className="noc-btn"
+              style={{ borderColor: muted ? "#ef4444" : "#16a34a", color: muted ? "#fca5a5" : "#22c55e", background: muted ? "#3f1d1d" : "#0a2a18" }}>
+              {muted ? <VolumeX size={14} /> : <Volume2 size={14} />}
+              {muted ? "Mudo" : "Som"}
             </button>
             <div style={{ textAlign: "right", fontFamily: "var(--font-mono)" }}>
-              <div style={{ fontSize: 32, fontWeight: 800, color: "#fff" }}>{now.toLocaleTimeString("pt-BR")}</div>
+              <div style={{ fontSize: 32, fontWeight: 800, color: "#fff", fontVariantNumeric: "tabular-nums" }}>{now.toLocaleTimeString("pt-BR")}</div>
               <div style={{ fontSize: 12, color: "#94a3b8" }}>{now.toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long" })}</div>
             </div>
           </div>
         </div>
 
         <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 14, marginBottom: 18 }}>
-          <NocKpi label="DISPONIBILIDADE" value={`${(summary?.disponPct||0).toFixed(1)}%`} color="#D32F2F" big />
+          {/* A disponibilidade acompanha o próprio valor. Era vermelho fixo:
+              85% e 99,9% pintavam igual, e a cor deixava de informar. */}
+          <NocKpi label="DISPONIBILIDADE" value={`${(summary?.disponPct||0).toFixed(1)}%`} big
+            color={(summary?.disponPct ?? 0) >= 95 ? "#22c55e" : (summary?.disponPct ?? 0) >= 80 ? "#f59e0b" : "#ef4444"} />
           <NocKpi label="ONLINE"          value={summary?.online ?? 0}   color="#22c55e" />
-          <NocKpi label="OFFLINE"         value={summary?.offline ?? 0}  color="#ef4444" />
-          <NocKpi label="INSTÁVEIS"       value={summary?.instavel ?? 0} color="#f59e0b" />
-          <NocKpi label="MONITORADOS"     value={summary?.monitorados ?? 0} color="#94a3b8" />
+          {/* Zero offline não merece moldura vermelha: só acende quando há. */}
+          <NocKpi label="OFFLINE"         value={summary?.offline ?? 0}  color={(summary?.offline ?? 0) > 0 ? "#ef4444" : "#334155"} />
+          <NocKpi label="INSTÁVEIS"       value={summary?.instavel ?? 0} color={(summary?.instavel ?? 0) > 0 ? "#f59e0b" : "#334155"} />
+          <NocKpi label="MONITORADOS"     value={summary?.monitorados ?? 0} color="#334155" />
         </div>
+
+        {/* ── Em alarme, antes de tudo ──────────────────────────────────────
+            O telão não rola. A lista por categoria abaixo mostra os 474 ativos
+            em ordem de cadastro, então o que está quebrado aparecia no meio da
+            parede — ou fora dela. Aqui o alarme ocupa o topo, e some sozinho
+            quando não há nada aceso. */}
+        {alarme.length > 0 && (
+          <div style={{ marginBottom: 22 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
+              <span style={{ width: 9, height: 9, borderRadius: 5, background: "#ef4444", animation: "pulse 1.5s infinite" }} />
+              <span style={{ fontSize: 14, fontWeight: 800, color: "#fff", letterSpacing: "0.04em" }}>EM ALARME</span>
+              <span style={{ fontSize: 14, fontWeight: 800, color: "#ef4444", fontFamily: "var(--font-mono)" }}>{alarme.length}</span>
+              <span style={{ flex: 1, height: 1, background: "#1f2937" }} />
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 8 }}>
+              {alarme.map(a => {
+                const c = STATUS[a.ultimoStatus] || STATUS.NAO_MONITORADO;
+                return (
+                  <div key={a.id} style={{ background: c.bg, border: `2px solid ${c.border}`, borderRadius: 8, padding: "12px 14px" }}>
+                    <div style={{ fontSize: 15, fontWeight: 800, color: "#fff", lineHeight: 1.25 }}>{a.nome}</div>
+                    <div style={{ display: "flex", justifyContent: "space-between", marginTop: 6, fontSize: 12, fontFamily: "var(--font-mono)" }}>
+                      <span style={{ color: "#94a3b8" }}>{a.ip}</span>
+                      <span style={{ color: c.text, fontWeight: 800 }}>
+                        {a.ultimoStatus === "OFFLINE" ? "SEM RESPOSTA" : `${a.ultimaLatenciaMs ?? "—"}ms`}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {Object.keys(CAT_LABEL).map(cat => {
           const items = grouped(cat);
@@ -212,8 +296,8 @@ export default function NocPage() {
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 6 }}>
                     <span style={{ fontSize: 10, color: "#64748b", fontFamily: "var(--font-mono)" }}>{fmtTime(ev.iniciadoEm)}</span>
                     <button onClick={() => ack(ev)}
-                      style={{ background: "#1e293b", border: "1px solid #334155", color: "#cbd5e1", fontSize: 10, fontWeight: 700, padding: "3px 8px", borderRadius: 4, cursor: "pointer" }}>
-                      ✓ Reconhecer
+                      style={{ display: "inline-flex", alignItems: "center", gap: 4, background: "#1e293b", border: "1px solid #334155", color: "#cbd5e1", fontSize: 10, fontWeight: 700, padding: "4px 8px", borderRadius: 4, cursor: "pointer" }}>
+                      <Check size={11} /> Reconhecer
                     </button>
                   </div>
                 </div>
@@ -223,7 +307,18 @@ export default function NocPage() {
         )}
       </div>
 
-      <style>{`@keyframes pulse { 0%,100% { opacity: 1 } 50% { opacity: 0.55 } }`}</style>
+      <style>{`
+        @keyframes pulse { 0%,100% { opacity: 1 } 50% { opacity: 0.55 } }
+        .noc-btn {
+          display: inline-flex; align-items: center; gap: 6px;
+          background: #111114; border: 1px solid #2a2a33; color: #cbd5e1;
+          border-radius: 8px; padding: 8px 12px; cursor: pointer;
+          font-size: 12px; font-weight: 700; font-family: inherit;
+          transition: background 160ms ease, border-color 160ms ease, color 160ms ease;
+        }
+        .noc-btn:hover { background: #1a1a20; border-color: #3f3f4a; color: #fff; }
+        .noc-btn:focus-visible { outline: 2px solid #38bdf8; outline-offset: 2px; }
+      `}</style>
     </div>
   );
 }

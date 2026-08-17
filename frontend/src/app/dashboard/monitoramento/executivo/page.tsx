@@ -7,7 +7,7 @@ import { api } from "@/lib/api";
 import { ChevronLeft, TrendingDown, Clock, Target, Download, Printer, Activity, RefreshCw, PieChart as PieIcon } from "lucide-react";
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, LabelList, Cell,
-  PieChart, Pie, Legend,
+  PieChart, Pie, Legend, ReferenceLine,
 } from "recharts";
 
 type SlaItem = { id: string; nome: string; ip: string; categoria: string; disponibilidadePct: number | null; amostras: number };
@@ -15,9 +15,9 @@ type SlaItem = { id: string; nome: string; ip: string; categoria: string; dispon
 const CATS = ["ITS","SERVIDORES","COMPUTADORES","PRACAS","INFRAESTRUTURA"];
 const CAT_LABEL: Record<string,string> = { ITS:"ITS", SERVIDORES:"Servidores", COMPUTADORES:"Computadores", PRACAS:"Praças", INFRAESTRUTURA:"Infra" };
 const PERIODO_LABEL: Record<string,string> = { "24h": "Últimas 24h", "7d": "Últimos 7 dias", "30d": "Últimos 30 dias" };
-const STATUS_COR: Record<string,string> = { online:"#22c55e", offline:"#ef4444", instavel:"#f59e0b", naoMon:"#94a3b8" };
+const STATUS_COR: Record<string,string> = { online:"var(--mon-ok)", offline:"var(--mon-down)", instavel:"var(--mon-warn)", naoMon:"var(--mon-idle)" };
 
-const latColor = (ms: number) => ms < 50 ? "#22c55e" : ms < 200 ? "#f59e0b" : "#ef4444";
+const latColor = (ms: number) => ms < 50 ? "var(--mon-ok)" : ms < 200 ? "var(--mon-warn)" : "var(--mon-down)";
 const trunc = (s: string, n = 22) => s.length > n ? s.slice(0, n - 1) + "…" : s;
 
 export default function ExecutivoPage() {
@@ -46,8 +46,8 @@ export default function ExecutivoPage() {
   const metaDe = (cat: string) => metas[cat] ?? 99;
   const cumpriu = (s: SlaItem) => s.disponibilidadePct != null && s.disponibilidadePct >= metaDe(s.categoria);
   const corSla = (s: SlaItem) => {
-    if (s.disponibilidadePct == null) return "#94a3b8";
-    return cumpriu(s) ? "#22c55e" : (s.disponibilidadePct >= metaDe(s.categoria) - 5 ? "#f59e0b" : "#ef4444");
+    if (s.disponibilidadePct == null) return "var(--mon-idle)";
+    return cumpriu(s) ? "var(--mon-ok)" : (s.disponibilidadePct >= metaDe(s.categoria) - 5 ? "var(--mon-warn)" : "var(--mon-down)");
   };
 
   const comDados = sla.filter(s => s.disponibilidadePct != null);
@@ -56,10 +56,27 @@ export default function ExecutivoPage() {
   const foraMeta = sla.filter(s => s.disponibilidadePct != null && !cumpriu(s)).length;
   const latMedia = topLat.length ? Math.round(topLat.reduce((a,b) => a + (b.ultimaLatenciaMs||0), 0) / topLat.length) : 0;
 
-  // Top INDISPONIBILIDADE (pior = barra maior, visivel). Inverte a metrica.
+  /**
+   * Indisponibilidade, separada em duas leituras que o gráfico único misturava.
+   *
+   * O ranking mostrava dez barras cravadas em 100% — todas do mesmo tamanho,
+   * ordenadas por nada visível. Não era erro de cálculo: 100% de
+   * indisponibilidade significa que o equipamento não respondeu UMA VEZ no
+   * período, e num parque com câmeras fora do ar há meses isso enche a lista
+   * inteira e esconde quem oscila.
+   *
+   * São problemas de naturezas diferentes: o que nunca respondeu é cadastro a
+   * revisar ou obra a fazer; o que respondeu em parte do tempo é rede
+   * instável. Agora cada um tem seu lugar, e o gráfico fica só com quem
+   * realmente varia — onde a barra volta a comparar alguma coisa.
+   */
+  const semResposta = useMemo(() => comDados
+    .filter(s => (s.disponibilidadePct ?? 0) <= 0)
+    .map(s => ({ nome: s.nome, ip: (s as any).ip as string | undefined })), [comDados]);
+
   const topIndisp = useMemo(() => comDados
     .map(s => ({ nome: trunc(s.nome), full: s.nome, indisp: +(100 - (s.disponibilidadePct||0)).toFixed(2), pct: s.disponibilidadePct||0 }))
-    .filter(x => x.indisp > 0)
+    .filter(x => x.indisp > 0 && x.indisp < 100)
     .sort((a,b) => b.indisp - a.indisp).slice(0, 10), [comDados]);
 
   const latData = useMemo(() => topLat.slice(0, 10).map(t => ({ nome: trunc(t.nome), full: t.nome, ms: t.ultimaLatenciaMs || 0 })), [topLat]);
@@ -70,6 +87,12 @@ export default function ExecutivoPage() {
     const media = arr.length ? arr.reduce((a,b) => a + (b.disponibilidadePct||0), 0) / arr.length : null;
     return { categoria: CAT_LABEL[c], media: media != null ? +media.toFixed(1) : null, meta: metaDe(c), n: arr.length };
   }).filter(x => x.media != null), [comDados, metas]);
+
+  /** Meta comum a todas as categorias, quando existe: vira uma régua só. */
+  const metaUnica = useMemo(() => {
+    const vals = [...new Set(porCat.map(c => c.meta))];
+    return vals.length === 1 ? vals[0] : null;
+  }, [porCat]);
 
   // Donut de status (snapshot atual)
   const statusData = summary ? [
@@ -164,10 +187,10 @@ export default function ExecutivoPage() {
         {/* KPIs */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 12, marginBottom: 16 }}>
           <Kpi label="SLA médio"      value={`${avg.toFixed(2)}%`} color="#D32F2F" sub={`${comDados.length} com dados`} />
-          <Kpi label="Dentro da meta" value={sla.filter(s => cumpriu(s)).length} color="#22c55e" />
-          <Kpi label="Fora da meta"   value={foraMeta} color="#ef4444" />
+          <Kpi label="Dentro da meta" value={sla.filter(s => cumpriu(s)).length} color="var(--mon-ok)" />
+          <Kpi label="Fora da meta"   value={foraMeta} color="var(--mon-down)" />
           <Kpi label="Latência média" value={`${latMedia}ms`} color={latColor(latMedia)} sub="top 10 atuais" />
-          <Kpi label="Sem dados"      value={semDados} color="#94a3b8" sub="aguardando coleta" />
+          <Kpi label="Sem dados"      value={semDados} color="var(--mon-idle)" sub="aguardando coleta" />
         </div>
 
         {/* Linha: status donut + disponibilidade por categoria */}
@@ -200,9 +223,25 @@ export default function ExecutivoPage() {
                   <XAxis dataKey="categoria" tick={{ fontSize: 11 }} />
                   <YAxis domain={[0, 100]} tick={{ fontSize: 10 }} unit="%" />
                   <Tooltip formatter={(v: any, n: any, p: any) => [`${v}% (meta ${p.payload.meta}% · ${p.payload.n} eq.)`, "Disponibilidade"]} />
+                  {/* A meta desenhada, não só escrita no tooltip.
+                      A cor já dizia "cumpriu ou não", mas sem a régua na tela o
+                      leitor não sabe se 96,2% ficou perto ou longe do alvo — e
+                      é a distância que decide se aquilo vira ação. */}
+                  {metaUnica != null && (
+                    <ReferenceLine
+                      y={metaUnica} stroke="var(--text-secondary)" strokeDasharray="4 4" strokeWidth={1.5}
+                      label={{ value: `meta ${metaUnica}%`, position: "right", fontSize: 10, fill: "var(--text-secondary)" }}
+                    />
+                  )}
                   <Bar dataKey="media" radius={[4,4,0,0]}>
-                    {porCat.map((d, i) => <Cell key={i} fill={(d.media||0) >= d.meta ? "#22c55e" : (d.media||0) >= d.meta - 5 ? "#f59e0b" : "#ef4444"} />)}
+                    {porCat.map((d, i) => <Cell key={i} fill={(d.media||0) >= d.meta ? "var(--mon-ok)" : (d.media||0) >= d.meta - 5 ? "var(--mon-warn)" : "var(--mon-down)"} />)}
                     <LabelList dataKey="media" position="top" formatter={(v: any) => `${v}%`} style={{ fontSize: 10, fill: "var(--text-secondary)" }} />
+                    {/* Metas diferentes por categoria não cabem numa régua só:
+                        aí cada barra carrega a sua. */}
+                    {metaUnica == null && (
+                      <LabelList dataKey="meta" position="insideTop" formatter={(v: any) => `meta ${v}%`}
+                        style={{ fontSize: 9, fill: "var(--text-muted)" }} />
+                    )}
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>
@@ -214,10 +253,34 @@ export default function ExecutivoPage() {
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 16 }}>
           <div className="card" style={{ padding: 16 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10, fontSize: 13, fontWeight: 700 }}>
-              <TrendingDown size={14} style={{ color: "#ef4444" }} /> Maior indisponibilidade do período
+              <TrendingDown size={14} style={{ color: "var(--mon-down)" }} /> Maior indisponibilidade do período
             </div>
+
+            {/* Quem não respondeu NENHUMA vez sai do ranking e vira lista.
+                No gráfico eles empatavam em 100% e ocupavam as dez posições,
+                escondendo quem oscila — que é o problema com conserto. */}
+            {semResposta.length > 0 && (
+              <div style={{ marginBottom: 12, padding: "10px 12px", borderRadius: 8, background: "var(--mon-down-soft)", border: "1px solid var(--mon-down-line)" }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: "var(--mon-down)", marginBottom: 6 }}>
+                  {semResposta.length} sem responder o período inteiro
+                </div>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                  {semResposta.slice(0, 14).map((s, i) => (
+                    <span key={i} title={s.ip || s.nome}
+                      style={{ fontSize: 10, fontFamily: "var(--font-mono)", padding: "2px 6px", borderRadius: 4, background: "var(--bg-hover)", color: "var(--text-secondary)" }}>
+                      {s.nome}
+                    </span>
+                  ))}
+                  {semResposta.length > 14 && <span style={{ fontSize: 10, color: "var(--text-muted)" }}>+{semResposta.length - 14}</span>}
+                </div>
+                <div style={{ fontSize: 10.5, color: "var(--text-muted)", marginTop: 7 }}>
+                  Zero resposta costuma ser equipamento desativado ainda cadastrado, ou obra pendente — e cada um deles puxa a disponibilidade geral para baixo.
+                </div>
+              </div>
+            )}
+
             {topIndisp.length === 0 ? (
-              <Vazio loading={loading} msg="Sem indisponibilidade registrada no período (ou dados ainda em coleta)." />
+              <Vazio loading={loading} msg={semResposta.length ? "Fora os acima, ninguém oscilou no período." : "Sem indisponibilidade registrada no período (ou dados ainda em coleta)."} />
             ) : (
               <div style={{ height: 300 }}>
                 <ResponsiveContainer>
@@ -226,7 +289,7 @@ export default function ExecutivoPage() {
                     <XAxis type="number" domain={[0, "dataMax"]} tick={{ fontSize: 10 }} unit="%" />
                     <YAxis type="category" dataKey="nome" tick={{ fontSize: 10 }} width={130} />
                     <Tooltip formatter={(v: any, _n: any, p: any) => [`${v}% indisponível · ${p.payload.pct.toFixed(2)}% disponível`, p.payload.full]} />
-                    <Bar dataKey="indisp" fill="#ef4444" radius={[0,4,4,0]}>
+                    <Bar dataKey="indisp" fill="var(--mon-down)" radius={[0,4,4,0]}>
                       <LabelList dataKey="indisp" position="right" formatter={(v: any) => `${v}%`} style={{ fontSize: 10, fill: "var(--text-secondary)" }} />
                     </Bar>
                   </BarChart>
@@ -237,7 +300,7 @@ export default function ExecutivoPage() {
 
           <div className="card" style={{ padding: 16 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10, fontSize: 13, fontWeight: 700 }}>
-              <Clock size={14} style={{ color: "#f59e0b" }} /> Maior latência atual
+              <Clock size={14} style={{ color: "var(--mon-warn)" }} /> Maior latência atual
             </div>
             {latData.length === 0 ? (
               <Vazio loading={loading} msg="Sem dados de latência." />
@@ -263,7 +326,7 @@ export default function ExecutivoPage() {
         {/* Top reincidentes */}
         <div className="card" style={{ padding: 16, marginBottom: 16 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10, fontSize: 13, fontWeight: 700 }}>
-            <RefreshCw size={14} style={{ color: "#f59e0b" }} /> Equipamentos que mais caíram ({PERIODO_LABEL[periodo]})
+            <RefreshCw size={14} style={{ color: "var(--mon-warn)" }} /> Equipamentos que mais caíram ({PERIODO_LABEL[periodo]})
           </div>
           {reincidentes.length === 0 ? (
             <Vazio loading={loading} msg="Nenhuma queda registrada no período. 🎉" />
@@ -301,8 +364,8 @@ export default function ExecutivoPage() {
                     <td style={{ ...td, color: cor, fontWeight: 700 }}>
                       {pct != null ? `${pct.toFixed(2)}%` : "Sem dados"}
                       {pct != null && (cumpriu(s)
-                        ? <span style={{ marginLeft: 6, fontSize: 10, color: "#22c55e" }}>✓</span>
-                        : <span style={{ marginLeft: 6, fontSize: 10, color: "#ef4444" }}>✗</span>)}
+                        ? <span style={{ marginLeft: 6, fontSize: 10, color: "var(--mon-ok)" }}>✓</span>
+                        : <span style={{ marginLeft: 6, fontSize: 10, color: "var(--mon-down)" }}>✗</span>)}
                     </td>
                     <td style={{ ...td, fontFamily: "var(--font-mono)", fontSize: 12, color: "var(--text-muted)" }}>{metaDe(s.categoria).toFixed(0)}%</td>
                     <td style={{ ...td, fontFamily: "var(--font-mono)", fontSize: 12, color: "var(--text-muted)" }}>{s.amostras}</td>

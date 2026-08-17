@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "1.11.4";
+export const VERSAO = "1.11.5";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -26,7 +26,7 @@ export const VERSAO = "1.11.4";
 export const VERSAO_DATA = "2026-08-17";
 
 /** Nome da entrega, para dar contexto ao número. */
-export const VERSAO_NOME = "Tempo de queda para todos os equipamentos";
+export const VERSAO_NOME = "Monitoramento redesenhado";
 
 /**
  * Histórico exibido na tela Sobre, do mais recente para o mais antigo.
@@ -35,6 +35,19 @@ export const VERSAO_NOME = "Tempo de queda para todos os equipamentos";
  * esta lista quer saber o que mudou para ele.
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
+  {
+    versao: "1.11.5",
+    data: "2026-08-17",
+    titulo: "Monitoramento redesenhado",
+    itens: [
+      "A lista de equipamentos saudáveis ficou quatro vezes mais compacta e passou a ser agrupada por tipo, com cada grupo podendo ser recolhido. Antes cada equipamento no ar ocupava um cartão repetindo endereço, tipo e a palavra \"Online\" — quatrocentas vezes",
+      "No Modo NOC: botão para voltar ao modo padrão, que antes não existia, e botão de tela cheia (também pela tecla F). Equipamentos em alarme passaram a aparecer no topo do telão, antes das listas por categoria",
+      "No Dashboard Executivo, a meta virou uma linha desenhada no gráfico de disponibilidade — antes ela só aparecia ao passar o mouse, e não dava para ver o quanto cada categoria estava longe do alvo",
+      "Ainda no Executivo, os equipamentos que não responderam nenhuma vez no período saíram do ranking de indisponibilidade e viraram uma lista própria. Eles empatavam em 100% e ocupavam as dez posições, escondendo os equipamentos que oscilam",
+      "As cores de estado do módulo passaram a vir do tema do sistema, com tratamento próprio para o modo escuro",
+      "Corrigido: o Modo NOC exibia o nome de outra instalação no cabeçalho, independentemente de onde estivesse instalado",
+    ],
+  },
   {
     versao: "1.11.4",
     data: "2026-08-17",
