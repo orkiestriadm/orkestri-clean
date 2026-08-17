@@ -168,7 +168,7 @@ export default function ExecutivoPage() {
         {showMetas && (
           <div className="card no-print" style={{ padding: 16, marginBottom: 14 }}>
             <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 10, display: "flex", alignItems: "center", gap: 6 }}>
-              <Target size={14} style={{ color: "#D32F2F" }} /> Metas de disponibilidade por categoria
+              <Target size={14} style={{ color: "var(--accent-violet)" }} /> Metas de disponibilidade por categoria
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px,1fr))", gap: 10 }}>
               {CATS.map(c => (
@@ -187,7 +187,7 @@ export default function ExecutivoPage() {
 
         {/* KPIs */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 12, marginBottom: 16 }}>
-          <Kpi label="SLA médio"      value={`${avg.toFixed(2)}%`} color="#D32F2F" sub={`${comDados.length} com dados`} />
+          <Kpi destaque label="SLA médio" value={`${avg.toFixed(2)}%`} sub={`${comDados.length} com dados · meta ${metaUnica ?? 99}%`} color={avg >= (metaUnica ?? 99) ? "var(--mon-ok)" : avg >= (metaUnica ?? 99) - 1 ? "var(--mon-warn)" : "var(--mon-down)"} />
           <Kpi label="Dentro da meta" value={sla.filter(s => cumpriu(s)).length} color="var(--mon-ok)" />
           <Kpi label="Fora da meta"   value={foraMeta} color="var(--mon-down)" />
           <Kpi label="Latência média" value={`${latMedia}ms`} color={latColor(latMedia)} sub="top 10 atuais" />
@@ -198,12 +198,24 @@ export default function ExecutivoPage() {
         <div style={{ display: "grid", gridTemplateColumns: "minmax(280px, 360px) 1fr", gap: 14, marginBottom: 16 }}>
           <div className="card" style={{ padding: 16 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6, fontSize: 13, fontWeight: 700 }}>
-              <PieIcon size={14} style={{ color: "#D32F2F" }} /> Status atual
+              <PieIcon size={14} style={{ color: "var(--accent-violet)" }} /> Status atual
             </div>
-            <div style={{ height: 230 }}>
+            {/* O buraco do donut estava vazio. É o lugar mais visível do
+                gráfico e vale o número que resume tudo: quanto da frota está
+                de pé agora. */}
+            <div style={{ height: 230, position: "relative" }}>
+              <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>
+                <span className="metric" style={{ fontSize: 26, lineHeight: 1, color: "var(--text-primary)" }}>
+                  {summary ? Math.round((summary.online / Math.max(1, summary.monitorados)) * 100) : 0}%
+                </span>
+                <span style={{ fontSize: 10, color: "var(--text-muted)", marginTop: 3 }}>no ar agora</span>
+                <span className="num" style={{ fontSize: 10, color: "var(--text-faint)" }}>
+                  {summary?.online ?? 0} de {summary?.monitorados ?? 0}
+                </span>
+              </div>
               <ResponsiveContainer>
                 <PieChart>
-                  <Pie data={statusData} dataKey="value" nameKey="name" innerRadius={55} outerRadius={85} paddingAngle={2}>
+                  <Pie data={statusData} dataKey="value" nameKey="name" innerRadius={58} outerRadius={85} paddingAngle={2} stroke="none">
                     {statusData.map(d => <Cell key={d.key} fill={STATUS_COR[d.key]} />)}
                   </Pie>
                   <Tooltip formatter={(v: any, n: any) => [`${v}`, n]} />
@@ -215,43 +227,51 @@ export default function ExecutivoPage() {
 
           <div className="card" style={{ padding: 16 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6, fontSize: 13, fontWeight: 700 }}>
-              <Activity size={14} style={{ color: "#D32F2F" }} /> Disponibilidade média por categoria
+              <Activity size={14} style={{ color: "var(--accent-violet)" }} /> Disponibilidade média por categoria
             </div>
-            <div style={{ height: 230 }}>
-              <ResponsiveContainer>
-                {/* Margem à direita para o rótulo da meta caber: com 20px ele
-                    era cortado e aparecia "me" na borda. */}
-                <BarChart data={porCat} margin={{ left: 0, right: 78, top: 14 }}>
-                  <CartesianGrid stroke="var(--border-subtle)" strokeDasharray="3 3" />
-                  <XAxis dataKey="categoria" tick={{ fontSize: 11 }} />
-                  <YAxis domain={[0, 100]} tick={{ fontSize: 10 }} unit="%" />
-                  <Tooltip formatter={(v: any, n: any, p: any) => [`${v}% (meta ${p.payload.meta}% · ${p.payload.n} eq.)`, "Disponibilidade"]} />
-                  {/* A meta desenhada, não só escrita no tooltip.
-                      A cor já dizia "cumpriu ou não", mas sem a régua na tela o
-                      leitor não sabe se 96,2% ficou perto ou longe do alvo — e
-                      é a distância que decide se aquilo vira ação. */}
-                  {metaUnica != null && (
-                    <ReferenceLine
-                      y={metaUnica} stroke="var(--text-secondary)" strokeDasharray="4 4" strokeWidth={1.5}
-                      label={{ value: `meta ${metaUnica}%`, position: "right", fontSize: 10, fill: "var(--text-secondary)" }}
-                    />
-                  )}
-                  <Bar dataKey="media" radius={[4,4,0,0]}>
-                    {/* Banda de 1 ponto, não de 5. Com meta 99, a faixa antiga
-                        pintava de "quase lá" desde 94% — e 94% contra 99% num
-                        SLA é um desvio grande, não um detalhe. Resultado na
-                        tela: quatro categorias diferentes, todas da mesma cor. */}
-                    {porCat.map((d, i) => <Cell key={i} fill={(d.media||0) >= d.meta ? "var(--mon-ok)" : (d.media||0) >= d.meta - 1 ? "var(--mon-warn)" : "var(--mon-down)"} />)}
-                    <LabelList dataKey="media" position="top" formatter={(v: any) => `${v}%`} style={{ fontSize: 10, fill: "var(--text-secondary)" }} />
-                    {/* Metas diferentes por categoria não cabem numa régua só:
-                        aí cada barra carrega a sua. */}
-                    {metaUnica == null && (
-                      <LabelList dataKey="meta" position="insideTop" formatter={(v: any) => `meta ${v}%`}
-                        style={{ fontSize: 9, fill: "var(--text-muted)" }} />
-                    )}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
+            {/* Régua por categoria, não coluna.
+                O gráfico de colunas 0–100 gastava nove décimos da altura na
+                faixa onde nada acontece: quatro categorias entre 94% e 99%
+                saíam do mesmo tamanho, e os rótulos batiam na linha da meta.
+                Truncar o eixo resolveria o desenho e mentiria no dado — barra
+                que não começa em zero exagera diferença.
+                A saída é medir o que decide: a DISTÂNCIA até a meta. Cada
+                categoria vira uma régua com o alvo marcado e o desvio escrito
+                em pontos, que é a frase que alguém leva para a reunião. */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 12, paddingTop: 4 }}>
+              {porCat.map(d => {
+                const media = d.media || 0;
+                const desvio = +(media - d.meta).toFixed(1);
+                const cor = media >= d.meta ? "var(--mon-ok)" : media >= d.meta - 1 ? "var(--mon-warn)" : "var(--mon-down)";
+                return (
+                  <div key={d.categoria}>
+                    <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 8, marginBottom: 5 }}>
+                      <span style={{ fontSize: 12.5, fontWeight: 600 }}>{d.categoria}</span>
+                      <span style={{ display: "inline-flex", alignItems: "baseline", gap: 8 }}>
+                        <span className="num" style={{ fontSize: 13, fontWeight: 700, color: cor, fontVariantNumeric: "tabular-nums" }}>
+                          {media.toFixed(1)}%
+                        </span>
+                        <span className="num" style={{ fontSize: 11, color: "var(--text-muted)", fontVariantNumeric: "tabular-nums", minWidth: 58, textAlign: "right" }}>
+                          {desvio >= 0 ? `+${desvio}` : desvio} pts
+                        </span>
+                      </span>
+                    </div>
+                    <div style={{ position: "relative", height: 10, borderRadius: 5, background: "var(--bg-hover)", overflow: "hidden" }}>
+                      <div style={{ position: "absolute", inset: 0, width: `${Math.max(0, Math.min(100, media))}%`, background: cor, borderRadius: 5, transition: "width 600ms cubic-bezier(0.22,1,0.36,1)" }} />
+                    </div>
+                    {/* O alvo fica FORA da barra, na mesma escala: dentro dela
+                        sumiria sob o preenchimento justamente quando a categoria
+                        está perto da meta, que é quando ele importa. */}
+                    <div style={{ position: "relative", height: 9 }}>
+                      <span style={{ position: "absolute", left: `${Math.min(100, d.meta)}%`, transform: "translateX(-50%)", width: 1.5, height: 6, background: "var(--text-secondary)" }} />
+                      <span style={{ position: "absolute", left: `${Math.min(100, d.meta)}%`, transform: "translateX(-50%)", top: 6, fontSize: 9, color: "var(--text-muted)", whiteSpace: "nowrap" }}>
+                        meta {d.meta}%
+                      </span>
+                    </div>
+                    <div style={{ fontSize: 10.5, color: "var(--text-faint)", marginTop: 7 }}>{d.n} equipamento(s)</div>
+                  </div>
+                );
+              })}
             </div>
           </div>
         </div>
@@ -415,11 +435,25 @@ export default function ExecutivoPage() {
   );
 }
 
-function Kpi({ label, value, color, sub }: { label: string; value: any; color: string; sub?: string }) {
+/**
+ * Indicador do topo.
+ *
+ * `destaque` existe porque os cinco tinham o mesmo peso: o SLA médio, que é a
+ * resposta da tela, competia de igual para igual com "sem dados: 0". Numa
+ * faixa achatada o olho não sabe por onde começar.
+ */
+function Kpi({ label, value, color, sub, destaque }: { label: string; value: any; color: string; sub?: string; destaque?: boolean }) {
   return (
-    <div className="card" style={{ padding: 16, borderLeft: `3px solid ${color}` }}>
+    <div
+      className="card"
+      style={{
+        padding: destaque ? "18px 20px" : 16,
+        borderLeft: `3px solid ${color}`,
+        background: destaque ? `color-mix(in srgb, ${color} 6%, var(--bg-card))` : undefined,
+      }}
+    >
       <div style={{ fontSize: 10, color: "var(--text-muted)", fontFamily: "var(--font-mono)", textTransform: "uppercase", letterSpacing: 1 }}>{label}</div>
-      <div className="metric" style={{ fontSize: 27, color, marginTop: 4 }}>{value}</div>
+      <div className="metric" style={{ fontSize: destaque ? 36 : 25, color, marginTop: 4, fontVariantNumeric: "tabular-nums" }}>{value}</div>
       {sub && <div style={{ fontSize: 10, color: "var(--text-muted)", marginTop: 2 }}>{sub}</div>}
     </div>
   );
