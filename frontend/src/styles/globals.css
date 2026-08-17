@@ -445,7 +445,16 @@
    resto do produto segue o tema do usuário.
 
    Vale para os dois temas do sistema: aqui dentro é sempre console. */
-.mon-console {
+/* A classe no `body` estende o console até a topbar, que fica FORA da árvore
+   da página. A barra lateral não entra: ela tem tokens próprios
+   (`--sidebar-*`) e segue o tema do usuário, que é o pedido. */
+.mon-console,
+body.mon-console-mode {
+  /* shadcn: a topbar herda a cor do texto de `--foreground`. Sem redefinir,
+     o cabeçalho ficaria com texto escuro sobre fundo escuro. */
+  --background: 240 12% 5%;
+  --foreground: 250 20% 94%;
+
   --bg-primary:   #0d0d10;
   --bg-secondary: #16161b;
   --bg-card:      #16161b;

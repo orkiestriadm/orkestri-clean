@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "1.11.8";
+export const VERSAO = "1.11.9";
 
 /**
  * Data da versão, escrita à mão junto com o bump.

@@ -18,6 +18,24 @@ const PERIODO_LABEL: Record<string,string> = { "24h": "Últimas 24h", "7d": "Úl
 const STATUS_COR: Record<string,string> = { online:"var(--mon-ok)", offline:"var(--mon-down)", instavel:"var(--mon-warn)", naoMon:"var(--mon-idle)" };
 
 const latColor = (ms: number) => ms < 50 ? "var(--mon-ok)" : ms < 200 ? "var(--mon-warn)" : "var(--mon-down)";
+
+/**
+ * Cor por distância da meta, em quatro faixas.
+ *
+ * Com três faixas, perder a meta por 4 pontos e por 36 pintavam o mesmo
+ * vermelho cheio — e como a maioria das categorias está abaixo, a tela inteira
+ * saturava. Vermelho saturado passa a ser reservado ao que está MUITO fora; o
+ * desvio moderado usa um vermelho lavado, que ainda lê como falha sem gritar.
+ *
+ * O número exato do desvio está escrito ao lado; a cor só precisa dar a ordem
+ * de grandeza.
+ */
+const VERMELHO_BRANDO = "color-mix(in srgb, var(--mon-down) 62%, var(--mon-idle))";
+const corPorMeta = (valor: number, meta: number) =>
+  valor >= meta            ? "var(--mon-ok)"
+  : valor >= meta - 1      ? "var(--mon-warn)"
+  : valor >= meta - 10     ? VERMELHO_BRANDO
+  :                          "var(--mon-down)";
 const trunc = (s: string, n = 22) => s.length > n ? s.slice(0, n - 1) + "…" : s;
 
 export default function ExecutivoPage() {
@@ -43,6 +61,12 @@ export default function ExecutivoPage() {
     ]).finally(() => setLoading(false));
   }, [periodo]);
   useEffect(() => { api.get("/monitoramento/sla/metas").then(r => setMetas(r.data)).catch(() => {}); }, []);
+
+  /* Console até a topbar — ver `mon-console-mode` em globals.css. */
+  useEffect(() => {
+    document.body.classList.add("mon-console-mode");
+    return () => document.body.classList.remove("mon-console-mode");
+  }, []);
 
   const metaDe = (cat: string) => metas[cat] ?? 99;
   const cumpriu = (s: SlaItem) => s.disponibilidadePct != null && s.disponibilidadePct >= metaDe(s.categoria);
@@ -246,7 +270,7 @@ export default function ExecutivoPage() {
               {porCat.map(d => {
                 const media = d.media || 0;
                 const desvio = +(media - d.meta).toFixed(1);
-                const cor = media >= d.meta ? "var(--mon-ok)" : media >= d.meta - 1 ? "var(--mon-warn)" : "var(--mon-down)";
+                const cor = corPorMeta(media, d.meta);
                 return (
                   <div key={d.categoria}>
                     <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 8, marginBottom: 5 }}>
@@ -333,7 +357,7 @@ export default function ExecutivoPage() {
                     <XAxis type="number" domain={[0, "dataMax"]} tick={{ fontSize: 10, fill: "var(--text-muted)" }} unit="%" />
                     <YAxis type="category" dataKey="nome" tick={{ fontSize: 10, fill: "var(--text-muted)" }} width={130} />
                     <Tooltip contentStyle={{ background: "var(--bg-card)", border: "1px solid var(--border-medium)", borderRadius: 8, fontSize: 12, color: "var(--text-primary)" }} itemStyle={{ color: "var(--text-primary)" }} formatter={(v: any, _n: any, p: any) => [`${v}% indisponível · ${p.payload.pct.toFixed(2)}% disponível`, p.payload.full]} />
-                    <Bar dataKey="indisp" fill="var(--mon-down)" radius={[0,4,4,0]}>
+                    <Bar dataKey="indisp" fill={VERMELHO_BRANDO} radius={[0,4,4,0]}>
                       <LabelList dataKey="indisp" position="right" formatter={(v: any) => `${v}%`} style={{ fontSize: 10, fill: "var(--text-secondary)" }} />
                     </Bar>
                   </BarChart>
@@ -362,7 +386,7 @@ export default function ExecutivoPage() {
                           a cor para de informar. Quem compara aqui é o
                           comprimento; a cor fica reservada para quem passa do
                           limite que dói de verdade. */}
-                      {latData.map((d, i) => <Cell key={i} fill={d.ms >= 200 ? "var(--mon-down)" : "var(--accent-cyan)"} />)}
+                      {latData.map((d, i) => <Cell key={i} fill={d.ms >= 200 ? VERMELHO_BRANDO : "var(--accent-cyan)"} />)}
                       <LabelList dataKey="ms" position="right" formatter={(v: any) => `${v}ms`} style={{ fontSize: 10, fill: "var(--text-secondary)" }} />
                     </Bar>
                   </BarChart>
