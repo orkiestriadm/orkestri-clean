@@ -26,7 +26,7 @@ export const VERSAO = "1.11.7";
 export const VERSAO_DATA = "2026-08-17";
 
 /** Nome da entrega, para dar contexto ao número. */
-export const VERSAO_NOME = "Monitoramento redesenhado";
+export const VERSAO_NOME = "Disponibilidade medida contra a meta";
 
 /**
  * Histórico exibido na tela Sobre, do mais recente para o mais antigo.
@@ -35,6 +35,28 @@ export const VERSAO_NOME = "Monitoramento redesenhado";
  * esta lista quer saber o que mudou para ele.
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
+  {
+    versao: "1.11.7",
+    data: "2026-08-17",
+    titulo: "Disponibilidade medida contra a meta",
+    itens: [
+      "No Dashboard Executivo, a disponibilidade por categoria passou a mostrar a distância até a meta, em pontos, ao lado do percentual. No gráfico de colunas anterior, quatro categorias entre 94% e 99% saíam praticamente do mesmo tamanho e os rótulos batiam na linha da meta",
+      "O centro do gráfico de rosca passou a exibir quanto da frota está no ar agora — o espaço estava vazio",
+      "O SLA médio ganhou destaque entre os indicadores do topo: os cinco tinham o mesmo peso, e a resposta principal da tela competia com \"sem dados: 0\"",
+    ],
+  },
+  {
+    versao: "1.11.6",
+    data: "2026-08-17",
+    titulo: "Monitoramento: o alarme ganhou hierarquia",
+    itens: [
+      "Na tela de Monitoramento, o que está fora do ar passou a ser separado por urgência: o que caiu nas últimas duas horas aparece em destaque, o que caiu no dia aparece em lista simples, e o que está sem responder há mais de um dia fica recolhido em uma linha, com a contagem e o mais antigo. Antes os 57 equipamentos fora do ar recebiam o mesmo destaque, e a maioria está parada há meses",
+      "O amarelo de atenção deixou de se confundir com o laranja da marca — no Dashboard Executivo, categorias com disponibilidade diferente apareciam todas da mesma cor",
+      "O gráfico dos dez equipamentos com maior latência passou a usar uma cor só: ele já é o ranking dos piores, e colorir cada barra pelo mesmo critério deixava as dez iguais",
+      "O Modo NOC passou a ocupar a tela inteira, sem o menu lateral",
+      "Corrigido: o rótulo da meta aparecia cortado na borda do gráfico de disponibilidade",
+    ],
+  },
   {
     versao: "1.11.5",
     data: "2026-08-17",
