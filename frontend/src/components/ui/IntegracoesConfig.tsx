@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
 import { api } from "@/lib/api";
+import { MARCA } from "@/lib/marca";
 import { RefreshCw, Link2, Unlink, CheckCircle2, AlertTriangle, Clock, Calendar } from "lucide-react";
 
 /**
@@ -210,11 +211,11 @@ export default function IntegracoesConfig() {
         </div>
       </div>
 
-      {/* Opção de envio Orkiestri → Outlook */}
+      {/* Opção de envio: sistema → Outlook */}
       {isConnected && (
         <label style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 13, cursor: "pointer", color: "var(--text-muted)" }}>
           <input type="checkbox" checked={!!status?.pushEnabled} disabled={busy === "push"} onChange={e => togglePush(e.target.checked)} />
-          Enviar para o Outlook os compromissos que eu criar no Orkiestri
+          Enviar para o Outlook os compromissos que eu criar aqui
         </label>
       )}
 
@@ -232,7 +233,7 @@ function Header() {
     <div>
       <h3 style={{ fontSize: 16, fontWeight: 600, fontFamily: "var(--font-display)", margin: 0 }}>Microsoft 365 / Outlook</h3>
       <p style={{ fontSize: 13, color: "var(--text-muted)", margin: "6px 0 0", lineHeight: 1.6 }}>
-        Conecte seu calendário do Outlook para que seus compromissos apareçam na agenda do Orkiestri e sejam considerados na sua disponibilidade.
+        Conecte seu calendário do Outlook para que seus compromissos apareçam na agenda do {MARCA} e sejam considerados na sua disponibilidade.
       </p>
     </div>
   );

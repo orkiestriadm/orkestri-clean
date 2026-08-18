@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "1.12.0";
+export const VERSAO = "1.12.1";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -36,13 +36,13 @@ export const VERSAO_NOME = "Agenda conectada ao Outlook";
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
   {
-    versao: "1.12.0",
+    versao: "1.12.1",
     data: "2026-08-18",
     titulo: "Agenda conectada ao Outlook",
     itens: [
       "Você pode conectar sua conta Microsoft 365 em Configurações › Integrações. Os compromissos do seu Outlook passam a aparecer na Agenda, em azul, e a contar na sua disponibilidade — quando alguém procura um horário livre para você, o que está ocupado no Outlook também é considerado",
-      "Os compromissos que você criar no Orkiestri podem ser enviados automaticamente para o seu Outlook, se você deixar a opção ligada",
-      "Alteração e cancelamento feitos no Outlook se refletem na Agenda, e o que você muda no Orkiestri volta para o Outlook",
+      "Os compromissos que você criar na Agenda podem ser enviados automaticamente para o seu Outlook, se você deixar a opção ligada",
+      "Alteração e cancelamento feitos no Outlook se refletem na Agenda, e o que você muda aqui volta para o Outlook",
       "Cada pessoa conecta apenas a própria conta, e o assunto das reuniões de outras pessoas não é exposto na visão de disponibilidade da equipe",
     ],
   },
