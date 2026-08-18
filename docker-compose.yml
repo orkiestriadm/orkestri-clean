@@ -139,6 +139,15 @@ services:
       N1_DB_USER: ${N1_DB_USER}
       N1_DB_PASS: ${N1_DB_PASS}
       N1_DB_NAME: ${N1_DB_NAME:-SGA_N1}
+      # Cofre para cifrar tokens de integração (e credenciais do OSA) no banco.
+      APP_VAULT_KEY: ${APP_VAULT_KEY}
+      # Integração Microsoft 365 / Outlook (Microsoft Graph). Vazio = desativada.
+      MS_CLIENT_ID: ${MS_CLIENT_ID}
+      MS_CLIENT_SECRET: ${MS_CLIENT_SECRET}
+      MS_TENANT_ID: ${MS_TENANT_ID:-common}
+      MS_APP_URL: ${MS_APP_URL:-${APP_URL:-http://localhost}}
+      MS_REDIRECT_URI: ${MS_REDIRECT_URI}
+      MS_WEBHOOK_URL: ${MS_WEBHOOK_URL}
     volumes:
       - uploads_data:/app/uploads
       # Fora de /app/uploads de propósito: aquele caminho é servido

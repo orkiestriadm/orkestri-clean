@@ -98,6 +98,7 @@ model Organization {
   notas             Note[]
   noteLabels        NoteLabel[]
   eventos           Event[]
+  calendarConnections CalendarConnection[]
   automacoes        Automacao[]
   alertaRegras      AlertaRegra[]
   ativos            Ativo[]
@@ -262,6 +263,7 @@ model User {
   eventsOwner                Event[]                     @relation("EventOwner")
   eventsCriados              Event[]                     @relation("EventCreator")
   eventParticipants          EventParticipant[]
+  calendarConnections        CalendarConnection[]
   projectsOwner              Project[]                   @relation("ProjectOwner")
   projectAnexosCriados       ProjectAnexo[]              @relation("ProjectAnexoAutor")
   projectMembers             ProjectMember[]
@@ -1413,16 +1415,39 @@ model Event {
   recorrenciaFim DateTime?          @map("recorrencia_fim")
   local          String?
   ata            String?            @db.Text
+
+  // ── Proveniência de calendário externo (Outlook / futuro Google) ────────────
+  // A tabela Event é a AGENDA UNIFICADA. Um evento nativo tem provider="internal".
+  // Um evento espelhado do Outlook tem provider="microsoft" + os campos externos.
+  // Nenhum consumidor de disponibilidade precisa saber a origem — só lê Event.
+  provider           String?             @default("internal")
+  connectionId       String?             @map("connection_id")
+  externalId         String?             @map("external_id")
+  externalCalendarId String?             @map("external_calendar_id")
+  externalEtag       String?             @map("external_etag")
+  // Hash do conteúdo já sincronizado. Serve para (a) evitar loop de eco — o
+  // writeback só dispara se o hash mudou de fato — e (b) detectar mudança real
+  // vinda do Graph. Ver calendar-sync.service.ts.
+  syncHash           String?             @map("sync_hash")
+  syncedAt           DateTime?           @map("synced_at")
+  // Marca evento externo cancelado no provedor sem apagar histórico local.
+  externalCancelled  Boolean             @default(false) @map("external_cancelled")
+
   criadoEm       DateTime           @default(now()) @map("criado_em")
   atualizadoEm   DateTime           @updatedAt @map("atualizado_em")
   organization   Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   user           User               @relation("EventOwner", fields: [userId], references: [id])
   criadoPor      User               @relation("EventCreator", fields: [criadoPorId], references: [id])
   participants   EventParticipant[]
+  connection     CalendarConnection? @relation(fields: [connectionId], references: [id], onDelete: SetNull)
 
   @@index([organizationId, inicio])
   @@index([userId, inicio])
   @@index([criadoPorId])
+  // Referência ESTÁVEL do evento externo: (conexão, id do Graph) é único.
+  // Impede duplicidade quando webhook e reconciliação chegam ao mesmo evento.
+  @@unique([connectionId, externalId])
+  @@index([provider, externalId])
   @@map("events")
 }
 
@@ -1436,6 +1461,95 @@ model EventParticipant {
 
   @@unique([eventId, userId])
   @@map("event_participants")
+}
+
+// ── Integração de calendário externo (Microsoft 365 / futuro Google) ───────────
+//
+// CalendarConnection = o vínculo de UM usuário com UMA conta de provedor. Guarda
+// os tokens (cifrados via common/vault.ts) e o estado da sincronização. O
+// isolamento é por (userId, provider): a agenda do usuário A nunca cruza com a
+// do B. Os eventos em si moram na tabela Event (agenda unificada), apontando de
+// volta por Event.connectionId.
+
+enum CalendarProvider {
+  microsoft
+  google
+}
+
+enum CalendarConnectionStatus {
+  connected       // vínculo ativo, tokens válidos
+  syncing         // sincronização inicial/completa em andamento
+  synced          // em dia
+  error           // falha transitória de sync (ver lastError)
+  disconnected    // usuário desconectou
+  reauth_required // refresh token inválido/revogado — precisa reconectar
+}
+
+model CalendarConnection {
+  id             String                   @id @default(uuid())
+  organizationId String                   @map("organization_id")
+  userId         String                   @map("user_id")
+  provider       CalendarProvider         @default(microsoft)
+
+  // Identidade no provedor (descoberta via Graph /me).
+  providerAccountId String?               @map("provider_account_id")
+  providerTenantId  String?               @map("provider_tenant_id")
+  providerEmail     String?               @map("provider_email")
+
+  // Calendário conectado (v1: calendário principal). Estruturado para múltiplos.
+  externalCalendarId   String?            @map("external_calendar_id")
+  externalCalendarName String?            @map("external_calendar_name")
+
+  status         CalendarConnectionStatus @default(connected)
+
+  // Tokens SEMPRE cifrados (v1:iv:tag:ct). Nunca em texto puro, nunca em log.
+  accessTokenEnc  String?                 @map("access_token_enc") @db.Text
+  refreshTokenEnc String?                 @map("refresh_token_enc") @db.Text
+  tokenExpiresAt  DateTime?               @map("token_expires_at")
+  scope           String?                 @db.Text
+
+  // Sincronização incremental do Graph (delta query).
+  deltaLink       String?                 @map("delta_link") @db.Text
+  lastSyncAt      DateTime?               @map("last_sync_at")
+  lastError       String?                 @map("last_error") @db.Text
+
+  // Política de saída: se true, eventos criados no Orkiestri sobem ao Outlook.
+  pushEnabled     Boolean                 @default(true) @map("push_enabled")
+  syncEnabled     Boolean                 @default(true) @map("sync_enabled")
+
+  criadoEm     DateTime                   @default(now()) @map("criado_em")
+  atualizadoEm DateTime                   @updatedAt @map("atualizado_em")
+
+  organization  Organization              @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user          User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subscriptions CalendarSubscription[]
+  events        Event[]
+
+  // Um usuário tem no máximo uma conexão por provedor.
+  @@unique([userId, provider])
+  @@index([organizationId])
+  @@index([status])
+  @@map("calendar_connections")
+}
+
+// Assinatura de webhook (Change Notification) do Microsoft Graph. Tem ciclo de
+// vida próprio: expira em ~3 dias e é renovada por scheduler. clientState é um
+// segredo verificado em cada notificação recebida.
+model CalendarSubscription {
+  id             String   @id @default(uuid())
+  connectionId   String   @map("connection_id")
+  subscriptionId String   @unique @map("subscription_id")
+  resource       String
+  clientState    String   @map("client_state")
+  expiresAt      DateTime @map("expires_at")
+  criadoEm       DateTime @default(now()) @map("criado_em")
+  atualizadoEm   DateTime @updatedAt @map("atualizado_em")
+
+  connection CalendarConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+
+  @@index([connectionId])
+  @@index([expiresAt])
+  @@map("calendar_subscriptions")
 }
 
 // ── CRM ───────────────────────────────────────────────────────────────────────

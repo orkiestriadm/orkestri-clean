@@ -1,6 +1,7 @@
 "use client";
 import SegurancaConfig from "@/components/ui/SegurancaConfig";
 import SistemaConfig from "@/components/ui/SistemaConfig";
+import IntegracoesConfig from "@/components/ui/IntegracoesConfig";
 
 import { useState, useEffect } from "react";
 import Topbar from "@/components/layout/Topbar";
@@ -27,6 +28,7 @@ const TABS = [
   { key:"solicitacoes",  label:"Solicitacoes de Senha" },
   { key:"historico",     label:"Historico" },
   { key:"sla",           label:"SLA" },
+  { key:"integracoes",   label:"Integrações" },
   { key:"sistema",       label:"Sistema" },
   { key:"seguranca",     label:"Seguranca" },
 ];
@@ -495,6 +497,7 @@ export default function ConfiguracoesPage() {
 
         {/* HISTORICO */}
         {tab === "seguranca" && <SegurancaConfig />}
+          {tab === "integracoes" && <IntegracoesConfig />}
           {tab === "sistema" && <SistemaConfig />}
           {tab === "historico" && (
           <div style={{ maxWidth:680 }}>

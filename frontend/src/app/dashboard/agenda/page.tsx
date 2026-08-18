@@ -22,6 +22,7 @@ const TIPO_META: TipoMeta[] = [
   { value: "PROJETO",     label: "Projeto",     icon: Briefcase,     defaultColor: "#34d399" },
   { value: "LEMBRETE",    label: "Lembrete",    icon: Bell,          defaultColor: "#fbbf24" },
   { value: "PESSOAL",     label: "Pessoal",     icon: ClipboardList, defaultColor: "#f472b6" },
+  { value: "EXTERNO",     label: "Outlook",     icon: Calendar,      defaultColor: "#0078d4" },
 ];
 const tipoMeta = (t: string) => TIPO_META.find(x => x.value === t) || TIPO_META[1];
 

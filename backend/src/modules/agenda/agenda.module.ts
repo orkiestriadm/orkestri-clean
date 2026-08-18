@@ -4,6 +4,8 @@ import { IsArray, IsBoolean, IsDateString, IsIn, IsOptional, IsString } from "cl
 import { PrismaService } from "../../prisma/prisma.service";
 import { Permissions } from "../auth/permissions.decorator";
 import { PermissionsGuard } from "../auth/permissions.guard";
+import { IntegracoesModule } from "../integracoes/integracoes.module";
+import { CalendarWritebackService } from "../integracoes/calendar/calendar-writeback.service";
 
 class CreateEventDto {
   @IsString() titulo: string;
@@ -87,7 +89,12 @@ class RespondAgendaDto {
 @Controller("agenda")
 @UseGuards(AuthGuard("jwt"), PermissionsGuard)
 class AgendaController {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    // Espelha para o Outlook o que nasce/muda/some aqui. Best-effort e
+    // não-fatal: falha no Graph nunca quebra a operação de agenda.
+    private writeback: CalendarWritebackService,
+  ) {}
 
   @Get()
   @Permissions("agenda:ver")
@@ -125,22 +132,105 @@ class AgendaController {
 
   @Get("disponibilidade")
   @Permissions("agenda:ver")
-  async disponibilidade(@Query("userIds") userIds: string, @Query("data") data: string) {
+  async disponibilidade(@Query("userIds") userIds: string, @Query("data") data: string, @Req() req: any) {
     if (!userIds || !data) throw new BadRequestException("userIds e data sao obrigatorios");
     const ids = userIds.split(",");
-    const day = new Date(data);
-    const dayEnd = new Date(data); dayEnd.setHours(23, 59, 59);
+    const day = new Date(data); day.setHours(0, 0, 0, 0);
+    const dayEnd = new Date(data); dayEnd.setHours(23, 59, 59, 999);
 
     const events = await this.prisma.event.findMany({
-      where: { userId: { in: ids }, inicio: { gte: day, lte: dayEnd } },
-      select: { userId: true, inicio: true, fim: true, titulo: true, diaTodo: true },
+      // Escopo de organização: nunca vaza agenda de outro tenant. E exclui o que
+      // foi cancelado no Outlook (não ocupa horário).
+      where: {
+        userId: { in: ids },
+        organizationId: req.user?.organizationId,
+        externalCancelled: false,
+        // Sobreposição com o dia: começa até o fim do dia E (termina depois do
+        // início do dia OU não tem fim). Pega evento de dia inteiro e multi-dia.
+        inicio: { lte: dayEnd },
+        OR: [{ fim: null }, { fim: { gte: day } }],
+      },
+      select: { userId: true, inicio: true, fim: true, titulo: true, diaTodo: true, provider: true },
     });
 
     const slots: Record<string, any[]> = {};
     for (const id of ids) { slots[id] = []; }
-    for (const ev of events) { slots[ev.userId]?.push(ev); }
+    for (const ev of events) {
+      // Privacidade: o assunto de reunião do Outlook de OUTRA pessoa não é
+      // exposto na visão de disponibilidade da equipe — só "Ocupado". O próprio
+      // usuário continua vendo seus títulos.
+      const masked = ev.provider === "microsoft" && ev.userId !== req.user?.id
+        ? { ...ev, titulo: "Ocupado" }
+        : ev;
+      slots[ev.userId]?.push(masked);
+    }
 
     return { data, usuarios: slots };
+  }
+
+  /**
+   * Horários LIVRES de um usuário num dia, considerando a agenda UNIFICADA
+   * (eventos nativos + Outlook, pois ambos são linhas em Event). É o ponto que
+   * funcionalidades de "achar um horário" devem consumir. Retorna blocos livres
+   * dentro da janela de trabalho, respeitando a duração mínima pedida.
+   */
+  @Get("horarios-livres")
+  @Permissions("agenda:ver")
+  async horariosLivres(
+    @Req() req: any,
+    @Query("userId") userId: string,
+    @Query("data") data: string,
+    @Query("inicioHora") inicioHora = "8",
+    @Query("fimHora") fimHora = "18",
+    @Query("duracaoMin") duracaoMin = "30",
+  ) {
+    if (!userId || !data) throw new BadRequestException("userId e data sao obrigatorios");
+    const base = new Date(data);
+    const winStart = new Date(base); winStart.setHours(Number(inicioHora), 0, 0, 0);
+    const winEnd = new Date(base); winEnd.setHours(Number(fimHora), 0, 0, 0);
+    const minMs = Math.max(1, Number(duracaoMin)) * 60_000;
+
+    const eventos = await this.prisma.event.findMany({
+      where: {
+        userId,
+        organizationId: req.user?.organizationId,
+        externalCancelled: false,
+        inicio: { lte: winEnd },
+        OR: [{ fim: null }, { fim: { gte: winStart } }],
+      },
+      select: { inicio: true, fim: true, diaTodo: true },
+      orderBy: { inicio: "asc" },
+    });
+
+    // Um evento de dia inteiro ocupa a janela toda.
+    if (eventos.some(e => e.diaTodo)) {
+      return { data, userId, livres: [], ocupadoDiaInteiro: true };
+    }
+
+    // Normaliza blocos ocupados (recorta à janela; fim ausente = +1h).
+    const ocupados = eventos
+      .map(e => {
+        const ini = e.inicio < winStart ? winStart : e.inicio;
+        const fim = e.fim ? (e.fim > winEnd ? winEnd : e.fim) : new Date(e.inicio.getTime() + 60 * 60_000);
+        return { ini, fim: fim > winEnd ? winEnd : fim };
+      })
+      .filter(b => b.fim > b.ini)
+      .sort((a, b) => a.ini.getTime() - b.ini.getTime());
+
+    // Varre a janela deixando os vãos entre blocos ocupados.
+    const livres: { inicio: string; fim: string }[] = [];
+    let cursor = winStart;
+    for (const b of ocupados) {
+      if (b.ini.getTime() - cursor.getTime() >= minMs) {
+        livres.push({ inicio: cursor.toISOString(), fim: b.ini.toISOString() });
+      }
+      if (b.fim > cursor) cursor = b.fim;
+    }
+    if (winEnd.getTime() - cursor.getTime() >= minMs) {
+      livres.push({ inicio: cursor.toISOString(), fim: winEnd.toISOString() });
+    }
+
+    return { data, userId, livres, ocupadoDiaInteiro: false };
   }
 
   @Post()
@@ -196,6 +286,9 @@ class AgendaController {
       }
     }
 
+    // Espelha no Outlook o evento do próprio usuário (não bloqueia a resposta).
+    this.writeback.onEventCreated(event.id).catch(() => {});
+
     return this.prisma.event.findUnique({
       where: { id: event.id },
       include: { participants: { include: { user: { select: { id: true, nome: true } } } } },
@@ -209,7 +302,7 @@ class AgendaController {
     const event = await this.prisma.event.findUnique({ where: { id: realId } });
     if (!event) throw new NotFoundException("Evento nao encontrado");
     if (event.userId !== req.user.id && !req.user.isMaster) throw new BadRequestException("Sem permissao");
-    return this.prisma.event.update({
+    const updated = await this.prisma.event.update({
       where: { id: realId },
       data: {
         ...(dto.titulo !== undefined && { titulo: dto.titulo }),
@@ -223,6 +316,9 @@ class AgendaController {
         ...(dto.local !== undefined && { local: dto.local }),
       },
     });
+    // Se o evento estiver vinculado ao Outlook, propaga a alteração para lá.
+    this.writeback.onEventUpdated(realId).catch(() => {});
+    return updated;
   }
 
   @Delete(":id")
@@ -232,7 +328,11 @@ class AgendaController {
     const event = await this.prisma.event.findUnique({ where: { id: realId } });
     if (!event) throw new NotFoundException("Evento nao encontrado");
     if (event.userId !== req.user.id && !req.user.isMaster) throw new BadRequestException("Sem permissao");
+    // Snapshot ANTES de apagar — o writeback precisa do externalId para remover
+    // o correspondente no Outlook (excluído aqui → refletido lá).
+    const snap = { externalId: (event as any).externalId, connectionId: (event as any).connectionId, userId: event.userId };
     await this.prisma.event.delete({ where: { id: realId } });
+    this.writeback.onEventDeleted(snap).catch(() => {});
     return { message: "Evento removido" };
   }
 
@@ -313,5 +413,5 @@ class AgendaController {
   }
 }
 
-@Module({ controllers: [AgendaController] })
+@Module({ imports: [IntegracoesModule], controllers: [AgendaController] })
 export class AgendaModule {}
