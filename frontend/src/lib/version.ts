@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "1.12.1";
+export const VERSAO = "1.13.0";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -26,7 +26,7 @@ export const VERSAO = "1.12.1";
 export const VERSAO_DATA = "2026-08-18";
 
 /** Nome da entrega, para dar contexto ao número. */
-export const VERSAO_NOME = "Agenda conectada ao Outlook";
+export const VERSAO_NOME = "Integração do Outlook configurável por tela";
 
 /**
  * Histórico exibido na tela Sobre, do mais recente para o mais antigo.
@@ -35,6 +35,15 @@ export const VERSAO_NOME = "Agenda conectada ao Outlook";
  * esta lista quer saber o que mudou para ele.
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
+  {
+    versao: "1.13.0",
+    data: "2026-08-18",
+    titulo: "Integração do Outlook configurável por tela",
+    itens: [
+      "As credenciais da integração com o Microsoft 365 passam a ser preenchidas por uma tela de administrador, em Configurações › Integrações — sem precisar mexer em arquivo de servidor. Cada ambiente e cada organização pode ter a sua",
+      "A tela mostra qual configuração está em uso e o endereço de retorno exato para registrar no painel da Microsoft",
+    ],
+  },
   {
     versao: "1.12.1",
     data: "2026-08-18",

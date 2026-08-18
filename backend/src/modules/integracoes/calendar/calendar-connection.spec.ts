@@ -37,7 +37,7 @@ describe("CalendarConnectionService.getValidAccessToken", () => {
 
   it("renova e persiste quando está prestes a expirar", async () => {
     const conn = {
-      id: "c1", status: "synced", scope: "s",
+      id: "c1", status: "synced", scope: "s", organizationId: "org-9",
       accessTokenEnc: encryptSecret("antigo"),
       refreshTokenEnc: encryptSecret("refresh-1"),
       tokenExpiresAt: new Date(Date.now() + 30_000), // < 2 min
@@ -51,7 +51,7 @@ describe("CalendarConnectionService.getValidAccessToken", () => {
     const { svc, prisma } = makeService(conn, oauth);
     const t = await svc.getValidAccessToken("c1");
     expect(t).toBe("novo");
-    expect(oauth.refresh).toHaveBeenCalledWith("refresh-1");
+    expect(oauth.refresh).toHaveBeenCalledWith("refresh-1", "org-9");
     expect(prisma.calendarConnection.update).toHaveBeenCalledTimes(1);
     const data = prisma.calendarConnection.update.mock.calls[0][0].data;
     expect(data.accessTokenEnc).toBeDefined();

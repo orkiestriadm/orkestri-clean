@@ -2,7 +2,6 @@ import { Injectable, Logger } from "@nestjs/common";
 import { Cron } from "@nestjs/schedule";
 import { SubscriptionService } from "./subscription.service";
 import { CalendarSyncService } from "../calendar/calendar-sync.service";
-import { MicrosoftConfig } from "../graph/microsoft.config";
 import { PrismaService } from "../../../prisma/prisma.service";
 
 /**
@@ -24,14 +23,15 @@ export class SubscriptionScheduler {
   constructor(
     private readonly subscriptions: SubscriptionService,
     private readonly sync: CalendarSyncService,
-    private readonly config: MicrosoftConfig,
     private readonly prisma: PrismaService,
   ) {}
 
   /** Renova/recria assinaturas — de 6 em 6 horas. */
   @Cron("0 */6 * * *")
   async renew() {
-    if (!this.config.isConfigured() || !this.config.isWebhookViable()) return;
+    // Sem gate global de config: a viabilidade de webhook é resolvida por
+    // conexão (cada org pode ter a sua). Se não houver conexão/assinatura, os
+    // métodos abaixo são no-op baratos.
     if (this.renewing) return;
     this.renewing = true;
     try {
@@ -59,7 +59,6 @@ export class SubscriptionScheduler {
   /** Reconciliação completa — de 4 em 4 horas. */
   @Cron("0 */4 * * *")
   async reconcile() {
-    if (!this.config.isConfigured()) return;
     if (this.reconciling) return;
     this.reconciling = true;
     try {

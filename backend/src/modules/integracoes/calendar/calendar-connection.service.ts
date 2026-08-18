@@ -112,7 +112,7 @@ export class CalendarConnectionService {
     }
 
     try {
-      const tokens = await this.oauth.refresh(refreshToken);
+      const tokens = await this.oauth.refresh(refreshToken, conn.organizationId);
       await this.prisma.calendarConnection.update({
         where: { id: conn.id },
         data: {

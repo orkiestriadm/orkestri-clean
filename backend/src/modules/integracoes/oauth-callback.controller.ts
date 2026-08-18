@@ -55,7 +55,7 @@ export class OAuthCallbackController {
     }
 
     try {
-      const tokens = await this.oauth.exchangeCode(code);
+      const tokens = await this.oauth.exchangeCode(code, payload.organizationId);
       const conn = await this.connections.completeConnection({
         userId: payload.userId,
         organizationId: payload.organizationId,

@@ -1,6 +1,6 @@
 import { Injectable, Logger, BadRequestException, ServiceUnavailableException } from "@nestjs/common";
 import { createHmac, randomBytes, timingSafeEqual } from "crypto";
-import { MicrosoftConfig } from "./microsoft.config";
+import { MicrosoftConfigResolver, EffectiveMicrosoftConfig } from "./microsoft-config.resolver";
 
 export interface OAuthTokens {
   accessToken: string;
@@ -31,7 +31,7 @@ interface StatePayload {
 export class MicrosoftOAuthService {
   private readonly logger = new Logger(MicrosoftOAuthService.name);
 
-  constructor(private readonly config: MicrosoftConfig) {}
+  constructor(private readonly resolver: MicrosoftConfigResolver) {}
 
   private stateSecret(): string {
     const s = process.env.JWT_SECRET;
@@ -74,53 +74,56 @@ export class MicrosoftOAuthService {
   }
 
   /** Monta a URL de autorização para redirecionar o navegador do usuário. */
-  buildAuthorizeUrl(userId: string, organizationId: string): string {
-    if (!this.config.isConfigured()) {
-      throw new ServiceUnavailableException("Integração Microsoft não configurada (MS_CLIENT_ID/MS_CLIENT_SECRET ausentes)");
+  async buildAuthorizeUrl(userId: string, organizationId: string): Promise<string> {
+    const cfg = await this.resolver.resolve(organizationId);
+    if (!cfg.isConfigured) {
+      throw new ServiceUnavailableException("Integração Microsoft não configurada");
     }
     const params = new URLSearchParams({
-      client_id: this.config.clientId,
+      client_id: cfg.clientId,
       response_type: "code",
-      redirect_uri: this.config.redirectUri,
+      redirect_uri: cfg.redirectUri,
       response_mode: "query",
-      scope: this.config.scopes.join(" "),
+      scope: cfg.scopes.join(" "),
       state: this.signState(userId, organizationId),
       // Garante refresh token e revê o consentimento a cada nova conexão.
       prompt: "select_account",
     });
-    return `${this.config.authorizeEndpoint}?${params.toString()}`;
+    return `${cfg.authorizeEndpoint}?${params.toString()}`;
   }
 
-  /** Troca o authorization code por tokens. */
-  async exchangeCode(code: string): Promise<OAuthTokens> {
-    return this.tokenRequest({
+  /** Troca o authorization code por tokens (config resolvida pela organização). */
+  async exchangeCode(code: string, organizationId: string): Promise<OAuthTokens> {
+    const cfg = await this.resolver.resolve(organizationId);
+    return this.tokenRequest(cfg, {
       grant_type: "authorization_code",
       code,
-      redirect_uri: this.config.redirectUri,
-      scope: this.config.scopes.join(" "),
+      redirect_uri: cfg.redirectUri,
+      scope: cfg.scopes.join(" "),
     });
   }
 
   /** Renova o access token a partir do refresh token. */
-  async refresh(refreshToken: string): Promise<OAuthTokens> {
-    return this.tokenRequest({
+  async refresh(refreshToken: string, organizationId: string): Promise<OAuthTokens> {
+    const cfg = await this.resolver.resolve(organizationId);
+    return this.tokenRequest(cfg, {
       grant_type: "refresh_token",
       refresh_token: refreshToken,
-      scope: this.config.scopes.join(" "),
+      scope: cfg.scopes.join(" "),
     });
   }
 
-  private async tokenRequest(extra: Record<string, string>): Promise<OAuthTokens> {
-    if (!this.config.isConfigured()) {
+  private async tokenRequest(cfg: EffectiveMicrosoftConfig, extra: Record<string, string>): Promise<OAuthTokens> {
+    if (!cfg.isConfigured) {
       throw new ServiceUnavailableException("Integração Microsoft não configurada");
     }
     const form = new URLSearchParams({
-      client_id: this.config.clientId,
-      client_secret: this.config.clientSecret,
+      client_id: cfg.clientId,
+      client_secret: cfg.clientSecret,
       ...extra,
     });
 
-    const res = await fetch(this.config.tokenEndpoint, {
+    const res = await fetch(cfg.tokenEndpoint, {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: form.toString(),

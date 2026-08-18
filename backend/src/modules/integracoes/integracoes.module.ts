@@ -1,5 +1,6 @@
 import { Module } from "@nestjs/common";
 import { MicrosoftConfig } from "./graph/microsoft.config";
+import { MicrosoftConfigResolver } from "./graph/microsoft-config.resolver";
 import { MicrosoftOAuthService } from "./graph/microsoft-oauth.service";
 import { MicrosoftGraphClient } from "./graph/microsoft-graph.client";
 import { CalendarConnectionService } from "./calendar/calendar-connection.service";
@@ -10,6 +11,7 @@ import { SubscriptionScheduler } from "./webhooks/subscription.scheduler";
 import { GraphWebhookController } from "./webhooks/graph-webhook.controller";
 import { IntegracoesController } from "./integracoes.controller";
 import { OAuthCallbackController } from "./oauth-callback.controller";
+import { IntegrationConfigService } from "./integration-config.service";
 
 /**
  * Integração de calendário externo (Microsoft 365 / futuro Google).
@@ -29,6 +31,7 @@ import { OAuthCallbackController } from "./oauth-callback.controller";
   controllers: [IntegracoesController, OAuthCallbackController, GraphWebhookController],
   providers: [
     MicrosoftConfig,
+    MicrosoftConfigResolver,
     MicrosoftOAuthService,
     MicrosoftGraphClient,
     CalendarConnectionService,
@@ -36,6 +39,7 @@ import { OAuthCallbackController } from "./oauth-callback.controller";
     CalendarWritebackService,
     SubscriptionService,
     SubscriptionScheduler,
+    IntegrationConfigService,
   ],
   exports: [CalendarWritebackService],
 })

@@ -1,6 +1,7 @@
 import { BadRequestException } from "@nestjs/common";
 import { MicrosoftOAuthService } from "./microsoft-oauth.service";
 import { MicrosoftConfig } from "./microsoft.config";
+import { MicrosoftConfigResolver } from "./microsoft-config.resolver";
 
 describe("MicrosoftOAuthService — state assinado", () => {
   const OLD = process.env;
@@ -8,7 +9,17 @@ describe("MicrosoftOAuthService — state assinado", () => {
 
   beforeEach(() => {
     process.env = { ...OLD, JWT_SECRET: "segredo-de-teste-suficientemente-longo", MS_CLIENT_ID: "cid", MS_CLIENT_SECRET: "sec" };
-    svc = new MicrosoftOAuthService(new MicrosoftConfig());
+    // Resolver que apenas devolve a config derivada do env (MicrosoftConfig).
+    const env = new MicrosoftConfig();
+    const resolver = new MicrosoftConfigResolver({} as any, env);
+    jest.spyOn(resolver, "resolve").mockImplementation(async () => ({
+      clientId: env.clientId, clientSecret: env.clientSecret, tenantId: env.tenantId,
+      redirectUri: env.redirectUri, webhookUrl: env.webhookUrl, appUrl: env.appUrl,
+      scopes: env.scopes, authority: env.authority, authorizeEndpoint: env.authorizeEndpoint,
+      tokenEndpoint: env.tokenEndpoint, isConfigured: env.isConfigured(),
+      isWebhookViable: env.isWebhookViable(), source: "env" as const,
+    }));
+    svc = new MicrosoftOAuthService(resolver);
   });
   afterAll(() => { process.env = OLD; });
 
@@ -43,8 +54,8 @@ describe("MicrosoftOAuthService — state assinado", () => {
     void svcAny;
   });
 
-  it("monta a URL de autorização com os escopos de menor privilégio", () => {
-    const url = svc.buildAuthorizeUrl("user-1", "org-1");
+  it("monta a URL de autorização com os escopos de menor privilégio", async () => {
+    const url = await svc.buildAuthorizeUrl("user-1", "org-1");
     expect(url).toContain("login.microsoftonline.com");
     expect(url).toContain("Calendars.ReadWrite");
     expect(url).toContain("offline_access");

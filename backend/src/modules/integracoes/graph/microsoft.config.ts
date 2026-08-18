@@ -64,7 +64,7 @@ export class MicrosoftConfig {
   }
 
   get authority(): string {
-    return `https://login.microsoftonline.com/${this.tenantId}`;
+    return this.authorityFor(this.tenantId);
   }
 
   get authorizeEndpoint(): string {
@@ -73,6 +73,26 @@ export class MicrosoftConfig {
 
   get tokenEndpoint(): string {
     return `${this.authority}/oauth2/v2.0/token`;
+  }
+
+  // Versões parametrizadas por tenant — o tenant deixou de ser só do env quando
+  // a configuração passou a poder vir do banco (por organização).
+  authorityFor(tenantId: string): string {
+    return `https://login.microsoftonline.com/${tenantId || "common"}`;
+  }
+  authorizeEndpointFor(tenantId: string): string {
+    return `${this.authorityFor(tenantId)}/oauth2/v2.0/authorize`;
+  }
+  tokenEndpointFor(tenantId: string): string {
+    return `${this.authorityFor(tenantId)}/oauth2/v2.0/token`;
+  }
+
+  /** Redirect derivado de uma base de app (para overrides por instalação). */
+  redirectUriFor(appUrl: string): string {
+    return `${(appUrl || this.appUrl).replace(/\/+$/, "")}/api/integracoes/microsoft/callback`;
+  }
+  webhookUrlFor(appUrl: string): string {
+    return `${(appUrl || this.appUrl).replace(/\/+$/, "")}/api/integracoes/microsoft/webhook`;
   }
 
   /** true quando há client id + secret configurados. */

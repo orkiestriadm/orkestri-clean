@@ -3,7 +3,7 @@ import { randomBytes } from "crypto";
 import { PrismaService } from "../../../prisma/prisma.service";
 import { CalendarConnectionService } from "../calendar/calendar-connection.service";
 import { MicrosoftGraphClient } from "../graph/microsoft-graph.client";
-import { MicrosoftConfig } from "../graph/microsoft.config";
+import { MicrosoftConfigResolver } from "../graph/microsoft-config.resolver";
 
 // /me/events aceita no máximo ~4230 min de validade; deixamos folga.
 const SUB_LIFETIME_MIN = 4200;
@@ -24,12 +24,15 @@ export class SubscriptionService {
     private readonly prisma: PrismaService,
     private readonly connections: CalendarConnectionService,
     private readonly graph: MicrosoftGraphClient,
-    private readonly config: MicrosoftConfig,
+    private readonly resolver: MicrosoftConfigResolver,
   ) {}
 
   /** Cria (ou recria) a assinatura de uma conexão. Idempotente por conexão. */
   async ensureForConnection(connectionId: string): Promise<{ created: boolean; reason?: string }> {
-    if (!this.config.isWebhookViable()) {
+    const conn = await this.prisma.calendarConnection.findUnique({ where: { id: connectionId } });
+    if (!conn) return { created: false, reason: "conexao_inexistente" };
+    const cfg = await this.resolver.resolve(conn.organizationId);
+    if (!cfg.isWebhookViable) {
       return { created: false, reason: "sem_url_publica_https" };
     }
     const existing = await this.prisma.calendarSubscription.findFirst({
@@ -49,7 +52,7 @@ export class SubscriptionService {
     try {
       const sub = await this.graph.createSubscription(token, {
         changeType: "created,updated,deleted",
-        notificationUrl: this.config.webhookUrl,
+        notificationUrl: cfg.webhookUrl,
         resource: RESOURCE,
         expirationDateTime: expiration.toISOString(),
         clientState,

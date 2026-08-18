@@ -70,7 +70,24 @@ Se o ambiente **não** tiver URL pública (ex.: homologação atrás de VPN), a
 integração continua funcionando por **delta sync + reconciliação periódica** —
 só não é instantânea. Isso é detectado sozinho (`webhookViable: false`).
 
-## 5. Variáveis de ambiente
+## 5. Onde colocar as credenciais — tela OU ambiente
+
+Há duas formas (a tela tem prioridade sobre o ambiente):
+
+**(a) Pela tela (recomendado para multi-tenant).** Um administrador vai em
+**Configurações → Integrações → Configurar credenciais** e preenche Client ID,
+Tenant ID e Client Secret. Fica guardado cifrado no banco. Um **super-admin**
+pode definir um **padrão da plataforma** (herdado por todas as organizações) ou
+cada organização traz o seu próprio app. Ordem de resolução em runtime:
+config da organização → padrão da plataforma → variáveis de ambiente.
+
+> Requer `APP_VAULT_KEY` definida no servidor (para cifrar o secret) — a própria
+> tela avisa se estiver faltando.
+
+**(b) Pelas variáveis de ambiente** (abaixo) — servem como padrão da instalação
+quando não há nada preenchido na tela. Útil para um ambiente de uma organização só.
+
+## 6. Variáveis de ambiente (opcional se usar a tela)
 
 No `.env` do ambiente (ver `.env.example`):
 
