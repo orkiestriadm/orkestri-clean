@@ -205,6 +205,17 @@ export default function ManutencoesPage() {
 
   useEffect(() => { load(); }, [load]);
 
+  // Chegando do Farol da Frota com ?veiculo=<placa>, já entra filtrada por ele.
+  // Serve às linhas SEM ordem de serviço -- veículo amarelo por revisão atrasada
+  // ou veículo operando normalmente: não há OS para abrir, mas o histórico de
+  // manutenção do veículo é o que a pessoa foi procurar.
+  useEffect(() => {
+    const placa = new URLSearchParams(window.location.search).get("veiculo");
+    if (!placa) return;
+    setQ(placa);
+    window.history.replaceState({}, "", window.location.pathname);
+  }, []);
+
   // Chegando do Farol da Frota com ?os=<id>, abre a OS clicada já em edição.
   // Lê de `window.location` em vez de useSearchParams para não exigir um
   // limite de Suspense em volta da página inteira.

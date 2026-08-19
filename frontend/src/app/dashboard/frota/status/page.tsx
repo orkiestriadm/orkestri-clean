@@ -124,19 +124,17 @@ function Problema({ texto, completo }: { texto: string; completo: boolean }) {
 }
 
 /**
- * Para onde o duplo clique leva.
+ * Para onde o duplo clique leva. SEMPRE para Manutenções -- a linha do Farol
+ * fala de um problema de manutenção, e é lá que se resolve.
  *
- * A OS é o destino quando existe -- é o que acendeu vermelho, e quem vê o
- * problema quer corrigi-lo. Mas 14 dos 29 veículos em amarelo estão assim por
- * REVISÃO ATRASADA, sem OS nenhuma, e os 76 verdes não têm nada aberto: nesses
- * o duplo clique não fazia nada, e nada é indistinguível de quebrado.
- *
- * O cadastro do veículo serve de destino para todos eles porque reúne revisões,
- * documentos e histórico -- o veículo é o assunto da linha de qualquer forma.
+ * Com OS, abre a OS que acendeu o farol. Sem OS, abre a tela já filtrada pelo
+ * veículo: 14 dos 29 amarelos estão assim por revisão atrasada e não têm OS,
+ * e os 76 verdes não têm nada aberto -- antes, nessas 90 linhas de 118, o
+ * duplo clique não fazia absolutamente nada, e nada se lê como quebrado.
  */
 function destinoDaLinha(l: any): string {
   if (l.manutencaoId) return `/dashboard/frota/manutencoes?os=${l.manutencaoId}`;
-  return `/dashboard/frota/veiculos/${l.veiculo.id}`;
+  return `/dashboard/frota/manutencoes?veiculo=${encodeURIComponent(l.veiculo.placa)}`;
 }
 
 export default function FarolFrotaPage() {
@@ -414,13 +412,11 @@ export default function FarolFrotaPage() {
               {!loading && filtradas.map(l => (
                 <tr
                   key={l.veiculo.id}
-                  // Duplo clique leva ao que ACENDEU o farol. Antes só abria
-                  // quando havia OS, e nas outras 90 linhas de 118 não fazia
-                  // nada -- silêncio que o usuário lê como defeito. Agora toda
-                  // linha tem destino: sem OS, cai no cadastro do veículo, que
-                  // é onde estão revisões, documentos e histórico.
+                  // Duplo clique sempre abre Manutenções: com OS, na própria
+                  // OS; sem OS, na tela filtrada pelo veículo. Antes só ia
+                  // quando havia OS, e em 90 das 118 linhas não fazia nada.
                   onDoubleClick={() => router.push(destinoDaLinha(l))}
-                  title={l.manutencaoId ? `Abrir a OS ${l.numeroOs || ""}`.trim() : "Abrir o cadastro do veículo"}
+                  title={l.manutencaoId ? `Abrir a OS ${l.numeroOs || ""}`.trim() : `Ver manutenções de ${l.veiculo.placa}`}
                   style={{ cursor: "pointer" }}
                 >
                   <td className="col-fixa" style={COL_STATUS}>

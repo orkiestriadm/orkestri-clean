@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "1.14.2";
+export const VERSAO = "1.14.3";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -35,6 +35,15 @@ export const VERSAO_NOME = "Documento de veículo pelo CRLV";
  * esta lista quer saber o que mudou para ele.
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
+  {
+    versao: "1.14.3",
+    data: "2026-08-19",
+    titulo: "Colunas congeladas do Farol de volta",
+    itens: [
+      "No Farol da Frota, as colunas Status e Placa voltaram a ficar congeladas ao rolar a tabela para o lado. Elas rolavam junto, e ao chegar nas últimas colunas não dava mais para saber de qual veículo era a linha",
+      "O duplo clique na linha abre o veículo na tela de Manutenções: na própria ordem de serviço quando existe uma, ou na lista já filtrada pelo veículo quando não existe",
+    ],
+  },
   {
     versao: "1.14.2",
     data: "2026-08-19",

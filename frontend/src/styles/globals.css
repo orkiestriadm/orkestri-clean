@@ -789,6 +789,51 @@ body.noc-mode .sidebar { display: none; }
 .data-table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 13px; text-align: left; }
 
 /*
+ * Colunas congeladas (Farol da Frota).
+ *
+ * A tabela do Farol e larga: sem congelar Status e Placa, rolar para ver as
+ * ultimas colunas faz perder de vista DE QUAL VEICULO se esta falando. O
+ * componente (TableCard) e a pagina ja marcavam as celulas com .col-fixa e
+ * emitiam a classe .rolou -- faltava so esta folha, e sem `position: sticky`
+ * o `left` das celulas nao fazia nada: as colunas simplesmente rolavam junto.
+ *
+ * O FUNDO PRECISA SER OPACO. `--bg-hover` e rgba() translucido; usado aqui, o
+ * conteudo que rola por baixo aparece atraves da coluna congelada. Por isso o
+ * hover entra como camada de imagem SOBRE a cor opaca do card, em vez de
+ * substituir a cor.
+ */
+.data-table th.col-fixa,
+.data-table td.col-fixa {
+  position: sticky;
+  background-color: var(--bg-card);
+}
+/* O cabecalho e sticky nos DOIS eixos, entao precisa vencer o corpo. */
+.data-table thead th.col-fixa { z-index: 4; background-color: var(--bg-secondary); }
+.data-table tbody td.col-fixa { z-index: 1; }
+
+/* Hover sem perder a opacidade: camada translucida por cima da cor solida. */
+.data-table tbody tr:hover td.col-fixa {
+  background-image: linear-gradient(var(--bg-hover), var(--bg-hover));
+}
+
+/*
+ * A costura so aparece quando ha conteudo escondido a esquerda -- e o que a
+ * classe .rolou informa. Parada no inicio, a tabela nao mostra emenda.
+ */
+.table-scroll-wrapper.rolou .col-fixa-fim::after {
+  content: "";
+  position: absolute;
+  top: 0; right: 0; bottom: -1px;
+  width: 10px;
+  transform: translateX(100%);
+  pointer-events: none;
+  background: linear-gradient(to right, rgba(0, 0, 0, .10), transparent);
+}
+.data-table th.col-fixa-fim,
+.data-table td.col-fixa-fim { position: sticky; }
+
+
+/*
  * O conteúdo da célula QUEBRA em vez de empurrar a tabela.
  *
  * Antes havia `white-space: nowrap` no `.data-table` inteiro. Uma célula com
