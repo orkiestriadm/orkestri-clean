@@ -50,6 +50,23 @@ function vencColor(d?: string | null) {
   return null;
 }
 
+/**
+ * Status do documento: DERIVADO da data, nao lido do campo.
+ *
+ * `status` e uma coluna que alguem precisa editar a mao, e ninguem edita:
+ * nascia "vigente" e ficava assim para sempre, entao a tela anunciava Vigente
+ * ao lado de uma data vencida em vermelho. Os alertas e a agenda ja olhavam
+ * `dataVencimento` -- a data e que e a verdade.
+ *
+ * `cancelado` continua manual: e o unico estado que a data nao consegue dizer.
+ */
+function statusDocumento(r: any): { label: string; color: string } {
+  if (r.status === "cancelado") return { label: "Cancelado", color: "var(--text-muted)" };
+  if (r.dataVencimento && new Date(r.dataVencimento).getTime() < Date.now())
+    return { label: "Vencido", color: "var(--accent-red)" };
+  return { label: "Vigente", color: "var(--accent-green)" };
+}
+
 const config: CrudConfig = {
   endpoint: "/frota/documentos", tabela: "documentos_veiculo", singular: "documento", plural: "Documentações",
   defaults: { tipo: "licenciamento", status: "vigente" },
@@ -67,7 +84,7 @@ const config: CrudConfig = {
       return cor ? <Badge color={cor}>{fmtDate(r.dataVencimento)}</Badge> : fmtDate(r.dataVencimento);
     } },
     { key: "valor", label: "Valor", align: "right", render: r => fmtMoney(r.valor) },
-    { key: "status", label: "Status", render: r => <Badge color={STATUS[r.status]}>{STATUS_OPTS.find(s => s.value === r.status)?.label || r.status}</Badge> },
+    { key: "status", label: "Status", render: r => { const st = statusDocumento(r); return <Badge color={st.color}>{st.label}</Badge>; } },
   ],
   fields: [
     { key: "veiculoId", label: "Veículo", type: "select", source: "veiculos", required: true },

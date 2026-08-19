@@ -119,10 +119,14 @@ export const LICENCIAMENTO_SP_POR_FINAL: Record<string, number> = {
 
 /** Último dia ÚTIL do mês — o Detran fecha o prazo em dia útil. */
 function ultimoDiaUtil(ano: number, mes1a12: number): Date {
-  const d = new Date(Date.UTC(ano, mes1a12, 0)); // dia 0 do mês seguinte = último deste
-  // Feriado não entra: os meses do calendário não têm feriado fixo caindo no
-  // fim do mês, e uma tabela de feriados móveis envelheceria sem ninguém notar.
-  while (d.getUTCDay() === 0 || d.getUTCDay() === 6) d.setUTCDate(d.getUTCDate() - 1);
+  // NAO usar Date.UTC: o container roda em America/Sao_Paulo, e meia-noite UTC
+  // e 21h do DIA ANTERIOR em Brasilia -- a data certa no banco aparecia um dia
+  // antes na tela. Os 220 registros de CNH do sistema gravam as 03:00 UTC, que
+  // e meia-noite local; aqui seguimos a mesma convencao, a de dataQueryLocal.
+  const d = new Date(ano, mes1a12, 0); // dia 0 do mes seguinte = ultimo deste
+  // Feriado nao entra: os meses do calendario nao tem feriado fixo caindo no
+  // fim do mes, e uma tabela de feriados moveis envelheceria sem ninguem notar.
+  while (d.getDay() === 0 || d.getDay() === 6) d.setDate(d.getDate() - 1);
   return d;
 }
 

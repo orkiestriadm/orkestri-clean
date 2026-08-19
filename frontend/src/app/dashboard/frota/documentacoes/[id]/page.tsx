@@ -57,7 +57,12 @@ export default function DocumentoDetailPage() {
   if (loading) return <div className="flex flex-col h-full"><Topbar /><main className="flex-1 p-6 text-[var(--text-muted)] text-sm">Carregando...</main></div>;
   if (!doc) return <div className="flex flex-col h-full"><Topbar /><main className="flex-1 p-6 text-[var(--text-muted)] text-sm">Documento não encontrado.</main></div>;
 
-  const st = STATUS[doc.status] || { label: doc.status, color: "var(--text-muted)" };
+  // Mesma regra da listagem: o status vem da DATA, nao da coluna. Aquele campo
+  // e manual e ninguem edita -- ficava "Vigente" para sempre, inclusive ao lado
+  // de um vencimento em vermelho. `cancelado` segue manual, que a data nao diz.
+  const st = doc.status === "cancelado"
+    ? STATUS.cancelado
+    : (doc.dataVencimento && new Date(doc.dataVencimento).getTime() < Date.now() ? STATUS.vencido : STATUS.vigente);
   const venc = vencInfo(doc.dataVencimento);
   const INFO: [string, any][] = [
     ["Veículo", doc.veiculo?.placa], ["Número / Apólice", doc.numero], ["Descrição", doc.descricao],

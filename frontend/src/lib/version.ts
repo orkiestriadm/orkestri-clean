@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "1.14.0";
+export const VERSAO = "1.14.1";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -35,6 +35,15 @@ export const VERSAO_NOME = "Documento de veículo pelo CRLV";
  * esta lista quer saber o que mudou para ele.
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
+  {
+    versao: "1.14.1",
+    data: "2026-08-19",
+    titulo: "Correções no documento por CRLV",
+    itens: [
+      "O vencimento calculado aparecia um dia antes do correto na tela. A data estava certa no banco; era a exibição que voltava um dia por causa do fuso",
+      "O Status do documento passa a refletir a data: um documento com vencimento passado aparece como Vencido, e não mais como Vigente ao lado de uma data em vermelho. Cancelado continua sendo marcado à mão",
+    ],
+  },
   {
     versao: "1.14.0",
     data: "2026-08-19",
