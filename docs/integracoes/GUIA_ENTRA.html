@@ -1,0 +1,329 @@
+<title>Ligar o Outlook à sua agenda</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root {
+    --ground: #f5f7f9;
+    --surface: #ffffff;
+    --card: #ffffff;
+    --ink: #182231;
+    --ink-soft: #3b4757;
+    --muted: #62707f;
+    --faint: #8b97a5;
+    --border: #e0e5ec;
+    --border-strong: #ccd4dd;
+    --accent: #0f6cbd;
+    --accent-strong: #0a4f8c;
+    --accent-wash: #e8f1fb;
+    --warn: #9a5b00;
+    --warn-wash: #fbf1de;
+    --warn-border: #ecca8b;
+    --good: #1f7a4d;
+    --good-wash: #e6f4ec;
+    --code-bg: #f0f3f7;
+    --code-ink: #10406f;
+    --shadow: 0 1px 2px rgba(20,32,48,.04), 0 8px 28px rgba(20,32,48,.06);
+  }
+  :root:not([data-theme="light"]) { }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #0e131a;
+      --surface: #151c25;
+      --card: #19212c;
+      --ink: #e7edf4;
+      --ink-soft: #c2ccd8;
+      --muted: #94a1b1;
+      --faint: #6b7887;
+      --border: #28323f;
+      --border-strong: #35414f;
+      --accent: #4ea6ea;
+      --accent-strong: #7ec0f2;
+      --accent-wash: #12283c;
+      --warn: #eeb861;
+      --warn-wash: #2c2412;
+      --warn-border: #4d3f1c;
+      --good: #59c58c;
+      --good-wash: #12291d;
+      --code-bg: #0f1620;
+      --code-ink: #9cd0f5;
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 10px 30px rgba(0,0,0,.35);
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground: #0e131a;
+    --surface: #151c25;
+    --card: #19212c;
+    --ink: #e7edf4;
+    --ink-soft: #c2ccd8;
+    --muted: #94a1b1;
+    --faint: #6b7887;
+    --border: #28323f;
+    --border-strong: #35414f;
+    --accent: #4ea6ea;
+    --accent-strong: #7ec0f2;
+    --accent-wash: #12283c;
+    --warn: #eeb861;
+    --warn-wash: #2c2412;
+    --warn-border: #4d3f1c;
+    --good: #59c58c;
+    --good-wash: #12291d;
+    --code-bg: #0f1620;
+    --code-ink: #9cd0f5;
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 10px 30px rgba(0,0,0,.35);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, Roboto, Helvetica, Arial, sans-serif;
+    font-size: 17px;
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 40px 22px 96px; }
+
+  .kicker {
+    font-size: 12.5px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase;
+    color: var(--accent); margin: 0 0 14px;
+  }
+  h1 {
+    font-family: "Segoe UI Variable Display", "Segoe UI", system-ui, sans-serif;
+    font-size: clamp(30px, 6vw, 44px); line-height: 1.08; letter-spacing: -.02em;
+    font-weight: 700; margin: 0 0 16px; text-wrap: balance;
+  }
+  .lede { font-size: 19px; color: var(--ink-soft); margin: 0 0 8px; text-wrap: pretty; }
+
+  .meta-row { display: flex; flex-wrap: wrap; gap: 10px; margin: 26px 0 6px; }
+  .chip {
+    display: inline-flex; align-items: center; gap: 7px;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 999px;
+    padding: 7px 14px; font-size: 13.5px; color: var(--muted); box-shadow: var(--shadow);
+  }
+  .chip b { color: var(--ink); font-weight: 600; }
+
+  h2 {
+    font-family: "Segoe UI Variable Display", "Segoe UI", system-ui, sans-serif;
+    font-size: 15px; letter-spacing: .04em; text-transform: uppercase; color: var(--faint);
+    font-weight: 600; margin: 52px 0 8px; padding-bottom: 10px; border-bottom: 1px solid var(--border);
+  }
+
+  .note {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+    padding: 18px 20px; margin: 20px 0; box-shadow: var(--shadow);
+  }
+  .note p { margin: 0; }
+  .note p + p { margin-top: 10px; }
+
+  .callout { border-left: 3px solid; border-radius: 10px; padding: 15px 18px; margin: 18px 0; }
+  .callout.warn { background: var(--warn-wash); border-color: var(--warn-border); }
+  .callout.warn .lbl { color: var(--warn); }
+  .callout.good { background: var(--good-wash); border-color: var(--good); }
+  .callout.good .lbl { color: var(--good); }
+  .callout .lbl { font-size: 12.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; display: block; margin-bottom: 6px; }
+  .callout p { margin: 0; font-size: 15.5px; color: var(--ink-soft); }
+  .callout p + p { margin-top: 8px; }
+
+  /* Steps — a genuine ordered procedure */
+  ol.steps { list-style: none; counter-reset: step; margin: 8px 0 0; padding: 0; }
+  ol.steps > li {
+    position: relative; counter-increment: step;
+    padding: 4px 0 30px 62px; margin: 0;
+  }
+  ol.steps > li::before {
+    content: counter(step);
+    position: absolute; left: 0; top: 0;
+    width: 42px; height: 42px; border-radius: 12px;
+    background: var(--accent); color: #fff;
+    font-family: "Segoe UI Variable Display","Segoe UI",sans-serif;
+    font-weight: 700; font-size: 19px;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 2px 8px rgba(15,108,189,.32);
+  }
+  /* connecting rail */
+  ol.steps > li:not(:last-child)::after {
+    content: ""; position: absolute; left: 20.5px; top: 48px; bottom: 6px;
+    width: 2px; background: linear-gradient(var(--border-strong), var(--border));
+  }
+  ol.steps h3 {
+    margin: 6px 0 8px; font-size: 20px; font-weight: 650; letter-spacing: -.01em;
+    font-family: "Segoe UI Variable Display","Segoe UI",sans-serif;
+  }
+  ol.steps p { margin: 0 0 10px; color: var(--ink-soft); }
+  ol.steps .where {
+    font-size: 14px; color: var(--muted); margin: 0 0 12px;
+    display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap;
+  }
+  ol.steps .where b { color: var(--ink); font-weight: 600; }
+  .path {
+    font-family: ui-monospace, "Cascadia Code", "SF Mono", Consolas, monospace;
+    font-size: 13px; background: var(--code-bg); color: var(--ink-soft);
+    padding: 2px 8px; border-radius: 6px; border: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  ul.plain { margin: 6px 0 12px; padding-left: 20px; }
+  ul.plain li { margin: 5px 0; color: var(--ink-soft); }
+
+  /* copy field */
+  .copy {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    background: var(--code-bg); border: 1px solid var(--border-strong); border-radius: 10px;
+    padding: 12px 14px; margin: 10px 0 14px;
+  }
+  .copy .val {
+    font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+    font-size: 14px; color: var(--code-ink); word-break: break-all; flex: 1 1 auto; min-width: 0;
+  }
+  .copy .tag {
+    font-size: 11.5px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase;
+    color: var(--accent); background: var(--accent-wash); padding: 3px 9px; border-radius: 999px;
+    white-space: nowrap;
+  }
+
+  .give { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 8px 22px 22px; box-shadow: var(--shadow); margin-top: 12px; }
+  .give ul { list-style: none; padding: 0; margin: 0; }
+  .give li { display: flex; gap: 13px; align-items: flex-start; padding: 15px 0; border-bottom: 1px solid var(--border); }
+  .give li:last-child { border-bottom: 0; }
+  .give .box { width: 20px; height: 20px; border: 2px solid var(--accent); border-radius: 5px; flex-shrink: 0; margin-top: 3px; }
+  .give .lab { font-weight: 650; color: var(--ink); }
+  .give code { font-family: ui-monospace, Consolas, monospace; font-size: 13.5px; color: var(--accent-strong); background: var(--accent-wash); padding: 1px 7px; border-radius: 5px; }
+  .give .desc { font-size: 14.5px; color: var(--muted); margin-top: 3px; }
+
+  table { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 15px; }
+  .tbl-scroll { overflow-x: auto; }
+  th, td { text-align: left; padding: 12px 14px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { font-size: 12.5px; letter-spacing: .04em; text-transform: uppercase; color: var(--faint); font-weight: 600; }
+  td:first-child { color: var(--ink); font-weight: 600; white-space: nowrap; }
+  td { color: var(--ink-soft); }
+
+  .foot { margin-top: 56px; padding-top: 20px; border-top: 1px solid var(--border); color: var(--faint); font-size: 14px; }
+  b, strong { font-weight: 650; color: var(--ink); }
+  a { color: var(--accent); }
+</style>
+
+<div class="wrap">
+  <p class="kicker">Integração de calendário · Microsoft 365</p>
+  <h1>Ligar o Outlook à sua agenda</h1>
+  <p class="lede">Um passo a passo para autorizar o seu sistema a enxergar a agenda do Microsoft&nbsp;365 da sua empresa — feito uma única vez, por um administrador, direto no painel da Microsoft.</p>
+
+  <div class="meta-row">
+    <span class="chip">⏱️ <b>~15 minutos</b></span>
+    <span class="chip">🔑 Precisa de <b>administrador do Microsoft 365</b></span>
+    <span class="chip">🔁 Feito <b>uma vez só</b></span>
+  </div>
+
+  <div class="note">
+    <p><b>O que é isto, em uma frase.</b> Você vai criar na conta Microsoft da empresa um “registro de aplicativo” — uma espécie de crachá que autoriza o sistema a ler o calendário de cada pessoa (com o consentimento dela), sem nunca pedir nem guardar a senha de ninguém.</p>
+    <p>Ao final, você me entrega <b>três códigos</b> e confirma <b>um endereço</b>. Eu coloco no sistema e a conexão fica pronta — cada usuário passa a ver um botão “Conectar Microsoft 365” dentro do sistema.</p>
+  </div>
+
+  <div class="callout warn">
+    <span class="lbl">Antes de começar</span>
+    <p>Você precisa entrar com uma conta que seja <b>administrador</b> do Microsoft 365 da empresa (Administrador Global ou de Aplicativos). Se a sua conta comum não abrir as telas abaixo, peça a quem cuida do e-mail/Microsoft da empresa para fazer junto — ou me diga e eu oriento essa pessoa.</p>
+  </div>
+
+  <h2>Os passos</h2>
+  <ol class="steps">
+
+    <li>
+      <h3>Abrir o painel de administração</h3>
+      <p>No navegador, acesse o endereço abaixo e entre com a conta de administrador da empresa.</p>
+      <div class="copy"><span class="val">https://entra.microsoft.com</span><span class="tag">abrir</span></div>
+      <p class="where">Esse é o <b>Microsoft Entra</b> — o painel onde a Microsoft guarda os aplicativos e as permissões da empresa.</p>
+    </li>
+
+    <li>
+      <h3>Criar o registro do aplicativo</h3>
+      <p class="where">No menu à esquerda, siga: <span class="path">Identity → Applications → App registrations</span> e clique em <b>+ New registration</b>.</p>
+      <p>Preencha assim:</p>
+      <ul class="plain">
+        <li><b>Name</b> (nome): digite <b>Agenda Corporativa</b>. É só um rótulo, pode ser esse mesmo.</li>
+        <li><b>Supported account types</b>: escolha <b>“Accounts in this organizational directory only”</b> (apenas a sua empresa). Só escolha a opção “multitenant” se pessoas de <i>outras</i> empresas forem conectar o Outlook delas.</li>
+        <li><b>Redirect URI</b>: na caixinha de tipo, escolha <b>Web</b> e cole o endereço de retorno (o próximo aviso explica qual usar).</li>
+      </ul>
+      <div class="callout warn" style="margin-top:14px">
+        <span class="lbl">Qual endereço de retorno colar</span>
+        <p>É o endereço do seu sistema seguido de <span class="path">/api/integracoes/microsoft/callback</span>. A Microsoft <b>só aceita endereços que começam com <code style="font-family:inherit">https://</code> ou o endereço <code style="font-family:inherit">http://localhost</code></b> — nunca um número de IP simples.</p>
+        <p><b>Para produção</b> (site oficial):</p>
+      </div>
+      <div class="copy"><span class="val">https://endereco-do-seu-sistema/api/integracoes/microsoft/callback</span><span class="tag">produção</span></div>
+      <p style="font-size:14.5px;color:var(--muted);margin:-2px 0 12px">Se o seu sistema usa outro endereço, troque só a parte <code style="font-family:ui-monospace,Consolas,monospace;font-size:13px;background:var(--code-bg);padding:1px 6px;border-radius:5px">endereco-do-seu-sistema</code> pelo endereço real — mantendo o final <code style="font-family:ui-monospace,Consolas,monospace;font-size:13px;background:var(--code-bg);padding:1px 6px;border-radius:5px">/api/integracoes/microsoft/callback</code>.</p>
+      <p>Clique em <b>Register</b>. Pronto — o aplicativo foi criado e abre a tela de resumo (<i>Overview</i>).</p>
+    </li>
+
+    <li>
+      <h3>Copiar os dois primeiros códigos</h3>
+      <p class="where">Ainda na tela <span class="path">Overview</span> do aplicativo. Copie estes dois valores e guarde num bloco de notas:</p>
+      <div class="copy"><span class="val">Application (client) ID</span><span class="tag">código&nbsp;1</span></div>
+      <div class="copy"><span class="val">Directory (tenant) ID</span><span class="tag">código&nbsp;2</span></div>
+      <p style="font-size:14.5px;color:var(--muted)">São duas linhas parecidas com <code style="font-family:ui-monospace,Consolas,monospace;font-size:13px;background:var(--code-bg);padding:1px 6px;border-radius:5px">3fa85f64-5717-4562-b3fc-2c963f66afa6</code>. Cada uma tem um botão de copiar do lado. O “tenant” é o identificador da sua empresa dentro da Microsoft.</p>
+    </li>
+
+    <li>
+      <h3>Criar a senha do aplicativo</h3>
+      <p class="where">No menu do aplicativo, vá em <span class="path">Certificates &amp; secrets → Client secrets</span> e clique em <b>+ New client secret</b>.</p>
+      <ul class="plain">
+        <li><b>Description</b>: escreva <b>agenda</b>.</li>
+        <li><b>Expires</b>: escolha <b>24 months</b> (a senha vale por esse tempo; anote a data para renovar depois).</li>
+      </ul>
+      <p>Clique em <b>Add</b>. Vai aparecer uma linha nova com uma coluna <b>Value</b>.</p>
+      <div class="callout warn">
+        <span class="lbl">Copie o “Value” agora</span>
+        <p>Copie o conteúdo da coluna <b>Value</b> <b>imediatamente</b> — ele só aparece uma vez. Se sair da tela sem copiar, é só apagar e criar outro. <b>Não</b> copie o “Secret ID”; o que interessa é o <b>Value</b>.</p>
+      </div>
+      <div class="copy"><span class="val">o conteúdo da coluna “Value”</span><span class="tag">código&nbsp;3</span></div>
+    </li>
+
+    <li>
+      <h3>Dar as permissões e aprovar</h3>
+      <p class="where">No menu do aplicativo, vá em <span class="path">API permissions</span> e clique em <b>+ Add a permission</b>. Escolha <b>Microsoft Graph</b> e depois <b>Delegated permissions</b>.</p>
+      <p>Na busca, marque exatamente estas — e nada além:</p>
+      <ul class="plain">
+        <li><code style="font-family:ui-monospace,Consolas,monospace;font-size:13.5px;color:var(--accent-strong);background:var(--accent-wash);padding:1px 7px;border-radius:5px">Calendars.ReadWrite</code> — ler e criar/editar eventos do calendário</li>
+        <li><code style="font-family:ui-monospace,Consolas,monospace;font-size:13.5px;color:var(--accent-strong);background:var(--accent-wash);padding:1px 7px;border-radius:5px">offline_access</code> — manter a conexão sem pedir login toda hora</li>
+        <li><code style="font-family:ui-monospace,Consolas,monospace;font-size:13.5px;color:var(--accent-strong);background:var(--accent-wash);padding:1px 7px;border-radius:5px">User.Read</code> · <code style="font-family:ui-monospace,Consolas,monospace;font-size:13.5px;color:var(--accent-strong);background:var(--accent-wash);padding:1px 7px;border-radius:5px">openid</code> · <code style="font-family:ui-monospace,Consolas,monospace;font-size:13.5px;color:var(--accent-strong);background:var(--accent-wash);padding:1px 7px;border-radius:5px">email</code> · <code style="font-family:ui-monospace,Consolas,monospace;font-size:13.5px;color:var(--accent-strong);background:var(--accent-wash);padding:1px 7px;border-radius:5px">profile</code> — identificar de quem é a conta ao conectar</li>
+      </ul>
+      <p>Clique em <b>Add permissions</b>. De volta à lista, clique no botão <b>Grant admin consent for [sua empresa]</b> e confirme com <b>Yes</b>. As linhas devem ficar com um ✔️ verde na coluna <i>Status</i>.</p>
+      <div class="callout good">
+        <span class="lbl">Por que só essas</span>
+        <p>São as permissões mínimas para o objetivo. O sistema <b>não</b> pede acesso a e-mails, arquivos ou contatos — só ao calendário.</p>
+      </div>
+    </li>
+
+    <li>
+      <h3>Me enviar os valores</h3>
+      <p>Terminou a parte da Microsoft. Agora é só me passar o que você copiou — a lista completa está logo abaixo. Eu coloco no sistema e ativo a conexão.</p>
+    </li>
+  </ol>
+
+  <h2>O que me enviar</h2>
+  <div class="give">
+    <ul>
+      <li><span class="box"></span><div><div class="lab">Código 1 — <code>Application (client) ID</code></div><div class="desc">Da tela Overview (passo 3).</div></div></li>
+      <li><span class="box"></span><div><div class="lab">Código 2 — <code>Directory (tenant) ID</code></div><div class="desc">Da tela Overview (passo 3). Se você escolheu “multitenant” no passo 2, me avise e mando <code>common</code> no lugar.</div></div></li>
+      <li><span class="box"></span><div><div class="lab">Código 3 — o <code>Value</code> do client secret</div><div class="desc">A senha do aplicativo (passo 4). Trate como senha: me envie por um canal seguro, não em grupo público.</div></div></li>
+      <li><span class="box"></span><div><div class="lab">O endereço de retorno que você colou</div><div class="desc">Para eu confirmar que bate exatamente com o do sistema (passo 2).</div></div></li>
+    </ul>
+  </div>
+
+  <h2>O que acontece depois</h2>
+  <div class="note">
+    <p>Com esses valores no sistema, cada pessoa vai em <b>Configurações → Integrações</b> dentro do sistema e clica em <b>Conectar Microsoft 365</b>. Ela faz login na Microsoft (a conta dela, não a sua), autoriza, e volta já conectada.</p>
+    <p>A partir daí os compromissos do Outlook aparecem na agenda dela e contam na disponibilidade. Cada um conecta só a própria conta — ninguém vê a agenda de ninguém sem permissão.</p>
+  </div>
+
+  <h2>Se algo der errado</h2>
+  <div class="tbl-scroll">
+  <table>
+    <thead><tr><th>Mensagem / sintoma</th><th>O que costuma ser</th><th>O que fazer</th></tr></thead>
+    <tbody>
+      <tr><td>“AADSTS50011” / redirect mismatch</td><td>O endereço de retorno do passo 2 não bate com o do sistema (uma barra a mais, http em vez de https).</td><td>Conferir letra por letra. Me avisar o endereço exato que você colou.</td></tr>
+      <tr><td>Não aceita o endereço de retorno</td><td>Você tentou um IP ou http sem ser localhost.</td><td>Usar um endereço https:// (produção) — ver o aviso do passo 2.</td></tr>
+      <tr><td>O ✔️ verde não aparece nas permissões</td><td>Faltou o “Grant admin consent”, ou sua conta não é administradora.</td><td>Clicar em “Grant admin consent”. Se o botão estiver apagado, pedir a um Administrador Global.</td></tr>
+      <tr><td>Não encontro “App registrations”</td><td>A conta logada não tem acesso de administrador.</td><td>Entrar com a conta de administrador do Microsoft 365 da empresa.</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <p class="foot">Guia de configuração do Microsoft Entra para a integração de calendário.  Qualquer passo que travar, me chame com o print da tela — a gente resolve junto.</p>
+</div>

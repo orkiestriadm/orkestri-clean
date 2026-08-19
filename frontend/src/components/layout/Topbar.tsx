@@ -80,6 +80,7 @@ const TITLES: Record<string, { label: string; desc: string }> = {
   "/dashboard/cadastros":              { label: "Cadastros",      desc: "Usuários, clientes e organizações" },
   "/dashboard/cadastros/fornecedores": { label: "Fornecedores",   desc: "Gestão de fornecedores" },
   "/dashboard/configuracoes":          { label: "Configurações",  desc: "Preferências do sistema" },
+  "/dashboard/configuracoes/integracoes": { label: "Integrações", desc: "Microsoft 365 / Outlook e outros serviços" },
   "/dashboard/whatsapp-config":        { label: "WhatsApp",       desc: "Notificações via WhatsApp" },
   "/dashboard/catalogo":               { label: "Catálogo",       desc: "Portal de serviços corporativos" },
   "/dashboard/processos":              { label: "Processos",      desc: "Construtor visual de fluxos" },

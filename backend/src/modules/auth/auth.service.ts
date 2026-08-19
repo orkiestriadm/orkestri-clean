@@ -22,6 +22,8 @@ const ALL_PERMISSIONS: { recurso: string; acao: string; descricao: string }[] = 
   { recurso: "agenda",        acao: "criar",       descricao: "Criar eventos" },
   { recurso: "agenda",        acao: "editar",      descricao: "Editar eventos" },
   { recurso: "agenda",        acao: "deletar",     descricao: "Deletar eventos" },
+  { recurso: "integracoes",   acao: "conectar",    descricao: "Conectar a própria conta de calendário externo (Microsoft 365)" },
+  { recurso: "integracoes",   acao: "configurar",  descricao: "Configurar as credenciais da integração de calendário (App Registration)" },
   { recurso: "projetos",      acao: "ver",         descricao: "Ver projetos" },
   { recurso: "projetos",      acao: "criar",       descricao: "Criar projetos" },
   { recurso: "projetos",      acao: "editar",      descricao: "Editar projetos" },
@@ -149,6 +151,9 @@ const ALL_PERMISSIONS: { recurso: string; acao: string; descricao: string }[] = 
 const BASE_PERMISSIONS = [
   "agenda:ver", "agenda:criar", "agenda:editar", "agenda:deletar",
   "keep:ver", "keep:criar", "keep:editar", "keep:deletar",
+  // Conectar o PRÓPRIO calendário externo é ferramenta de conta pessoal (só
+  // afeta a agenda do próprio usuário), então acompanha a conta como agenda/keep.
+  "integracoes:conectar",
 ];
 
 /**

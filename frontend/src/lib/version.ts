@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "1.12.0";
+export const VERSAO = "1.14.0";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -26,7 +26,7 @@ export const VERSAO = "1.12.0";
 export const VERSAO_DATA = "2026-08-19";
 
 /** Nome da entrega, para dar contexto ao número. */
-export const VERSAO_NOME = "Documento de veiculo pelo CRLV";
+export const VERSAO_NOME = "Documento de veículo pelo CRLV";
 
 /**
  * Histórico exibido na tela Sobre, do mais recente para o mais antigo.
@@ -36,16 +36,36 @@ export const VERSAO_NOME = "Documento de veiculo pelo CRLV";
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
   {
-    versao: "1.12.0",
+    versao: "1.14.0",
     data: "2026-08-19",
-    titulo: "Documento de veiculo pelo CRLV",
+    titulo: "Documento de veículo pelo CRLV",
     itens: [
-      "Novo botao Cadastrar Documento em Frotas > Documentacoes: escolha o PDF do CRLV e o sistema le placa, RENAVAM, chassi, marca, modelo, ano, cor, combustivel e proprietario, e amarra o documento ao veiculo ja cadastrado",
-      "Se nao houver veiculo com aquela placa, o sistema avisa e leva direto para o cadastro de veiculo, ja aberto",
-      "Escolhido Sao Paulo como estado de registro, o vencimento do licenciamento e calculado sozinho pelo final da placa, no ultimo dia util do mes; nos demais estados o campo fica em branco para preenchimento",
-      "O que estiver em branco no cadastro do veiculo e completado pelo CRLV: RENAVAM, chassi, marca, modelo, cor e ano. O que ja estava preenchido nao e sobrescrito",
-      "O CRLV guardado passa a ficar em area restrita, fora do diretorio publico, por trazer CPF/CNPJ do proprietario",
-      "Corrigido: anexo de documento baixava como arquivo generico em vez de PDF",
+      "Novo botão Cadastrar Documento em Frotas › Documentações: escolha o PDF do CRLV e o sistema lê placa, RENAVAM, chassi, marca, modelo, ano, cor, combustível e proprietário, e amarra o documento ao veículo já cadastrado",
+      "Se não houver veículo com aquela placa, o sistema avisa e leva direto para o cadastro de veículo, já aberto",
+      "Escolhido São Paulo como estado de registro, o vencimento do licenciamento é calculado sozinho pelo final da placa, no último dia útil do mês; nos demais estados o campo fica em branco para preenchimento",
+      "O que estiver em branco no cadastro do veículo é completado pelo CRLV: RENAVAM, chassi, marca, modelo, cor e ano. O que já estava preenchido não é sobrescrito",
+      "O CRLV guardado fica em área restrita, fora do diretório público, por trazer CPF/CNPJ do proprietário",
+      "Corrigido: anexo de documento baixava como arquivo genérico em vez de PDF",
+    ],
+  },
+  {
+    versao: "1.13.0",
+    data: "2026-08-18",
+    titulo: "Integração do Outlook configurável por tela",
+    itens: [
+      "As credenciais da integração com o Microsoft 365 passam a ser preenchidas por uma tela de administrador, em Configurações › Integrações — sem precisar mexer em arquivo de servidor. Cada ambiente e cada organização pode ter a sua",
+      "A tela mostra qual configuração está em uso e o endereço de retorno exato para registrar no painel da Microsoft",
+    ],
+  },
+  {
+    versao: "1.12.1",
+    data: "2026-08-18",
+    titulo: "Agenda conectada ao Outlook",
+    itens: [
+      "Você pode conectar sua conta Microsoft 365 em Configurações › Integrações. Os compromissos do seu Outlook passam a aparecer na Agenda, em azul, e a contar na sua disponibilidade — quando alguém procura um horário livre para você, o que está ocupado no Outlook também é considerado",
+      "Os compromissos que você criar na Agenda podem ser enviados automaticamente para o seu Outlook, se você deixar a opção ligada",
+      "Alteração e cancelamento feitos no Outlook se refletem na Agenda, e o que você muda aqui volta para o Outlook",
+      "Cada pessoa conecta apenas a própria conta, e o assunto das reuniões de outras pessoas não é exposto na visão de disponibilidade da equipe",
     ],
   },
   {

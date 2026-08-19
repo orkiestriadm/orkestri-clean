@@ -52,6 +52,7 @@ import { FinanceiroModule } from './modules/financeiro/financeiro.module';
 import { FrotaModule } from './modules/frota/frota.module';
 import { PeopleModule } from './modules/people/people.module';
 import { ComplianceModule } from './modules/compliance/compliance.module';
+import { IntegracoesModule } from './modules/integracoes/integracoes.module';
 import { JwtModule } from '@nestjs/jwt';
 
 @Module({
@@ -101,6 +102,9 @@ import { JwtModule } from '@nestjs/jwt';
     // Orkiestri Compliance — Gestão de Obrigações. Rotas em /api/v1/compliance/*.
     // Ver docs/architecture/gestaodeobrigacoes.md.
     ComplianceModule,
+    // Integração de calendário externo (Microsoft 365 / futuro Google).
+    // Rotas em /api/integracoes/microsoft/*. Ver docs/integracoes/.
+    IntegracoesModule,
   ],
 })
 export class AppModule {}

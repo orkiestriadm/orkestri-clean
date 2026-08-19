@@ -54,7 +54,10 @@ async function bootstrap() {
   const CSRF_EXEMPT_PATHS = ["/api/auth/login", "/api/auth/solicitar-acesso", "/api/auth/esqueci-senha",
     "/api/auth/enviar-otp", "/api/auth/verificar-otp", "/api/auth/redefinir-senha",
     "/api/auth/tenant-info", "/api/auth/organizations", "/api/billing/webhook/mp",
-    "/api/billing/public/signup", "/health"];
+    "/api/billing/public/signup", "/health",
+    // Webhook do Microsoft Graph: chamado pela Microsoft, sem cookie CSRF. A
+    // autenticidade vem do clientState verificado no controller.
+    "/api/integracoes/microsoft/webhook"];
 
   app.use((req: Request, res: Response, next: NextFunction) => {
     // Emite cookie CSRF a cada request (token rotativo por sessão)

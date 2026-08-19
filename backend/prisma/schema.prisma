@@ -88,67 +88,69 @@ model Organization {
   criadoEm          DateTime @default(now()) @map("criado_em")
   atualizadoEm      DateTime @updatedAt @map("atualizado_em")
 
-  users             User[]
-  roles             Role[]
-  chamados          Chamado[]
-  clientes          Cliente[]
-  contratos         Contrato[]
-  faturas           Fatura[]
-  projetos          Project[]
-  notas             Note[]
-  noteLabels        NoteLabel[]
-  eventos           Event[]
-  automacoes        Automacao[]
-  alertaRegras      AlertaRegra[]
-  ativos            Ativo[]
-  categoriasAtivo   CategoriaAtivo[]
-  artigos           ArtigoConhecimento[]
-  categoriasConhec  CategoriaConhecimento[]
-  suppliers         Supplier[]
-  slaRegras         SlaRegra[]
-  alertConfigs      AlertConfig[]
-  setores           Setor[]
-  auditLogs         AuditLog[]
-  orcamentoCiclos   OrcamentoCiclo[]
-  centrosCusto      CentroCusto[]
-  categoriasOrc     CategoriaOrcamento[]
-  fornecedoresOrc   FornecedorOrcamento[]
-  sistemaConfigs    SistemaConfig[]
-  apontamentosHoras ApontamentoHoras[]
-  whatsappConfig    OrgWhatsappConfig?
-  cadastroRequests  CadastroRequest[]            @relation("CadReqOrg")
-  collaborators     Collaborator[]               @relation("OrgCollaborators")
-  positions         Position[]                   @relation("OrgPositions")
-  careerTracks      CareerTrack[]                @relation("OrgCareerTracks")
-  checklistModelos  ChecklistTemplate[]          @relation("OrgChecklistTemplates")
-  checklistItens    ChecklistTemplateItem[]      @relation("OrgChecklistTemplateItems")
-  checklists        CollaboratorChecklist[]      @relation("OrgCollaboratorChecklists")
-  checklistItensCol CollaboratorChecklistItem[]  @relation("OrgCollaboratorChecklistItems")
-  careerSteps       CareerTrackStep[]            @relation("OrgCareerSteps")
-  careerRequisitos  CareerStepRequirement[]      @relation("OrgCareerRequirements")
-  collabHistory     CollaboratorHistory[]        @relation("OrgCollaboratorHistory")
-  collabDocuments   CollaboratorDocument[]       @relation("OrgCollaboratorDocuments")
-  vacationPeriods   CollaboratorVacationPeriod[] @relation("OrgVacationPeriods")
-  benefits          Benefit[]                    @relation("OrgBenefits")
-  collabBenefits    CollaboratorBenefit[]        @relation("OrgCollabBenefits")
-  trainingCourses   TrainingCourse[]             @relation("OrgTrainingCourses")
-  collabTrainings   CollaboratorTraining[]       @relation("OrgCollabTrainings")
-  perfReviews       PerformanceReview[]          @relation("OrgPerfReviews")
-  perfReviewInputs  PerformanceReviewInput[]     @relation("OrgReviewInputs")
-  perfGoals         PerformanceGoal[]            @relation("OrgPerfGoals")
-  salarios          CollaboratorSalary[]         @relation("OrgSalaries")
-  feedbacks         PerformanceFeedback[]        @relation("OrgFeedbacks")
-  skills            Skill[]                      @relation("OrgSkills")
-  ausencias         Ausencia[]                   @relation("OrgAusencias")
-  workflowRequests  WorkflowRequest[]            @relation("OrgWorkflowRequests")
-  squads            Squad[]                      @relation("OrgSquads")
-  aprovadoresSetor  AprovadorSetor[]
-  billing           OrgBilling?
-  workflowTemplates WorkflowTemplate[]           @relation("OrgWorkflowTemplates")
-  chamadoTemplates  ChamadoTemplate[]            @relation("OrgChamadoTemplates")
-  webhooks          Webhook[]
-  monitoringKey     String?                      @map("monitoring_key")
-  pingLogs          PingLog[]
+  users                   User[]
+  roles                   Role[]
+  chamados                Chamado[]
+  clientes                Cliente[]
+  contratos               Contrato[]
+  faturas                 Fatura[]
+  projetos                Project[]
+  notas                   Note[]
+  noteLabels              NoteLabel[]
+  eventos                 Event[]
+  calendarConnections     CalendarConnection[]
+  calendarProviderConfigs CalendarProviderConfig[]
+  automacoes              Automacao[]
+  alertaRegras            AlertaRegra[]
+  ativos                  Ativo[]
+  categoriasAtivo         CategoriaAtivo[]
+  artigos                 ArtigoConhecimento[]
+  categoriasConhec        CategoriaConhecimento[]
+  suppliers               Supplier[]
+  slaRegras               SlaRegra[]
+  alertConfigs            AlertConfig[]
+  setores                 Setor[]
+  auditLogs               AuditLog[]
+  orcamentoCiclos         OrcamentoCiclo[]
+  centrosCusto            CentroCusto[]
+  categoriasOrc           CategoriaOrcamento[]
+  fornecedoresOrc         FornecedorOrcamento[]
+  sistemaConfigs          SistemaConfig[]
+  apontamentosHoras       ApontamentoHoras[]
+  whatsappConfig          OrgWhatsappConfig?
+  cadastroRequests        CadastroRequest[]            @relation("CadReqOrg")
+  collaborators           Collaborator[]               @relation("OrgCollaborators")
+  positions               Position[]                   @relation("OrgPositions")
+  careerTracks            CareerTrack[]                @relation("OrgCareerTracks")
+  checklistModelos        ChecklistTemplate[]          @relation("OrgChecklistTemplates")
+  checklistItens          ChecklistTemplateItem[]      @relation("OrgChecklistTemplateItems")
+  checklists              CollaboratorChecklist[]      @relation("OrgCollaboratorChecklists")
+  checklistItensCol       CollaboratorChecklistItem[]  @relation("OrgCollaboratorChecklistItems")
+  careerSteps             CareerTrackStep[]            @relation("OrgCareerSteps")
+  careerRequisitos        CareerStepRequirement[]      @relation("OrgCareerRequirements")
+  collabHistory           CollaboratorHistory[]        @relation("OrgCollaboratorHistory")
+  collabDocuments         CollaboratorDocument[]       @relation("OrgCollaboratorDocuments")
+  vacationPeriods         CollaboratorVacationPeriod[] @relation("OrgVacationPeriods")
+  benefits                Benefit[]                    @relation("OrgBenefits")
+  collabBenefits          CollaboratorBenefit[]        @relation("OrgCollabBenefits")
+  trainingCourses         TrainingCourse[]             @relation("OrgTrainingCourses")
+  collabTrainings         CollaboratorTraining[]       @relation("OrgCollabTrainings")
+  perfReviews             PerformanceReview[]          @relation("OrgPerfReviews")
+  perfReviewInputs        PerformanceReviewInput[]     @relation("OrgReviewInputs")
+  perfGoals               PerformanceGoal[]            @relation("OrgPerfGoals")
+  salarios                CollaboratorSalary[]         @relation("OrgSalaries")
+  feedbacks               PerformanceFeedback[]        @relation("OrgFeedbacks")
+  skills                  Skill[]                      @relation("OrgSkills")
+  ausencias               Ausencia[]                   @relation("OrgAusencias")
+  workflowRequests        WorkflowRequest[]            @relation("OrgWorkflowRequests")
+  squads                  Squad[]                      @relation("OrgSquads")
+  aprovadoresSetor        AprovadorSetor[]
+  billing                 OrgBilling?
+  workflowTemplates       WorkflowTemplate[]           @relation("OrgWorkflowTemplates")
+  chamadoTemplates        ChamadoTemplate[]            @relation("OrgChamadoTemplates")
+  webhooks                Webhook[]
+  monitoringKey           String?                      @map("monitoring_key")
+  pingLogs                PingLog[]
 
   // ── Chamados v2 (campos custom) ──
   chamadoCustomFields ChamadoCustomField[]
@@ -262,6 +264,7 @@ model User {
   eventsOwner                Event[]                     @relation("EventOwner")
   eventsCriados              Event[]                     @relation("EventCreator")
   eventParticipants          EventParticipant[]
+  calendarConnections        CalendarConnection[]
   projectsOwner              Project[]                   @relation("ProjectOwner")
   projectAnexosCriados       ProjectAnexo[]              @relation("ProjectAnexoAutor")
   projectMembers             ProjectMember[]
@@ -335,8 +338,9 @@ model User {
   complianceEscalonamentos   ComplianceEscalonamento[]   @relation("ComplianceEscalonamentoUser")
   complianceAprovacoes       ComplianceAprovacao[]       @relation("ComplianceAprovadorUser")
 
-    chamadosAtribuidosPorMim   Chamado[]                   @relation("ChamadoAtribuidor")
-@@unique([organizationId, email])
+  chamadosAtribuidosPorMim Chamado[] @relation("ChamadoAtribuidor")
+
+  @@unique([organizationId, email])
   @@index([organizationId])
   @@map("users")
 }
@@ -369,18 +373,18 @@ model OrcamentoCiclo {
 
 // Quem tem acesso a um orçamento pessoal. Presença na tabela = ver e editar.
 model OrcamentoCompartilhamento {
-  id          String         @id @default(uuid())
-  cicloId     String         @map("ciclo_id")
-  ciclo       OrcamentoCiclo @relation(fields: [cicloId], references: [id], onDelete: Cascade)
-  userId      String         @map("user_id")
-  user        User           @relation("OrcCompUser", fields: [userId], references: [id], onDelete: Cascade)
+  id            String         @id @default(uuid())
+  cicloId       String         @map("ciclo_id")
+  ciclo         OrcamentoCiclo @relation(fields: [cicloId], references: [id], onDelete: Cascade)
+  userId        String         @map("user_id")
+  user          User           @relation("OrcCompUser", fields: [userId], references: [id], onDelete: Cascade)
   /// Compartilhar UM centro de custo do ciclo, e não o ciclo inteiro.
-  centroCustoId String?      @map("centro_custo_id")
-  centroCusto   CentroCusto? @relation(fields: [centroCustoId], references: [id], onDelete: Cascade)
+  centroCustoId String?        @map("centro_custo_id")
+  centroCusto   CentroCusto?   @relation(fields: [centroCustoId], references: [id], onDelete: Cascade)
   /// editor | leitor
-  papel         String       @default("editor")
-  criadoPorId String?        @map("criado_por_id")
-  criadoEm    DateTime       @default(now()) @map("criado_em")
+  papel         String         @default("editor")
+  criadoPorId   String?        @map("criado_por_id")
+  criadoEm      DateTime       @default(now()) @map("criado_em")
 
   @@unique([cicloId, userId, centroCustoId])
   @@map("orcamento_compartilhamentos")
@@ -403,19 +407,19 @@ model AlertaRegra {
 }
 
 model CentroCusto {
-  id             String          @id @default(uuid())
-  organizationId String          @map("organization_id")
-  codigo         String
-  nome           String
-  descricao      String?
-  cor            String          @default("#a78bfa")
-  ativo          Boolean         @default(true)
-  responsavelId  String?         @map("responsavel_id")
-  responsavel    User?           @relation("CentroCustoResp", fields: [responsavelId], references: [id], onDelete: SetNull)
-  organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  itens          ItemOrcamento[]
+  id                String                      @id @default(uuid())
+  organizationId    String                      @map("organization_id")
+  codigo            String
+  nome              String
+  descricao         String?
+  cor               String                      @default("#a78bfa")
+  ativo             Boolean                     @default(true)
+  responsavelId     String?                     @map("responsavel_id")
+  responsavel       User?                       @relation("CentroCustoResp", fields: [responsavelId], references: [id], onDelete: SetNull)
+  organization      Organization                @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  itens             ItemOrcamento[]
   compartilhamentos OrcamentoCompartilhamento[]
-  criadoEm       DateTime        @default(now()) @map("criado_em")
+  criadoEm          DateTime                    @default(now()) @map("criado_em")
 
   @@unique([organizationId, codigo])
   @@map("centros_custo")
@@ -756,7 +760,7 @@ model Skill {
   criadoEm       DateTime @default(now()) @map("criado_em")
   atualizadoEm   DateTime @updatedAt @map("atualizado_em")
 
-  organization  Organization        @relation("OrgSkills", fields: [organizationId], references: [id], onDelete: Cascade)
+  organization  Organization            @relation("OrgSkills", fields: [organizationId], references: [id], onDelete: Cascade)
   collaborators CollaboratorSkill[]
   chamados      Chamado[]               @relation("ChamadoSkill")
   requisitos    CareerStepRequirement[]
@@ -847,33 +851,33 @@ model Collaborator {
   /// o que identifica a pessoa e é irreversível. Ver domain/privacidade.entity.
   anonimizadoEm    DateTime? @map("anonimizado_em")
 
-  organization     Organization                 @relation("OrgCollaborators", fields: [organizationId], references: [id], onDelete: Cascade)
+  organization             Organization                 @relation("OrgCollaborators", fields: [organizationId], references: [id], onDelete: Cascade)
   // SetNull, não Cascade: excluir o login de alguém não pode apagar o registro
   // funcional da pessoa, que tem retenção legal.
-  user             User?                        @relation("UserCollaborator", fields: [userId], references: [id], onDelete: SetNull)
-  setor            Setor?                       @relation("SetorCollaborators", fields: [setorId], references: [id], onDelete: SetNull)
-  position         Position?                    @relation("PositionCollaborators", fields: [positionId], references: [id], onDelete: SetNull)
-  gestor           Collaborator?                @relation("CollabHierarchy", fields: [gestorId], references: [id], onDelete: SetNull)
-  liderados        Collaborator[]               @relation("CollabHierarchy")
-  collabSkills     CollaboratorSkill[]
-  ausencias        Ausencia[]
-  squadsLiderados  Squad[]                      @relation("SquadLider")
-  squadMemberships SquadMember[]
-  periodosFerias   CollaboratorVacationPeriod[]
-  enderecos        CollaboratorAddress[]
-  contatos         CollaboratorContact[]
-  historico        CollaboratorHistory[]
-  documentos       CollaboratorDocument[]
-  beneficios       CollaboratorBenefit[]
-  treinamentos     CollaboratorTraining[]
-  avaliacoes       PerformanceReview[]          @relation("ReviewAvaliado")
-  avaliacoesFeitas PerformanceReview[]          @relation("ReviewAvaliador")
-  entradas360      PerformanceReviewInput[]     @relation("ReviewInputAvaliador")
-  salarios         CollaboratorSalary[]
-  feedbacks        PerformanceFeedback[]        @relation("FeedbackSobre")
-  feedbacksDados   PerformanceFeedback[]        @relation("FeedbackAutor")
-  careerTrack      CareerTrack?                 @relation("TrackCollaborators", fields: [careerTrackId], references: [id], onDelete: SetNull)
-  checklists       CollaboratorChecklist[]
+  user                     User?                        @relation("UserCollaborator", fields: [userId], references: [id], onDelete: SetNull)
+  setor                    Setor?                       @relation("SetorCollaborators", fields: [setorId], references: [id], onDelete: SetNull)
+  position                 Position?                    @relation("PositionCollaborators", fields: [positionId], references: [id], onDelete: SetNull)
+  gestor                   Collaborator?                @relation("CollabHierarchy", fields: [gestorId], references: [id], onDelete: SetNull)
+  liderados                Collaborator[]               @relation("CollabHierarchy")
+  collabSkills             CollaboratorSkill[]
+  ausencias                Ausencia[]
+  squadsLiderados          Squad[]                      @relation("SquadLider")
+  squadMemberships         SquadMember[]
+  periodosFerias           CollaboratorVacationPeriod[]
+  enderecos                CollaboratorAddress[]
+  contatos                 CollaboratorContact[]
+  historico                CollaboratorHistory[]
+  documentos               CollaboratorDocument[]
+  beneficios               CollaboratorBenefit[]
+  treinamentos             CollaboratorTraining[]
+  avaliacoes               PerformanceReview[]          @relation("ReviewAvaliado")
+  avaliacoesFeitas         PerformanceReview[]          @relation("ReviewAvaliador")
+  entradas360              PerformanceReviewInput[]     @relation("ReviewInputAvaliador")
+  salarios                 CollaboratorSalary[]
+  feedbacks                PerformanceFeedback[]        @relation("FeedbackSobre")
+  feedbacksDados           PerformanceFeedback[]        @relation("FeedbackAutor")
+  careerTrack              CareerTrack?                 @relation("TrackCollaborators", fields: [careerTrackId], references: [id], onDelete: SetNull)
+  checklists               CollaboratorChecklist[]
   complianceResponsavelPor ComplianceResponsavel[]
 
   @@unique([organizationId, matricula])
@@ -909,9 +913,9 @@ model Position {
   atualizadoPorId String?   @map("atualizado_por_id")
   excluidoEm      DateTime? @map("excluido_em")
 
-  organization  Organization         @relation("OrgPositions", fields: [organizationId], references: [id], onDelete: Cascade)
-  collaborators Collaborator[]       @relation("PositionCollaborators")
-  salarios      CollaboratorSalary[]
+  organization    Organization         @relation("OrgPositions", fields: [organizationId], references: [id], onDelete: Cascade)
+  collaborators   Collaborator[]       @relation("PositionCollaborators")
+  salarios        CollaboratorSalary[]
   degrausCarreira CareerTrackStep[]
 
   @@unique([organizationId, titulo])
@@ -924,19 +928,19 @@ model Position {
 // modelo depois não pode reescrever o checklist de quem já foi admitido, senão
 // o histórico mente sobre o que foi exigido na época.
 model ChecklistTemplate {
-  id              String    @id @default(uuid())
-  organizationId  String    @map("organization_id")
+  id              String   @id @default(uuid())
+  organizationId  String   @map("organization_id")
   nome            String
   /// admissao | desligamento
   evento          String
   descricao       String?
-  ativo           Boolean   @default(true)
-  criadoEm        DateTime  @default(now()) @map("criado_em")
-  criadoPorId     String?   @map("criado_por_id")
-  atualizadoEm    DateTime  @updatedAt @map("atualizado_em")
-  atualizadoPorId String?   @map("atualizado_por_id")
+  ativo           Boolean  @default(true)
+  criadoEm        DateTime @default(now()) @map("criado_em")
+  criadoPorId     String?  @map("criado_por_id")
+  atualizadoEm    DateTime @updatedAt @map("atualizado_em")
+  atualizadoPorId String?  @map("atualizado_por_id")
 
-  organization Organization             @relation("OrgChecklistTemplates", fields: [organizationId], references: [id], onDelete: Cascade)
+  organization Organization            @relation("OrgChecklistTemplates", fields: [organizationId], references: [id], onDelete: Cascade)
   itens        ChecklistTemplateItem[]
   instancias   CollaboratorChecklist[]
 
@@ -978,9 +982,9 @@ model CollaboratorChecklist {
   concluidoEm    DateTime? @map("concluido_em")
   criadoPorId    String?   @map("criado_por_id")
 
-  organization Organization                 @relation("OrgCollaboratorChecklists", fields: [organizationId], references: [id], onDelete: Cascade)
-  collaborator Collaborator                 @relation(fields: [collaboratorId], references: [id], onDelete: Cascade)
-  template     ChecklistTemplate?           @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  organization Organization                @relation("OrgCollaboratorChecklists", fields: [organizationId], references: [id], onDelete: Cascade)
+  collaborator Collaborator                @relation(fields: [collaboratorId], references: [id], onDelete: Cascade)
+  template     ChecklistTemplate?          @relation(fields: [templateId], references: [id], onDelete: SetNull)
   itens        CollaboratorChecklistItem[]
 
   @@unique([collaboratorId, evento])
@@ -1017,15 +1021,15 @@ model CollaboratorChecklistItem {
 // a qual obedecer. Progredir = ocupar o próximo cargo da trilha, o que move
 // faixa, organograma e histórico funcional pelo mesmo campo de sempre.
 model CareerTrack {
-  id              String    @id @default(uuid())
-  organizationId  String    @map("organization_id")
+  id              String   @id @default(uuid())
+  organizationId  String   @map("organization_id")
   nome            String
   descricao       String?
-  ativo           Boolean   @default(true)
-  criadoEm        DateTime  @default(now()) @map("criado_em")
-  criadoPorId     String?   @map("criado_por_id")
-  atualizadoEm    DateTime  @updatedAt @map("atualizado_em")
-  atualizadoPorId String?   @map("atualizado_por_id")
+  ativo           Boolean  @default(true)
+  criadoEm        DateTime @default(now()) @map("criado_em")
+  criadoPorId     String?  @map("criado_por_id")
+  atualizadoEm    DateTime @updatedAt @map("atualizado_em")
+  atualizadoPorId String?  @map("atualizado_por_id")
 
   organization  Organization      @relation("OrgCareerTracks", fields: [organizationId], references: [id], onDelete: Cascade)
   degraus       CareerTrackStep[]
@@ -1051,11 +1055,11 @@ model CareerTrackStep {
   criadoEm       DateTime @default(now()) @map("criado_em")
   criadoPorId    String?  @map("criado_por_id")
 
-  organization Organization             @relation("OrgCareerSteps", fields: [organizationId], references: [id], onDelete: Cascade)
-  track        CareerTrack              @relation(fields: [trackId], references: [id], onDelete: Cascade)
+  organization Organization            @relation("OrgCareerSteps", fields: [organizationId], references: [id], onDelete: Cascade)
+  track        CareerTrack             @relation(fields: [trackId], references: [id], onDelete: Cascade)
   // Restrict: apagar um cargo que é degrau abriria buraco no meio da progressão
   // e o "próximo degrau" de quem está abaixo passaria a apontar para o errado.
-  position     Position                 @relation(fields: [positionId], references: [id], onDelete: Restrict)
+  position     Position                @relation(fields: [positionId], references: [id], onDelete: Restrict)
   requisitos   CareerStepRequirement[]
 
   @@unique([trackId, ordem])
@@ -1278,26 +1282,26 @@ model BillingSignupSession {
 }
 
 model UserProfile {
-  id              String   @id @default(uuid())
-  userId          String   @unique @map("user_id")
-  whatsapp        String?
-  whatsappAlertas Boolean  @default(false) @map("whatsapp_alertas")
-  criadoEm        DateTime @default(now()) @map("criado_em")
-  twoFactorSecret String?  @map("two_factor_secret")
-  twoFactorAtivo  Boolean  @default(false) @map("two_factor_ativo")
-  twoFactorBackup String?  @map("two_factor_backup")
-  statusOnline    String?  @default("disponivel") @map("status_online")
-  setorId         String?  @map("setor_id")
-  cargo           String?
-  telefone        String?
+  id                   String    @id @default(uuid())
+  userId               String    @unique @map("user_id")
+  whatsapp             String?
+  whatsappAlertas      Boolean   @default(false) @map("whatsapp_alertas")
+  criadoEm             DateTime  @default(now()) @map("criado_em")
+  twoFactorSecret      String?   @map("two_factor_secret")
+  twoFactorAtivo       Boolean   @default(false) @map("two_factor_ativo")
+  twoFactorBackup      String?   @map("two_factor_backup")
+  statusOnline         String?   @default("disponivel") @map("status_online")
+  setorId              String?   @map("setor_id")
+  cargo                String?
+  telefone             String?
   /// Verificação do WhatsApp por código. Migration notificacoes_por_modulo.
   whatsappVerificado   Boolean   @default(false) @map("whatsapp_verificado")
   whatsappCodigo       String?   @map("whatsapp_codigo")
   whatsappCodigoExpira DateTime? @map("whatsapp_codigo_expira")
   whatsappTentativas   Int       @default(0) @map("whatsapp_tentativas")
-  modulos         String   @default("[\"projetos\",\"keep\",\"gantt\",\"relatorios\"]")
-  setor           Setor?   @relation(fields: [setorId], references: [id])
-  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  modulos              String    @default("[\"projetos\",\"keep\",\"gantt\",\"relatorios\"]")
+  setor                Setor?    @relation(fields: [setorId], references: [id])
+  user                 User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("user_profiles")
 }
@@ -1395,34 +1399,57 @@ model UserSession {
 // ── Agenda ────────────────────────────────────────────────────────────────────
 
 model Event {
-  id             String             @id @default(uuid())
-  organizationId String             @map("organization_id")
-  userId         String             @map("user_id")
-  criadoPorId    String             @map("created_by")
+  id             String      @id @default(uuid())
+  organizationId String      @map("organization_id")
+  userId         String      @map("user_id")
+  criadoPorId    String      @map("created_by")
   titulo         String
   descricao      String?
-  tipo           EventType          @default(PESSOAL)
+  tipo           EventType   @default(PESSOAL)
   cor            String?
   inicio         DateTime
   fim            DateTime?
-  diaTodo        Boolean            @default(false) @map("dia_todo")
-  origemTipo     String?            @map("origem_tipo")
-  origemId       String?            @map("origem_id")
-  confirmado     Boolean            @default(true)
-  recorrencia    Recurrence?        @map("recorrencia")
-  recorrenciaFim DateTime?          @map("recorrencia_fim")
+  diaTodo        Boolean     @default(false) @map("dia_todo")
+  origemTipo     String?     @map("origem_tipo")
+  origemId       String?     @map("origem_id")
+  confirmado     Boolean     @default(true)
+  recorrencia    Recurrence? @map("recorrencia")
+  recorrenciaFim DateTime?   @map("recorrencia_fim")
   local          String?
-  ata            String?            @db.Text
-  criadoEm       DateTime           @default(now()) @map("criado_em")
-  atualizadoEm   DateTime           @updatedAt @map("atualizado_em")
-  organization   Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  user           User               @relation("EventOwner", fields: [userId], references: [id])
-  criadoPor      User               @relation("EventCreator", fields: [criadoPorId], references: [id])
-  participants   EventParticipant[]
+  ata            String?     @db.Text
 
+  // ── Proveniência de calendário externo (Outlook / futuro Google) ────────────
+  // A tabela Event é a AGENDA UNIFICADA. Um evento nativo tem provider="internal".
+  // Um evento espelhado do Outlook tem provider="microsoft" + os campos externos.
+  // Nenhum consumidor de disponibilidade precisa saber a origem — só lê Event.
+  provider           String?   @default("internal")
+  connectionId       String?   @map("connection_id")
+  externalId         String?   @map("external_id")
+  externalCalendarId String?   @map("external_calendar_id")
+  externalEtag       String?   @map("external_etag")
+  // Hash do conteúdo já sincronizado. Serve para (a) evitar loop de eco — o
+  // writeback só dispara se o hash mudou de fato — e (b) detectar mudança real
+  // vinda do Graph. Ver calendar-sync.service.ts.
+  syncHash           String?   @map("sync_hash")
+  syncedAt           DateTime? @map("synced_at")
+  // Marca evento externo cancelado no provedor sem apagar histórico local.
+  externalCancelled  Boolean   @default(false) @map("external_cancelled")
+
+  criadoEm     DateTime            @default(now()) @map("criado_em")
+  atualizadoEm DateTime            @updatedAt @map("atualizado_em")
+  organization Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User                @relation("EventOwner", fields: [userId], references: [id])
+  criadoPor    User                @relation("EventCreator", fields: [criadoPorId], references: [id])
+  participants EventParticipant[]
+  connection   CalendarConnection? @relation(fields: [connectionId], references: [id], onDelete: SetNull)
+
+  // Referência ESTÁVEL do evento externo: (conexão, id do Graph) é único.
+  // Impede duplicidade quando webhook e reconciliação chegam ao mesmo evento.
+  @@unique([connectionId, externalId])
   @@index([organizationId, inicio])
   @@index([userId, inicio])
   @@index([criadoPorId])
+  @@index([provider, externalId])
   @@map("events")
 }
 
@@ -1436,6 +1463,125 @@ model EventParticipant {
 
   @@unique([eventId, userId])
   @@map("event_participants")
+}
+
+// ── Integração de calendário externo (Microsoft 365 / futuro Google) ───────────
+//
+// CalendarConnection = o vínculo de UM usuário com UMA conta de provedor. Guarda
+// os tokens (cifrados via common/vault.ts) e o estado da sincronização. O
+// isolamento é por (userId, provider): a agenda do usuário A nunca cruza com a
+// do B. Os eventos em si moram na tabela Event (agenda unificada), apontando de
+// volta por Event.connectionId.
+
+enum CalendarProvider {
+  microsoft
+  google
+}
+
+enum CalendarConnectionStatus {
+  connected // vínculo ativo, tokens válidos
+  syncing // sincronização inicial/completa em andamento
+  synced // em dia
+  error // falha transitória de sync (ver lastError)
+  disconnected // usuário desconectou
+  reauth_required // refresh token inválido/revogado — precisa reconectar
+}
+
+model CalendarConnection {
+  id             String           @id @default(uuid())
+  organizationId String           @map("organization_id")
+  userId         String           @map("user_id")
+  provider       CalendarProvider @default(microsoft)
+
+  // Identidade no provedor (descoberta via Graph /me).
+  providerAccountId String? @map("provider_account_id")
+  providerTenantId  String? @map("provider_tenant_id")
+  providerEmail     String? @map("provider_email")
+
+  // Calendário conectado (v1: calendário principal). Estruturado para múltiplos.
+  externalCalendarId   String? @map("external_calendar_id")
+  externalCalendarName String? @map("external_calendar_name")
+
+  status CalendarConnectionStatus @default(connected)
+
+  // Tokens SEMPRE cifrados (v1:iv:tag:ct). Nunca em texto puro, nunca em log.
+  accessTokenEnc  String?   @map("access_token_enc") @db.Text
+  refreshTokenEnc String?   @map("refresh_token_enc") @db.Text
+  tokenExpiresAt  DateTime? @map("token_expires_at")
+  scope           String?   @db.Text
+
+  // Sincronização incremental do Graph (delta query).
+  deltaLink  String?   @map("delta_link") @db.Text
+  lastSyncAt DateTime? @map("last_sync_at")
+  lastError  String?   @map("last_error") @db.Text
+
+  // Política de saída: se true, eventos criados no Orkiestri sobem ao Outlook.
+  pushEnabled Boolean @default(true) @map("push_enabled")
+  syncEnabled Boolean @default(true) @map("sync_enabled")
+
+  criadoEm     DateTime @default(now()) @map("criado_em")
+  atualizadoEm DateTime @updatedAt @map("atualizado_em")
+
+  organization  Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user          User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subscriptions CalendarSubscription[]
+  events        Event[]
+
+  // Um usuário tem no máximo uma conexão por provedor.
+  @@unique([userId, provider])
+  @@index([organizationId])
+  @@index([status])
+  @@map("calendar_connections")
+}
+
+// Configuração do app do provedor (credenciais do App Registration), editável
+// por tela em vez de env. Escopo: organizationId nulo = PADRÃO DA PLATAFORMA
+// (herdado por quem não tem o seu); com organizationId = a org traz o próprio
+// app (bring-your-own). Resolução em runtime: org → plataforma → env.
+// O client secret é cifrado (vault) e NUNCA volta ao frontend.
+model CalendarProviderConfig {
+  id             String           @id @default(uuid())
+  organizationId String?          @map("organization_id")
+  provider       CalendarProvider @default(microsoft)
+
+  clientId        String? @map("client_id")
+  tenantId        String? @map("tenant_id")
+  clientSecretEnc String? @map("client_secret_enc") @db.Text
+  // Override do redirect/webhook quando o domínio não é derivável do ambiente.
+  redirectUri     String? @map("redirect_uri")
+  webhookUrl      String? @map("webhook_url")
+  enabled         Boolean @default(true)
+
+  atualizadoPorId String?  @map("atualizado_por")
+  criadoEm        DateTime @default(now()) @map("criado_em")
+  atualizadoEm    DateTime @updatedAt @map("atualizado_em")
+
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  // Uma config por (org, provider); a linha de plataforma tem organizationId nulo.
+  // (unicidade da linha de plataforma garantida por índice parcial na migration.)
+  @@unique([organizationId, provider])
+  @@map("calendar_provider_configs")
+}
+
+// Assinatura de webhook (Change Notification) do Microsoft Graph. Tem ciclo de
+// vida próprio: expira em ~3 dias e é renovada por scheduler. clientState é um
+// segredo verificado em cada notificação recebida.
+model CalendarSubscription {
+  id             String   @id @default(uuid())
+  connectionId   String   @map("connection_id")
+  subscriptionId String   @unique @map("subscription_id")
+  resource       String
+  clientState    String   @map("client_state")
+  expiresAt      DateTime @map("expires_at")
+  criadoEm       DateTime @default(now()) @map("criado_em")
+  atualizadoEm   DateTime @updatedAt @map("atualizado_em")
+
+  connection CalendarConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+
+  @@index([connectionId])
+  @@index([expiresAt])
+  @@map("calendar_subscriptions")
 }
 
 // ── CRM ───────────────────────────────────────────────────────────────────────
@@ -1589,14 +1735,7 @@ model Chamado {
   linksTo            ChamadoLink[]        @relation("LinkTo")
   customValues       ChamadoCustomValue[]
   skillRequerida     Skill?               @relation("ChamadoSkill", fields: [skillRequeridaId], references: [id], onDelete: SetNull)
-
-  @@index([organizationId, status])
-  @@index([skillRequeridaId])
-  @@index([organizationId, prioridade])
-  @@index([solicitanteId])
-  @@index([atendenteId])
-  @@index([organizationId, status, atendenteId])
-    /// Quem atribuiu o chamado. Resgatado de homologacao em 08/2026.
+  /// Quem atribuiu o chamado. Resgatado de homologacao em 08/2026.
   atribuidoPorId     String?              @map("atribuido_por_id")
   /// O que trava o chamado e desde quando. So valem em status=aguardando.
   aguardandoMotivo   String?              @map("aguardando_motivo")
@@ -1617,7 +1756,14 @@ model Chamado {
   atribuidoPor       User?                @relation("ChamadoAtribuidor", fields: [atribuidoPorId], references: [id], onDelete: SetNull)
   veiculo            Veiculo?             @relation("ChamadoVeiculo", fields: [veiculoId], references: [id], onDelete: SetNull)
   manutencoes        ManutencaoVeiculo[]  @relation("ManutencaoChamado")
-@@map("chamados")
+
+  @@index([organizationId, status])
+  @@index([skillRequeridaId])
+  @@index([organizationId, prioridade])
+  @@index([solicitanteId])
+  @@index([atendenteId])
+  @@index([organizationId, status, atendenteId])
+  @@map("chamados")
 }
 
 // ── Anexos de Chamado ──────────────────────────────────────────────────────────
@@ -1780,31 +1926,31 @@ model ChamadoAuditoria {
 // ── Projetos ──────────────────────────────────────────────────────────────────
 
 model Project {
-  id             String           @id @default(uuid())
-  organizationId String           @map("organization_id")
-  criadoPorId    String           @map("created_by")
-  tipo           ProjectTipo      @default(PROJETO)
-  clienteId      String?          @map("cliente_id")
-  titulo         String
-  descricao      String?
-  status         ProjectStatus    @default(PLANEJAMENTO)
-  prioridade     Priority         @default(MEDIA)
-  valor          Float?
-  dataInicio     DateTime?        @map("data_inicio")
-  dataFim        DateTime?        @map("data_fim")
-  progressoPct   Int              @default(0) @map("progresso_pct")
-  cor            String?
-  criadoEm       DateTime         @default(now()) @map("criado_em")
-  atualizadoEm   DateTime         @updatedAt @map("atualizado_em")
-  organization   Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  criadoPor      User             @relation("ProjectOwner", fields: [criadoPorId], references: [id])
-  cliente        Cliente?         @relation(fields: [clienteId], references: [id])
-  members        ProjectMember[]
-  milestones     Milestone[]
-  tasks          Task[]
-  ReservaVeiculo ReservaVeiculo[]
+  id                   String                @id @default(uuid())
+  organizationId       String                @map("organization_id")
+  criadoPorId          String                @map("created_by")
+  tipo                 ProjectTipo           @default(PROJETO)
+  clienteId            String?               @map("cliente_id")
+  titulo               String
+  descricao            String?
+  status               ProjectStatus         @default(PLANEJAMENTO)
+  prioridade           Priority              @default(MEDIA)
+  valor                Float?
+  dataInicio           DateTime?             @map("data_inicio")
+  dataFim              DateTime?             @map("data_fim")
+  progressoPct         Int                   @default(0) @map("progresso_pct")
+  cor                  String?
+  criadoEm             DateTime              @default(now()) @map("criado_em")
+  atualizadoEm         DateTime              @updatedAt @map("atualizado_em")
+  organization         Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  criadoPor            User                  @relation("ProjectOwner", fields: [criadoPorId], references: [id])
+  cliente              Cliente?              @relation(fields: [clienteId], references: [id])
+  members              ProjectMember[]
+  milestones           Milestone[]
+  tasks                Task[]
+  ReservaVeiculo       ReservaVeiculo[]
   complianceObrigacoes ComplianceObrigacao[]
-  anexos         ProjectAnexo[]
+  anexos               ProjectAnexo[]
 
   @@index([organizationId, status])
   @@index([criadoPorId])
@@ -2304,13 +2450,13 @@ model Veiculo {
   abastecimentos   Abastecimento[]
   condutores       VeiculoCondutor[]
   reservas         ReservaVeiculo[]
+  chamados         Chamado[]           @relation("ChamadoVeiculo")
 
   @@unique([organizationId, placa])
   @@unique([organizationId, codigo])
   @@index([organizationId, status])
   @@index([organizationId, deletedAt])
-    chamados             Chamado[]            @relation("ChamadoVeiculo")
-@@map("veiculos")
+  @@map("veiculos")
 }
 
 model Motorista {
@@ -2517,48 +2663,48 @@ model PlanoRevisao {
 }
 
 model ManutencaoVeiculo {
-  id              String              @id @default(uuid())
-  organizationId  String              @map("organization_id")
-  veiculoId       String              @map("veiculo_id")
-  numeroOs        String?             @map("numero_os")
-  tipo            String              @default("corretiva")
-  descricao       String?
-  solicitanteId   String?             @map("solicitante_id")
-  data            DateTime?
-  dataAgendada    DateTime?           @map("data_agendada")
-  dataAbertura    DateTime?           @map("data_abertura")
-  dataFechamento  DateTime?           @map("data_fechamento")
-  km              Int?
-  custoPecas      Float?              @map("custo_pecas")
-  custoServicos   Float?              @map("custo_servicos")
-  custoTerceiros  Float?              @map("custo_terceiros")
-  custo           Float?
-  fornecedorId    String?             @map("fornecedor_id")
-  fornecedor      String?
-  oficina         String?
-  pecas           Json                @default("[]")
-  status          String              @default("aberta")
-  observacoes     String?             @db.Text
-  criadoPorId     String?             @map("criado_por_id")
-  atualizadoPorId String?             @map("atualizado_por_id")
-  deletedAt       DateTime?           @map("deleted_at")
+  id                String              @id @default(uuid())
+  organizationId    String              @map("organization_id")
+  veiculoId         String              @map("veiculo_id")
+  numeroOs          String?             @map("numero_os")
+  tipo              String              @default("corretiva")
+  descricao         String?
+  solicitanteId     String?             @map("solicitante_id")
+  data              DateTime?
+  dataAgendada      DateTime?           @map("data_agendada")
+  dataAbertura      DateTime?           @map("data_abertura")
+  dataFechamento    DateTime?           @map("data_fechamento")
+  km                Int?
+  custoPecas        Float?              @map("custo_pecas")
+  custoServicos     Float?              @map("custo_servicos")
+  custoTerceiros    Float?              @map("custo_terceiros")
+  custo             Float?
+  fornecedorId      String?             @map("fornecedor_id")
+  fornecedor        String?
+  oficina           String?
+  pecas             Json                @default("[]")
+  status            String              @default("aberta")
+  observacoes       String?             @db.Text
+  criadoPorId       String?             @map("criado_por_id")
+  atualizadoPorId   String?             @map("atualizado_por_id")
+  deletedAt         DateTime?           @map("deleted_at")
   /// A OS tira o veículo de operação. Migration frota_status_operacional.
-  imobiliza       Boolean             @default(true)
-  localizacao     String?
-  previsaoLiberacao DateTime?         @map("previsao_liberacao")
-  criadoEm        DateTime            @default(now()) @map("criado_em")
-  atualizadoEm    DateTime            @updatedAt @map("atualizado_em")
-  organization    Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  veiculo         Veiculo             @relation(fields: [veiculoId], references: [id], onDelete: Cascade)
-  solicitante     User?               @relation("ManutencaoSolicitante", fields: [solicitanteId], references: [id], onDelete: SetNull)
-  maoObra         ManutencaoMaoObra[]
-  anexos          ManutencaoAnexo[]
+  imobiliza         Boolean             @default(true)
+  localizacao       String?
+  previsaoLiberacao DateTime?           @map("previsao_liberacao")
+  criadoEm          DateTime            @default(now()) @map("criado_em")
+  atualizadoEm      DateTime            @updatedAt @map("atualizado_em")
+  organization      Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  veiculo           Veiculo             @relation(fields: [veiculoId], references: [id], onDelete: Cascade)
+  solicitante       User?               @relation("ManutencaoSolicitante", fields: [solicitanteId], references: [id], onDelete: SetNull)
+  maoObra           ManutencaoMaoObra[]
+  anexos            ManutencaoAnexo[]
+  /// OS nascida de um chamado. Fechar o chamado fecha esta OS.
+  chamadoId         String?             @map("chamado_id")
+  chamado           Chamado?            @relation("ManutencaoChamado", fields: [chamadoId], references: [id], onDelete: SetNull)
 
   @@index([organizationId, deletedAt])
-    /// OS nascida de um chamado. Fechar o chamado fecha esta OS.
-  chamadoId       String?             @map("chamado_id")
-  chamado         Chamado?            @relation("ManutencaoChamado", fields: [chamadoId], references: [id], onDelete: SetNull)
-@@index([veiculoId])
+  @@index([veiculoId])
   @@index([organizationId, status])
   @@map("manutencoes_veiculo")
 }
@@ -2831,23 +2977,23 @@ model SistemaConfig {
 // ── Suppliers ──────────────────────────────────────────────────────────────────
 
 model Supplier {
-  id                     String             @id @default(uuid())
-  organizationId         String             @map("organization_id")
-  razaoSocial            String             @map("razao_social")
-  nomeFantasia           String?            @map("nome_fantasia")
+  id                     String                @id @default(uuid())
+  organizationId         String                @map("organization_id")
+  razaoSocial            String                @map("razao_social")
+  nomeFantasia           String?               @map("nome_fantasia")
   cnpj                   String?
-  inscricaoEstadual      String?            @map("inscricao_estadual")
-  inscricaoMunicipal     String?            @map("inscricao_municipal")
-  tipoEmpresa            String             @default("LTDA") @map("tipo_empresa")
-  categorias             String[]           @default([])
-  status                 String             @default("ativo")
-  contatoNome            String?            @map("contato_nome")
-  contatoCargo           String?            @map("contato_cargo")
-  contatoTelefone        String?            @map("contato_telefone")
-  contatoTelefone2       String?            @map("contato_telefone2")
-  contatoWhatsapp        String?            @map("contato_whatsapp")
-  contatoEmail           String?            @map("contato_email")
-  contatoEmailFinanceiro String?            @map("contato_email_financeiro")
+  inscricaoEstadual      String?               @map("inscricao_estadual")
+  inscricaoMunicipal     String?               @map("inscricao_municipal")
+  tipoEmpresa            String                @default("LTDA") @map("tipo_empresa")
+  categorias             String[]              @default([])
+  status                 String                @default("ativo")
+  contatoNome            String?               @map("contato_nome")
+  contatoCargo           String?               @map("contato_cargo")
+  contatoTelefone        String?               @map("contato_telefone")
+  contatoTelefone2       String?               @map("contato_telefone2")
+  contatoWhatsapp        String?               @map("contato_whatsapp")
+  contatoEmail           String?               @map("contato_email")
+  contatoEmailFinanceiro String?               @map("contato_email_financeiro")
   site                   String?
   cep                    String?
   logradouro             String?
@@ -2856,26 +3002,26 @@ model Supplier {
   bairro                 String?
   cidade                 String?
   estado                 String?
-  pais                   String?            @default("Brasil")
+  pais                   String?               @default("Brasil")
   banco                  String?
   agencia                String?
   conta                  String?
-  tipoConta              String?            @map("tipo_conta")
-  pixChave               String?            @map("pix_chave")
-  condicaoPagamento      String?            @map("condicao_pagamento")
-  prazoMedio             Int?               @map("prazo_medio")
-  moeda                  String             @default("BRL")
+  tipoConta              String?               @map("tipo_conta")
+  pixChave               String?               @map("pix_chave")
+  condicaoPagamento      String?               @map("condicao_pagamento")
+  prazoMedio             Int?                  @map("prazo_medio")
+  moeda                  String                @default("BRL")
   observacoes            String?
-  criadoPorId            String?            @map("criado_por_id")
-  criadoPor              User?              @relation("SupplierCriador", fields: [criadoPorId], references: [id], onDelete: SetNull)
-  organization           Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  criadoPorId            String?               @map("criado_por_id")
+  criadoPor              User?                 @relation("SupplierCriador", fields: [criadoPorId], references: [id], onDelete: SetNull)
+  organization           Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   contacts               SupplierContact[]
   documents              SupplierDocument[]
   history                SupplierHistory[]
-  itensOrcamento         ItemOrcamento[]    @relation("ItemSupplier")
+  itensOrcamento         ItemOrcamento[]       @relation("ItemSupplier")
   complianceObrigacoes   ComplianceObrigacao[]
-  criadoEm               DateTime           @default(now()) @map("criado_em")
-  atualizadoEm           DateTime           @updatedAt @map("atualizado_em")
+  criadoEm               DateTime              @default(now()) @map("criado_em")
+  atualizadoEm           DateTime              @updatedAt @map("atualizado_em")
 
   @@index([organizationId])
   @@map("suppliers")
@@ -3693,9 +3839,9 @@ model PerformanceReview {
   atualizadoEm    DateTime  @updatedAt @map("atualizado_em")
   atualizadoPorId String?   @map("atualizado_por_id")
 
-  organization Organization          @relation("OrgPerfReviews", fields: [organizationId], references: [id], onDelete: Cascade)
-  collaborator Collaborator          @relation("ReviewAvaliado", fields: [collaboratorId], references: [id], onDelete: Cascade)
-  avaliador    Collaborator?         @relation("ReviewAvaliador", fields: [avaliadorId], references: [id], onDelete: SetNull)
+  organization Organization             @relation("OrgPerfReviews", fields: [organizationId], references: [id], onDelete: Cascade)
+  collaborator Collaborator             @relation("ReviewAvaliado", fields: [collaboratorId], references: [id], onDelete: Cascade)
+  avaliador    Collaborator?            @relation("ReviewAvaliador", fields: [avaliadorId], references: [id], onDelete: SetNull)
   metas        PerformanceGoal[]
   feedbacks    PerformanceFeedback[]
   entradas     PerformanceReviewInput[]
@@ -3731,9 +3877,9 @@ model PerformanceReviewInput {
   criadoPorId    String?   @map("criado_por_id")
   atualizadoEm   DateTime  @updatedAt @map("atualizado_em")
 
-  organization Organization           @relation("OrgReviewInputs", fields: [organizationId], references: [id], onDelete: Cascade)
-  review       PerformanceReview      @relation(fields: [reviewId], references: [id], onDelete: Cascade)
-  avaliador    Collaborator           @relation("ReviewInputAvaliador", fields: [avaliadorId], references: [id], onDelete: Cascade)
+  organization Organization      @relation("OrgReviewInputs", fields: [organizationId], references: [id], onDelete: Cascade)
+  review       PerformanceReview @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  avaliador    Collaborator      @relation("ReviewInputAvaliador", fields: [avaliadorId], references: [id], onDelete: Cascade)
 
   /// Um convite por pessoa por ciclo — convidar duas vezes daria dois pesos
   /// à mesma opinião.
@@ -3864,10 +4010,10 @@ model ComplianceCategoria {
   criadoEm     DateTime  @default(now()) @map("criado_em")
   atualizadoEm DateTime  @updatedAt @map("atualizado_em")
 
-  organization Organization                @relation("OrgComplianceCategorias", fields: [organizationId], references: [id], onDelete: Cascade)
-  obrigacoes   ComplianceObrigacao[]
-  campos       ComplianceCampoDefinicao[]
-  regras       ComplianceAlertaRegra[]
+  organization   Organization               @relation("OrgComplianceCategorias", fields: [organizationId], references: [id], onDelete: Cascade)
+  obrigacoes     ComplianceObrigacao[]
+  campos         ComplianceCampoDefinicao[]
+  regras         ComplianceAlertaRegra[]
   escalonamentos ComplianceEscalonamento[]
 
   @@unique([organizationId, nome])
@@ -3879,9 +4025,9 @@ model ComplianceCategoria {
 /// Ambiente, "Chave de licença" em Software. É o que torna o módulo genérico
 /// sem virar um formulário com 200 campos vazios.
 model ComplianceCampoDefinicao {
-  id             String @id @default(uuid())
-  organizationId String @map("organization_id")
-  categoriaId    String @map("categoria_id")
+  id             String  @id @default(uuid())
+  organizationId String  @map("organization_id")
+  categoriaId    String  @map("categoria_id")
   /// Identificador estável usado no valor e nos templates ({{campo.processo}}).
   chave          String
   rotulo         String
@@ -3941,13 +4087,13 @@ model ComplianceObrigacao {
   codigo         String
   categoriaId    String @map("categoria_id")
 
-  nome      String
+  nome            String
   /// Sigla do tipo (LO, ASV, AVCB, PGR). Não é enum: a especificação exige que
   /// o sistema nunca limite os tipos existentes.
-  sigla     String?
+  sigla           String?
   /// Número do documento/processo emitido pelo órgão (709/2008, 1035.8.2025.63314).
   numeroDocumento String? @map("numero_documento")
-  descricao String? @db.Text
+  descricao       String? @db.Text
 
   orgaoId String? @map("orgao_id")
 
@@ -3955,17 +4101,17 @@ model ComplianceObrigacao {
   // A planilha escondia o escopo dentro do nome ("(Lote 1)", "(P3)", "(BSO 4)",
   // "Nº Série: 368956544"). Aqui vira dimensão própria: sem isso não dá para
   // agrupar por instalação nem responder "quais licenças são desta base".
-  empresa        String?
-  filial         String?
+  empresa            String?
+  filial             String?
   /// Instalação física — Sede Administrativa, Praça P3, BSO 4, Fábrica de Placa.
-  unidade        String?
-  departamento   String?
-  centroCusto    String? @map("centro_custo")
+  unidade            String?
+  departamento       String?
+  centroCusto        String? @map("centro_custo")
   /// Equipamento identificável por número de série (motosserra, motopoda).
   /// 9 dos 36 registros da planilha são obrigações DE UM EQUIPAMENTO.
   ativoIdentificador String? @map("ativo_identificador")
   /// Obra/lote. Amarra no módulo de Projetos quando o lote é um projeto ativo.
-  projectId      String? @map("project_id")
+  projectId          String? @map("project_id")
 
   /// baixa | media | alta | critica
   criticidade String @default("media")
@@ -3975,22 +4121,22 @@ model ComplianceObrigacao {
   status      String @default("ativa")
 
   // ── Datas ────────────────────────────────────────────────────────────────
-  dataEmissao        DateTime? @map("data_emissao")
-  dataValidade       DateTime? @map("data_validade")
-  dataAprovacao      DateTime? @map("data_aprovacao")
+  dataEmissao         DateTime? @map("data_emissao")
+  dataValidade        DateTime? @map("data_validade")
+  dataAprovacao       DateTime? @map("data_aprovacao")
   dataUltimaRenovacao DateTime? @map("data_ultima_renovacao")
 
   /// Periodicidade em meses. A planilha guardava anos e não usava para nada;
   /// aqui é o que propõe a próxima validade na renovação.
-  validadeMeses Int? @map("validade_meses")
+  validadeMeses    Int? @map("validade_meses")
   /// Antecedência mínima que o ÓRGÃO exige para protocolar a renovação.
-  prazoMinimoDias Int @default(0) @map("prazo_minimo_dias")
+  prazoMinimoDias  Int  @default(0) @map("prazo_minimo_dias")
   /// Sobrepõe a folga da categoria quando esta obrigação precisa de mais tempo.
   folgaInternaDias Int? @map("folga_interna_dias")
 
   /// Derivados e persistidos — ver o cabeçalho do bloco.
-  prazoFatalEm   DateTime? @map("prazo_fatal_em")
-  prazoInternoEm DateTime? @map("prazo_interno_em")
+  prazoFatalEm       DateTime? @map("prazo_fatal_em")
+  prazoInternoEm     DateTime? @map("prazo_interno_em")
   /// Override manual. Preenchido, vence o cálculo; nulo, o cálculo manda.
   prazoFatalManual   DateTime? @map("prazo_fatal_manual")
   prazoInternoManual DateTime? @map("prazo_interno_manual")
@@ -3998,8 +4144,8 @@ model ComplianceObrigacao {
   // ── Renovação automática por protocolo ───────────────────────────────────
   /// Verdadeiro quando o protocolo tempestivo prorroga a validade até a decisão
   /// do órgão (art. 14 §4º da Res. CONAMA 237/97, para licença ambiental).
-  renovacaoAutomatica Boolean @default(false) @map("renovacao_automatica")
-  protocoloNumero     String? @map("protocolo_numero")
+  renovacaoAutomatica Boolean   @default(false) @map("renovacao_automatica")
+  protocoloNumero     String?   @map("protocolo_numero")
   protocoloEm         DateTime? @map("protocolo_em")
   protocoloObservacao String?   @map("protocolo_observacao")
   /// Materializa `estaProrrogada()` do domínio: a regra permite E houve
@@ -4010,7 +4156,7 @@ model ComplianceObrigacao {
   /// preview feature. Sem isso, filtrar "vencidas" exigiria trazer a carteira
   /// inteira para a memória e paginar depois — o que quebra a paginação.
   /// Depende só de campos gravados, então é recalculada em todo save.
-  prorrogacaoVigente Boolean @default(false) @map("prorrogacao_vigente")
+  prorrogacaoVigente  Boolean   @default(false) @map("prorrogacao_vigente")
 
   // ── Custos ───────────────────────────────────────────────────────────────
   valorLicenca   Decimal? @map("valor_licenca") @db.Decimal(14, 2)
@@ -4032,11 +4178,11 @@ model ComplianceObrigacao {
   criadoEm        DateTime  @default(now()) @map("criado_em")
   atualizadoEm    DateTime  @updatedAt @map("atualizado_em")
 
-  organization Organization        @relation("OrgComplianceObrigacoes", fields: [organizationId], references: [id], onDelete: Cascade)
-  categoria    ComplianceCategoria @relation(fields: [categoriaId], references: [id], onDelete: Restrict)
-  orgao        ComplianceOrgao?    @relation(fields: [orgaoId], references: [id], onDelete: SetNull)
-  project      Project?            @relation(fields: [projectId], references: [id], onDelete: SetNull)
-  supplier     Supplier?           @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+  organization Organization          @relation("OrgComplianceObrigacoes", fields: [organizationId], references: [id], onDelete: Cascade)
+  categoria    ComplianceCategoria   @relation(fields: [categoriaId], references: [id], onDelete: Restrict)
+  orgao        ComplianceOrgao?      @relation(fields: [orgaoId], references: [id], onDelete: SetNull)
+  project      Project?              @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  supplier     Supplier?             @relation(fields: [supplierId], references: [id], onDelete: SetNull)
   etapa        ComplianceFluxoEtapa? @relation(fields: [etapaId], references: [id], onDelete: SetNull)
 
   responsaveis  ComplianceResponsavel[]
@@ -4101,9 +4247,9 @@ model ComplianceResponsavel {
   userId         String? @map("user_id")
   collaboratorId String? @map("collaborator_id")
   /// Preenchidos quando o destinatário não é usuário do sistema.
-  nome     String?
-  email    String?
-  telefone String?
+  nome           String?
+  email          String?
+  telefone       String?
 
   notificar Boolean @default(true)
 
@@ -4261,7 +4407,7 @@ model ComplianceTag {
 
   criadoEm DateTime @default(now()) @map("criado_em")
 
-  organization Organization            @relation("OrgComplianceTags", fields: [organizationId], references: [id], onDelete: Cascade)
+  organization Organization             @relation("OrgComplianceTags", fields: [organizationId], references: [id], onDelete: Cascade)
   obrigacoes   ComplianceObrigacaoTag[]
 
   @@unique([organizationId, nome])
@@ -4305,9 +4451,9 @@ model ComplianceAlertaRegra {
   diasDepois Int[] @default([1, 3, 7, 15, 30]) @map("dias_depois")
 
   /// interno | email | whatsapp | webhook
-  canais        String[] @default(["interno", "email"])
+  canais          String[] @default(["interno", "email"])
   /// responsavel | gestor | equipe | administrador
-  destinatarios String[] @default(["responsavel", "gestor"])
+  destinatarios   String[] @default(["responsavel", "gestor"])
   emailsExtras    String[] @default([]) @map("emails_extras")
   whatsappsExtras String[] @default([]) @map("whatsapps_extras")
 
@@ -4341,7 +4487,7 @@ model ComplianceTemplate {
   criadoEm     DateTime @default(now()) @map("criado_em")
   atualizadoEm DateTime @updatedAt @map("atualizado_em")
 
-  organization Organization           @relation("OrgComplianceTemplates", fields: [organizationId], references: [id], onDelete: Cascade)
+  organization Organization            @relation("OrgComplianceTemplates", fields: [organizationId], references: [id], onDelete: Cascade)
   regras       ComplianceAlertaRegra[]
 
   @@unique([organizationId, nome])
@@ -4416,9 +4562,9 @@ model ComplianceFluxo {
   descricao      String?
   ativo          Boolean @default(true)
 
-  deletedAt DateTime? @map("deleted_at")
-  criadoEm  DateTime  @default(now()) @map("criado_em")
-  atualizadoEm DateTime @updatedAt @map("atualizado_em")
+  deletedAt    DateTime? @map("deleted_at")
+  criadoEm     DateTime  @default(now()) @map("criado_em")
+  atualizadoEm DateTime  @updatedAt @map("atualizado_em")
 
   organization Organization           @relation("OrgComplianceFluxos", fields: [organizationId], references: [id], onDelete: Cascade)
   etapas       ComplianceFluxoEtapa[]
@@ -4428,11 +4574,11 @@ model ComplianceFluxo {
 }
 
 model ComplianceFluxoEtapa {
-  id             String @id @default(uuid())
-  organizationId String @map("organization_id")
-  fluxoId        String @map("fluxo_id")
+  id             String  @id @default(uuid())
+  organizationId String  @map("organization_id")
+  fluxoId        String  @map("fluxo_id")
   nome           String
-  ordem          Int    @default(0)
+  ordem          Int     @default(0)
   /// Papel exigido para aprovar esta etapa (nome do papel do RBAC).
   papelAprovador String? @map("papel_aprovador")
   exigeAprovacao Boolean @default(true) @map("exige_aprovacao")
@@ -4458,10 +4604,10 @@ model ComplianceAprovacao {
   etapaId        String @map("etapa_id")
 
   /// pendente | aprovado | rejeitado
-  decisao       String    @default("pendente")
-  aprovadorId   String?   @map("aprovador_id")
-  motivo        String?   @db.Text
-  decididoEm    DateTime? @map("decidido_em")
+  decisao     String    @default("pendente")
+  aprovadorId String?   @map("aprovador_id")
+  motivo      String?   @db.Text
+  decididoEm  DateTime? @map("decidido_em")
 
   criadoEm DateTime @default(now()) @map("criado_em")
 
@@ -4496,31 +4642,31 @@ model NotificacaoEnvio {
   mensagem       String    @db.Text
   status         String    @default("pendente")
   tentativas     Int       @default(0)
-  ultimoErro     String?   @db.Text @map("ultimo_erro")
+  ultimoErro     String?   @map("ultimo_erro") @db.Text
   agendadoPara   DateTime? @map("agendado_para")
   enviadoEm      DateTime? @map("enviado_em")
   chave          String?
   criadoEm       DateTime  @default(now()) @map("criado_em")
 
+  @@unique([organizationId, chave])
   @@index([status, agendadoPara])
   @@index([organizationId, criadoEm])
   @@index([userId, criadoEm])
-  @@unique([organizationId, chave])
   @@map("notificacao_envios")
 }
 
 model NotificacaoPreferencia {
-  id              String       @id @default(uuid())
-  organizationId  String       @map("organization_id")
-  userId          String       @map("user_id")
+  id              String   @id @default(uuid())
+  organizationId  String   @map("organization_id")
+  userId          String   @map("user_id")
   modulo          String
-  sistema         Boolean      @default(true)
-  whatsapp        Boolean      @default(false)
-  email           Boolean      @default(false)
-  severidadeMin   String       @default("info") @map("severidade_min")
-  criadoEm        DateTime     @default(now()) @map("criado_em")
-  atualizadoEm    DateTime     @updatedAt @map("atualizado_em")
-  atualizadoPorId String?      @map("atualizado_por_id")
+  sistema         Boolean  @default(true)
+  whatsapp        Boolean  @default(false)
+  email           Boolean  @default(false)
+  severidadeMin   String   @default("info") @map("severidade_min")
+  criadoEm        DateTime @default(now()) @map("criado_em")
+  atualizadoEm    DateTime @updatedAt @map("atualizado_em")
+  atualizadoPorId String?  @map("atualizado_por_id")
 
   @@unique([userId, modulo])
   @@index([organizationId, modulo])
