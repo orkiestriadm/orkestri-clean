@@ -2606,6 +2606,10 @@ model DocumentoVeiculo {
   organizationId  String           @map("organization_id")
   veiculoId       String           @map("veiculo_id")
   tipo            String           @default("crlv")
+  /// UF onde o veiculo esta registrado. Escolhida a mao: e ela que decide a
+  /// regra de vencimento do licenciamento, e o DETRAN emissor do CRLV nem
+  /// sempre e o estado de registro.
+  uf              String?          // UF de registro
   numero          String?
   descricao       String?
   dataEmissao     DateTime?        @map("data_emissao")
@@ -2634,6 +2638,10 @@ model DocumentoAnexo {
   organizationId String           @map("organization_id")
   documentoId    String           @map("documento_id")
   nomeArquivo    String           @map("nome_arquivo")
+  /// Onde o arquivo mora: "uploads" (legado) ou "secure". Os anexos ja
+  /// gravados estao em /app/uploads, e mudar o padrao os tornaria ilegiveis;
+  /// por isso o default preserva o passado e so o CRLV nasce em secure.
+  area           String           @default("uploads")
   nomeOriginal   String           @map("nome_original")
   mime           String?
   tamanho        Int?

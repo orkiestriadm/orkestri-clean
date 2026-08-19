@@ -33,6 +33,12 @@ volumes:
   # Anexos de projeto (proposta, ata, escopo). Volume NOMEADO pela mesma razao
   # dos outros: em camada de container, todo anexo se perde a cada deploy.
   project_docs_data:
+  # Documentos de veiculo (CRLV). O CRLV traz CPF/CNPJ do proprietario,
+  # chassi e RENAVAM: dado de pessoa, nao arquivo publico. Volume NOMEADO e
+  # fora de /app/uploads pela mesma razao dos outros -- aquele caminho ja foi
+  # servido direto pelo nginx, e em camada de container o anexo some a cada
+  # deploy.
+  frota_docs_data:
   evolution_data:
 
 services:
@@ -148,6 +154,7 @@ services:
       # por quem tiver a URL. Só sai pelo endpoint autenticado de download.
       - compliance_docs_data:/app/secure/compliance-docs
       - project_docs_data:/app/secure/project-docs
+      - frota_docs_data:/app/secure/frota-docs
     networks:
       - orkestri_net
     depends_on:

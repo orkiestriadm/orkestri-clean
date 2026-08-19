@@ -40,7 +40,7 @@ COPY package*.json ./
 #
 # Corrigir a imagem NÃO conserta volume que já nasceu como root: é preciso
 # ajustar o dono do volume existente, uma vez, em cada ambiente.
-RUN mkdir -p /app/uploads /app/secure/people-docs /app/secure/compliance-docs /app/secure/project-docs \
+RUN mkdir -p /app/uploads /app/secure/people-docs /app/secure/compliance-docs /app/secure/project-docs /app/secure/frota-docs \
  && chown -R app:app /app
 USER app
 EXPOSE 3000

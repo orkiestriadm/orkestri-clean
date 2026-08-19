@@ -26,6 +26,12 @@ import { organizacaoDe } from "./escopo-organizacao";
 const RAIZ_UPLOADS = process.env.UPLOAD_DIR || "/app/uploads";
 
 export type AnexoParaDownload = {
+  /**
+   * Raiz onde o arquivo mora. Sem informar, `/app/uploads` -- que e onde os
+   * anexos antigos estao. Documento com dado de pessoa (CRLV traz CPF/CNPJ)
+   * mora sob `/app/secure/...`, que nunca foi servido estaticamente.
+   */
+  raiz?: string;
   /** Subdiretório dentro de uploads, ex.: `contratos/<id>` ou `<chamadoId>`. */
   subdir: string;
   /** Nome do arquivo em disco (o gerado, nunca o enviado pelo usuário). */
@@ -57,7 +63,7 @@ export function exigirDonoDaOrganizacao(req: any, dono: { organizationId?: strin
  * página o que declaramos como binário.
  */
 export function responderComAnexo(res: Response, anexo: AnexoParaDownload): StreamableFile {
-  const caminho = caminhoDentroDe(RAIZ_UPLOADS, anexo.subdir, anexo.nomeArquivo);
+  const caminho = caminhoDentroDe(anexo.raiz || RAIZ_UPLOADS, anexo.subdir, anexo.nomeArquivo);
   if (!fs.existsSync(caminho)) throw new NotFoundException("Arquivo não encontrado");
 
   const nome = anexo.nomeOriginal || path.basename(caminho);

@@ -26,9 +26,13 @@ import { FrotaRelatoriosService } from "./frota-relatorios.service";
 import { janelaManutencao, janelaRevisao, dataQueryLocal } from "./frota-datas";
 import { carregarAgendaRevisao } from "./frota-revisao-agenda";
 import { sincronizarKmPorAbastecimento, propagarKmAosPneus, kmPlausivel, KM_SALTO_MAX } from "./frota-km";
+import { lerCrlv, vencimentoLicenciamento, normalizaPlaca, UFS } from "./crlv";
 import { ReservasModule } from "./reservas/reservas.module";
 
 const FROTA_UPLOAD_DIR = process.env.UPLOAD_DIR || "/app/uploads";
+// CRLV nao mora junto do resto: traz CPF/CNPJ do proprietario, chassi e
+// RENAVAM. `/app/uploads` ja foi servido direto pelo nginx uma vez.
+const FROTA_SECURE_DIR = process.env.FROTA_DOCS_DIR || "/app/secure/frota-docs";
 const ANEXO_TIPOS = ["cnh_frente", "cnh_verso", "exame", "certificado"];
 
 // Layout-padrão de posições de pneus por tipo de veículo (x/y em grid 0-100 p/ árvore visual)
@@ -1713,6 +1717,16 @@ class ManutencoesController extends BaseFrotaController {
 }
 
 // ── Documentações ──────────────────────────────────────────────────────────────
+/** Corpo da confirmacao do CRLV. Classe (e nao tipo inline) porque o
+ *  ValidationPipe global so valida o que tem metadados de classe. */
+class SalvarCrlvDto {
+  @IsString() veiculoId!: string;
+  @IsString() uf!: string;
+  @IsOptional() @IsDateString() dataVencimento?: string;
+  @IsOptional() @IsDateString() dataEmissao?: string;
+  @IsOptional() @IsString() observacoes?: string;
+}
+
 @Controller("frota/documentos")
 @UseGuards(AuthGuard("jwt"), PermissionsGuard)
 class DocumentosController extends BaseFrotaController {
@@ -1731,6 +1745,172 @@ class DocumentosController extends BaseFrotaController {
     { k: "valor", t: "float" }, { k: "arquivoUrl", t: "string" }, { k: "status", t: "string" },
     { k: "observacoes", t: "string" },
   ];
+
+
+  // ── CRLV: o PDF é o ponto de partida ──────────────────────────────────────
+  //
+  // O fluxo antigo pedia para criar o documento à mão e só depois anexar o
+  // arquivo. Aqui é o contrário: o CRLV chega, o sistema lê a placa e amarra ao
+  // veículo já cadastrado. Sem veículo, não há documento — o vínculo é
+  // obrigatório no schema, e criar veículo por dedução do CRLV inventaria frota.
+
+  /**
+   * Lê o CRLV e diz o que encontrou. NÃO grava nada.
+   *
+   * Separado da gravação de propósito: quem confere é o usuário, na tela, antes
+   * de qualquer linha nascer. Leitura errada de PDF vira cadastro errado sem
+   * essa parada.
+   */
+  @Post("crlv/analisar")
+  @Permissions("frota:criar")
+  @UseInterceptors(FileInterceptor("file", {
+    storage: memoryStorage(),
+    limits: { fileSize: 10 * 1024 * 1024 },
+  }))
+  async analisarCrlv(@UploadedFile() file: any, @Req() req: any) {
+    const orgId = organizacaoDe(req);
+    if (!file) throw new BadRequestException("Envie o PDF do CRLV");
+    if (file.mimetype !== "application/pdf") throw new BadRequestException("O CRLV precisa ser um PDF");
+
+    let lido: any;
+    try {
+      lido = await lerCrlv(file.buffer);
+    } catch {
+      throw new BadRequestException("Não consegui ler este PDF. Ele é um CRLV-e digital?");
+    }
+
+    // Sem placa não há como amarrar a nada. Acontece com CRLV digitalizado
+    // (foto), que não tem camada de texto.
+    if (!lido.placa) {
+      throw new BadRequestException(
+        "Não encontrei a placa neste PDF. Se for uma digitalização ou foto, cadastre o documento manualmente.",
+      );
+    }
+
+    const alvo = normalizaPlaca(lido.placa);
+    const candidatos = await this.db.veiculo.findMany({
+      where: { organizationId: orgId, deletedAt: null },
+      select: {
+        id: true, placa: true, codigo: true, modelo: true, marca: true, renavam: true,
+        chassi: true, anoFabricacao: true, anoModelo: true, cor: true,
+      },
+    });
+    // Comparação normalizada: o cadastro tem placa com e sem hífen.
+    const veiculo = candidatos.find((v: any) => normalizaPlaca(v.placa) === alvo) || null;
+
+    return {
+      lido,
+      veiculo,
+      encontrado: !!veiculo,
+      // Só SP tem regra. As demais UFs vêm nulas e a tela pede a data.
+      vencimentoSeSP: vencimentoLicenciamento("SP", lido.placa, lido.exercicio),
+      ufs: UFS,
+    };
+  }
+
+  /**
+   * Confirma o que foi lido e grava: documento + anexo + o que faltava no
+   * cadastro do veículo.
+   *
+   * O arquivo sobe de novo em vez de ficar num limbo entre as duas chamadas —
+   * são poucos KB, e área temporária é lixo que alguém precisa varrer.
+   */
+  @Post("crlv")
+  @Permissions("frota:criar")
+  @UseInterceptors(FileInterceptor("file", {
+    storage: memoryStorage(),
+    limits: { fileSize: 10 * 1024 * 1024 },
+  }))
+  async salvarCrlv(@UploadedFile() file: any, @Body() body: SalvarCrlvDto, @Req() req: any) {
+    const orgId = organizacaoDe(req);
+    if (!file) throw new BadRequestException("Envie o PDF do CRLV");
+    if (file.mimetype !== "application/pdf") throw new BadRequestException("O CRLV precisa ser um PDF");
+    if (!body.veiculoId) throw new BadRequestException("Veículo obrigatório");
+    // A mensagem é a que a tela mostra; repetida aqui porque endpoint também é
+    // porta de entrada, e a trava não pode viver só no navegador.
+    if (!body.uf) throw new BadRequestException("Selecione o estado onde o veículo está cadastrado");
+    if (!UFS.some(u => u.sigla === body.uf)) throw new BadRequestException("Estado inválido");
+
+    const veiculo = await this.db.veiculo.findFirst({
+      where: { id: body.veiculoId, organizationId: orgId, deletedAt: null },
+    });
+    if (!veiculo) throw new NotFoundException("Veículo não encontrado");
+
+    const lido = await lerCrlv(file.buffer);
+
+    // Confere que o PDF é do veículo escolhido: sem isto, o anexo de um carro
+    // acabaria pendurado em outro por um clique errado na tela.
+    if (lido.placa && normalizaPlaca(lido.placa) !== normalizaPlaca(veiculo.placa)) {
+      throw new BadRequestException(
+        `Este CRLV é da placa ${lido.placa}, mas o veículo escolhido é ${veiculo.placa}.`,
+      );
+    }
+
+    // Vencimento: em SP sai da regra; fora dela, só o que o usuário digitou.
+    const porRegra = vencimentoLicenciamento(body.uf, lido.placa || veiculo.placa, lido.exercicio);
+    const dataVencimento = porRegra || (body.dataVencimento ? new Date(body.dataVencimento) : null);
+
+    const exercicio = Number(lido.exercicio) || null;
+    const doc = await this.db.documentoVeiculo.create({
+      data: {
+        id: crypto.randomUUID(),
+        organizationId: orgId,
+        veiculoId: veiculo.id,
+        tipo: "crlv",
+        uf: body.uf,
+        numero: lido.numeroCrv || null,
+        descricao: exercicio ? `CRLV ${exercicio}` : "CRLV",
+        dataEmissao: body.dataEmissao ? new Date(body.dataEmissao) : null,
+        dataVencimento,
+        status: "vigente",
+        observacoes: [
+          lido.proprietario ? `Proprietário: ${lido.proprietario}` : null,
+          lido.cpfCnpj ? `CPF/CNPJ: ${lido.cpfCnpj}` : null,
+          lido.observacoes,
+          body.observacoes || null,
+        ].filter(Boolean).join("\n") || null,
+        criadoPorId: req.user?.id || null,
+      },
+    });
+
+    // Arquivo em `secure`, nunca em `uploads`.
+    const dir = path.join(FROTA_SECURE_DIR, "documentos", doc.id);
+    fs.mkdirSync(dir, { recursive: true });
+    const nomeArquivo = `${crypto.randomUUID()}.pdf`;
+    fs.writeFileSync(path.join(dir, nomeArquivo), file.buffer);
+
+    const anexo = await this.db.documentoAnexo.create({
+      data: {
+        id: crypto.randomUUID(), organizationId: orgId, documentoId: doc.id,
+        nomeArquivo, nomeOriginal: file.originalname, mime: file.mimetype,
+        tamanho: file.size, area: "secure", criadoPorId: req.user?.id || null,
+      },
+    });
+
+    // Completa o cadastro SÓ onde está vazio: o CRLV é fonte oficial, mas
+    // sobrescrever o que alguém digitou é decisão dele, não minha.
+    const completar: any = {};
+    const sePreencher = (campo: string, valor: any) => {
+      if (valor != null && valor !== "" && !(veiculo as any)[campo]) completar[campo] = valor;
+    };
+    sePreencher("renavam", lido.renavam);
+    sePreencher("chassi", lido.chassi);
+    sePreencher("marca", lido.marca);
+    sePreencher("modelo", lido.modelo);
+    sePreencher("cor", lido.cor);
+    sePreencher("anoFabricacao", Number(lido.anoFabricacao) || null);
+    sePreencher("anoModelo", Number(lido.anoModelo) || null);
+    if (Object.keys(completar).length) {
+      await this.db.veiculo.update({ where: { id: veiculo.id }, data: completar });
+    }
+
+    return {
+      documento: doc,
+      anexoId: anexo.id,
+      veiculoCompletado: Object.keys(completar),
+      vencimentoPorRegra: !!porRegra,
+    };
+  }
 
   // GET /frota/documentos/vencimentos/dashboard — estatísticas de vencimento
   @Get("vencimentos/dashboard")
@@ -1781,9 +1961,14 @@ class DocumentosController extends BaseFrotaController {
       where: { id: anexoId, documentoId: id, organizationId: organizacaoDe(req), deletedAt: null },
     });
     if (!anexo) throw new NotFoundException("Anexo não encontrado");
+    // Anexo antigo mora em /app/uploads; CRLV nasce em /app/secure. A coluna
+    // `area` e quem sabe -- o caminho sozinho nao distingue os dois.
     return responderComAnexo(res, {
+      raiz: anexo.area === "secure" ? FROTA_SECURE_DIR : undefined,
       subdir: `documentos/${id}`, nomeArquivo: anexo.nomeArquivo,
-      nomeOriginal: anexo.nomeOriginal, mimeType: anexo.mimeType,
+      // O modelo guarda `mime`; `mimeType` nao existe e vinha undefined, o que
+      // fazia todo anexo de documento baixar como binario generico.
+      nomeOriginal: anexo.nomeOriginal, mimeType: anexo.mime,
     });
   }
 

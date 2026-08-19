@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Topbar from "@/components/layout/Topbar";
 import { useAuthStore } from "@/lib/store";
@@ -302,6 +302,15 @@ export default function CrudView({ config, intro }: { config: CrudConfig; intro?
   const router = useRouter();
   const [editing, setEditing] = useState<any | null>(null);
   const [creating, setCreating] = useState(false);
+
+  // `?novo=1` abre o cadastro ja aberto. Serve a quem chega de outra tela
+  // tendo descoberto que o registro nao existe -- hoje o CRLV, que manda
+  // cadastrar o veiculo antes de anexar o documento. Sem isto o "Continuar"
+  // largava a pessoa numa listagem, tendo de achar o botao sozinha.
+  const searchParams = useSearchParams();
+  useEffect(() => {
+    if (searchParams?.get("novo") === "1") setCreating(true);
+  }, [searchParams]);
   const [histId, setHistId] = useState<string | null>(null);
   const [msg, setMsg] = useState("");
 

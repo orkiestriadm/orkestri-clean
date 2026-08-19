@@ -12,6 +12,7 @@ import {
   Toolbar, SearchInput, SelectFilter, TableCard, RowActions, RowAction, EmptyState, LoadingRows,
 } from "../_components/ui";
 import { Plus, Pencil, Trash2, Eye, Search, Download, Filter, ChevronLeft, FileText, CheckCircle2, History, X } from "lucide-react";
+import CadastrarCrlv from "./_components/CadastrarCrlv";
 
 const STATUS: Record<string, string> = { vigente: "var(--accent-green)", vencido: "var(--accent-red)", cancelado: "var(--text-muted)" };
 const STATUS_OPTS = [
@@ -211,9 +212,15 @@ export default function DocumentacoesPage() {
                 <Download size={14} /> Exportar CSV
               </button>
               {canCreate && (
-                <button className="btn btn-violet" onClick={() => setCreating(true)} style={{ fontSize: 12, display: "inline-flex", alignItems: "center", gap: 6 }}>
-                  <Plus size={14} /> Novo documento
-                </button>
+                <>
+                  {/* O CRLV entra pelo caminho proprio -- o PDF e o ponto de
+                      partida. O formulario manual segue existindo para seguro,
+                      ANTT e o que nao vem de PDF. */}
+                  <CadastrarCrlv aoSalvar={load} />
+                  <button className="btn btn-ghost" onClick={() => setCreating(true)} style={{ fontSize: 12, display: "inline-flex", alignItems: "center", gap: 6 }}>
+                    <Plus size={14} /> Novo documento
+                  </button>
+                </>
               )}
             </>}
           />

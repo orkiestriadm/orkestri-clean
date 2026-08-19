@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "1.11.10";
+export const VERSAO = "1.12.0";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -23,10 +23,10 @@ export const VERSAO = "1.11.10";
  * Não é gerada no build: `new Date()` no bundle muda a cada compilação, e duas
  * builds do mesmo código pareceriam versões diferentes.
  */
-export const VERSAO_DATA = "2026-08-17";
+export const VERSAO_DATA = "2026-08-19";
 
 /** Nome da entrega, para dar contexto ao número. */
-export const VERSAO_NOME = "O tempo real do monitoramento volta a funcionar";
+export const VERSAO_NOME = "Documento de veiculo pelo CRLV";
 
 /**
  * Histórico exibido na tela Sobre, do mais recente para o mais antigo.
@@ -35,6 +35,19 @@ export const VERSAO_NOME = "O tempo real do monitoramento volta a funcionar";
  * esta lista quer saber o que mudou para ele.
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
+  {
+    versao: "1.12.0",
+    data: "2026-08-19",
+    titulo: "Documento de veiculo pelo CRLV",
+    itens: [
+      "Novo botao Cadastrar Documento em Frotas > Documentacoes: escolha o PDF do CRLV e o sistema le placa, RENAVAM, chassi, marca, modelo, ano, cor, combustivel e proprietario, e amarra o documento ao veiculo ja cadastrado",
+      "Se nao houver veiculo com aquela placa, o sistema avisa e leva direto para o cadastro de veiculo, ja aberto",
+      "Escolhido Sao Paulo como estado de registro, o vencimento do licenciamento e calculado sozinho pelo final da placa, no ultimo dia util do mes; nos demais estados o campo fica em branco para preenchimento",
+      "O que estiver em branco no cadastro do veiculo e completado pelo CRLV: RENAVAM, chassi, marca, modelo, cor e ano. O que ja estava preenchido nao e sobrescrito",
+      "O CRLV guardado passa a ficar em area restrita, fora do diretorio publico, por trazer CPF/CNPJ do proprietario",
+      "Corrigido: anexo de documento baixava como arquivo generico em vez de PDF",
+    ],
+  },
   {
     versao: "1.11.10",
     data: "2026-08-17",
