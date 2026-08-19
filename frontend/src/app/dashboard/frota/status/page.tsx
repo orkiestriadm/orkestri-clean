@@ -123,6 +123,22 @@ function Problema({ texto, completo }: { texto: string; completo: boolean }) {
   );
 }
 
+/**
+ * Para onde o duplo clique leva.
+ *
+ * A OS é o destino quando existe -- é o que acendeu vermelho, e quem vê o
+ * problema quer corrigi-lo. Mas 14 dos 29 veículos em amarelo estão assim por
+ * REVISÃO ATRASADA, sem OS nenhuma, e os 76 verdes não têm nada aberto: nesses
+ * o duplo clique não fazia nada, e nada é indistinguível de quebrado.
+ *
+ * O cadastro do veículo serve de destino para todos eles porque reúne revisões,
+ * documentos e histórico -- o veículo é o assunto da linha de qualquer forma.
+ */
+function destinoDaLinha(l: any): string {
+  if (l.manutencaoId) return `/dashboard/frota/manutencoes?os=${l.manutencaoId}`;
+  return `/dashboard/frota/veiculos/${l.veiculo.id}`;
+}
+
 export default function FarolFrotaPage() {
   const router = useRouter();
   const { user } = useAuthStore();
@@ -398,10 +414,14 @@ export default function FarolFrotaPage() {
               {!loading && filtradas.map(l => (
                 <tr
                   key={l.veiculo.id}
-                  // Duplo clique leva à OS que acendeu o farol: quem vê o
-                  // problema aqui quer corrigi-lo, não procurá-lo na lista.
-                  onDoubleClick={() => { if (l.manutencaoId) router.push(`/dashboard/frota/manutencoes?os=${l.manutencaoId}`); }}
-                  style={l.manutencaoId ? { cursor: "pointer" } : undefined}
+                  // Duplo clique leva ao que ACENDEU o farol. Antes só abria
+                  // quando havia OS, e nas outras 90 linhas de 118 não fazia
+                  // nada -- silêncio que o usuário lê como defeito. Agora toda
+                  // linha tem destino: sem OS, cai no cadastro do veículo, que
+                  // é onde estão revisões, documentos e histórico.
+                  onDoubleClick={() => router.push(destinoDaLinha(l))}
+                  title={l.manutencaoId ? `Abrir a OS ${l.numeroOs || ""}`.trim() : "Abrir o cadastro do veículo"}
+                  style={{ cursor: "pointer" }}
                 >
                   <td className="col-fixa" style={COL_STATUS}>
                     <ChipStatus farol={l.farol} texto={l.statusOperacional} osAbertas={l.osAbertas} />

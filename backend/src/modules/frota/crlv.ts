@@ -141,8 +141,20 @@ export function vencimentoLicenciamento(uf: string | null, placa: string | null,
   const mes = LICENCIAMENTO_SP_POR_FINAL[p.slice(-1)];
   const ano = Number(exercicio);
   if (!mes || !ano || ano < 2000 || ano > 2100) return null;
-  return ultimoDiaUtil(ano, mes);
+  // EXERCICIO + 1, e nao o proprio exercicio.
+  //
+  // O CRLV do exercicio 2026 PROVA que o licenciamento de 2026 ja foi feito --
+  // este aqui foi emitido em 04/08/2026, depois do prazo de maio. Calcular o
+  // vencimento do proprio exercicio dava uma data ja vencida no dia da emissao,
+  // e a tela marcava como Vencido documento recem-cadastrado e valido.
+  //
+  // O documento vale ate o prazo do exercicio SEGUINTE, que e quando o
+  // licenciamento precisa ser renovado. E isto tambem acerta o caso oposto: um
+  // CRLV de 2025 carregado hoje vence no prazo de 2026, que ja passou -- e
+  // aparece como vencido, corretamente.
+  return ultimoDiaUtil(ano + 1, mes);
 }
+
 
 /**
  * Estados para o pré-cadastro da tela.

@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "1.14.1";
+export const VERSAO = "1.14.2";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -35,6 +35,15 @@ export const VERSAO_NOME = "Documento de veículo pelo CRLV";
  * esta lista quer saber o que mudou para ele.
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
+  {
+    versao: "1.14.2",
+    data: "2026-08-19",
+    titulo: "Vencimento do CRLV e duplo clique no Farol",
+    itens: [
+      "O CRLV recém-cadastrado aparecia como Vencido. O documento do exercício 2026 comprova que o licenciamento de 2026 já foi feito, então ele vale até o prazo do exercício seguinte — o cálculo usava o prazo do próprio exercício, que já havia passado",
+      "No Farol da Frota, o duplo clique na linha só abria alguma coisa quando o veículo tinha ordem de serviço. Nas demais linhas não acontecia nada: agora todas levam a algum lugar, e sem OS o duplo clique abre o cadastro do veículo, onde estão revisões, documentos e histórico",
+    ],
+  },
   {
     versao: "1.14.1",
     data: "2026-08-19",
