@@ -150,6 +150,9 @@ export default function FarolFrotaPage() {
   // Duas linhas mantêm a grade com altura regular; quem precisa ler a OS
   // inteira abre o texto — ou dá duplo clique e vai direto para ela.
   const [textoCompleto, setTextoCompleto] = useState(false);
+  // Linha sem OS: nao ha o que abrir, entao o duplo clique pergunta o que fazer
+  // em vez de cair numa lista filtrada que parece nao ter acontecido nada.
+  const [semOs, setSemOs] = useState<any>(null);
 
   const podeExportar = hasPerms(user, "frota:relatorios");
 
@@ -380,7 +383,7 @@ export default function FarolFrotaPage() {
             )}
           </Toolbar>
 
-          <TableCard>
+          <TableCard className="linha-unica">
             <thead>
               <tr>
                 <th className="col-fixa" style={COL_STATUS}>Status</th>
@@ -415,8 +418,8 @@ export default function FarolFrotaPage() {
                   // Duplo clique sempre abre Manutenções: com OS, na própria
                   // OS; sem OS, na tela filtrada pelo veículo. Antes só ia
                   // quando havia OS, e em 90 das 118 linhas não fazia nada.
-                  onDoubleClick={() => router.push(destinoDaLinha(l))}
-                  title={l.manutencaoId ? `Abrir a OS ${l.numeroOs || ""}`.trim() : `Ver manutenções de ${l.veiculo.placa}`}
+                  onDoubleClick={() => { if (l.manutencaoId) router.push(`/dashboard/frota/manutencoes?os=${l.manutencaoId}`); else setSemOs(l); }}
+                  title={l.manutencaoId ? `Abrir a OS ${l.numeroOs || ""}`.trim() : "Sem ordem de serviço aberta"}
                   style={{ cursor: "pointer" }}
                 >
                   <td className="col-fixa" style={COL_STATUS}>
@@ -451,7 +454,7 @@ export default function FarolFrotaPage() {
                     ) : "—"}
                   </td>
                   <td>{l.localizacao ? <><MapPin size={12} style={{ display: "inline", marginRight: 4, verticalAlign: -1, color: "var(--text-muted)" }} />{l.localizacao}</> : "—"}</td>
-                  <td style={{ whiteSpace: "normal", minWidth: 300, maxWidth: 480 }}>
+                  <td className="celula-livre" style={{ whiteSpace: "normal", minWidth: 300, maxWidth: 480 }}>
                     <Problema texto={l.problema} completo={textoCompleto} />
                   </td>
                   <td><Trunc texto={l.prestador} max={28} /></td>
@@ -467,6 +470,44 @@ export default function FarolFrotaPage() {
           )}
         </PageBody>
       </main>
+
+      {/* Veículo sem OS aberta: o farol acendeu por revisão atrasada, ou o
+          veículo está operando normal. Não há ordem de serviço para abrir, e
+          cair numa lista filtrada parecia que o duplo clique não fez nada. */}
+      {semOs && (
+        <div
+          onClick={() => setSemOs(null)}
+          style={{ position: "fixed", inset: 0, zIndex: 60, background: "rgba(0,0,0,.45)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{ background: "var(--bg-card)", border: "1px solid var(--border-subtle)", borderRadius: 16, boxShadow: "var(--shadow-card)", width: "100%", maxWidth: 440, padding: 24 }}
+          >
+            <h3 style={{ fontSize: 16, fontWeight: 600, color: "var(--text-primary)", marginBottom: 6 }}>
+              Sem ordem de serviço aberta</h3>
+            <p style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.6, marginBottom: 4 }}>
+              O veículo <strong style={{ fontFamily: "var(--font-mono)" }}>{semOs.veiculo.placa}</strong> não tem
+              nenhuma manutenção aberta no momento.
+            </p>
+            {semOs.motivoFarol && (
+              <p style={{ fontSize: 12, color: "var(--text-muted)", lineHeight: 1.6, marginBottom: 18 }}>
+                Motivo do farol: {semOs.motivoFarol}
+              </p>
+            )}
+            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 18 }}>
+              <button className="btn btn-ghost" style={{ fontSize: 12 }} onClick={() => setSemOs(null)}>Fechar</button>
+              <button
+                className="btn btn-ghost" style={{ fontSize: 12 }}
+                onClick={() => router.push(`/dashboard/frota/manutencoes?veiculo=${encodeURIComponent(semOs.veiculo.placa)}`)}
+              >Ver histórico</button>
+              <button
+                className="btn btn-violet" style={{ fontSize: 12 }}
+                onClick={() => router.push(`/dashboard/frota/manutencoes?novo=1&veiculo=${encodeURIComponent(semOs.veiculo.placa)}`)}
+              >Cadastrar manutenção</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

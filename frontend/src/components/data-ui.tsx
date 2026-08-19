@@ -250,7 +250,7 @@ export function SelectFilter({
 }
 
 /* ── Tabela ───────────────────────────────────────────────── */
-export function TableCard({ children }: { children: ReactNode }) {
+export function TableCard({ children, className = "" }: { children: ReactNode; className?: string }) {
   // Marca quando existe conteúdo escondido à esquerda. Só então as colunas
   // congeladas ganham sombra — parada no início, a tabela não mostra costura.
   const [rolou, setRolou] = useState(false);
@@ -264,7 +264,7 @@ export function TableCard({ children }: { children: ReactNode }) {
           setRolou((antes) => (antes === passou ? antes : passou));
         }}
       >
-        <table className="data-table">{children}</table>
+        <table className={`data-table${className ? " " + className : ""}`}>{children}</table>
       </div>
     </div>
   );

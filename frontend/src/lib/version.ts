@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "1.14.3";
+export const VERSAO = "1.14.4";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -35,6 +35,15 @@ export const VERSAO_NOME = "Documento de veículo pelo CRLV";
  * esta lista quer saber o que mudou para ele.
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
+  {
+    versao: "1.14.4",
+    data: "2026-08-19",
+    titulo: "Farol: aviso de veículo sem OS e grade mais legível",
+    itens: [
+      "Duplo clique em veículo que não tem ordem de serviço aberta agora abre um aviso com o botão Cadastrar manutenção, que leva ao formulário já com o veículo preenchido. Antes o duplo clique parecia não fazer nada nessas linhas",
+      "As linhas da grade passaram a ter altura uniforme. Com 12 colunas, o texto quebrando em várias linhas deixava as alturas entre 87 e 191 pixels, e ao rolar a tabela para o lado a tela virava um campo de retângulos vazios",
+    ],
+  },
   {
     versao: "1.14.3",
     data: "2026-08-19",

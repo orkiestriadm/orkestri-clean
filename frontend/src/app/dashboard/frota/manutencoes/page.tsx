@@ -173,6 +173,8 @@ export default function ManutencoesPage() {
   const [activeFilterTipo, setActiveFilterTipo] = useState("");
   const [editing, setEditing] = useState<any | null>(null);
   const [creating, setCreating] = useState(false);
+  // Chegando do pop-up do Farol: abre o cadastro de OS ja com o veiculo posto.
+  const [novoComVeiculo, setNovoComVeiculo] = useState<any>(null);
   const [histId, setHistId] = useState<string | null>(null);
   const [msg, setMsg] = useState("");
   const [lookups, setLookups] = useState<Lookups>({ veiculos: [], motoristas: [], categorias: [], setores: [], users: [] });
@@ -209,12 +211,25 @@ export default function ManutencoesPage() {
   // Serve às linhas SEM ordem de serviço -- veículo amarelo por revisão atrasada
   // ou veículo operando normalmente: não há OS para abrir, mas o histórico de
   // manutenção do veículo é o que a pessoa foi procurar.
+  // `?veiculo=<placa>` filtra pela placa. Com `&novo=1` junto, abre direto o
+  // cadastro de OS com o veiculo preenchido -- e o caminho do pop-up do Farol
+  // para veiculo sem ordem de servico aberta. Espera os lookups porque o
+  // formulario guarda o ID do veiculo, e o Farol so conhece a placa.
   useEffect(() => {
-    const placa = new URLSearchParams(window.location.search).get("veiculo");
+    const p = new URLSearchParams(window.location.search);
+    const placa = p.get("veiculo");
     if (!placa) return;
-    setQ(placa);
+    if (p.get("novo") !== "1") {
+      setQ(placa);
+      window.history.replaceState({}, "", window.location.pathname);
+      return;
+    }
+    const lista = (lookups?.veiculos || []) as any[];
+    if (!lista.length) return; // ainda carregando; roda de novo quando chegar
+    const alvo = lista.find(v => String(v.label || "").toUpperCase().includes(placa.toUpperCase()));
+    setNovoComVeiculo({ ...config.defaults, veiculoId: alvo?.value || undefined });
     window.history.replaceState({}, "", window.location.pathname);
-  }, []);
+  }, [lookups]);
 
   // Chegando do Farol da Frota com ?os=<id>, abre a OS clicada já em edição.
   // Lê de `window.location` em vez de useSearchParams para não exigir um
@@ -229,7 +244,7 @@ export default function ManutencoesPage() {
     window.history.replaceState({}, "", window.location.pathname);
   }, [items, canEdit]);
 
-  const onSaved = () => { setCreating(false); setEditing(null); load(); showMsg("Registro salvo!"); };
+  const onSaved = () => { setCreating(false); setEditing(null); setNovoComVeiculo(null); load(); showMsg("Registro salvo!"); };
   const remove = async (m: any) => {
     if (!confirm("Excluir este registro? (exclusão lógica)")) return;
     try { await api.delete(`${config.endpoint}/${m.id}`); load(); showMsg("Registro excluído"); }
@@ -378,9 +393,9 @@ export default function ManutencoesPage() {
         </PageBody>
       </main>
 
-      {(creating || editing) && (
-        <FormModal config={config} lookups={lookups} initial={editing}
-          onSaved={onSaved} onClose={() => { setCreating(false); setEditing(null); }} />
+      {(creating || editing || novoComVeiculo) && (
+        <FormModal config={config} lookups={lookups} initial={editing || novoComVeiculo}
+          onSaved={onSaved} onClose={() => { setCreating(false); setEditing(null); setNovoComVeiculo(null); }} />
       )}
       {histId && <HistoricoDrawer tabela={config.tabela} id={histId} onClose={() => setHistId(null)} />}
     </div>

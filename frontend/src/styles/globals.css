@@ -829,6 +829,28 @@ body.noc-mode .sidebar { display: none; }
   pointer-events: none;
   background: linear-gradient(to right, rgba(0, 0, 0, .10), transparent);
 }
+/*
+ * Variante de linha compacta, para tabela LARGA que rola na horizontal.
+ *
+ * O padrao da casa e a celula QUEBRAR o texto, e para tabela estreita isso e
+ * certo. Mas o Farol tem 12 colunas e 1622px num visor de 680: com quebra
+ * livre as linhas iam de 87 a 191px de altura, e ao rolar para o lado a tela
+ * virava um campo de retangulos vazios de alturas diferentes -- impossivel de
+ * varrer com o olho e sem alinhamento entre o inicio e o fim da linha.
+ *
+ * Aqui cada celula ocupa UMA linha e corta com reticencias. O texto inteiro
+ * continua alcancavel pelo `title` do navegador, e a coluna que precisa de
+ * mais de uma linha se marca com .celula-livre (o Problema, que ja tem o seu
+ * proprio corte em 2 linhas e o botao "Problema completo").
+ */
+.data-table.linha-unica tbody td:not(.celula-livre) {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* Altura previsivel: sem isto uma celula vazia encolhe e desalinha a faixa. */
+.data-table.linha-unica tbody td { height: 46px; }
+
 .data-table th.col-fixa-fim,
 .data-table td.col-fixa-fim { position: sticky; }
 
