@@ -299,21 +299,36 @@ function OsaCard({ m, onEdit }: { m: Osa; onEdit: (() => void) | undefined }) {
         </div>
 
         {/* N1 (esperado) × processado */}
-        {m.n1Sequencial != null && (
-          <div style={{ display: "flex", alignItems: "stretch", gap: 12, marginBottom: 14, background: "var(--bg-secondary)", borderRadius: 10, padding: "10px 14px" }}>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.08em", color: "var(--text-muted)", textTransform: "uppercase" }}>Esperado (N1)</div>
-              <div style={{ fontFamily: "var(--font-mono)", fontSize: 17, fontWeight: 800, marginTop: 2 }}>{m.n1Sequencial.toLocaleString("pt-BR")}</div>
-            </div>
-            <div style={{ width: 1, background: "var(--border-subtle)" }} />
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.08em", color: "var(--text-muted)", textTransform: "uppercase" }}>Atraso</div>
-              <div style={{ fontFamily: "var(--font-mono)", fontSize: 17, fontWeight: 800, marginTop: 2, color: atrasoCor(m.atraso) }}>
-                {m.atraso == null ? "—" : m.atraso <= 0 ? "em dia" : m.atraso.toLocaleString("pt-BR")}
+        {m.n1Sequencial != null && (() => {
+          // O N1 é lido AO VIVO (fetchN1Sequenciais). Se a linha da MTP_LISTAG parou de
+          // avançar, o número fica alto mas velho — foi assim que o CGMP (série 172) ficou
+          // "à frente" e congelado. Mostrar QUANDO o N1 atualizou torna isso visível no card.
+          const n1Min = m.n1Atualizado ? (Date.now() - new Date(m.n1Atualizado).getTime()) / 60000 : null;
+          const n1Stale = n1Min != null && n1Min > 15;
+          return (
+          <div style={{ marginBottom: 14, background: "var(--bg-secondary)", borderRadius: 10, padding: "10px 14px" }}>
+            <div style={{ display: "flex", alignItems: "stretch", gap: 12 }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.08em", color: "var(--text-muted)", textTransform: "uppercase" }}>Esperado (N1)</div>
+                <div style={{ fontFamily: "var(--font-mono)", fontSize: 17, fontWeight: 800, marginTop: 2 }}>{m.n1Sequencial.toLocaleString("pt-BR")}</div>
+              </div>
+              <div style={{ width: 1, background: "var(--border-subtle)" }} />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.08em", color: "var(--text-muted)", textTransform: "uppercase" }}>Atraso</div>
+                <div style={{ fontFamily: "var(--font-mono)", fontSize: 17, fontWeight: 800, marginTop: 2, color: atrasoCor(m.atraso) }}>
+                  {m.atraso == null ? "—" : m.atraso <= 0 ? "em dia" : m.atraso.toLocaleString("pt-BR")}
+                </div>
               </div>
             </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 8, paddingTop: 8, borderTop: "1px solid var(--border-subtle)", fontSize: 10.5, color: n1Stale ? "#dc2626" : "var(--text-muted)" }}>
+              {n1Stale && <span>⚠</span>}
+              <span>N1 atualizado {fmtHora(m.n1Atualizado)}</span>
+              {m.n1Atualizado && <><span style={{ color: "var(--border-medium)" }}>·</span><span>há {tempoDesde(m.n1Atualizado)}</span></>}
+              {n1Stale && <span style={{ fontWeight: 700 }}>— parado</span>}
+            </div>
           </div>
-        )}
+          );
+        })()}
 
         {/* serviços */}
         <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
