@@ -138,12 +138,6 @@ export default function MonitoramentoDashboard() {
    */
   const [desdeMap, setDesde] = useState<Record<string, string>>({});
 
-  /* O console vai até a topbar, que fica fora da árvore desta página — por
-     isso a classe é no `body`. Sai junto com a página. */
-  useEffect(() => {
-    document.body.classList.add("mon-console-mode");
-    return () => document.body.classList.remove("mon-console-mode");
-  }, []);
 
   const load = useCallback(async () => {
     try {

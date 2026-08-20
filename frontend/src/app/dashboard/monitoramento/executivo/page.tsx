@@ -62,11 +62,6 @@ export default function ExecutivoPage() {
   }, [periodo]);
   useEffect(() => { api.get("/monitoramento/sla/metas").then(r => setMetas(r.data)).catch(() => {}); }, []);
 
-  /* Console até a topbar — ver `mon-console-mode` em globals.css. */
-  useEffect(() => {
-    document.body.classList.add("mon-console-mode");
-    return () => document.body.classList.remove("mon-console-mode");
-  }, []);
 
   const metaDe = (cat: string) => metas[cat] ?? 99;
   const cumpriu = (s: SlaItem) => s.disponibilidadePct != null && s.disponibilidadePct >= metaDe(s.categoria);

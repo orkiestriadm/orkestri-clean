@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "1.14.4";
+export const VERSAO = "1.14.5";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -26,7 +26,7 @@ export const VERSAO = "1.14.4";
 export const VERSAO_DATA = "2026-08-19";
 
 /** Nome da entrega, para dar contexto ao número. */
-export const VERSAO_NOME = "Documento de veículo pelo CRLV";
+export const VERSAO_NOME = "Monitoramento volta a seguir o seu tema";
 
 /**
  * Histórico exibido na tela Sobre, do mais recente para o mais antigo.
@@ -35,6 +35,16 @@ export const VERSAO_NOME = "Documento de veículo pelo CRLV";
  * esta lista quer saber o que mudou para ele.
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
+  {
+    versao: "1.14.5",
+    data: "2026-08-20",
+    titulo: "Monitoramento volta a seguir o seu tema",
+    itens: [
+      "As telas de Monitoramento e do Executivo deixaram de ser sempre escuras e voltaram a seguir o tema claro ou escuro escolhido no topo da página",
+      "A tela preta continua sendo o padrão do Modo NOC, que é onde ela faz sentido: painel de parede, olhado de longe e o dia inteiro",
+      "As cores de disponibilidade (verde, vermelho e âmbar) ganharam um tom próprio para o tema claro, onde os tons calibrados para fundo preto ficavam lavados",
+    ],
+  },
   {
     versao: "1.14.4",
     data: "2026-08-19",
