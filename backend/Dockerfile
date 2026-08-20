@@ -13,6 +13,18 @@ COPY nest-cli.json ./
 COPY tsconfig.json ./
 COPY prisma ./prisma
 COPY src ./src
+# O engine do Prisma JA VEM no node_modules, pelo postinstall do `npm install`
+# -- que aqui e uma camada cacheada e nao toca a rede. O `prisma generate`
+# ainda assim tentava baixar o .sha256 so para conferir o binario que ja tinha,
+# e era a UNICA dependencia de rede do build inteiro.
+#
+# Em 20/08/2026 um firewall com inspecao TLS passou a interceptar a rede de
+# homologacao e esse download comecou a falhar, travando qualquer publicacao.
+# Esta variavel e a saida oficial do Prisma para rede restrita: quando o
+# checksum nao pode ser buscado, usa o engine que ja esta em disco. Com rede
+# normal o checksum continua sendo baixado e conferido -- nao e um desligar,
+# e um degradar com criterio.
+ENV PRISMA_ENGINES_CHECKSUM_IGNORE_MISSING=1
 RUN npx prisma generate
 RUN npx nest build
 
