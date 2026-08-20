@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "1.14.5";
+export const VERSAO = "1.14.6";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -26,7 +26,7 @@ export const VERSAO = "1.14.5";
 export const VERSAO_DATA = "2026-08-19";
 
 /** Nome da entrega, para dar contexto ao número. */
-export const VERSAO_NOME = "Monitoramento volta a seguir o seu tema";
+export const VERSAO_NOME = "Calendário de licenciamento correto";
 
 /**
  * Histórico exibido na tela Sobre, do mais recente para o mais antigo.
@@ -35,6 +35,16 @@ export const VERSAO_NOME = "Monitoramento volta a seguir o seu tema";
  * esta lista quer saber o que mudou para ele.
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
+  {
+    versao: "1.14.6",
+    data: "2026-08-20",
+    titulo: "Calendário de licenciamento correto",
+    itens: [
+      "O vencimento calculado para veículos de São Paulo estava errado em todos os finais de placa. Agora segue o calendário oficial do Detran-SP: final 1 e 2 até 31 de julho, 3 e 4 até 31 de agosto, 5 e 6 até 30 de setembro, 7 e 8 até 31 de outubro, 9 até 30 de novembro e 0 até 31 de dezembro",
+      "Caminhões e tratores passaram a ter calendário próprio, que vence mais tarde: um caminhão de final 1 vence em 30 de setembro, enquanto um carro do mesmo final vence em 31 de julho",
+      "A data passou a ser o último dia do mês, como o calendário oficial determina. Antes o sistema antecipava para a sexta-feira quando o prazo caía em fim de semana",
+    ],
+  },
   {
     versao: "1.14.5",
     data: "2026-08-20",

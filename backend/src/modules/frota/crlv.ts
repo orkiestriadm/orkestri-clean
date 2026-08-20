@@ -92,67 +92,95 @@ export async function lerCrlv(buffer: Buffer): Promise<CrlvLido> {
 export const normalizaPlaca = (p: any) => String(p ?? "").toUpperCase().replace(/[^A-Z0-9]/g, "");
 
 /**
- * Calendário de licenciamento de SÃO PAULO, por final da placa.
+ * Calendário de licenciamento de SÃO PAULO — o oficial, do exercício 2026.
  *
- * ATENÇÃO — ESTE É O ÚNICO LUGAR A CORRIGIR se o Detran mudar o calendário.
- * A tabela foi confirmada pelo usuário em 19/08/2026, com uma ressalva que eu
- * mesmo levantei e fica registrada: os finais 8, 9 e 0 são os que eu tinha
- * MENOS certeza — em alguns exercícios o Detran-SP desloca ou junta esses
- * meses. Se aparecer vencimento estranho, comece por aqui.
+ * ATENÇÃO: ESTE É O ÚNICO LUGAR A CORRIGIR quando o Detran publicar o
+ * calendário de um novo exercício.
  *
- * Só vale para SP. Qualquer outra UF devolve null de propósito: preencher data
- * chutada faria a régua de vencimento cobrar licenciamento no mês errado, que é
- * pior que campo vazio.
+ * Histórico que vale registrar: a primeira versão desta tabela foi escrita de
+ * memória e estava ERRADA EM TODAS AS DEZ LINHAS -- não só nos finais 8, 9 e 0
+ * que eu havia sinalizado como duvidosos. O final 1, por exemplo, saía abril
+ * quando o correto é julho: três meses de diferença, em data que dispara
+ * cobrança. Corrigido em 20/08/2026 contra o calendário oficial.
+ *
+ * São DUAS tabelas, e a primeira versão tinha só uma. O prazo de caminhão e
+ * trator é bem mais tarde que o de carro com o mesmo final de placa: final 1
+ * vence em julho se for carro e em setembro se for caminhão.
+ *
+ * O dia é sempre o ÚLTIMO DO MÊS, e não o último dia útil -- o calendário
+ * oficial fixa 31/07, 31/08, 30/09, 31/10, 30/11 e 31/12. A versão anterior
+ * recuava para a sexta-feira quando caía em fim de semana, o que antecipava o
+ * vencimento sem que a lei pedisse.
  */
-export const LICENCIAMENTO_SP_POR_FINAL: Record<string, number> = {
-  "1": 4,  // abril
-  "2": 5,  // maio
-  "3": 6,  // junho
-  "4": 7,  // julho
-  "5": 8,  // agosto
-  "6": 9,  // setembro
-  "7": 10, // outubro
-  "8": 11, // novembro
-  "9": 11, // novembro
-  "0": 12, // dezembro
+
+/** Carros, motos e veículos de passageiros. */
+export const LICENCIAMENTO_SP_LEVE: Record<string, number> = {
+  "1": 7,  "2": 7,   // até 31 de julho
+  "3": 8,  "4": 8,   // até 31 de agosto
+  "5": 9,  "6": 9,   // até 30 de setembro
+  "7": 10, "8": 10,  // até 31 de outubro
+  "9": 11,           // até 30 de novembro
+  "0": 12,           // até 31 de dezembro
 };
 
-/** Último dia ÚTIL do mês — o Detran fecha o prazo em dia útil. */
-function ultimoDiaUtil(ano: number, mes1a12: number): Date {
-  // NAO usar Date.UTC: o container roda em America/Sao_Paulo, e meia-noite UTC
-  // e 21h do DIA ANTERIOR em Brasilia -- a data certa no banco aparecia um dia
-  // antes na tela. Os 220 registros de CNH do sistema gravam as 03:00 UTC, que
-  // e meia-noite local; aqui seguimos a mesma convencao, a de dataQueryLocal.
-  const d = new Date(ano, mes1a12, 0); // dia 0 do mes seguinte = ultimo deste
-  // Feriado nao entra: os meses do calendario nao tem feriado fixo caindo no
-  // fim do mes, e uma tabela de feriados moveis envelheceria sem ninguem notar.
-  while (d.getDay() === 0 || d.getDay() === 6) d.setDate(d.getDate() - 1);
-  return d;
+/** Caminhões e tratores. */
+export const LICENCIAMENTO_SP_PESADO: Record<string, number> = {
+  "1": 9,  "2": 9,            // até 30 de setembro
+  "3": 10, "4": 10, "5": 10,  // até 31 de outubro
+  "6": 11, "7": 11, "8": 11,  // até 30 de novembro
+  "9": 12, "0": 12,           // até 31 de dezembro
+};
+
+/**
+ * Decide qual das duas tabelas usar.
+ *
+ * A espécie do CRLV manda, porque é a classificação oficial do documento
+ * ("CARGA/CAMINHAO", "TRACAO/TRATOR"). O `tipo` do cadastro entra como
+ * segunda opção -- e precisa ser normalizado: a base real tem `caminhao` E
+ * `caminhão`, as duas grafias, para a mesma coisa.
+ */
+export function ehPesado(especieTipoCrlv?: string | null, tipoCadastro?: string | null): boolean {
+  const t = norm(semAcento(String(especieTipoCrlv || "") + " " + String(tipoCadastro || "")));
+  return /CAMINHAO|TRATOR|CARGA|REBOQUE|SEMI ?REBOQUE|CAVALO/.test(t);
 }
 
+/** Último dia do mês. O calendário oficial fixa data corrida, não dia útil. */
+function ultimoDiaDoMes(ano: number, mes1a12: number): Date {
+  // Hora LOCAL, nunca Date.UTC: o container roda em America/Sao_Paulo, e
+  // meia-noite UTC é 21h do dia anterior em Brasília -- a data certa no banco
+  // aparecia um dia antes na tela. Os registros de CNH gravam às 03:00 UTC,
+  // que é meia-noite local; aqui seguimos a mesma convenção.
+  return new Date(ano, mes1a12, 0);
+}
 /**
  * Vencimento do licenciamento. Devolve null quando não há regra — e quem chama
  * deve então PEDIR a data ao usuário, nunca inventar.
+ *
+ * EXERCÍCIO + 1, e não o próprio exercício: o CRLV de 2026 prova que o
+ * licenciamento de 2026 já foi feito. Calcular o prazo do próprio exercício
+ * dava documento vencido no dia em que era cadastrado.
+ *
+ * RESSALVA que precisa ser revista a cada ano: a tabela em uso é a do
+ * exercício 2026, e aqui ela é aplicada ao exercício seguinte, porque é o
+ * único calendário publicado. Quando o Detran divulgar o de 2027, conferir se
+ * os meses mudaram.
  */
-export function vencimentoLicenciamento(uf: string | null, placa: string | null, exercicio: string | number | null): Date | null {
+export function vencimentoLicenciamento(
+  uf: string | null,
+  placa: string | null,
+  exercicio: string | number | null,
+  especieOuTipo?: { especieTipo?: string | null; tipoCadastro?: string | null },
+): Date | null {
   if (!uf || norm(uf) !== "SP") return null;
   const p = normalizaPlaca(placa);
   if (!p) return null;
-  const mes = LICENCIAMENTO_SP_POR_FINAL[p.slice(-1)];
+  const tabela = ehPesado(especieOuTipo?.especieTipo, especieOuTipo?.tipoCadastro)
+    ? LICENCIAMENTO_SP_PESADO
+    : LICENCIAMENTO_SP_LEVE;
+  const mes = tabela[p.slice(-1)];
   const ano = Number(exercicio);
   if (!mes || !ano || ano < 2000 || ano > 2100) return null;
-  // EXERCICIO + 1, e nao o proprio exercicio.
-  //
-  // O CRLV do exercicio 2026 PROVA que o licenciamento de 2026 ja foi feito --
-  // este aqui foi emitido em 04/08/2026, depois do prazo de maio. Calcular o
-  // vencimento do proprio exercicio dava uma data ja vencida no dia da emissao,
-  // e a tela marcava como Vencido documento recem-cadastrado e valido.
-  //
-  // O documento vale ate o prazo do exercicio SEGUINTE, que e quando o
-  // licenciamento precisa ser renovado. E isto tambem acerta o caso oposto: um
-  // CRLV de 2025 carregado hoje vence no prazo de 2026, que ja passou -- e
-  // aparece como vencido, corretamente.
-  return ultimoDiaUtil(ano + 1, mes);
+  return ultimoDiaDoMes(ano + 1, mes);
 }
 
 

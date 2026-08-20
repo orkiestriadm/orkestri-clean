@@ -1803,7 +1803,12 @@ class DocumentosController extends BaseFrotaController {
       veiculo,
       encontrado: !!veiculo,
       // Só SP tem regra. As demais UFs vêm nulas e a tela pede a data.
-      vencimentoSeSP: vencimentoLicenciamento("SP", lido.placa, lido.exercicio),
+      // O tipo decide QUAL tabela do calendário vale: caminhão e trator vencem
+      // bem mais tarde que carro com o mesmo final de placa. A espécie do CRLV
+      // manda; o cadastro entra como segunda opção.
+      vencimentoSeSP: vencimentoLicenciamento("SP", lido.placa, lido.exercicio, {
+        especieTipo: lido.especieTipo, tipoCadastro: veiculo?.tipo,
+      }),
       ufs: UFS,
     };
   }
@@ -1847,7 +1852,9 @@ class DocumentosController extends BaseFrotaController {
     }
 
     // Vencimento: em SP sai da regra; fora dela, só o que o usuário digitou.
-    const porRegra = vencimentoLicenciamento(body.uf, lido.placa || veiculo.placa, lido.exercicio);
+    const porRegra = vencimentoLicenciamento(body.uf, lido.placa || veiculo.placa, lido.exercicio, {
+      especieTipo: lido.especieTipo, tipoCadastro: veiculo.tipo,
+    });
     const dataVencimento = porRegra || (body.dataVencimento ? new Date(body.dataVencimento) : null);
 
     const exercicio = Number(lido.exercicio) || null;
