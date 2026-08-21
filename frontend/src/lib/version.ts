@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "1.14.6";
+export const VERSAO = "1.15.0";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -23,10 +23,10 @@ export const VERSAO = "1.14.6";
  * Não é gerada no build: `new Date()` no bundle muda a cada compilação, e duas
  * builds do mesmo código pareceriam versões diferentes.
  */
-export const VERSAO_DATA = "2026-08-19";
+export const VERSAO_DATA = "2026-08-21";
 
 /** Nome da entrega, para dar contexto ao número. */
-export const VERSAO_NOME = "Calendário de licenciamento correto";
+export const VERSAO_NOME = "Projetos avisa no WhatsApp e protege o status das tarefas";
 
 /**
  * Histórico exibido na tela Sobre, do mais recente para o mais antigo.
@@ -35,6 +35,17 @@ export const VERSAO_NOME = "Calendário de licenciamento correto";
  * esta lista quer saber o que mudou para ele.
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
+  {
+    versao: "1.15.0",
+    data: "2026-08-21",
+    titulo: "Projetos avisa no WhatsApp e protege o status das tarefas",
+    itens: [
+      "Ao criar um projeto, cada pessoa colocada como membro recebe um aviso no WhatsApp. Quem ainda não tem número verificado no perfil aparece num aviso na tela — o projeto é criado do mesmo jeito, e a pessoa continua vendo tudo dentro do sistema",
+      "Só o criador do projeto e seus membros podem mudar o status das tarefas. Quem não faz parte do projeto recebe um aviso do motivo em vez de a mudança falhar em silêncio",
+      "Projeto excluído deixa de assombrar: sumiu o caso do projeto apagado que continuava avisando que vencia hoje. Agora, ao excluir, os avisos, lembretes de agenda e mensagens pendentes daquele projeto e das suas tarefas saem junto",
+      "Trocar a data de vencimento ou o responsável de uma tarefa passa a atualizar o lembrete na agenda; concluir ou cancelar a tarefa remove o lembrete",
+    ],
+  },
   {
     versao: "1.14.6",
     data: "2026-08-20",

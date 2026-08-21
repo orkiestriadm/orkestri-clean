@@ -56,6 +56,10 @@ function ProjectModal({ project, users, onClose, onSave }: { project?:Project; u
   const [membros,   setMembros]   = useState<string[]>(project?.members?.map(m=>m.user.id).filter(id=>id!==me?.id)||[]);
   const [loading,   setLoading]   = useState(false);
   const [error,     setError]     = useState("");
+  // Membros que não receberão o WhatsApp por não terem número verificado. Vem na
+  // resposta da criação; enquanto preenchido, o modal mostra o aviso em vez do
+  // formulário — o projeto JÁ foi criado, o aviso é só informativo.
+  const [semWa,     setSemWa]     = useState<{id:string;nome:string}[]|null>(null);
   const isEdit = !!project;
 
   const otherUsers = users.filter((u:any) => u.id !== me?.id);
@@ -64,12 +68,40 @@ function ProjectModal({ project, users, onClose, onSave }: { project?:Project; u
     if (!titulo.trim()) { setError("Titulo obrigatorio"); return; }
     setLoading(true); setError("");
     try {
-      if (isEdit) await api.put("/projects/"+project.id, { titulo, descricao, cor, prioridade, dataFim:dataFim||undefined });
-      else await api.post("/projects", { titulo, descricao, cor, prioridade, dataFim:dataFim||undefined, membros });
-      onSave(); onClose();
+      if (isEdit) {
+        await api.put("/projects/"+project.id, { titulo, descricao, cor, prioridade, dataFim:dataFim||undefined });
+        onSave(); onClose();
+      } else {
+        const { data } = await api.post("/projects", { titulo, descricao, cor, prioridade, dataFim:dataFim||undefined, membros });
+        onSave(); // atualiza a lista atrás do modal
+        const faltantes = data?.avisosWhatsapp?.semWhatsapp;
+        if (Array.isArray(faltantes) && faltantes.length) { setSemWa(faltantes); }
+        else onClose();
+      }
     } catch (e:any) { setError(e.response?.data?.message||"Erro"); }
     finally { setLoading(false); }
   };
+
+  if (semWa) {
+    return (
+      <Modal title="Projeto criado" onClose={onClose}>
+        <div className="flex flex-col gap-4">
+          <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl px-4 py-3 text-[13px] text-[var(--text-secondary)]">
+            O projeto foi criado. Estes membros <strong className="text-[var(--accent-amber)]">não têm WhatsApp cadastrado e verificado</strong>, então não receberam o aviso por lá:
+          </div>
+          <ul className="flex flex-col gap-1.5">
+            {semWa.map(m => (
+              <li key={m.id} className="flex items-center gap-2 text-[13px] text-[var(--text-primary)]">
+                <Avatar nome={m.nome} size={22} /> {m.nome}
+              </li>
+            ))}
+          </ul>
+          <p className="text-[12px] text-[var(--text-muted)]">Eles continuam vendo o projeto e as notificações dentro do sistema. Para receber por WhatsApp, precisam cadastrar e verificar o número no perfil.</p>
+          <button className="btn btn-violet mt-1" onClick={onClose}>Entendi</button>
+        </div>
+      </Modal>
+    );
+  }
 
   return (
     <Modal title={isEdit?"Editar projeto":"Novo projeto"} onClose={onClose}>
@@ -277,14 +309,24 @@ export default function ProjetosPage() {
 
   const handleMove = async (taskId: string, status: string) => {
     if (!selected) return;
-    await api.patch("/projects/"+selected.id+"/tasks/"+taskId, { status });
-    refreshSelected(selected.id);
+    try {
+      await api.patch("/projects/"+selected.id+"/tasks/"+taskId, { status });
+      refreshSelected(selected.id);
+    } catch (e: any) {
+      // 403 = quem não é criador nem membro tentou mover. O cartão fica onde
+      // estava (o estado só muda no refresh), então só falta avisar o porquê.
+      alert(e?.response?.data?.message || "Não foi possível alterar o status desta tarefa.");
+    }
   };
 
   const handleDeleteTask = async (taskId: string) => {
     if (!selected) return;
-    await api.delete("/projects/"+selected.id+"/tasks/"+taskId);
-    refreshSelected(selected.id);
+    try {
+      await api.delete("/projects/"+selected.id+"/tasks/"+taskId);
+      refreshSelected(selected.id);
+    } catch (e: any) {
+      alert(e?.response?.data?.message || "Não foi possível remover a tarefa.");
+    }
   };
 
   return (
