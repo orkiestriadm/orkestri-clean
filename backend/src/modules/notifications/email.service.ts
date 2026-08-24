@@ -263,6 +263,49 @@ export class EmailService {
     );
   }
 
+  /**
+   * Avisa o administrador de que chegou uma solicitação de acesso pela landing
+   * page. Diferente de `sendPasswordResetRequest`, traz os dados de cadastro e
+   * os produtos do Orkiestri One que o interessado quer testar — o admin decide
+   * a aprovação a partir daqui, sem precisar caçar a informação em outro canal.
+   */
+  async sendAccessRequestToAdmin(
+    adminEmail: string,
+    nomeAdmin: string,
+    req: {
+      nome: string; email: string; empresa?: string; whatsapp?: string;
+      cargo?: string; departamento?: string; motivacao?: string; produtos?: string[];
+    },
+  ): Promise<boolean> {
+    const linha = (label: string, valor?: string) =>
+      valor ? `<div class="info-row"><span class="info-label">${label}:</span><span class="info-value">${valor}</span></div>` : "";
+    const produtos = Array.isArray(req.produtos) && req.produtos.length
+      ? req.produtos.map((p) => `<span class="badge" style="background:#fff7ed;color:#9a3412;border:1px solid #fed7aa;margin:2px 4px 2px 0">${p}</span>`).join("")
+      : `<span style="color:#9ca3af;font-size:13px">Nenhum produto indicado.</span>`;
+    return this.send(
+      adminEmail,
+      `Nova solicitação de demonstração — ${req.nome}`,
+      this.layout(`
+        <p>Olá, <strong>${nomeAdmin}</strong>!</p>
+        <p>Uma nova solicitação de <strong>acesso de demonstração</strong> chegou pela landing page. Revise os dados e aprove o acesso no painel.</p>
+        <div class="info-box">
+          ${linha("Nome", req.nome)}
+          ${linha("E-mail", req.email)}
+          ${linha("Empresa", req.empresa)}
+          ${linha("Cargo", req.cargo)}
+          ${linha("Departamento", req.departamento)}
+          ${linha("WhatsApp", req.whatsapp)}
+        </div>
+        <p style="margin:20px 0 8px;font-size:13px;font-weight:600;color:#374151">Produtos que deseja testar:</p>
+        <div style="margin-bottom:8px">${produtos}</div>
+        ${req.motivacao ? `<hr class="divider"><p style="font-size:13px;color:#374151"><strong>Mensagem:</strong><br>${req.motivacao.replace(/\n/g, "<br>")}</p>` : ""}
+        <div style="text-align:center;margin:24px 0 4px">
+          <a href="${this.appUrl}/dashboard/cadastros" class="btn">Revisar e aprovar</a>
+        </div>
+      `),
+    );
+  }
+
   async sendAccountApproved(toEmail: string, nome: string, senhaTemp: string): Promise<void> {
     await this.send(
       toEmail,

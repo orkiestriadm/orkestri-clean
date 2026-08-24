@@ -3,7 +3,7 @@ import {
   UseGuards, HttpCode, HttpException, HttpStatus,
 } from "@nestjs/common";
 import { AuthGuard } from "@nestjs/passport";
-import { IsEmail, IsNumber, IsOptional, IsString, MinLength } from "class-validator";
+import { IsArray, IsEmail, IsNumber, IsOptional, IsString, MinLength } from "class-validator";
 import { Response } from "express";
 import { AuthService } from "./auth.service";
 import { CacheService } from "../cache/cache.service";
@@ -66,6 +66,8 @@ class SolicitarAcessoDtoFull {
   @IsOptional() @IsString() empresa?: string;
   @IsOptional() @IsString() motivacao?: string;
   @IsOptional() @IsString() organizationId?: string;
+  // Slugs dos produtos do Orkiestri One escolhidos na landing page.
+  @IsOptional() @IsArray() @IsString({ each: true }) produtos?: string[];
 }
 
 class RedefinirSenhaDto {

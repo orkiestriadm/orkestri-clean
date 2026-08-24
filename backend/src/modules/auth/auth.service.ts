@@ -771,6 +771,7 @@ export class AuthService implements OnModuleInit {
   async createUserRequest(dto: {
     nome: string; email: string; whatsapp?: string; cargo?: string;
     departamento?: string; empresa?: string; motivacao?: string; organizationId?: string;
+    produtos?: string[];
   }) {
     // Validate organizationId if provided
     if (dto.organizationId) {
@@ -788,14 +789,18 @@ export class AuthService implements OnModuleInit {
     const req = await (this.prisma as any).userRequest.create({
       data: { id: require("crypto").randomUUID(), ...dto },
     });
-    // Notificar master e todos os administradores
+    // Notificar master e todos os administradores — sino no painel E e-mail.
+    const produtos = Array.isArray(dto.produtos) ? dto.produtos : [];
+    const resumoProdutos = produtos.length
+      ? ` Produtos de interesse: ${produtos.join(", ")}.`
+      : "";
     try {
       const adminUsers = await this.prisma.user.findMany({
         where: {
           ativo: true,
           userRoles: { some: { role: { OR: [{ isMaster: true }, { nome: "administrador" }] } } },
         },
-        select: { id: true },
+        select: { id: true, email: true, nome: true },
       });
       for (const admin of adminUsers) {
         await this.prisma.notification.create({
@@ -804,11 +809,25 @@ export class AuthService implements OnModuleInit {
             userId: admin.id,
             tipo: "solicitacao_acesso",
             titulo: "Nova solicitação de acesso",
-            mensagem: `${dto.nome} (${dto.email}) solicitou criação de acesso.`,
+            mensagem: `${dto.nome} (${dto.email}) solicitou criação de acesso.${resumoProdutos}`,
             referenciaTipo: "user_request",
             referenciaId: req.id,
           },
         });
+        // E-mail real ao admin. Não deixa a solicitação falhar se o envio cair:
+        // o registro e o sino já garantem que o pedido não se perde.
+        this.email
+          .sendAccessRequestToAdmin(admin.email, admin.nome || "administrador", {
+            nome: dto.nome,
+            email: dto.email,
+            empresa: dto.empresa,
+            whatsapp: dto.whatsapp,
+            cargo: dto.cargo,
+            departamento: dto.departamento,
+            motivacao: dto.motivacao,
+            produtos,
+          })
+          .catch(() => {});
       }
     } catch {}
     return { message: "Solicitação enviada. Aguarde aprovação do administrador." };

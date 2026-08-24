@@ -551,6 +551,11 @@ model UserRequest {
   departamento    String?
   empresa         String?
   motivacao       String?
+  // Produtos do Orkiestri One que o solicitante quer testar (vindo da landing
+  // page). Vazio quando a solicitação nasce de dentro do sistema, onde não há
+  // essa escolha. Array nativo do Postgres — default '{}' para não quebrar as
+  // linhas já existentes na migração.
+  produtos        String[]  @default([])
   status          String    @default("PENDENTE")
   approvedById    String?   @map("approved_by_id")
   approvedAt      DateTime? @map("approved_at")

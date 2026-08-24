@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "1.14.6";
+export const VERSAO = "1.15.0";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -23,10 +23,10 @@ export const VERSAO = "1.14.6";
  * Não é gerada no build: `new Date()` no bundle muda a cada compilação, e duas
  * builds do mesmo código pareceriam versões diferentes.
  */
-export const VERSAO_DATA = "2026-08-19";
+export const VERSAO_DATA = "2026-08-24";
 
 /** Nome da entrega, para dar contexto ao número. */
-export const VERSAO_NOME = "Calendário de licenciamento correto";
+export const VERSAO_NOME = "Solicitação de demonstração pela landing page";
 
 /**
  * Histórico exibido na tela Sobre, do mais recente para o mais antigo.
@@ -35,6 +35,16 @@ export const VERSAO_NOME = "Calendário de licenciamento correto";
  * esta lista quer saber o que mudou para ele.
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
+  {
+    versao: "1.15.0",
+    data: "2026-08-24",
+    titulo: "Solicitação de demonstração pela landing page",
+    itens: [
+      "O formulário 'Solicitar demonstração' do site deixou de ser decorativo: antes exibia 'Recebemos sua solicitação' mas não entregava nada a ninguém. Agora ele registra o pedido de acesso de verdade e avisa os administradores",
+      "Quem pede a demonstração informa os dados de cadastro e escolhe quais produtos do Orkiestri One quer testar",
+      "O administrador recebe um e-mail com os dados e os produtos escolhidos, além da notificação no sistema, e aprova o acesso pela tela de Cadastros — que agora mostra os produtos de interesse de cada solicitação",
+    ],
+  },
   {
     versao: "1.14.6",
     data: "2026-08-20",

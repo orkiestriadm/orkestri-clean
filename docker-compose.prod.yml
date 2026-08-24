@@ -40,6 +40,10 @@ services:
       NEXT_TELEMETRY_DISABLED: "1"
       NODE_OPTIONS: "--max-old-space-size=192"
       NEXT_PUBLIC_SITE_URL: "https://www.orkiestri.com"
+      # Solicitação de demonstração encaminhada server-to-server ao backend.
+      BACKEND_INTERNAL_URL: "http://api:3000/api"
+    depends_on:
+      - api
     mem_limit: 256m
     memswap_limit: 256m
     networks:

@@ -9,7 +9,7 @@ type Setor   = { id: string; nome: string; cor?: string; descricao?: string; par
 type User    = { id: string; nome: string; email: string; ativo: boolean; roles: string[]; isMaster: boolean; ultimoLogin?: string; criadoEm: string; cargo?: string; telefone?: string; setor?: Setor; modulos: string[]; };
 type Permission = { id: string; recurso: string; acao: string; descricao?: string; };
 type Role    = { id: string; nome: string; descricao?: string; isMaster: boolean; nivel: number; _count?: { userRoles: number }; rolePermissions?: { permission: Permission }[]; };
-type Solicitacao = { id: string; nome: string; email: string; whatsapp?: string; cargo?: string; departamento?: string; empresa?: string; motivacao?: string; status: string; criado_em: string; };
+type Solicitacao = { id: string; nome: string; email: string; whatsapp?: string; cargo?: string; departamento?: string; empresa?: string; motivacao?: string; produtos?: string[]; status: string; criado_em: string; };
 type OrgItem = {
   id: string; nome: string; slug: string; plano: string; ativo: boolean;
   statusOperacional?: string | null; statusComercial?: string | null;
@@ -2555,6 +2555,14 @@ export default function CadastrosPage() {
                         {s.cargo && <span style={{ display:"flex", alignItems:"center", gap:6 }}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg> {s.cargo}</span>}
                         {s.empresa && <span style={{ display:"flex", alignItems:"center", gap:6 }}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg> {s.empresa}</span>}
                       </div>
+                      {s.produtos && s.produtos.length > 0 && (
+                        <div style={{ display:"flex", flexWrap:"wrap", alignItems:"center", gap:6 }}>
+                          <span style={{ fontSize:12, color:"var(--text-muted)", fontWeight:500 }}>Quer testar:</span>
+                          {s.produtos.map(p => (
+                            <span key={p} style={{ fontSize:11, fontWeight:600, background:"#fff7ed", color:"#9a3412", padding:"3px 9px", borderRadius:6, border:"1px solid #fed7aa" }}>{p}</span>
+                          ))}
+                        </div>
+                      )}
                       {s.motivacao && (
                         <div style={{ padding:"12px 16px", background:"var(--bg-hover)", borderRadius:8, borderLeft:"3px solid var(--border-subtle)" }}>
                           <p style={{ fontSize:13, color:"var(--text-secondary)", fontStyle:"italic", margin:0 }}>"{s.motivacao}"</p>

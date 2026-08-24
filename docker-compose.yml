@@ -216,6 +216,12 @@ services:
     image: orkestri/website:latest
     container_name: orkestri_website
     restart: unless-stopped
+    environment:
+      # A landing page encaminha a solicitação de demonstração para o backend
+      # (server-to-server, dentro da rede). O prefixo /api é global no NestJS.
+      BACKEND_INTERNAL_URL: http://api:3000/api
+    depends_on:
+      - api
     networks:
       - orkestri_net
 

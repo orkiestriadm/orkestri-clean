@@ -1,7 +1,7 @@
 import { Check } from "lucide-react";
 import { PageHero } from "@/components/sections/page-hero";
 import { Container } from "@/components/ui/container";
-import { ContactForm } from "@/components/forms/contact-form";
+import { DemoForm } from "@/components/forms/demo-form";
 import { buildMetadata } from "@/lib/seo";
 
 export const metadata = buildMetadata({
@@ -39,7 +39,7 @@ export default function DemoPage() {
               </li>
             ))}
           </ul>
-          <ContactForm endpoint="/api/demo" />
+          <DemoForm />
         </div>
       </Container>
     </>
