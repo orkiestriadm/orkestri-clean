@@ -10,7 +10,16 @@ const CHAVE_SESSAO = "orkiestri:intro-vista";
 /** Espera máxima por buffer. Passou disso, o login vale mais que a animação. */
 const PACIENCIA_BUFFER_MS = 2500;
 /** Folga sobre a duração do vídeo, caso o evento "ended" não dispare. */
-const FOLGA_APOS_FIM_MS = 1500;
+const FOLGA_APOS_FIM_MS = 1200;
+/**
+ * O vídeo tem 10 segundos — tempo demais para quem só quer entrar no sistema.
+ *
+ * Acelerar em vez de cortar: o corte terminaria no meio da aproximação, e o
+ * login usa justamente o ÚLTIMO quadro como plano de fundo. Assim a animação
+ * inteira acontece em ~4s e ainda congela exatamente onde o fundo do login
+ * começa, que é o efeito pretendido.
+ */
+const VELOCIDADE = 2.4;
 
 /**
  * Abertura em vídeo antes da tela de login.
@@ -57,6 +66,7 @@ export default function EntrarPage() {
 
     // Só toca com buffer suficiente para ir até o fim sem engasgar.
     const tocarQuandoPronto = () => {
+      el.playbackRate = VELOCIDADE;
       el.play().catch(seguir); // autoplay barrado: não faz sentido segurar
     };
     if (el.readyState >= 4) tocarQuandoPronto();
@@ -71,7 +81,10 @@ export default function EntrarPage() {
 
     // Rede 2: teto pela duração real, medida quando os metadados chegam.
     const agendarTeto = () => {
-      const ms = (el.duration || 10) * 1000 + FOLGA_APOS_FIM_MS;
+      // Dividido pela velocidade: sem isso o teto seria de 11s para uma
+      // animação que agora dura 4, e a rede de segurança nunca alcançaria uma
+      // falha do evento "ended".
+      const ms = ((el.duration || 10) / VELOCIDADE) * 1000 + FOLGA_APOS_FIM_MS;
       temporizadores.current.push(window.setTimeout(seguir, ms));
     };
     if (el.readyState >= 1) agendarTeto();
@@ -94,7 +107,7 @@ export default function EntrarPage() {
       <link rel="prefetch" href="/branding/planeta.jpg" as="image" />
       {/* Última rede: avança mesmo que o JavaScript não execute, para ninguém
           ficar preso na abertura a caminho do login. */}
-      <meta httpEquiv="refresh" content="13;url=/login" />
+      <meta httpEquiv="refresh" content="7;url=/login" />
 
       <video
         ref={video}

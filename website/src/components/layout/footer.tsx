@@ -4,6 +4,7 @@ import { Container } from "@/components/ui/container";
 import { Logo } from "./logo";
 import { footerNav } from "@/config/navigation";
 import { siteConfig } from "@/config/site";
+import { VERSAO_SITE, VERSAO_SITE_DATA } from "@/lib/version";
 
 const socials = [
   { label: "LinkedIn", href: siteConfig.social.linkedin, icon: Linkedin },
@@ -68,7 +69,14 @@ export function Footer() {
             © {new Date().getFullYear()} {siteConfig.legalName}. Todos os
             direitos reservados.
           </p>
-          <p>Engineering Business Growth.</p>
+          <p className="flex items-center gap-2">
+            Engineering Business Growth.
+            {/* Versão discreta: serve de referência ao relatar problema, sem
+                disputar atenção com o conteúdo do rodapé. */}
+            <span className="text-gray-300" title={"Site " + VERSAO_SITE + " · " + VERSAO_SITE_DATA}>
+              v{VERSAO_SITE}
+            </span>
+          </p>
         </div>
       </Container>
     </footer>
