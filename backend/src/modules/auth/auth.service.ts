@@ -866,6 +866,8 @@ export class AuthService implements OnModuleInit {
     tipoVinculo?: string;
     perfilRoleId?: string | null;
     matricula?: string;
+    // Aprovação rápida (notificação): senha padrão 123@mudar em vez de aleatória.
+    senhaPadrao?: boolean;
   }, requestUser: any) {
     if (!this.canManageRequests(requestUser)) throw new ForbiddenException("Acesso negado.");
     const req = await (this.prisma as any).userRequest.findUnique({ where: { id } });
@@ -876,8 +878,16 @@ export class AuthService implements OnModuleInit {
       throw new ForbiddenException("Solicitação pertence a outra organização.");
     }
 
-    const chars = "abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789!@#$";
-    const tempPassword = Array.from({ length: 12 }, () => chars[Math.floor(Math.random() * chars.length)]).join("") + "A1!";
+    // Senha: padrão fixa (123@mudar) na aprovação rápida pela notificação, ou
+    // aleatória no fluxo detalhado de Cadastros. O `primeiroAcesso: true` abaixo
+    // obriga a troca no primeiro login nos dois casos, então a fixa não fica no ar.
+    let tempPassword: string;
+    if (dto.senhaPadrao) {
+      tempPassword = "123@mudar";
+    } else {
+      const chars = "abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789!@#$";
+      tempPassword = Array.from({ length: 12 }, () => chars[Math.floor(Math.random() * chars.length)]).join("") + "A1!";
+    }
     const senhaHash = await bcrypt.hash(tempPassword, 12);
 
     // Role a aplicar: o que o admin escolheu, ou fallback para técnico/analista

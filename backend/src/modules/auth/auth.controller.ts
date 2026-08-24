@@ -3,7 +3,7 @@ import {
   UseGuards, HttpCode, HttpException, HttpStatus,
 } from "@nestjs/common";
 import { AuthGuard } from "@nestjs/passport";
-import { IsArray, IsEmail, IsNumber, IsOptional, IsString, MinLength } from "class-validator";
+import { IsArray, IsBoolean, IsEmail, IsNumber, IsOptional, IsString, MinLength } from "class-validator";
 import { Response } from "express";
 import { AuthService } from "./auth.service";
 import { CacheService } from "../cache/cache.service";
@@ -42,6 +42,9 @@ class AprovarDto {
   @IsOptional() @IsString() senioridade?: string;
   @IsOptional() @IsString() tipoVinculo?: string;
   @IsOptional() @IsNumber() jornadaHorasDia?: number;
+  // Aprovação rápida (pela notificação): usa a senha padrão 123@mudar em vez de
+  // uma senha aleatória. O usuário é obrigado a trocá-la no primeiro acesso.
+  @IsOptional() @IsBoolean() senhaPadrao?: boolean;
 }
 
 class RejeitarDto {

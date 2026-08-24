@@ -19,6 +19,7 @@ const TIPO_META: Record<string, { icon: string; color: string; label: string }> 
   task_atribuida:   { icon: "check",    color: "var(--accent-green)",  label: "Task"        },
   resposta_convite: { icon: "reply",    color: "var(--accent-violet)", label: "Resposta"    },
   reset_senha:      { icon: "key",      color: "var(--accent-amber)",  label: "Senha"       },
+  solicitacao_acesso:{ icon: "users",   color: "var(--accent-amber)",  label: "Acesso"      },
   teste:            { icon: "bell",     color: "var(--accent-cyan)",   label: "Teste"       },
 };
 
@@ -51,6 +52,7 @@ export default function NotificationBell() {
   const [notifs,  setNotifs]  = useState<Notif[]>([]);
   const [open,    setOpen]    = useState(false);
   const [responding, setResponding] = useState<string | null>(null);
+  const [flash, setFlash] = useState<{ tone: "ok" | "err"; text: string } | null>(null);
   const ref = useRef<HTMLDivElement>(null);
   const esRef = useRef<EventSource | null>(null);
 
@@ -131,8 +133,44 @@ export default function NotificationBell() {
     }
   };
 
+  // Solicitações de acesso: aprova (cria o usuário com a senha padrão 123@mudar
+  // e envia as credenciais por WhatsApp e e-mail) ou reprova, direto da
+  // notificação. O `referenciaId` é o id da solicitação (user_request).
+  const respondAcesso = async (notif: Notif, acao: "aprovar" | "reprovar") => {
+    if (!notif.referenciaId) return;
+    setResponding(notif.id + acao);
+    setFlash(null);
+    try {
+      if (acao === "aprovar") {
+        const { data } = await api.patch(
+          `/auth/solicitacoes/${notif.referenciaId}/aprovar`,
+          { senhaPadrao: true },
+        );
+        const canais = [
+          data?.entregaWhatsapp ? "WhatsApp" : null,
+          data?.entregaEmail ? "e-mail" : null,
+        ].filter(Boolean);
+        setFlash({
+          tone: "ok",
+          text: canais.length
+            ? `Acesso criado. Credenciais enviadas por ${canais.join(" e ")}.`
+            : "Acesso criado, mas não foi possível enviar as credenciais — envie manualmente.",
+        });
+      } else {
+        await api.patch(`/auth/solicitacoes/${notif.referenciaId}/rejeitar`, { motivo: "" });
+        setFlash({ tone: "ok", text: "Solicitação reprovada." });
+      }
+      await markRead(notif.id);
+    } catch (e: any) {
+      setFlash({ tone: "err", text: e?.response?.data?.message || "Não foi possível processar a solicitação." });
+    } finally {
+      setResponding(null);
+    }
+  };
+
+  const acessos  = notifs.filter(n => n.tipo === "solicitacao_acesso");
   const invites  = notifs.filter(n => INVITE_TIPOS.includes(n.tipo));
-  const regular  = notifs.filter(n => !INVITE_TIPOS.includes(n.tipo));
+  const regular  = notifs.filter(n => !INVITE_TIPOS.includes(n.tipo) && n.tipo !== "solicitacao_acesso");
   const unread   = notifs.length;
 
   return (
@@ -169,6 +207,12 @@ export default function NotificationBell() {
             )}
           </div>
 
+          {flash && (
+            <div style={{ padding: "10px 16px", fontSize: 12, fontWeight: 500, borderBottom: "1px solid var(--border-subtle)", color: flash.tone === "ok" ? "#34d399" : "#f87171", background: flash.tone === "ok" ? "rgba(52,211,153,0.08)" : "rgba(248,113,113,0.08)" }}>
+              {flash.text}
+            </div>
+          )}
+
           <div style={{ maxHeight: 460, overflowY: "auto" }}>
             {notifs.length === 0 ? (
               <div style={{ padding: "32px 16px", textAlign: "center" }}>
@@ -179,6 +223,64 @@ export default function NotificationBell() {
               </div>
             ) : (
               <>
+                {/* ── Solicitações de acesso ─────────────────────────── */}
+                {acessos.length > 0 && (
+                  <div>
+                    <div style={{ fontSize: 10, fontFamily: "var(--font-mono)", letterSpacing: "0.1em", color: "var(--text-muted)", padding: "10px 16px 4px", background: "rgba(245,158,11,0.05)", borderBottom: "1px solid var(--border-subtle)" }}>
+                      SOLICITAÇÕES DE ACESSO — {acessos.length}
+                    </div>
+                    {acessos.map((n, i) => {
+                      const meta = TIPO_META[n.tipo] || { icon: "users", color: "var(--accent-amber)", label: "Acesso" };
+                      const isAprovar  = responding === n.id + "aprovar";
+                      const isReprovar = responding === n.id + "reprovar";
+                      const isBusy     = isAprovar || isReprovar;
+                      return (
+                        <div key={n.id} style={{ padding: "12px 16px", borderBottom: i < acessos.length - 1 ? "1px solid var(--border-subtle)" : "none", background: "rgba(245,158,11,0.03)" }}>
+                          <div style={{ display: "flex", gap: 10, marginBottom: 10 }}>
+                            <div style={{ width: 34, height: 34, borderRadius: 9, background: `${meta.color}18`, border: `1px solid ${meta.color}35`, display: "flex", alignItems: "center", justifyContent: "center", color: meta.color, flexShrink: 0 }}>
+                              <Icon name={meta.icon} />
+                            </div>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
+                                <span style={{ fontSize: 10, fontFamily: "var(--font-mono)", color: meta.color, background: `${meta.color}18`, padding: "1px 6px", borderRadius: 4 }}>{meta.label.toUpperCase()}</span>
+                                <span style={{ fontSize: 10, color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>{timeAgo(n.criadoEm)}</span>
+                              </div>
+                              <div style={{ fontSize: 13, fontWeight: 500, color: "var(--text-primary)", lineHeight: 1.35 }}>{n.titulo}</div>
+                              {n.mensagem && <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>{n.mensagem}</div>}
+                            </div>
+                          </div>
+                          <div style={{ display: "flex", gap: 8 }}>
+                            <button
+                              disabled={isBusy}
+                              onClick={() => respondAcesso(n, "aprovar")}
+                              style={{ flex: 1, padding: "7px 0", borderRadius: 7, border: "1px solid rgba(52,211,153,0.4)", background: isAprovar ? "rgba(52,211,153,0.25)" : "rgba(52,211,153,0.1)", color: "#34d399", fontSize: 12, fontWeight: 600, cursor: isBusy ? "default" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, transition: "all 0.15s" }}
+                            >
+                              {isAprovar ? (
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ animation: "spin 1s linear infinite" }}><path d="M21 12a9 9 0 11-6.219-8.56" strokeLinecap="round"/></svg>
+                              ) : (
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M20 6L9 17l-5-5" strokeLinecap="round"/></svg>
+                              )}
+                              Aprovar
+                            </button>
+                            <button
+                              disabled={isBusy}
+                              onClick={() => respondAcesso(n, "reprovar")}
+                              style={{ flex: 1, padding: "7px 0", borderRadius: 7, border: "1px solid rgba(248,113,113,0.4)", background: isReprovar ? "rgba(248,113,113,0.25)" : "rgba(248,113,113,0.1)", color: "#f87171", fontSize: 12, fontWeight: 600, cursor: isBusy ? "default" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, transition: "all 0.15s" }}
+                            >
+                              {isReprovar ? (
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ animation: "spin 1s linear infinite" }}><path d="M21 12a9 9 0 11-6.219-8.56" strokeLinecap="round"/></svg>
+                              ) : (
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                              )}
+                              Reprovar
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
                 {/* ── Convites pendentes ─────────────────────────────── */}
                 {invites.length > 0 && (
                   <div>
@@ -243,7 +345,7 @@ export default function NotificationBell() {
                 {/* ── Outras notificacoes ────────────────────────────── */}
                 {regular.length > 0 && (
                   <div>
-                    {invites.length > 0 && (
+                    {(invites.length > 0 || acessos.length > 0) && (
                       <div style={{ fontSize: 10, fontFamily: "var(--font-mono)", letterSpacing: "0.1em", color: "var(--text-muted)", padding: "10px 16px 4px", borderBottom: "1px solid var(--border-subtle)" }}>
                         INFORMACOES
                       </div>

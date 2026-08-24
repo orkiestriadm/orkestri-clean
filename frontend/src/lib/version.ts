@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "1.15.0";
+export const VERSAO = "1.16.0";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -26,7 +26,7 @@ export const VERSAO = "1.15.0";
 export const VERSAO_DATA = "2026-08-24";
 
 /** Nome da entrega, para dar contexto ao número. */
-export const VERSAO_NOME = "Solicitação de demonstração pela landing page";
+export const VERSAO_NOME = "Aprovar acesso direto na notificação";
 
 /**
  * Histórico exibido na tela Sobre, do mais recente para o mais antigo.
@@ -35,6 +35,16 @@ export const VERSAO_NOME = "Solicitação de demonstração pela landing page";
  * esta lista quer saber o que mudou para ele.
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
+  {
+    versao: "1.16.0",
+    data: "2026-08-24",
+    titulo: "Aprovar acesso direto na notificação",
+    itens: [
+      "A notificação de nova solicitação de acesso passou a ter os botões Aprovar e Reprovar. Aprovar cria o usuário na hora, com os dados que a pessoa informou no site e o perfil padrão",
+      "As credenciais de acesso (e-mail e senha) são enviadas por WhatsApp para o número que a pessoa cadastrou, além do e-mail",
+      "A senha inicial é 123@mudar e o sistema exige a troca no primeiro acesso",
+    ],
+  },
   {
     versao: "1.15.0",
     data: "2026-08-24",
