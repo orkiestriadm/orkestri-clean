@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "1.16.2";
+export const VERSAO = "1.16.3";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -26,7 +26,7 @@ export const VERSAO = "1.16.2";
 export const VERSAO_DATA = "2026-08-24";
 
 /** Nome da entrega, para dar contexto ao número. */
-export const VERSAO_NOME = "WhatsApp num lugar só";
+export const VERSAO_NOME = "Excluir usuário reflete na hora";
 
 /**
  * Histórico exibido na tela Sobre, do mais recente para o mais antigo.
@@ -35,6 +35,14 @@ export const VERSAO_NOME = "WhatsApp num lugar só";
  * esta lista quer saber o que mudou para ele.
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
+  {
+    versao: "1.16.3",
+    data: "2026-08-25",
+    titulo: "Excluir usuário reflete na hora",
+    itens: [
+      "Excluir (ou editar/ativar) um usuário passou a atualizar a lista imediatamente. Antes o usuário era removido de verdade, mas continuava aparecendo na tela por até 1 minuto — a lista em cache não era limpa corretamente (a chave incluía a organização e a limpeza não batia)",
+    ],
+  },
   {
     versao: "1.16.2",
     data: "2026-08-25",

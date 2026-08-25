@@ -248,7 +248,7 @@ class UsersController {
       } as any,
       include: { userRoles: { include: { role: true } }, profile: { include: { setor: true } } },
     });
-    await this.cache.del(CACHE_USERS_LIST, `${CACHE_USERS_LIST}:true`, `${CACHE_USERS_LIST}:0`);
+    await this.cache.delPattern(`${CACHE_USERS_LIST}:*`);
     this.webhook.fire("usuario.criado", {
       id: user.id, nome: user.nome, email: user.email,
       cargo: dto.cargo || null, criadoEm: user.criadoEm,
@@ -283,7 +283,11 @@ class UsersController {
       update: { cargo: dto.cargo, telefone: dto.telefone, ...(dto.setorId !== undefined && { setorId: dto.setorId || null }) },
       create: { userId: id, cargo: dto.cargo, telefone: dto.telefone, setorId: dto.setorId || null },
     });
-    await this.cache.del(CACHE_USER(id), CACHE_USERS_LIST, `${CACHE_USERS_LIST}:true`, `${CACHE_USERS_LIST}:0`);
+    await this.cache.del(CACHE_USER(id));
+    // A lista é cacheada por `${CACHE_USERS_LIST}:${orgId}:${incluirMaster}` — o
+    // orgId no meio fazia as chaves fixas antigas nunca baterem, e a exclusão/
+    // edição só "aparecia" após o TTL de 60s. delPattern limpa todas as variantes.
+    await this.cache.delPattern(`${CACHE_USERS_LIST}:*`);
     return this.findOne(id, req);
   }
 
@@ -315,7 +319,11 @@ class UsersController {
     if (id === req.user.id) throw new BadRequestException("Voce nao pode desativar sua propria conta");
     const user = await acharNaOrganizacao(this.prisma.user, id, req, "Usuario nao encontrado");
     const updated = await this.prisma.user.update({ where: { id }, data: { ativo: !user.ativo } });
-    await this.cache.del(CACHE_USER(id), CACHE_USERS_LIST, `${CACHE_USERS_LIST}:true`, `${CACHE_USERS_LIST}:0`);
+    await this.cache.del(CACHE_USER(id));
+    // A lista é cacheada por `${CACHE_USERS_LIST}:${orgId}:${incluirMaster}` — o
+    // orgId no meio fazia as chaves fixas antigas nunca baterem, e a exclusão/
+    // edição só "aparecia" após o TTL de 60s. delPattern limpa todas as variantes.
+    await this.cache.delPattern(`${CACHE_USERS_LIST}:*`);
     return { message: updated.ativo ? "Usuario ativado" : "Usuario desativado", ativo: updated.ativo };
   }
 
@@ -374,7 +382,11 @@ class UsersController {
       throw e;
     }
 
-    await this.cache.del(CACHE_USER(id), CACHE_USERS_LIST, `${CACHE_USERS_LIST}:true`, `${CACHE_USERS_LIST}:0`);
+    await this.cache.del(CACHE_USER(id));
+    // A lista é cacheada por `${CACHE_USERS_LIST}:${orgId}:${incluirMaster}` — o
+    // orgId no meio fazia as chaves fixas antigas nunca baterem, e a exclusão/
+    // edição só "aparecia" após o TTL de 60s. delPattern limpa todas as variantes.
+    await this.cache.delPattern(`${CACHE_USERS_LIST}:*`);
     return { message: "Usuario removido permanentemente" };
   }
 }
@@ -426,7 +438,7 @@ class UsersCsvController {
       }
     }
 
-    await this.cache.del(CACHE_USERS_LIST, `${CACHE_USERS_LIST}:true`, `${CACHE_USERS_LIST}:0`);
+    await this.cache.delPattern(`${CACHE_USERS_LIST}:*`);
     return { ...results, total: lines.length - 1 };
   }
 }
