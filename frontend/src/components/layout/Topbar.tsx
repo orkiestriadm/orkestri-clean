@@ -1,11 +1,12 @@
 "use client";
 import { useState } from "react";
 import { usePathname } from "next/navigation";
-import { Menu, Search, Focus, CalendarClock } from "lucide-react";
+import { Menu, Search, Focus, CalendarClock, HelpCircle } from "lucide-react";
 import ThemeToggle from "@/components/ui/ThemeToggle";
 import PasswordRequests from "@/components/ui/PasswordRequests";
 import NotificationBell from "@/components/ui/NotificationBell";
 import FocusMode from "@/components/ui/FocusMode";
+import HelpModal from "@/components/ui/HelpModal";
 import { useAuthStore } from "@/lib/store";
 import { api } from "@/lib/api";
 import { NAV } from "@/lib/modules";
@@ -95,6 +96,7 @@ export default function Topbar({ children }: { children?: React.ReactNode }) {
   const { user } = useAuthStore();
   const meta = tituloDaRota(path);
   const [focusOpen, setFocusOpen] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
   const [exitingImpersonation, setExitingImpersonation] = useState(false);
 
   const exitImpersonation = async () => {
@@ -141,6 +143,14 @@ export default function Topbar({ children }: { children?: React.ReactNode }) {
           <div className="w-[1px] h-4 bg-[var(--border-subtle)] mx-1 hidden sm:block" />
 
           <button
+            onClick={() => setHelpOpen(true)}
+            title="Fale Conosco"
+            className="inline-flex items-center gap-1.5 h-[34px] px-2.5 sm:px-3 rounded-[10px] border border-[var(--accent-violet,#f97316)]/60 text-[var(--accent-violet,#f97316)] text-[13px] font-medium transition-colors hover:bg-[var(--accent-violet,#f97316)]/10">
+            <HelpCircle size={15} />
+            <span className="hidden sm:inline">Ajuda</span>
+          </button>
+
+          <button
             className="btn-icon"
             title="Modo Foco" onClick={() => setFocusOpen(true)}>
             <Focus size={15} />
@@ -159,6 +169,7 @@ export default function Topbar({ children }: { children?: React.ReactNode }) {
       </header>
 
       {focusOpen && <FocusMode onClose={() => setFocusOpen(false)} />}
+      <HelpModal open={helpOpen} onClose={() => setHelpOpen(false)} />
     </>
   );
 }

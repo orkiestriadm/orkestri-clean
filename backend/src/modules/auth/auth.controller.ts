@@ -90,6 +90,10 @@ class ConfirmarTrialDto {
   @IsString() codigo: string;
 }
 
+class AjudaDto {
+  @IsString() mensagem: string;
+}
+
 class PrimeiroAcessoDto {
   @IsString() @MinLength(8) novaSenha: string;
 }
@@ -236,6 +240,17 @@ export class AuthController {
   @UseGuards(AuthGuard("jwt"))
   listarTrials(@Req() req: any) {
     return this.auth.listTrials(req.user);
+  }
+
+  // "Fale Conosco": qualquer usuário logado (inclusive em primeiro acesso) pode
+  // pedir ajuda ao admin.
+  @Post("ajuda")
+  @UseGuards(AuthGuard("jwt"))
+  @SkipFirstAccessGuard()
+  @HttpCode(200)
+  async ajuda(@Body() dto: AjudaDto, @Req() req: any) {
+    await this.enforceRate(req, "ajuda", 10, 3600);
+    return this.auth.enviarAjuda(req.user, dto.mensagem);
   }
 
   @Patch("solicitacoes/:id/aprovar")

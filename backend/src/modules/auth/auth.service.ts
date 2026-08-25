@@ -575,6 +575,18 @@ export class AuthService implements OnModuleInit {
 
     if (user.userRoles.some(ur => ur.role.isMaster)) {
       result = ["*"];
+    } else if ((user as any).isTrial) {
+      // Acesso de teste: enxerga SÓ o módulo que escolheu na landing page, mais
+      // a Visão Geral para pousar. NÃO herda BASE_PERMISSIONS (que dá agenda/keep
+      // a todos) nem papel — este é o único ponto que decide o que o trial vê, e
+      // vale tanto para o menu quanto para a autorização do backend.
+      const recursos = this.TRIAL_PRODUTO_RECURSOS[(user as any).trialModulo || ""] || [];
+      const perms = new Set<string>(["dashboard:ver"]);
+      if (recursos.length) {
+        const permsDb = await this.prisma.permission.findMany({ where: { recurso: { in: recursos } } });
+        for (const p of permsDb) perms.add(`${p.recurso}:${p.acao}`);
+      }
+      result = Array.from(perms);
     } else {
       const perms = new Set<string>(BASE_PERMISSIONS);
       for (const ur of user.userRoles) {
@@ -884,6 +896,33 @@ export class AuthService implements OnModuleInit {
     }));
   }
 
+  /**
+   * "Fale Conosco": um usuário logado manda uma dúvida, que vai por e-mail
+   * (assunto HELP) para master + administradores. Reaproveita o padrão de
+   * destinatários do fluxo de solicitação de acesso.
+   */
+  async enviarAjuda(requestUser: any, mensagem: string) {
+    const msg = (mensagem || "").trim();
+    if (msg.length < 3) throw new BadRequestException("Escreva sua dúvida ou mensagem.");
+    if (msg.length > 2000) throw new BadRequestException("Mensagem muito longa (máximo 2000 caracteres).");
+    const remetente = await this.prisma.user.findUnique({
+      where: { id: requestUser.id }, select: { email: true, nome: true },
+    });
+    const admins = await this.prisma.user.findMany({
+      where: {
+        ativo: true,
+        userRoles: { some: { role: { OR: [{ isMaster: true }, { nome: "administrador" }] } } },
+      },
+      select: { email: true, nome: true },
+    });
+    for (const admin of admins) {
+      this.email
+        .sendHelpToAdmin(admin.email, admin.nome || "administrador", remetente?.email || "", remetente?.nome || "", msg)
+        .catch(() => {});
+    }
+    return { message: "Sua mensagem foi enviada. Em breve entraremos em contato." };
+  }
+
   async approveUserRequest(id: string, dto: {
     nome?: string; email?: string; whatsapp?: string;
     cargo?: string; departamento?: string; empresa?: string;
@@ -1047,21 +1086,22 @@ export class AuthService implements OnModuleInit {
   private readonly TRIAL_DIAS = 7;
   private readonly TRIAL_ORG = "00000000-0000-0000-0000-000000000001";
 
-  // Produto Orkiestri One escolhido no modal -> módulos internos do gating do
-  // Sidebar. NUNCA vazio (vazio = vê TUDO), por isso sempre inclui "relatorios"
-  // como tela inicial. Produto fora do mapa cai no fallback só-relatorios.
-  private readonly TRIAL_PRODUTO_MODULOS: Record<string, string[]> = {
-    "one-desk":     ["chamados", "conhecimento", "relatorios"],
-    "one-projects": ["projetos", "gantt", "relatorios"],
-    "one-space":    ["agenda", "relatorios"],
-    "one-fleet":    ["frota", "relatorios"],
-    "one-assets":   ["ativos", "relatorios"],
-    "one-finance":  ["financeiro", "relatorios"],
-    "one-budget":   ["orcamento", "relatorios"],
-    "one-crm":      ["crm", "relatorios"],
-    "one-observe":  ["monitoramento", "relatorios"],
-    "one-flow":     ["keep", "relatorios"],
-    "one-core":     ["relatorios"],
+  // Produto Orkiestri One escolhido no modal -> RECURSOS de permissão que o
+  // trial ganha (todas as ações desses recursos). É o que `resolvePermissions`
+  // usa para liberar SÓ o módulo escolhido; a Visão Geral (dashboard) é somada
+  // à parte. Produto fora do mapa fica só com a Visão Geral.
+  private readonly TRIAL_PRODUTO_RECURSOS: Record<string, string[]> = {
+    "one-desk":     ["chamados", "conhecimento"],
+    "one-projects": ["projetos", "gantt"],
+    "one-space":    ["agenda"],
+    "one-fleet":    ["frota"],
+    "one-assets":   ["ativos"],
+    "one-finance":  ["financeiro"],
+    "one-budget":   ["orcamento"],
+    "one-crm":      ["crm", "clientes"],
+    "one-observe":  ["monitoramento"],
+    "one-flow":     ["automacoes"],
+    "one-core":     ["configuracoes"],
   };
 
   /**
@@ -1126,7 +1166,9 @@ export class AuthService implements OnModuleInit {
     const role = await this.prisma.role.findFirst({
       where: { organizationId: this.TRIAL_ORG, nome: "visualizador", isMaster: false },
     });
-    const modulos = this.TRIAL_PRODUTO_MODULOS[pend.produto] || ["relatorios"];
+    // Informativo (o gate real é resolvePermissions pelo trialModulo). Guarda os
+    // recursos do produto para a tela refletir o que o trial enxerga.
+    const modulos = this.TRIAL_PRODUTO_RECURSOS[pend.produto] || [];
     const nome = String(email).split("@")[0];
     const userId = require("crypto").randomUUID();
     const expira = new Date(Date.now() + this.TRIAL_DIAS * 24 * 60 * 60 * 1000);

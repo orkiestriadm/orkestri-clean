@@ -306,6 +306,28 @@ export class EmailService {
     );
   }
 
+  /**
+   * Mensagem de ajuda ("Fale Conosco") enviada por um usuário logado. Assunto
+   * fixo HELP para o admin filtrar. O texto é escapado (vem do usuário).
+   */
+  async sendHelpToAdmin(adminEmail: string, adminNome: string, deEmail: string, deNome: string, mensagem: string): Promise<boolean> {
+    const esc = (s: string) => (s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    return this.send(
+      adminEmail,
+      "HELP",
+      this.layout(`
+        <p>Olá, <strong>${esc(adminNome)}</strong>!</p>
+        <p>Um usuário pediu ajuda pelo botão de suporte:</p>
+        <div class="info-box">
+          <div class="info-row"><span class="info-label">De:</span><span class="info-value">${esc(deNome) || "(sem nome)"}</span></div>
+          <div class="info-row"><span class="info-label">E-mail:</span><span class="info-value">${esc(deEmail)}</span></div>
+        </div>
+        <hr class="divider">
+        <p style="white-space:pre-line;font-size:14px;color:#374151;line-height:1.6">${esc(mensagem).replace(/\n/g, "<br>")}</p>
+      `),
+    );
+  }
+
   async sendAccountApproved(toEmail: string, nome: string, senhaTemp: string): Promise<void> {
     await this.send(
       toEmail,

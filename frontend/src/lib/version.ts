@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "1.17.2";
+export const VERSAO = "1.17.3";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -26,7 +26,7 @@ export const VERSAO = "1.17.2";
 export const VERSAO_DATA = "2026-08-24";
 
 /** Nome da entrega, para dar contexto ao número. */
-export const VERSAO_NOME = "Painel de testes para o suporte";
+export const VERSAO_NOME = "Teste vê só o módulo escolhido + botão Ajuda";
 
 /**
  * Histórico exibido na tela Sobre, do mais recente para o mais antigo.
@@ -35,6 +35,15 @@ export const VERSAO_NOME = "Painel de testes para o suporte";
  * esta lista quer saber o que mudou para ele.
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
+  {
+    versao: "1.17.3",
+    data: "2026-08-25",
+    titulo: "Teste vê só o módulo escolhido + botão Ajuda",
+    itens: [
+      "Correção importante: o acesso de teste estava liberando todos os módulos. Agora quem faz o teste enxerga apenas o módulo que escolheu na landing page (mais a Visão Geral) — nada além disso, no menu e nas telas",
+      "Novo botão Ajuda no topo da tela: abre um campo para escrever uma dúvida, que chega por e-mail para o administrador. Pensado para quem está testando, mas disponível para todos",
+    ],
+  },
   {
     versao: "1.17.2",
     data: "2026-08-25",
