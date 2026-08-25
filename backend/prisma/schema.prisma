@@ -253,6 +253,14 @@ model User {
   primeiroAcesso   Boolean   @default(true) @map("primeiro_acesso")
   bloqueado        Boolean   @default(false) @map("bloqueado")
   tentativasFalhas Int       @default(0) @map("tentativas_falhas")
+  // Acesso de teste (trial) criado pela landing page. `isTrial` marca a conta;
+  // `trialExpiraEm` é o teto de 7 dias (login bloqueia depois); `trialModulo` é
+  // o produto Orkiestri One escolhido no modal; `trialAvisadoSuporte` evita
+  // reavisar o suporte todo dia depois que a conta vence.
+  isTrial          Boolean   @default(false) @map("is_trial")
+  trialExpiraEm    DateTime? @map("trial_expira_em")
+  trialModulo      String?   @map("trial_modulo")
+  trialAvisadoSuporte Boolean @default(false) @map("trial_avisado_suporte")
   criadoEm         DateTime  @default(now()) @map("criado_em")
   atualizadoEm     DateTime  @updatedAt @map("atualizado_em")
 

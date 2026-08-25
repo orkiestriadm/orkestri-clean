@@ -620,6 +620,12 @@ export class AuthService implements OnModuleInit {
       if (bloquear) throw new UnauthorizedException("Conta bloqueada após múltiplas tentativas. Contate o Administrador.");
       throw new UnauthorizedException("Credenciais inválidas");
     }
+    // Trial vencido: a senha está certa, mas o teste de 7 dias acabou. Bloqueia
+    // aqui (não desativa a conta) para o suporte ainda ver o registro e fazer o
+    // contato de conversão.
+    if ((user as any).isTrial && (user as any).trialExpiraEm && new Date((user as any).trialExpiraEm).getTime() < Date.now()) {
+      throw new UnauthorizedException("Seu teste de 7 dias expirou. Nossa equipe vai falar com você pelo WhatsApp para liberar o acesso completo.");
+    }
     await this.prisma.user.update({
       where: { id: user.id },
       data: { ultimoLogin: new Date(), tentativasFalhas: 0 } as any,
@@ -1010,6 +1016,157 @@ export class AuthService implements OnModuleInit {
     }
     this.email.sendAccountRejected(req.email, req.nome, reason).catch(() => {});
     return { message: "Solicitação rejeitada." };
+  }
+
+  // ── Acesso de teste (trial de 7 dias, criado pela landing page) ─────────────────
+
+  private readonly TRIAL_DIAS = 7;
+  private readonly TRIAL_ORG = "00000000-0000-0000-0000-000000000001";
+
+  // Produto Orkiestri One escolhido no modal -> módulos internos do gating do
+  // Sidebar. NUNCA vazio (vazio = vê TUDO), por isso sempre inclui "relatorios"
+  // como tela inicial. Produto fora do mapa cai no fallback só-relatorios.
+  private readonly TRIAL_PRODUTO_MODULOS: Record<string, string[]> = {
+    "one-desk":     ["chamados", "conhecimento", "relatorios"],
+    "one-projects": ["projetos", "gantt", "relatorios"],
+    "one-space":    ["agenda", "relatorios"],
+    "one-fleet":    ["frota", "relatorios"],
+    "one-assets":   ["ativos", "relatorios"],
+    "one-finance":  ["financeiro", "relatorios"],
+    "one-budget":   ["orcamento", "relatorios"],
+    "one-crm":      ["crm", "relatorios"],
+    "one-observe":  ["monitoramento", "relatorios"],
+    "one-flow":     ["keep", "relatorios"],
+    "one-core":     ["relatorios"],
+  };
+
+  /**
+   * Passo 1: valida e-mail/WhatsApp, gera um código e envia por WhatsApp. A
+   * pendência (e-mail + produto + código) fica no cache por 10 min — nada é
+   * criado no banco até a confirmação do código.
+   */
+  async iniciarTrial(dto: { email: string; whatsapp: string; produto: string }) {
+    const email = dto.email.trim().toLowerCase();
+    const whatsapp = dto.whatsapp.trim();
+    const digits = whatsapp.replace(/\D/g, "");
+    if (digits.length < 10) throw new BadRequestException("Informe um WhatsApp válido com DDD.");
+
+    const existing = await this.prisma.user.findFirst({ where: { email } });
+    if (existing) throw new BadRequestException("Já existe um acesso com esse e-mail. Faça login ou fale com a nossa equipe.");
+
+    // Um teste ativo por número.
+    const trialAtivo = await this.prisma.user.findFirst({
+      where: { isTrial: true, trialExpiraEm: { gt: new Date() }, profile: { whatsapp } } as any,
+    });
+    if (trialAtivo) throw new BadRequestException("Já existe um teste ativo para este WhatsApp.");
+
+    const code = String(Math.floor(100000 + Math.random() * 900000));
+    await this.cache.set(`trial:otp:${digits}`, { email, produto: dto.produto, code, tentativas: 0 }, 600);
+
+    const inst = await this.wa.resolveInstance(this.TRIAL_ORG).catch(() => undefined);
+    const enviado = await this.wa.sendOtp(whatsapp, code, inst).catch(() => false);
+    if (!enviado) {
+      await this.cache.del(`trial:otp:${digits}`);
+      throw new BadRequestException("Não conseguimos enviar o código no WhatsApp. Confira o número e tente novamente.");
+    }
+    return { message: "Enviamos um código no seu WhatsApp." };
+  }
+
+  /**
+   * Passo 2: confere o código e, se bater, cria o acesso de teste (7 dias, só o
+   * módulo escolhido, senha padrão) e manda as credenciais + boas-vindas por
+   * WhatsApp.
+   */
+  async confirmarTrial(dto: { whatsapp: string; codigo: string }) {
+    const whatsapp = dto.whatsapp.trim();
+    const digits = whatsapp.replace(/\D/g, "");
+    const chave = `trial:otp:${digits}`;
+    const pend: any = await this.cache.get(chave);
+    if (!pend) throw new BadRequestException("Código expirado. Peça um novo.");
+    if ((pend.tentativas || 0) >= 5) {
+      await this.cache.del(chave);
+      throw new BadRequestException("Muitas tentativas. Peça um novo código.");
+    }
+    if (pend.code !== dto.codigo.trim()) {
+      await this.cache.set(chave, { ...pend, tentativas: (pend.tentativas || 0) + 1 }, 600);
+      throw new BadRequestException("Código inválido.");
+    }
+    await this.cache.del(chave);
+
+    const email = pend.email;
+    const existing = await this.prisma.user.findFirst({ where: { email } });
+    if (existing) throw new BadRequestException("Já existe um acesso com esse e-mail.");
+
+    const tempPassword = "123@mudar";
+    const senhaHash = await bcrypt.hash(tempPassword, 12);
+    const role = await this.prisma.role.findFirst({
+      where: { organizationId: this.TRIAL_ORG, nome: "visualizador", isMaster: false },
+    });
+    const modulos = this.TRIAL_PRODUTO_MODULOS[pend.produto] || ["relatorios"];
+    const nome = String(email).split("@")[0];
+    const userId = require("crypto").randomUUID();
+    const expira = new Date(Date.now() + this.TRIAL_DIAS * 24 * 60 * 60 * 1000);
+
+    await this.prisma.user.create({
+      data: {
+        id: userId, nome, email, senhaHash, ativo: true, primeiroAcesso: true,
+        bloqueado: false, tentativasFalhas: 0, organizationId: this.TRIAL_ORG,
+        isTrial: true, trialExpiraEm: expira, trialModulo: pend.produto,
+      } as any,
+    });
+    await this.prisma.userProfile.create({
+      data: {
+        id: require("crypto").randomUUID(), userId, whatsapp,
+        modulos: JSON.stringify(modulos),
+      } as any,
+    });
+    if (role) {
+      await this.prisma.userRole.create({ data: { userId, roleId: role.id } as any });
+    }
+
+    const appUrl = this.config.get("APP_URL", "http://localhost");
+    const inst = await this.wa.resolveInstance(this.TRIAL_ORG).catch(() => undefined);
+    this.wa.sendTrialWelcome(whatsapp, email, tempPassword, appUrl, this.TRIAL_DIAS, inst).catch(() => {});
+    this.email.sendAccountApproved(email, nome, tempPassword).catch(() => {});
+    this.logAudit(userId, "usuarios", "users", userId, "CREATE", `Acesso de teste criado: ${email}`, this.TRIAL_ORG).catch(() => {});
+
+    return { message: "Acesso de teste criado! Enviamos suas credenciais no WhatsApp." };
+  }
+
+  /**
+   * Chamado pelo cron diário: para cada trial vencido ainda não avisado, cria
+   * uma notificação para master+administradores (com o WhatsApp) para o contato
+   * de conversão, e marca como avisado para não repetir. O bloqueio do login já
+   * acontece em `login()`.
+   */
+  async processarTrialsVencidos(): Promise<number> {
+    const vencidos = await this.prisma.user.findMany({
+      where: { isTrial: true, trialAvisadoSuporte: false, trialExpiraEm: { lt: new Date() } } as any,
+      include: { profile: true },
+    });
+    if (vencidos.length === 0) return 0;
+    const admins = await this.prisma.user.findMany({
+      where: {
+        ativo: true,
+        userRoles: { some: { role: { OR: [{ isMaster: true }, { nome: "administrador" }] } } },
+      },
+      select: { id: true },
+    });
+    for (const u of vencidos) {
+      const zap = (u as any).profile?.whatsapp || "(sem número)";
+      for (const admin of admins) {
+        await this.prisma.notification.create({
+          data: {
+            id: require("crypto").randomUUID(), userId: admin.id, tipo: "trial_expirado",
+            titulo: "Teste expirado — contato de conversão",
+            mensagem: `O teste de ${u.email} expirou. Fale pelo WhatsApp ${zap} para efetivar o acesso.`,
+            referenciaTipo: "user", referenciaId: u.id,
+          } as any,
+        });
+      }
+      await this.prisma.user.update({ where: { id: u.id }, data: { trialAvisadoSuporte: true } as any });
+    }
+    return vencidos.length;
   }
 
   // ── Reset de senha via Email ───────────────────────────────────────────────────

@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "1.16.3";
+export const VERSAO = "1.17.0";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -26,7 +26,7 @@ export const VERSAO = "1.16.3";
 export const VERSAO_DATA = "2026-08-24";
 
 /** Nome da entrega, para dar contexto ao número. */
-export const VERSAO_NOME = "Excluir usuário reflete na hora";
+export const VERSAO_NOME = "Acesso de teste de 7 dias (base)";
 
 /**
  * Histórico exibido na tela Sobre, do mais recente para o mais antigo.
@@ -35,6 +35,15 @@ export const VERSAO_NOME = "Excluir usuário reflete na hora";
  * esta lista quer saber o que mudou para ele.
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
+  {
+    versao: "1.17.0",
+    data: "2026-08-25",
+    titulo: "Acesso de teste de 7 dias (base)",
+    itens: [
+      "Base do acesso de teste rápido: a pessoa informa e-mail e WhatsApp, confirma um código enviado no WhatsApp e ganha um acesso de 7 dias a um módulo escolhido, com as credenciais entregues no WhatsApp",
+      "Ao fim dos 7 dias o login é bloqueado com um aviso, e o suporte é notificado para o contato de conversão",
+    ],
+  },
   {
     versao: "1.16.3",
     data: "2026-08-25",

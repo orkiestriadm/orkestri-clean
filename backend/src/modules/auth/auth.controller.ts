@@ -78,6 +78,18 @@ class RedefinirSenhaDto {
   @IsString() @MinLength(8) novaSenha: string;
 }
 
+class IniciarTrialDto {
+  @IsEmail() email: string;
+  @IsString() whatsapp: string;
+  // Slug do produto Orkiestri One escolhido no modal (ex.: "one-fleet").
+  @IsString() produto: string;
+}
+
+class ConfirmarTrialDto {
+  @IsString() whatsapp: string;
+  @IsString() codigo: string;
+}
+
 class PrimeiroAcessoDto {
   @IsString() @MinLength(8) novaSenha: string;
 }
@@ -197,6 +209,21 @@ export class AuthController {
   async solicitarAcesso(@Body() dto: SolicitarAcessoDtoFull, @Req() req: any) {
     await this.enforceRate(req, "solicitar-acesso", 5, 3600);
     return this.auth.createUserRequest(dto);
+  }
+
+  // ── Acesso de teste (trial) pela landing page ─────────────────────────────
+  @Post("trial/iniciar")
+  @HttpCode(200)
+  async trialIniciar(@Body() dto: IniciarTrialDto, @Req() req: any) {
+    await this.enforceRate(req, "trial-iniciar", 5, 3600);
+    return this.auth.iniciarTrial(dto);
+  }
+
+  @Post("trial/confirmar")
+  @HttpCode(200)
+  async trialConfirmar(@Body() dto: ConfirmarTrialDto, @Req() req: any) {
+    await this.enforceRate(req, "trial-confirmar", 10, 3600);
+    return this.auth.confirmarTrial(dto);
   }
 
   @Get("solicitacoes")

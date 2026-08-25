@@ -52,6 +52,7 @@ async function bootstrap() {
   // O frontend lê o cookie csrf_token (não-HttpOnly) e envia como header X-CSRF-Token
   const CSRF_SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
   const CSRF_EXEMPT_PATHS = ["/api/auth/login", "/api/auth/solicitar-acesso", "/api/auth/esqueci-senha",
+    "/api/auth/trial/iniciar", "/api/auth/trial/confirmar",
     "/api/auth/enviar-otp", "/api/auth/verificar-otp", "/api/auth/redefinir-senha",
     "/api/auth/tenant-info", "/api/auth/organizations", "/api/billing/webhook/mp",
     "/api/billing/public/signup", "/health",

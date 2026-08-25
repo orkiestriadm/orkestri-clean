@@ -273,6 +273,16 @@ export class WhatsAppService {
     return this.sendMessage(phone, msg, instanceName);
   }
 
+  /**
+   * Boas-vindas do acesso de teste (trial). Mensagem única, independente do
+   * módulo escolhido — traz as credenciais e enquadra os 7 dias + o contato de
+   * conversão no vencimento.
+   */
+  async sendTrialWelcome(phone: string, email: string, senha: string, appUrl: string, dias: number, instanceName?: string): Promise<boolean> {
+    const msg = `*Bem-vindo à ${MARCA}!* 🎉\n\nSeu acesso de teste está liberado por *${dias} dias*.\n\n🔑 *Login:* ${email}\n🔒 *Senha:* ${senha}\n👉 Entrar: ${appUrl}/login\n_(troque a senha no primeiro acesso)_\n\nAproveite para explorar. Quando os ${dias} dias acabarem, a gente fala com você por aqui mesmo para liberar seu acesso completo. Bom teste! 🚀`;
+    return this.sendMessage(phone, msg, instanceName);
+  }
+
   async sendAccountRejected(phone: string, nome: string, instanceName?: string): Promise<boolean> {
     const msg = `Olá, *${nome}*!\n\nInfelizmente, seu pedido de acesso ao *${MARCA}* foi recusado.\n\nPara mais informações, entre em contato com o administrador do sistema.`;
     return this.sendMessage(phone, msg, instanceName);
