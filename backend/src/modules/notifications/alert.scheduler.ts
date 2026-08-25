@@ -233,9 +233,13 @@ export class AlertScheduler implements OnModuleInit {
             });
           } catch (e: any) { this.logger.error("Notif erro: " + e.message); }
 
-          // WhatsApp — usa a instância da organização do evento (multi-tenant)
+          // WhatsApp — usa a instância da organização do evento (multi-tenant).
+          // Basta ter o número: o antigo opt-in `whatsappAlertas` nascia false e
+          // seu único toggle vivia na aba de WhatsApp de Configurações, que foi
+          // removida — então o lembrete de agenda nunca saía para ninguém. Quem
+          // cadastrou o WhatsApp recebe o lembrete do próprio compromisso.
           const profile = (ev.user as any).profile;
-          if (profile?.whatsapp && profile?.whatsappAlertas) {
+          if (profile?.whatsapp) {
             const body = this.fmt(cfg.mensagem, ev.titulo, horario, appUrl);
             const msg  = `${cfg.emoji} *${MARCA}*\n\n${body}`;
             try {

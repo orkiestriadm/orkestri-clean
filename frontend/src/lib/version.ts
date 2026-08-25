@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "1.17.3";
+export const VERSAO = "1.17.4";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -26,7 +26,7 @@ export const VERSAO = "1.17.3";
 export const VERSAO_DATA = "2026-08-24";
 
 /** Nome da entrega, para dar contexto ao número. */
-export const VERSAO_NOME = "Teste vê só o módulo escolhido + botão Ajuda";
+export const VERSAO_NOME = "Lembrete de agenda por WhatsApp";
 
 /**
  * Histórico exibido na tela Sobre, do mais recente para o mais antigo.
@@ -35,6 +35,14 @@ export const VERSAO_NOME = "Teste vê só o módulo escolhido + botão Ajuda";
  * esta lista quer saber o que mudou para ele.
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
+  {
+    versao: "1.17.4",
+    data: "2026-08-25",
+    titulo: "Lembrete de agenda por WhatsApp",
+    itens: [
+      "Os lembretes de compromissos da Agenda (Space) voltaram a sair por WhatsApp para quem tem o número cadastrado — 60, 15 e 5 minutos antes e na hora. Antes dependiam de um botão que ficava na aba de WhatsApp removida, então não saíam para ninguém",
+    ],
+  },
   {
     versao: "1.17.3",
     data: "2026-08-25",
