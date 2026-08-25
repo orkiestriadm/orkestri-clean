@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import Script from "next/script";
 import { Navbar } from "@/components/layout/navbar";
 import { Footer } from "@/components/layout/footer";
+import { TrialModal } from "@/components/trial/trial-modal";
 import { buildMetadata, organizationSchema } from "@/lib/seo";
 import { siteConfig } from "@/config/site";
 import "./globals.css";
@@ -47,6 +48,7 @@ export default function RootLayout({
         <Navbar />
         <main id="main">{children}</main>
         <Footer />
+        <TrialModal />
       </body>
     </html>
   );

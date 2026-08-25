@@ -5,7 +5,7 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import { X, ChevronDown } from "lucide-react";
 import { Logo } from "./logo";
-import { Button } from "@/components/ui/button";
+import { TrialButton } from "@/components/trial/trial-button";
 import { products } from "@/config/products";
 import { services } from "@/config/services";
 import { cn } from "@/lib/utils";
@@ -117,11 +117,7 @@ export function MobileNav({ onClose }: { onClose: () => void }) {
         </nav>
 
         <div className="flex flex-col gap-2 border-t border-gray-200 p-4">
-          <Button asChild className="w-full">
-            <Link href="/demo" onClick={onClose}>
-              Solicitar demonstração
-            </Link>
-          </Button>
+          <TrialButton className="w-full" onClick={onClose}>Solicitar demonstração</TrialButton>
           <a
             href="/entrar"
             onClick={onClose}

@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "1.17.0";
+export const VERSAO = "1.17.1";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -26,7 +26,7 @@ export const VERSAO = "1.17.0";
 export const VERSAO_DATA = "2026-08-24";
 
 /** Nome da entrega, para dar contexto ao número. */
-export const VERSAO_NOME = "Acesso de teste de 7 dias (base)";
+export const VERSAO_NOME = "Teste grátis direto na landing page";
 
 /**
  * Histórico exibido na tela Sobre, do mais recente para o mais antigo.
@@ -35,6 +35,15 @@ export const VERSAO_NOME = "Acesso de teste de 7 dias (base)";
  * esta lista quer saber o que mudou para ele.
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
+  {
+    versao: "1.17.1",
+    data: "2026-08-25",
+    titulo: "Teste grátis direto na landing page",
+    itens: [
+      "Os botões 'Solicitar demonstração' do site passaram a abrir um cadastro rápido: e-mail, WhatsApp e o módulo que a pessoa quer testar. Confirma um código no WhatsApp e o acesso de 7 dias é criado na hora",
+      "Quem prefere uma demonstração guiada com a equipe continua com o formulário completo, por um link dentro do próprio cadastro rápido",
+    ],
+  },
   {
     versao: "1.17.0",
     data: "2026-08-25",

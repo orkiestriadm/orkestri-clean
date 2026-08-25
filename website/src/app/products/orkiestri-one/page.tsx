@@ -14,6 +14,7 @@ import { IconTile } from "@/components/ui/icon-tile";
 import { Section, SectionHeader } from "@/components/ui/section";
 import { Container } from "@/components/ui/container";
 import { Button } from "@/components/ui/button";
+import { TrialButton } from "@/components/trial/trial-button";
 import { ScreensCarousel } from "@/components/sections/screens-carousel";
 import { ProductsGrid } from "@/components/sections/products-grid";
 import { Reveal } from "@/components/animations/reveal";
@@ -68,9 +69,7 @@ export default function OrkiestriOnePage() {
         ]}
       >
         <div className="flex flex-wrap gap-3">
-          <Button asChild size="lg">
-            <Link href="/demo">Solicitar demonstração</Link>
-          </Button>
+          <TrialButton size="lg">Solicitar demonstração</TrialButton>
           <Button asChild variant="secondary" size="lg">
             <Link href="#aplicacoes">Ver aplicações</Link>
           </Button>

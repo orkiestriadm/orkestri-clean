@@ -268,6 +268,12 @@ export class WhatsAppService {
     return this.sendMessage(phone, msg, instanceName);
   }
 
+  /** Código de verificação do acesso de teste (não é recuperação de senha). */
+  async sendTrialOtp(phone: string, code: string, instanceName?: string): Promise<boolean> {
+    const msg = `*${MARCA}*\n\nSeu código para liberar o acesso de teste é:\n\n*${code}*\n\nDigite-o na tela para começar. Expira em 10 minutos.`;
+    return this.sendMessage(phone, msg, instanceName);
+  }
+
   async sendAccountApproved(phone: string, nome: string, email: string, senha: string, appUrl: string, instanceName?: string): Promise<boolean> {
     const msg = `Olá, *${nome}*!\n\nSeu cadastro no *${MARCA}* foi concluído com sucesso.\n\nAcesse com suas credenciais:\n*E-mail:* ${email}\n*Senha temporária:* ${senha}\n\nAcesse: ${appUrl}/login\n\nVocê deverá alterar sua senha no primeiro acesso.`;
     return this.sendMessage(phone, msg, instanceName);

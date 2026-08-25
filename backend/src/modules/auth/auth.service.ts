@@ -1064,7 +1064,7 @@ export class AuthService implements OnModuleInit {
     await this.cache.set(`trial:otp:${digits}`, { email, produto: dto.produto, code, tentativas: 0 }, 600);
 
     const inst = await this.wa.resolveInstance(this.TRIAL_ORG).catch(() => undefined);
-    const enviado = await this.wa.sendOtp(whatsapp, code, inst).catch(() => false);
+    const enviado = await this.wa.sendTrialOtp(whatsapp, code, inst).catch(() => false);
     if (!enviado) {
       await this.cache.del(`trial:otp:${digits}`);
       throw new BadRequestException("Não conseguimos enviar o código no WhatsApp. Confira o número e tente novamente.");

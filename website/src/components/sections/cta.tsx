@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { TrialButton } from "@/components/trial/trial-button";
 import { Container } from "@/components/ui/container";
 import { VideoBackdrop } from "@/components/ui/video-backdrop";
 import { Reveal } from "@/components/animations/reveal";
@@ -32,9 +33,7 @@ export function CTA({
             </h2>
             <p className="mt-4 text-lg text-gray-300">{text}</p>
             <div className="mt-8 flex flex-wrap justify-center gap-3">
-              <Button asChild size="lg">
-                <Link href="/demo">Solicitar demonstração</Link>
-              </Button>
+              <TrialButton size="lg">Solicitar demonstração</TrialButton>
               <Button
                 asChild
                 size="lg"

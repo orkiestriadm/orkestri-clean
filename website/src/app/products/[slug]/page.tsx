@@ -8,6 +8,7 @@ import { Screenshot } from "@/components/ui/screenshot";
 import { Container } from "@/components/ui/container";
 import { Section, SectionHeader } from "@/components/ui/section";
 import { Button } from "@/components/ui/button";
+import { TrialButton } from "@/components/trial/trial-button";
 import { Badge } from "@/components/ui/badge";
 import { ProductCard } from "@/components/cards/product-card";
 import { Reveal } from "@/components/animations/reveal";
@@ -91,9 +92,7 @@ export default async function ProductPage({
           </div>
         ) : (
           <div className="flex flex-wrap gap-3">
-            <Button asChild size="lg">
-              <Link href="/demo">Solicitar demonstração</Link>
-            </Button>
+            <TrialButton size="lg">Solicitar demonstração</TrialButton>
             <Button asChild variant="secondary" size="lg">
               <Link href="/products/orkiestri-one">Ver a plataforma</Link>
             </Button>

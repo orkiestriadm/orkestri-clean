@@ -7,7 +7,7 @@ import { ChevronDown, Menu } from "lucide-react";
 import { Logo } from "./logo";
 import { ProductsMenu, ServicesMenu } from "./mega-menu";
 import { MobileNav } from "./mobile-nav";
-import { Button } from "@/components/ui/button";
+import { TrialButton } from "@/components/trial/trial-button";
 import { cn } from "@/lib/utils";
 
 const simpleLinks = [
@@ -79,9 +79,7 @@ export function Navbar() {
           >
             Entrar
           </a>
-          <Button asChild size="sm">
-            <Link href="/demo">Solicitar demonstração</Link>
-          </Button>
+          <TrialButton size="sm">Solicitar demonstração</TrialButton>
         </div>
 
         {/* Mobile trigger */}

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { motion, useReducedMotion } from "framer-motion";
 import { ArrowRight, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { TrialButton } from "@/components/trial/trial-button";
 import { Container } from "@/components/ui/container";
 import { HeroVideo } from "./hero-video";
 import { EASE_OUT } from "@/lib/motion";
@@ -96,9 +97,7 @@ export function Hero() {
                   <ArrowRight className="h-5 w-5" aria-hidden />
                 </Link>
               </Button>
-              <Button asChild variant="secondary" size="lg">
-                <Link href="/demo">Solicitar demonstração</Link>
-              </Button>
+              <TrialButton variant="secondary" size="lg">Solicitar demonstração</TrialButton>
             </motion.div>
 
             <motion.ul
