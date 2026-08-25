@@ -10,6 +10,7 @@ type User    = { id: string; nome: string; email: string; ativo: boolean; roles:
 type Permission = { id: string; recurso: string; acao: string; descricao?: string; };
 type Role    = { id: string; nome: string; descricao?: string; isMaster: boolean; nivel: number; _count?: { userRoles: number }; rolePermissions?: { permission: Permission }[]; };
 type Solicitacao = { id: string; nome: string; email: string; whatsapp?: string; cargo?: string; departamento?: string; empresa?: string; motivacao?: string; produtos?: string[]; status: string; criado_em: string; };
+type Trial = { id: string; nome: string; email: string; whatsapp?: string | null; produto?: string | null; trialExpiraEm?: string | null; avisado?: boolean; criadoEm?: string; };
 type OrgItem = {
   id: string; nome: string; slug: string; plano: string; ativo: boolean;
   statusOperacional?: string | null; statusComercial?: string | null;
@@ -1610,7 +1611,7 @@ function SkillForm({ skill, onClose, onSave }: { skill?: Skill; onClose:()=>void
 
 export default function CadastrosPage() {
   const { user: me } = useAuthStore();
-  const [tab,           setTab]          = useState<"usuarios"|"setores"|"papeis"|"solicitacoes"|"matriz"|"organograma"|"organizacoes"|"colaboradores"|"skills"|"ausencias"|"squads">("usuarios");
+  const [tab,           setTab]          = useState<"usuarios"|"setores"|"papeis"|"solicitacoes"|"testes"|"matriz"|"organograma"|"organizacoes"|"colaboradores"|"skills"|"ausencias"|"squads">("usuarios");
   const [roles,         setRoles]        = useState<Role[]>([]);
   const [allPerms,      setAllPerms]     = useState<Permission[]>([]);
   const [modalRole,     setModalRole]    = useState<Role|"novo"|null>(null);
@@ -1619,6 +1620,7 @@ export default function CadastrosPage() {
   const [users,         setUsers]        = useState<User[]>([]);
   const [setores,       setSetores]      = useState<Setor[]>([]);
   const [solicitacoes,  setSolicitacoes] = useState<Solicitacao[]>([]);
+  const [trials,        setTrials]       = useState<Trial[]>([]);
   const [modalAprovar,  setModalAprovar] = useState<Solicitacao|null>(null);
   const [aprovarForm,   setAprovarForm]  = useState<{
     nome:string;email:string;whatsapp:string;cargo:string;departamento:string;empresa:string;
@@ -1692,6 +1694,7 @@ export default function CadastrosPage() {
       const podeVerSolicitacoes = me?.isMaster || me?.permissions?.includes("*") || me?.permissions?.includes("usuarios:criar");
       if (podeVerSolicitacoes) {
         try { const sRes2 = await api.get("/auth/solicitacoes"); setSolicitacoes(sRes2.data); } catch {}
+        try { const tRes = await api.get("/auth/trials"); setTrials(tRes.data); } catch {}
       }
       try { const coRes = await api.get("/collaborators"); setCollabs(coRes.data); } catch {}
       try { const skRes = await api.get("/skills"); setSkills(skRes.data); } catch {}
@@ -1792,6 +1795,7 @@ export default function CadastrosPage() {
           { key:"papeis",         label:"Papeis",        count:roles.length },
           { key:"matriz",         label:"Matriz",        count:0 },
           ...((me?.isMaster || me?.permissions?.includes("*") || me?.permissions?.includes("usuarios:criar")) ? [{ key:"solicitacoes", label:"Solicitacoes", count:solicitacoes.filter(s=>s.status==="PENDENTE").length }] : []),
+          ...((me?.isMaster || me?.permissions?.includes("*") || me?.permissions?.includes("usuarios:criar")) ? [{ key:"testes", label:"Testes", count:trials.length }] : []),
           { key:"colaboradores", label:"Colaboradores", count:collabs.length },
           { key:"skills",        label:"Skills",        count:skills.length },
           { key:"ausencias",     label:"Ausencias",     count:ausencias.filter(a=>a.status==="PENDENTE").length },
@@ -2527,6 +2531,52 @@ export default function CadastrosPage() {
         })()}
 
         {/* ── ABA SOLICITACOES ── */}
+        {tab==="testes" && (
+          <div className="animate-fade-in" style={{ display:"flex", flexDirection:"column", gap:16 }}>
+            <p style={{ fontSize:13, color:"var(--text-muted)", marginBottom:8 }}>
+              Acessos de teste de 7 dias criados pela landing page. Fale pelo WhatsApp para converter em assinatura antes ou logo após o vencimento.
+            </p>
+            {loading ? (
+              <div style={{ display:"flex", alignItems:"center", justifyContent:"center", padding:60, gap:12 }}><Spin/><span style={{ color:"var(--text-muted)", fontSize:14 }}>Carregando...</span></div>
+            ) : trials.length===0 ? (
+              <div className="empty-state card" style={{ padding:60, borderRadius:16, border:"1px solid var(--border-subtle)", boxShadow:"0 4px 24px rgba(0,0,0,0.02)" }}>
+                <p style={{ color:"var(--text-secondary)", fontSize:15, fontWeight:500 }}>Nenhum acesso de teste no momento</p>
+              </div>
+            ) : trials.map(t => {
+              const exp = t.trialExpiraEm ? new Date(t.trialExpiraEm) : null;
+              const diffMs = exp ? exp.getTime() - Date.now() : 0;
+              const dias = Math.ceil(diffMs / 86400000);
+              const vencido = diffMs <= 0;
+              const cor = vencido ? "#f87171" : dias <= 2 ? "#f59e0b" : "#34d399";
+              const rotulo = vencido ? "Vencido" : `${dias} dia${dias===1?"":"s"} restante${dias===1?"":"s"}`;
+              const digits = (t.whatsapp||"").replace(/\D/g,"");
+              const zap = digits ? (digits.startsWith("55") ? digits : "55"+digits) : "";
+              return (
+                <div key={t.id} className="card" style={{ padding:"18px 22px", borderRadius:16, border:"1px solid var(--border-subtle)", boxShadow:"0 4px 24px rgba(0,0,0,0.02)" }}>
+                  <div style={{ display:"flex", alignItems:"center", gap:16, flexWrap:"wrap" }}>
+                    <div style={{ flex:1, minWidth:220, display:"flex", flexDirection:"column", gap:5 }}>
+                      <div style={{ display:"flex", alignItems:"center", gap:10, flexWrap:"wrap" }}>
+                        <span style={{ fontSize:15, fontWeight:600, color:"var(--text-primary)" }}>{t.nome}</span>
+                        {t.produto && <span style={{ fontSize:11, fontWeight:600, background:"#fff7ed", color:"#9a3412", padding:"2px 8px", borderRadius:6, border:"1px solid #fed7aa" }}>{t.produto}</span>}
+                        {t.avisado && <span style={{ fontSize:10, color:"var(--text-muted)", fontFamily:"var(--font-mono)" }}>suporte avisado</span>}
+                      </div>
+                      <div style={{ fontSize:13, color:"var(--text-secondary)" }}>{t.email}</div>
+                      {t.whatsapp && <div style={{ fontSize:12, color:"var(--text-muted)", fontFamily:"var(--font-mono)" }}>{t.whatsapp}</div>}
+                    </div>
+                    <span style={{ fontSize:12, fontWeight:700, background:cor+"18", color:cor, padding:"5px 12px", borderRadius:8, border:`1px solid ${cor}35`, whiteSpace:"nowrap" }}>{rotulo}</span>
+                    {zap && (
+                      <a href={`https://wa.me/${zap}`} target="_blank" rel="noreferrer" className="btn btn-violet" style={{ fontSize:13, padding:"8px 16px", borderRadius:8, fontWeight:500, display:"inline-flex", alignItems:"center", gap:6, textDecoration:"none" }}>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M17.5 14.4c-.3-.1-1.7-.9-2-1-.3-.1-.5-.1-.7.1-.2.3-.7 1-.9 1.1-.2.2-.3.2-.6.1-.3-.1-1.2-.5-2.3-1.4-.9-.8-1.4-1.7-1.6-2-.2-.3 0-.5.1-.6.1-.1.3-.3.4-.5.1-.2.2-.3.3-.5 0-.2 0-.4 0-.5 0-.1-.7-1.6-.9-2.2-.2-.6-.5-.5-.7-.5h-.6c-.2 0-.5.1-.7.3-.3.3-1 1-1 2.4s1 2.8 1.2 3c.1.2 2 3.1 4.9 4.3.7.3 1.2.5 1.6.6.7.2 1.3.2 1.8.1.5-.1 1.7-.7 1.9-1.4.2-.7.2-1.2.2-1.4-.1-.1-.3-.2-.6-.3z"/></svg>
+                        Falar
+                      </a>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
         {tab==="solicitacoes" && (
           <div className="animate-fade-in" style={{ display:"flex", flexDirection:"column", gap:16 }}>
             <p style={{ fontSize:13, color:"var(--text-muted)", marginBottom:8 }}>

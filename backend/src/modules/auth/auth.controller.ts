@@ -232,6 +232,12 @@ export class AuthController {
     return this.auth.listUserRequests(req.user);
   }
 
+  @Get("trials")
+  @UseGuards(AuthGuard("jwt"))
+  listarTrials(@Req() req: any) {
+    return this.auth.listTrials(req.user);
+  }
+
   @Patch("solicitacoes/:id/aprovar")
   @UseGuards(AuthGuard("jwt"))
   aprovarSolicitacao(@Param("id") id: string, @Body() dto: AprovarDto, @Req() req: any) {

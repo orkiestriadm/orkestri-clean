@@ -860,6 +860,30 @@ export class AuthService implements OnModuleInit {
     });
   }
 
+  /**
+   * Lista os acessos de teste (trials) para o painel do suporte: pipeline de
+   * conversão, com o WhatsApp para o contato humano. Ordena pelo vencimento
+   * (os que vencem antes primeiro). Master de tenant só vê os da própria org.
+   */
+  async listTrials(requestUser: any) {
+    if (!this.canManageRequests(requestUser)) throw new ForbiddenException("Acesso negado.");
+    const where: any = { isTrial: true };
+    if (!requestUser.isSuperAdmin) where.organizationId = requestUser.organizationId;
+    const users = await this.prisma.user.findMany({
+      where, orderBy: { trialExpiraEm: "asc" } as any, include: { profile: true },
+    });
+    return users.map((u: any) => ({
+      id: u.id,
+      nome: u.nome,
+      email: u.email,
+      whatsapp: u.profile?.whatsapp || null,
+      produto: u.trialModulo || null,
+      trialExpiraEm: u.trialExpiraEm,
+      avisado: u.trialAvisadoSuporte,
+      criadoEm: u.criadoEm,
+    }));
+  }
+
   async approveUserRequest(id: string, dto: {
     nome?: string; email?: string; whatsapp?: string;
     cargo?: string; departamento?: string; empresa?: string;
