@@ -24,7 +24,6 @@ const VARS = ["{evento}", "{horario}", "{url}"];
 const TABS = [
   { key:"alertas",       label:"Alertas Visuais" },
   { key:"sons",          label:"Sons" },
-  { key:"whatsapp",      label:"WhatsApp" },
   { key:"solicitacoes",  label:"Solicitacoes de Senha" },
   { key:"historico",     label:"Historico" },
   { key:"sla",           label:"SLA" },
@@ -44,11 +43,6 @@ export default function ConfiguracoesPage() {
   const [requests, setReqs]   = useState<PwdReq[]>([]);
   const [history, setHist]    = useState<NotifHist[]>([]);
   const [volume, setVolume]   = useState(0.5);
-  const [waStatus, setWaSt]   = useState<any>(null);
-  const [qrData, setQrData]   = useState<string|null>(null);
-  const [connecting, setCon]  = useState(false);
-  const [phone, setPhone]     = useState("");
-  const [waOn, setWaOn]       = useState(false);
   const [msg, setMsg]         = useState("");
   const [editId, setEditId]   = useState<string|null>(null);
   const [editD, setEditD]     = useState<Partial<AlertCfg>>({});
@@ -69,22 +63,8 @@ export default function ConfiguracoesPage() {
     api.get("/alert-configs").then(r => setConfigs(r.data)).catch(() => {});
     api.get("/notifications/password-requests").then(r => setReqs(r.data)).catch(() => {});
     api.get("/notifications/history").then(r => setHist(r.data)).catch(() => {});
-    api.get("/notifications/whatsapp/status").then(r => setWaSt(r.data)).catch(() => {});
-    api.get("/notifications/profile/whatsapp").then(r => { setPhone(r.data.whatsapp||""); setWaOn(r.data.whatsappAlertas||false); }).catch(() => {});
     api.get("/sla/regras").then(r => setSlaRegras(r.data)).catch(() => {});
   }, [user]);
-
-  // Poll status WA
-  useEffect(() => {
-    if (tab !== "whatsapp") return;
-    const iv = setInterval(() => {
-      api.get("/notifications/whatsapp/status").then(r => {
-        setWaSt(r.data);
-        if (r.data.connected) setQrData(null);
-      }).catch(() => {});
-    }, 4000);
-    return () => clearInterval(iv);
-  }, [tab]);
 
   const saveCfg = async (id: string, data: Partial<AlertCfg>) => {
     setSaving(true);
@@ -102,40 +82,6 @@ export default function ConfiguracoesPage() {
     await api.post("/notifications/test-alert");
     sounds.notification(volume);
     showMsg("Alerta de teste criado e som tocado!");
-  };
-
-  const testWA = async () => {
-    showMsg("Enviando...");
-    try {
-      const { data } = await api.post("/notifications/test-whatsapp");
-      showMsg(data.ok ? "Mensagem enviada com sucesso!" : "Falha: " + (data.message || "Verifique os logs"), 5000);
-    } catch { showMsg("Erro na requisicao"); }
-  };
-
-  const connectWA = async () => {
-    setCon(true); setQrData(null);
-    try {
-      await api.post("/notifications/whatsapp/connect");
-      await new Promise(r => setTimeout(r, 3000));
-      const { data } = await api.get("/notifications/whatsapp/qrcode");
-      const b64 = data?.qrcode?.base64 || data?.base64;
-      const code = data?.code;
-      if (b64) setQrData("b64:" + b64.replace(/^data:image\/[a-z]+;base64,/, ""));
-      else if (code) setQrData("txt:" + code);
-      else showMsg("QR nao disponivel - tente novamente", 4000);
-    } catch (e: any) { showMsg("Erro: " + e.message); }
-    setCon(false);
-  };
-
-  const disconnectWA = async () => {
-    await api.post("/notifications/whatsapp/disconnect");
-    setWaSt({ connected: false, status: "disconnected" });
-    setQrData(null);
-  };
-
-  const saveWA = async () => {
-    await api.post("/notifications/profile/whatsapp", { whatsapp: phone, whatsappAlertas: waOn });
-    showMsg("Configuracoes salvas!");
   };
 
   const slaShowMsg = (m: string) => { setSlaMsg(m); setTimeout(() => setSlaMsg(""), 3500); };
@@ -177,14 +123,6 @@ export default function ConfiguracoesPage() {
       const { data } = await api.post("/sla/recalcular");
       slaShowMsg(data.message);
     } catch { slaShowMsg("Erro ao recalcular"); }
-  };
-
-  const renderQR = () => {
-    if (!qrData) return null;
-    const src = qrData.startsWith("b64:")
-      ? "data:image/png;base64," + qrData.slice(4)
-      : "https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=" + encodeURIComponent(qrData.slice(4));
-    return <img src={src} alt="QR Code WhatsApp" style={{ width:220, height:220, borderRadius:8, border:"2px solid var(--border-medium)" }} />;
   };
 
   if (!user?.isMaster) return (
@@ -295,53 +233,6 @@ export default function ConfiguracoesPage() {
               ))}
             </div>
             <button className="btn btn-violet" style={{ width:"100%", marginTop:14 }} onClick={()=>sounds.test(volume)}>Testar sequencia completa</button>
-          </div>
-        )}
-
-        {/* WHATSAPP */}
-        {tab === "whatsapp" && (
-          <div style={{ maxWidth:500 }}>
-            <p style={{ fontSize:12, color:"var(--text-muted)", marginBottom:20 }}>Conecte um numero dedicado para enviar alertas automaticos.</p>
-
-            <div className="card" style={{ padding:"16px 20px", marginBottom:14 }}>
-              <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:waStatus?.connected?12:0 }}>
-                <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-                  <div style={{ width:8, height:8, borderRadius:"50%", background:waStatus?.connected?"var(--accent-green)":"var(--accent-red)", boxShadow:"0 0 8px "+(waStatus?.connected?"var(--accent-green)":"var(--accent-red)") }} />
-                  <span style={{ fontSize:13, fontWeight:500, color:"var(--text-primary)" }}>{waStatus?.connected?"Conectado":"Desconectado"}</span>
-                  {waStatus?.status && <span className="badge badge-gray" style={{ fontSize:10 }}>{waStatus.status}</span>}
-                </div>
-                {!waStatus?.connected && <button className="btn btn-violet" style={{ fontSize:12 }} onClick={connectWA} disabled={connecting}>{connecting?<><Spin/> Aguarde...</>:"Conectar"}</button>}
-                {waStatus?.connected && <button className="btn btn-ghost" style={{ fontSize:12 }} onClick={disconnectWA}>Desconectar</button>}
-              </div>
-              {qrData && !waStatus?.connected && (
-                <div style={{ textAlign:"center", paddingTop:12 }}>
-                  <p style={{ fontSize:12, color:"var(--text-muted)", marginBottom:10 }}>WhatsApp &gt; Dispositivos vinculados &gt; Vincular dispositivo:</p>
-                  <div style={{ display:"inline-block", padding:10, background:"white", borderRadius:10, marginBottom:8 }}>{renderQR()}</div>
-                  <p style={{ fontSize:11, color:"var(--accent-violet)", fontFamily:"var(--font-mono)" }}>Aguardando escaneamento...</p>
-                </div>
-              )}
-              {waStatus?.connected && (
-                <div style={{ display:"flex", alignItems:"center", gap:8, background:"rgba(52,211,153,0.06)", border:"1px solid rgba(52,211,153,0.2)", borderRadius:8, padding:"8px 12px" }}>
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--accent-green)" strokeWidth="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-                  <span style={{ fontSize:12, color:"var(--accent-green)" }}>Conectado! Alertas serao enviados automaticamente.</span>
-                </div>
-              )}
-            </div>
-
-            <div className="card" style={{ padding:"16px 20px", display:"flex", flexDirection:"column", gap:12 }}>
-              <div>
-                <label style={{ fontSize:11, color:"var(--text-muted)", fontFamily:"var(--font-mono)", display:"block", marginBottom:6 }}>MEU NUMERO (com DDD)</label>
-                <input className="input-o" placeholder="Ex: 11987654321" value={phone} onChange={e=>setPhone(e.target.value)} />
-              </div>
-              <label style={{ display:"flex", alignItems:"center", gap:8, cursor:"pointer" }}>
-                <input type="checkbox" checked={waOn} onChange={e=>setWaOn(e.target.checked)} style={{ accentColor:"var(--accent-violet)", width:15, height:15 }} />
-                <span style={{ fontSize:13, color:"var(--text-primary)" }}>Ativar alertas no meu WhatsApp</span>
-              </label>
-              <div style={{ display:"flex", gap:8 }}>
-                <button className="btn btn-ghost" style={{ flex:1 }} onClick={testWA}>Enviar mensagem de teste</button>
-                <button className="btn btn-violet" style={{ flex:1 }} onClick={saveWA}>Salvar</button>
-              </div>
-            </div>
           </div>
         )}
 

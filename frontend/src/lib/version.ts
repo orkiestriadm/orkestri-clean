@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "1.16.1";
+export const VERSAO = "1.16.2";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -26,7 +26,7 @@ export const VERSAO = "1.16.1";
 export const VERSAO_DATA = "2026-08-24";
 
 /** Nome da entrega, para dar contexto ao número. */
-export const VERSAO_NOME = "Conexão de WhatsApp volta a funcionar";
+export const VERSAO_NOME = "WhatsApp num lugar só";
 
 /**
  * Histórico exibido na tela Sobre, do mais recente para o mais antigo.
@@ -35,6 +35,15 @@ export const VERSAO_NOME = "Conexão de WhatsApp volta a funcionar";
  * esta lista quer saber o que mudou para ele.
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
+  {
+    versao: "1.16.2",
+    data: "2026-08-25",
+    titulo: "WhatsApp num lugar só",
+    itens: [
+      "Havia duas telas de WhatsApp que se sobrepunham e mostravam estados conflitantes. A aba WhatsApp dentro de Configurações foi removida — ela controlava uma conexão antiga e separada, e por isso pedia o QR Code mesmo com o número já conectado",
+      "Agora a configuração de WhatsApp fica num lugar só: a tela WhatsApp do menu lateral, com a conexão da organização, o botão Desconectar (para trocar de número) e o seu número pessoal",
+    ],
+  },
   {
     versao: "1.16.1",
     data: "2026-08-25",
