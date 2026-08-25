@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "1.17.4";
+export const VERSAO = "1.17.5";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -26,7 +26,7 @@ export const VERSAO = "1.17.4";
 export const VERSAO_DATA = "2026-08-24";
 
 /** Nome da entrega, para dar contexto ao número. */
-export const VERSAO_NOME = "Lembrete de agenda por WhatsApp";
+export const VERSAO_NOME = "Gerir lembretes de agenda + 30 min";
 
 /**
  * Histórico exibido na tela Sobre, do mais recente para o mais antigo.
@@ -35,6 +35,15 @@ export const VERSAO_NOME = "Lembrete de agenda por WhatsApp";
  * esta lista quer saber o que mudou para ele.
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
+  {
+    versao: "1.17.5",
+    data: "2026-08-25",
+    titulo: "Gerir lembretes de agenda + 30 min",
+    itens: [
+      "Novo lembrete de compromisso de 30 minutos antes, além dos de 1 hora, 15 e 5 minutos e na hora",
+      "A tela de lembretes (Configurações → Alertas Visuais) ganhou botões para adicionar, editar, excluir e atualizar cada lembrete, com o visual no padrão do sistema",
+    ],
+  },
   {
     versao: "1.17.4",
     data: "2026-08-25",

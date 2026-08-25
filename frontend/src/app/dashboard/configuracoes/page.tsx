@@ -47,6 +47,7 @@ export default function ConfiguracoesPage() {
   const [editId, setEditId]   = useState<string|null>(null);
   const [editD, setEditD]     = useState<Partial<AlertCfg>>({});
   const [saving, setSaving]   = useState(false);
+  const [novoAlerta, setNovoAlerta] = useState<Partial<AlertCfg>|null>(null);
 
   // SLA state
   const [slaRegras, setSlaRegras]   = useState<SlaRegra[]>([]);
@@ -70,6 +71,29 @@ export default function ConfiguracoesPage() {
     setSaving(true);
     try { await api.put("/alert-configs/" + id, data); setConfigs(p => p.map(c => c.id === id ? { ...c, ...data } : c)); setEditId(null); showMsg("Salvo!"); }
     catch { showMsg("Erro ao salvar"); } finally { setSaving(false); }
+  };
+
+  const carregarConfigs = async () => {
+    try { const r = await api.get("/alert-configs"); setConfigs(r.data); showMsg("Atualizado"); } catch { showMsg("Erro ao atualizar"); }
+  };
+
+  const createCfg = async () => {
+    if (!novoAlerta) return;
+    const min = Number(novoAlerta.minutos);
+    if (isNaN(min) || min < 0 || min > 1440) { showMsg("Informe os minutos (0 a 1440)"); return; }
+    if (!novoAlerta.titulo?.trim() || !novoAlerta.mensagem?.trim()) { showMsg("Preencha título e mensagem"); return; }
+    setSaving(true);
+    try {
+      const { data } = await api.post("/alert-configs", { minutos: min, titulo: novoAlerta.titulo.trim(), mensagem: novoAlerta.mensagem, emoji: (novoAlerta.emoji || "🔔").trim() });
+      setConfigs(p => [...p, data].sort((a, b) => b.minutos - a.minutos));
+      setNovoAlerta(null); showMsg("Lembrete criado!");
+    } catch (e: any) { showMsg(e?.response?.data?.message || "Erro ao criar"); } finally { setSaving(false); }
+  };
+
+  const deleteCfg = async (id: string) => {
+    if (!confirm("Remover este lembrete? Ele deixa de ser enviado.")) return;
+    try { await api.delete("/alert-configs/" + id); setConfigs(p => p.filter(c => c.id !== id)); showMsg("Lembrete removido"); }
+    catch { showMsg("Erro ao remover"); }
   };
 
   const resolveReq = async (id: string) => {
@@ -157,8 +181,45 @@ export default function ConfiguracoesPage() {
 
         {/* ALERTAS */}
         {tab === "alertas" && (
-          <div style={{ maxWidth:600, display:"flex", flexDirection:"column", gap:14 }}>
-            <p style={{ fontSize:12, color:"var(--text-muted)", marginBottom:4 }}>Personalize os textos de cada alerta. Use {"{evento}"}, {"{horario}"} e {"{url}"} nas mensagens.</p>
+          <div style={{ maxWidth:640, display:"flex", flexDirection:"column", gap:14 }}>
+            <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", gap:12, flexWrap:"wrap" }}>
+              <div>
+                <h3 style={{ fontFamily:"var(--font-display)", fontSize:15, fontWeight:700, color:"var(--text-primary)" }}>Lembretes de compromisso</h3>
+                <p style={{ fontSize:12, color:"var(--text-muted)", marginTop:2 }}>Enviados por WhatsApp antes de cada evento da Agenda. Use {"{evento}"}, {"{horario}"} e {"{url}"} nas mensagens.</p>
+              </div>
+              <div style={{ display:"flex", gap:8, flexShrink:0 }}>
+                <button className="btn btn-ghost" style={{ fontSize:12, display:"inline-flex", alignItems:"center", gap:6 }} onClick={carregarConfigs} title="Atualizar">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
+                  Atualizar
+                </button>
+                <button className="btn btn-violet" style={{ fontSize:12, display:"inline-flex", alignItems:"center", gap:6 }} onClick={()=>setNovoAlerta(novoAlerta?null:{ minutos:undefined, emoji:"🔔", titulo:"", mensagem:"Seu evento começa em breve:\n\n📅 *{evento}*\n🕐 {horario}\n\n🔗 {url}" })}>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 5v14M5 12h14"/></svg>
+                  Adicionar lembrete
+                </button>
+              </div>
+            </div>
+
+            {novoAlerta && (
+              <div className="card" style={{ padding:"16px 20px", border:"1px dashed var(--accent-violet, #f97316)", borderRadius:12, display:"flex", flexDirection:"column", gap:12 }}>
+                <div style={{ display:"grid", gridTemplateColumns:"70px 110px 1fr", gap:10 }}>
+                  <div><label style={{ fontSize:10, color:"var(--text-muted)", fontFamily:"var(--font-mono)", display:"block", marginBottom:4 }}>EMOJI</label><input className="input-o" value={novoAlerta.emoji||""} onChange={e=>setNovoAlerta(p=>({...p!,emoji:e.target.value}))} style={{ textAlign:"center", fontSize:18 }} /></div>
+                  <div><label style={{ fontSize:10, color:"var(--text-muted)", fontFamily:"var(--font-mono)", display:"block", marginBottom:4 }}>MINUTOS ANTES</label><input className="input-o" type="number" min={0} max={1440} placeholder="30" value={novoAlerta.minutos ?? ""} onChange={e=>setNovoAlerta(p=>({...p!,minutos:e.target.value===""?undefined:Number(e.target.value)}))} /></div>
+                  <div><label style={{ fontSize:10, color:"var(--text-muted)", fontFamily:"var(--font-mono)", display:"block", marginBottom:4 }}>TÍTULO</label><input className="input-o" placeholder="Lembrete — 30 minutos" value={novoAlerta.titulo||""} onChange={e=>setNovoAlerta(p=>({...p!,titulo:e.target.value}))} /></div>
+                </div>
+                <div>
+                  <label style={{ fontSize:10, color:"var(--text-muted)", fontFamily:"var(--font-mono)", display:"block", marginBottom:4 }}>MENSAGEM WHATSAPP</label>
+                  <textarea className="input-o" value={novoAlerta.mensagem||""} onChange={e=>setNovoAlerta(p=>({...p!,mensagem:e.target.value}))} style={{ minHeight:80, resize:"vertical", fontFamily:"var(--font-mono)", fontSize:12 }} />
+                  <div style={{ display:"flex", gap:4, marginTop:4 }}>
+                    {VARS.map(v=><button key={v} onClick={()=>setNovoAlerta(p=>({...p!,mensagem:(p!.mensagem||"")+v}))} style={{ background:"var(--accent-violet-dim)", border:"1px solid rgba(124,58,237,0.2)", borderRadius:4, padding:"2px 7px", fontSize:10, color:"var(--accent-violet)", cursor:"pointer", fontFamily:"var(--font-mono)" }}>{v}</button>)}
+                  </div>
+                </div>
+                <div style={{ display:"flex", justifyContent:"flex-end", gap:8 }}>
+                  <button className="btn btn-ghost" onClick={()=>setNovoAlerta(null)}>Cancelar</button>
+                  <button className="btn btn-violet" onClick={createCfg} disabled={saving}>{saving?<Spin/>:"Criar lembrete"}</button>
+                </div>
+              </div>
+            )}
+
             {configs.map(cfg => {
               const isEdit = editId === cfg.id;
               const local = isEdit ? { ...cfg, ...editD } : cfg;
@@ -180,6 +241,9 @@ export default function ConfiguracoesPage() {
                     <div style={{ display:"flex", gap:6 }}>
                       <button className={`btn ${cfg.ativo?"btn-ghost":"btn-violet"}`} style={{ fontSize:11, padding:"4px 10px" }} onClick={() => saveCfg(cfg.id, { ativo:!cfg.ativo })}>{cfg.ativo?"Desativar":"Ativar"}</button>
                       <button className="btn btn-ghost" style={{ fontSize:11, padding:"4px 10px" }} onClick={() => { if(isEdit){setEditId(null);setEditD({});}else{setEditId(cfg.id);setEditD({});} }}>{isEdit?"Cancelar":"Editar"}</button>
+                      <button className="btn btn-ghost" style={{ fontSize:11, padding:"4px 8px", color:"var(--accent-red)" }} onClick={() => deleteCfg(cfg.id)} title="Excluir">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6"/></svg>
+                      </button>
                     </div>
                   </div>
                   {isEdit && (
