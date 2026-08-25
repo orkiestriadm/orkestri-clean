@@ -50,7 +50,13 @@ export class WhatsAppService {
         await new Promise(r => setTimeout(r, 2000));
       } catch {}
       const data = await this.callApi("POST", "/instance/create", {
-        instanceName, qrcode: true, integration: "WHATSAPP-BAILEYS", alwaysOnline: true,
+        // Token explícito por instância. Sem ele, o Evolution v1.8.2 gera um
+        // token padrão que COLIDE com a chave global (AUTHENTICATION_API_KEY) e
+        // faz TODO create falhar com "Token already exists" — nenhuma instância
+        // nova conecta. Um UUID único evita a colisão. Este token não é usado
+        // nas demais chamadas: elas autenticam pela apikey global.
+        instanceName, token: require("crypto").randomUUID(),
+        qrcode: true, integration: "WHATSAPP-BAILEYS", alwaysOnline: true,
       });
       this.logger.log("Instance created [" + instanceName + "]: " + JSON.stringify(data).slice(0, 200));
       return data;
