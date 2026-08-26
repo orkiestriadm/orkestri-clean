@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback } from "react";
 import Topbar from "@/components/layout/Topbar";
 import { api } from "@/lib/api";
 import { useAuthStore } from "@/lib/store";
+import BillingDashboardPanel from "@/components/billing/BillingDashboardPanel";
 
 type Org = {
   id: string; nome: string; slug: string; plano: string; ativo: boolean;
@@ -814,7 +815,7 @@ export default function SuperAdminPage() {
   const { user } = useAuthStore();
   const [orgs, setOrgs] = useState<Org[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"orgs" | "requests" | "billing">("orgs");
+  const [activeTab, setActiveTab] = useState<"orgs" | "requests" | "billing" | "dashboard">("orgs");
   const [novaReqOpen, setNovaReqOpen] = useState(false);
   const [newOrgOpen, setNewOrgOpen] = useState(false);
   const [pendingCount, setPendingCount] = useState(0);
@@ -859,7 +860,7 @@ export default function SuperAdminPage() {
     <div className="flex flex-col h-full bg-background">
       <Topbar>{topbarActions}</Topbar>
       <div className="flex-1 overflow-y-auto p-6">
-        <div style={{ maxWidth: 800, margin: "0 auto", display: "flex", flexDirection: "column", gap: 16 }}>
+        <div style={{ maxWidth: activeTab === "dashboard" ? 1120 : 800, margin: "0 auto", display: "flex", flexDirection: "column", gap: 16 }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <div>
               <div style={{ fontFamily: "var(--font-display)", fontSize: 20, fontWeight: 700, color: "var(--text-primary)" }}> {/* ds-ok: titulo */}Super Admin</div>
@@ -873,7 +874,8 @@ export default function SuperAdminPage() {
               { key: "orgs", label: "Organizações" },
               { key: "requests", label: `Solicitações${pendingCount > 0 ? ` (${pendingCount})` : ""}` },
               { key: "billing", label: "💳 Billing" },
-            ] as { key: "orgs" | "requests" | "billing"; label: string }[]).map(t => (
+              { key: "dashboard", label: "📊 Dashboard" },
+            ] as { key: "orgs" | "requests" | "billing" | "dashboard"; label: string }[]).map(t => (
               <button key={t.key} onClick={() => setActiveTab(t.key)}
                 style={{
                   padding: "9px 18px", background: "none", border: "none", cursor: "pointer",
@@ -902,6 +904,8 @@ export default function SuperAdminPage() {
           )}
 
           {activeTab === "billing" && <BillingPanel />}
+
+          {activeTab === "dashboard" && <BillingDashboardPanel />}
         </div>
       </div>
       {novaReqOpen && <NovaReqModal onClose={() => setNovaReqOpen(false)} onCreated={() => { setNovaReqOpen(false); loadPendingCount(); setActiveTab("requests"); }} />}

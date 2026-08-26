@@ -150,6 +150,64 @@ export class BillingService {
     return { stats, billings };
   }
 
+  /**
+   * Dados para a dashboard de billing (SA).
+   *
+   * Devolve os pagamentos APROVADOS crus (últimos 90 dias) + um snapshot
+   * (MRR/assinantes atuais). O frontend agrega por período (30/60/90d) para
+   * que o filtro seja instantâneo, sem novo round-trip.
+   */
+  async metrics() {
+    const now = new Date();
+    const desde = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+    const round = (n: number) => Math.round(n * 100) / 100;
+
+    const rows = await this.prisma.billingPayment.findMany({
+      where: { status: 'approved', dataPagamento: { gte: desde } },
+      select: {
+        valor: true,
+        dataPagamento: true,
+        orgBilling: { select: { plano: true, organization: { select: { nome: true } } } },
+      },
+      orderBy: { dataPagamento: 'asc' },
+    });
+
+    const billings = await this.prisma.orgBilling.findMany({
+      select: { plano: true, status: true, valorMensal: true, criadoEm: true },
+    });
+    const ativos = billings.filter(b => b.status === 'active' || b.status === 'enterprise_manual');
+    const mrr = ativos.reduce((s, b) => s + (b.valorMensal || 0), 0);
+
+    const pagamentos = rows.map(p => {
+      const plano = p.orgBilling?.plano || 'desconhecido';
+      return {
+        data: (p.dataPagamento as Date).toISOString().slice(0, 10),
+        valor: round(p.valor || 0),
+        plano,
+        planoNome: PLANS[plano]?.nome || plano,
+        org: p.orgBilling?.organization?.nome || '—',
+      };
+    });
+
+    // Novos assinantes por mês (data de criação do billing) — contexto histórico
+    const novosMap = new Map<string, number>();
+    for (const b of billings) {
+      const key = b.criadoEm.toISOString().slice(0, 7);
+      novosMap.set(key, (novosMap.get(key) || 0) + 1);
+    }
+    const novosClientes = Array.from(novosMap.entries())
+      .map(([mes, qtd]) => ({ mes, qtd }))
+      .sort((a, b) => a.mes.localeCompare(b.mes));
+
+    return {
+      snapshot: { mrr: round(mrr), assinantesAtivos: ativos.length },
+      pagamentos,
+      novosClientes,
+      hoje: now.toISOString().slice(0, 10),
+      geradoEm: now.toISOString(),
+    };
+  }
+
   async getByOrg(orgId: string) {
     const billing = await this.prisma.orgBilling.findUnique({
       where: { organizationId: orgId },
@@ -883,6 +941,13 @@ export class BillingController {
   async listAll(@Req() req: any) {
     requireSuperAdmin(req);
     return this.billing.listAll();
+  }
+
+  // Deve vir ANTES de :orgId, senão o Nest captura "metrics" como orgId.
+  @Get('metrics')
+  async metrics(@Req() req: any) {
+    requireSuperAdmin(req);
+    return this.billing.metrics();
   }
 
   @Get(':orgId')

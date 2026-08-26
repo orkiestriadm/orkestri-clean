@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "1.17.5";
+export const VERSAO = "1.18.0";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -23,10 +23,10 @@ export const VERSAO = "1.17.5";
  * Não é gerada no build: `new Date()` no bundle muda a cada compilação, e duas
  * builds do mesmo código pareceriam versões diferentes.
  */
-export const VERSAO_DATA = "2026-08-24";
+export const VERSAO_DATA = "2026-08-25";
 
 /** Nome da entrega, para dar contexto ao número. */
-export const VERSAO_NOME = "Gerir lembretes de agenda + 30 min";
+export const VERSAO_NOME = "Dashboard de Billing";
 
 /**
  * Histórico exibido na tela Sobre, do mais recente para o mais antigo.
@@ -35,6 +35,14 @@ export const VERSAO_NOME = "Gerir lembretes de agenda + 30 min";
  * esta lista quer saber o que mudou para ele.
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
+  {
+    versao: "1.18.0",
+    data: "2026-08-25",
+    titulo: "Dashboard de Billing",
+    itens: [
+      "Nova aba 📊 Dashboard no painel Super Admin (ao lado de Organizações e Billing): receita total, MRR, assinantes ativos e ticket médio, com receita acumulada no tempo, distribuição por plano, top organizações e novos assinantes por mês. Filtro de período (30/60/90 dias) que recalcula a dashboard inteira ao vivo",
+    ],
+  },
   {
     versao: "1.17.5",
     data: "2026-08-25",
