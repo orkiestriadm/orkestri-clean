@@ -576,12 +576,15 @@ export class AuthService implements OnModuleInit {
     if (user.userRoles.some(ur => ur.role.isMaster)) {
       result = ["*"];
     } else if ((user as any).isTrial) {
-      // Acesso de teste: enxerga SÓ o módulo que escolheu na landing page, mais
-      // a Visão Geral para pousar. NÃO herda BASE_PERMISSIONS (que dá agenda/keep
-      // a todos) nem papel — este é o único ponto que decide o que o trial vê, e
-      // vale tanto para o menu quanto para a autorização do backend.
+      // Acesso de teste: enxerga SÓ o módulo que escolheu na landing page —
+      // nada mais. NÃO ganha a Visão Geral (dashboard:ver): aquela tela consulta
+      // relatórios/aprovações/orçamento de módulos que o trial não tem e por isso
+      // vinha dando erro; sem a permissão, o pós-login redireciona direto para o
+      // módulo (o /dashboard já manda quem não tem dashboard:ver para a 1ª rota
+      // acessível). NÃO herda BASE_PERMISSIONS nem papel — este é o único ponto
+      // que decide o que o trial vê, no menu e na autorização do backend.
       const recursos = this.TRIAL_PRODUTO_RECURSOS[(user as any).trialModulo || ""] || [];
-      const perms = new Set<string>(["dashboard:ver"]);
+      const perms = new Set<string>();
       if (recursos.length) {
         const permsDb = await this.prisma.permission.findMany({ where: { recurso: { in: recursos } } });
         for (const p of permsDb) perms.add(`${p.recurso}:${p.acao}`);
@@ -1088,8 +1091,9 @@ export class AuthService implements OnModuleInit {
 
   // Produto Orkiestri One escolhido no modal -> RECURSOS de permissão que o
   // trial ganha (todas as ações desses recursos). É o que `resolvePermissions`
-  // usa para liberar SÓ o módulo escolhido; a Visão Geral (dashboard) é somada
-  // à parte. Produto fora do mapa fica só com a Visão Geral.
+  // usa para liberar SÓ o módulo escolhido — sem Visão Geral nem qualquer outro
+  // módulo. Produto fora do mapa não libera nada (não deve ocorrer: o modal só
+  // oferece produtos válidos).
   private readonly TRIAL_PRODUTO_RECURSOS: Record<string, string[]> = {
     "one-desk":     ["chamados", "conhecimento"],
     "one-projects": ["projetos", "gantt"],

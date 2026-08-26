@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "1.18.1";
+export const VERSAO = "1.18.2";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -26,7 +26,7 @@ export const VERSAO = "1.18.1";
 export const VERSAO_DATA = "2026-08-25";
 
 /** Nome da entrega, para dar contexto ao número. */
-export const VERSAO_NOME = "Agenda: dia correto + fim automático";
+export const VERSAO_NOME = "Acesso de teste vê só o módulo escolhido";
 
 /**
  * Histórico exibido na tela Sobre, do mais recente para o mais antigo.
@@ -35,6 +35,14 @@ export const VERSAO_NOME = "Agenda: dia correto + fim automático";
  * esta lista quer saber o que mudou para ele.
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
+  {
+    versao: "1.18.2",
+    data: "2026-08-25",
+    titulo: "Acesso de teste vê só o módulo escolhido",
+    itens: [
+      "Correção: o acesso de teste da landing page não abre mais a Visão Geral (que dava erro por consultar dados de módulos que o teste não tem). Agora o usuário entra direto no módulo que escolheu no cadastro — e enxerga só ele",
+    ],
+  },
   {
     versao: "1.18.1",
     data: "2026-08-25",
