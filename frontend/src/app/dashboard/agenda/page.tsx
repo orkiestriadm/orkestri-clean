@@ -47,6 +47,10 @@ function startOfWeek(d: Date) { const r = new Date(d); r.setDate(r.getDate()-r.g
 function addDays(d: Date, n: number) { const r = new Date(d); r.setDate(r.getDate()+n); return r; }
 function isSameDay(a: Date, b: Date) { return a.getFullYear()===b.getFullYear()&&a.getMonth()===b.getMonth()&&a.getDate()===b.getDate(); }
 function toLocalISOStr(d: Date) { const pad=(n:number)=>String(n).padStart(2,"0"); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`; }
+// Dia LOCAL de um ISO (YYYY-MM-DD). Necessario porque o backend grava em UTC:
+// um evento das 22h (BRT) vira 01h UTC do dia seguinte, e comparar o PREFIXO
+// da string ISO com o dia local jogava o evento para amanha na visao de mes.
+function localDayStr(iso: string) { const d = new Date(iso); const pad=(n:number)=>String(n).padStart(2,"0"); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; }
 
 // ── Feriados ───────────────────────────────────────────────────────────────────
 function calculateMovableHolidays(year: number) {
@@ -558,7 +562,7 @@ function MonthView({ events, cur, onDayClick, onDayDblClick, onEventClick, selec
           const d=i+1; const ds=dayStr(d);
           const dateObj = new Date(cur.year, cur.month-1, d);
           const vis = dayVisual(dateObj);                                 // item #1
-          const dayEvs = events.filter((e:Event)=>e.inicio.startsWith(ds));
+          const dayEvs = events.filter((e:Event)=>localDayStr(e.inicio)===ds);
           const visible = dayEvs.slice(0, 3);                             // item #3: agora mostra 3
           const overflow = dayEvs.length - visible.length;
 
@@ -1053,7 +1057,7 @@ export default function AgendaPage() {
   // Set de YYYY-MM-DD com pelo menos 1 evento — alimenta os pontinhos do mini.
   const eventDateSet = (() => {
     const s = new Set<string>();
-    for (const e of events) s.add(e.inicio.slice(0, 10));
+    for (const e of events) s.add(localDayStr(e.inicio));
     return s;
   })();
 

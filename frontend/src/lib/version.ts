@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "1.18.0";
+export const VERSAO = "1.18.1";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -26,7 +26,7 @@ export const VERSAO = "1.18.0";
 export const VERSAO_DATA = "2026-08-25";
 
 /** Nome da entrega, para dar contexto ao número. */
-export const VERSAO_NOME = "Dashboard de Billing";
+export const VERSAO_NOME = "Agenda: dia correto + fim automático";
 
 /**
  * Histórico exibido na tela Sobre, do mais recente para o mais antigo.
@@ -35,6 +35,15 @@ export const VERSAO_NOME = "Dashboard de Billing";
  * esta lista quer saber o que mudou para ele.
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
+  {
+    versao: "1.18.1",
+    data: "2026-08-25",
+    titulo: "Agenda: dia correto + fim automático",
+    itens: [
+      "Correção: eventos criados no fim do dia apareciam no dia seguinte na visão de mês. A agenda agora agrupa cada evento pelo dia local correto",
+      "Ao definir o horário de início de um evento, o término é ajustado automaticamente para 1 hora depois — e continua editável manualmente",
+    ],
+  },
   {
     versao: "1.18.0",
     data: "2026-08-25",

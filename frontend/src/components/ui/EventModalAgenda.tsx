@@ -20,6 +20,15 @@ function Field({ label, children }: any) {
   return <div><label style={{ fontSize:11, color:"var(--text-muted)", fontFamily:"var(--font-mono)", letterSpacing:"0.08em", display:"block", marginBottom:6 }}>{label}</label>{children}</div>;
 }
 
+// Soma 1 hora a um "YYYY-MM-DDTHH:MM" tratando virada de dia/mes (23h -> 00h+1d).
+function maisUmaHora(s: string) {
+  const d = new Date(s);
+  if (isNaN(d.getTime())) return s;
+  d.setHours(d.getHours() + 1);
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+
 export default function EventModalAgenda({ date, event, users, onClose, onSave }: {
   date: string;
   event?: any;
@@ -30,8 +39,12 @@ export default function EventModalAgenda({ date, event, users, onClose, onSave }
   const { user: me } = useAuthStore();
   const [titulo,      setTitulo]      = useState(event?.titulo||"");
   const [descricao,   setDescricao]   = useState(event?.descricao||"");
-  const [inicio,      setInicio]      = useState(event?event.inicio.slice(0,16):date.includes("T")?date:date+"T09:00");
-  const [fim,         setFim]         = useState(event?.fim?event.fim.slice(0,16):date.includes("T")?date.replace(/T\d+:\d+/,m=>{ const [h,min]=m.slice(1).split(":"); return `T${String(Number(h)+1).padStart(2,"0")}:${min}`; }):date+"T10:00");
+  const inicioInicial = event ? event.inicio.slice(0,16) : (date.includes("T") ? date : date+"T09:00");
+  const [inicio,      setInicio]      = useState(inicioInicial);
+  const [fim,         setFim]         = useState(event?.fim ? event.fim.slice(0,16) : maisUmaHora(inicioInicial));
+  // Por padrao o fim acompanha o inicio (+1h). Assim que o usuario mexe no fim
+  // manualmente, paramos de sobrescrever — ele fica no controle.
+  const [fimEditado,  setFimEditado]  = useState(!!event?.fim);
   const [tipo,        setTipo]        = useState(event?.tipo||"PESSOAL");
   const [cor,         setCor]         = useState(event?.cor||"#a78bfa");
   const [diaTodo,     setDiaTodo]     = useState(event?.diaTodo||false);
@@ -90,10 +103,10 @@ export default function EventModalAgenda({ date, event, users, onClose, onSave }
           {!diaTodo && (
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
               <Field label="INICIO">
-                <input className="input-o" type="datetime-local" value={inicio} onChange={e=>setInicio(e.target.value)} />
+                <input className="input-o" type="datetime-local" value={inicio} onChange={e=>{ const v=e.target.value; setInicio(v); if(!fimEditado && v) setFim(maisUmaHora(v)); }} />
               </Field>
               <Field label="FIM">
-                <input className="input-o" type="datetime-local" value={fim} onChange={e=>setFim(e.target.value)} />
+                <input className="input-o" type="datetime-local" value={fim} onChange={e=>{ setFim(e.target.value); setFimEditado(true); }} />
               </Field>
             </div>
           )}
