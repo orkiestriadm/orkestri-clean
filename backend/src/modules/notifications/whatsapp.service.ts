@@ -66,6 +66,24 @@ export class WhatsAppService {
     }
   }
 
+  /**
+   * Liga o webhook de ENTRADA da instância no Evolution: manda os eventos de
+   * mensagem recebida (MESSAGES_UPSERT) para a nossa URL. É o que permite
+   * "responder no WhatsApp -> cria evento na agenda". A URL deve conter o
+   * ?secret=... que o endpoint /whatsapp/inbound valida.
+   */
+  async setInboundWebhook(url: string, instanceName: string = this.defaultInstance) {
+    try {
+      const body = { webhook: { url, enabled: true, webhook_by_events: false, webhook_base64: false, events: ["MESSAGES_UPSERT"] } };
+      const data = await this.callApi("POST", `/webhook/set/${instanceName}`, body);
+      this.logger.log(`setInboundWebhook [${instanceName}] -> ${JSON.stringify(data).slice(0, 200)}`);
+      return data;
+    } catch (e) {
+      this.logger.error("setInboundWebhook error: " + e.message);
+      return { error: e.message };
+    }
+  }
+
   async getQrCode(instanceName: string = this.defaultInstance) {
     for (let i = 0; i < 10; i++) {
       try {

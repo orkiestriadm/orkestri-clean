@@ -53,6 +53,7 @@ import { FrotaModule } from './modules/frota/frota.module';
 import { PeopleModule } from './modules/people/people.module';
 import { ComplianceModule } from './modules/compliance/compliance.module';
 import { IntegracoesModule } from './modules/integracoes/integracoes.module';
+import { WhatsappInboundModule } from './modules/agenda/whatsapp-inbound.module';
 import { JwtModule } from '@nestjs/jwt';
 
 @Module({
@@ -60,7 +61,7 @@ import { JwtModule } from '@nestjs/jwt';
     ConfigModule.forRoot({ isGlobal: true }),
     CacheModule,
     PrismaModule, HealthModule, AuthModule, UsersModule,
-    StatsModule, AgendaModule, NotificationsModule,
+    StatsModule, AgendaModule, NotificationsModule, WhatsappInboundModule,
     ProjectsModule, KeepModule, SetoresModule,
     AuditModule, StatusModule, CommentsModule,
     RelatoriosModule, SistemaModule, TwoFAModule,
