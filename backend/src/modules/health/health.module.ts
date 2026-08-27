@@ -8,7 +8,7 @@ import { Module, Controller, Get } from "@nestjs/common";
  * comparacao nao provaria nada; separadas, divergencia revela deploy pela
  * metade, que e a primeira hipotese a descartar num diagnostico.
  */
-const VERSAO_API = "1.18.5";
+const VERSAO_API = "1.18.6";
 
 @Controller("health")
 class HealthController {

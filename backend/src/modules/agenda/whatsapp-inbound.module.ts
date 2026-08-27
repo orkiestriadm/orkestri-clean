@@ -114,14 +114,22 @@ export class WhatsappInboundService {
     // Quem filtra é o parser — só texto que começa com "Evento/Agenda/..." vira
     // evento; lembretes e as confirmações "✅"/"🤖" não são comandos, então não
     // há loop com o que nós mesmos enviamos.
-    if (!remoteJid || remoteJid.includes("@g.us")) return; // grupo — ignora
+    if (remoteJid.includes("@g.us")) return; // grupo — ignora
+    const senderJid: string = body?.sender || data?.sender || "";
     const texto: string =
       data?.message?.conversation ||
       data?.message?.extendedTextMessage?.text ||
       data?.message?.ephemeralMessage?.message?.extendedTextMessage?.text || "";
-    if (!texto.trim()) return;
 
-    const numero = remoteJid.split("@")[0];
+    // Telefone: o `remoteJid` às vezes vem como "<id>@lid" (Linked Identifier do
+    // WhatsApp — NÃO é telefone). Nesses casos o número real está no `sender`
+    // (dono da instância). Só consideramos JIDs @s.whatsapp.net como candidatos.
+    const candidatos = [remoteJid, senderJid]
+      .filter(j => typeof j === "string" && j.endsWith("@s.whatsapp.net"))
+      .map(j => j.split("@")[0]);
+
+    this.logger.log(`inbound jid=${remoteJid} sender=${senderJid} fromMe=${key?.fromMe} texto="${texto.slice(0, 50)}"`);
+    if (!texto.trim() || !candidatos.length) return;
 
     // Comando?
     const parsed = parseComandoEvento(texto, new Date());
@@ -132,12 +140,14 @@ export class WhatsappInboundService {
       where: { NOT: { whatsapp: null } },
       select: { whatsapp: true, user: { select: { id: true, organizationId: true, ativo: true, nome: true } } },
     });
-    const perfil = perfis.find(p => p.user?.ativo && telefoneBate(numero, p.whatsapp));
+    const perfil = perfis.find(p => p.user?.ativo && candidatos.some(n => telefoneBate(n, p.whatsapp)));
     if (!perfil?.user) {
-      this.logger.warn(`Inbound de número não cadastrado (${numero}) — ignorado.`);
+      this.logger.warn(`Inbound de número não cadastrado (${candidatos.join(",")}) — ignorado.`);
       return; // não vaza que o número é desconhecido
     }
     const user = perfil.user;
+    // número para responder = o candidato que casou com o cadastro
+    const numero = candidatos.find(n => telefoneBate(n, perfil.whatsapp)) || candidatos[0];
 
     if (parsed === "sem_data_hora") {
       await this.wa.sendMessageForOrg(user.organizationId, numero,
