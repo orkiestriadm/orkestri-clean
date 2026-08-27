@@ -120,7 +120,7 @@ export default function PerfilPage() {
   const statusOpt = STATUS_OPTS.find(s => s.value === statusOnline) || STATUS_OPTS[0];
 
   return (
-    <div className="min-h-screen bg-background p-6 md:p-8">
+    <div className="flex-1 min-h-0 overflow-y-auto bg-background p-6 md:p-8">
       <div className="max-w-3xl mx-auto space-y-6">
         {/* Header card */}
         <div className="rounded-2xl border border-border bg-card p-6">
