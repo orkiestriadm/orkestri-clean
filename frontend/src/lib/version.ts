@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "1.18.3";
+export const VERSAO = "1.18.4";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -26,7 +26,7 @@ export const VERSAO = "1.18.3";
 export const VERSAO_DATA = "2026-08-25";
 
 /** Nome da entrega, para dar contexto ao número. */
-export const VERSAO_NOME = "Criar evento pelo WhatsApp";
+export const VERSAO_NOME = "Criar evento pelo WhatsApp (mensagem p/ si)";
 
 /**
  * Histórico exibido na tela Sobre, do mais recente para o mais antigo.
@@ -36,11 +36,11 @@ export const VERSAO_NOME = "Criar evento pelo WhatsApp";
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
   {
-    versao: "1.18.3",
+    versao: "1.18.4",
     data: "2026-08-26",
     titulo: "Criar evento pelo WhatsApp",
     itens: [
-      "Agora dá para criar um compromisso na sua agenda mandando uma mensagem no WhatsApp, no formato: Evento: <título> <data> <hora> (ex.: \"Evento: Reunião 27/08 14:00\"). Aceita \"hoje\"/\"amanhã\" e horários como \"9h\" ou \"14:30\"; o fim entra automaticamente 1h depois. Só funciona para números cadastrados, e o sistema confirma por WhatsApp",
+      "Agora dá para criar um compromisso na sua agenda mandando uma mensagem no WhatsApp, no formato: Evento: <título> <data> <hora> (ex.: \"Evento: Reunião 27/08 14:00\"). Aceita \"hoje\"/\"amanhã\" e horários como \"9h\" ou \"14:30\"; o fim entra automaticamente 1h depois. Vale inclusive mandar para você mesmo (quando o WhatsApp do sistema é o seu próprio número). Só funciona para números cadastrados, e o sistema confirma por WhatsApp",
     ],
   },
   {

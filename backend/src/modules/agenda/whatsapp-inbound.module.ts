@@ -109,7 +109,11 @@ export class WhatsappInboundService {
     const data = Array.isArray(body?.data) ? body.data[0] : body?.data;
     const key = data?.key || {};
     const remoteJid: string = key?.remoteJid || "";
-    if (key?.fromMe) return;                              // mensagem que NÓS enviamos
+    // NÃO ignoramos fromMe: em muitos setups o "bot" está logado com o número do
+    // próprio dono, então o comando chega como mensagem PARA SI MESMO (fromMe=true).
+    // Quem filtra é o parser — só texto que começa com "Evento/Agenda/..." vira
+    // evento; lembretes e as confirmações "✅"/"🤖" não são comandos, então não
+    // há loop com o que nós mesmos enviamos.
     if (!remoteJid || remoteJid.includes("@g.us")) return; // grupo — ignora
     const texto: string =
       data?.message?.conversation ||
