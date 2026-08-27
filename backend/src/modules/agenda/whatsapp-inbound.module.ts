@@ -22,7 +22,11 @@ export function codigoVinculoWhatsapp(userId: string): string {
 //   "Agendar Almoço hoje 12:30"
 // Sem hora -> evento de dia inteiro. Sem data -> hoje.
 
-type Parsed = { titulo: string; inicio: Date; fim: Date | null; diaTodo: boolean };
+type Parsed = { titulo: string; inicio: Date; fim: Date | null; diaTodo: boolean; recorrencia: string | null; recorrenciaFim: Date | null };
+
+export const RECOR_LABEL: Record<string, string> = {
+  DIARIA: "todo dia", SEMANAL: "toda semana", QUINZENAL: "a cada 2 semanas", MENSAL: "todo mês",
+};
 
 export function parseComandoEvento(texto: string, agora: Date): Parsed | "sem_data_hora" | null {
   const t = (texto || "").trim();
@@ -30,6 +34,32 @@ export function parseComandoEvento(texto: string, agora: Date): Parsed | "sem_da
   if (!mKey) return null; // não é um comando — ignora silenciosamente
   let resto = t.slice(mKey[0].length).trim();
   if (!resto) return "sem_data_hora";
+
+  // ── Recorrência ── (detecta e REMOVE antes de datas/horas, para não confundir)
+  let recorrencia: string | null = null;
+  let recFimData: Date | null = null;      // "até <data>"
+  let porQtd: number | null = null, porUnidade: string | null = null; // "por N <unidade>"
+  const stripRe = (re: RegExp) => { resto = resto.replace(re, " "); };
+  if (/\b(a cada (2|duas) semanas|quinzenal(mente)?|cada 15 dias)\b/i.test(resto)) { recorrencia = "QUINZENAL"; stripRe(/\b(a cada (2|duas) semanas|quinzenal(mente)?|cada 15 dias)\b/i); }
+  else if (/\b(toda semana|semanal(mente)?)\b/i.test(resto)) { recorrencia = "SEMANAL"; stripRe(/\b(toda semana|semanal(mente)?)\b/i); }
+  else if (/\b(todo m[eê]s|mensal(mente)?)\b/i.test(resto)) { recorrencia = "MENSAL"; stripRe(/\b(todo m[eê]s|mensal(mente)?)\b/i); }
+  else if (/\b(todo dia|di[aá]ri(a|amente)|recorrente)\b/i.test(resto)) { recorrencia = "DIARIA"; stripRe(/\b(todo dia|di[aá]ri(a|amente)|recorrente)\b/i); }
+  const mPor = resto.match(/\bpor\s+(\d{1,3})\s*(dias?|semanas?|m[eê]s(?:es)?|vezes|x)\b/i);
+  if (mPor) { porQtd = +mPor[1]; porUnidade = mPor[2].toLowerCase(); stripRe(new RegExp(mPor[0].replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i")); if (!recorrencia) recorrencia = "DIARIA"; }
+  // Forma "recorrente 30 dias" (sem "por"): só quando já há recorrência, para não
+  // confundir com um número qualquer do título.
+  if (recorrencia && !mPor) {
+    const mBare = resto.match(/\b(\d{1,3})\s*(dias?|semanas?|m[eê]s(?:es)?)\b/i);
+    if (mBare) { porQtd = +mBare[1]; porUnidade = mBare[2].toLowerCase(); stripRe(new RegExp(mBare[0].replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i")); }
+  }
+  const mAte = resto.match(/\bat[eé]\s+(\d{1,2})[\/\-.](\d{1,2})(?:[\/\-.](\d{2,4}))?\b/i);
+  if (mAte) {
+    const yy = mAte[3] ? (mAte[3].length === 2 ? 2000 + +mAte[3] : +mAte[3]) : agora.getFullYear();
+    recFimData = new Date(yy, +mAte[2] - 1, +mAte[1], 23, 59, 59);
+    stripRe(new RegExp(mAte[0].replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i"));
+    if (!recorrencia) recorrencia = "DIARIA";
+  }
+  stripRe(/\ba partir d[eo]\s+/i); // só o prefixo; a data em si é pega adiante
 
   // ── Hora ──
   let hora: number | null = null, minuto = 0;
@@ -89,7 +119,27 @@ export function parseComandoEvento(texto: string, agora: Date): Parsed | "sem_da
   if (isNaN(inicio.getTime())) return "sem_data_hora";
   const fim = diaTodo ? null : new Date(inicio.getTime() + 60 * 60 * 1000);
 
-  return { titulo, inicio, fim, diaTodo };
+  // Fim da recorrência: "até <data>" > "por N <unidade>" > padrão 3 meses.
+  let recorrenciaFim: Date | null = null;
+  if (recorrencia) {
+    const passo: Record<string, number> = { DIARIA: 1, SEMANAL: 7, QUINZENAL: 14 };
+    if (recFimData) {
+      recorrenciaFim = recFimData;
+    } else if (porQtd && porUnidade) {
+      const b = new Date(inicio);
+      if (/vezes|^x$/.test(porUnidade)) {            // N ocorrências
+        if (recorrencia === "MENSAL") b.setMonth(b.getMonth() + (porQtd - 1));
+        else b.setDate(b.getDate() + (porQtd - 1) * (passo[recorrencia] || 1));
+      } else if (/semana/.test(porUnidade)) b.setDate(b.getDate() + porQtd * 7);
+      else if (/m[eê]s/.test(porUnidade)) b.setMonth(b.getMonth() + porQtd);
+      else b.setDate(b.getDate() + porQtd);          // dias
+      recorrenciaFim = b;
+    } else {
+      const b = new Date(inicio); b.setMonth(b.getMonth() + 3); recorrenciaFim = b; // padrão 3 meses
+    }
+  }
+
+  return { titulo, inicio, fim, diaTodo, recorrencia, recorrenciaFim };
 }
 
 // ── Match de telefone (JID x número cadastrado) ───────────────────────────────
@@ -115,22 +165,31 @@ export class WhatsappInboundService {
   // Identifica o usuário DONO daquele chat: primeiro pelo LID vinculado, depois
   // (só quando o chat é @s.whatsapp.net) pelo telefone cadastrado — assim o
   // caso "mandar para si mesmo" com número próprio ainda funciona sem vínculo.
-  private async identificar(remoteJid: string) {
+  private async identificar(remoteJid: string): Promise<{ id: string; organizationId: string; nome: string; telefone: string | null } | null> {
     const idPart = remoteJid.split("@")[0];
     const byLid = await this.prisma.userProfile.findFirst({
       where: { whatsappLid: idPart } as any,
-      select: { user: { select: { id: true, organizationId: true, ativo: true, nome: true } } },
+      select: { whatsapp: true, user: { select: { id: true, organizationId: true, ativo: true, nome: true } } },
     });
-    if (byLid?.user?.ativo) return byLid.user;
+    if (byLid?.user?.ativo) return { ...byLid.user, telefone: byLid.whatsapp };
     if (remoteJid.endsWith("@s.whatsapp.net")) {
       const perfis = await this.prisma.userProfile.findMany({
         where: { NOT: { whatsapp: null } },
         select: { whatsapp: true, user: { select: { id: true, organizationId: true, ativo: true, nome: true } } },
       });
       const p = perfis.find(x => x.user?.ativo && telefoneBate(idPart, x.whatsapp));
-      if (p?.user) return p.user;
+      if (p?.user) return { ...p.user, telefone: p.whatsapp };
     }
     return null;
+  }
+
+  // Responde à pessoa. O Evolution v1.8.2 NÃO envia para "@lid" (400 exists:false),
+  // então respondemos pelo TELEFONE cadastrado (chega na mesma conversa). Sem
+  // telefone, caímos no jid cru (best-effort, pode falhar em @lid).
+  private async responder(remoteJid: string, telefone: string | null, orgId: string | null, inst: string, msg: string) {
+    if (telefone && orgId) { await this.wa.sendMessageForOrg(orgId, telefone, msg).catch(() => {}); return; }
+    if (telefone) { await this.wa.sendMessage(telefone, msg, inst).catch(() => {}); return; }
+    await this.wa.sendToJid(remoteJid, msg, inst).catch(() => {});
   }
 
   // "VINCULAR <código>" — liga aquele chat (LID/telefone) à conta cujo código bate.
@@ -138,7 +197,7 @@ export class WhatsappInboundService {
     const idPart = remoteJid.split("@")[0];
     const users = await this.prisma.user.findMany({
       where: { ativo: true },
-      select: { id: true, nome: true },
+      select: { id: true, nome: true, organizationId: true, profile: { select: { whatsapp: true } } },
     });
     const alvo = users.find(u => codigoVinculoWhatsapp(u.id) === codigo);
     if (!alvo) {
@@ -151,8 +210,8 @@ export class WhatsappInboundService {
       create: { userId: alvo.id, whatsappLid: idPart } as any,
     });
     this.logger.log(`WhatsApp vinculado: user=${alvo.id} lid=${idPart}`);
-    await this.wa.sendToJid(remoteJid,
-      `✅ WhatsApp vinculado à conta de *${alvo.nome}*!\n\nAgora crie eventos assim:\n*Evento: Reunião 27/08 14:00*`, inst).catch(() => {});
+    await this.responder(remoteJid, alvo.profile?.whatsapp ?? null, alvo.organizationId, inst,
+      `✅ WhatsApp vinculado à conta de *${alvo.nome}*!\n\nAgora crie eventos assim:\n*Evento: Reunião 27/08 14:00*`);
   }
 
   async processar(body: any): Promise<void> {
@@ -191,8 +250,8 @@ export class WhatsappInboundService {
     }
 
     if (parsed === "sem_data_hora") {
-      await this.wa.sendToJid(remoteJid,
-        "🤖 Não consegui identificar a data/hora. Envie assim:\n\n*Evento: Reunião com cliente 27/08 14:00*\n\nTambém vale _hoje_, _amanhã_ e horários como _9h_ ou _14:30_.", inst).catch(() => {});
+      await this.responder(remoteJid, user.telefone, user.organizationId, inst,
+        "🤖 Não consegui identificar a data/hora. Envie assim:\n\n*Evento: Reunião com cliente 27/08 14:00*\n\nTambém vale _hoje_, _amanhã_ e horários como _9h_ ou _14:30_.");
       return;
     }
 
@@ -205,19 +264,24 @@ export class WhatsappInboundService {
         tipo: "COMPROMISSO" as any,
         cor: "#22d3ee",
         diaTodo: parsed.diaTodo,
+        recorrencia: parsed.recorrencia as any,
+        recorrenciaFim: parsed.recorrenciaFim,
         userId: user.id,
         criadoPorId: user.id,
         organizationId: user.organizationId,
       } as any,
     });
-    this.logger.log(`Evento criado via WhatsApp: user=${user.id} "${parsed.titulo}" ${parsed.inicio.toISOString()}`);
+    this.logger.log(`Evento criado via WhatsApp: user=${user.id} "${parsed.titulo}" ${parsed.inicio.toISOString()} rec=${parsed.recorrencia || "-"}`);
 
     const quando = parsed.diaTodo
       ? parsed.inicio.toLocaleDateString("pt-BR") + " (dia todo)"
-      : this.fmtData(parsed.inicio);
-    await this.wa.sendToJid(remoteJid,
-      `✅ Evento criado na sua agenda:\n\n🗓️ *${parsed.titulo}*\n🕐 ${quando}` +
-      (parsed.fim ? ` – ${this.fmtData(parsed.fim)}` : ""), inst).catch(() => {});
+      : this.fmtData(parsed.inicio) + (parsed.fim ? ` – ${this.fmtData(parsed.fim)}` : "");
+    let msg = `✅ Evento criado na sua agenda:\n\n🗓️ *${parsed.titulo}*\n🕐 ${quando}`;
+    if (parsed.recorrencia) {
+      const fimTxt = parsed.recorrenciaFim ? parsed.recorrenciaFim.toLocaleDateString("pt-BR") : "";
+      msg += `\n🔁 ${RECOR_LABEL[parsed.recorrencia] || parsed.recorrencia}` + (fimTxt ? ` até ${fimTxt}` : "");
+    }
+    await this.responder(remoteJid, user.telefone, user.organizationId, inst, msg);
   }
 }
 

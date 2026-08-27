@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "1.19.1";
+export const VERSAO = "1.20.0";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -26,7 +26,7 @@ export const VERSAO = "1.19.1";
 export const VERSAO_DATA = "2026-08-25";
 
 /** Nome da entrega, para dar contexto ao número. */
-export const VERSAO_NOME = "Criar evento pelo WhatsApp (com vínculo)";
+export const VERSAO_NOME = "Eventos recorrentes pelo WhatsApp";
 
 /**
  * Histórico exibido na tela Sobre, do mais recente para o mais antigo.
@@ -35,6 +35,15 @@ export const VERSAO_NOME = "Criar evento pelo WhatsApp (com vínculo)";
  * esta lista quer saber o que mudou para ele.
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
+  {
+    versao: "1.20.0",
+    data: "2026-08-27",
+    titulo: "Eventos recorrentes pelo WhatsApp",
+    itens: [
+      "Agora dá para criar compromissos que se repetem, direto pela mensagem: \"Evento: Academia 18h todo dia por 30 dias\", \"Evento: Reunião 10h toda semana até 31/12\", \"Evento: Pagamento 9h todo mês por 6 meses\". Aceita todo dia / toda semana / a cada 2 semanas / todo mês, com \"por N dias/semanas/meses/vezes\" ou \"até DD/MM\" (sem fim informado, assume 3 meses)",
+      "Correção: a confirmação de evento criado por WhatsApp agora chega de fato (o WhatsApp não deixa responder ao identificador oculto de quem envia, então a resposta vai para o número cadastrado no perfil da pessoa)",
+    ],
+  },
   {
     versao: "1.19.1",
     data: "2026-08-27",
