@@ -28,6 +28,21 @@ export const RECOR_LABEL: Record<string, string> = {
   DIARIA: "todo dia", SEMANAL: "toda semana", QUINZENAL: "a cada 2 semanas", MENSAL: "todo mês",
 };
 
+// Tutorial enviado logo após vincular o WhatsApp — simples, com exemplos prontos.
+const TUTORIAL_WHATSAPP =
+  "🎉 *Tudo pronto!* Agora você anota compromissos na sua agenda só mandando uma mensagem aqui 📲\n\n" +
+  "✍️ *Como criar:* escreva *Evento:* e diga o quê, o dia e a hora.\n\n" +
+  "📌 *Exemplos (é só copiar e trocar):*\n" +
+  "• Evento: Dentista amanhã 14h\n" +
+  "• Evento: Reunião 30/08 09:30\n" +
+  "• Evento: Almoço hoje 12h\n\n" +
+  "🔁 *Para repetir:*\n" +
+  "• Evento: Academia 18h todo dia por 30 dias\n" +
+  "• Evento: Reunião 10h toda semana até 31/12\n\n" +
+  "⏰ Pode usar *hoje*, *amanhã* ou a data (dia/mês), e horas como *9h* ou *14:30*.\n\n" +
+  "✅ Toda vez que eu criar, te aviso aqui na hora.\n\n" +
+  "Manda a sua primeira! 😉";
+
 export function parseComandoEvento(texto: string, agora: Date): Parsed | "sem_data_hora" | null {
   const t = (texto || "").trim();
   const mKey = t.match(/^\s*(evento|agenda|agendar|compromisso|marcar)\b[:\-–]?\s*/i);
@@ -210,8 +225,11 @@ export class WhatsappInboundService {
       create: { userId: alvo.id, whatsappLid: idPart } as any,
     });
     this.logger.log(`WhatsApp vinculado: user=${alvo.id} lid=${idPart}`);
-    await this.responder(remoteJid, alvo.profile?.whatsapp ?? null, alvo.organizationId, inst,
-      `✅ WhatsApp vinculado à conta de *${alvo.nome}*!\n\nAgora crie eventos assim:\n*Evento: Reunião 27/08 14:00*`);
+    const tel = alvo.profile?.whatsapp ?? null;
+    await this.responder(remoteJid, tel, alvo.organizationId, inst,
+      `✅ *WhatsApp vinculado à conta de ${alvo.nome}!*`);
+    // Tutorial logo em seguida (2º envio).
+    await this.responder(remoteJid, tel, alvo.organizationId, inst, TUTORIAL_WHATSAPP);
   }
 
   async processar(body: any): Promise<void> {

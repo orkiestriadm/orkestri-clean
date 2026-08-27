@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "1.20.1";
+export const VERSAO = "1.20.2";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -35,6 +35,14 @@ export const VERSAO_NOME = "Eventos recorrentes pelo WhatsApp";
  * esta lista quer saber o que mudou para ele.
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
+  {
+    versao: "1.20.2",
+    data: "2026-08-27",
+    titulo: "Tutorial no WhatsApp ao vincular",
+    itens: [
+      "Assim que a pessoa vincula o WhatsApp, o sistema envia uma mensagem curta ensinando a criar eventos por mensagem (com exemplos prontos para copiar, inclusive recorrentes)",
+    ],
+  },
   {
     versao: "1.20.1",
     data: "2026-08-27",
