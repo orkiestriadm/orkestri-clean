@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "1.18.4";
+export const VERSAO = "1.18.5";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -36,7 +36,7 @@ export const VERSAO_NOME = "Criar evento pelo WhatsApp (mensagem p/ si)";
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
   {
-    versao: "1.18.4",
+    versao: "1.18.5",
     data: "2026-08-26",
     titulo: "Criar evento pelo WhatsApp",
     itens: [

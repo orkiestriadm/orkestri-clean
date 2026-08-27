@@ -58,7 +58,10 @@ async function bootstrap() {
     "/api/billing/public/signup", "/health",
     // Webhook do Microsoft Graph: chamado pela Microsoft, sem cookie CSRF. A
     // autenticidade vem do clientState verificado no controller.
-    "/api/integracoes/microsoft/webhook"];
+    "/api/integracoes/microsoft/webhook",
+    // Webhook de ENTRADA do WhatsApp (Evolution): POST de máquina, sem cookie
+    // CSRF. A autenticidade vem do ?secret= validado no controller.
+    "/api/whatsapp/inbound"];
 
   app.use((req: Request, res: Response, next: NextFunction) => {
     // Emite cookie CSRF a cada request (token rotativo por sessão)
