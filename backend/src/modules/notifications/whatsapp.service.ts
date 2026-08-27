@@ -163,6 +163,28 @@ export class WhatsAppService {
    * Evolution na hora do envio; consultar o cache antes só acrescenta um jeito
    * de errar.
    */
+  /**
+   * Envia para um JID CRU (ex.: "<lid>@lid" ou "<phone>@s.whatsapp.net") sem
+   * reformatar como telefone. Necessário para responder a quem escreve via
+   * @lid — o `sendMessage` força prefixo 55 e strippa não-dígitos, o que
+   * transformaria o LID num telefone inexistente.
+   */
+  async sendToJid(jid: string, message: string, instanceName: string = this.defaultInstance): Promise<boolean> {
+    try {
+      const res = await fetch(`${this.apiUrl}/message/sendText/${instanceName}`, {
+        method: "POST",
+        headers: this.headers,
+        body: JSON.stringify({ number: jid, options: { delay: 1200, presence: "composing" }, textMessage: { text: message } }),
+      });
+      const raw = await res.text();
+      this.logger.log(`WA sendToJid [${instanceName}][${res.status}] -> ${jid}: ${raw.slice(0, 160)}`);
+      try { const d = JSON.parse(raw); return !!(d?.key?.id || d?.id || res.ok); } catch { return res.ok; }
+    } catch (e) {
+      this.logger.error("sendToJid error: " + e.message);
+      return false;
+    }
+  }
+
   async resolveInstance(orgId?: string): Promise<string> {
     if (this.prisma && orgId) {
       try {

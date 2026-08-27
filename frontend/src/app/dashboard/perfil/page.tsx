@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import { api } from "@/lib/api";
 import { useAuthStore } from "@/lib/store";
-import { User, Lock, Bell, Shield, Save, Loader2, CheckCircle, Eye, EyeOff } from "lucide-react";
+import { User, Lock, Bell, Shield, Save, Loader2, CheckCircle, Eye, EyeOff, MessageCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -47,6 +47,8 @@ export default function PerfilPage() {
   const [whatsappAlertas, setWhatsappAlertas] = useState(false);
   const [savingNotif, setSavingNotif] = useState(false);
   const [savedNotif, setSavedNotif] = useState(false);
+  const [waLink, setWaLink] = useState<{ codigo: string; vinculado: boolean } | null>(null);
+  const [waLinkCopiado, setWaLinkCopiado] = useState(false);
 
   // senha
   const [senhaAtual, setSenhaAtual] = useState("");
@@ -69,6 +71,8 @@ export default function PerfilPage() {
       setWhatsapp(p.whatsapp || "");
       setWhatsappAlertas(p.whatsappAlertas ?? false);
     }).finally(() => setLoading(false));
+    api.get<{ codigo: string; vinculado: boolean }>("/agenda/whatsapp-link")
+      .then(r => setWaLink(r.data)).catch(() => {});
   }, []);
 
   async function saveInfo() {
@@ -226,6 +230,7 @@ export default function PerfilPage() {
 
         {/* ── Tab: Notificações ────────────────────────────────────────────────── */}
         {tab === "notificacoes" && (
+          <div className="space-y-5">
           <div className="rounded-2xl border border-border bg-card p-6 space-y-5">
             <h2 className="text-sm font-semibold text-foreground">Notificações por WhatsApp</h2>
 
@@ -260,6 +265,36 @@ export default function PerfilPage() {
                 Salvar
               </button>
             </div>
+          </div>
+
+          {/* ── Criar evento pelo WhatsApp (vínculo) ── */}
+          <div className="rounded-2xl border border-border bg-card p-6 space-y-4">
+            <div className="flex items-center gap-2">
+              <MessageCircle size={16} className="text-primary" />
+              <h2 className="text-sm font-semibold text-foreground">Criar evento pelo WhatsApp</h2>
+            </div>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Mande uma mensagem no WhatsApp do sistema e ela vira compromisso na sua agenda — ex.:{" "}
+              <span className="text-foreground font-medium">Evento: Reunião 27/08 14:00</span> (aceita <em>hoje</em>/<em>amanhã</em> e horários como <em>9h</em> ou <em>14:30</em>).
+              Para ligar o seu WhatsApp à sua conta, envie <span className="text-foreground font-medium">uma vez</span> o código abaixo:
+            </p>
+            {waLink ? (
+              <>
+                <div className="flex items-center gap-3 flex-wrap">
+                  <code className="px-3 py-2 rounded-lg bg-background border border-border text-sm font-mono text-foreground select-all">VINCULAR {waLink.codigo}</code>
+                  <button onClick={() => { try { navigator.clipboard?.writeText(`VINCULAR ${waLink.codigo}`); } catch {} setWaLinkCopiado(true); setTimeout(() => setWaLinkCopiado(false), 1500); }}
+                    className="text-xs px-3 py-2 rounded-lg border border-border text-muted-foreground hover:text-foreground transition-colors">
+                    {waLinkCopiado ? "Copiado!" : "Copiar"}
+                  </button>
+                </div>
+                <div className={cn("text-xs flex items-center gap-1.5", waLink.vinculado ? "text-green-400" : "text-muted-foreground")}>
+                  {waLink.vinculado
+                    ? <><CheckCircle size={14} /> Seu WhatsApp já está vinculado — pode criar eventos.</>
+                    : <>Ainda não vinculado. Envie o código acima no WhatsApp do sistema.</>}
+                </div>
+              </>
+            ) : <div className="text-xs text-muted-foreground">Carregando código…</div>}
+          </div>
           </div>
         )}
 

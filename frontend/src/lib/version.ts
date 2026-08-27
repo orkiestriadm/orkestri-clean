@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "1.18.6";
+export const VERSAO = "1.19.0";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -26,7 +26,7 @@ export const VERSAO = "1.18.6";
 export const VERSAO_DATA = "2026-08-25";
 
 /** Nome da entrega, para dar contexto ao número. */
-export const VERSAO_NOME = "Criar evento pelo WhatsApp (mensagem p/ si)";
+export const VERSAO_NOME = "Criar evento pelo WhatsApp (com vínculo)";
 
 /**
  * Histórico exibido na tela Sobre, do mais recente para o mais antigo.
@@ -36,11 +36,12 @@ export const VERSAO_NOME = "Criar evento pelo WhatsApp (mensagem p/ si)";
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
   {
-    versao: "1.18.6",
-    data: "2026-08-26",
+    versao: "1.19.0",
+    data: "2026-08-27",
     titulo: "Criar evento pelo WhatsApp",
     itens: [
-      "Agora dá para criar um compromisso na sua agenda mandando uma mensagem no WhatsApp, no formato: Evento: <título> <data> <hora> (ex.: \"Evento: Reunião 27/08 14:00\"). Aceita \"hoje\"/\"amanhã\" e horários como \"9h\" ou \"14:30\"; o fim entra automaticamente 1h depois. Vale inclusive mandar para você mesmo (quando o WhatsApp do sistema é o seu próprio número). Só funciona para números cadastrados, e o sistema confirma por WhatsApp",
+      "Agora dá para criar um compromisso mandando uma mensagem no WhatsApp do sistema, no formato: Evento: <título> <data> <hora> (ex.: \"Evento: Reunião 27/08 14:00\"). Aceita \"hoje\"/\"amanhã\" e horários como \"9h\" ou \"14:30\"; o fim entra automaticamente 1h depois. O sistema confirma por WhatsApp",
+      "Como o WhatsApp esconde o número de quem envia, cada pessoa vincula o seu WhatsApp uma única vez: em Perfil → Criar evento pelo WhatsApp aparece um código para enviar (ex.: \"VINCULAR ABC123\"). Depois disso, os eventos criados por mensagem caem na agenda de quem enviou e a confirmação volta para essa pessoa",
     ],
   },
   {

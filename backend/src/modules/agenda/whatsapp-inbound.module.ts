@@ -4,6 +4,14 @@ import {
 import { PrismaService } from "../../prisma/prisma.service";
 import { WhatsAppService } from "../notifications/whatsapp.service";
 import { NotificationsModule } from "../notifications/notifications.module";
+import { createHash } from "crypto";
+
+// Código de vínculo do WhatsApp (mostrado no Perfil). Determinístico por usuário
+// e não adivinhável sem o segredo — quem manda "VINCULAR <código>" prova ser o dono.
+export function codigoVinculoWhatsapp(userId: string): string {
+  const secret = process.env.WHATSAPP_INBOUND_SECRET || process.env.JWT_SECRET || "orkiestri";
+  return createHash("sha256").update(userId + "|" + secret).digest("hex").slice(0, 6).toUpperCase();
+}
 
 // ── Parser do comando ─────────────────────────────────────────────────────────
 //
@@ -104,59 +112,88 @@ export class WhatsappInboundService {
     return d.toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
   }
 
+  // Identifica o usuário DONO daquele chat: primeiro pelo LID vinculado, depois
+  // (só quando o chat é @s.whatsapp.net) pelo telefone cadastrado — assim o
+  // caso "mandar para si mesmo" com número próprio ainda funciona sem vínculo.
+  private async identificar(remoteJid: string) {
+    const idPart = remoteJid.split("@")[0];
+    const byLid = await this.prisma.userProfile.findFirst({
+      where: { whatsappLid: idPart } as any,
+      select: { user: { select: { id: true, organizationId: true, ativo: true, nome: true } } },
+    });
+    if (byLid?.user?.ativo) return byLid.user;
+    if (remoteJid.endsWith("@s.whatsapp.net")) {
+      const perfis = await this.prisma.userProfile.findMany({
+        where: { NOT: { whatsapp: null } },
+        select: { whatsapp: true, user: { select: { id: true, organizationId: true, ativo: true, nome: true } } },
+      });
+      const p = perfis.find(x => x.user?.ativo && telefoneBate(idPart, x.whatsapp));
+      if (p?.user) return p.user;
+    }
+    return null;
+  }
+
+  // "VINCULAR <código>" — liga aquele chat (LID/telefone) à conta cujo código bate.
+  private async vincular(remoteJid: string, codigo: string) {
+    const idPart = remoteJid.split("@")[0];
+    const users = await this.prisma.user.findMany({
+      where: { ativo: true },
+      select: { id: true, nome: true },
+    });
+    const alvo = users.find(u => codigoVinculoWhatsapp(u.id) === codigo);
+    if (!alvo) {
+      await this.wa.sendToJid(remoteJid, "🤖 Código inválido. Confira o código em *Perfil → Criar evento pelo WhatsApp* no sistema.").catch(() => {});
+      return;
+    }
+    await this.prisma.userProfile.upsert({
+      where: { userId: alvo.id },
+      update: { whatsappLid: idPart } as any,
+      create: { userId: alvo.id, whatsappLid: idPart } as any,
+    });
+    this.logger.log(`WhatsApp vinculado: user=${alvo.id} lid=${idPart}`);
+    await this.wa.sendToJid(remoteJid,
+      `✅ WhatsApp vinculado à conta de *${alvo.nome}*!\n\nAgora crie eventos assim:\n*Evento: Reunião 27/08 14:00*`).catch(() => {});
+  }
+
   async processar(body: any): Promise<void> {
     // Evolution v1.8.2 — evento messages.upsert
     const data = Array.isArray(body?.data) ? body.data[0] : body?.data;
     const key = data?.key || {};
     const remoteJid: string = key?.remoteJid || "";
-    // NÃO ignoramos fromMe: em muitos setups o "bot" está logado com o número do
-    // próprio dono, então o comando chega como mensagem PARA SI MESMO (fromMe=true).
-    // Quem filtra é o parser — só texto que começa com "Evento/Agenda/..." vira
-    // evento; lembretes e as confirmações "✅"/"🤖" não são comandos, então não
-    // há loop com o que nós mesmos enviamos.
-    if (remoteJid.includes("@g.us")) return; // grupo — ignora
-    const senderJid: string = body?.sender || data?.sender || "";
-    const texto: string =
+    if (!remoteJid || remoteJid.includes("@g.us")) return; // grupo — ignora
+    const texto: string = (
       data?.message?.conversation ||
       data?.message?.extendedTextMessage?.text ||
-      data?.message?.ephemeralMessage?.message?.extendedTextMessage?.text || "";
+      data?.message?.ephemeralMessage?.message?.extendedTextMessage?.text || ""
+    ).trim();
 
-    // Telefone: o `remoteJid` às vezes vem como "<id>@lid" (Linked Identifier do
-    // WhatsApp — NÃO é telefone). Nesses casos o número real está no `sender`
-    // (dono da instância). Só consideramos JIDs @s.whatsapp.net como candidatos.
-    const candidatos = [remoteJid, senderJid]
-      .filter(j => typeof j === "string" && j.endsWith("@s.whatsapp.net"))
-      .map(j => j.split("@")[0]);
+    this.logger.log(`inbound jid=${remoteJid} fromMe=${key?.fromMe} texto="${texto.slice(0, 50)}"`);
+    if (!texto) return;
 
-    this.logger.log(`inbound jid=${remoteJid} sender=${senderJid} fromMe=${key?.fromMe} texto="${texto.slice(0, 50)}"`);
-    if (!texto.trim() || !candidatos.length) return;
+    // ── Vínculo? "VINCULAR <código>" ──
+    const mVinc = texto.match(/^vincular\s+([a-z0-9]{4,10})$/i);
+    if (mVinc) { await this.vincular(remoteJid, mVinc[1].toUpperCase()); return; }
 
-    // Comando?
+    // ── Comando de evento? ──
     const parsed = parseComandoEvento(texto, new Date());
-    if (parsed === null) return; // não começa com a palavra-chave — não responde nada
+    if (parsed === null) return; // não é comando — ignora em silêncio
 
-    // Identifica o usuário pelo número cadastrado (só quem tem número cria evento)
-    const perfis = await this.prisma.userProfile.findMany({
-      where: { NOT: { whatsapp: null } },
-      select: { whatsapp: true, user: { select: { id: true, organizationId: true, ativo: true, nome: true } } },
-    });
-    const perfil = perfis.find(p => p.user?.ativo && candidatos.some(n => telefoneBate(n, p.whatsapp)));
-    if (!perfil?.user) {
-      this.logger.warn(`Inbound de número não cadastrado (${candidatos.join(",")}) — ignorado.`);
-      return; // não vaza que o número é desconhecido
+    // ── Identifica a conta dona deste WhatsApp ──
+    const user = await this.identificar(remoteJid);
+    if (!user) {
+      await this.wa.sendToJid(remoteJid,
+        "🤖 Seu WhatsApp ainda não está vinculado a uma conta. No sistema, abra *Perfil → Criar evento pelo WhatsApp* e envie aqui o código mostrado (ex.: *VINCULAR ABC123*).").catch(() => {});
+      return;
     }
-    const user = perfil.user;
-    // número para responder = o candidato que casou com o cadastro
-    const numero = candidatos.find(n => telefoneBate(n, perfil.whatsapp)) || candidatos[0];
 
     if (parsed === "sem_data_hora") {
-      await this.wa.sendMessageForOrg(user.organizationId, numero,
+      await this.wa.sendToJid(remoteJid,
         "🤖 Não consegui identificar a data/hora. Envie assim:\n\n*Evento: Reunião com cliente 27/08 14:00*\n\nTambém vale _hoje_, _amanhã_ e horários como _9h_ ou _14:30_.").catch(() => {});
       return;
     }
 
-    // Cria o evento na agenda da pessoa
-    const ev = await this.prisma.event.create({
+    // Cria o evento na agenda da PESSOA que enviou
+    await this.prisma.event.create({
       data: {
         titulo: parsed.titulo,
         inicio: parsed.inicio,
@@ -174,7 +211,7 @@ export class WhatsappInboundService {
     const quando = parsed.diaTodo
       ? parsed.inicio.toLocaleDateString("pt-BR") + " (dia todo)"
       : this.fmtData(parsed.inicio);
-    await this.wa.sendMessageForOrg(user.organizationId, numero,
+    await this.wa.sendToJid(remoteJid,
       `✅ Evento criado na sua agenda:\n\n🗓️ *${parsed.titulo}*\n🕐 ${quando}` +
       (parsed.fim ? ` – ${this.fmtData(parsed.fim)}` : "")).catch(() => {});
   }

@@ -1299,6 +1299,9 @@ model UserProfile {
   userId               String    @unique @map("user_id")
   whatsapp             String?
   whatsappAlertas      Boolean   @default(false) @map("whatsapp_alertas")
+  /// LID do WhatsApp vinculado (o WhatsApp esconde o telefone de quem envia e
+  /// manda só este identificador). Preenchido pela vinculação por código.
+  whatsappLid          String?   @unique @map("whatsapp_lid")
   criadoEm             DateTime  @default(now()) @map("criado_em")
   twoFactorSecret      String?   @map("two_factor_secret")
   twoFactorAtivo       Boolean   @default(false) @map("two_factor_ativo")

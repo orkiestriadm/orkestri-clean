@@ -2,6 +2,7 @@ import { Module, Controller, Get, Post, Put, Delete, Patch, Body, Param, Query, 
 import { AuthGuard } from "@nestjs/passport";
 import { IsArray, IsBoolean, IsDateString, IsIn, IsOptional, IsString } from "class-validator";
 import { PrismaService } from "../../prisma/prisma.service";
+import { codigoVinculoWhatsapp } from "./whatsapp-inbound.module";
 import { Permissions } from "../auth/permissions.decorator";
 import { PermissionsGuard } from "../auth/permissions.guard";
 import { IntegracoesModule } from "../integracoes/integracoes.module";
@@ -95,6 +96,16 @@ class AgendaController {
     // não-fatal: falha no Graph nunca quebra a operação de agenda.
     private writeback: CalendarWritebackService,
   ) {}
+
+  // Código para vincular o WhatsApp à agenda (mostrado no Perfil) + se já vinculou.
+  @Get("whatsapp-link")
+  async whatsappLink(@Req() req: any) {
+    const prof = await this.prisma.userProfile.findUnique({
+      where: { userId: req.user.id },
+      select: { whatsappLid: true } as any,
+    });
+    return { codigo: codigoVinculoWhatsapp(req.user.id), vinculado: !!(prof as any)?.whatsappLid };
+  }
 
   @Get()
   @Permissions("agenda:ver")
