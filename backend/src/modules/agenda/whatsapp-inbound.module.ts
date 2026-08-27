@@ -134,7 +134,7 @@ export class WhatsappInboundService {
   }
 
   // "VINCULAR <código>" — liga aquele chat (LID/telefone) à conta cujo código bate.
-  private async vincular(remoteJid: string, codigo: string) {
+  private async vincular(remoteJid: string, codigo: string, inst: string) {
     const idPart = remoteJid.split("@")[0];
     const users = await this.prisma.user.findMany({
       where: { ativo: true },
@@ -142,7 +142,7 @@ export class WhatsappInboundService {
     });
     const alvo = users.find(u => codigoVinculoWhatsapp(u.id) === codigo);
     if (!alvo) {
-      await this.wa.sendToJid(remoteJid, "🤖 Código inválido. Confira o código em *Perfil → Criar evento pelo WhatsApp* no sistema.").catch(() => {});
+      await this.wa.sendToJid(remoteJid, "🤖 Código inválido. Confira o código em *Perfil → Criar evento pelo WhatsApp* no sistema.", inst).catch(() => {});
       return;
     }
     await this.prisma.userProfile.upsert({
@@ -152,7 +152,7 @@ export class WhatsappInboundService {
     });
     this.logger.log(`WhatsApp vinculado: user=${alvo.id} lid=${idPart}`);
     await this.wa.sendToJid(remoteJid,
-      `✅ WhatsApp vinculado à conta de *${alvo.nome}*!\n\nAgora crie eventos assim:\n*Evento: Reunião 27/08 14:00*`).catch(() => {});
+      `✅ WhatsApp vinculado à conta de *${alvo.nome}*!\n\nAgora crie eventos assim:\n*Evento: Reunião 27/08 14:00*`, inst).catch(() => {});
   }
 
   async processar(body: any): Promise<void> {
@@ -160,6 +160,10 @@ export class WhatsappInboundService {
     const data = Array.isArray(body?.data) ? body.data[0] : body?.data;
     const key = data?.key || {};
     const remoteJid: string = key?.remoteJid || "";
+    // Responder SEMPRE pela instância que RECEBEU a mensagem (vem no payload como
+    // owner/instance). O default do serviço é "orkestri", que está desconectada —
+    // usar ele fazia a confirmação falhar com 500 "Connection Closed".
+    const inst: string = data?.owner || body?.instance || "orkestri-default";
     if (!remoteJid || remoteJid.includes("@g.us")) return; // grupo — ignora
     const texto: string = (
       data?.message?.conversation ||
@@ -172,7 +176,7 @@ export class WhatsappInboundService {
 
     // ── Vínculo? "VINCULAR <código>" ──
     const mVinc = texto.match(/^vincular\s+([a-z0-9]{4,10})$/i);
-    if (mVinc) { await this.vincular(remoteJid, mVinc[1].toUpperCase()); return; }
+    if (mVinc) { await this.vincular(remoteJid, mVinc[1].toUpperCase(), inst); return; }
 
     // ── Comando de evento? ──
     const parsed = parseComandoEvento(texto, new Date());
@@ -182,13 +186,13 @@ export class WhatsappInboundService {
     const user = await this.identificar(remoteJid);
     if (!user) {
       await this.wa.sendToJid(remoteJid,
-        "🤖 Seu WhatsApp ainda não está vinculado a uma conta. No sistema, abra *Perfil → Criar evento pelo WhatsApp* e envie aqui o código mostrado (ex.: *VINCULAR ABC123*).").catch(() => {});
+        "🤖 Seu WhatsApp ainda não está vinculado a uma conta. No sistema, abra *Perfil → Criar evento pelo WhatsApp* e envie aqui o código mostrado (ex.: *VINCULAR ABC123*).", inst).catch(() => {});
       return;
     }
 
     if (parsed === "sem_data_hora") {
       await this.wa.sendToJid(remoteJid,
-        "🤖 Não consegui identificar a data/hora. Envie assim:\n\n*Evento: Reunião com cliente 27/08 14:00*\n\nTambém vale _hoje_, _amanhã_ e horários como _9h_ ou _14:30_.").catch(() => {});
+        "🤖 Não consegui identificar a data/hora. Envie assim:\n\n*Evento: Reunião com cliente 27/08 14:00*\n\nTambém vale _hoje_, _amanhã_ e horários como _9h_ ou _14:30_.", inst).catch(() => {});
       return;
     }
 
@@ -213,7 +217,7 @@ export class WhatsappInboundService {
       : this.fmtData(parsed.inicio);
     await this.wa.sendToJid(remoteJid,
       `✅ Evento criado na sua agenda:\n\n🗓️ *${parsed.titulo}*\n🕐 ${quando}` +
-      (parsed.fim ? ` – ${this.fmtData(parsed.fim)}` : "")).catch(() => {});
+      (parsed.fim ? ` – ${this.fmtData(parsed.fim)}` : ""), inst).catch(() => {});
   }
 }
 
