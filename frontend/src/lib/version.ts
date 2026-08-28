@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "1.21.0";
+export const VERSAO = "1.21.1";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -35,6 +35,14 @@ export const VERSAO_NOME = "Módulo de Indicações (referral)";
  * esta lista quer saber o que mudou para ele.
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
+  {
+    versao: "1.21.1",
+    data: "2026-08-27",
+    titulo: "Seu código de indicação no Perfil",
+    itens: [
+      "Novo card 'Indique e Ganhe' no Perfil: cada pessoa vê o próprio código de indicação (copiar), quantas pessoas já indicou e quanto tem a receber/recebido de comissão. Um código por pessoa, sem limite de indicações",
+    ],
+  },
   {
     versao: "1.21.0",
     data: "2026-08-27",

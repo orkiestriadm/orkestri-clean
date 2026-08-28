@@ -136,6 +136,33 @@ export class ReferralService {
   codigoDoUsuario(userId: string) {
     return { codigo: codigoIndicacao(userId) };
   }
+
+  // Card "Indique e Ganhe" do próprio usuário (Perfil): código + ganhos.
+  async meuCodigo(userId: string) {
+    const refs = await this.prisma.referral.findMany({
+      where: { indicadorUserId: userId },
+      select: { comissaoValor: true, comissaoStatus: true, status: true } as any,
+    });
+    const soma = (st: string) =>
+      (refs as any[]).filter((r) => r.comissaoStatus === st).reduce((s, r) => s + (r.comissaoValor || 0), 0);
+    return {
+      codigo: codigoIndicacao(userId),
+      indicados: refs.length,
+      efetivados: (refs as any[]).filter((r) => r.status === "EFETIVADO").length,
+      aReceber: soma("PENDENTE"),
+      recebida: soma("PAGA"),
+    };
+  }
+}
+
+// Endpoint do PRÓPRIO usuário (qualquer autenticado) — sem gate de super-admin.
+@Controller("referral")
+@UseGuards(AuthGuard("jwt"))
+export class ReferralMeController {
+  constructor(private svc: ReferralService) {}
+
+  @Get("meu-codigo")
+  async meuCodigo(@Req() req: any) { return this.svc.meuCodigo(req.user.id); }
 }
 
 @Controller("referral/admin")
@@ -171,7 +198,7 @@ export class ReferralAdminController {
 }
 
 @Module({
-  controllers: [ReferralAdminController],
+  controllers: [ReferralAdminController, ReferralMeController],
   providers: [ReferralService],
   exports: [ReferralService],
 })

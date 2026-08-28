@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import { api } from "@/lib/api";
 import { useAuthStore } from "@/lib/store";
-import { User, Lock, Bell, Shield, Save, Loader2, CheckCircle, Eye, EyeOff, MessageCircle } from "lucide-react";
+import { User, Lock, Bell, Shield, Save, Loader2, CheckCircle, Eye, EyeOff, MessageCircle, Gift } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -49,6 +49,8 @@ export default function PerfilPage() {
   const [savedNotif, setSavedNotif] = useState(false);
   const [waLink, setWaLink] = useState<{ codigo: string; vinculado: boolean } | null>(null);
   const [waLinkCopiado, setWaLinkCopiado] = useState(false);
+  const [refCard, setRefCard] = useState<{ codigo: string; indicados: number; efetivados: number; aReceber: number; recebida: number } | null>(null);
+  const [refCopiado, setRefCopiado] = useState(false);
 
   // senha
   const [senhaAtual, setSenhaAtual] = useState("");
@@ -73,6 +75,8 @@ export default function PerfilPage() {
     }).finally(() => setLoading(false));
     api.get<{ codigo: string; vinculado: boolean }>("/agenda/whatsapp-link")
       .then(r => setWaLink(r.data)).catch(() => {});
+    api.get<{ codigo: string; indicados: number; efetivados: number; aReceber: number; recebida: number }>("/referral/meu-codigo")
+      .then(r => setRefCard(r.data)).catch(() => {});
   }, []);
 
   async function saveInfo() {
@@ -294,6 +298,42 @@ export default function PerfilPage() {
                 </div>
               </>
             ) : <div className="text-xs text-muted-foreground">Carregando código…</div>}
+          </div>
+
+          {/* ── Indique e Ganhe ── */}
+          <div className="rounded-2xl border border-border bg-card p-6 space-y-4">
+            <div className="flex items-center gap-2">
+              <Gift size={16} className="text-primary" />
+              <h2 className="text-sm font-semibold text-foreground">Indique e Ganhe</h2>
+            </div>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Compartilhe o seu código. Cada pessoa que entrar com ele e <span className="text-foreground font-medium">assinar</span> te dá <span className="text-foreground font-medium">R$ 5,00</span> — sem limite de indicações.
+            </p>
+            {refCard ? (
+              <>
+                <div className="flex items-center gap-3 flex-wrap">
+                  <code className="px-3 py-2 rounded-lg bg-background border border-border text-sm font-mono text-foreground select-all">{refCard.codigo}</code>
+                  <button onClick={() => { try { navigator.clipboard?.writeText(refCard.codigo); } catch {} setRefCopiado(true); setTimeout(() => setRefCopiado(false), 1500); }}
+                    className="text-xs px-3 py-2 rounded-lg border border-border text-muted-foreground hover:text-foreground transition-colors">
+                    {refCopiado ? "Copiado!" : "Copiar"}
+                  </button>
+                </div>
+                <div className="grid grid-cols-3 gap-2 text-center">
+                  <div className="rounded-lg border border-border bg-background p-2.5">
+                    <div className="text-lg font-bold text-foreground">{refCard.indicados}</div>
+                    <div className="text-[11px] text-muted-foreground">Indicados</div>
+                  </div>
+                  <div className="rounded-lg border border-border bg-background p-2.5">
+                    <div className="text-lg font-bold text-foreground">{(refCard.aReceber / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</div>
+                    <div className="text-[11px] text-muted-foreground">A receber</div>
+                  </div>
+                  <div className="rounded-lg border border-border bg-background p-2.5">
+                    <div className="text-lg font-bold text-green-400">{(refCard.recebida / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</div>
+                    <div className="text-[11px] text-muted-foreground">Recebido</div>
+                  </div>
+                </div>
+              </>
+            ) : <div className="text-xs text-muted-foreground">Carregando…</div>}
           </div>
           </div>
         )}
