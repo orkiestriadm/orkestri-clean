@@ -4,6 +4,7 @@ import {
 import { PrismaService } from "../../prisma/prisma.service";
 import { WhatsAppService } from "../notifications/whatsapp.service";
 import { NotificationsModule } from "../notifications/notifications.module";
+import { registrarIndicacao, montarMensagemAtivacao, codigoIndicacao } from "../referral/referral.helpers";
 import { createHash } from "crypto";
 
 // Código de vínculo do WhatsApp (mostrado no Perfil). Determinístico por usuário
@@ -41,6 +42,7 @@ const TUTORIAL_WHATSAPP =
   "• Evento: Reunião 10h toda semana até 31/12\n\n" +
   "⏰ Pode usar *hoje*, *amanhã* ou a data (dia/mês), e horas como *9h* ou *14:30*.\n\n" +
   "✅ Toda vez que eu criar, te aviso aqui na hora.\n\n" +
+  "🎁 Veio por indicação de alguém? Envie o código dele assim: *INDICACAO ORK-XXXXXX*\n\n" +
   "Manda a sua primeira! 😉";
 
 export function parseComandoEvento(texto: string, agora: Date): Parsed | "sem_data_hora" | null {
@@ -232,6 +234,25 @@ export class WhatsappInboundService {
     await this.responder(remoteJid, tel, alvo.organizationId, inst, TUTORIAL_WHATSAPP);
   }
 
+  // "INDICACAO <código>" — o próprio usuário (já vinculado) diz que veio pela
+  // indicação de alguém. Registra o vínculo e manda a mensagem de ativação.
+  private async registrarIndicacaoWhats(remoteJid: string, codigo: string, inst: string) {
+    const user = await this.identificar(remoteJid);
+    if (!user) {
+      await this.wa.sendToJid(remoteJid,
+        "🤖 Para registrar a indicação, primeiro vincule o seu WhatsApp: envie *VINCULAR <seu código>* (o código aparece no seu Perfil → Criar evento pelo WhatsApp).", inst).catch(() => {});
+      return;
+    }
+    const nome = await registrarIndicacao(this.prisma, codigo, user.id).catch(() => null);
+    if (!nome) {
+      await this.wa.sendToJid(remoteJid,
+        "🤖 Não consegui registrar essa indicação. Confira o código (ex.: *INDICACAO ORK-XXXXXX*) — pode ser inválido, o seu próprio código, ou você já registrou uma indicação antes.", inst).catch(() => {});
+      return;
+    }
+    this.logger.log(`Indicação via WhatsApp: indicado=${user.id} por="${nome}"`);
+    await this.wa.sendToJid(remoteJid, montarMensagemAtivacao(nome, codigoIndicacao(user.id)), inst).catch(() => {});
+  }
+
   async processar(body: any): Promise<void> {
     // Evolution v1.8.2 — evento messages.upsert
     const data = Array.isArray(body?.data) ? body.data[0] : body?.data;
@@ -254,6 +275,13 @@ export class WhatsappInboundService {
     // ── Vínculo? "VINCULAR <código>" ──
     const mVinc = texto.match(/^vincular\s+([a-z0-9]{4,10})$/i);
     if (mVinc) { await this.vincular(remoteJid, mVinc[1].toUpperCase(), inst); return; }
+
+    // ── Indicação? "INDICACAO ORK-XXXX" ou só "ORK-XXXX" (código sempre tem ORK-). ──
+    let codInd: string | null = null;
+    const mIndKey = texto.match(/^(?:indica[çc][aã]o|indicado(?: por)?|vim por)\s+(.+)$/i);
+    if (mIndKey) codInd = mIndKey[1].trim();
+    else if (/^ORK-?[a-z0-9]{4,10}$/i.test(texto)) codInd = texto.trim();
+    if (codInd) { await this.registrarIndicacaoWhats(remoteJid, codInd, inst); return; }
 
     // ── Comando de evento? ──
     const parsed = parseComandoEvento(texto, new Date());

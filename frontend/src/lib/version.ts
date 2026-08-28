@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "1.21.2";
+export const VERSAO = "1.21.3";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -35,6 +35,14 @@ export const VERSAO_NOME = "Módulo de Indicações (referral)";
  * esta lista quer saber o que mudou para ele.
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
+  {
+    versao: "1.21.3",
+    data: "2026-08-28",
+    titulo: "Ativar indicação pelo WhatsApp",
+    itens: [
+      "O usuário novo agora ativa a indicação sozinho pelo WhatsApp: depois de vincular o número, é só enviar o código de quem o indicou (ex.: INDICACAO ORK-XXXXXX, ou só o código). O sistema registra o vínculo na hora e responde a mensagem de boas-vindas com o código dele para indicar outras pessoas. Sem precisar do painel admin",
+    ],
+  },
   {
     versao: "1.21.2",
     data: "2026-08-28",
