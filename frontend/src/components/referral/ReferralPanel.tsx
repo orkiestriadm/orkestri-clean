@@ -5,7 +5,7 @@ import { RefreshCw, Gift, MessageCircle, Check, AlertTriangle, Users, Clock } fr
 
 type Comissao = { valor: number | null; status: string | null };
 type Linha = {
-  id: string; nome: string; email: string; whatsapp: string | null;
+  id: string; nome: string; email: string; whatsapp: string | null; codigo: string;
   modulo: string | null; inicio: string; expira: string | null;
   diasRestantes: number | null; vencido: boolean;
   efetivado: boolean; assinaturaEm: string | null;
@@ -131,6 +131,10 @@ export default function ReferralPanel() {
               <div style={{ minWidth: 0 }}>
                 <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text-primary)" }}>{u.nome}</div>
                 <div style={{ fontSize: 12, color: "var(--text-muted)" }}>{u.email}{u.modulo ? ` · ${u.modulo}` : ""}</div>
+                <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 3, display: "flex", alignItems: "center", gap: 6 }}>
+                  Código dele: <code style={{ color: "var(--text-secondary)", fontFamily: "var(--font-mono)" }}>{u.codigo}</code>
+                  <button onClick={() => { try { navigator.clipboard?.writeText(u.codigo); } catch {} }} style={linkBtn}>copiar</button>
+                </div>
                 <div style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 4, display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
                   <Gift size={13} style={{ color: "var(--accent-violet)" }} />
                   Indicado por: <b style={{ color: u.indicadoPor ? "var(--text-primary)" : "var(--text-muted)" }}>{u.indicadoPor || "—"}</b>

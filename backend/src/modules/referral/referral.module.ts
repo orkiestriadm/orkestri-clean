@@ -41,6 +41,7 @@ export class ReferralService {
       const r = u.indicacaoRecebida;
       return {
         id: u.id, nome: u.nome, email: u.email, whatsapp: u.profile?.whatsapp || null,
+        codigo: codigoIndicacao(u.id), // código que ELE compartilha para indicar
         modulo: u.trialModulo, inicio: u.criadoEm, expira,
         diasRestantes, vencido,
         efetivado: !!u.assinaturaEm, assinaturaEm: u.assinaturaEm,
