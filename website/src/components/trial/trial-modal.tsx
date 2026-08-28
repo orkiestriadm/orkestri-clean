@@ -26,6 +26,7 @@ export function TrialModal() {
   const [email, setEmail] = useState("");
   const [whatsapp, setWhatsapp] = useState("");
   const [produto, setProduto] = useState("");
+  const [codigoIndicacao, setCodigoIndicacao] = useState("");
   const [codigo, setCodigo] = useState("");
   const [carregando, setCarregando] = useState(false);
   const [erro, setErro] = useState("");
@@ -35,7 +36,7 @@ export function TrialModal() {
     if (!aberto) {
       const t = setTimeout(() => {
         setPasso("dados"); setEmail(""); setWhatsapp(""); setProduto("");
-        setCodigo(""); setErro(""); setCarregando(false);
+        setCodigoIndicacao(""); setCodigo(""); setErro(""); setCarregando(false);
       }, 200);
       return () => clearTimeout(t);
     }
@@ -61,7 +62,7 @@ export function TrialModal() {
       const res = await fetch("/api/auth/trial/iniciar", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: email.trim(), whatsapp: whatsapp.trim(), produto }),
+        body: JSON.stringify({ email: email.trim(), whatsapp: whatsapp.trim(), produto, codigoIndicacao: codigoIndicacao.trim() || undefined }),
       });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(json?.message || "Não foi possível enviar o código.");
@@ -205,6 +206,16 @@ export function TrialModal() {
                       );
                     })}
                   </div>
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="trial-indicacao">Código de indicação (opcional)</Label>
+                  <Input
+                    id="trial-indicacao"
+                    value={codigoIndicacao}
+                    onChange={(e) => setCodigoIndicacao(e.target.value.toUpperCase())}
+                    placeholder="ORK-XXXXXX"
+                  />
+                  <span className="text-xs text-gray-400">Recebeu um código de quem te indicou? Cole aqui.</span>
                 </div>
               </div>
 

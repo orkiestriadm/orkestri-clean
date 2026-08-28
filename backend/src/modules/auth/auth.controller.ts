@@ -83,6 +83,8 @@ class IniciarTrialDto {
   @IsString() whatsapp: string;
   // Slug do produto Orkiestri One escolhido no modal (ex.: "one-fleet").
   @IsString() produto: string;
+  // Código de indicação (opcional) — quem indicou este novo usuário.
+  @IsOptional() @IsString() codigoIndicacao?: string;
 }
 
 class ConfirmarTrialDto {

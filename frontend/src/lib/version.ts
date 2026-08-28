@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "1.20.2";
+export const VERSAO = "1.21.0";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -26,7 +26,7 @@ export const VERSAO = "1.20.2";
 export const VERSAO_DATA = "2026-08-25";
 
 /** Nome da entrega, para dar contexto ao número. */
-export const VERSAO_NOME = "Eventos recorrentes pelo WhatsApp";
+export const VERSAO_NOME = "Módulo de Indicações (referral)";
 
 /**
  * Histórico exibido na tela Sobre, do mais recente para o mais antigo.
@@ -35,6 +35,15 @@ export const VERSAO_NOME = "Eventos recorrentes pelo WhatsApp";
  * esta lista quer saber o que mudou para ele.
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
+  {
+    versao: "1.21.0",
+    data: "2026-08-27",
+    titulo: "Indicações (Indique e Ganhe) — controle manual",
+    itens: [
+      "Nova aba 🎁 Indicações no painel Super Admin: acompanhe os usuários em teste (dias restantes / vencidos), quem indicou cada um, e faça o controle na mão — marcar que efetivou a assinatura (R$27), gerar a comissão do indicador (R$5) e marcar como paga. Botão para falar direto no WhatsApp da pessoa",
+      "No cadastro do teste (site) entrou um campo opcional de código de indicação; quem não informou, o admin pode definir o indicador à mão pela tela. Sem Mercado Pago — tudo manual nesta primeira versão",
+    ],
+  },
   {
     versao: "1.20.2",
     data: "2026-08-27",

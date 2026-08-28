@@ -261,6 +261,9 @@ model User {
   trialExpiraEm    DateTime? @map("trial_expira_em")
   trialModulo      String?   @map("trial_modulo")
   trialAvisadoSuporte Boolean @default(false) @map("trial_avisado_suporte")
+  // Efetivação (assinatura) marcada à mão pelo admin no painel de Indicações.
+  assinaturaEm        DateTime? @map("assinatura_em")
+  assinaturaValor     Int?      @map("assinatura_valor")
   criadoEm         DateTime  @default(now()) @map("criado_em")
   atualizadoEm     DateTime  @updatedAt @map("atualizado_em")
 
@@ -287,6 +290,8 @@ model User {
   notifications              Notification[]
   auditLogs                  AuditLog[]
   profile                    UserProfile?
+  indicacoesFeitas           Referral[]                  @relation("IndicacoesFeitas")
+  indicacaoRecebida          Referral?                   @relation("IndicacaoRecebida")
   chamadosSolicitados        Chamado[]                   @relation("ChamadoSolicitante")
   chamadosAtendidos          Chamado[]                   @relation("ChamadoAtendente")
   comentariosChamado         ChamadoComentario[]
@@ -1320,6 +1325,35 @@ model UserProfile {
   user                 User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("user_profiles")
+}
+
+// Indicações (referral) — MVP MANUAL, sem gateway de pagamento.
+// O código do indicador é DERIVADO do userId (não há tabela de códigos); esta
+// tabela é a fonte da verdade do vínculo + efetivação + comissão. Valores em
+// centavos, gravados na própria linha para preservar histórico.
+model Referral {
+  id              String    @id @default(uuid())
+  codigoUsado     String    @map("codigo_usado")            // código digitado no cadastro
+  indicadorUserId String    @map("indicador_user_id")       // quem indicou (recebe a comissão)
+  indicadoUserId  String    @unique @map("indicado_user_id") // 1 indicação por indicado
+  status          String    @default("PENDENTE")            // PENDENTE | EFETIVADO | CANCELADO
+  // Efetivação (marcada à mão pelo admin)
+  efetivadoEm     DateTime? @map("efetivado_em")
+  assinaturaValor Int?      @map("assinatura_valor")        // centavos (ex.: 2700 = R$27)
+  // Comissão
+  comissaoValor   Int?      @map("comissao_valor")          // centavos (ex.: 500 = R$5)
+  comissaoStatus  String?   @map("comissao_status")         // PENDENTE | PAGA | CANCELADA
+  comissaoPagaEm  DateTime? @map("comissao_paga_em")
+  notas           String?
+  criadoEm        DateTime  @default(now()) @map("criado_em")
+  atualizadoEm    DateTime  @updatedAt @map("atualizado_em")
+
+  indicador User @relation("IndicacoesFeitas", fields: [indicadorUserId], references: [id], onDelete: Cascade)
+  indicado  User @relation("IndicacaoRecebida", fields: [indicadoUserId], references: [id], onDelete: Cascade)
+
+  @@index([indicadorUserId])
+  @@index([status])
+  @@map("referrals")
 }
 
 /// Papel de acesso, POR ORGANIZACAO.

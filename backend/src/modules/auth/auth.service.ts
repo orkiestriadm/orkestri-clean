@@ -4,6 +4,7 @@ import { JwtService } from "@nestjs/jwt";
 import { ConfigService } from "@nestjs/config";
 import { PrismaService } from "../../prisma/prisma.service";
 import { CacheService } from "../cache/cache.service";
+import { registrarIndicacao } from "../referral/referral.helpers";
 import { WhatsAppService } from "../notifications/whatsapp.service";
 import { EmailService } from "../notifications/email.service";
 import { AutomacaoService } from "../automacoes/automacoes.module";
@@ -1113,7 +1114,7 @@ export class AuthService implements OnModuleInit {
    * pendência (e-mail + produto + código) fica no cache por 10 min — nada é
    * criado no banco até a confirmação do código.
    */
-  async iniciarTrial(dto: { email: string; whatsapp: string; produto: string }) {
+  async iniciarTrial(dto: { email: string; whatsapp: string; produto: string; codigoIndicacao?: string }) {
     const email = dto.email.trim().toLowerCase();
     const whatsapp = dto.whatsapp.trim();
     const digits = whatsapp.replace(/\D/g, "");
@@ -1129,7 +1130,7 @@ export class AuthService implements OnModuleInit {
     if (trialAtivo) throw new BadRequestException("Já existe um teste ativo para este WhatsApp.");
 
     const code = String(Math.floor(100000 + Math.random() * 900000));
-    await this.cache.set(`trial:otp:${digits}`, { email, produto: dto.produto, code, tentativas: 0 }, 600);
+    await this.cache.set(`trial:otp:${digits}`, { email, produto: dto.produto, code, tentativas: 0, codigoIndicacao: (dto.codigoIndicacao || "").trim() || undefined }, 600);
 
     const inst = await this.wa.resolveInstance(this.TRIAL_ORG).catch(() => undefined);
     const enviado = await this.wa.sendTrialOtp(whatsapp, code, inst).catch(() => false);
@@ -1192,6 +1193,11 @@ export class AuthService implements OnModuleInit {
     });
     if (role) {
       await this.prisma.userRole.create({ data: { userId, roleId: role.id } as any });
+    }
+
+    // Indicação (referral) — best-effort, nunca quebra o cadastro.
+    if (pend.codigoIndicacao) {
+      await registrarIndicacao(this.prisma, pend.codigoIndicacao, userId).catch(() => false);
     }
 
     const appUrl = this.config.get("APP_URL", "http://localhost");
