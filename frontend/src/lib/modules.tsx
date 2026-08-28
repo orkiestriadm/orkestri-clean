@@ -266,3 +266,22 @@ export function canAccessModule(user: any, permission: string | string[] | null)
   const exigidas = Array.isArray(permission) ? permission : [permission];
   return exigidas.some(p => perms.includes(p));
 }
+
+/**
+ * Rota inicial pós-login. Quem tem a Visão Geral (dashboard:ver) vai para
+ * /dashboard; quem NÃO tem (ex.: acesso de teste) é levado para a 1ª tela que
+ * consegue abrir. Sem isso, o trial cai na Visão Geral — que consulta dados de
+ * módulos que ele não tem — e a página entra em loop de erro.
+ */
+export function homeRoute(user: any): string {
+  if (!user) return "/dashboard";
+  if (user.isMaster || user.isSuperAdmin || canAccessModule(user, "dashboard:ver")) return "/dashboard";
+  for (const g of NAV) {
+    if (!canAccessGroup(user, g)) continue;
+    for (const it of g.items) {
+      if (it.href === "/dashboard") continue;
+      if (canAccessItemLevel(user, it) && canAccessModule(user, it.permission)) return it.href;
+    }
+  }
+  return "/dashboard/perfil"; // sempre acessível
+}

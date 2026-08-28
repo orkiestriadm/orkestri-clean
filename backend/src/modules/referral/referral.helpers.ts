@@ -12,16 +12,17 @@ const norm = (c: string) => (c || "").trim().toUpperCase().replace(/^ORK-?/, "")
 /**
  * Registra a indicação do indicado (best-effort — nunca quebra o cadastro).
  * Resolve o código -> indicador, valida autoindicação e 1-por-indicado.
+ * Retorna o NOME do indicador em caso de sucesso (para a msg de ativação), ou null.
  */
-export async function registrarIndicacao(prisma: any, codigoRaw: string, indicadoUserId: string): Promise<boolean> {
+export async function registrarIndicacao(prisma: any, codigoRaw: string, indicadoUserId: string): Promise<string | null> {
   try {
     const alvo = norm(codigoRaw);
-    if (!alvo) return false;
+    if (!alvo) return null;
     const jaTem = await prisma.referral.findUnique({ where: { indicadoUserId } });
-    if (jaTem) return false; // 1 indicação por indicado
-    const users = await prisma.user.findMany({ where: { ativo: true }, select: { id: true } });
+    if (jaTem) return null; // 1 indicação por indicado
+    const users = await prisma.user.findMany({ where: { ativo: true }, select: { id: true, nome: true } });
     const indicador = users.find((u: any) => norm(codigoIndicacao(u.id)) === alvo);
-    if (!indicador || indicador.id === indicadoUserId) return false; // inválido ou autoindicação
+    if (!indicador || indicador.id === indicadoUserId) return null; // inválido ou autoindicação
     await prisma.referral.create({
       data: {
         codigoUsado: codigoIndicacao(indicador.id),
@@ -30,8 +31,20 @@ export async function registrarIndicacao(prisma: any, codigoRaw: string, indicad
         status: "PENDENTE",
       },
     });
-    return true;
+    return indicador.nome || "seu contato";
   } catch {
-    return false;
+    return null;
   }
+}
+
+// Mensagem de ativação enviada ao INDICADO no WhatsApp — confirma o vínculo e já
+// convida a pessoa a indicar (o pitch de "ganhe R$5 por indicação").
+export function montarMensagemAtivacao(indicadorNome: string, meuCodigo: string): string {
+  return (
+    "🎉 *Bem-vindo(a) ao Orkiestri!*\n\n" +
+    `Você entrou pela indicação de *${indicadorNome}* — quando você efetivar sua assinatura, ele(a) ganha uma comissão. 🙌\n\n` +
+    `E você também pode ganhar! O seu código de indicação é *${meuCodigo}*.\n\n` +
+    "💰 A cada pessoa que assinar usando o seu código, você recebe *R$ 5,00*. Indicou 200? São *R$ 1.000*.\n\n" +
+    "Pegue o seu código no seu *Perfil* e compartilhe. Chame gente para o Orkiestri! 🚀"
+  );
 }

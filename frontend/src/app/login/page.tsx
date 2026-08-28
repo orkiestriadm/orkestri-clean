@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuthStore } from "@/lib/store";
 import { authApi } from "@/lib/api";
+import { homeRoute } from "@/lib/modules";
 import { Eye, EyeOff, ArrowRight, Loader2, ShieldCheck, Cloud, Sparkles, Network } from "lucide-react";
 import { BrandLogo } from "@/components/ui/logo";
 import { MARCA, LOGIN_FUNDO } from "@/lib/marca";
@@ -29,7 +30,7 @@ export default function LoginPage() {
     setMounted(true);
   }, []);
 
-  useEffect(() => { if (user) router.replace("/dashboard"); }, [user]);
+  useEffect(() => { if (user) router.replace(homeRoute(user)); }, [user]);
   useEffect(() => { setLocalError(""); }, [email, senha]);
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -40,7 +41,7 @@ export default function LoginPage() {
     try {
       const result = await authApi.login(email, senha);
       useAuthStore.setState({ user: result.user, token: result.accessToken, loading: false });
-      router.replace(result.primeiroAcesso ? "/primeiro-acesso" : "/dashboard");
+      router.replace(result.primeiroAcesso ? "/primeiro-acesso" : homeRoute(result.user));
     } catch (err: any) {
       setLocalError(err?.response?.data?.message || "Credenciais inválidas. Confira o e-mail e a senha e tente novamente.");
       setLocalLoading(false);

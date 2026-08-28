@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { api, authApi } from "@/lib/api";
 import { useAuthStore } from "@/lib/store";
+import { homeRoute } from "@/lib/modules";
 import { OrkestriLogo } from "@/components/ui/logo";
 
 function PasswordStrength({ senha }: { senha: string }) {
@@ -53,7 +54,7 @@ export default function PrimeiroAcessoPage() {
       await api.patch("/auth/primeiro-acesso", { novaSenha });
       const user = await authApi.me();
       useAuthStore.setState({ user, loading: false });
-      router.replace("/dashboard");
+      router.replace(homeRoute(user));
     } catch (err: any) {
       setError(err.response?.data?.message || "Erro ao definir senha. Tente novamente.");
     } finally {

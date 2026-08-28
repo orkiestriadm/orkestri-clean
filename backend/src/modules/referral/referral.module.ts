@@ -4,7 +4,9 @@ import {
 } from "@nestjs/common";
 import { AuthGuard } from "@nestjs/passport";
 import { PrismaService } from "../../prisma/prisma.service";
-import { registrarIndicacao, codigoIndicacao } from "./referral.helpers";
+import { WhatsAppService } from "../notifications/whatsapp.service";
+import { NotificationsModule } from "../notifications/notifications.module";
+import { registrarIndicacao, codigoIndicacao, montarMensagemAtivacao } from "./referral.helpers";
 
 // Valores fixos do MVP (centavos). Configuráveis depois.
 const VALOR_ASSINATURA = 2700; // R$ 27,00
@@ -16,7 +18,7 @@ function requireSuperAdmin(req: any) {
 
 @Injectable()
 export class ReferralService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService, private wa: WhatsAppService) {}
 
   // Painel: usuários em trial (dias/vencimento), quem indicou, efetivação e comissão.
   async painel() {
@@ -127,8 +129,18 @@ export class ReferralService {
 
   // Define o indicador à mão (quando não veio código no cadastro).
   async definirIndicador(indicadoUserId: string, codigo: string) {
-    const ok = await registrarIndicacao(this.prisma, codigo, indicadoUserId);
-    if (!ok) throw new BadRequestException("Código inválido, autoindicação, ou o usuário já tem indicador.");
+    const nome = await registrarIndicacao(this.prisma, codigo, indicadoUserId);
+    if (!nome) throw new BadRequestException("Código inválido, autoindicação, ou o usuário já tem indicador.");
+    // Mensagem de ativação ao indicado (mesma do cadastro por indicação).
+    const u = await this.prisma.user.findUnique({
+      where: { id: indicadoUserId },
+      select: { organizationId: true, profile: { select: { whatsapp: true } } },
+    });
+    const tel = (u as any)?.profile?.whatsapp;
+    if (tel) {
+      const inst = await this.wa.resolveInstance((u as any)?.organizationId).catch(() => undefined);
+      this.wa.sendMessage(tel, montarMensagemAtivacao(nome, codigoIndicacao(indicadoUserId)), inst).catch(() => {});
+    }
     return { ok: true };
   }
 
@@ -198,6 +210,7 @@ export class ReferralAdminController {
 }
 
 @Module({
+  imports: [NotificationsModule],
   controllers: [ReferralAdminController, ReferralMeController],
   providers: [ReferralService],
   exports: [ReferralService],

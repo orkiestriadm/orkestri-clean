@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "1.21.1";
+export const VERSAO = "1.21.2";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -35,6 +35,15 @@ export const VERSAO_NOME = "Módulo de Indicações (referral)";
  * esta lista quer saber o que mudou para ele.
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
+  {
+    versao: "1.21.2",
+    data: "2026-08-28",
+    titulo: "Login do acesso de teste + boas-vindas da indicação",
+    itens: [
+      "Correção: usuários de teste (que não têm a Visão Geral) entravam em loop de erro ao logar, porque o sistema os mandava para a Visão Geral. Agora, quem não tem a Visão Geral cai direto na primeira tela que pode abrir (o módulo do teste)",
+      "Quem entra por indicação recebe uma mensagem no WhatsApp confirmando o vínculo e com o próprio código para indicar outras pessoas (ganhe R$5 por indicação). Também dispara quando o admin define o indicador à mão",
+    ],
+  },
   {
     versao: "1.21.1",
     data: "2026-08-27",

@@ -16,7 +16,8 @@ import {
   Brain, Activity, CircleCheckBig, SmilePlus, Settings2, RefreshCw,
   LayoutDashboard, Building2, PiggyBank, Eye, EyeOff, LayoutGrid, X, Search,
 } from "lucide-react";
-import { NAV, canAccessModule, canAccessGroup, canAccessItemLevel } from "@/lib/modules";
+import { NAV, canAccessModule, canAccessGroup, canAccessItemLevel, homeRoute } from "@/lib/modules";
+import { useRouter } from "next/navigation";
 
 /* ═══════════════════════════════════════════════
    TYPES
@@ -249,6 +250,16 @@ function ChartTooltip({ active, payload, label }: any) {
 ═══════════════════════════════════════════════ */
 export default function CommandCenter() {
   const { user } = useAuthStore();
+  const router = useRouter();
+
+  // Quem não tem a Visão Geral (ex.: acesso de teste) NÃO fica aqui — esta tela
+  // consulta dados de módulos que ele não tem e entra em loop de erro. Mandamos
+  // para a primeira rota que ele consegue abrir (o módulo do teste).
+  useEffect(() => {
+    if (user && !user.isMaster && !user.isSuperAdmin && !canAccessModule(user, "dashboard:ver")) {
+      router.replace(homeRoute(user));
+    }
+  }, [user, router]);
 
   // Sem `dashboard:ver` esta tela só produziria 403: ela consulta relatórios,
   // aprovações e execução orçamentária. Em vez de recusar tudo, manda a pessoa

@@ -4,7 +4,7 @@ import { JwtService } from "@nestjs/jwt";
 import { ConfigService } from "@nestjs/config";
 import { PrismaService } from "../../prisma/prisma.service";
 import { CacheService } from "../cache/cache.service";
-import { registrarIndicacao } from "../referral/referral.helpers";
+import { registrarIndicacao, montarMensagemAtivacao, codigoIndicacao } from "../referral/referral.helpers";
 import { WhatsAppService } from "../notifications/whatsapp.service";
 import { EmailService } from "../notifications/email.service";
 import { AutomacaoService } from "../automacoes/automacoes.module";
@@ -1196,13 +1196,17 @@ export class AuthService implements OnModuleInit {
     }
 
     // Indicação (referral) — best-effort, nunca quebra o cadastro.
-    if (pend.codigoIndicacao) {
-      await registrarIndicacao(this.prisma, pend.codigoIndicacao, userId).catch(() => false);
-    }
+    const indicadorNome = pend.codigoIndicacao
+      ? await registrarIndicacao(this.prisma, pend.codigoIndicacao, userId).catch(() => null)
+      : null;
 
     const appUrl = this.config.get("APP_URL", "http://localhost");
     const inst = await this.wa.resolveInstance(this.TRIAL_ORG).catch(() => undefined);
     this.wa.sendTrialWelcome(whatsapp, email, tempPassword, appUrl, this.TRIAL_DIAS, inst).catch(() => {});
+    // Mensagem de ativação da indicação (confirma o vínculo + convida a indicar).
+    if (indicadorNome) {
+      this.wa.sendMessage(whatsapp, montarMensagemAtivacao(indicadorNome, codigoIndicacao(userId)), inst).catch(() => {});
+    }
     this.email.sendAccountApproved(email, nome, tempPassword).catch(() => {});
     this.logAudit(userId, "usuarios", "users", userId, "CREATE", `Acesso de teste criado: ${email}`, this.TRIAL_ORG).catch(() => {});
 
