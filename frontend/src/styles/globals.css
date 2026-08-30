@@ -1188,6 +1188,10 @@ body.noc-mode .sidebar { display: none; }
   .sidebar-desktop { display: none !important; }
   .sidebar-mobile-overlay { position: fixed; inset: 0; z-index: 100; background: rgba(0,0,0,0.6); backdrop-filter: blur(6px); animation: fadeIn 0.2s ease; }
   .sidebar-mobile { position: fixed; left: 0; top: 0; bottom: 0; width: 280px; z-index: 101; background: var(--bg-card); border-right: 1px solid var(--border-subtle); box-shadow: 4px 0 24px rgba(0,0,0,0.4); }
+  /* O .sidebar usa width: var(--sidebar-w), que é 0px no mobile (para o menu
+     fixo sumir). Dentro do drawer mobile ele precisa preencher os 280px —
+     sem isto o menu colapsa e os itens não aparecem. */
+  .sidebar-mobile .sidebar { width: 100%; min-width: 100%; }
   .modal-box { padding: 20px; }
 
   /* Tabelas — scroll horizontal em vez de comprimir colunas */

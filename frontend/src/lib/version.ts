@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "1.21.3";
+export const VERSAO = "1.21.4";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -35,6 +35,14 @@ export const VERSAO_NOME = "Módulo de Indicações (referral)";
  * esta lista quer saber o que mudou para ele.
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
+  {
+    versao: "1.21.4",
+    data: "2026-08-28",
+    titulo: "Menu lateral no celular",
+    itens: [
+      "Correção: no celular, ao abrir o menu lateral os itens não apareciam (o menu colapsava a 0 de largura). Agora o menu abre corretamente, com todos os itens e rótulos",
+    ],
+  },
   {
     versao: "1.21.3",
     data: "2026-08-28",
