@@ -46,7 +46,60 @@ const TUTORIAL_WHATSAPP =
   "✅ Toda vez que eu criar, te aviso aqui na hora.\n\n" +
   "💸 *Tem acesso ao Financeiro?* Registre uma despesa: *Custo: Energia 350 vence 10/09*\n\n" +
   "🎁 Veio por indicação de alguém? Envie o código dele assim: *INDICACAO ORK-XXXXXX*\n\n" +
+  "❓ A qualquer momento, mande *ajuda* que eu explico tudo de novo.\n\n" +
   "Manda a sua primeira! 😉";
+
+// ── Comando /ajuda ──────────────────────────────────────────────────────────
+//
+// Passo a passo pensado para ser seguido por qualquer pessoa — de uma criança
+// a um idoso: linguagem simples, um passo por linha, e um exemplo pronto para
+// copiar. A parte de dinheiro (Financeiro) só aparece para quem tem acesso, para
+// não confundir quem não usa.
+
+function primeiroNome(nome: string): string {
+  return (nome || "").trim().split(/\s+/)[0] || "";
+}
+
+// Mensagem de ajuda para quem AINDA NÃO vinculou o WhatsApp: o primeiro passo é
+// justamente se apresentar ao sistema.
+const AJUDA_VINCULAR =
+  "😊 *Oi! Eu sou o ajudante do Orkiestri aqui no WhatsApp.*\n\n" +
+  "Antes de começar, eu preciso saber quem é você. É rapidinho, e você faz só uma vez:\n\n" +
+  "1️⃣ Abra o Orkiestri no computador ou no celular.\n" +
+  "2️⃣ Toque no seu *Perfil*.\n" +
+  "3️⃣ Procure *Criar evento pelo WhatsApp*. Vai aparecer um *código* (letras e números).\n" +
+  "4️⃣ Copie esse código e me mande aqui assim:\n" +
+  "👉 *VINCULAR* e o seu código\n" +
+  "     (por exemplo: *VINCULAR ABC123*)\n\n" +
+  "Assim que fizer isso, eu te ensino todo o resto. 😉";
+
+function montarAjuda(temFinanceiro: boolean, nome: string): string {
+  const nm = primeiroNome(nome);
+  let m =
+    (nm ? `😊 *Oi, ${nm}!*` : "😊 *Oi!*") +
+    " Eu sou o ajudante do Orkiestri aqui no WhatsApp.\n" +
+    "É só me mandar uma mensagem. Veja como, bem devagar:\n\n" +
+    "🗓️ *PARA MARCAR UM COMPROMISSO*\n" +
+    "Escreva a palavra *Evento* e depois diga o quê, o dia e a hora.\n" +
+    "Copie a linha abaixo e me mande:\n" +
+    "👉 *Evento: Médico amanhã 14h*\n\n" +
+    "Pronto! Eu marco na sua agenda e te aviso aqui. ✅\n\n";
+  if (temFinanceiro) {
+    m +=
+      "💸 *PARA ANOTAR UMA CONTA A PAGAR*\n" +
+      "Escreva a palavra *Custo* e depois diga o quê e quanto.\n" +
+      "Copie a linha abaixo e me mande:\n" +
+      "👉 *Custo: Luz 350 vence 10/09*\n\n" +
+      "Pronto! Eu guardo no Financeiro e te aviso aqui. ✅\n\n";
+  }
+  m +=
+    "📌 *DICAS FÁCEIS*\n" +
+    "• Pode escrever *hoje* ou *amanhã*.\n" +
+    "• A hora pode ser *9h* ou *14:30*.\n" +
+    "• O dia pode ser *10/09*.\n\n" +
+    "❓ Quer ver este passo a passo de novo? É só mandar *ajuda*. 😉";
+  return m;
+}
 
 export function parseComandoEvento(texto: string, agora: Date): Parsed | "sem_data_hora" | null {
   const t = (texto || "").trim();
@@ -344,6 +397,21 @@ export class WhatsappInboundService {
     await this.wa.sendToJid(remoteJid, montarMensagemAtivacao(nome, codigoIndicacao(user.id)), inst).catch(() => {});
   }
 
+  // "/ajuda" (ou "ajuda"/"menu") — manda o passo a passo de uso pelo WhatsApp.
+  // Funciona mesmo sem vínculo (é justamente quem mais precisa de ajuda). Quem
+  // não está vinculado recebe o passo a passo para se conectar; quem está,
+  // recebe o tutorial — com a parte de Financeiro só se tiver acesso.
+  private async enviarAjuda(remoteJid: string, inst: string) {
+    const user = await this.identificar(remoteJid);
+    if (!user) {
+      await this.wa.sendToJid(remoteJid, AJUDA_VINCULAR, inst).catch(() => {});
+      return;
+    }
+    const perms = await this.auth.resolvePermissions(user.id).catch(() => [] as string[]);
+    const temFinanceiro = perms.includes("*") || perms.includes("financeiro:gerenciar");
+    await this.responder(remoteJid, user.telefone, user.organizationId, inst, montarAjuda(temFinanceiro, user.nome));
+  }
+
   // Valor em R$ formatado (1250.5 → "1.250,50").
   private fmtValor(v: number): string {
     return v.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -416,6 +484,9 @@ export class WhatsappInboundService {
 
     this.logger.log(`inbound jid=${remoteJid} fromMe=${key?.fromMe} texto="${texto.slice(0, 50)}"`);
     if (!texto) return;
+
+    // ── Ajuda? "/ajuda", "ajuda", "menu" — passo a passo de uso pelo WhatsApp ──
+    if (/^\/?(ajuda|help|menu)\s*[?!.]*$/i.test(texto)) { await this.enviarAjuda(remoteJid, inst); return; }
 
     // ── Vínculo? "VINCULAR <código>" ──
     const mVinc = texto.match(/^vincular\s+([a-z0-9]{4,10})$/i);
