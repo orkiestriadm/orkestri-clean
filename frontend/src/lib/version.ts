@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "1.21.4";
+export const VERSAO = "1.21.5";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -35,6 +35,15 @@ export const VERSAO_NOME = "Módulo de Indicações (referral)";
  * esta lista quer saber o que mudou para ele.
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
+  {
+    versao: "1.21.5",
+    data: "2026-08-31",
+    titulo: "Registrar despesa pelo WhatsApp",
+    itens: [
+      "Quem tem acesso ao Financeiro passa a registrar uma conta a pagar mandando uma mensagem no WhatsApp do sistema, no formato: Custo: <descrição> <valor> [vence <data>] (ex.: \"Custo: Energia 350,00 vence 10/09\"). Também vale Despesa/Conta/Gasto. O valor aceita formato brasileiro (R$ 1.250,00, 350,50, 1500) e a data é opcional (padrão hoje); aceita hoje/amanhã e dd/mm",
+      "A despesa cai no Financeiro › Contas a Pagar com a descrição, o valor e o vencimento, e o sistema confirma por WhatsApp. Só registra quem tem permissão de gerenciar o Financeiro — os demais recebem um aviso",
+    ],
+  },
   {
     versao: "1.21.4",
     data: "2026-08-28",

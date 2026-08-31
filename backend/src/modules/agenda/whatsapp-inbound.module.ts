@@ -4,6 +4,8 @@ import {
 import { PrismaService } from "../../prisma/prisma.service";
 import { WhatsAppService } from "../notifications/whatsapp.service";
 import { NotificationsModule } from "../notifications/notifications.module";
+import { AuthModule } from "../auth/auth.module";
+import { AuthService } from "../auth/auth.service";
 import { registrarIndicacao, montarMensagemAtivacao, codigoIndicacao } from "../referral/referral.helpers";
 import { createHash } from "crypto";
 
@@ -42,6 +44,7 @@ const TUTORIAL_WHATSAPP =
   "• Evento: Reunião 10h toda semana até 31/12\n\n" +
   "⏰ Pode usar *hoje*, *amanhã* ou a data (dia/mês), e horas como *9h* ou *14:30*.\n\n" +
   "✅ Toda vez que eu criar, te aviso aqui na hora.\n\n" +
+  "💸 *Tem acesso ao Financeiro?* Registre uma despesa: *Custo: Energia 350 vence 10/09*\n\n" +
   "🎁 Veio por indicação de alguém? Envie o código dele assim: *INDICACAO ORK-XXXXXX*\n\n" +
   "Manda a sua primeira! 😉";
 
@@ -159,6 +162,94 @@ export function parseComandoEvento(texto: string, agora: Date): Parsed | "sem_da
   return { titulo, inicio, fim, diaTodo, recorrencia, recorrenciaFim };
 }
 
+// ── Parser do comando de CUSTO (despesa → conta a pagar) ──────────────────────
+//
+// No mesmo espírito do parser de evento: a pessoa manda uma linha e vira um
+// lançamento no Financeiro (contas_pagar). Ex.:
+//   "Custo: Energia 350,00 vence 10/09"
+//   "Despesa Almoço 45"
+//   "Conta: Internet R$ 100 vence amanhã"
+// Descrição = o texto que sobra; valor em formato BR; vencimento opcional (padrão hoje).
+
+type ParsedCusto = { descricao: string; valor: number; vencimento: Date };
+
+// Interpreta um valor monetário em formato BR (e tolera o ponto-decimal en):
+//   "R$ 1.250,00" → 1250.00 | "350,50" → 350.5 | "1.250" → 1250 | "3.50" → 3.5 | "1500" → 1500
+function extrairValorBR(s: string): { valor: number; matchStr: string; index: number } | null {
+  const re = /(r\$\s*)?(\d{1,3}(?:\.\d{3})+(?:,\d{1,2})?|\d+,\d{1,2}|\d+(?:\.\d{1,2})?|\d+)/ig;
+  const todos = Array.from(s.matchAll(re));
+  if (!todos.length) return null;
+  // O valor costuma vir DEPOIS da descrição, que pode ter números soltos
+  // ("Sala 2 aluguel 1500"). Preferimos, nesta ordem: o que tem "R$", o que
+  // tem separador decimal/milhar, senão o último número da linha.
+  const m = todos.find(x => x[1]) || todos.find(x => /[.,]/.test(x[2])) || todos[todos.length - 1];
+  const raw = m[2];
+  let valor: number;
+  if (raw.includes(".") && raw.includes(",")) {
+    valor = parseFloat(raw.replace(/\./g, "").replace(",", "."));      // 1.250,00
+  } else if (raw.includes(",")) {
+    valor = parseFloat(raw.replace(",", "."));                          // 350,50
+  } else if (raw.includes(".")) {
+    const parts = raw.split(".");
+    const ultimo = parts[parts.length - 1];
+    // Vários pontos, ou último grupo de 3 dígitos → separador de milhar (1.250 = 1250).
+    // Último grupo de 1–2 dígitos → ponto decimal en (3.50 = 3.5).
+    valor = (parts.length > 2 || ultimo.length === 3)
+      ? parseFloat(raw.replace(/\./g, ""))
+      : parseFloat(raw);
+  } else {
+    valor = parseFloat(raw);
+  }
+  if (isNaN(valor) || valor <= 0) return null;
+  return { valor, matchStr: m[0], index: m.index ?? s.indexOf(m[0]) };
+}
+
+export function parseComandoCusto(texto: string, agora: Date): ParsedCusto | "sem_valor" | null {
+  const t = (texto || "").trim();
+  const mKey = t.match(/^\s*(custo|despesa|gasto|conta)\b[:\-–]?\s*/i);
+  if (!mKey) return null; // não é comando de custo
+  let resto = t.slice(mKey[0].length).trim();
+  if (!resto) return "sem_valor";
+
+  // ── Vencimento ── (antes do valor, para o dd/mm não ser lido como valor)
+  resto = resto.replace(/\bvenc(?:e|er|imento|endo)?\b(?:\s+(?:em|no|dia|ate|at[eé]))?\s*/i, " ");
+  let vencimento = new Date(agora); vencimento.setHours(23, 59, 59, 0);
+  const low = resto.toLowerCase();
+  if (/\bdepois de amanh[aã]/.test(low)) {
+    vencimento.setDate(vencimento.getDate() + 2); resto = resto.replace(/depois de amanh[aã]/i, " ");
+  } else if (/\bamanh[aã]/.test(low)) {
+    vencimento.setDate(vencimento.getDate() + 1); resto = resto.replace(/amanh[aã]/i, " ");
+  } else if (/\bhoje\b/.test(low)) {
+    resto = resto.replace(/\bhoje\b/i, " ");
+  } else {
+    const mData = resto.match(/\b(\d{1,2})[\/\-](\d{1,2})(?:[\/\-](\d{2,4}))?\b/); // dd/mm (sem "." p/ não pegar 1.250)
+    if (mData) {
+      const dia = +mData[1], mes = +mData[2] - 1;
+      const ano = mData[3] ? (mData[3].length === 2 ? 2000 + +mData[3] : +mData[3]) : agora.getFullYear();
+      if (mes >= 0 && mes <= 11 && dia >= 1 && dia <= 31) {
+        const d = new Date(ano, mes, dia, 23, 59, 59, 0);
+        if (!isNaN(d.getTime())) { vencimento = d; resto = resto.replace(mData[0], " "); }
+      }
+    }
+  }
+
+  // ── Valor ──
+  const v = extrairValorBR(resto);
+  if (!v) return "sem_valor";
+  resto = resto.slice(0, v.index) + " " + resto.slice(v.index + v.matchStr.length);
+
+  // ── Descrição ── (o que sobra, sem "R$"/"reais" e pontuação solta)
+  let descricao = resto
+    .replace(/\br\$/ig, " ")
+    .replace(/\breais?\b/ig, " ")
+    .replace(/\s{2,}/g, " ")
+    .replace(/^[\s,;:\-–]+|[\s,;:\-–]+$/g, "")
+    .trim();
+  if (!descricao) descricao = "Despesa";
+
+  return { descricao, valor: v.valor, vencimento };
+}
+
 // ── Match de telefone (JID x número cadastrado) ───────────────────────────────
 function soDigitos(s: string | null | undefined): string { return (s || "").replace(/\D/g, ""); }
 function nucleo(s: string): string { let d = soDigitos(s); if (d.length > 11 && d.startsWith("55")) d = d.slice(2); return d; }
@@ -173,7 +264,7 @@ function telefoneBate(jid: string, cadastrado: string | null): boolean {
 export class WhatsappInboundService {
   private readonly logger = new Logger("WhatsappInbound");
 
-  constructor(private prisma: PrismaService, private wa: WhatsAppService) {}
+  constructor(private prisma: PrismaService, private wa: WhatsAppService, private auth: AuthService) {}
 
   private fmtData(d: Date): string {
     return d.toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
@@ -253,6 +344,60 @@ export class WhatsappInboundService {
     await this.wa.sendToJid(remoteJid, montarMensagemAtivacao(nome, codigoIndicacao(user.id)), inst).catch(() => {});
   }
 
+  // Valor em R$ formatado (1250.5 → "1.250,50").
+  private fmtValor(v: number): string {
+    return v.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
+  // "Custo: <descrição> <valor> [vence <data>]" — cria uma conta a pagar no
+  // Financeiro. DIFERENTE do evento (que qualquer um cria): o Financeiro é
+  // sensível, então só registra quem tem acesso ao módulo.
+  private async registrarCusto(remoteJid: string, parsed: ParsedCusto, inst: string) {
+    const user = await this.identificar(remoteJid);
+    if (!user) {
+      await this.wa.sendToJid(remoteJid,
+        "🤖 Seu WhatsApp ainda não está vinculado a uma conta. No sistema, abra *Perfil → Criar evento pelo WhatsApp* e envie aqui o código mostrado (ex.: *VINCULAR ABC123*).", inst).catch(() => {});
+      return;
+    }
+
+    // Gate de permissão: precisa poder gerenciar o Financeiro (mesma exigência
+    // do endpoint que cria contas a pagar na tela).
+    const perms = await this.auth.resolvePermissions(user.id).catch(() => [] as string[]);
+    const podeFinanceiro = perms.includes("*") || perms.includes("financeiro:gerenciar");
+    if (!podeFinanceiro) {
+      await this.responder(remoteJid, user.telefone, user.organizationId, inst,
+        "🤖 Você não tem acesso ao *Financeiro* para registrar custos. Fale com o administrador.");
+      return;
+    }
+
+    // Número sequencial legível por organização (WA-0001, WA-0002, …). Não há
+    // constraint de unicidade em `numero`; a colisão em envio duplicado é inócua.
+    const jaCriados = await (this.prisma as any).contaPagar.count({
+      where: { organizationId: user.organizationId, numero: { startsWith: "WA-" } },
+    }).catch(() => 0);
+    const numero = "WA-" + String(jaCriados + 1).padStart(4, "0");
+
+    await (this.prisma as any).contaPagar.create({
+      data: {
+        organizationId: user.organizationId,
+        fornecedorNome: parsed.descricao,
+        numero,
+        tipo: "DESPESA",
+        dataEmissao: new Date(),
+        dataVencto: parsed.vencimento,
+        dataVenctoReal: parsed.vencimento,
+        valorOriginal: parsed.valor,
+        valorAVencerNominal: parsed.valor,
+        historico: `WhatsApp: ${parsed.descricao}`,
+        observacao: `Registrado via WhatsApp por ${user.nome}`,
+      },
+    });
+    this.logger.log(`Custo criado via WhatsApp: user=${user.id} "${parsed.descricao}" R$${parsed.valor} venc=${parsed.vencimento.toISOString()} num=${numero}`);
+
+    await this.responder(remoteJid, user.telefone, user.organizationId, inst,
+      `✅ Custo registrado no Financeiro:\n\n💸 *${parsed.descricao}*\n💰 R$ ${this.fmtValor(parsed.valor)}\n📅 Vence ${parsed.vencimento.toLocaleDateString("pt-BR")}`);
+  }
+
   async processar(body: any): Promise<void> {
     // Evolution v1.8.2 — evento messages.upsert
     const data = Array.isArray(body?.data) ? body.data[0] : body?.data;
@@ -282,6 +427,15 @@ export class WhatsappInboundService {
     if (mIndKey) codInd = mIndKey[1].trim();
     else if (/^ORK-?[a-z0-9]{4,10}$/i.test(texto)) codInd = texto.trim();
     if (codInd) { await this.registrarIndicacaoWhats(remoteJid, codInd, inst); return; }
+
+    // ── Comando de custo? "Custo: ... <valor> [vence <data>]" ──
+    const custo = parseComandoCusto(texto, new Date());
+    if (custo === "sem_valor") {
+      await this.wa.sendToJid(remoteJid,
+        "🤖 Não consegui identificar o valor da despesa. Envie assim:\n\n*Custo: Energia 350,00 vence 10/09*\n\nA data é opcional (padrão hoje).", inst).catch(() => {});
+      return;
+    }
+    if (custo) { await this.registrarCusto(remoteJid, custo, inst); return; }
 
     // ── Comando de evento? ──
     const parsed = parseComandoEvento(texto, new Date());
@@ -354,7 +508,7 @@ export class WhatsappInboundController {
 }
 
 @Module({
-  imports: [NotificationsModule],
+  imports: [NotificationsModule, AuthModule],
   controllers: [WhatsappInboundController],
   providers: [WhatsappInboundService],
 })
