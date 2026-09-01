@@ -2,7 +2,7 @@
 export const dynamic = "force-dynamic";
 import { useState, useEffect, useCallback, type CSSProperties, type ReactNode } from "react";
 import {
-  AreaChart, Area, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from "recharts";
 import Topbar from "@/components/layout/Topbar";
 import { api } from "@/lib/api";
@@ -153,19 +153,13 @@ export default function GastosPage() {
             <div style={{ height: 220 }}>
               {per && per.porDia.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={per.porDia} margin={{ top: 6, right: 6, left: -18, bottom: 0 }}>
-                    <defs>
-                      <linearGradient id="gGasto" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#6366f1" stopOpacity={0.35} />
-                        <stop offset="100%" stopColor="#6366f1" stopOpacity={0.02} />
-                      </linearGradient>
-                    </defs>
+                  <BarChart data={per.porDia} margin={{ top: 6, right: 6, left: -18, bottom: 0 }} barCategoryGap={per.porDia.length > 12 ? 2 : "28%"}>
                     <CartesianGrid strokeDasharray="3 3" stroke="var(--border,#eef0f3)" vertical={false} />
                     <XAxis dataKey="label" tick={{ fontSize: 11 }} />
                     <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => R0(v)} width={64} />
-                    <Tooltip formatter={(v: any) => R(Number(v))} labelFormatter={(l) => `Dia ${l}`} />
-                    <Area type="monotone" dataKey="valor" stroke="#6366f1" strokeWidth={2} fill="url(#gGasto)" />
-                  </AreaChart>
+                    <Tooltip cursor={{ fill: "rgba(99,102,241,0.06)" }} formatter={(v: any) => R(Number(v))} labelFormatter={(l) => `Dia ${l}`} />
+                    <Bar dataKey="valor" fill="#6366f1" radius={[6, 6, 0, 0]} maxBarSize={46} />
+                  </BarChart>
                 </ResponsiveContainer>
               ) : <Vazio texto="Sem gastos no período." />}
             </div>

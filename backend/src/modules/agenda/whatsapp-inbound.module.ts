@@ -618,41 +618,44 @@ export class WhatsappInboundService {
     const where: any = {
       organizationId: user.organizationId, userId: user.id,
       dataGasto: { gte: rel.inicio, lte: rel.fim },
+      ...(rel.forma !== "TOTAL" ? { formaPagamento: rel.forma } : {}),
     };
+    const itens = await (this.prisma as any).gasto.findMany({ where, orderBy: { dataGasto: "asc" } }).catch(() => [] as any[]);
 
-    let msg: string;
-    if (rel.forma === "TOTAL") {
-      const grupos = await (this.prisma as any).gasto.groupBy({
-        by: ["formaPagamento"], where, _sum: { valor: true }, _count: true,
-      }).catch(() => [] as any[]);
-      const porForma = new Map<string, number>();
-      let total = 0, qtd = 0;
-      for (const g of grupos) {
-        const soma = Number(g._sum?.valor || 0);
-        porForma.set(g.formaPagamento, soma); total += soma; qtd += g._count || 0;
-      }
-      const ordem: FormaPagamento[] = ["CREDITO", "DEBITO", "PIX", "DINHEIRO", "BOLETO", "NAO_INFORMADO"];
-      const linhas = ordem
-        .filter(f => porForma.has(f))
-        .map(f => `• ${FORMA_LABEL[f].charAt(0).toUpperCase() + FORMA_LABEL[f].slice(1)}: R$ ${this.fmtValor(porForma.get(f)!)}`);
-      if (!qtd) {
-        msg = `📊 *Seus gastos — ${rel.label}*\n\nVocê ainda não anotou nenhum gasto nesse período. 🙂`;
-      } else {
-        msg = `📊 *Seus gastos — ${rel.label}*\n\n` +
-          (linhas.length ? linhas.join("\n") + "\n" : "") +
-          `━━━━━━━━━━\n*Total: R$ ${this.fmtValor(total)}*  _(${qtd} ${qtd === 1 ? "lançamento" : "lançamentos"})_`;
-      }
-    } else {
-      const agg = await (this.prisma as any).gasto.aggregate({
-        where: { ...where, formaPagamento: rel.forma }, _sum: { valor: true }, _count: true,
-      }).catch(() => ({ _sum: { valor: 0 }, _count: 0 }));
-      const total = Number(agg._sum?.valor || 0);
-      const qtd = agg._count || 0;
-      const formaCap = FORMA_LABEL[rel.forma].charAt(0).toUpperCase() + FORMA_LABEL[rel.forma].slice(1);
-      msg = qtd
-        ? `📊 *Seus gastos — ${rel.label}*\n\n💳 ${formaCap}: *R$ ${this.fmtValor(total)}*  _(${qtd} ${qtd === 1 ? "lançamento" : "lançamentos"})_`
-        : `📊 *Seus gastos — ${rel.label}*\n\nNenhum gasto no ${formaCap.toLowerCase()} nesse período. 🙂`;
+    const tituloForma = rel.forma !== "TOTAL" ? ` no ${FORMA_LABEL[rel.forma]}` : "";
+    if (!itens.length) {
+      await this.responder(remoteJid, user.telefone, user.organizationId, inst,
+        `📊 *Seus gastos — ${rel.label}${tituloForma}*\n\nVocê ainda não anotou nada nesse período. 🙂`);
+      return;
     }
+
+    let total = 0;
+    const porForma = new Map<string, number>();
+    for (const g of itens) {
+      const v = Number(g.valor || 0); total += v;
+      porForma.set(g.formaPagamento, (porForma.get(g.formaPagamento) || 0) + v);
+    }
+
+    // Lista ITEM POR ITEM (com teto, para não estourar a mensagem do WhatsApp).
+    const LIMITE = 20;
+    const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+    const linhasItens = itens.slice(0, LIMITE).map((g: any) => {
+      const forma = FORMA_LABEL[g.formaPagamento] || g.formaPagamento;
+      const extra = g.parcelas > 1 ? `, ${g.parcelas}x` : "";
+      const dia = new Date(g.dataGasto).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
+      return `• ${dia}  ${g.descricao} — R$ ${this.fmtValor(Number(g.valor || 0))} _(${forma}${extra})_`;
+    });
+    const maisTxt = itens.length > LIMITE ? `\n_…e mais ${itens.length - LIMITE} lançamento(s)._` : "";
+
+    let msg = `📊 *Seus gastos — ${rel.label}${tituloForma}*\n\n` + linhasItens.join("\n") + maisTxt + "\n";
+
+    // Quebra por forma de pagamento só quando é TOTAL e há mais de uma forma.
+    if (rel.forma === "TOTAL" && porForma.size > 1) {
+      const ordem: FormaPagamento[] = ["CREDITO", "DEBITO", "PIX", "DINHEIRO", "BOLETO", "NAO_INFORMADO"];
+      msg += "\n" + ordem.filter(f => porForma.has(f))
+        .map(f => `${cap(FORMA_LABEL[f])}: R$ ${this.fmtValor(porForma.get(f)!)}`).join("\n") + "\n";
+    }
+    msg += `━━━━━━━━━━\n*Total: R$ ${this.fmtValor(total)}*  _(${itens.length} ${itens.length === 1 ? "lançamento" : "lançamentos"})_`;
 
     await this.responder(remoteJid, user.telefone, user.organizationId, inst, msg);
   }

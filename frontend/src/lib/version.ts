@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "1.23.0";
+export const VERSAO = "1.23.1";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -35,6 +35,16 @@ export const VERSAO_NOME = "Módulo de Indicações (referral)";
  * esta lista quer saber o que mudou para ele.
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
+  {
+    versao: "1.23.1",
+    data: "2026-08-31",
+    titulo: "Correções em Meus Gastos",
+    itens: [
+      "Correção: os gráficos e a lista da tela Meus Gastos apareciam vazios (R$ 0 / \"Sem dados\") mesmo com gastos no período — o filtro de data cortava os lançamentos do próprio dia por causa do fuso horário. Agora o período pega o dia inteiro (início e fim), e o gráfico de gasto por dia virou barras",
+      "Correção: a data de um gasto lançado manualmente na tela podia cair no dia anterior por causa do fuso; agora fica no dia certo",
+      "Relatório pelo WhatsApp agora lista item por item (data, descrição, valor e forma), além do total — antes só mostrava o total por forma de pagamento",
+    ],
+  },
   {
     versao: "1.23.0",
     data: "2026-08-31",

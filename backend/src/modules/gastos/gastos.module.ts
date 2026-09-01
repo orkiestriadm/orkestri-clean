@@ -23,10 +23,26 @@ function toNum(v: any): number | null {
   const n = parseFloat(String(v));
   return isNaN(n) ? null : n;
 }
-function toDate(v: any): Date | null {
-  if (!v) return null;
-  const d = v instanceof Date ? v : new Date(v);
-  return isNaN(d.getTime()) ? null : d;
+
+// "YYYY-MM-DD" → Date no fuso LOCAL do servidor. `new Date("YYYY-MM-DD")` é
+// interpretado como UTC 00:00, o que empurra o fim do dia para trás e CORTA os
+// lançamentos do próprio dia. Aqui montamos início (00:00) ou fim (23:59:59.999) locais.
+function limiteDia(s: string, fimDoDia: boolean): Date {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(s || "");
+  if (!m) { const d = new Date(s); return isNaN(d.getTime()) ? new Date() : d; }
+  return fimDoDia
+    ? new Date(+m[1], +m[2] - 1, +m[3], 23, 59, 59, 999)
+    : new Date(+m[1], +m[2] - 1, +m[3], 0, 0, 0, 0);
+}
+
+// Data de um gasto lançado na tela: meio-dia LOCAL, à prova de fuso (mesma
+// convenção do WhatsApp), para cair no dia certo independentemente do horário.
+function dataDoGasto(v: any): Date {
+  if (!v) return new Date();
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(v));
+  if (m) return new Date(+m[1], +m[2] - 1, +m[3], 12, 0, 0, 0);
+  const d = new Date(v);
+  return isNaN(d.getTime()) ? new Date() : d;
 }
 function mapGasto(g: any) {
   return {
@@ -66,8 +82,8 @@ class GastosController {
   // Período padrão = mês corrente.
   private periodo(inicio?: string, fim?: string) {
     const agora = new Date();
-    const ini = inicio ? new Date(inicio) : new Date(agora.getFullYear(), agora.getMonth(), 1, 0, 0, 0, 0);
-    const f = fim ? new Date(fim) : new Date(agora.getFullYear(), agora.getMonth() + 1, 0, 23, 59, 59, 999);
+    const ini = inicio ? limiteDia(inicio, false) : new Date(agora.getFullYear(), agora.getMonth(), 1, 0, 0, 0, 0);
+    const f = fim ? limiteDia(fim, true) : new Date(agora.getFullYear(), agora.getMonth() + 1, 0, 23, 59, 59, 999);
     return { ini, f };
   }
 
@@ -94,8 +110,8 @@ class GastosController {
     if (categoria) where.categoria = categoria;
     if (inicio || fim) {
       where.dataGasto = {};
-      if (inicio) where.dataGasto.gte = new Date(inicio);
-      if (fim) where.dataGasto.lte = new Date(fim);
+      if (inicio) where.dataGasto.gte = limiteDia(inicio, false);
+      if (fim) where.dataGasto.lte = limiteDia(fim, true);
     }
     const allowed = ["dataGasto", "valor", "descricao", "formaPagamento", "criadoEm"];
     const orderBy: any = {};
@@ -182,7 +198,7 @@ class GastosController {
         formaPagamento: dto.formaPagamento || "NAO_INFORMADO",
         parcelas,
         valorParcela: parcelas > 1 ? Math.round((valor / parcelas) * 100) / 100 : null,
-        dataGasto: toDate(dto.dataGasto) || new Date(),
+        dataGasto: dataDoGasto(dto.dataGasto),
         origem: "MANUAL",
       },
     });
@@ -200,7 +216,7 @@ class GastosController {
     if (dto.descricao !== undefined) data.descricao = dto.descricao.trim();
     if (dto.categoria !== undefined) data.categoria = dto.categoria?.trim() || null;
     if (dto.formaPagamento !== undefined) data.formaPagamento = dto.formaPagamento;
-    if (dto.dataGasto !== undefined) data.dataGasto = toDate(dto.dataGasto) || exists.dataGasto;
+    if (dto.dataGasto !== undefined) data.dataGasto = dataDoGasto(dto.dataGasto);
     const valor = dto.valor !== undefined ? toNum(dto.valor) : null;
     const parcelas = dto.parcelas !== undefined ? Math.max(1, Math.floor(dto.parcelas)) : exists.parcelas;
     if (dto.valor !== undefined || dto.parcelas !== undefined) {
