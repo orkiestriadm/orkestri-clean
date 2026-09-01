@@ -1,10 +1,13 @@
 import {
   Module, Controller, Get, Post, Put, Delete, Body, Param, Query,
-  UseGuards, Req, NotFoundException, BadRequestException,
+  UseGuards, Req, NotFoundException, BadRequestException, Injectable, Logger,
 } from "@nestjs/common";
+import { Cron } from "@nestjs/schedule";
 import { IsOptional, IsString, IsNumber, IsInt, Min, IsIn } from "class-validator";
 import { AuthGuard } from "@nestjs/passport";
 import { PrismaService } from "../../prisma/prisma.service";
+import { WhatsAppService } from "../notifications/whatsapp.service";
+import { NotificationsModule } from "../notifications/notifications.module";
 import { Permissions } from "../auth/permissions.decorator";
 import { PermissionsGuard } from "../auth/permissions.guard";
 
@@ -89,7 +92,7 @@ class GastosController {
 
   // ── Lista (paginada, filtros) ──────────────────────────────────────────────
   @Get()
-  @Permissions("financeiro:ver")
+  @Permissions("gastos:ver")
   async list(
     @Req() req: any,
     @Query("page") pageQ = "1",
@@ -126,7 +129,7 @@ class GastosController {
 
   // ── Resumo (cartões + gráficos), sempre só do usuário ──────────────────────
   @Get("resumo")
-  @Permissions("financeiro:ver")
+  @Permissions("gastos:ver")
   async resumo(@Req() req: any, @Query("inicio") inicio?: string, @Query("fim") fim?: string) {
     const esc = this.escopo(req);
     const { ini, f } = this.periodo(inicio, fim);
@@ -215,7 +218,7 @@ class GastosController {
 
   // ── Criar (lançamento manual pela tela) ────────────────────────────────────
   @Post()
-  @Permissions("financeiro:gerenciar")
+  @Permissions("gastos:registrar")
   async create(@Req() req: any, @Body() dto: CreateGastoDto) {
     if (!dto.descricao?.trim()) throw new BadRequestException("Descrição obrigatória");
     const valor = toNum(dto.valor);
@@ -239,7 +242,7 @@ class GastosController {
 
   // ── Editar (só o próprio) ──────────────────────────────────────────────────
   @Put(":id")
-  @Permissions("financeiro:gerenciar")
+  @Permissions("gastos:registrar")
   async update(@Req() req: any, @Param("id") id: string, @Body() dto: UpdateGastoDto) {
     const exists = await (this.prisma as any).gasto.findFirst({ where: { id, ...this.escopo(req) } });
     if (!exists) throw new NotFoundException("Gasto não encontrado");
@@ -263,7 +266,7 @@ class GastosController {
 
   // ── Excluir (só o próprio) ─────────────────────────────────────────────────
   @Delete(":id")
-  @Permissions("financeiro:gerenciar")
+  @Permissions("gastos:registrar")
   async remove(@Req() req: any, @Param("id") id: string) {
     const exists = await (this.prisma as any).gasto.findFirst({ where: { id, ...this.escopo(req) } });
     if (!exists) throw new NotFoundException("Gasto não encontrado");
@@ -272,5 +275,69 @@ class GastosController {
   }
 }
 
-@Module({ controllers: [GastosController] })
+// ── Resumo semanal automático (proativo, com opt-out) ───────────────────────────
+// Domingo 20:00 (fuso local). Só para quem TEVE gasto na semana e não desligou
+// (comando "parar resumo"). É a mesma ideia dos lembretes de agenda: notificação
+// do sistema pelo WhatsApp já conectado da organização — sem custo por mensagem.
+@Injectable()
+export class GastosScheduler {
+  private readonly logger = new Logger("GastosScheduler");
+  constructor(private prisma: PrismaService, private wa: WhatsAppService) {}
+
+  @Cron("0 20 * * 0", { timeZone: "America/Sao_Paulo" })
+  async resumoSemanal() {
+    try {
+      const desde = new Date();
+      desde.setDate(desde.getDate() - 7);
+      desde.setHours(0, 0, 0, 0);
+
+      const gastos = await (this.prisma as any).gasto.findMany({
+        where: { dataGasto: { gte: desde } },
+        select: { userId: true, organizationId: true, valor: true, categoria: true },
+      });
+      if (!gastos.length) return;
+
+      const porUser = new Map<string, { org: string; total: number; qtd: number; cats: Map<string, number> }>();
+      for (const g of gastos as any[]) {
+        let u = porUser.get(g.userId);
+        if (!u) { u = { org: g.organizationId, total: 0, qtd: 0, cats: new Map() }; porUser.set(g.userId, u); }
+        const v = Number(g.valor || 0);
+        u.total += v; u.qtd++;
+        const c = g.categoria || "Outros";
+        u.cats.set(c, (u.cats.get(c) || 0) + v);
+      }
+
+      const perfis = await this.prisma.userProfile.findMany({
+        where: { userId: { in: [...porUser.keys()] }, NOT: { whatsapp: null } } as any,
+        select: { userId: true, whatsapp: true, resumoGastosOff: true, user: { select: { nome: true, ativo: true } } } as any,
+      });
+
+      const fmt = (n: number) => n.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      let enviados = 0;
+      for (const p of perfis as any[]) {
+        if (p.resumoGastosOff || !p.user?.ativo || !p.whatsapp) continue;
+        const u = porUser.get(p.userId);
+        if (!u || u.total <= 0) continue;
+        const nome = (p.user?.nome || "").trim().split(/\s+/)[0];
+        const topCat = [...u.cats.entries()].sort((a, b) => b[1] - a[1])[0];
+        let msg = `📊 *Seu resumo da semana${nome ? ", " + nome : ""}*\n\n`;
+        msg += `Você registrou ${u.qtd} ${u.qtd === 1 ? "gasto" : "gastos"}, somando *R$ ${fmt(u.total)}*.`;
+        if (topCat) msg += `\nMaior categoria: *${topCat[0]}* — R$ ${fmt(topCat[1])}.`;
+        msg += `\n\n📱 Ver tudo: *Financeiro › Meus Gastos* no sistema.\n_Não quer mais este resumo? Responda *parar resumo*._`;
+        const ok = await this.wa.sendMessageForOrg(u.org, p.whatsapp, msg).catch(() => false);
+        if (ok) enviados++;
+        await new Promise(r => setTimeout(r, 400)); // throttle leve para não sobrecarregar o gateway
+      }
+      this.logger.log(`Resumo semanal de gastos: ${enviados} enviados (de ${perfis.length} perfis com WhatsApp)`);
+    } catch (e: any) {
+      this.logger.error(`Falha no resumo semanal de gastos: ${e?.message || e}`);
+    }
+  }
+}
+
+@Module({
+  imports: [NotificationsModule],
+  controllers: [GastosController],
+  providers: [GastosScheduler],
+})
 export class GastosModule {}

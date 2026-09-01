@@ -112,7 +112,9 @@ function montarBoasVindas(temAgenda: boolean, temGastos: boolean, nome: string):
 // Permissões → o que a pessoa pode fazer pelo WhatsApp. Agenda é base (quase todo
 // mundo tem); Gastos exige acesso de gerenciar o Financeiro (o mesmo do trial one-finance).
 function podeAgenda(perms: string[]): boolean { return perms.includes("*") || perms.includes("agenda:criar"); }
-function podeGastos(perms: string[]): boolean { return perms.includes("*") || perms.includes("financeiro:gerenciar"); }
+function podeGastos(perms: string[]): boolean {
+  return perms.includes("*") || perms.includes("gastos:registrar") || perms.includes("financeiro:gerenciar");
+}
 
 export function parseComandoEvento(texto: string, agora: Date): Parsed | "sem_data_hora" | null {
   const t = (texto || "").trim();
@@ -667,6 +669,19 @@ export class WhatsappInboundService {
       `🗑️ Apaguei o último gasto: *${ultimo.descricao}* — R$ ${this.fmtValor(Number(ultimo.valor))}.`);
   }
 
+  // "parar resumo" / "voltar resumo" — liga/desliga o resumo semanal de gastos.
+  private async configurarResumo(remoteJid: string, desligar: boolean, inst: string) {
+    const user = await this.identificar(remoteJid);
+    if (!user) { await this.wa.sendToJid(remoteJid, NAO_VINCULADO, inst).catch(() => {}); return; }
+    await this.prisma.userProfile.update({
+      where: { userId: user.id }, data: { resumoGastosOff: desligar } as any,
+    }).catch(() => {});
+    await this.responder(remoteJid, user.telefone, user.organizationId, inst,
+      desligar
+        ? "🔕 Ok! Não te mando mais o resumo semanal de gastos. Para voltar, é só mandar *voltar resumo*."
+        : "🔔 Pronto! Volto a te mandar o resumo semanal de gastos.");
+  }
+
   // "Corrige o último pra 150" / "o último foi no pix" — ajusta o ÚLTIMO gasto.
   private async corrigirUltimoGasto(remoteJid: string, mud: ParsedCorrecao, inst: string) {
     const user = await this.identificar(remoteJid);
@@ -781,6 +796,10 @@ export class WhatsappInboundService {
 
     // ── Ajuda? "/ajuda", "ajuda", "menu" — passo a passo de uso pelo WhatsApp ──
     if (/^\/?(ajuda|help|menu)\s*[?!.]*$/i.test(texto)) { await this.enviarAjuda(remoteJid, inst); return; }
+
+    // ── Ligar/desligar o resumo semanal de gastos ──
+    const mResumo = texto.match(/^\/?(parar|desligar|cancelar|voltar|ligar|ativar)\s+(?:o\s+)?resumo\b/i);
+    if (mResumo) { await this.configurarResumo(remoteJid, /^(parar|desligar|cancelar)/i.test(mResumo[1]), inst); return; }
 
     // ── Vínculo? "VINCULAR <código>" ──
     const mVinc = texto.match(/^vincular\s+([a-z0-9]{4,10})$/i);

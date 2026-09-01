@@ -118,6 +118,9 @@ const ALL_PERMISSIONS: { recurso: string; acao: string; descricao: string }[] = 
   // Financeiro
   { recurso: "financeiro",    acao: "ver",         descricao: "Ver módulo financeiro (contas a pagar, dashboard)" },
   { recurso: "financeiro",    acao: "gerenciar",   descricao: "Criar, editar e excluir títulos financeiros" },
+  // Gastos pessoais (por usuário — cada um só vê o seu)
+  { recurso: "gastos",        acao: "ver",         descricao: "Ver os próprios gastos" },
+  { recurso: "gastos",        acao: "registrar",   descricao: "Anotar, editar e excluir os próprios gastos" },
   // Gestão de Frotas
   { recurso: "frota",         acao: "ver",         descricao: "Ver gestão de frotas" },
   { recurso: "frota",         acao: "criar",       descricao: "Cadastrar veículos e registros de frota" },
@@ -152,6 +155,9 @@ const ALL_PERMISSIONS: { recurso: string; acao: string; descricao: string }[] = 
 const BASE_PERMISSIONS = [
   "agenda:ver", "agenda:criar", "agenda:editar", "agenda:deletar",
   "keep:ver", "keep:criar", "keep:editar", "keep:deletar",
+  // Gastos é uma ferramenta pessoal (só o próprio usuário vê os seus), como
+  // agenda e keep — por isso acompanha a conta, não depende de papel.
+  "gastos:ver", "gastos:registrar",
   // Conectar o PRÓPRIO calendário externo é ferramenta de conta pessoal (só
   // afeta a agenda do próprio usuário), então acompanha a conta como agenda/keep.
   "integracoes:conectar",
@@ -1101,7 +1107,7 @@ export class AuthService implements OnModuleInit {
     "one-space":    ["agenda"],
     "one-fleet":    ["frota"],
     "one-assets":   ["ativos"],
-    "one-finance":  ["financeiro"],
+    "one-finance":  ["financeiro", "gastos"],
     "one-budget":   ["orcamento"],
     "one-crm":      ["crm", "clientes"],
     "one-observe":  ["monitoramento"],

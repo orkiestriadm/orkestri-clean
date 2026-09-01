@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "1.24.0";
+export const VERSAO = "1.25.0";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -35,6 +35,15 @@ export const VERSAO_NOME = "Módulo de Indicações (referral)";
  * esta lista quer saber o que mudou para ele.
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
+  {
+    versao: "1.25.0",
+    data: "2026-09-01",
+    titulo: "Gastos para todos + resumo semanal no WhatsApp",
+    itens: [
+      "Meus Gastos agora está disponível para todos os usuários — como a Agenda e o Keep. Não é mais preciso ter acesso ao Financeiro; cada pessoa continua vendo só os próprios gastos",
+      "Resumo automático da semana: todo domingo à noite, quem registrou gastos na semana recebe no WhatsApp um resumo com o total e a maior categoria. Para desligar, responda 'parar resumo'; para voltar, 'voltar resumo'",
+    ],
+  },
   {
     versao: "1.24.0",
     data: "2026-09-01",

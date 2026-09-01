@@ -165,7 +165,7 @@ export const NAV: NavGroup[] = [
     id: "finance", produto: "Finance", descritor: "Financeiro", icon: Wallet,
     items: [
       { href: "/dashboard/financeiro",                  label: "Dashboard",      icon: Wallet,          permission: "financeiro:ver" },
-      { href: "/dashboard/financeiro/gastos",           label: "Meus Gastos",    icon: Receipt,          permission: "financeiro:ver" },
+      { href: "/dashboard/financeiro/gastos",           label: "Meus Gastos",    icon: Receipt,          permission: "gastos:ver" },
       { href: "/dashboard/financeiro/contas-a-pagar",   label: "Contas a Pagar", icon: FileSpreadsheet,  permission: "financeiro:ver" },
     ],
   },
