@@ -27,6 +27,7 @@ type Gasto = {
   formaPagamento: string; parcelas: number; valorParcela?: number | null;
   dataGasto: string; origem: string;
 };
+type Meta = { id: string; categoria: string; limiteMensal: number; gastoMes: number };
 type Resumo = {
   cards: { hoje: { total: number; qtd: number }; semana: { total: number; qtd: number }; mes: { total: number; qtd: number } };
   insights: {
@@ -67,7 +68,9 @@ export default function GastosPage() {
   const [q, setQ] = useState("");
   const [forma, setForma] = useState("");        // filtra a tabela
   const [categoria, setCategoria] = useState(""); // filtra a tabela
+  const [metas, setMetas] = useState<Meta[]>([]);
   const [modal, setModal] = useState<null | { editing?: Gasto }>(null);
+  const [metaModal, setMetaModal] = useState(false);
 
   const carregar = useCallback(async () => {
     setLoading(true);
@@ -86,6 +89,11 @@ export default function GastosPage() {
     }
   }, [inicio, fim, q, forma, categoria]);
 
+  const carregarMetas = useCallback(async () => {
+    try { const { data } = await api.get("/gastos/metas"); setMetas(data || []); } catch { /* vazio */ }
+  }, []);
+  useEffect(() => { carregarMetas(); }, [carregarMetas]);
+
   useEffect(() => { carregar(); }, [carregar]);
 
   const aplicarPreset = (tipo: Exclude<Preset, null>) => {
@@ -102,6 +110,11 @@ export default function GastosPage() {
     if (!confirm(`Excluir o gasto "${g.descricao}"?`)) return;
     await api.delete(`/gastos/${g.id}`).catch(() => {});
     carregar();
+  };
+  const excluirMeta = async (m: Meta) => {
+    if (!confirm(`Remover a meta de ${m.categoria}?`)) return;
+    await api.delete(`/gastos/metas/${m.id}`).catch(() => {});
+    carregarMetas();
   };
 
   const per = resumo?.periodo;
@@ -238,6 +251,39 @@ export default function GastosPage() {
             </div>
           )}
 
+          {/* Orçamentos do mês */}
+          <div style={{ ...card, marginBottom: 16 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: metas.length ? 14 : 6 }}>
+              <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700 }}>Orçamentos do mês</h3>
+              <button onClick={() => setMetaModal(true)} style={{ ...chip(false), fontSize: 12, display: "inline-flex", alignItems: "center", gap: 5 }}><Plus size={13} /> Nova meta</button>
+            </div>
+            {metas.length === 0 ? (
+              <p style={{ margin: 0, color: "var(--text-muted,#6b7280)", fontSize: 13 }}>Defina um limite por categoria (ex.: <b>Alimentação R$ 800/mês</b>) e eu te aviso ao chegar em 80% e ao estourar — inclusive pelo WhatsApp.</p>
+            ) : (
+              <div style={{ display: "grid", gap: 13 }}>
+                {metas.map(m => {
+                  const pct = m.limiteMensal > 0 ? m.gastoMes / m.limiteMensal : 0;
+                  const cor = pct >= 1 ? "#dc2626" : pct >= 0.8 ? "#d97706" : "#16a34a";
+                  return (
+                    <div key={m.id}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 13, marginBottom: 5 }}>
+                        <b>{m.categoria}</b>
+                        <span style={{ color: "var(--text-muted,#6b7280)", display: "inline-flex", alignItems: "center", gap: 6 }}>
+                          {R(m.gastoMes)} <span style={{ color: "var(--line-strong,#d3d6e6)" }}>/</span> {R(m.limiteMensal)}
+                          <button onClick={() => excluirMeta(m)} style={{ ...iconBtn, padding: 2, color: "#dc2626" }} title="Remover meta"><Trash2 size={13} /></button>
+                        </span>
+                      </div>
+                      <div style={{ height: 10, background: "var(--bg,#f1f2f4)", borderRadius: 999, overflow: "hidden" }}>
+                        <div style={{ width: `${Math.min(100, pct * 100)}%`, height: "100%", background: cor, borderRadius: 999, transition: "width .3s" }} />
+                      </div>
+                      {pct >= 0.8 && <div style={{ fontSize: 11, color: cor, marginTop: 4, fontWeight: 700 }}>{pct >= 1 ? "⚠️ Estourou o orçamento" : `${Math.round(pct * 100)}% do limite`}</div>}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
           {/* Busca + filtro forma + chips de filtro ativo */}
           <div style={{ display: "flex", gap: 8, marginBottom: 10, flexWrap: "wrap", alignItems: "center" }}>
             <div style={{ position: "relative", flex: 1, minWidth: 200 }}>
@@ -333,6 +379,7 @@ export default function GastosPage() {
       </div>
 
       {modal && <GastoModal gasto={modal.editing} onClose={() => setModal(null)} onSaved={() => { setModal(null); carregar(); }} />}
+      {metaModal && <MetaModal sugestoes={(resumo?.periodo.porCategoria || []).map(c => c.categoria)} onClose={() => setMetaModal(false)} onSaved={() => { setMetaModal(false); carregarMetas(); }} />}
 
       <style jsx global>{`
         .spin { animation: girar 1s linear infinite; }
@@ -442,6 +489,51 @@ function GastoModal({ gasto, onClose, onSaved }: { gasto?: Gasto; onClose: () =>
             <Campo label="Parcelas"><input value={parcelas} onChange={e => setParcelas(e.target.value)} inputMode="numeric" style={inpFull} /></Campo>
           </div>
           <Campo label="Categoria (opcional)"><input value={categoria} onChange={e => setCategoria(e.target.value)} placeholder="Ex.: Mercado" style={inpFull} /></Campo>
+          {erro && <div style={{ color: "#dc2626", fontSize: 13 }}>{erro}</div>}
+        </div>
+        <div style={{ display: "flex", gap: 8, marginTop: 18 }}>
+          <button onClick={onClose} style={{ flex: 1, padding: "11px", borderRadius: 10, border: "1px solid var(--border,#e5e7eb)", background: "var(--surface,#fff)", fontWeight: 700, cursor: "pointer" }}>Cancelar</button>
+          <button onClick={salvar} disabled={saving} style={{ flex: 1, padding: "11px", borderRadius: 10, border: "none", background: "#6366f1", color: "#fff", fontWeight: 700, cursor: "pointer", display: "inline-flex", justifyContent: "center", alignItems: "center", gap: 6 }}>
+            {saving && <Loader2 className="spin" size={15} />} Salvar
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MetaModal({ sugestoes, onClose, onSaved }: { sugestoes: string[]; onClose: () => void; onSaved: () => void }) {
+  const [categoria, setCategoria] = useState("");
+  const [limite, setLimite] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [erro, setErro] = useState("");
+  const opcoes = Array.from(new Set(sugestoes.filter(Boolean)));
+
+  const salvar = async () => {
+    setErro("");
+    const v = parseFloat(limite.replace(",", "."));
+    if (!categoria.trim()) return setErro("Escolha a categoria.");
+    if (!v || v <= 0) return setErro("Informe um limite válido.");
+    setSaving(true);
+    try {
+      await api.post("/gastos/metas", { categoria: categoria.trim(), limiteMensal: v });
+      onSaved();
+    } catch { setErro("Não consegui salvar. Tente de novo."); setSaving(false); }
+  };
+
+  return (
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", display: "grid", placeItems: "center", zIndex: 50, padding: 16 }}>
+      <div onClick={e => e.stopPropagation()} style={{ background: "var(--surface,#fff)", borderRadius: 16, width: "100%", maxWidth: 400, padding: 22 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+          <h3 style={{ margin: 0, fontSize: 18, fontWeight: 800 }}>Nova meta do mês</h3>
+          <button onClick={onClose} style={iconBtn}><X size={18} /></button>
+        </div>
+        <div style={{ display: "grid", gap: 12 }}>
+          <Campo label="Categoria">
+            <input value={categoria} onChange={e => setCategoria(e.target.value)} placeholder="Ex.: Alimentação" list="cats-meta" style={inpFull} autoFocus />
+            <datalist id="cats-meta">{opcoes.map(c => <option key={c} value={c} />)}</datalist>
+          </Campo>
+          <Campo label="Limite por mês (R$)"><input value={limite} onChange={e => setLimite(e.target.value)} placeholder="0,00" inputMode="decimal" style={inpFull} /></Campo>
           {erro && <div style={{ color: "#dc2626", fontSize: 13 }}>{erro}</div>}
         </div>
         <div style={{ display: "flex", gap: 8, marginTop: 18 }}>

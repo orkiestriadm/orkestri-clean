@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "1.25.0";
+export const VERSAO = "1.26.0";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -35,6 +35,15 @@ export const VERSAO_NOME = "Módulo de Indicações (referral)";
  * esta lista quer saber o que mudou para ele.
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
+  {
+    versao: "1.26.0",
+    data: "2026-09-01",
+    titulo: "Metas de orçamento por categoria",
+    itens: [
+      "Nova seção Orçamentos do mês em Meus Gastos: defina um limite por categoria (ex.: Alimentação R$ 800/mês) e acompanhe a barra de progresso — verde, âmbar ao passar de 80% e vermelha ao estourar",
+      "Aviso automático: quando um gasto faz a categoria chegar a 80% ou estourar o orçamento, você recebe um alerta na hora — inclusive pelo WhatsApp, ao registrar o gasto por lá",
+    ],
+  },
   {
     versao: "1.25.0",
     data: "2026-09-01",

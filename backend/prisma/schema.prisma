@@ -3758,6 +3758,21 @@ model Gasto {
   @@map("gastos")
 }
 
+// ── Meta / orçamento mensal de gasto por categoria (por usuário) ────────────────
+model MetaGasto {
+  id             String   @id @default(uuid())
+  organizationId String   @map("organization_id")
+  userId         String   @map("user_id")
+  categoria      String
+  limiteMensal   Decimal  @map("limite_mensal") @db.Decimal(15, 2)
+  criadoEm       DateTime @default(now()) @map("criado_em")
+  atualizadoEm   DateTime @updatedAt @map("atualizado_em")
+
+  @@unique([organizationId, userId, categoria])
+  @@index([organizationId, userId])
+  @@map("metas_gasto")
+}
+
 // ── Reservas de Carros ─────────────────────────────────────────────────────────
 
 model ReservaVeiculo {

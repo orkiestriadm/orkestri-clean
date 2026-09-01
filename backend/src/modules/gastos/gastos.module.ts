@@ -72,6 +72,10 @@ class UpdateGastoDto {
   @IsOptional() @IsString() categoria?: string;
   @IsOptional() dataGasto?: any;
 }
+class MetaDto {
+  @IsString() categoria!: string;
+  @IsNumber() limiteMensal!: number;
+}
 
 @Controller("gastos")
 @UseGuards(AuthGuard("jwt"), PermissionsGuard)
@@ -272,6 +276,50 @@ class GastosController {
     if (!exists) throw new NotFoundException("Gasto não encontrado");
     await (this.prisma as any).gasto.delete({ where: { id } });
     return { message: "Removido" };
+  }
+
+  // ── Metas / orçamento por categoria ────────────────────────────────────────
+  @Get("metas")
+  @Permissions("gastos:ver")
+  async listarMetas(@Req() req: any) {
+    const esc = this.escopo(req);
+    const agora = new Date();
+    const mes0 = new Date(agora.getFullYear(), agora.getMonth(), 1, 0, 0, 0, 0);
+    const mesFim = new Date(agora.getFullYear(), agora.getMonth() + 1, 0, 23, 59, 59, 999);
+    const [metas, gastosMes] = await Promise.all([
+      (this.prisma as any).metaGasto.findMany({ where: esc, orderBy: { categoria: "asc" } }),
+      (this.prisma as any).gasto.groupBy({ by: ["categoria"], where: { ...esc, dataGasto: { gte: mes0, lte: mesFim } }, _sum: { valor: true } }),
+    ]);
+    const spent = new Map<string, number>();
+    for (const g of gastosMes as any[]) spent.set(g.categoria || "Sem categoria", Number(g._sum?.valor || 0));
+    return (metas as any[]).map(m => ({
+      id: m.id, categoria: m.categoria, limiteMensal: Number(m.limiteMensal), gastoMes: spent.get(m.categoria) || 0,
+    }));
+  }
+
+  @Post("metas")
+  @Permissions("gastos:registrar")
+  async salvarMeta(@Req() req: any, @Body() dto: MetaDto) {
+    const esc = this.escopo(req);
+    const categoria = dto.categoria?.trim();
+    const limite = toNum(dto.limiteMensal);
+    if (!categoria) throw new BadRequestException("Categoria obrigatória");
+    if (limite == null || limite <= 0) throw new BadRequestException("Limite inválido");
+    const m = await (this.prisma as any).metaGasto.upsert({
+      where: { organizationId_userId_categoria: { organizationId: esc.organizationId, userId: esc.userId, categoria } },
+      create: { ...esc, categoria, limiteMensal: limite },
+      update: { limiteMensal: limite },
+    });
+    return { id: m.id, categoria: m.categoria, limiteMensal: Number(m.limiteMensal) };
+  }
+
+  @Delete("metas/:id")
+  @Permissions("gastos:registrar")
+  async removerMeta(@Req() req: any, @Param("id") id: string) {
+    const exists = await (this.prisma as any).metaGasto.findFirst({ where: { id, ...this.escopo(req) } });
+    if (!exists) throw new NotFoundException("Meta não encontrada");
+    await (this.prisma as any).metaGasto.delete({ where: { id } });
+    return { message: "Removida" };
   }
 }
 

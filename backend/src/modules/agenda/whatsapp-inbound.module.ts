@@ -648,6 +648,38 @@ export class WhatsappInboundService {
       `💳 ${formaCap} · ${parcTxt}\n` +
       `📅 ${parsed.dataGasto.toLocaleDateString("pt-BR")}\n\n` +
       `↩️ Errei? Responda *apagar* que eu removo este.`);
+
+    // Alerta de orçamento (só se este gasto CRUZOU 80% ou 100% da meta da categoria).
+    await this.alertaMeta(user, parsed.categoria, parsed.valor, remoteJid, inst).catch(() => {});
+  }
+
+  private async alertaMeta(
+    user: { id: string; organizationId: string; telefone: string | null },
+    categoria: string | null, valor: number, remoteJid: string, inst: string,
+  ) {
+    if (!categoria) return;
+    const meta = await (this.prisma as any).metaGasto.findFirst({
+      where: { organizationId: user.organizationId, userId: user.id, categoria },
+    }).catch(() => null);
+    if (!meta) return;
+    const limite = Number(meta.limiteMensal);
+    if (limite <= 0) return;
+    const agora = new Date();
+    const mes0 = new Date(agora.getFullYear(), agora.getMonth(), 1, 0, 0, 0, 0);
+    const mesFim = new Date(agora.getFullYear(), agora.getMonth() + 1, 0, 23, 59, 59, 999);
+    const agg = await (this.prisma as any).gasto.aggregate({
+      where: { organizationId: user.organizationId, userId: user.id, categoria, dataGasto: { gte: mes0, lte: mesFim } },
+      _sum: { valor: true },
+    }).catch(() => null);
+    const total = Number(agg?._sum?.valor || 0);
+    const antes = total - valor;
+    let msg: string | null = null;
+    if (antes < limite && total >= limite) {
+      msg = `🔴 *Orçamento de ${categoria} estourado!*\nJá são R$ ${this.fmtValor(total)} de R$ ${this.fmtValor(limite)} este mês.`;
+    } else if (antes < limite * 0.8 && total >= limite * 0.8) {
+      msg = `🟠 *${categoria}: você já usou ${Math.round((total / limite) * 100)}% do orçamento.*\nR$ ${this.fmtValor(total)} de R$ ${this.fmtValor(limite)} este mês.`;
+    }
+    if (msg) await this.responder(remoteJid, user.telefone, user.organizationId, inst, msg);
   }
 
   // "apagar" / "errei" — remove o ÚLTIMO gasto da pessoa (desfazer simples).
