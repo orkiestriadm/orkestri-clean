@@ -19,6 +19,7 @@ const FORMA_LABEL: Record<string, string> = {
 const FORMA_COR: Record<string, string> = {
   CREDITO: "#6366f1", DEBITO: "#3b82f6", PIX: "#10b981", DINHEIRO: "#f59e0b", BOLETO: "#8b5cf6", NAO_INFORMADO: "#94a3b8",
 };
+type Preset = "hoje" | "sem" | "mes" | "anterior" | null;
 
 // ── Types ───────────────────────────────────────────────────────────────────
 type Gasto = {
@@ -41,7 +42,6 @@ const R = (v?: number | null) => (v ?? 0).toLocaleString("pt-BR", { style: "curr
 const R0 = (v?: number | null) => (v ?? 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 0, maximumFractionDigits: 0 });
 const fmtD = (iso?: string) => iso ? new Date(iso).toLocaleDateString("pt-BR") : "—";
 const isoDay = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-
 const hojeStr = () => isoDay(new Date());
 const inicioMes = () => { const d = new Date(); return isoDay(new Date(d.getFullYear(), d.getMonth(), 1)); };
 const fimMes = () => { const d = new Date(); return isoDay(new Date(d.getFullYear(), d.getMonth() + 1, 0)); };
@@ -58,8 +58,10 @@ export default function GastosPage() {
   const [loading, setLoading] = useState(true);
   const [inicio, setInicio] = useState(inicioMes());
   const [fim, setFim] = useState(fimMes());
+  const [preset, setPreset] = useState<Preset>("mes");
   const [q, setQ] = useState("");
-  const [forma, setForma] = useState("");
+  const [forma, setForma] = useState("");        // filtra a tabela
+  const [categoria, setCategoria] = useState(""); // filtra a tabela
   const [modal, setModal] = useState<null | { editing?: Gasto }>(null);
 
   const carregar = useCallback(async () => {
@@ -68,7 +70,7 @@ export default function GastosPage() {
       const params: any = { inicio, fim };
       const [r, l] = await Promise.all([
         api.get("/gastos/resumo", { params }),
-        api.get("/gastos", { params: { ...params, q: q || undefined, forma: forma || undefined, limit: 200 } }),
+        api.get("/gastos", { params: { ...params, q: q || undefined, forma: forma || undefined, categoria: categoria || undefined, limit: 200 } }),
       ]);
       setResumo(r.data);
       setRows(l.data.rows || []);
@@ -77,17 +79,19 @@ export default function GastosPage() {
     } finally {
       setLoading(false);
     }
-  }, [inicio, fim, q, forma]);
+  }, [inicio, fim, q, forma, categoria]);
 
   useEffect(() => { carregar(); }, [carregar]);
 
-  const setPeriodo = (tipo: "hoje" | "sem" | "mes" | "anterior") => {
+  const aplicarPreset = (tipo: Exclude<Preset, null>) => {
     const d = new Date();
     if (tipo === "hoje") { setInicio(hojeStr()); setFim(hojeStr()); }
     else if (tipo === "sem") { const i = new Date(); i.setDate(i.getDate() - 6); setInicio(isoDay(i)); setFim(hojeStr()); }
     else if (tipo === "mes") { setInicio(inicioMes()); setFim(fimMes()); }
     else { setInicio(isoDay(new Date(d.getFullYear(), d.getMonth() - 1, 1))); setFim(isoDay(new Date(d.getFullYear(), d.getMonth(), 0))); }
+    setPreset(tipo);
   };
+  const mudarData = (qual: "inicio" | "fim", v: string) => { (qual === "inicio" ? setInicio : setFim)(v); setPreset(null); };
 
   const excluir = async (g: Gasto) => {
     if (!confirm(`Excluir o gasto "${g.descricao}"?`)) return;
@@ -97,182 +101,196 @@ export default function GastosPage() {
 
   const per = resumo?.periodo;
   const donut = (per?.porForma || []).map(f => ({ name: f.label, value: f.valor, forma: f.forma }));
+  const temFiltroTabela = !!forma || !!categoria;
 
   return (
-    <div style={{ minHeight: "100vh", background: "var(--bg, #f7f8fa)" }}>
+    <>
       <Topbar />
-      <div style={{ maxWidth: 1160, margin: "0 auto", padding: "20px 20px 60px" }}>
+      <div className="page-content">
+        <div style={{ maxWidth: 1160, margin: "0 auto", padding: "20px 20px 60px" }}>
 
-        {/* Cabeçalho */}
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap", marginBottom: 18 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <div style={{ width: 42, height: 42, borderRadius: 12, background: "rgba(99,102,241,0.12)", display: "grid", placeItems: "center" }}>
-              <Receipt size={22} color="#6366f1" />
-            </div>
-            <div>
-              <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800 }}>Meus Gastos</h1>
-              <p style={{ margin: 0, fontSize: 13, color: "var(--text-muted, #6b7280)" }}>Só você vê os seus gastos.</p>
-            </div>
-          </div>
-          <button onClick={() => setModal({})} style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "#6366f1", color: "#fff", border: "none", borderRadius: 10, padding: "10px 16px", fontWeight: 700, cursor: "pointer" }}>
-            <Plus size={16} /> Novo gasto
-          </button>
-        </div>
-
-        {/* Cartões resumo */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 14, marginBottom: 16 }}>
-          <ResumoCard titulo="Hoje" valor={resumo?.cards.hoje.total} qtd={resumo?.cards.hoje.qtd} cor="#10b981" icon={<CalendarDays size={18} color="#10b981" />} />
-          <ResumoCard titulo="Últimos 7 dias" valor={resumo?.cards.semana.total} qtd={resumo?.cards.semana.qtd} cor="#3b82f6" icon={<TrendingDown size={18} color="#3b82f6" />} />
-          <ResumoCard titulo="Este mês" valor={resumo?.cards.mes.total} qtd={resumo?.cards.mes.qtd} cor="#6366f1" icon={<Wallet size={18} color="#6366f1" />} />
-        </div>
-
-        {/* Filtro de período */}
-        <div style={{ ...card, marginBottom: 16, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-            {[["hoje", "Hoje"], ["sem", "7 dias"], ["mes", "Este mês"], ["anterior", "Mês passado"]].map(([k, lbl]) => (
-              <button key={k} onClick={() => setPeriodo(k as any)} style={{ padding: "7px 12px", borderRadius: 8, border: "1px solid var(--border,#e5e7eb)", background: "var(--surface,#fff)", cursor: "pointer", fontWeight: 600, fontSize: 13 }}>{lbl}</button>
-            ))}
-          </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 6, marginLeft: "auto" }}>
-            <input type="date" value={inicio} onChange={e => setInicio(e.target.value)} style={inp} />
-            <span style={{ color: "var(--text-muted,#6b7280)" }}>até</span>
-            <input type="date" value={fim} onChange={e => setFim(e.target.value)} style={inp} />
-          </div>
-        </div>
-
-        {/* Total do período + gráficos */}
-        <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr", gap: 16, marginBottom: 16 }} className="gastos-charts">
-          <div style={card}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 10 }}>
-              <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700 }}>Gasto por dia</h3>
-              <div style={{ textAlign: "right" }}>
-                <div style={{ fontSize: 12, color: "var(--text-muted,#6b7280)" }}>Total no período</div>
-                <div style={{ fontSize: 20, fontWeight: 800 }}>{R(per?.total)}</div>
+          {/* Cabeçalho */}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap", marginBottom: 18 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <div style={{ width: 42, height: 42, borderRadius: 12, background: "rgba(99,102,241,0.12)", display: "grid", placeItems: "center" }}>
+                <Receipt size={22} color="#6366f1" />
+              </div>
+              <div>
+                <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800 }}>Meus Gastos</h1>
+                <p style={{ margin: 0, fontSize: 13, color: "var(--text-muted, #6b7280)" }}>Só você vê os seus gastos. Toque num cartão para filtrar.</p>
               </div>
             </div>
-            <div style={{ height: 220 }}>
-              {per && per.porDia.length > 0 ? (
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={per.porDia} margin={{ top: 6, right: 6, left: -18, bottom: 0 }} barCategoryGap={per.porDia.length > 12 ? 2 : "28%"}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border,#eef0f3)" vertical={false} />
-                    <XAxis dataKey="label" tick={{ fontSize: 11 }} />
-                    <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => R0(v)} width={64} />
-                    <Tooltip cursor={{ fill: "rgba(99,102,241,0.06)" }} formatter={(v: any) => R(Number(v))} labelFormatter={(l) => `Dia ${l}`} />
-                    <Bar dataKey="valor" fill="#6366f1" radius={[6, 6, 0, 0]} maxBarSize={46} />
-                  </BarChart>
-                </ResponsiveContainer>
-              ) : <Vazio texto="Sem gastos no período." />}
+            <button onClick={() => setModal({})} style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "#6366f1", color: "#fff", border: "none", borderRadius: 10, padding: "10px 16px", fontWeight: 700, cursor: "pointer" }}>
+              <Plus size={16} /> Novo gasto
+            </button>
+          </div>
+
+          {/* Cartões clicáveis (filtram o período) */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 14, marginBottom: 16 }}>
+            <ResumoCard titulo="Hoje" valor={resumo?.cards.hoje.total} qtd={resumo?.cards.hoje.qtd} cor="#10b981" icon={<CalendarDays size={18} color="#10b981" />} ativo={preset === "hoje"} onClick={() => aplicarPreset("hoje")} />
+            <ResumoCard titulo="Últimos 7 dias" valor={resumo?.cards.semana.total} qtd={resumo?.cards.semana.qtd} cor="#3b82f6" icon={<TrendingDown size={18} color="#3b82f6" />} ativo={preset === "sem"} onClick={() => aplicarPreset("sem")} />
+            <ResumoCard titulo="Este mês" valor={resumo?.cards.mes.total} qtd={resumo?.cards.mes.qtd} cor="#6366f1" icon={<Wallet size={18} color="#6366f1" />} ativo={preset === "mes"} onClick={() => aplicarPreset("mes")} />
+          </div>
+
+          {/* Filtro de período */}
+          <div style={{ ...card, marginBottom: 16, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+              {([["hoje", "Hoje"], ["sem", "7 dias"], ["mes", "Este mês"], ["anterior", "Mês passado"]] as [Exclude<Preset, null>, string][]).map(([k, lbl]) => (
+                <button key={k} onClick={() => aplicarPreset(k)} style={chip(preset === k)}>{lbl}</button>
+              ))}
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginLeft: "auto" }}>
+              <input type="date" value={inicio} onChange={e => mudarData("inicio", e.target.value)} style={inp} />
+              <span style={{ color: "var(--text-muted,#6b7280)" }}>até</span>
+              <input type="date" value={fim} onChange={e => mudarData("fim", e.target.value)} style={inp} />
             </div>
           </div>
 
-          <div style={card}>
-            <h3 style={{ margin: "0 0 10px", fontSize: 15, fontWeight: 700 }}>Por forma de pagamento</h3>
-            {donut.length > 0 ? (
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <div style={{ width: 130, height: 150 }}>
+          {/* Gráficos */}
+          <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr", gap: 16, marginBottom: 16 }} className="gastos-charts">
+            <div style={card}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 10 }}>
+                <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700 }}>Gasto por dia</h3>
+                <div style={{ textAlign: "right" }}>
+                  <div style={{ fontSize: 12, color: "var(--text-muted,#6b7280)" }}>Total no período</div>
+                  <div style={{ fontSize: 22, fontWeight: 800 }}>{R(per?.total)}</div>
+                </div>
+              </div>
+              <div style={{ height: 260 }}>
+                {per && per.porDia.length > 0 ? (
                   <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie data={donut} dataKey="value" nameKey="name" innerRadius={38} outerRadius={62} paddingAngle={2}>
-                        {donut.map((d, i) => <Cell key={i} fill={FORMA_COR[d.forma] || "#94a3b8"} />)}
-                      </Pie>
-                      <Tooltip formatter={(v: any) => R(Number(v))} />
-                    </PieChart>
+                    <BarChart data={per.porDia} margin={{ top: 6, right: 6, left: -18, bottom: 0 }} barCategoryGap={per.porDia.length > 12 ? 2 : "28%"}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="var(--border,#eef0f3)" vertical={false} />
+                      <XAxis dataKey="label" tick={{ fontSize: 11 }} interval="preserveStartEnd" />
+                      <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => R0(v)} width={64} />
+                      <Tooltip cursor={{ fill: "rgba(99,102,241,0.06)" }} formatter={(v: any) => R(Number(v))} labelFormatter={(l) => `Dia ${l}`} />
+                      <Bar dataKey="valor" fill="#6366f1" radius={[6, 6, 0, 0]} maxBarSize={46} />
+                    </BarChart>
                   </ResponsiveContainer>
-                </div>
-                <div style={{ flex: 1, display: "grid", gap: 6 }}>
-                  {(per?.porForma || []).map(f => (
-                    <div key={f.forma} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13 }}>
-                      <span style={{ width: 10, height: 10, borderRadius: 3, background: FORMA_COR[f.forma] || "#94a3b8" }} />
-                      <span style={{ flex: 1 }}>{f.label}</span>
-                      <b>{R(f.valor)}</b>
-                    </div>
-                  ))}
-                </div>
+                ) : <Vazio texto="Sem gastos no período." />}
               </div>
-            ) : <Vazio texto="Sem dados." />}
-          </div>
-        </div>
+            </div>
 
-        {/* Por categoria */}
-        {per && per.porCategoria.length > 0 && (
-          <div style={{ ...card, marginBottom: 16 }}>
-            <h3 style={{ margin: "0 0 12px", fontSize: 15, fontWeight: 700 }}>Por categoria</h3>
-            <div style={{ display: "grid", gap: 8 }}>
-              {per.porCategoria.slice(0, 8).map(c => {
-                const pct = per.total > 0 ? (c.valor / per.total) * 100 : 0;
-                return (
-                  <div key={c.categoria} style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                    <span style={{ width: 120, fontSize: 13, fontWeight: 600 }}>{c.categoria}</span>
-                    <div style={{ flex: 1, height: 10, background: "var(--bg,#f1f2f4)", borderRadius: 999 }}>
-                      <div style={{ width: `${pct}%`, height: "100%", background: "#6366f1", borderRadius: 999 }} />
-                    </div>
-                    <span style={{ width: 110, textAlign: "right", fontSize: 13 }}><b>{R(c.valor)}</b></span>
+            <div style={card}>
+              <h3 style={{ margin: "0 0 10px", fontSize: 15, fontWeight: 700 }}>Por forma de pagamento</h3>
+              {donut.length > 0 ? (
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <div style={{ width: 150, height: 190 }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie data={donut} dataKey="value" nameKey="name" innerRadius={44} outerRadius={72} paddingAngle={2}>
+                          {donut.map((d, i) => <Cell key={i} fill={FORMA_COR[d.forma] || "#94a3b8"} opacity={forma && forma !== d.forma ? 0.35 : 1} />)}
+                        </Pie>
+                        <Tooltip formatter={(v: any) => R(Number(v))} />
+                      </PieChart>
+                    </ResponsiveContainer>
                   </div>
-                );
-              })}
+                  <div style={{ flex: 1, display: "grid", gap: 4 }}>
+                    {(per?.porForma || []).map(f => (
+                      <button key={f.forma} onClick={() => setForma(forma === f.forma ? "" : f.forma)} title="Filtrar a lista por esta forma"
+                        style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, background: forma === f.forma ? "var(--bg,#f1f2f4)" : "transparent", border: "none", borderRadius: 8, padding: "6px 8px", cursor: "pointer", textAlign: "left", width: "100%", color: "inherit" }}>
+                        <span style={{ width: 10, height: 10, borderRadius: 3, background: FORMA_COR[f.forma] || "#94a3b8" }} />
+                        <span style={{ flex: 1 }}>{f.label}</span>
+                        <b>{R(f.valor)}</b>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ) : <Vazio texto="Sem dados." />}
             </div>
           </div>
-        )}
 
-        {/* Busca + filtro forma */}
-        <div style={{ display: "flex", gap: 8, marginBottom: 10, flexWrap: "wrap" }}>
-          <div style={{ position: "relative", flex: 1, minWidth: 200 }}>
-            <Search size={15} style={{ position: "absolute", left: 10, top: 11, color: "#9ca3af" }} />
-            <input placeholder="Buscar por descrição…" value={q} onChange={e => setQ(e.target.value)} style={{ ...inp, width: "100%", paddingLeft: 32 }} />
-          </div>
-          <select value={forma} onChange={e => setForma(e.target.value)} style={inp}>
-            <option value="">Todas as formas</option>
-            {FORMAS.filter(f => f !== "NAO_INFORMADO").map(f => <option key={f} value={f}>{FORMA_LABEL[f]}</option>)}
-          </select>
-        </div>
-
-        {/* Tabela */}
-        <div style={{ ...card, padding: 0, overflow: "hidden" }}>
-          {loading ? (
-            <div style={{ padding: 40, textAlign: "center", color: "var(--text-muted,#6b7280)" }}><Loader2 className="spin" size={22} /></div>
-          ) : rows.length === 0 ? (
-            <div style={{ padding: "36px 20px", textAlign: "center" }}>
-              <p style={{ margin: "0 0 6px", fontWeight: 700 }}>Nenhum gasto neste período.</p>
-              <p style={{ margin: 0, color: "var(--text-muted,#6b7280)", fontSize: 13, display: "inline-flex", alignItems: "center", gap: 6 }}>
-                <MessageCircle size={15} color="#25D366" /> Dica: anote pelo WhatsApp — <b>Gasto: Mercado 150 no crédito</b>
-              </p>
-            </div>
-          ) : (
-            <div style={{ overflowX: "auto" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
-                <thead>
-                  <tr style={{ background: "var(--bg,#f7f8fa)", textAlign: "left" }}>
-                    <th style={th}>Data</th><th style={th}>Descrição</th><th style={th}>Categoria</th>
-                    <th style={th}>Forma</th><th style={{ ...th, textAlign: "right" }}>Valor</th><th style={{ ...th, width: 80 }}></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {rows.map(g => (
-                    <tr key={g.id} style={{ borderTop: "1px solid var(--border,#eef0f3)" }}>
-                      <td style={td}>{fmtD(g.dataGasto)}</td>
-                      <td style={{ ...td, fontWeight: 600 }}>
-                        {g.descricao}
-                        {g.origem === "WHATSAPP" && <MessageCircle size={12} color="#25D366" style={{ marginLeft: 6, verticalAlign: "middle" }} />}
-                      </td>
-                      <td style={td}>{g.categoria || <span style={{ color: "#9ca3af" }}>—</span>}</td>
-                      <td style={td}>
-                        <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
-                          <span style={{ width: 8, height: 8, borderRadius: 2, background: FORMA_COR[g.formaPagamento] || "#94a3b8" }} />
-                          {FORMA_LABEL[g.formaPagamento] || g.formaPagamento}
-                          {g.parcelas > 1 && <span style={{ color: "#6b7280" }}> · {g.parcelas}x</span>}
-                        </span>
-                      </td>
-                      <td style={{ ...td, textAlign: "right", fontWeight: 700 }}>{R(g.valor)}</td>
-                      <td style={{ ...td, textAlign: "right", whiteSpace: "nowrap" }}>
-                        <button onClick={() => setModal({ editing: g })} style={iconBtn} title="Editar"><Pencil size={14} /></button>
-                        <button onClick={() => excluir(g)} style={{ ...iconBtn, color: "#dc2626" }} title="Excluir"><Trash2 size={14} /></button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+          {/* Por categoria (clicável) */}
+          {per && per.porCategoria.length > 0 && (
+            <div style={{ ...card, marginBottom: 16 }}>
+              <h3 style={{ margin: "0 0 12px", fontSize: 15, fontWeight: 700 }}>Por categoria</h3>
+              <div style={{ display: "grid", gap: 6 }}>
+                {per.porCategoria.slice(0, 8).map(c => {
+                  const pct = per.total > 0 ? (c.valor / per.total) * 100 : 0;
+                  const on = categoria === c.categoria;
+                  return (
+                    <button key={c.categoria} onClick={() => setCategoria(on ? "" : c.categoria)} title="Filtrar a lista por esta categoria"
+                      style={{ display: "flex", alignItems: "center", gap: 10, background: on ? "var(--bg,#f1f2f4)" : "transparent", border: "none", borderRadius: 8, padding: "6px 8px", cursor: "pointer", width: "100%", color: "inherit" }}>
+                      <span style={{ width: 120, fontSize: 13, fontWeight: 600, textAlign: "left" }}>{c.categoria}</span>
+                      <div style={{ flex: 1, height: 10, background: "var(--bg,#f1f2f4)", borderRadius: 999 }}>
+                        <div style={{ width: `${pct}%`, height: "100%", background: on ? "#4f46e5" : "#6366f1", borderRadius: 999 }} />
+                      </div>
+                      <span style={{ width: 110, textAlign: "right", fontSize: 13 }}><b>{R(c.valor)}</b></span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           )}
+
+          {/* Busca + filtro forma + chips de filtro ativo */}
+          <div style={{ display: "flex", gap: 8, marginBottom: 10, flexWrap: "wrap", alignItems: "center" }}>
+            <div style={{ position: "relative", flex: 1, minWidth: 200 }}>
+              <Search size={15} style={{ position: "absolute", left: 10, top: 11, color: "#9ca3af" }} />
+              <input placeholder="Buscar por descrição…" value={q} onChange={e => setQ(e.target.value)} style={{ ...inp, width: "100%", paddingLeft: 32 }} />
+            </div>
+            <select value={forma} onChange={e => setForma(e.target.value)} style={inp}>
+              <option value="">Todas as formas</option>
+              {FORMAS.filter(f => f !== "NAO_INFORMADO").map(f => <option key={f} value={f}>{FORMA_LABEL[f]}</option>)}
+            </select>
+          </div>
+          {temFiltroTabela && (
+            <div style={{ display: "flex", gap: 8, marginBottom: 10, flexWrap: "wrap", alignItems: "center" }}>
+              <span style={{ fontSize: 12, color: "var(--text-muted,#6b7280)" }}>Filtrando:</span>
+              {forma && <Chip label={FORMA_LABEL[forma] || forma} onX={() => setForma("")} />}
+              {categoria && <Chip label={categoria} onX={() => setCategoria("")} />}
+              <button onClick={() => { setForma(""); setCategoria(""); }} style={{ ...chip(false), fontSize: 12 }}>Limpar</button>
+            </div>
+          )}
+
+          {/* Tabela */}
+          <div style={{ ...card, padding: 0, overflow: "hidden" }}>
+            {loading ? (
+              <div style={{ padding: 40, textAlign: "center", color: "var(--text-muted,#6b7280)" }}><Loader2 className="spin" size={22} /></div>
+            ) : rows.length === 0 ? (
+              <div style={{ padding: "36px 20px", textAlign: "center" }}>
+                <p style={{ margin: "0 0 6px", fontWeight: 700 }}>Nenhum gasto {temFiltroTabela ? "com esse filtro" : "neste período"}.</p>
+                <p style={{ margin: 0, color: "var(--text-muted,#6b7280)", fontSize: 13, display: "inline-flex", alignItems: "center", gap: 6 }}>
+                  <MessageCircle size={15} color="#25D366" /> Dica: anote pelo WhatsApp — <b>Gasto: Mercado 150 no crédito</b>
+                </p>
+              </div>
+            ) : (
+              <div style={{ overflowX: "auto" }}>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                  <thead>
+                    <tr style={{ background: "var(--bg,#f7f8fa)", textAlign: "left" }}>
+                      <th style={th}>Data</th><th style={th}>Descrição</th><th style={th}>Categoria</th>
+                      <th style={th}>Forma</th><th style={{ ...th, textAlign: "right" }}>Valor</th><th style={{ ...th, width: 80 }}></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rows.map(g => (
+                      <tr key={g.id} style={{ borderTop: "1px solid var(--border,#eef0f3)" }}>
+                        <td style={td}>{fmtD(g.dataGasto)}</td>
+                        <td style={{ ...td, fontWeight: 600 }}>
+                          {g.descricao}
+                          {g.origem === "WHATSAPP" && <MessageCircle size={12} color="#25D366" style={{ marginLeft: 6, verticalAlign: "middle" }} />}
+                        </td>
+                        <td style={td}>{g.categoria || <span style={{ color: "#9ca3af" }}>—</span>}</td>
+                        <td style={td}>
+                          <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
+                            <span style={{ width: 8, height: 8, borderRadius: 2, background: FORMA_COR[g.formaPagamento] || "#94a3b8" }} />
+                            {FORMA_LABEL[g.formaPagamento] || g.formaPagamento}
+                            {g.parcelas > 1 && <span style={{ color: "#6b7280" }}> · {g.parcelas}x</span>}
+                          </span>
+                        </td>
+                        <td style={{ ...td, textAlign: "right", fontWeight: 700 }}>{R(g.valor)}</td>
+                        <td style={{ ...td, textAlign: "right", whiteSpace: "nowrap" }}>
+                          <button onClick={() => setModal({ editing: g })} style={iconBtn} title="Editar"><Pencil size={14} /></button>
+                          <button onClick={() => excluir(g)} style={{ ...iconBtn, color: "#dc2626" }} title="Excluir"><Trash2 size={14} /></button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -283,21 +301,34 @@ export default function GastosPage() {
         @keyframes girar { to { transform: rotate(360deg); } }
         @media (max-width: 820px) { .gastos-charts { grid-template-columns: 1fr !important; } }
       `}</style>
-    </div>
+    </>
   );
 }
 
 // ── Sub-componentes ─────────────────────────────────────────────────────────
-function ResumoCard({ titulo, valor, qtd, cor, icon }: { titulo: string; valor?: number; qtd?: number; cor: string; icon: ReactNode }) {
+function ResumoCard({ titulo, valor, qtd, cor, icon, ativo, onClick }: { titulo: string; valor?: number; qtd?: number; cor: string; icon: ReactNode; ativo?: boolean; onClick?: () => void }) {
   return (
-    <div style={{ ...card, display: "flex", alignItems: "center", gap: 12 }}>
+    <button onClick={onClick} style={{
+      ...card, display: "flex", alignItems: "center", gap: 12, cursor: "pointer", textAlign: "left", width: "100%", color: "inherit",
+      borderColor: ativo ? cor : "var(--border,#e5e7eb)",
+      boxShadow: ativo ? `0 0 0 2px ${cor}33` : "none", transition: "box-shadow .15s, border-color .15s",
+    }}>
       <div style={{ width: 40, height: 40, borderRadius: 10, background: cor + "1f", display: "grid", placeItems: "center" }}>{icon}</div>
       <div>
         <div style={{ fontSize: 12, color: "var(--text-muted,#6b7280)" }}>{titulo}</div>
-        <div style={{ fontSize: 20, fontWeight: 800 }}>{R(valor)}</div>
+        <div style={{ fontSize: 22, fontWeight: 800 }}>{R(valor)}</div>
         <div style={{ fontSize: 11, color: "var(--text-muted,#9ca3af)" }}>{qtd || 0} {qtd === 1 ? "lançamento" : "lançamentos"}</div>
       </div>
-    </div>
+    </button>
+  );
+}
+
+function Chip({ label, onX }: { label: string; onX: () => void }) {
+  return (
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "rgba(99,102,241,0.12)", color: "#4f46e5", borderRadius: 999, padding: "4px 10px", fontSize: 12, fontWeight: 700 }}>
+      {label}
+      <X size={13} style={{ cursor: "pointer" }} onClick={onX} />
+    </span>
   );
 }
 
@@ -382,3 +413,8 @@ const inpFull: CSSProperties = { ...inp, width: "100%" };
 const th: CSSProperties = { padding: "11px 14px", fontSize: 12, fontWeight: 700, color: "var(--text-muted,#6b7280)", textTransform: "uppercase", letterSpacing: 0.3 };
 const td: CSSProperties = { padding: "11px 14px" };
 const iconBtn: CSSProperties = { background: "transparent", border: "none", cursor: "pointer", padding: 6, borderRadius: 6, color: "inherit" };
+const chip = (on: boolean): CSSProperties => ({
+  padding: "7px 12px", borderRadius: 8, border: `1px solid ${on ? "#6366f1" : "var(--border,#e5e7eb)"}`,
+  background: on ? "rgba(99,102,241,0.10)" : "var(--surface,#fff)", color: on ? "#4f46e5" : "inherit",
+  cursor: "pointer", fontWeight: 600, fontSize: 13,
+});

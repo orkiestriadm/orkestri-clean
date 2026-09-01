@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "1.23.1";
+export const VERSAO = "1.23.2";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -35,6 +35,17 @@ export const VERSAO_NOME = "Módulo de Indicações (referral)";
  * esta lista quer saber o que mudou para ele.
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
+  {
+    versao: "1.23.2",
+    data: "2026-09-01",
+    titulo: "Meus Gastos: rolagem, cards que filtram e mais",
+    itens: [
+      "Correção: a tela Meus Gastos não rolava até o fim (não dava para ver a tabela). Agora rola normalmente",
+      "Correção: os cartões Hoje e Este mês podiam aparecer zerados de manhã, mesmo com gastos do dia — corrigido o cálculo (o dia inteiro conta, não só até a hora atual)",
+      "Agora é interativo: clique no cartão Hoje / 7 dias / Este mês para filtrar o período; clique numa forma de pagamento ou numa categoria para filtrar a lista, com chips para limpar",
+      "Gráfico de gasto por dia em barras, um pouco maiores, para leitura mais fácil",
+    ],
+  },
   {
     versao: "1.23.1",
     data: "2026-08-31",

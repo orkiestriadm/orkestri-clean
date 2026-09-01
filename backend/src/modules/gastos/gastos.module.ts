@@ -134,6 +134,11 @@ class GastosController {
     const hoje0 = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate(), 0, 0, 0, 0);
     const sem0 = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate() - 6, 0, 0, 0, 0);
     const mes0 = new Date(agora.getFullYear(), agora.getMonth(), 1, 0, 0, 0, 0);
+    // Limite SUPERIOR = fim do dia/mês, não "agora". Os gastos são carimbados ao
+    // meio-dia local; se o usuário olhar de manhã, `agora` (ex.: 8h) cortava os
+    // lançamentos de hoje (12h) — por isso o cartão vinha zerado.
+    const hojeFim = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate(), 23, 59, 59, 999);
+    const mesFim = new Date(agora.getFullYear(), agora.getMonth() + 1, 0, 23, 59, 59, 999);
 
     const somaEntre = async (gte: Date, lte: Date) => {
       const a = await (this.prisma as any).gasto.aggregate({
@@ -143,9 +148,9 @@ class GastosController {
     };
 
     const [cardHoje, cardSemana, cardMes] = await Promise.all([
-      somaEntre(hoje0, agora),
-      somaEntre(sem0, agora),
-      somaEntre(mes0, agora),
+      somaEntre(hoje0, hojeFim),
+      somaEntre(sem0, hojeFim),
+      somaEntre(mes0, mesFim),
     ]);
 
     const wherePer: any = { ...esc, dataGasto: { gte: ini, lte: f } };
