@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "1.22.0";
+export const VERSAO = "1.23.0";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -35,6 +35,16 @@ export const VERSAO_NOME = "Módulo de Indicações (referral)";
  * esta lista quer saber o que mudou para ele.
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
+  {
+    versao: "1.23.0",
+    data: "2026-08-31",
+    titulo: "Tela de Meus Gastos",
+    itens: [
+      "Nova tela Financeiro › Meus Gastos: veja tudo o que você anotou (pelo WhatsApp ou aqui), com cartões de hoje, últimos 7 dias e mês, gráfico por dia, divisão por forma de pagamento e por categoria",
+      "Filtro por período (hoje, 7 dias, mês, mês passado ou datas), busca por descrição e filtro por forma de pagamento",
+      "Lançar, editar e excluir gasto direto na tela, além do WhatsApp. Cada pessoa vê e mexe só nos próprios gastos",
+    ],
+  },
   {
     versao: "1.22.0",
     data: "2026-08-31",

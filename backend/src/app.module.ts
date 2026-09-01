@@ -49,6 +49,7 @@ import { BillingModule } from './modules/billing/billing.module';
 import { MonitoramentoModule } from './modules/monitoramento/monitoramento.module';
 import { OsaModule } from './modules/osa/osa.module';
 import { FinanceiroModule } from './modules/financeiro/financeiro.module';
+import { GastosModule } from './modules/gastos/gastos.module';
 import { FrotaModule } from './modules/frota/frota.module';
 import { PeopleModule } from './modules/people/people.module';
 import { ComplianceModule } from './modules/compliance/compliance.module';
@@ -97,6 +98,7 @@ import { JwtModule } from '@nestjs/jwt';
     MonitoramentoModule,
     OsaModule,
     FinanceiroModule,
+    GastosModule,
     FrotaModule,
     // Orkiestri People — rotas em /api/v1/people/*. Convive com CollaboratorsModule
     // (/api/collaborators) durante a migração. Ver docs/people/MIGRATION_MATRIX.md.
