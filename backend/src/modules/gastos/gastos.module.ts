@@ -157,8 +157,13 @@ class GastosController {
     const [porFormaRaw, porCatRaw, doPeriodo] = await Promise.all([
       (this.prisma as any).gasto.groupBy({ by: ["formaPagamento"], where: wherePer, _sum: { valor: true }, _count: true }),
       (this.prisma as any).gasto.groupBy({ by: ["categoria"], where: wherePer, _sum: { valor: true }, _count: true }),
-      (this.prisma as any).gasto.findMany({ where: wherePer, select: { dataGasto: true, valor: true } }),
+      (this.prisma as any).gasto.findMany({ where: wherePer, select: { dataGasto: true, valor: true, descricao: true } }),
     ]);
+
+    // Mês anterior (para a variação) — janela fechada do mês passado.
+    const mesAntIni = new Date(agora.getFullYear(), agora.getMonth() - 1, 1, 0, 0, 0, 0);
+    const mesAntFim = new Date(agora.getFullYear(), agora.getMonth(), 0, 23, 59, 59, 999);
+    const cardMesAnterior = await somaEntre(mesAntIni, mesAntFim);
 
     let totalPeriodo = 0, qtdPeriodo = 0;
     const porForma = (porFormaRaw as any[]).map(g => {
@@ -180,8 +185,30 @@ class GastosController {
     const porDia = [...porDiaMap.entries()].sort(([a], [b]) => a.localeCompare(b))
       .map(([dia, valor]) => ({ dia, label: dia.slice(8) + "/" + dia.slice(5, 7), valor }));
 
+    // ── Insights ──
+    // Maior gasto e média por dia no PERÍODO selecionado; projeção e variação são
+    // conceitos do MÊS corrente (independem do filtro).
+    let maiorGasto: { descricao: string; valor: number } | null = null;
+    for (const g of doPeriodo as any[]) {
+      const v = Number(g.valor || 0);
+      if (!maiorGasto || v > maiorGasto.valor) maiorGasto = { descricao: g.descricao, valor: v };
+    }
+    const fimEfetivo = f < agora ? f : agora;
+    const diasPeriodo = Math.max(1, Math.floor((fimEfetivo.getTime() - ini.getTime()) / 86400000) + 1);
+    const mediaDia = totalPeriodo / diasPeriodo;
+
+    const diaAtual = agora.getDate();
+    const diasNoMes = new Date(agora.getFullYear(), agora.getMonth() + 1, 0).getDate();
+    const projecaoMes = diaAtual > 0 ? (cardMes.total / diaAtual) * diasNoMes : cardMes.total;
+    const variacaoMes = cardMesAnterior.total > 0 ? (cardMes.total - cardMesAnterior.total) / cardMesAnterior.total : null;
+
     return {
       cards: { hoje: cardHoje, semana: cardSemana, mes: cardMes },
+      insights: {
+        maiorGasto, mediaDia,
+        mesAtual: cardMes.total, mesAnterior: cardMesAnterior.total,
+        projecaoMes, variacaoMes,
+      },
       periodo: { inicio: ini, fim: f, total: totalPeriodo, qtd: qtdPeriodo, porForma, porCategoria, porDia },
     };
   }

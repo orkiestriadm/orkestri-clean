@@ -83,7 +83,7 @@ function montarAjuda(temAgenda: boolean, temGastos: boolean, nome: string): stri
       "Copie a linha abaixo e me mande:\n" +
       "👉 *Gasto: Mercado 150 no crédito*\n\n" +
       "Comprou parcelado? *Gasto: TV 2400 crédito 12x*\n" +
-      "Errou? Mande *apagar* que eu tiro o último. ✅\n\n" +
+      "Errou? Mande *apagar* (tira o último) ou *corrige o último pra 150*. ✅\n\n" +
       "📊 *PARA VER QUANTO GASTOU*\n" +
       "Mande: *Relatório: quanto gastei esse mês*\n" +
       "(dá para pedir por *crédito*, *débito* ou *no total*)\n\n";
@@ -413,6 +413,69 @@ export function parseComandoRelatorio(texto: string, agora: Date): ParsedRelator
   return { inicio, fim, label, forma };
 }
 
+// Detecta forma de pagamento num texto (sem remover) — usado na correção.
+function detectarForma(s: string): FormaPagamento | null {
+  const formas: Array<[RegExp, FormaPagamento]> = [
+    [/\b(cart[aã]o de d[eé]bito|d[eé]bito)\b/i, "DEBITO"],
+    [/\b(cart[aã]o de cr[eé]dito|cr[eé]dito|no cart[aã]o|cart[aã]o)\b/i, "CREDITO"],
+    [/\bpix\b/i, "PIX"],
+    [/\b(dinheiro|esp[eé]cie|em m[aã]os)\b/i, "DINHEIRO"],
+    [/\bboleto\b/i, "BOLETO"],
+  ];
+  for (const [re, f] of formas) if (re.test(s)) return f;
+  return null;
+}
+
+// ── Parser do comando de CORREÇÃO (mexe no ÚLTIMO gasto) ──────────────────────
+//
+//   "Corrige o último para 150"  → muda o valor
+//   "O último foi no pix"        → muda a forma
+//   "Na verdade foi ontem"       → muda a data
+//   "Muda a categoria pra saúde" → muda a categoria
+// Só age se reconhecer a intenção de correção E pelo menos um campo a mudar.
+export type ParsedCorrecao = { valor?: number; forma?: FormaPagamento; dataGasto?: Date; categoria?: string };
+
+export function parseComandoCorrigir(texto: string, agora: Date): ParsedCorrecao | null {
+  const t = (texto || "").trim();
+  // Não interpretar comandos explícitos (novo gasto, evento, relatório) como correção.
+  if (/^\s*(gastos?|gastei|despesa|comprei|paguei|evento|agenda|agendar|compromisso|marcar|relat[oó]rio|resumo)\b/i.test(t)) return null;
+  // Exige um sinal claro de correção. Sem \b antes de "último" — o "ú" é não-ASCII
+  // e não forma boundary (mesma pegadinha de "amanhã"/"à vista").
+  const intenc = /\b(corrig\w*|na verdade|era\s+pra)\b/i.test(t) || /[uú]ltim[oa]s?/i.test(t);
+  if (!intenc) return null;
+
+  const mud: ParsedCorrecao = {};
+
+  const forma = detectarForma(t);
+  if (forma) mud.forma = forma;
+
+  const low = t.toLowerCase();
+  if (/\banteontem\b/.test(low)) { const d = new Date(agora); d.setDate(d.getDate() - 2); d.setHours(12, 0, 0, 0); mud.dataGasto = d; }
+  else if (/\bontem\b/.test(low)) { const d = new Date(agora); d.setDate(d.getDate() - 1); d.setHours(12, 0, 0, 0); mud.dataGasto = d; }
+  else if (/\bhoje\b/.test(low)) { const d = new Date(agora); d.setHours(12, 0, 0, 0); mud.dataGasto = d; }
+  else {
+    const mData = t.match(/\b(\d{1,2})[\/\-](\d{1,2})(?:[\/\-](\d{2,4}))?\b/);
+    if (mData) {
+      const dia = +mData[1], mes = +mData[2] - 1;
+      const ano = mData[3] ? (mData[3].length === 2 ? 2000 + +mData[3] : +mData[3]) : agora.getFullYear();
+      if (mes >= 0 && mes <= 11 && dia >= 1 && dia <= 31) {
+        const d = new Date(ano, mes, dia, 12, 0, 0, 0);
+        if (!isNaN(d.getTime())) mud.dataGasto = d;
+      }
+    }
+  }
+
+  const mCat = t.match(/categoria\b.*?(?:\bpra\b|\bpara\b|\bde\b|\bé\b|\beh\b|:)\s*([a-zà-ú]{3,})/i);
+  if (mCat) mud.categoria = mCat[1].trim().replace(/^\w/, c => c.toUpperCase());
+
+  // Valor: só quando não é uma linha de data pura. extrairValorBR pega o número.
+  const semData = mud.dataGasto ? t.replace(/\b\d{1,2}[\/\-]\d{1,2}(?:[\/\-]\d{2,4})?\b/, " ") : t;
+  const v = extrairValorBR(semData);
+  if (v) mud.valor = v.valor;
+
+  return Object.keys(mud).length ? mud : null;
+}
+
 // ── Match de telefone (JID x número cadastrado) ───────────────────────────────
 function soDigitos(s: string | null | undefined): string { return (s || "").replace(/\D/g, ""); }
 function nucleo(s: string): string { let d = soDigitos(s); if (d.length > 11 && d.startsWith("55")) d = d.slice(2); return d; }
@@ -604,6 +667,43 @@ export class WhatsappInboundService {
       `🗑️ Apaguei o último gasto: *${ultimo.descricao}* — R$ ${this.fmtValor(Number(ultimo.valor))}.`);
   }
 
+  // "Corrige o último pra 150" / "o último foi no pix" — ajusta o ÚLTIMO gasto.
+  private async corrigirUltimoGasto(remoteJid: string, mud: ParsedCorrecao, inst: string) {
+    const user = await this.identificar(remoteJid);
+    if (!user) { await this.wa.sendToJid(remoteJid, NAO_VINCULADO, inst).catch(() => {}); return; }
+    const perms = await this.auth.resolvePermissions(user.id).catch(() => [] as string[]);
+    if (!this.podeGastosUser(perms)) {
+      await this.responder(remoteJid, user.telefone, user.organizationId, inst,
+        "🤖 Você ainda não tem acesso para mexer nos gastos. Fale com o administrador.");
+      return;
+    }
+    const ultimo = await (this.prisma as any).gasto.findFirst({
+      where: { organizationId: user.organizationId, userId: user.id },
+      orderBy: { criadoEm: "desc" },
+    }).catch(() => null);
+    if (!ultimo) {
+      await this.responder(remoteJid, user.telefone, user.organizationId, inst, "🤖 Não achei nenhum gasto seu para corrigir.");
+      return;
+    }
+
+    const data: any = {};
+    if (mud.valor != null) {
+      data.valor = mud.valor;
+      data.valorParcela = ultimo.parcelas > 1 ? Math.round((mud.valor / ultimo.parcelas) * 100) / 100 : null;
+    }
+    if (mud.forma) data.formaPagamento = mud.forma;
+    if (mud.dataGasto) data.dataGasto = mud.dataGasto;
+    if (mud.categoria) data.categoria = mud.categoria;
+
+    await (this.prisma as any).gasto.update({ where: { id: ultimo.id }, data }).catch(() => {});
+    this.logger.log(`Gasto corrigido via WhatsApp: user=${user.id} id=${ultimo.id} ${JSON.stringify(mud)}`);
+
+    const g = { ...ultimo, ...data };
+    const forma = FORMA_LABEL[g.formaPagamento] || g.formaPagamento;
+    await this.responder(remoteJid, user.telefone, user.organizationId, inst,
+      `✅ Corrigido: *${g.descricao}*\n💰 R$ ${this.fmtValor(Number(g.valor))}\n💳 ${forma.charAt(0).toUpperCase() + forma.slice(1)}\n📅 ${new Date(g.dataGasto).toLocaleDateString("pt-BR")}`);
+  }
+
   // "Relatório: quanto gastei ..." — soma os gastos DA PESSOA no período/forma.
   private async gerarRelatorioWhats(remoteJid: string, rel: ParsedRelatorio, inst: string) {
     const user = await this.identificar(remoteJid);
@@ -699,6 +799,10 @@ export class WhatsappInboundService {
 
     // ── Apagar o último gasto? "apagar" / "errei" ──
     if (/^\/?(apagar|apaga|desfazer|errei)\b[.!]*$/i.test(texto)) { await this.apagarUltimoGasto(remoteJid, inst); return; }
+
+    // ── Corrigir o último gasto? "corrige o último pra 150" / "foi no pix" ──
+    const correcao = parseComandoCorrigir(texto, new Date());
+    if (correcao) { await this.corrigirUltimoGasto(remoteJid, correcao, inst); return; }
 
     // ── Comando de gasto? "Gasto: Mercado 150 crédito 12x" ──
     const gasto = parseComandoGasto(texto, new Date(), true);

@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "1.23.2";
+export const VERSAO = "1.24.0";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -35,6 +35,16 @@ export const VERSAO_NOME = "Módulo de Indicações (referral)";
  * esta lista quer saber o que mudou para ele.
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
+  {
+    versao: "1.24.0",
+    data: "2026-09-01",
+    titulo: "Gastos: insights, correção por mensagem e boas-vindas",
+    itens: [
+      "A tela Meus Gastos ganhou uma faixa de destaques: maior gasto, média por dia, projeção do mês (no ritmo atual) e a comparação com o mês passado (▲ mais / ▼ menos)",
+      "Corrigir um gasto pelo WhatsApp: mande \"corrige o último pra 150\", \"o último foi no pix\", \"na verdade foi ontem\" ou \"muda a categoria do último pra saúde\" — sem precisar apagar e lançar de novo",
+      "Primeiro acesso mais acolhedor: quando não há gastos, a tela mostra um passo a passo curto (pelo WhatsApp ou pelo botão Novo gasto) em vez de só \"nenhum gasto\"",
+    ],
+  },
   {
     versao: "1.23.2",
     data: "2026-09-01",

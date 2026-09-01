@@ -29,6 +29,11 @@ type Gasto = {
 };
 type Resumo = {
   cards: { hoje: { total: number; qtd: number }; semana: { total: number; qtd: number }; mes: { total: number; qtd: number } };
+  insights: {
+    maiorGasto: { descricao: string; valor: number } | null;
+    mediaDia: number; mesAtual: number; mesAnterior: number;
+    projecaoMes: number; variacaoMes: number | null;
+  };
   periodo: {
     inicio: string; fim: string; total: number; qtd: number;
     porForma: { forma: string; label: string; valor: number; qtd: number }[];
@@ -146,6 +151,16 @@ export default function GastosPage() {
             </div>
           </div>
 
+          {/* Insights */}
+          {resumo?.insights && (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))", gap: 14, marginBottom: 16 }}>
+              <Insight rotulo="Maior gasto" valor={resumo.insights.maiorGasto ? R(resumo.insights.maiorGasto.valor) : "—"} nota={resumo.insights.maiorGasto?.descricao || "no período"} />
+              <Insight rotulo="Média por dia" valor={R(resumo.insights.mediaDia)} nota="no período" />
+              <Insight rotulo="Projeção do mês" valor={R(resumo.insights.projecaoMes)} nota="no ritmo atual" />
+              <Insight rotulo="vs. mês passado" valor={<Variacao v={resumo.insights.variacaoMes} />} nota={resumo.insights.mesAnterior ? `mês passado: ${R(resumo.insights.mesAnterior)}` : "sem base anterior"} />
+            </div>
+          )}
+
           {/* Gráficos */}
           <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr", gap: 16, marginBottom: 16 }} className="gastos-charts">
             <div style={card}>
@@ -248,12 +263,35 @@ export default function GastosPage() {
             {loading ? (
               <div style={{ padding: 40, textAlign: "center", color: "var(--text-muted,#6b7280)" }}><Loader2 className="spin" size={22} /></div>
             ) : rows.length === 0 ? (
-              <div style={{ padding: "36px 20px", textAlign: "center" }}>
-                <p style={{ margin: "0 0 6px", fontWeight: 700 }}>Nenhum gasto {temFiltroTabela ? "com esse filtro" : "neste período"}.</p>
-                <p style={{ margin: 0, color: "var(--text-muted,#6b7280)", fontSize: 13, display: "inline-flex", alignItems: "center", gap: 6 }}>
-                  <MessageCircle size={15} color="#25D366" /> Dica: anote pelo WhatsApp — <b>Gasto: Mercado 150 no crédito</b>
-                </p>
-              </div>
+              temFiltroTabela ? (
+                <div style={{ padding: "36px 20px", textAlign: "center" }}>
+                  <p style={{ margin: "0 0 6px", fontWeight: 700 }}>Nenhum gasto com esse filtro.</p>
+                  <button onClick={() => { setForma(""); setCategoria(""); }} style={{ ...chip(false), fontSize: 13 }}>Limpar filtros</button>
+                </div>
+              ) : (
+                <div style={{ padding: "44px 24px", textAlign: "center", display: "grid", gap: 14, placeItems: "center" }}>
+                  <div style={{ width: 52, height: 52, borderRadius: 14, background: "rgba(99,102,241,0.12)", display: "grid", placeItems: "center" }}>
+                    <Receipt size={26} color="#6366f1" />
+                  </div>
+                  <div>
+                    <p style={{ margin: "0 0 4px", fontWeight: 800, fontSize: 17 }}>Comece a anotar seus gastos</p>
+                    <p style={{ margin: 0, color: "var(--text-muted,#6b7280)", fontSize: 14 }}>É rápido, e só você vê. Dá pra fazer de dois jeitos:</p>
+                  </div>
+                  <div style={{ display: "grid", gap: 10, width: "100%", maxWidth: 440, textAlign: "left" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", border: "1px solid var(--border,#e5e7eb)", borderRadius: 12 }}>
+                      <MessageCircle size={20} color="#25D366" style={{ flexShrink: 0 }} />
+                      <div style={{ fontSize: 13 }}>Pelo WhatsApp, mande: <b>Gasto: Mercado 150 no crédito</b></div>
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", border: "1px solid var(--border,#e5e7eb)", borderRadius: 12 }}>
+                      <Plus size={20} color="#6366f1" style={{ flexShrink: 0 }} />
+                      <div style={{ fontSize: 13 }}>Aqui na tela, toque em <b>Novo gasto</b> e preencha.</div>
+                    </div>
+                  </div>
+                  <button onClick={() => setModal({})} style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "#6366f1", color: "#fff", border: "none", borderRadius: 10, padding: "10px 18px", fontWeight: 700, cursor: "pointer" }}>
+                    <Plus size={16} /> Lançar meu primeiro gasto
+                  </button>
+                </div>
+              )
             ) : (
               <div style={{ overflowX: "auto" }}>
                 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
@@ -334,6 +372,25 @@ function Chip({ label, onX }: { label: string; onX: () => void }) {
 
 function Vazio({ texto }: { texto: string }) {
   return <div style={{ height: "100%", display: "grid", placeItems: "center", color: "var(--text-muted,#9ca3af)", fontSize: 13 }}>{texto}</div>;
+}
+
+function Insight({ rotulo, valor, nota }: { rotulo: string; valor: ReactNode; nota?: string }) {
+  return (
+    <div style={{ ...card, padding: "14px 16px" }}>
+      <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.3, textTransform: "uppercase", color: "var(--text-muted,#9ca3af)" }}>{rotulo}</div>
+      <div style={{ fontSize: 19, fontWeight: 800, marginTop: 6 }}>{valor}</div>
+      {nota && <div style={{ fontSize: 12, color: "var(--text-muted,#9ca3af)", marginTop: 3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{nota}</div>}
+    </div>
+  );
+}
+
+// Variação de gasto: gastar MAIS é ruim (vermelho ▲), gastar MENOS é bom (verde ▼).
+function Variacao({ v }: { v: number | null }) {
+  if (v == null) return <span style={{ color: "var(--text-muted,#9ca3af)" }}>—</span>;
+  const pct = Math.round(Math.abs(v) * 100);
+  if (pct === 0) return <span>igual</span>;
+  const subiu = v > 0;
+  return <span style={{ color: subiu ? "#dc2626" : "#16a34a" }}>{subiu ? "▲" : "▼"} {pct}%</span>;
 }
 
 function GastoModal({ gasto, onClose, onSaved }: { gasto?: Gasto; onClose: () => void; onSaved: () => void }) {
