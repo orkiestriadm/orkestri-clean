@@ -3727,6 +3727,35 @@ model ContaPagar {
   @@map("contas_pagar")
 }
 
+// ── Gastos (despesa pessoal por usuário) ────────────────────────────────────────
+//
+// PESSOAL e por USUÁRIO — diferente de ContaPagar (que é da organização/ERP, com
+// vencimento). Aqui a pessoa anota o que gastou pelo WhatsApp e só ela vê. Sem
+// @relation de propósito: colunas escalares mantêm o modelo isolado; as FKs (com
+// ON DELETE CASCADE) são criadas na própria migration.
+model Gasto {
+  id             String @id @default(uuid())
+  organizationId String @map("organization_id")
+  userId         String @map("user_id")
+
+  descricao        String
+  categoria        String?
+  valor            Decimal  @db.Decimal(15, 2)
+  formaPagamento   String   @map("forma_pagamento") // CREDITO | DEBITO | PIX | DINHEIRO | BOLETO
+  parcelas         Int      @default(1)
+  valorParcela     Decimal? @map("valor_parcela") @db.Decimal(15, 2)
+  dataGasto        DateTime @map("data_gasto")
+  origem           String   @default("WHATSAPP")    // WHATSAPP | MANUAL | AUDIO
+  mensagemOriginal String?  @map("mensagem_original") @db.Text
+
+  criadoEm     DateTime @default(now()) @map("criado_em")
+  atualizadoEm DateTime @updatedAt @map("atualizado_em")
+
+  @@index([organizationId, userId])
+  @@index([organizationId, userId, dataGasto])
+  @@map("gastos")
+}
+
 // ── Reservas de Carros ─────────────────────────────────────────────────────────
 
 model ReservaVeiculo {

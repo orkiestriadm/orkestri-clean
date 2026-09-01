@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "1.21.6";
+export const VERSAO = "1.22.0";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -35,6 +35,18 @@ export const VERSAO_NOME = "Módulo de Indicações (referral)";
  * esta lista quer saber o que mudou para ele.
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
+  {
+    versao: "1.22.0",
+    data: "2026-08-31",
+    titulo: "Gastos pelo WhatsApp",
+    itens: [
+      "Novo: anote um gasto pessoal mandando uma mensagem no WhatsApp — ex.: Gasto: Mercado 150 no crédito. Guarda o quê, o valor, a forma de pagamento (crédito, débito, pix, dinheiro, boleto), parcelas (ex.: TV 2400 crédito 12x) e a data (padrão hoje; aceita ontem/amanhã e dd/mm). Cada gasto é SEU: ninguém vê os gastos de outra pessoa",
+      "Relatório pelo WhatsApp: mande Relatório: quanto gastei esse mês (dá para pedir por crédito, débito, pix, dinheiro ou no total, e por hoje/semana/mês/mês passado). A soma considera só os seus gastos",
+      "Errou? Responda apagar que eu removo o último gasto. E quem só usa Gastos pode mandar sem a palavra Gasto: (ex.: Mercado 150 crédito)",
+      "O passo a passo do WhatsApp (e o comando ajuda) agora mostra só o que a sua conta pode fazer — quem entrou para testar só o Financeiro não vê mais instruções de agenda, e vice-versa",
+      "O comando de conta a pagar (Custo:) saiu do WhatsApp — o foco por mensagem passou a ser o registro de gastos. As contas a pagar continuam na tela do sistema",
+    ],
+  },
   {
     versao: "1.21.6",
     data: "2026-08-31",

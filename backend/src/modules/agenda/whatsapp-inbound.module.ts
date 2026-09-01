@@ -31,23 +31,9 @@ export const RECOR_LABEL: Record<string, string> = {
   DIARIA: "todo dia", SEMANAL: "toda semana", QUINZENAL: "a cada 2 semanas", MENSAL: "todo mês",
 };
 
-// Tutorial enviado logo após vincular o WhatsApp — simples, com exemplos prontos.
-const TUTORIAL_WHATSAPP =
-  "🎉 *Tudo pronto!* Agora você anota compromissos na sua agenda só mandando uma mensagem aqui 📲\n\n" +
-  "✍️ *Como criar:* escreva *Evento:* e diga o quê, o dia e a hora.\n\n" +
-  "📌 *Exemplos (é só copiar e trocar):*\n" +
-  "• Evento: Dentista amanhã 14h\n" +
-  "• Evento: Reunião 30/08 09:30\n" +
-  "• Evento: Almoço hoje 12h\n\n" +
-  "🔁 *Para repetir:*\n" +
-  "• Evento: Academia 18h todo dia por 30 dias\n" +
-  "• Evento: Reunião 10h toda semana até 31/12\n\n" +
-  "⏰ Pode usar *hoje*, *amanhã* ou a data (dia/mês), e horas como *9h* ou *14:30*.\n\n" +
-  "✅ Toda vez que eu criar, te aviso aqui na hora.\n\n" +
-  "💸 *Tem acesso ao Financeiro?* Registre uma despesa: *Custo: Energia 350 vence 10/09*\n\n" +
-  "🎁 Veio por indicação de alguém? Envie o código dele assim: *INDICACAO ORK-XXXXXX*\n\n" +
-  "❓ A qualquer momento, mande *ajuda* que eu explico tudo de novo.\n\n" +
-  "Manda a sua primeira! 😉";
+// Mensagem padrão de "ainda não vinculado", reaproveitada em vários comandos.
+const NAO_VINCULADO =
+  "🤖 Seu WhatsApp ainda não está vinculado a uma conta. No sistema, abra *Perfil → Criar evento pelo WhatsApp* e envie aqui o código mostrado (ex.: *VINCULAR ABC123*).";
 
 // ── Comando /ajuda ──────────────────────────────────────────────────────────
 //
@@ -73,33 +59,60 @@ const AJUDA_VINCULAR =
   "     (por exemplo: *VINCULAR ABC123*)\n\n" +
   "Assim que fizer isso, eu te ensino todo o resto. 😉";
 
-function montarAjuda(temFinanceiro: boolean, nome: string): string {
+// Monta o passo a passo mostrando SÓ o que a pessoa pode fazer (pelas permissões
+// dela). Assim quem entrou para testar só o Financeiro não vê instruções de
+// agenda, e vice-versa.
+function montarAjuda(temAgenda: boolean, temGastos: boolean, nome: string): string {
   const nm = primeiroNome(nome);
   let m =
     (nm ? `😊 *Oi, ${nm}!*` : "😊 *Oi!*") +
     " Eu sou o ajudante do Orkiestri aqui no WhatsApp.\n" +
-    "É só me mandar uma mensagem. Veja como, bem devagar:\n\n" +
-    "🗓️ *PARA MARCAR UM COMPROMISSO*\n" +
-    "Escreva a palavra *Evento* e depois diga o quê, o dia e a hora.\n" +
-    "Copie a linha abaixo e me mande:\n" +
-    "👉 *Evento: Médico amanhã 14h*\n\n" +
-    "Pronto! Eu marco na sua agenda e te aviso aqui. ✅\n\n";
-  if (temFinanceiro) {
+    "É só me mandar uma mensagem. Veja como, bem devagar:\n\n";
+  if (temAgenda) {
     m +=
-      "💸 *PARA ANOTAR UMA CONTA A PAGAR*\n" +
-      "Escreva a palavra *Custo* e depois diga o quê e quanto.\n" +
+      "🗓️ *PARA MARCAR UM COMPROMISSO*\n" +
+      "Escreva a palavra *Evento* e depois diga o quê, o dia e a hora.\n" +
       "Copie a linha abaixo e me mande:\n" +
-      "👉 *Custo: Luz 350 vence 10/09*\n\n" +
-      "Pronto! Eu guardo no Financeiro e te aviso aqui. ✅\n\n";
+      "👉 *Evento: Médico amanhã 14h*\n\n" +
+      "Pronto! Eu marco na sua agenda e te aviso aqui. ✅\n\n";
+  }
+  if (temGastos) {
+    m +=
+      "💸 *PARA ANOTAR UM GASTO*\n" +
+      "Diga o que você gastou e quanto — e, se quiser, como pagou.\n" +
+      "Copie a linha abaixo e me mande:\n" +
+      "👉 *Gasto: Mercado 150 no crédito*\n\n" +
+      "Comprou parcelado? *Gasto: TV 2400 crédito 12x*\n" +
+      "Errou? Mande *apagar* que eu tiro o último. ✅\n\n" +
+      "📊 *PARA VER QUANTO GASTOU*\n" +
+      "Mande: *Relatório: quanto gastei esse mês*\n" +
+      "(dá para pedir por *crédito*, *débito* ou *no total*)\n\n";
+    if (!temAgenda) {
+      m += "✨ *Mais fácil ainda:* pode mandar só *Mercado 150 crédito* que eu já entendo.\n\n";
+    }
+  }
+  if (!temAgenda && !temGastos) {
+    m += "Peça ao administrador para liberar a *Agenda* ou o *Financeiro* para você aproveitar tudo por aqui. 😉\n\n";
   }
   m +=
     "📌 *DICAS FÁCEIS*\n" +
-    "• Pode escrever *hoje* ou *amanhã*.\n" +
-    "• A hora pode ser *9h* ou *14:30*.\n" +
+    "• Pode escrever *hoje*, *ontem* ou *amanhã*.\n" +
     "• O dia pode ser *10/09*.\n\n" +
     "❓ Quer ver este passo a passo de novo? É só mandar *ajuda*. 😉";
   return m;
 }
+
+// Boas-vindas logo após vincular: o mesmo passo a passo, com uma saudação de
+// "tudo pronto" e a dica de indicação.
+function montarBoasVindas(temAgenda: boolean, temGastos: boolean, nome: string): string {
+  return "🎉 *Tudo pronto!*\n\n" + montarAjuda(temAgenda, temGastos, nome) +
+    "\n\n🎁 Veio por indicação de alguém? Envie o código dele assim: *INDICACAO ORK-XXXXXX*";
+}
+
+// Permissões → o que a pessoa pode fazer pelo WhatsApp. Agenda é base (quase todo
+// mundo tem); Gastos exige acesso de gerenciar o Financeiro (o mesmo do trial one-finance).
+function podeAgenda(perms: string[]): boolean { return perms.includes("*") || perms.includes("agenda:criar"); }
+function podeGastos(perms: string[]): boolean { return perms.includes("*") || perms.includes("financeiro:gerenciar"); }
 
 export function parseComandoEvento(texto: string, agora: Date): Parsed | "sem_data_hora" | null {
   const t = (texto || "").trim();
@@ -215,17 +228,6 @@ export function parseComandoEvento(texto: string, agora: Date): Parsed | "sem_da
   return { titulo, inicio, fim, diaTodo, recorrencia, recorrenciaFim };
 }
 
-// ── Parser do comando de CUSTO (despesa → conta a pagar) ──────────────────────
-//
-// No mesmo espírito do parser de evento: a pessoa manda uma linha e vira um
-// lançamento no Financeiro (contas_pagar). Ex.:
-//   "Custo: Energia 350,00 vence 10/09"
-//   "Despesa Almoço 45"
-//   "Conta: Internet R$ 100 vence amanhã"
-// Descrição = o texto que sobra; valor em formato BR; vencimento opcional (padrão hoje).
-
-type ParsedCusto = { descricao: string; valor: number; vencimento: Date };
-
 // Interpreta um valor monetário em formato BR (e tolera o ponto-decimal en):
 //   "R$ 1.250,00" → 1250.00 | "350,50" → 350.5 | "1.250" → 1250 | "3.50" → 3.5 | "1500" → 1500
 function extrairValorBR(s: string): { valor: number; matchStr: string; index: number } | null {
@@ -257,50 +259,158 @@ function extrairValorBR(s: string): { valor: number; matchStr: string; index: nu
   return { valor, matchStr: m[0], index: m.index ?? s.indexOf(m[0]) };
 }
 
-export function parseComandoCusto(texto: string, agora: Date): ParsedCusto | "sem_valor" | null {
-  const t = (texto || "").trim();
-  const mKey = t.match(/^\s*(custo|despesa|gasto|conta)\b[:\-–]?\s*/i);
-  if (!mKey) return null; // não é comando de custo
-  let resto = t.slice(mKey[0].length).trim();
-  if (!resto) return "sem_valor";
+export type FormaPagamento = "CREDITO" | "DEBITO" | "PIX" | "DINHEIRO" | "BOLETO" | "NAO_INFORMADO";
 
-  // ── Vencimento ── (antes do valor, para o dd/mm não ser lido como valor)
-  resto = resto.replace(/\bvenc(?:e|er|imento|endo)?\b(?:\s+(?:em|no|dia|ate|at[eé]))?\s*/i, " ");
-  let vencimento = new Date(agora); vencimento.setHours(23, 59, 59, 0);
+export const FORMA_LABEL: Record<FormaPagamento, string> = {
+  CREDITO: "crédito", DEBITO: "débito", PIX: "pix", DINHEIRO: "dinheiro", BOLETO: "boleto", NAO_INFORMADO: "não informada",
+};
+
+export type ParsedGasto = {
+  descricao: string; valor: number; formaPagamento: FormaPagamento;
+  parcelas: number; valorParcela: number | null; dataGasto: Date; categoria: string | null;
+};
+
+// Categoria automática por palavra-chave — simples, sem IA. Só um empurrão; a
+// pessoa ajusta na tela depois se quiser.
+const CATEGORIAS: Array<[RegExp, string]> = [
+  [/\b(combust[ií]vel|gasolina|[aá]lcool|etanol|diesel|abastec)/i, "Combustível"],
+  [/\b(mercado|supermercado|feira|hortifruti|a[çc]ougue)/i, "Mercado"],
+  [/\b(almo[çc]o|jantar|janta|lanche|restaurante|comida|padaria|caf[eé]|pizza|ifood|bar)/i, "Alimentação"],
+  [/\b(uber|99|t[aá]xi|[oô]nibus|metr[oô]|passagem|estacionamento|ped[aá]gio)/i, "Transporte"],
+  [/\b(farm[aá]cia|rem[eé]dio|m[eé]dico|consulta|exame|hospital|dentista)/i, "Saúde"],
+  [/\b(academia|gym|crossfit|personal)/i, "Academia"],
+  [/\b(luz|energia|[aá]gua|internet|telefone|celular|conta de)/i, "Contas"],
+  [/\b(roupa|cal[çc]a|camisa|t[eê]nis|sapato|vestido|loja)/i, "Roupas"],
+  [/\b(netflix|spotify|assinatura|prime|hbo|disney)/i, "Assinaturas"],
+  [/\b(escola|faculdade|curso|livro|material escolar)/i, "Educação"],
+];
+function categoriaDe(texto: string): string | null {
+  for (const [re, cat] of CATEGORIAS) if (re.test(texto)) return cat;
+  return null;
+}
+
+// ── Parser do comando de GASTO (despesa pessoal → tabela `gastos`) ────────────
+//
+// A pessoa manda uma linha e vira um gasto DELA (só ela vê). Ex.:
+//   "Gasto: Combustível 200 crédito à vista"
+//   "Gasto: TV 2400 crédito 12x 10/09"
+//   "Gastei 45 no mercado no débito"
+// Extrai descrição + valor (BR) + forma de pagamento + parcelas + data (padrão hoje).
+// `exigePrefixo=false` aceita o texto cru (usado só para quem tem apenas Gastos).
+export function parseComandoGasto(texto: string, agora: Date, exigePrefixo = true): ParsedGasto | "sem_valor" | null {
+  const t = (texto || "").trim();
+  const mKey = t.match(/^\s*(gastos?|gastei|despesa|comprei|paguei)\b[:\-–]?\s*/i);
+  let resto: string;
+  if (mKey) resto = t.slice(mKey[0].length).trim();
+  else if (exigePrefixo) return null;   // sem palavra-chave e exigindo prefixo → não é comando
+  else resto = t;                        // modo sem prefixo (usuário só-Gastos)
+  if (!resto) return exigePrefixo ? "sem_valor" : null;
+
+  // ── Forma de pagamento ── (débito antes de crédito; "cartão" sozinho = crédito)
+  let forma: FormaPagamento = "NAO_INFORMADO";
+  const formas: Array<[RegExp, FormaPagamento]> = [
+    [/\b(cart[aã]o de d[eé]bito|d[eé]bito)\b/i, "DEBITO"],
+    [/\b(cart[aã]o de cr[eé]dito|cr[eé]dito|no cart[aã]o|cart[aã]o)\b/i, "CREDITO"],
+    [/\bpix\b/i, "PIX"],
+    [/\b(dinheiro|esp[eé]cie|em m[aã]os)\b/i, "DINHEIRO"],
+    [/\bboleto\b/i, "BOLETO"],
+  ];
+  for (const [re, f] of formas) { if (re.test(resto)) { forma = f; resto = resto.replace(re, " "); break; } }
+
+  // ── Parcelas ── ("12x", "em 12 vezes", "parcelado em 12"; "à vista" = 1).
+  // Antes do valor, para o "12" de "12x" não ser lido como valor.
+  let parcelas = 1;
+  const mParc = resto.match(/\b(?:em\s+)?(\d{1,2})\s*(?:x|vezes)\b/i)
+             || resto.match(/\bparcelad[oa]\s+em\s+(\d{1,2})\b/i);
+  if (mParc) { parcelas = Math.max(1, +mParc[1]); resto = resto.replace(mParc[0], " "); }
+  // "à vista": sem \b antes do "à" — é não-ASCII e não forma boundary (igual "amanhã").
+  resto = resto.replace(/(?:^|\s)[àa]\s*vista\b/ig, " ").replace(/\bavista\b/ig, " ");
+
+  // ── Data do gasto ── (padrão hoje; aceita ontem/anteontem/amanhã/dd/mm)
+  let dataGasto = new Date(agora); dataGasto.setHours(12, 0, 0, 0);
   const low = resto.toLowerCase();
-  if (/\bdepois de amanh[aã]/.test(low)) {
-    vencimento.setDate(vencimento.getDate() + 2); resto = resto.replace(/depois de amanh[aã]/i, " ");
-  } else if (/\bamanh[aã]/.test(low)) {
-    vencimento.setDate(vencimento.getDate() + 1); resto = resto.replace(/amanh[aã]/i, " ");
-  } else if (/\bhoje\b/.test(low)) {
-    resto = resto.replace(/\bhoje\b/i, " ");
-  } else {
+  if (/\banteontem\b/.test(low)) { dataGasto.setDate(dataGasto.getDate() - 2); resto = resto.replace(/anteontem/i, " "); }
+  else if (/\bontem\b/.test(low)) { dataGasto.setDate(dataGasto.getDate() - 1); resto = resto.replace(/ontem/i, " "); }
+  else if (/\bhoje\b/.test(low)) { resto = resto.replace(/hoje/i, " "); }
+  else if (/\bamanh[aã]/.test(low)) { dataGasto.setDate(dataGasto.getDate() + 1); resto = resto.replace(/amanh[aã]/i, " "); }
+  else {
     const mData = resto.match(/\b(\d{1,2})[\/\-](\d{1,2})(?:[\/\-](\d{2,4}))?\b/); // dd/mm (sem "." p/ não pegar 1.250)
     if (mData) {
       const dia = +mData[1], mes = +mData[2] - 1;
       const ano = mData[3] ? (mData[3].length === 2 ? 2000 + +mData[3] : +mData[3]) : agora.getFullYear();
       if (mes >= 0 && mes <= 11 && dia >= 1 && dia <= 31) {
-        const d = new Date(ano, mes, dia, 23, 59, 59, 0);
-        if (!isNaN(d.getTime())) { vencimento = d; resto = resto.replace(mData[0], " "); }
+        const d = new Date(ano, mes, dia, 12, 0, 0, 0);
+        if (!isNaN(d.getTime())) { dataGasto = d; resto = resto.replace(mData[0], " "); }
       }
     }
   }
 
-  // ── Valor ──
+  // ── Valor ── (por último: parcelas e data já saíram, sobra o total)
   const v = extrairValorBR(resto);
-  if (!v) return "sem_valor";
+  if (!v) return exigePrefixo ? "sem_valor" : null;
   resto = resto.slice(0, v.index) + " " + resto.slice(v.index + v.matchStr.length);
 
-  // ── Descrição ── (o que sobra, sem "R$"/"reais" e pontuação solta)
+  // Categoria a partir do que sobrou (ainda com as palavras da descrição).
+  const categoria = categoriaDe(resto);
+
+  // ── Descrição ── (limpa "R$"/"reais" e conectores soltos no começo/fim)
   let descricao = resto
     .replace(/\br\$/ig, " ")
     .replace(/\breais?\b/ig, " ")
     .replace(/\s{2,}/g, " ")
+    .trim();
+  descricao = descricao
+    .replace(/^(no|na|de|do|da|em|com|pra|para|por)\s+/i, "")
+    .replace(/\s+(no|na|de|do|da|em|com|pra|para|por)$/i, "")
     .replace(/^[\s,;:\-–]+|[\s,;:\-–]+$/g, "")
     .trim();
-  if (!descricao) descricao = "Despesa";
+  if (/^(no|na|de|do|da|em|com|pra|para|por)$/i.test(descricao)) descricao = ""; // sobrou só um conector
+  if (!descricao) descricao = "Gasto";
 
-  return { descricao, valor: v.valor, vencimento };
+  const valorParcela = parcelas > 1 ? Math.round((v.valor / parcelas) * 100) / 100 : null;
+  return { descricao, valor: v.valor, formaPagamento: forma, parcelas, valorParcela, dataGasto, categoria };
+}
+
+// ── Parser do comando de RELATÓRIO (consulta de gastos) ───────────────────────
+//
+//   "Relatório: quanto gastei esse mês"
+//   "Relatório no crédito esse mês"
+//   "Quanto gastei essa semana no débito"
+// Reconhece período (padrão: este mês) e forma de pagamento (padrão: total).
+export type ParsedRelatorio = { inicio: Date; fim: Date; label: string; forma: FormaPagamento | "TOTAL" };
+
+export function parseComandoRelatorio(texto: string, agora: Date): ParsedRelatorio | null {
+  const t = (texto || "").trim();
+  const ehRelatorio = /^\s*\/?(relat[oó]rio|resumo)\b/i.test(t) || /\bquanto\s+(eu\s+)?gast(?:ei|o)\b/i.test(t);
+  if (!ehRelatorio) return null;
+  const low = t.toLowerCase();
+
+  const y = agora.getFullYear(), mo = agora.getMonth(), d = agora.getDate();
+  let inicio: Date, fim: Date, label: string;
+  if (/\bhoje\b/.test(low)) {
+    inicio = new Date(y, mo, d, 0, 0, 0, 0); fim = new Date(y, mo, d, 23, 59, 59, 999); label = "hoje";
+  } else if (/\bontem\b/.test(low)) {
+    const on = new Date(y, mo, d - 1);
+    inicio = new Date(on.getFullYear(), on.getMonth(), on.getDate(), 0, 0, 0, 0);
+    fim = new Date(on.getFullYear(), on.getMonth(), on.getDate(), 23, 59, 59, 999); label = "ontem";
+  } else if (/\bsemana\b/.test(low)) {
+    const ini = new Date(y, mo, d - 6);
+    inicio = new Date(ini.getFullYear(), ini.getMonth(), ini.getDate(), 0, 0, 0, 0);
+    fim = new Date(y, mo, d, 23, 59, 59, 999); label = "últimos 7 dias";
+  } else if (/\bm[eê]s passado\b/.test(low)) {
+    inicio = new Date(y, mo - 1, 1, 0, 0, 0, 0); fim = new Date(y, mo, 0, 23, 59, 59, 999); label = "mês passado";
+  } else {
+    inicio = new Date(y, mo, 1, 0, 0, 0, 0); fim = new Date(y, mo + 1, 0, 23, 59, 59, 999); label = "este mês";
+  }
+
+  let forma: FormaPagamento | "TOTAL" = "TOTAL";
+  if (/\bd[eé]bito\b/.test(low)) forma = "DEBITO";
+  else if (/\bcr[eé]dito\b|\bcart[aã]o\b/.test(low)) forma = "CREDITO";
+  else if (/\bpix\b/.test(low)) forma = "PIX";
+  else if (/\b(dinheiro|esp[eé]cie)\b/.test(low)) forma = "DINHEIRO";
+  else if (/\bboleto\b/.test(low)) forma = "BOLETO";
+
+  return { inicio, fim, label, forma };
 }
 
 // ── Match de telefone (JID x número cadastrado) ───────────────────────────────
@@ -374,8 +484,10 @@ export class WhatsappInboundService {
     const tel = alvo.profile?.whatsapp ?? null;
     await this.responder(remoteJid, tel, alvo.organizationId, inst,
       `✅ *WhatsApp vinculado à conta de ${alvo.nome}!*`);
-    // Tutorial logo em seguida (2º envio).
-    await this.responder(remoteJid, tel, alvo.organizationId, inst, TUTORIAL_WHATSAPP);
+    // Tutorial logo em seguida (2º envio), mostrando SÓ o que a conta pode fazer.
+    const perms = await this.auth.resolvePermissions(alvo.id).catch(() => [] as string[]);
+    await this.responder(remoteJid, tel, alvo.organizationId, inst,
+      montarBoasVindas(podeAgenda(perms), podeGastos(perms), alvo.nome));
   }
 
   // "INDICACAO <código>" — o próprio usuário (já vinculado) diz que veio pela
@@ -408,8 +520,8 @@ export class WhatsappInboundService {
       return;
     }
     const perms = await this.auth.resolvePermissions(user.id).catch(() => [] as string[]);
-    const temFinanceiro = perms.includes("*") || perms.includes("financeiro:gerenciar");
-    await this.responder(remoteJid, user.telefone, user.organizationId, inst, montarAjuda(temFinanceiro, user.nome));
+    await this.responder(remoteJid, user.telefone, user.organizationId, inst,
+      montarAjuda(podeAgenda(perms), podeGastos(perms), user.nome));
   }
 
   // Valor em R$ formatado (1250.5 → "1.250,50").
@@ -417,53 +529,132 @@ export class WhatsappInboundService {
     return v.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }
 
-  // "Custo: <descrição> <valor> [vence <data>]" — cria uma conta a pagar no
-  // Financeiro. DIFERENTE do evento (que qualquer um cria): o Financeiro é
-  // sensível, então só registra quem tem acesso ao módulo.
-  private async registrarCusto(remoteJid: string, parsed: ParsedCusto, inst: string) {
+  private podeGastosUser(perms: string[]): boolean { return podeGastos(perms); }
+
+  // "Gasto: <descrição> <valor> [forma] [parcelas] [data]" — cria um gasto PESSOAL.
+  // Identifica a conta e delega para criarGasto (que faz o gate e a gravação).
+  private async registrarGasto(remoteJid: string, parsed: ParsedGasto, textoOriginal: string, inst: string) {
     const user = await this.identificar(remoteJid);
-    if (!user) {
-      await this.wa.sendToJid(remoteJid,
-        "🤖 Seu WhatsApp ainda não está vinculado a uma conta. No sistema, abra *Perfil → Criar evento pelo WhatsApp* e envie aqui o código mostrado (ex.: *VINCULAR ABC123*).", inst).catch(() => {});
-      return;
-    }
+    if (!user) { await this.wa.sendToJid(remoteJid, NAO_VINCULADO, inst).catch(() => {}); return; }
+    await this.criarGasto(user, parsed, textoOriginal, remoteJid, inst);
+  }
 
-    // Gate de permissão: precisa poder gerenciar o Financeiro (mesma exigência
-    // do endpoint que cria contas a pagar na tela).
+  // Grava o gasto do usuário (só ele vê) e confirma. Gate: precisa poder gerenciar
+  // o Financeiro (o trial one-finance já tem). Chamado tanto pelo comando com
+  // prefixo quanto pelo texto cru de quem só usa Gastos.
+  private async criarGasto(
+    user: { id: string; organizationId: string; nome: string; telefone: string | null },
+    parsed: ParsedGasto, textoOriginal: string, remoteJid: string, inst: string,
+  ) {
     const perms = await this.auth.resolvePermissions(user.id).catch(() => [] as string[]);
-    const podeFinanceiro = perms.includes("*") || perms.includes("financeiro:gerenciar");
-    if (!podeFinanceiro) {
+    if (!this.podeGastosUser(perms)) {
       await this.responder(remoteJid, user.telefone, user.organizationId, inst,
-        "🤖 Você não tem acesso ao *Financeiro* para registrar custos. Fale com o administrador.");
+        "🤖 Você ainda não tem acesso para anotar gastos. Fale com o administrador.");
       return;
     }
 
-    // Número sequencial legível por organização (WA-0001, WA-0002, …). Não há
-    // constraint de unicidade em `numero`; a colisão em envio duplicado é inócua.
-    const jaCriados = await (this.prisma as any).contaPagar.count({
-      where: { organizationId: user.organizationId, numero: { startsWith: "WA-" } },
-    }).catch(() => 0);
-    const numero = "WA-" + String(jaCriados + 1).padStart(4, "0");
-
-    await (this.prisma as any).contaPagar.create({
+    await (this.prisma as any).gasto.create({
       data: {
         organizationId: user.organizationId,
-        fornecedorNome: parsed.descricao,
-        numero,
-        tipo: "DESPESA",
-        dataEmissao: new Date(),
-        dataVencto: parsed.vencimento,
-        dataVenctoReal: parsed.vencimento,
-        valorOriginal: parsed.valor,
-        valorAVencerNominal: parsed.valor,
-        historico: `WhatsApp: ${parsed.descricao}`,
-        observacao: `Registrado via WhatsApp por ${user.nome}`,
+        userId: user.id,
+        descricao: parsed.descricao,
+        categoria: parsed.categoria,
+        valor: parsed.valor,
+        formaPagamento: parsed.formaPagamento,
+        parcelas: parsed.parcelas,
+        valorParcela: parsed.valorParcela,
+        dataGasto: parsed.dataGasto,
+        origem: "WHATSAPP",
+        mensagemOriginal: (textoOriginal || "").slice(0, 500),
       },
     });
-    this.logger.log(`Custo criado via WhatsApp: user=${user.id} "${parsed.descricao}" R$${parsed.valor} venc=${parsed.vencimento.toISOString()} num=${numero}`);
+    this.logger.log(`Gasto criado via WhatsApp: user=${user.id} "${parsed.descricao}" R$${parsed.valor} ${parsed.formaPagamento} ${parsed.parcelas}x`);
 
+    const cat = parsed.categoria ? `  _(${parsed.categoria})_` : "";
+    const formaTxt = FORMA_LABEL[parsed.formaPagamento];
+    const formaCap = formaTxt.charAt(0).toUpperCase() + formaTxt.slice(1);
+    const parcTxt = parsed.parcelas > 1 && parsed.valorParcela != null
+      ? `${parsed.parcelas}x de R$ ${this.fmtValor(parsed.valorParcela)}`
+      : "à vista";
     await this.responder(remoteJid, user.telefone, user.organizationId, inst,
-      `✅ Custo registrado no Financeiro:\n\n💸 *${parsed.descricao}*\n💰 R$ ${this.fmtValor(parsed.valor)}\n📅 Vence ${parsed.vencimento.toLocaleDateString("pt-BR")}`);
+      `✅ Gasto anotado:\n\n` +
+      `💸 *${parsed.descricao}*${cat}\n` +
+      `💰 R$ ${this.fmtValor(parsed.valor)}\n` +
+      `💳 ${formaCap} · ${parcTxt}\n` +
+      `📅 ${parsed.dataGasto.toLocaleDateString("pt-BR")}\n\n` +
+      `↩️ Errei? Responda *apagar* que eu removo este.`);
+  }
+
+  // "apagar" / "errei" — remove o ÚLTIMO gasto da pessoa (desfazer simples).
+  private async apagarUltimoGasto(remoteJid: string, inst: string) {
+    const user = await this.identificar(remoteJid);
+    if (!user) { await this.wa.sendToJid(remoteJid, NAO_VINCULADO, inst).catch(() => {}); return; }
+    const ultimo = await (this.prisma as any).gasto.findFirst({
+      where: { organizationId: user.organizationId, userId: user.id },
+      orderBy: { criadoEm: "desc" },
+    }).catch(() => null);
+    if (!ultimo) {
+      await this.responder(remoteJid, user.telefone, user.organizationId, inst,
+        "🤖 Não achei nenhum gasto seu para apagar.");
+      return;
+    }
+    await (this.prisma as any).gasto.delete({ where: { id: ultimo.id } }).catch(() => {});
+    this.logger.log(`Gasto apagado via WhatsApp: user=${user.id} id=${ultimo.id}`);
+    await this.responder(remoteJid, user.telefone, user.organizationId, inst,
+      `🗑️ Apaguei o último gasto: *${ultimo.descricao}* — R$ ${this.fmtValor(Number(ultimo.valor))}.`);
+  }
+
+  // "Relatório: quanto gastei ..." — soma os gastos DA PESSOA no período/forma.
+  private async gerarRelatorioWhats(remoteJid: string, rel: ParsedRelatorio, inst: string) {
+    const user = await this.identificar(remoteJid);
+    if (!user) { await this.wa.sendToJid(remoteJid, NAO_VINCULADO, inst).catch(() => {}); return; }
+    const perms = await this.auth.resolvePermissions(user.id).catch(() => [] as string[]);
+    if (!this.podeGastosUser(perms)) {
+      await this.responder(remoteJid, user.telefone, user.organizationId, inst,
+        "🤖 Você ainda não tem acesso aos gastos. Fale com o administrador.");
+      return;
+    }
+
+    const where: any = {
+      organizationId: user.organizationId, userId: user.id,
+      dataGasto: { gte: rel.inicio, lte: rel.fim },
+    };
+
+    let msg: string;
+    if (rel.forma === "TOTAL") {
+      const grupos = await (this.prisma as any).gasto.groupBy({
+        by: ["formaPagamento"], where, _sum: { valor: true }, _count: true,
+      }).catch(() => [] as any[]);
+      const porForma = new Map<string, number>();
+      let total = 0, qtd = 0;
+      for (const g of grupos) {
+        const soma = Number(g._sum?.valor || 0);
+        porForma.set(g.formaPagamento, soma); total += soma; qtd += g._count || 0;
+      }
+      const ordem: FormaPagamento[] = ["CREDITO", "DEBITO", "PIX", "DINHEIRO", "BOLETO", "NAO_INFORMADO"];
+      const linhas = ordem
+        .filter(f => porForma.has(f))
+        .map(f => `• ${FORMA_LABEL[f].charAt(0).toUpperCase() + FORMA_LABEL[f].slice(1)}: R$ ${this.fmtValor(porForma.get(f)!)}`);
+      if (!qtd) {
+        msg = `📊 *Seus gastos — ${rel.label}*\n\nVocê ainda não anotou nenhum gasto nesse período. 🙂`;
+      } else {
+        msg = `📊 *Seus gastos — ${rel.label}*\n\n` +
+          (linhas.length ? linhas.join("\n") + "\n" : "") +
+          `━━━━━━━━━━\n*Total: R$ ${this.fmtValor(total)}*  _(${qtd} ${qtd === 1 ? "lançamento" : "lançamentos"})_`;
+      }
+    } else {
+      const agg = await (this.prisma as any).gasto.aggregate({
+        where: { ...where, formaPagamento: rel.forma }, _sum: { valor: true }, _count: true,
+      }).catch(() => ({ _sum: { valor: 0 }, _count: 0 }));
+      const total = Number(agg._sum?.valor || 0);
+      const qtd = agg._count || 0;
+      const formaCap = FORMA_LABEL[rel.forma].charAt(0).toUpperCase() + FORMA_LABEL[rel.forma].slice(1);
+      msg = qtd
+        ? `📊 *Seus gastos — ${rel.label}*\n\n💳 ${formaCap}: *R$ ${this.fmtValor(total)}*  _(${qtd} ${qtd === 1 ? "lançamento" : "lançamentos"})_`
+        : `📊 *Seus gastos — ${rel.label}*\n\nNenhum gasto no ${formaCap.toLowerCase()} nesse período. 🙂`;
+    }
+
+    await this.responder(remoteJid, user.telefone, user.organizationId, inst, msg);
   }
 
   async processar(body: any): Promise<void> {
@@ -499,60 +690,79 @@ export class WhatsappInboundService {
     else if (/^ORK-?[a-z0-9]{4,10}$/i.test(texto)) codInd = texto.trim();
     if (codInd) { await this.registrarIndicacaoWhats(remoteJid, codInd, inst); return; }
 
-    // ── Comando de custo? "Custo: ... <valor> [vence <data>]" ──
-    const custo = parseComandoCusto(texto, new Date());
-    if (custo === "sem_valor") {
+    // ── Relatório? "Relatório: quanto gastei ..." ──
+    const rel = parseComandoRelatorio(texto, new Date());
+    if (rel) { await this.gerarRelatorioWhats(remoteJid, rel, inst); return; }
+
+    // ── Apagar o último gasto? "apagar" / "errei" ──
+    if (/^\/?(apagar|apaga|desfazer|errei)\b[.!]*$/i.test(texto)) { await this.apagarUltimoGasto(remoteJid, inst); return; }
+
+    // ── Comando de gasto? "Gasto: Mercado 150 crédito 12x" ──
+    const gasto = parseComandoGasto(texto, new Date(), true);
+    if (gasto === "sem_valor") {
       await this.wa.sendToJid(remoteJid,
-        "🤖 Não consegui identificar o valor da despesa. Envie assim:\n\n*Custo: Energia 350,00 vence 10/09*\n\nA data é opcional (padrão hoje).", inst).catch(() => {});
+        "🤖 Não consegui identificar o valor do gasto. Envie assim:\n\n*Gasto: Mercado 150 no crédito*\n\nSe for parcelado: *Gasto: TV 2400 crédito 12x*.", inst).catch(() => {});
       return;
     }
-    if (custo) { await this.registrarCusto(remoteJid, custo, inst); return; }
+    if (gasto) { await this.registrarGasto(remoteJid, gasto, texto, inst); return; }
 
     // ── Comando de evento? ──
     const parsed = parseComandoEvento(texto, new Date());
-    if (parsed === null) return; // não é comando — ignora em silêncio
+    if (parsed !== null) {
+      // ── Identifica a conta dona deste WhatsApp ──
+      const user = await this.identificar(remoteJid);
+      if (!user) { await this.wa.sendToJid(remoteJid, NAO_VINCULADO, inst).catch(() => {}); return; }
 
-    // ── Identifica a conta dona deste WhatsApp ──
-    const user = await this.identificar(remoteJid);
-    if (!user) {
-      await this.wa.sendToJid(remoteJid,
-        "🤖 Seu WhatsApp ainda não está vinculado a uma conta. No sistema, abra *Perfil → Criar evento pelo WhatsApp* e envie aqui o código mostrado (ex.: *VINCULAR ABC123*).", inst).catch(() => {});
+      if (parsed === "sem_data_hora") {
+        await this.responder(remoteJid, user.telefone, user.organizationId, inst,
+          "🤖 Não consegui identificar a data/hora. Envie assim:\n\n*Evento: Reunião com cliente 27/08 14:00*\n\nTambém vale _hoje_, _amanhã_ e horários como _9h_ ou _14:30_.");
+        return;
+      }
+
+      // Cria o evento na agenda da PESSOA que enviou
+      await this.prisma.event.create({
+        data: {
+          titulo: parsed.titulo,
+          inicio: parsed.inicio,
+          fim: parsed.fim,
+          tipo: "COMPROMISSO" as any,
+          cor: "#22d3ee",
+          diaTodo: parsed.diaTodo,
+          recorrencia: parsed.recorrencia as any,
+          recorrenciaFim: parsed.recorrenciaFim,
+          userId: user.id,
+          criadoPorId: user.id,
+          organizationId: user.organizationId,
+        } as any,
+      });
+      this.logger.log(`Evento criado via WhatsApp: user=${user.id} "${parsed.titulo}" ${parsed.inicio.toISOString()} rec=${parsed.recorrencia || "-"}`);
+
+      const quando = parsed.diaTodo
+        ? parsed.inicio.toLocaleDateString("pt-BR") + " (dia todo)"
+        : this.fmtData(parsed.inicio) + (parsed.fim ? ` – ${this.fmtData(parsed.fim)}` : "");
+      let msg = `✅ Evento criado na sua agenda:\n\n🗓️ *${parsed.titulo}*\n🕐 ${quando}`;
+      if (parsed.recorrencia) {
+        const fimTxt = parsed.recorrenciaFim ? parsed.recorrenciaFim.toLocaleDateString("pt-BR") : "";
+        msg += `\n🔁 ${RECOR_LABEL[parsed.recorrencia] || parsed.recorrencia}` + (fimTxt ? ` até ${fimTxt}` : "");
+      }
+      await this.responder(remoteJid, user.telefone, user.organizationId, inst, msg);
       return;
     }
 
-    if (parsed === "sem_data_hora") {
-      await this.responder(remoteJid, user.telefone, user.organizationId, inst,
-        "🤖 Não consegui identificar a data/hora. Envie assim:\n\n*Evento: Reunião com cliente 27/08 14:00*\n\nTambém vale _hoje_, _amanhã_ e horários como _9h_ ou _14:30_.");
-      return;
+    // ── Nada casou explicitamente. Última chance: quem SÓ tem Gastos (e não a
+    //    agenda) pode mandar o gasto SEM a palavra "Gasto:" — ex.: "Mercado 150
+    //    crédito". Só tentamos se houver número no texto, para não bater no banco
+    //    a cada "bom dia". ──
+    if (!/\d/.test(texto)) return;
+    const dono = await this.identificar(remoteJid);
+    if (!dono) return;
+    const perms = await this.auth.resolvePermissions(dono.id).catch(() => [] as string[]);
+    if (podeGastos(perms) && !podeAgenda(perms)) {
+      const gastoCru = parseComandoGasto(texto, new Date(), false);
+      if (gastoCru && gastoCru !== "sem_valor") {
+        await this.criarGasto(dono, gastoCru, texto, remoteJid, inst);
+      }
     }
-
-    // Cria o evento na agenda da PESSOA que enviou
-    await this.prisma.event.create({
-      data: {
-        titulo: parsed.titulo,
-        inicio: parsed.inicio,
-        fim: parsed.fim,
-        tipo: "COMPROMISSO" as any,
-        cor: "#22d3ee",
-        diaTodo: parsed.diaTodo,
-        recorrencia: parsed.recorrencia as any,
-        recorrenciaFim: parsed.recorrenciaFim,
-        userId: user.id,
-        criadoPorId: user.id,
-        organizationId: user.organizationId,
-      } as any,
-    });
-    this.logger.log(`Evento criado via WhatsApp: user=${user.id} "${parsed.titulo}" ${parsed.inicio.toISOString()} rec=${parsed.recorrencia || "-"}`);
-
-    const quando = parsed.diaTodo
-      ? parsed.inicio.toLocaleDateString("pt-BR") + " (dia todo)"
-      : this.fmtData(parsed.inicio) + (parsed.fim ? ` – ${this.fmtData(parsed.fim)}` : "");
-    let msg = `✅ Evento criado na sua agenda:\n\n🗓️ *${parsed.titulo}*\n🕐 ${quando}`;
-    if (parsed.recorrencia) {
-      const fimTxt = parsed.recorrenciaFim ? parsed.recorrenciaFim.toLocaleDateString("pt-BR") : "";
-      msg += `\n🔁 ${RECOR_LABEL[parsed.recorrencia] || parsed.recorrencia}` + (fimTxt ? ` até ${fimTxt}` : "");
-    }
-    await this.responder(remoteJid, user.telefone, user.organizationId, inst, msg);
   }
 }
 
