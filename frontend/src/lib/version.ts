@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "1.26.0";
+export const VERSAO = "1.27.0";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -35,6 +35,15 @@ export const VERSAO_NOME = "Módulo de Indicações (referral)";
  * esta lista quer saber o que mudou para ele.
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
+  {
+    versao: "1.27.0",
+    data: "2026-09-02",
+    titulo: "Gastos fixos (assinaturas e contas recorrentes)",
+    itens: [
+      "Nova seção Gastos fixos em Meus Gastos: cadastre assinaturas e contas que se repetem (ex.: Netflix R$ 50, todo dia 10). O sistema lança sozinho todo mês no dia certo e te avisa no WhatsApp — com desfazer ('apagar') se não era pra lançar",
+      "Dá para pausar/reativar um gasto fixo, editar e excluir. Na lista, os lançados automaticamente aparecem com o ícone 🔁",
+    ],
+  },
   {
     versao: "1.26.0",
     data: "2026-09-01",

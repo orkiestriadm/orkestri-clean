@@ -3773,6 +3773,25 @@ model MetaGasto {
   @@map("metas_gasto")
 }
 
+// ── Gasto recorrente / assinatura (lança sozinho no dia, por usuário) ────────────
+model GastoRecorrente {
+  id               String    @id @default(uuid())
+  organizationId   String    @map("organization_id")
+  userId           String    @map("user_id")
+  descricao        String
+  categoria        String?
+  valor            Decimal   @db.Decimal(15, 2)
+  formaPagamento   String    @default("NAO_INFORMADO") @map("forma_pagamento")
+  diaDoMes         Int       @map("dia_do_mes")
+  ativo            Boolean   @default(true)
+  ultimoLancamento DateTime? @map("ultimo_lancamento")
+  criadoEm         DateTime  @default(now()) @map("criado_em")
+  atualizadoEm     DateTime  @updatedAt @map("atualizado_em")
+
+  @@index([organizationId, userId])
+  @@map("gastos_recorrentes")
+}
+
 // ── Reservas de Carros ─────────────────────────────────────────────────────────
 
 model ReservaVeiculo {

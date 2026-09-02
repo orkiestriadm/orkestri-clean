@@ -3,7 +3,7 @@ import {
   UseGuards, Req, NotFoundException, BadRequestException, Injectable, Logger,
 } from "@nestjs/common";
 import { Cron } from "@nestjs/schedule";
-import { IsOptional, IsString, IsNumber, IsInt, Min, IsIn } from "class-validator";
+import { IsOptional, IsString, IsNumber, IsInt, Min, Max, IsIn, IsBoolean } from "class-validator";
 import { AuthGuard } from "@nestjs/passport";
 import { PrismaService } from "../../prisma/prisma.service";
 import { WhatsAppService } from "../notifications/whatsapp.service";
@@ -75,6 +75,15 @@ class UpdateGastoDto {
 class MetaDto {
   @IsString() categoria!: string;
   @IsNumber() limiteMensal!: number;
+}
+// Tudo opcional para o PUT parcial funcionar; o create valida o que é obrigatório.
+class RecorrenteDto {
+  @IsOptional() @IsString() descricao?: string;
+  @IsOptional() @IsNumber() valor?: number;
+  @IsOptional() @IsString() categoria?: string;
+  @IsOptional() @IsIn(FORMAS as unknown as string[]) formaPagamento?: string;
+  @IsOptional() @IsInt() @Min(1) @Max(31) diaDoMes?: number;
+  @IsOptional() @IsBoolean() ativo?: boolean;
 }
 
 @Controller("gastos")
@@ -321,6 +330,60 @@ class GastosController {
     await (this.prisma as any).metaGasto.delete({ where: { id } });
     return { message: "Removida" };
   }
+
+  // ── Gastos fixos / recorrentes ─────────────────────────────────────────────
+  @Get("recorrentes")
+  @Permissions("gastos:ver")
+  async listarRecorrentes(@Req() req: any) {
+    const rs = await (this.prisma as any).gastoRecorrente.findMany({ where: this.escopo(req), orderBy: { diaDoMes: "asc" } });
+    return (rs as any[]).map(r => ({ ...r, valor: Number(r.valor) }));
+  }
+
+  @Post("recorrentes")
+  @Permissions("gastos:registrar")
+  async criarRecorrente(@Req() req: any, @Body() dto: RecorrenteDto) {
+    const valor = toNum(dto.valor);
+    if (!dto.descricao?.trim()) throw new BadRequestException("Descrição obrigatória");
+    if (valor == null || valor <= 0) throw new BadRequestException("Valor inválido");
+    if (dto.diaDoMes == null) throw new BadRequestException("Dia do mês obrigatório");
+    const r = await (this.prisma as any).gastoRecorrente.create({
+      data: {
+        ...this.escopo(req),
+        descricao: dto.descricao.trim(),
+        categoria: dto.categoria?.trim() || null,
+        valor,
+        formaPagamento: dto.formaPagamento || "NAO_INFORMADO",
+        diaDoMes: Math.min(31, Math.max(1, Math.floor(dto.diaDoMes))),
+        ativo: dto.ativo ?? true,
+      },
+    });
+    return { ...r, valor: Number(r.valor) };
+  }
+
+  @Put("recorrentes/:id")
+  @Permissions("gastos:registrar")
+  async atualizarRecorrente(@Req() req: any, @Param("id") id: string, @Body() dto: RecorrenteDto) {
+    const exists = await (this.prisma as any).gastoRecorrente.findFirst({ where: { id, ...this.escopo(req) } });
+    if (!exists) throw new NotFoundException("Recorrente não encontrado");
+    const data: any = {};
+    if (dto.descricao !== undefined) data.descricao = dto.descricao.trim();
+    if (dto.categoria !== undefined) data.categoria = dto.categoria?.trim() || null;
+    if (dto.formaPagamento !== undefined) data.formaPagamento = dto.formaPagamento;
+    if (dto.valor !== undefined) { const v = toNum(dto.valor); if (v != null && v > 0) data.valor = v; }
+    if (dto.diaDoMes !== undefined && dto.diaDoMes != null) data.diaDoMes = Math.min(31, Math.max(1, Math.floor(dto.diaDoMes)));
+    if (dto.ativo !== undefined) data.ativo = dto.ativo;
+    const r = await (this.prisma as any).gastoRecorrente.update({ where: { id }, data });
+    return { ...r, valor: Number(r.valor) };
+  }
+
+  @Delete("recorrentes/:id")
+  @Permissions("gastos:registrar")
+  async removerRecorrente(@Req() req: any, @Param("id") id: string) {
+    const exists = await (this.prisma as any).gastoRecorrente.findFirst({ where: { id, ...this.escopo(req) } });
+    if (!exists) throw new NotFoundException("Recorrente não encontrado");
+    await (this.prisma as any).gastoRecorrente.delete({ where: { id } });
+    return { message: "Removido" };
+  }
 }
 
 // ── Resumo semanal automático (proativo, com opt-out) ───────────────────────────
@@ -379,6 +442,53 @@ export class GastosScheduler {
       this.logger.log(`Resumo semanal de gastos: ${enviados} enviados (de ${perfis.length} perfis com WhatsApp)`);
     } catch (e: any) {
       this.logger.error(`Falha no resumo semanal de gastos: ${e?.message || e}`);
+    }
+  }
+
+  // Todo dia de manhã: lança os gastos fixos cujo dia é hoje (uma vez por mês) e
+  // avisa a pessoa pelo WhatsApp, com desfazer ("apagar").
+  @Cron("0 8 * * *", { timeZone: "America/Sao_Paulo" })
+  async lancarRecorrentes() {
+    try {
+      const agora = new Date();
+      const dia = agora.getDate();
+      const ultimoDiaMes = new Date(agora.getFullYear(), agora.getMonth() + 1, 0).getDate();
+      const mes0 = new Date(agora.getFullYear(), agora.getMonth(), 1, 0, 0, 0, 0);
+
+      const recs = await (this.prisma as any).gastoRecorrente.findMany({ where: { ativo: true } });
+      const fmt = (n: any) => Number(n).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      let criados = 0;
+      for (const r of recs as any[]) {
+        // Dia efetivo: se o dia configurado passa do fim do mês (ex.: 31 em fevereiro), usa o último dia.
+        const diaAlvo = Math.min(r.diaDoMes, ultimoDiaMes);
+        if (diaAlvo !== dia) continue;
+        // Já lançou este mês? (evita duplicar se o cron rodar de novo)
+        if (r.ultimoLancamento && new Date(r.ultimoLancamento) >= mes0) continue;
+
+        const dataGasto = new Date(agora.getFullYear(), agora.getMonth(), dia, 12, 0, 0, 0);
+        await (this.prisma as any).gasto.create({
+          data: {
+            organizationId: r.organizationId, userId: r.userId,
+            descricao: r.descricao, categoria: r.categoria, valor: r.valor,
+            formaPagamento: r.formaPagamento, parcelas: 1, valorParcela: null,
+            dataGasto, origem: "RECORRENTE",
+          },
+        });
+        await (this.prisma as any).gastoRecorrente.update({ where: { id: r.id }, data: { ultimoLancamento: agora } });
+        criados++;
+
+        const perfil = await this.prisma.userProfile.findUnique({
+          where: { userId: r.userId }, select: { whatsapp: true } as any,
+        }).catch(() => null);
+        if ((perfil as any)?.whatsapp) {
+          await this.wa.sendMessageForOrg(r.organizationId, (perfil as any).whatsapp,
+            `🔁 Lancei seu gasto fixo: *${r.descricao}* — R$ ${fmt(r.valor)}.\n_Não era pra lançar? Responda *apagar*._`).catch(() => {});
+          await new Promise(res => setTimeout(res, 300));
+        }
+      }
+      if (criados) this.logger.log(`Gastos recorrentes lançados: ${criados}`);
+    } catch (e: any) {
+      this.logger.error(`Falha ao lançar recorrentes: ${e?.message || e}`);
     }
   }
 }

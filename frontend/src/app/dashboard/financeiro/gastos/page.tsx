@@ -28,6 +28,7 @@ type Gasto = {
   dataGasto: string; origem: string;
 };
 type Meta = { id: string; categoria: string; limiteMensal: number; gastoMes: number };
+type Recorrente = { id: string; descricao: string; categoria?: string | null; valor: number; formaPagamento: string; diaDoMes: number; ativo: boolean };
 type Resumo = {
   cards: { hoje: { total: number; qtd: number }; semana: { total: number; qtd: number }; mes: { total: number; qtd: number } };
   insights: {
@@ -69,8 +70,10 @@ export default function GastosPage() {
   const [forma, setForma] = useState("");        // filtra a tabela
   const [categoria, setCategoria] = useState(""); // filtra a tabela
   const [metas, setMetas] = useState<Meta[]>([]);
+  const [recorrentes, setRecorrentes] = useState<Recorrente[]>([]);
   const [modal, setModal] = useState<null | { editing?: Gasto }>(null);
   const [metaModal, setMetaModal] = useState(false);
+  const [recModal, setRecModal] = useState<null | { editing?: Recorrente }>(null);
 
   const carregar = useCallback(async () => {
     setLoading(true);
@@ -92,7 +95,10 @@ export default function GastosPage() {
   const carregarMetas = useCallback(async () => {
     try { const { data } = await api.get("/gastos/metas"); setMetas(data || []); } catch { /* vazio */ }
   }, []);
-  useEffect(() => { carregarMetas(); }, [carregarMetas]);
+  const carregarRecorrentes = useCallback(async () => {
+    try { const { data } = await api.get("/gastos/recorrentes"); setRecorrentes(data || []); } catch { /* vazio */ }
+  }, []);
+  useEffect(() => { carregarMetas(); carregarRecorrentes(); }, [carregarMetas, carregarRecorrentes]);
 
   useEffect(() => { carregar(); }, [carregar]);
 
@@ -115,6 +121,15 @@ export default function GastosPage() {
     if (!confirm(`Remover a meta de ${m.categoria}?`)) return;
     await api.delete(`/gastos/metas/${m.id}`).catch(() => {});
     carregarMetas();
+  };
+  const toggleRec = async (r: Recorrente) => {
+    await api.put(`/gastos/recorrentes/${r.id}`, { ativo: !r.ativo }).catch(() => {});
+    carregarRecorrentes();
+  };
+  const excluirRec = async (r: Recorrente) => {
+    if (!confirm(`Remover o gasto fixo "${r.descricao}"?`)) return;
+    await api.delete(`/gastos/recorrentes/${r.id}`).catch(() => {});
+    carregarRecorrentes();
   };
 
   const per = resumo?.periodo;
@@ -284,6 +299,33 @@ export default function GastosPage() {
             )}
           </div>
 
+          {/* Gastos fixos (recorrentes) */}
+          <div style={{ ...card, marginBottom: 16 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: recorrentes.length ? 14 : 6 }}>
+              <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700 }}>Gastos fixos</h3>
+              <button onClick={() => setRecModal({})} style={{ ...chip(false), fontSize: 12, display: "inline-flex", alignItems: "center", gap: 5 }}><Plus size={13} /> Novo fixo</button>
+            </div>
+            {recorrentes.length === 0 ? (
+              <p style={{ margin: 0, color: "var(--text-muted,#6b7280)", fontSize: 13 }}>Cadastre uma assinatura ou conta fixa (ex.: <b>Netflix R$ 50, dia 10</b>) e eu lanço sozinho todo mês, te avisando no WhatsApp.</p>
+            ) : (
+              <div style={{ display: "grid", gap: 8 }}>
+                {recorrentes.map(r => (
+                  <div key={r.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 10px", border: "1px solid var(--border,#eef0f3)", borderRadius: 10, opacity: r.ativo ? 1 : 0.55 }}>
+                    <span style={{ fontSize: 18 }}>🔁</span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontWeight: 600, fontSize: 14 }}>{r.descricao} {r.categoria && <span style={{ color: "var(--text-muted,#9ca3af)", fontWeight: 400, fontSize: 12 }}>· {r.categoria}</span>}</div>
+                      <div style={{ fontSize: 12, color: "var(--text-muted,#6b7280)" }}>Todo dia {r.diaDoMes} · {FORMA_LABEL[r.formaPagamento] || r.formaPagamento}</div>
+                    </div>
+                    <b style={{ fontSize: 14 }}>{R(r.valor)}</b>
+                    <button onClick={() => toggleRec(r)} title={r.ativo ? "Pausar" : "Ativar"} style={{ ...chip(r.ativo), fontSize: 11, padding: "4px 9px" }}>{r.ativo ? "Ativo" : "Pausado"}</button>
+                    <button onClick={() => setRecModal({ editing: r })} style={iconBtn} title="Editar"><Pencil size={14} /></button>
+                    <button onClick={() => excluirRec(r)} style={{ ...iconBtn, color: "#dc2626" }} title="Excluir"><Trash2 size={14} /></button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
           {/* Busca + filtro forma + chips de filtro ativo */}
           <div style={{ display: "flex", gap: 8, marginBottom: 10, flexWrap: "wrap", alignItems: "center" }}>
             <div style={{ position: "relative", flex: 1, minWidth: 200 }}>
@@ -354,6 +396,7 @@ export default function GastosPage() {
                         <td style={{ ...td, fontWeight: 600 }}>
                           {g.descricao}
                           {g.origem === "WHATSAPP" && <MessageCircle size={12} color="#25D366" style={{ marginLeft: 6, verticalAlign: "middle" }} />}
+                          {g.origem === "RECORRENTE" && <span title="Gasto fixo" style={{ marginLeft: 6, fontSize: 11 }}>🔁</span>}
                         </td>
                         <td style={td}>{g.categoria || <span style={{ color: "#9ca3af" }}>—</span>}</td>
                         <td style={td}>
@@ -380,6 +423,7 @@ export default function GastosPage() {
 
       {modal && <GastoModal gasto={modal.editing} onClose={() => setModal(null)} onSaved={() => { setModal(null); carregar(); }} />}
       {metaModal && <MetaModal sugestoes={(resumo?.periodo.porCategoria || []).map(c => c.categoria)} onClose={() => setMetaModal(false)} onSaved={() => { setMetaModal(false); carregarMetas(); }} />}
+      {recModal && <RecorrenteModal rec={recModal.editing} sugestoes={(resumo?.periodo.porCategoria || []).map(c => c.categoria)} onClose={() => setRecModal(null)} onSaved={() => { setRecModal(null); carregarRecorrentes(); }} />}
 
       <style jsx global>{`
         .spin { animation: girar 1s linear infinite; }
@@ -534,6 +578,70 @@ function MetaModal({ sugestoes, onClose, onSaved }: { sugestoes: string[]; onClo
             <datalist id="cats-meta">{opcoes.map(c => <option key={c} value={c} />)}</datalist>
           </Campo>
           <Campo label="Limite por mês (R$)"><input value={limite} onChange={e => setLimite(e.target.value)} placeholder="0,00" inputMode="decimal" style={inpFull} /></Campo>
+          {erro && <div style={{ color: "#dc2626", fontSize: 13 }}>{erro}</div>}
+        </div>
+        <div style={{ display: "flex", gap: 8, marginTop: 18 }}>
+          <button onClick={onClose} style={{ flex: 1, padding: "11px", borderRadius: 10, border: "1px solid var(--border,#e5e7eb)", background: "var(--surface,#fff)", fontWeight: 700, cursor: "pointer" }}>Cancelar</button>
+          <button onClick={salvar} disabled={saving} style={{ flex: 1, padding: "11px", borderRadius: 10, border: "none", background: "#6366f1", color: "#fff", fontWeight: 700, cursor: "pointer", display: "inline-flex", justifyContent: "center", alignItems: "center", gap: 6 }}>
+            {saving && <Loader2 className="spin" size={15} />} Salvar
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function RecorrenteModal({ rec, sugestoes, onClose, onSaved }: { rec?: Recorrente; sugestoes: string[]; onClose: () => void; onSaved: () => void }) {
+  const [descricao, setDescricao] = useState(rec?.descricao || "");
+  const [valor, setValor] = useState(rec ? String(rec.valor) : "");
+  const [formaPagamento, setForma] = useState(rec?.formaPagamento || "NAO_INFORMADO");
+  const [categoria, setCategoria] = useState(rec?.categoria || "");
+  const [diaDoMes, setDia] = useState(String(rec?.diaDoMes || 5));
+  const [saving, setSaving] = useState(false);
+  const [erro, setErro] = useState("");
+  const opcoes = Array.from(new Set(sugestoes.filter(Boolean)));
+
+  const salvar = async () => {
+    setErro("");
+    const v = parseFloat(valor.replace(",", "."));
+    const dia = parseInt(diaDoMes);
+    if (!descricao.trim()) return setErro("Escreva o nome (ex.: Netflix).");
+    if (!v || v <= 0) return setErro("Informe um valor válido.");
+    if (!dia || dia < 1 || dia > 31) return setErro("Dia do mês entre 1 e 31.");
+    setSaving(true);
+    try {
+      const body = { descricao: descricao.trim(), valor: v, formaPagamento, categoria: categoria.trim() || undefined, diaDoMes: dia };
+      if (rec) await api.put(`/gastos/recorrentes/${rec.id}`, body);
+      else await api.post("/gastos/recorrentes", body);
+      onSaved();
+    } catch { setErro("Não consegui salvar. Tente de novo."); setSaving(false); }
+  };
+
+  return (
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", display: "grid", placeItems: "center", zIndex: 50, padding: 16 }}>
+      <div onClick={e => e.stopPropagation()} style={{ background: "var(--surface,#fff)", borderRadius: 16, width: "100%", maxWidth: 420, padding: 22 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+          <h3 style={{ margin: 0, fontSize: 18, fontWeight: 800 }}>{rec ? "Editar gasto fixo" : "Novo gasto fixo"}</h3>
+          <button onClick={onClose} style={iconBtn}><X size={18} /></button>
+        </div>
+        <div style={{ display: "grid", gap: 12 }}>
+          <Campo label="O que é? (assinatura, conta…)"><input value={descricao} onChange={e => setDescricao(e.target.value)} placeholder="Ex.: Netflix" style={inpFull} autoFocus /></Campo>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <Campo label="Valor (R$)"><input value={valor} onChange={e => setValor(e.target.value)} placeholder="0,00" inputMode="decimal" style={inpFull} /></Campo>
+            <Campo label="Todo dia"><input value={diaDoMes} onChange={e => setDia(e.target.value)} inputMode="numeric" style={inpFull} /></Campo>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <Campo label="Como paga?">
+              <select value={formaPagamento} onChange={e => setForma(e.target.value)} style={inpFull}>
+                {FORMAS.map(f => <option key={f} value={f}>{FORMA_LABEL[f]}</option>)}
+              </select>
+            </Campo>
+            <Campo label="Categoria">
+              <input value={categoria} onChange={e => setCategoria(e.target.value)} placeholder="opcional" list="cats-rec" style={inpFull} />
+              <datalist id="cats-rec">{opcoes.map(c => <option key={c} value={c} />)}</datalist>
+            </Campo>
+          </div>
+          <p style={{ margin: 0, fontSize: 12, color: "var(--text-muted,#6b7280)" }}>Vou lançar sozinho todo mês nesse dia e te avisar no WhatsApp.</p>
           {erro && <div style={{ color: "#dc2626", fontSize: 13 }}>{erro}</div>}
         </div>
         <div style={{ display: "flex", gap: 8, marginTop: 18 }}>
