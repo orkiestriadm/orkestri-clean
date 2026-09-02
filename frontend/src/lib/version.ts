@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "1.29.0";
+export const VERSAO = "1.30.0";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -35,6 +35,16 @@ export const VERSAO_NOME = "Módulo de Indicações (referral)";
  * esta lista quer saber o que mudou para ele.
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
+  {
+    versao: "1.30.0",
+    data: "2026-09-02",
+    titulo: "Seu progresso: sequência, conquistas e meta de economia",
+    itens: [
+      "Nova seção Seu progresso em Meus Gastos: a sua sequência de dias registrando (🔥), com o recorde",
+      "Conquistas que você desbloqueia conforme usa: primeiros passos, constância, ficar no azul, veterano e mais",
+      "Meta de economia do mês: defina quanto quer guardar e acompanhe a barra de progresso. O resumo semanal no WhatsApp também passa a mostrar em quantos dias você anotou na semana",
+    ],
+  },
   {
     versao: "1.29.0",
     data: "2026-09-02",

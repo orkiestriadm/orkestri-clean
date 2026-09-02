@@ -94,6 +94,9 @@ class ReceitaDto {
   @IsOptional() dataReceita?: any;
   @IsOptional() @IsBoolean() recorrente?: boolean;
 }
+class MetaEconomiaDto {
+  @IsOptional() @IsNumber() valor?: number;
+}
 // Tudo opcional para o PUT parcial funcionar; o create valida o que é obrigatório.
 class RecorrenteDto {
   @IsOptional() @IsString() descricao?: string;
@@ -516,6 +519,72 @@ class GastosController {
     await (this.prisma as any).receita.delete({ where: { id } });
     return { message: "Removida" };
   }
+
+  // ── Gamificação: sequência, conquistas e meta de economia ──────────────────
+  @Get("gamificacao")
+  @Permissions("gastos:ver")
+  async gamificacao(@Req() req: any) {
+    const esc = this.escopo(req);
+    const agora = new Date();
+    const mes0 = new Date(agora.getFullYear(), agora.getMonth(), 1, 0, 0, 0, 0);
+    const mesFim = new Date(agora.getFullYear(), agora.getMonth() + 1, 0, 23, 59, 59, 999);
+
+    const [datas, totalGastos, qtdMetas, qtdRec, gastosMesAgg, receitas, perfil] = await Promise.all([
+      (this.prisma as any).gasto.findMany({ where: esc, select: { dataGasto: true } }),
+      (this.prisma as any).gasto.count({ where: esc }),
+      (this.prisma as any).metaGasto.count({ where: esc }),
+      (this.prisma as any).gastoRecorrente.count({ where: esc }),
+      (this.prisma as any).gasto.aggregate({ where: { ...esc, dataGasto: { gte: mes0, lte: mesFim } }, _sum: { valor: true } }),
+      (this.prisma as any).receita.findMany({ where: esc }),
+      this.prisma.userProfile.findUnique({ where: { userId: esc.userId }, select: { metaEconomiaMensal: true } as any }),
+    ]);
+
+    const key = (dt: Date) => `${dt.getFullYear()}-${dt.getMonth()}-${dt.getDate()}`;
+    const dias = new Set<string>();
+    for (const d of datas as any[]) dias.add(key(new Date(d.dataGasto)));
+
+    let streakAtual = 0;
+    const cur = new Date(agora);
+    if (!dias.has(key(cur))) cur.setDate(cur.getDate() - 1); // ainda não registrou hoje: olha a partir de ontem
+    while (dias.has(key(cur))) { streakAtual++; cur.setDate(cur.getDate() - 1); }
+
+    let streakMelhor = 0, run = 0, prev: number | null = null;
+    for (const t of [...dias].map(s => { const [y, m, d] = s.split("-").map(Number); return new Date(y, m, d).getTime(); }).sort((a, b) => a - b)) {
+      run = (prev !== null && t - prev === 86400000) ? run + 1 : 1;
+      if (run > streakMelhor) streakMelhor = run;
+      prev = t;
+    }
+
+    const gastosMes = Number(gastosMesAgg?._sum?.valor || 0);
+    let rendaMes = 0;
+    for (const rc of receitas as any[]) {
+      if (rc.recorrente) { rendaMes += Number(rc.valor); continue; }
+      const d = new Date(rc.dataReceita); if (d >= mes0 && d <= mesFim) rendaMes += Number(rc.valor);
+    }
+    const saldoMes = rendaMes - gastosMes;
+    const metaEconomia = (perfil as any)?.metaEconomiaMensal != null ? Number((perfil as any).metaEconomiaMensal) : null;
+
+    const conquistas = [
+      { id: "primeiros_passos", nome: "Primeiros passos", desc: "Registrou o 1º gasto", ganha: totalGastos >= 1 },
+      { id: "constancia", nome: "Constância", desc: "7 dias seguidos registrando", ganha: streakMelhor >= 7 },
+      { id: "organizado", nome: "Organizado", desc: "Criou uma meta de orçamento", ganha: qtdMetas >= 1 },
+      { id: "no_controle", nome: "No controle", desc: "Cadastrou um gasto fixo", ganha: qtdRec >= 1 },
+      { id: "no_azul", nome: "No azul", desc: "Fechou o mês com saldo positivo", ganha: rendaMes > 0 && saldoMes > 0 },
+      { id: "veterano", nome: "Veterano", desc: "50 gastos registrados", ganha: totalGastos >= 50 },
+    ];
+
+    return { streakAtual, streakMelhor, totalGastos, metaEconomia, economizadoMes: saldoMes, rendaMes, gastosMes, conquistas };
+  }
+
+  @Post("meta-economia")
+  @Permissions("gastos:registrar")
+  async setMetaEconomia(@Req() req: any, @Body() dto: MetaEconomiaDto) {
+    const esc = this.escopo(req);
+    const v = toNum(dto.valor);
+    const valor = v != null && v > 0 ? v : null;
+    await this.prisma.userProfile.update({ where: { userId: esc.userId }, data: { metaEconomiaMensal: valor } as any });
+    return { metaEconomia: valor };
+  }
 }
 
 // ── Resumo semanal automático (proativo, com opt-out) ───────────────────────────
@@ -536,18 +605,20 @@ export class GastosScheduler {
 
       const gastos = await (this.prisma as any).gasto.findMany({
         where: { dataGasto: { gte: desde } },
-        select: { userId: true, organizationId: true, valor: true, categoria: true },
+        select: { userId: true, organizationId: true, valor: true, categoria: true, dataGasto: true },
       });
       if (!gastos.length) return;
 
-      const porUser = new Map<string, { org: string; total: number; qtd: number; cats: Map<string, number> }>();
+      const porUser = new Map<string, { org: string; total: number; qtd: number; cats: Map<string, number>; dias: Set<string> }>();
       for (const g of gastos as any[]) {
         let u = porUser.get(g.userId);
-        if (!u) { u = { org: g.organizationId, total: 0, qtd: 0, cats: new Map() }; porUser.set(g.userId, u); }
+        if (!u) { u = { org: g.organizationId, total: 0, qtd: 0, cats: new Map(), dias: new Set() }; porUser.set(g.userId, u); }
         const v = Number(g.valor || 0);
         u.total += v; u.qtd++;
         const c = g.categoria || "Outros";
         u.cats.set(c, (u.cats.get(c) || 0) + v);
+        const d = new Date(g.dataGasto);
+        u.dias.add(`${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`);
       }
 
       const perfis = await this.prisma.userProfile.findMany({
@@ -566,6 +637,7 @@ export class GastosScheduler {
         let msg = `📊 *Seu resumo da semana${nome ? ", " + nome : ""}*\n\n`;
         msg += `Você registrou ${u.qtd} ${u.qtd === 1 ? "gasto" : "gastos"}, somando *R$ ${fmt(u.total)}*.`;
         if (topCat) msg += `\nMaior categoria: *${topCat[0]}* — R$ ${fmt(topCat[1])}.`;
+        msg += `\n📆 Você anotou em *${u.dias.size} ${u.dias.size === 1 ? "dia" : "dias"}* nesta semana` + (u.dias.size >= 5 ? " — mandou bem! 🔥" : ".");
         msg += `\n\n📱 Ver tudo: *Financeiro › Meus Gastos* no sistema.\n_Não quer mais este resumo? Responda *parar resumo*._`;
         const ok = await this.wa.sendMessageForOrg(u.org, p.whatsapp, msg).catch(() => false);
         if (ok) enviados++;

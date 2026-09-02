@@ -1322,6 +1322,8 @@ model UserProfile {
   whatsappTentativas   Int       @default(0) @map("whatsapp_tentativas")
   /// Desliga o resumo semanal de Gastos no WhatsApp (comando "parar resumo").
   resumoGastosOff      Boolean   @default(false) @map("resumo_gastos_off")
+  /// Meta de economia mensal (quanto a pessoa quer guardar por mês). Gamificação.
+  metaEconomiaMensal   Decimal?  @map("meta_economia_mensal") @db.Decimal(15, 2)
   modulos              String    @default("[\"projetos\",\"keep\",\"gantt\",\"relatorios\"]")
   setor                Setor?    @relation(fields: [setorId], references: [id])
   user                 User      @relation(fields: [userId], references: [id], onDelete: Cascade)

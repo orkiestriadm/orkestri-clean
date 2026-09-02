@@ -31,6 +31,8 @@ type Meta = { id: string; categoria: string; limiteMensal: number; gastoMes: num
 type Recorrente = { id: string; descricao: string; categoria?: string | null; valor: number; formaPagamento: string; diaDoMes: number; ativo: boolean };
 type Categoria = { id: string; nome: string; cor: string };
 type Receita = { id: string; descricao: string; valor: number; dataReceita: string; recorrente: boolean };
+type Conquista = { id: string; nome: string; desc: string; ganha: boolean };
+type Gamificacao = { streakAtual: number; streakMelhor: number; totalGastos: number; metaEconomia: number | null; economizadoMes: number; rendaMes: number; gastosMes: number; conquistas: Conquista[] };
 type Resumo = {
   cards: { hoje: { total: number; qtd: number }; semana: { total: number; qtd: number }; mes: { total: number; qtd: number } };
   insights: {
@@ -76,6 +78,7 @@ export default function GastosPage() {
   const [recorrentes, setRecorrentes] = useState<Recorrente[]>([]);
   const [categorias, setCategorias] = useState<Categoria[]>([]);
   const [receitas, setReceitas] = useState<Receita[]>([]);
+  const [gami, setGami] = useState<Gamificacao | null>(null);
   const [modal, setModal] = useState<null | { editing?: Gasto }>(null);
   const [metaModal, setMetaModal] = useState(false);
   const [recModal, setRecModal] = useState<null | { editing?: Recorrente }>(null);
@@ -111,9 +114,12 @@ export default function GastosPage() {
   const carregarReceitas = useCallback(async () => {
     try { const { data } = await api.get("/gastos/receitas"); setReceitas(data || []); } catch { /* vazio */ }
   }, []);
-  useEffect(() => { carregarMetas(); carregarRecorrentes(); carregarCategorias(); carregarReceitas(); }, [carregarMetas, carregarRecorrentes, carregarCategorias, carregarReceitas]);
+  const carregarGami = useCallback(async () => {
+    try { const { data } = await api.get("/gastos/gamificacao"); setGami(data); } catch { /* vazio */ }
+  }, []);
+  useEffect(() => { carregarMetas(); carregarRecorrentes(); carregarCategorias(); carregarReceitas(); carregarGami(); }, [carregarMetas, carregarRecorrentes, carregarCategorias, carregarReceitas, carregarGami]);
   // Receita muda o saldo (que vem no resumo) — recarrega os dois juntos.
-  const recarregarComReceitas = useCallback(() => { carregarReceitas(); carregar(); }, [carregarReceitas, carregar]);
+  const recarregarComReceitas = useCallback(() => { carregarReceitas(); carregar(); carregarGami(); }, [carregarReceitas, carregar, carregarGami]);
 
   useEffect(() => { carregar(); }, [carregar]);
 
@@ -130,7 +136,15 @@ export default function GastosPage() {
   const excluir = async (g: Gasto) => {
     if (!confirm(`Excluir o gasto "${g.descricao}"?`)) return;
     await api.delete(`/gastos/${g.id}`).catch(() => {});
-    carregar();
+    carregar(); carregarGami();
+  };
+  const definirMetaEconomia = async () => {
+    const atual = gami?.metaEconomia ? String(gami.metaEconomia) : "";
+    const v = window.prompt("Quanto você quer guardar por mês? (R$) — deixe vazio para remover", atual);
+    if (v === null) return;
+    const n = v.trim() ? parseFloat(v.replace(",", ".")) : 0;
+    await api.post("/gastos/meta-economia", { valor: n > 0 ? n : 0 }).catch(() => {});
+    carregarGami();
   };
   const excluirMeta = async (m: Meta) => {
     if (!confirm(`Remover a meta de ${m.categoria}?`)) return;
@@ -304,6 +318,55 @@ export default function GastosPage() {
                     </button>
                   );
                 })}
+              </div>
+            </div>
+          )}
+
+          {/* Seu progresso (gamificação) */}
+          {gami && (
+            <div style={{ ...card, marginBottom: 16 }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap", marginBottom: 16 }}>
+                <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700 }}>Seu progresso</h3>
+                <div style={{ display: "inline-flex", alignItems: "center", gap: 7, fontSize: 14 }}>
+                  <span style={{ fontSize: 20 }}>🔥</span>
+                  <b style={{ fontSize: 18 }}>{gami.streakAtual}</b> {gami.streakAtual === 1 ? "dia seguido" : "dias seguidos"}
+                  {gami.streakMelhor > gami.streakAtual && <span style={{ color: "var(--text-muted,#9ca3af)", fontSize: 12 }}>· recorde {gami.streakMelhor}</span>}
+                </div>
+              </div>
+
+              <div style={{ marginBottom: 16 }}>
+                {gami.metaEconomia ? (() => {
+                  const pct = Math.max(0, Math.min(100, (gami.economizadoMes / gami.metaEconomia) * 100));
+                  const ok = gami.economizadoMes >= gami.metaEconomia;
+                  return (
+                    <>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 13, marginBottom: 5 }}>
+                        <b>Meta de economia do mês {ok ? "🎉" : ""}</b>
+                        <span style={{ color: "var(--text-muted,#6b7280)", display: "inline-flex", alignItems: "center", gap: 6 }}>
+                          {R(Math.max(0, gami.economizadoMes))} <span style={{ color: "var(--line-strong,#d3d6e6)" }}>/</span> {R(gami.metaEconomia)}
+                          <button onClick={definirMetaEconomia} style={{ ...iconBtn, padding: 2 }} title="Editar meta"><Pencil size={12} /></button>
+                        </span>
+                      </div>
+                      <div style={{ height: 10, background: "var(--bg,#f1f2f4)", borderRadius: 999, overflow: "hidden" }}>
+                        <div style={{ width: `${pct}%`, height: "100%", background: ok ? "#16a34a" : "#6366f1", borderRadius: 999, transition: "width .3s" }} />
+                      </div>
+                    </>
+                  );
+                })() : (
+                  <button onClick={definirMetaEconomia} style={{ ...chip(false), fontSize: 13, display: "inline-flex", alignItems: "center", gap: 6 }}>🎯 Definir uma meta de economia</button>
+                )}
+              </div>
+
+              <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                {gami.conquistas.map(c => (
+                  <div key={c.id} title={c.desc} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", borderRadius: 10, border: "1px solid var(--border,#eef0f3)", opacity: c.ganha ? 1 : 0.5, background: c.ganha ? "rgba(99,102,241,0.06)" : "transparent" }}>
+                    <span style={{ fontSize: 18, filter: c.ganha ? "none" : "grayscale(1)" }}>{c.ganha ? "🏆" : "🔒"}</span>
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 700 }}>{c.nome}</div>
+                      <div style={{ fontSize: 11, color: "var(--text-muted,#9ca3af)" }}>{c.desc}</div>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           )}
@@ -487,9 +550,9 @@ export default function GastosPage() {
         </div>
       </div>
 
-      {modal && <GastoModal gasto={modal.editing} sugestoes={nomesCat} onClose={() => setModal(null)} onSaved={() => { setModal(null); carregar(); }} />}
-      {metaModal && <MetaModal sugestoes={nomesCat} onClose={() => setMetaModal(false)} onSaved={() => { setMetaModal(false); carregarMetas(); }} />}
-      {recModal && <RecorrenteModal rec={recModal.editing} sugestoes={nomesCat} onClose={() => setRecModal(null)} onSaved={() => { setRecModal(null); carregarRecorrentes(); }} />}
+      {modal && <GastoModal gasto={modal.editing} sugestoes={nomesCat} onClose={() => setModal(null)} onSaved={() => { setModal(null); carregar(); carregarGami(); }} />}
+      {metaModal && <MetaModal sugestoes={nomesCat} onClose={() => setMetaModal(false)} onSaved={() => { setMetaModal(false); carregarMetas(); carregarGami(); }} />}
+      {recModal && <RecorrenteModal rec={recModal.editing} sugestoes={nomesCat} onClose={() => setRecModal(null)} onSaved={() => { setRecModal(null); carregarRecorrentes(); carregarGami(); }} />}
       {catModal && <CategoriasModal categorias={categorias} onClose={() => setCatModal(false)} onChanged={carregarCategorias} />}
       {receitaModal && <ReceitaModal receita={receitaModal.editing} onClose={() => setReceitaModal(null)} onSaved={() => { setReceitaModal(null); recarregarComReceitas(); }} />}
 
