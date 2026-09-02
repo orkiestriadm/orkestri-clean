@@ -88,6 +88,12 @@ class CategoriaDto {
   @IsOptional() @IsString() nome?: string;
   @IsOptional() @IsString() cor?: string;
 }
+class ReceitaDto {
+  @IsOptional() @IsString() descricao?: string;
+  @IsOptional() @IsNumber() valor?: number;
+  @IsOptional() dataReceita?: any;
+  @IsOptional() @IsBoolean() recorrente?: boolean;
+}
 // Tudo opcional para o PUT parcial funcionar; o create valida o que é obrigatório.
 class RecorrenteDto {
   @IsOptional() @IsString() descricao?: string;
@@ -193,6 +199,15 @@ class GastosController {
     const mesAntFim = new Date(agora.getFullYear(), agora.getMonth(), 0, 23, 59, 59, 999);
     const cardMesAnterior = await somaEntre(mesAntIni, mesAntFim);
 
+    // Renda do mês = recorrentes (salário) SEMPRE + receitas avulsas dentro do mês.
+    const receitas = await (this.prisma as any).receita.findMany({ where: esc });
+    let rendaMes = 0;
+    for (const rc of receitas as any[]) {
+      if (rc.recorrente) { rendaMes += Number(rc.valor); continue; }
+      const d = new Date(rc.dataReceita);
+      if (d >= mes0 && d <= mesFim) rendaMes += Number(rc.valor);
+    }
+
     let totalPeriodo = 0, qtdPeriodo = 0;
     const porForma = (porFormaRaw as any[]).map(g => {
       const v = Number(g._sum?.valor || 0); totalPeriodo += v; qtdPeriodo += g._count || 0;
@@ -237,6 +252,7 @@ class GastosController {
         mesAtual: cardMes.total, mesAnterior: cardMesAnterior.total,
         projecaoMes, variacaoMes,
       },
+      saldo: { rendaMes, gastosMes: cardMes.total, saldoMes: rendaMes - cardMes.total },
       periodo: { inicio: ini, fim: f, total: totalPeriodo, qtd: qtdPeriodo, porForma, porCategoria, porDia },
     };
   }
@@ -452,6 +468,52 @@ class GastosController {
     const exists = await (this.prisma as any).categoriaGasto.findFirst({ where: { id, ...this.escopo(req) } });
     if (!exists) throw new NotFoundException("Categoria não encontrada");
     await (this.prisma as any).categoriaGasto.delete({ where: { id } });
+    return { message: "Removida" };
+  }
+
+  // ── Receitas / entradas (para o saldo) ─────────────────────────────────────
+  @Get("receitas")
+  @Permissions("gastos:ver")
+  async listarReceitas(@Req() req: any) {
+    const rs = await (this.prisma as any).receita.findMany({ where: this.escopo(req), orderBy: { dataReceita: "desc" } });
+    return (rs as any[]).map(r => ({ ...r, valor: Number(r.valor) }));
+  }
+
+  @Post("receitas")
+  @Permissions("gastos:registrar")
+  async criarReceita(@Req() req: any, @Body() dto: ReceitaDto) {
+    const valor = toNum(dto.valor);
+    if (!dto.descricao?.trim()) throw new BadRequestException("Descrição obrigatória");
+    if (valor == null || valor <= 0) throw new BadRequestException("Valor inválido");
+    const r = await (this.prisma as any).receita.create({
+      data: {
+        ...this.escopo(req), descricao: dto.descricao.trim(), valor,
+        dataReceita: dataDoGasto(dto.dataReceita), recorrente: dto.recorrente ?? false,
+      },
+    });
+    return { ...r, valor: Number(r.valor) };
+  }
+
+  @Put("receitas/:id")
+  @Permissions("gastos:registrar")
+  async atualizarReceita(@Req() req: any, @Param("id") id: string, @Body() dto: ReceitaDto) {
+    const exists = await (this.prisma as any).receita.findFirst({ where: { id, ...this.escopo(req) } });
+    if (!exists) throw new NotFoundException("Receita não encontrada");
+    const data: any = {};
+    if (dto.descricao !== undefined) data.descricao = dto.descricao.trim();
+    if (dto.valor !== undefined) { const v = toNum(dto.valor); if (v != null && v > 0) data.valor = v; }
+    if (dto.dataReceita !== undefined) data.dataReceita = dataDoGasto(dto.dataReceita);
+    if (dto.recorrente !== undefined) data.recorrente = dto.recorrente;
+    const r = await (this.prisma as any).receita.update({ where: { id }, data });
+    return { ...r, valor: Number(r.valor) };
+  }
+
+  @Delete("receitas/:id")
+  @Permissions("gastos:registrar")
+  async removerReceita(@Req() req: any, @Param("id") id: string) {
+    const exists = await (this.prisma as any).receita.findFirst({ where: { id, ...this.escopo(req) } });
+    if (!exists) throw new NotFoundException("Receita não encontrada");
+    await (this.prisma as any).receita.delete({ where: { id } });
     return { message: "Removida" };
   }
 }

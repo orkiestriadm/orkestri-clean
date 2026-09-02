@@ -30,6 +30,7 @@ type Gasto = {
 type Meta = { id: string; categoria: string; limiteMensal: number; gastoMes: number };
 type Recorrente = { id: string; descricao: string; categoria?: string | null; valor: number; formaPagamento: string; diaDoMes: number; ativo: boolean };
 type Categoria = { id: string; nome: string; cor: string };
+type Receita = { id: string; descricao: string; valor: number; dataReceita: string; recorrente: boolean };
 type Resumo = {
   cards: { hoje: { total: number; qtd: number }; semana: { total: number; qtd: number }; mes: { total: number; qtd: number } };
   insights: {
@@ -37,6 +38,7 @@ type Resumo = {
     mediaDia: number; mesAtual: number; mesAnterior: number;
     projecaoMes: number; variacaoMes: number | null;
   };
+  saldo: { rendaMes: number; gastosMes: number; saldoMes: number };
   periodo: {
     inicio: string; fim: string; total: number; qtd: number;
     porForma: { forma: string; label: string; valor: number; qtd: number }[];
@@ -73,10 +75,12 @@ export default function GastosPage() {
   const [metas, setMetas] = useState<Meta[]>([]);
   const [recorrentes, setRecorrentes] = useState<Recorrente[]>([]);
   const [categorias, setCategorias] = useState<Categoria[]>([]);
+  const [receitas, setReceitas] = useState<Receita[]>([]);
   const [modal, setModal] = useState<null | { editing?: Gasto }>(null);
   const [metaModal, setMetaModal] = useState(false);
   const [recModal, setRecModal] = useState<null | { editing?: Recorrente }>(null);
   const [catModal, setCatModal] = useState(false);
+  const [receitaModal, setReceitaModal] = useState<null | { editing?: Receita }>(null);
 
   const carregar = useCallback(async () => {
     setLoading(true);
@@ -104,7 +108,12 @@ export default function GastosPage() {
   const carregarCategorias = useCallback(async () => {
     try { const { data } = await api.get("/gastos/categorias"); setCategorias(data || []); } catch { /* vazio */ }
   }, []);
-  useEffect(() => { carregarMetas(); carregarRecorrentes(); carregarCategorias(); }, [carregarMetas, carregarRecorrentes, carregarCategorias]);
+  const carregarReceitas = useCallback(async () => {
+    try { const { data } = await api.get("/gastos/receitas"); setReceitas(data || []); } catch { /* vazio */ }
+  }, []);
+  useEffect(() => { carregarMetas(); carregarRecorrentes(); carregarCategorias(); carregarReceitas(); }, [carregarMetas, carregarRecorrentes, carregarCategorias, carregarReceitas]);
+  // Receita muda o saldo (que vem no resumo) — recarrega os dois juntos.
+  const recarregarComReceitas = useCallback(() => { carregarReceitas(); carregar(); }, [carregarReceitas, carregar]);
 
   useEffect(() => { carregar(); }, [carregar]);
 
@@ -136,6 +145,11 @@ export default function GastosPage() {
     if (!confirm(`Remover o gasto fixo "${r.descricao}"?`)) return;
     await api.delete(`/gastos/recorrentes/${r.id}`).catch(() => {});
     carregarRecorrentes();
+  };
+  const excluirReceita = async (rc: Receita) => {
+    if (!confirm(`Remover a receita "${rc.descricao}"?`)) return;
+    await api.delete(`/gastos/receitas/${rc.id}`).catch(() => {});
+    recarregarComReceitas();
   };
 
   const per = resumo?.periodo;
@@ -175,6 +189,20 @@ export default function GastosPage() {
             <ResumoCard titulo="Últimos 7 dias" valor={resumo?.cards.semana.total} qtd={resumo?.cards.semana.qtd} cor="#3b82f6" icon={<TrendingDown size={18} color="#3b82f6" />} ativo={preset === "sem"} onClick={() => aplicarPreset("sem")} />
             <ResumoCard titulo="Este mês" valor={resumo?.cards.mes.total} qtd={resumo?.cards.mes.qtd} cor="#6366f1" icon={<Wallet size={18} color="#6366f1" />} ativo={preset === "mes"} onClick={() => aplicarPreset("mes")} />
           </div>
+
+          {/* Saldo do mês */}
+          {resumo?.saldo && (
+            <div style={{ ...card, marginBottom: 16, display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 14, borderLeft: `3px solid ${resumo.saldo.saldoMes >= 0 ? "#16a34a" : "#dc2626"}` }}>
+              <div style={{ display: "flex", gap: 26, flexWrap: "wrap", alignItems: "flex-end" }}>
+                <div><div style={saldoLbl}>Entrou no mês</div><div style={{ fontSize: 18, fontWeight: 800, color: "#16a34a" }}>{R(resumo.saldo.rendaMes)}</div></div>
+                <div style={{ color: "var(--text-muted,#9ca3af)", fontSize: 18, fontWeight: 700 }}>−</div>
+                <div><div style={saldoLbl}>Gastou</div><div style={{ fontSize: 18, fontWeight: 800, color: "#dc2626" }}>{R(resumo.saldo.gastosMes)}</div></div>
+                <div style={{ color: "var(--text-muted,#9ca3af)", fontSize: 18, fontWeight: 700 }}>=</div>
+                <div><div style={saldoLbl}>{resumo.saldo.saldoMes >= 0 ? "Sobrou" : "Faltou"}</div><div style={{ fontSize: 22, fontWeight: 800, color: resumo.saldo.saldoMes >= 0 ? "#16a34a" : "#dc2626" }}>{R(Math.abs(resumo.saldo.saldoMes))}</div></div>
+              </div>
+              <button onClick={() => setReceitaModal({})} style={{ ...chip(false), fontWeight: 700, display: "inline-flex", alignItems: "center", gap: 5 }}><Plus size={13} /> Nova receita</button>
+            </div>
+          )}
 
           {/* Filtro de período */}
           <div style={{ ...card, marginBottom: 16, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
@@ -340,6 +368,30 @@ export default function GastosPage() {
             )}
           </div>
 
+          {/* Receitas (entradas) */}
+          {receitas.length > 0 && (
+            <div style={{ ...card, marginBottom: 16 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+                <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700 }}>Receitas do mês</h3>
+                <button onClick={() => setReceitaModal({})} style={{ ...chip(false), fontSize: 12, display: "inline-flex", alignItems: "center", gap: 5 }}><Plus size={13} /> Nova receita</button>
+              </div>
+              <div style={{ display: "grid", gap: 8 }}>
+                {receitas.map(rc => (
+                  <div key={rc.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 10px", border: "1px solid var(--border,#eef0f3)", borderRadius: 10 }}>
+                    <span style={{ fontSize: 16 }}>💰</span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontWeight: 600, fontSize: 14 }}>{rc.descricao} {rc.recorrente && <span style={{ color: "#16a34a", fontWeight: 400, fontSize: 12 }}>· fixa/mês</span>}</div>
+                      <div style={{ fontSize: 12, color: "var(--text-muted,#6b7280)" }}>{rc.recorrente ? "Todo mês" : fmtD(rc.dataReceita)}</div>
+                    </div>
+                    <b style={{ fontSize: 14, color: "#16a34a" }}>{R(rc.valor)}</b>
+                    <button onClick={() => setReceitaModal({ editing: rc })} style={iconBtn} title="Editar"><Pencil size={14} /></button>
+                    <button onClick={() => excluirReceita(rc)} style={{ ...iconBtn, color: "#dc2626" }} title="Excluir"><Trash2 size={14} /></button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Busca + filtro forma + chips de filtro ativo */}
           <div style={{ display: "flex", gap: 8, marginBottom: 10, flexWrap: "wrap", alignItems: "center" }}>
             <div style={{ position: "relative", flex: 1, minWidth: 200 }}>
@@ -439,6 +491,7 @@ export default function GastosPage() {
       {metaModal && <MetaModal sugestoes={nomesCat} onClose={() => setMetaModal(false)} onSaved={() => { setMetaModal(false); carregarMetas(); }} />}
       {recModal && <RecorrenteModal rec={recModal.editing} sugestoes={nomesCat} onClose={() => setRecModal(null)} onSaved={() => { setRecModal(null); carregarRecorrentes(); }} />}
       {catModal && <CategoriasModal categorias={categorias} onClose={() => setCatModal(false)} onChanged={carregarCategorias} />}
+      {receitaModal && <ReceitaModal receita={receitaModal.editing} onClose={() => setReceitaModal(null)} onSaved={() => { setReceitaModal(null); recarregarComReceitas(); }} />}
 
       <style jsx global>{`
         .spin { animation: girar 1s linear infinite; }
@@ -653,6 +706,58 @@ function MetaModal({ sugestoes, onClose, onSaved }: { sugestoes: string[]; onClo
   );
 }
 
+function ReceitaModal({ receita, onClose, onSaved }: { receita?: Receita; onClose: () => void; onSaved: () => void }) {
+  const [descricao, setDescricao] = useState(receita?.descricao || "");
+  const [valor, setValor] = useState(receita ? String(receita.valor) : "");
+  const [dataReceita, setData] = useState(receita ? isoDay(new Date(receita.dataReceita)) : hojeStr());
+  const [recorrente, setRecorrente] = useState(receita?.recorrente ?? false);
+  const [saving, setSaving] = useState(false);
+  const [erro, setErro] = useState("");
+
+  const salvar = async () => {
+    setErro("");
+    const v = parseFloat(valor.replace(",", "."));
+    if (!descricao.trim()) return setErro("Escreva o que entrou (ex.: Salário).");
+    if (!v || v <= 0) return setErro("Informe um valor válido.");
+    setSaving(true);
+    try {
+      const body = { descricao: descricao.trim(), valor: v, dataReceita, recorrente };
+      if (receita) await api.put(`/gastos/receitas/${receita.id}`, body);
+      else await api.post("/gastos/receitas", body);
+      onSaved();
+    } catch { setErro("Não consegui salvar. Tente de novo."); setSaving(false); }
+  };
+
+  return (
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", display: "grid", placeItems: "center", zIndex: 50, padding: 16 }}>
+      <div onClick={e => e.stopPropagation()} style={{ background: "var(--surface,#fff)", borderRadius: 16, width: "100%", maxWidth: 400, padding: 22 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+          <h3 style={{ margin: 0, fontSize: 18, fontWeight: 800 }}>{receita ? "Editar receita" : "Nova receita"}</h3>
+          <button onClick={onClose} style={iconBtn}><X size={18} /></button>
+        </div>
+        <div style={{ display: "grid", gap: 12 }}>
+          <Campo label="O que entrou?"><input value={descricao} onChange={e => setDescricao(e.target.value)} placeholder="Ex.: Salário" style={inpFull} autoFocus /></Campo>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <Campo label="Valor (R$)"><input value={valor} onChange={e => setValor(e.target.value)} placeholder="0,00" inputMode="decimal" style={inpFull} /></Campo>
+            <Campo label="Data"><input type="date" value={dataReceita} onChange={e => setData(e.target.value)} style={inpFull} /></Campo>
+          </div>
+          <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, cursor: "pointer" }}>
+            <input type="checkbox" checked={recorrente} onChange={e => setRecorrente(e.target.checked)} />
+            É uma renda fixa (entra todo mês, ex.: salário)
+          </label>
+          {erro && <div style={{ color: "#dc2626", fontSize: 13 }}>{erro}</div>}
+        </div>
+        <div style={{ display: "flex", gap: 8, marginTop: 18 }}>
+          <button onClick={onClose} style={{ flex: 1, padding: "11px", borderRadius: 10, border: "1px solid var(--border,#e5e7eb)", background: "var(--surface,#fff)", fontWeight: 700, cursor: "pointer" }}>Cancelar</button>
+          <button onClick={salvar} disabled={saving} style={{ flex: 1, padding: "11px", borderRadius: 10, border: "none", background: "#16a34a", color: "#fff", fontWeight: 700, cursor: "pointer", display: "inline-flex", justifyContent: "center", alignItems: "center", gap: 6 }}>
+            {saving && <Loader2 className="spin" size={15} />} Salvar
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function RecorrenteModal({ rec, sugestoes, onClose, onSaved }: { rec?: Recorrente; sugestoes: string[]; onClose: () => void; onSaved: () => void }) {
   const [descricao, setDescricao] = useState(rec?.descricao || "");
   const [valor, setValor] = useState(rec ? String(rec.valor) : "");
@@ -732,6 +837,7 @@ const inpFull: CSSProperties = { ...inp, width: "100%" };
 const th: CSSProperties = { padding: "11px 14px", fontSize: 12, fontWeight: 700, color: "var(--text-muted,#6b7280)", textTransform: "uppercase", letterSpacing: 0.3 };
 const td: CSSProperties = { padding: "11px 14px" };
 const iconBtn: CSSProperties = { background: "transparent", border: "none", cursor: "pointer", padding: 6, borderRadius: 6, color: "inherit" };
+const saldoLbl: CSSProperties = { fontSize: 11, fontWeight: 700, letterSpacing: 0.3, textTransform: "uppercase", color: "var(--text-muted,#9ca3af)", marginBottom: 3 };
 const chip = (on: boolean): CSSProperties => ({
   padding: "7px 12px", borderRadius: 8, border: `1px solid ${on ? "#6366f1" : "var(--border,#e5e7eb)"}`,
   background: on ? "rgba(99,102,241,0.10)" : "var(--surface,#fff)", color: on ? "#4f46e5" : "inherit",

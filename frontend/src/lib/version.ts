@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "1.28.0";
+export const VERSAO = "1.29.0";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -35,6 +35,15 @@ export const VERSAO_NOME = "Módulo de Indicações (referral)";
  * esta lista quer saber o que mudou para ele.
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
+  {
+    versao: "1.29.0",
+    data: "2026-09-02",
+    titulo: "Renda e saldo do mês",
+    itens: [
+      "Registre o que entra com Nova receita — inclusive renda fixa mensal, como salário, que passa a contar todo mês sozinha",
+      "No topo de Meus Gastos, o saldo do mês: quanto entrou, quanto você gastou e quanto sobrou (ou faltou), em verde ou vermelho",
+    ],
+  },
   {
     versao: "1.28.0",
     data: "2026-09-02",

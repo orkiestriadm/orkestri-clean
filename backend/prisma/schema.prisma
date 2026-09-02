@@ -3807,6 +3807,22 @@ model CategoriaGasto {
   @@map("categorias_gasto")
 }
 
+// ── Receita / entrada (por usuário) — para calcular saldo do mês ─────────────────
+model Receita {
+  id             String   @id @default(uuid())
+  organizationId String   @map("organization_id")
+  userId         String   @map("user_id")
+  descricao      String
+  valor          Decimal  @db.Decimal(15, 2)
+  dataReceita    DateTime @map("data_receita")
+  recorrente     Boolean  @default(false) // renda fixa mensal (ex.: salário)
+  criadoEm       DateTime @default(now()) @map("criado_em")
+  atualizadoEm   DateTime @updatedAt @map("atualizado_em")
+
+  @@index([organizationId, userId])
+  @@map("receitas")
+}
+
 // ── Reservas de Carros ─────────────────────────────────────────────────────────
 
 model ReservaVeiculo {
