@@ -21,6 +21,14 @@ export const FORMA_LABEL: Record<string, string> = {
   CREDITO: "Crédito", DEBITO: "Débito", PIX: "Pix", DINHEIRO: "Dinheiro", BOLETO: "Boleto", NAO_INFORMADO: "Não informada",
 };
 
+// Categorias padrão (semeadas na 1ª vez que o usuário abre a gestão de categorias).
+const DEFAULT_CATS: [string, string][] = [
+  ["Alimentação", "#f59e0b"], ["Mercado", "#10b981"], ["Combustível", "#6366f1"],
+  ["Transporte", "#3b82f6"], ["Saúde", "#ef4444"], ["Academia", "#22c55e"],
+  ["Contas", "#0ea5e9"], ["Roupas", "#f43f5e"], ["Assinaturas", "#a855f7"],
+  ["Educação", "#14b8a6"], ["Lazer", "#ec4899"], ["Outros", "#94a3b8"],
+];
+
 function toNum(v: any): number | null {
   if (v == null || v === "") return null;
   const n = parseFloat(String(v));
@@ -75,6 +83,10 @@ class UpdateGastoDto {
 class MetaDto {
   @IsString() categoria!: string;
   @IsNumber() limiteMensal!: number;
+}
+class CategoriaDto {
+  @IsOptional() @IsString() nome?: string;
+  @IsOptional() @IsString() cor?: string;
 }
 // Tudo opcional para o PUT parcial funcionar; o create valida o que é obrigatório.
 class RecorrenteDto {
@@ -383,6 +395,64 @@ class GastosController {
     if (!exists) throw new NotFoundException("Recorrente não encontrado");
     await (this.prisma as any).gastoRecorrente.delete({ where: { id } });
     return { message: "Removido" };
+  }
+
+  // ── Categorias personalizadas ──────────────────────────────────────────────
+  @Get("categorias")
+  @Permissions("gastos:ver")
+  async listarCategorias(@Req() req: any) {
+    const esc = this.escopo(req);
+    let cats = await (this.prisma as any).categoriaGasto.findMany({ where: esc, orderBy: { nome: "asc" } });
+    if (!cats.length) {
+      await (this.prisma as any).categoriaGasto.createMany({
+        data: DEFAULT_CATS.map(([nome, cor]) => ({ ...esc, nome, cor })), skipDuplicates: true,
+      }).catch(() => {});
+      cats = await (this.prisma as any).categoriaGasto.findMany({ where: esc, orderBy: { nome: "asc" } });
+    }
+    return (cats as any[]).map(c => ({ id: c.id, nome: c.nome, cor: c.cor }));
+  }
+
+  @Post("categorias")
+  @Permissions("gastos:registrar")
+  async criarCategoria(@Req() req: any, @Body() dto: CategoriaDto) {
+    const esc = this.escopo(req);
+    const nome = dto.nome?.trim();
+    if (!nome) throw new BadRequestException("Nome obrigatório");
+    const cor = (dto.cor || "#6366f1").trim();
+    const c = await (this.prisma as any).categoriaGasto.upsert({
+      where: { organizationId_userId_nome: { organizationId: esc.organizationId, userId: esc.userId, nome } },
+      create: { ...esc, nome, cor }, update: { cor },
+    });
+    return { id: c.id, nome: c.nome, cor: c.cor };
+  }
+
+  @Put("categorias/:id")
+  @Permissions("gastos:registrar")
+  async atualizarCategoria(@Req() req: any, @Param("id") id: string, @Body() dto: CategoriaDto) {
+    const esc = this.escopo(req);
+    const exists = await (this.prisma as any).categoriaGasto.findFirst({ where: { id, ...esc } });
+    if (!exists) throw new NotFoundException("Categoria não encontrada");
+    const data: any = {};
+    if (dto.cor !== undefined && dto.cor.trim()) data.cor = dto.cor.trim();
+    const novoNome = dto.nome?.trim();
+    if (novoNome && novoNome !== exists.nome) {
+      data.nome = novoNome;
+      // Renomear reflete nos lançamentos e recorrentes (mantém o histórico coerente).
+      await (this.prisma as any).gasto.updateMany({ where: { ...esc, categoria: exists.nome }, data: { categoria: novoNome } }).catch(() => {});
+      await (this.prisma as any).gastoRecorrente.updateMany({ where: { ...esc, categoria: exists.nome }, data: { categoria: novoNome } }).catch(() => {});
+      await (this.prisma as any).metaGasto.updateMany({ where: { ...esc, categoria: exists.nome }, data: { categoria: novoNome } }).catch(() => {});
+    }
+    const c = await (this.prisma as any).categoriaGasto.update({ where: { id }, data });
+    return { id: c.id, nome: c.nome, cor: c.cor };
+  }
+
+  @Delete("categorias/:id")
+  @Permissions("gastos:registrar")
+  async removerCategoria(@Req() req: any, @Param("id") id: string) {
+    const exists = await (this.prisma as any).categoriaGasto.findFirst({ where: { id, ...this.escopo(req) } });
+    if (!exists) throw new NotFoundException("Categoria não encontrada");
+    await (this.prisma as any).categoriaGasto.delete({ where: { id } });
+    return { message: "Removida" };
   }
 }
 

@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "1.27.0";
+export const VERSAO = "1.28.0";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -35,6 +35,15 @@ export const VERSAO_NOME = "Módulo de Indicações (referral)";
  * esta lista quer saber o que mudou para ele.
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
+  {
+    versao: "1.28.0",
+    data: "2026-09-02",
+    titulo: "Categorias do seu jeito",
+    itens: [
+      "Novo botão Categorias em Meus Gastos: crie, renomeie, escolha a cor e remova suas categorias. As cores passam a aparecer nos gráficos por categoria",
+      "Renomear uma categoria ajusta também os gastos, metas e fixos que já usavam o nome antigo. Na primeira vez, um conjunto de categorias já vem pronto",
+    ],
+  },
   {
     versao: "1.27.0",
     data: "2026-09-02",

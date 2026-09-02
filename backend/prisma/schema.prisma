@@ -3792,6 +3792,21 @@ model GastoRecorrente {
   @@map("gastos_recorrentes")
 }
 
+// ── Categoria de gasto personalizada (por usuário) ──────────────────────────────
+model CategoriaGasto {
+  id             String   @id @default(uuid())
+  organizationId String   @map("organization_id")
+  userId         String   @map("user_id")
+  nome           String
+  cor            String   @default("#6366f1")
+  criadoEm       DateTime @default(now()) @map("criado_em")
+  atualizadoEm   DateTime @updatedAt @map("atualizado_em")
+
+  @@unique([organizationId, userId, nome])
+  @@index([organizationId, userId])
+  @@map("categorias_gasto")
+}
+
 // ── Reservas de Carros ─────────────────────────────────────────────────────────
 
 model ReservaVeiculo {

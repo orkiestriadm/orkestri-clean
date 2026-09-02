@@ -29,6 +29,7 @@ type Gasto = {
 };
 type Meta = { id: string; categoria: string; limiteMensal: number; gastoMes: number };
 type Recorrente = { id: string; descricao: string; categoria?: string | null; valor: number; formaPagamento: string; diaDoMes: number; ativo: boolean };
+type Categoria = { id: string; nome: string; cor: string };
 type Resumo = {
   cards: { hoje: { total: number; qtd: number }; semana: { total: number; qtd: number }; mes: { total: number; qtd: number } };
   insights: {
@@ -71,9 +72,11 @@ export default function GastosPage() {
   const [categoria, setCategoria] = useState(""); // filtra a tabela
   const [metas, setMetas] = useState<Meta[]>([]);
   const [recorrentes, setRecorrentes] = useState<Recorrente[]>([]);
+  const [categorias, setCategorias] = useState<Categoria[]>([]);
   const [modal, setModal] = useState<null | { editing?: Gasto }>(null);
   const [metaModal, setMetaModal] = useState(false);
   const [recModal, setRecModal] = useState<null | { editing?: Recorrente }>(null);
+  const [catModal, setCatModal] = useState(false);
 
   const carregar = useCallback(async () => {
     setLoading(true);
@@ -98,7 +101,10 @@ export default function GastosPage() {
   const carregarRecorrentes = useCallback(async () => {
     try { const { data } = await api.get("/gastos/recorrentes"); setRecorrentes(data || []); } catch { /* vazio */ }
   }, []);
-  useEffect(() => { carregarMetas(); carregarRecorrentes(); }, [carregarMetas, carregarRecorrentes]);
+  const carregarCategorias = useCallback(async () => {
+    try { const { data } = await api.get("/gastos/categorias"); setCategorias(data || []); } catch { /* vazio */ }
+  }, []);
+  useEffect(() => { carregarMetas(); carregarRecorrentes(); carregarCategorias(); }, [carregarMetas, carregarRecorrentes, carregarCategorias]);
 
   useEffect(() => { carregar(); }, [carregar]);
 
@@ -135,6 +141,8 @@ export default function GastosPage() {
   const per = resumo?.periodo;
   const donut = (per?.porForma || []).map(f => ({ name: f.label, value: f.valor, forma: f.forma }));
   const temFiltroTabela = !!forma || !!categoria;
+  const corCat = (nome: string) => categorias.find(c => c.nome === nome)?.cor || "#6366f1";
+  const nomesCat = categorias.length ? categorias.map(c => c.nome) : (per?.porCategoria || []).map(c => c.categoria);
 
   return (
     <>
@@ -153,9 +161,12 @@ export default function GastosPage() {
                 <p style={{ margin: 0, fontSize: 13, color: "var(--text-muted, #6b7280)" }}>Só você vê os seus gastos. Toque num cartão para filtrar.</p>
               </div>
             </div>
-            <button onClick={() => setModal({})} style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "#6366f1", color: "#fff", border: "none", borderRadius: 10, padding: "10px 16px", fontWeight: 700, cursor: "pointer" }}>
-              <Plus size={16} /> Novo gasto
-            </button>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button onClick={() => setCatModal(true)} style={{ ...chip(false), fontWeight: 700 }}>Categorias</button>
+              <button onClick={() => setModal({})} style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "#6366f1", color: "#fff", border: "none", borderRadius: 10, padding: "10px 16px", fontWeight: 700, cursor: "pointer" }}>
+                <Plus size={16} /> Novo gasto
+              </button>
+            </div>
           </div>
 
           {/* Cartões clicáveis (filtram o período) */}
@@ -254,9 +265,12 @@ export default function GastosPage() {
                   return (
                     <button key={c.categoria} onClick={() => setCategoria(on ? "" : c.categoria)} title="Filtrar a lista por esta categoria"
                       style={{ display: "flex", alignItems: "center", gap: 10, background: on ? "var(--bg,#f1f2f4)" : "transparent", border: "none", borderRadius: 8, padding: "6px 8px", cursor: "pointer", width: "100%", color: "inherit" }}>
-                      <span style={{ width: 120, fontSize: 13, fontWeight: 600, textAlign: "left" }}>{c.categoria}</span>
+                      <span style={{ display: "inline-flex", alignItems: "center", gap: 7, width: 130, fontSize: 13, fontWeight: 600, textAlign: "left" }}>
+                        <span style={{ width: 10, height: 10, borderRadius: 3, background: corCat(c.categoria), flexShrink: 0 }} />
+                        <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.categoria}</span>
+                      </span>
                       <div style={{ flex: 1, height: 10, background: "var(--bg,#f1f2f4)", borderRadius: 999 }}>
-                        <div style={{ width: `${pct}%`, height: "100%", background: on ? "#4f46e5" : "#6366f1", borderRadius: 999 }} />
+                        <div style={{ width: `${pct}%`, height: "100%", background: corCat(c.categoria), opacity: on ? 1 : 0.85, borderRadius: 999 }} />
                       </div>
                       <span style={{ width: 110, textAlign: "right", fontSize: 13 }}><b>{R(c.valor)}</b></span>
                     </button>
@@ -421,9 +435,10 @@ export default function GastosPage() {
         </div>
       </div>
 
-      {modal && <GastoModal gasto={modal.editing} onClose={() => setModal(null)} onSaved={() => { setModal(null); carregar(); }} />}
-      {metaModal && <MetaModal sugestoes={(resumo?.periodo.porCategoria || []).map(c => c.categoria)} onClose={() => setMetaModal(false)} onSaved={() => { setMetaModal(false); carregarMetas(); }} />}
-      {recModal && <RecorrenteModal rec={recModal.editing} sugestoes={(resumo?.periodo.porCategoria || []).map(c => c.categoria)} onClose={() => setRecModal(null)} onSaved={() => { setRecModal(null); carregarRecorrentes(); }} />}
+      {modal && <GastoModal gasto={modal.editing} sugestoes={nomesCat} onClose={() => setModal(null)} onSaved={() => { setModal(null); carregar(); }} />}
+      {metaModal && <MetaModal sugestoes={nomesCat} onClose={() => setMetaModal(false)} onSaved={() => { setMetaModal(false); carregarMetas(); }} />}
+      {recModal && <RecorrenteModal rec={recModal.editing} sugestoes={nomesCat} onClose={() => setRecModal(null)} onSaved={() => { setRecModal(null); carregarRecorrentes(); }} />}
+      {catModal && <CategoriasModal categorias={categorias} onClose={() => setCatModal(false)} onChanged={carregarCategorias} />}
 
       <style jsx global>{`
         .spin { animation: girar 1s linear infinite; }
@@ -484,7 +499,7 @@ function Variacao({ v }: { v: number | null }) {
   return <span style={{ color: subiu ? "#dc2626" : "#16a34a" }}>{subiu ? "▲" : "▼"} {pct}%</span>;
 }
 
-function GastoModal({ gasto, onClose, onSaved }: { gasto?: Gasto; onClose: () => void; onSaved: () => void }) {
+function GastoModal({ gasto, sugestoes, onClose, onSaved }: { gasto?: Gasto; sugestoes: string[]; onClose: () => void; onSaved: () => void }) {
   const [descricao, setDescricao] = useState(gasto?.descricao || "");
   const [valor, setValor] = useState(gasto ? String(gasto.valor) : "");
   const [formaPagamento, setForma] = useState(gasto?.formaPagamento || "NAO_INFORMADO");
@@ -532,7 +547,10 @@ function GastoModal({ gasto, onClose, onSaved }: { gasto?: Gasto; onClose: () =>
             </Campo>
             <Campo label="Parcelas"><input value={parcelas} onChange={e => setParcelas(e.target.value)} inputMode="numeric" style={inpFull} /></Campo>
           </div>
-          <Campo label="Categoria (opcional)"><input value={categoria} onChange={e => setCategoria(e.target.value)} placeholder="Ex.: Mercado" style={inpFull} /></Campo>
+          <Campo label="Categoria (opcional)">
+            <input value={categoria} onChange={e => setCategoria(e.target.value)} placeholder="Ex.: Mercado" list="cats-gasto" style={inpFull} />
+            <datalist id="cats-gasto">{Array.from(new Set(sugestoes.filter(Boolean))).map(c => <option key={c} value={c} />)}</datalist>
+          </Campo>
           {erro && <div style={{ color: "#dc2626", fontSize: 13 }}>{erro}</div>}
         </div>
         <div style={{ display: "flex", gap: 8, marginTop: 18 }}>
@@ -540,6 +558,50 @@ function GastoModal({ gasto, onClose, onSaved }: { gasto?: Gasto; onClose: () =>
           <button onClick={salvar} disabled={saving} style={{ flex: 1, padding: "11px", borderRadius: 10, border: "none", background: "#6366f1", color: "#fff", fontWeight: 700, cursor: "pointer", display: "inline-flex", justifyContent: "center", alignItems: "center", gap: 6 }}>
             {saving && <Loader2 className="spin" size={15} />} Salvar
           </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CategoriasModal({ categorias, onClose, onChanged }: { categorias: Categoria[]; onClose: () => void; onChanged: () => void }) {
+  const [novoNome, setNovoNome] = useState("");
+  const [novaCor, setNovaCor] = useState("#6366f1");
+  const [busy, setBusy] = useState(false);
+
+  const adicionar = async () => {
+    if (!novoNome.trim()) return;
+    setBusy(true);
+    await api.post("/gastos/categorias", { nome: novoNome.trim(), cor: novaCor }).catch(() => {});
+    setNovoNome(""); setNovaCor("#6366f1"); setBusy(false); onChanged();
+  };
+  const mudarCor = async (c: Categoria, cor: string) => { await api.put(`/gastos/categorias/${c.id}`, { cor }).catch(() => {}); onChanged(); };
+  const renomear = async (c: Categoria, nome: string) => { if (!nome.trim() || nome === c.nome) return; await api.put(`/gastos/categorias/${c.id}`, { nome: nome.trim() }).catch(() => {}); onChanged(); };
+  const remover = async (c: Categoria) => { if (!confirm(`Remover a categoria "${c.nome}"? Os gastos com ela ficam sem categoria.`)) return; await api.delete(`/gastos/categorias/${c.id}`).catch(() => {}); onChanged(); };
+
+  return (
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", display: "grid", placeItems: "center", zIndex: 50, padding: 16 }}>
+      <div onClick={e => e.stopPropagation()} style={{ background: "var(--surface,#fff)", borderRadius: 16, width: "100%", maxWidth: 460, maxHeight: "88vh", overflowY: "auto", padding: 22 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+          <h3 style={{ margin: 0, fontSize: 18, fontWeight: 800 }}>Categorias</h3>
+          <button onClick={onClose} style={iconBtn}><X size={18} /></button>
+        </div>
+
+        <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+          <input type="color" value={novaCor} onChange={e => setNovaCor(e.target.value)} style={{ width: 42, height: 40, border: "1px solid var(--border,#e5e7eb)", borderRadius: 8, background: "none", cursor: "pointer", padding: 2 }} />
+          <input value={novoNome} onChange={e => setNovoNome(e.target.value)} onKeyDown={e => { if (e.key === "Enter") adicionar(); }} placeholder="Nova categoria" style={{ ...inpFull, flex: 1 }} />
+          <button onClick={adicionar} disabled={busy} style={{ background: "#6366f1", color: "#fff", border: "none", borderRadius: 10, padding: "0 16px", fontWeight: 700, cursor: "pointer" }}>Adicionar</button>
+        </div>
+
+        <div style={{ display: "grid", gap: 6 }}>
+          {categorias.map(c => (
+            <div key={c.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "6px 4px" }}>
+              <input type="color" value={c.cor} onChange={e => mudarCor(c, e.target.value)} title="Cor" style={{ width: 30, height: 30, border: "1px solid var(--border,#e5e7eb)", borderRadius: 7, background: "none", cursor: "pointer", padding: 2, flexShrink: 0 }} />
+              <input defaultValue={c.nome} onBlur={e => renomear(c, e.target.value)} style={{ ...inpFull, flex: 1 }} />
+              <button onClick={() => remover(c)} style={{ ...iconBtn, color: "#dc2626" }} title="Remover"><Trash2 size={15} /></button>
+            </div>
+          ))}
+          {categorias.length === 0 && <p style={{ margin: 0, color: "var(--text-muted,#6b7280)", fontSize: 13 }}>Nenhuma categoria ainda.</p>}
         </div>
       </div>
     </div>
