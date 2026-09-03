@@ -218,12 +218,28 @@ export default function ContasAPagarPage() {
     return (Array.isArray(m) ? m[0] : m) || "Não foi possível concluir. Tente de novo.";
   };
 
+  // Só os campos que o backend aceita — o objeto da linha traz também id, status,
+  // organizationId, criadoEm etc., e o DTO (forbidNonWhitelisted) recusa qualquer
+  // campo fora da lista ("property id should not exist").
+  const CAMPOS_EDITAVEIS = [
+    "fornecedorNome", "fornecedorCodigo", "prefixo", "numero", "parcela", "tipo", "natureza",
+    "portador", "historico", "classeValor", "observacao", "pedido", "ctaContab", "centroCusto",
+    "valorOriginal", "valorVencidoNominal", "valorVencidoCorrigido", "valorAVencerNominal",
+    "valorJuros", "valorPago", "diasAtraso", "dataEmissao", "dataVencto", "dataVenctoReal", "dataPagamento",
+  ] as const;
+  const payloadConta = (c: Partial<Conta>) => {
+    const out: any = {};
+    for (const k of CAMPOS_EDITAVEIS) if ((c as any)[k] !== undefined) out[k] = (c as any)[k];
+    return out;
+  };
+
   const handleSave = async () => {
     if (!editConta) return;
     setErro(null); setSaving(true);
     try {
-      if (editConta.id) await api.put(`/financeiro/contas-a-pagar/${editConta.id}`, editConta);
-      else              await api.post("/financeiro/contas-a-pagar", editConta);
+      const body = payloadConta(editConta);
+      if (editConta.id) await api.put(`/financeiro/contas-a-pagar/${editConta.id}`, body);
+      else              await api.post("/financeiro/contas-a-pagar", body);
       setEditConta(null); load();
     } catch (e: any) { setErro(msgErro(e)); }
     finally { setSaving(false); }

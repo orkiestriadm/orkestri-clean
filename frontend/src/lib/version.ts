@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "1.30.1";
+export const VERSAO = "1.30.2";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -35,6 +35,14 @@ export const VERSAO_NOME = "Módulo de Indicações (referral)";
  * esta lista quer saber o que mudou para ele.
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
+  {
+    versao: "1.30.2",
+    data: "2026-09-03",
+    titulo: "Editar conta a pagar volta a salvar",
+    itens: [
+      "Correção: editar um título em Contas a Pagar não salvava (erro \"property id should not exist\") — a tela enviava campos que o servidor não aceita. Agora envia só os campos do formulário e a edição salva normalmente",
+    ],
+  },
   {
     versao: "1.30.1",
     data: "2026-09-02",
