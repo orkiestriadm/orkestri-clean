@@ -174,6 +174,7 @@ export default function ContasAPagarPage() {
   const [editConta, setEditConta]       = useState<Partial<Conta> | null>(null);
   const [deletingId, setDeletingId]     = useState<string | null>(null);
   const [saving, setSaving]             = useState(false);
+  const [erro, setErro]                 = useState<string | null>(null);
   const [payConta, setPayConta]         = useState<Conta | null>(null);
   const [payValor, setPayValor]         = useState("");
   const [payData,  setPayData]          = useState("");
@@ -208,20 +209,33 @@ export default function ContasAPagarPage() {
     return dir === "asc" ? <ChevronUp size={12} /> : <ChevronDown size={12} />;
   };
 
+  // Mensagem amigável a partir do erro da API (403 sem permissão é o caso mais comum).
+  const msgErro = (e: any): string => {
+    const st = e?.response?.status;
+    if (st === 403) return "Você não tem permissão para esta ação. Fale com o administrador.";
+    if (st === 401) return "Sua sessão expirou. Entre novamente.";
+    const m = e?.response?.data?.message;
+    return (Array.isArray(m) ? m[0] : m) || "Não foi possível concluir. Tente de novo.";
+  };
+
   const handleSave = async () => {
     if (!editConta) return;
-    setSaving(true);
+    setErro(null); setSaving(true);
     try {
       if (editConta.id) await api.put(`/financeiro/contas-a-pagar/${editConta.id}`, editConta);
       else              await api.post("/financeiro/contas-a-pagar", editConta);
       setEditConta(null); load();
-    } finally { setSaving(false); }
+    } catch (e: any) { setErro(msgErro(e)); }
+    finally { setSaving(false); }
   };
 
   const handleDelete = async () => {
     if (!deletingId) return;
-    await api.delete(`/financeiro/contas-a-pagar/${deletingId}`);
-    setDeletingId(null); load();
+    setErro(null);
+    try {
+      await api.delete(`/financeiro/contas-a-pagar/${deletingId}`);
+      setDeletingId(null); load();
+    } catch (e: any) { setErro(msgErro(e)); }
   };
 
   // Marcar como pago: abre popup de confirmacao de valor
@@ -232,19 +246,23 @@ export default function ContasAPagarPage() {
   };
   const confirmPagar = async () => {
     if (!payConta) return;
-    setPaying(true);
+    setErro(null); setPaying(true);
     try {
       await api.put(`/financeiro/contas-a-pagar/${payConta.id}`, {
         dataPagamento: payData || new Date().toISOString().slice(0, 10),
         valorPago: Number(payValor) || payConta.valorOriginal || 0,
       });
       setPayConta(null); load();
-    } finally { setPaying(false); }
+    } catch (e: any) { setErro(msgErro(e)); }
+    finally { setPaying(false); }
   };
   // Desmarcar (estornar) pagamento
   const estornar = async (r: Conta) => {
-    await api.put(`/financeiro/contas-a-pagar/${r.id}`, { dataPagamento: null, valorPago: null });
-    load();
+    setErro(null);
+    try {
+      await api.put(`/financeiro/contas-a-pagar/${r.id}`, { dataPagamento: null, valorPago: null });
+      load();
+    } catch (e: any) { setErro(msgErro(e)); }
   };
 
   const handleExport = async () => {
@@ -476,6 +494,15 @@ export default function ContasAPagarPage() {
           </div>
         </div>
       </div>
+
+      {/* Aviso de erro (fica acima dos modais) */}
+      {erro && (
+        <div style={{ position: "fixed", top: 16, left: "50%", transform: "translateX(-50%)", zIndex: 9999, maxWidth: 460, width: "calc(100% - 32px)", background: "#dc2626", color: "#fff", borderRadius: 10, padding: "12px 16px", display: "flex", alignItems: "center", gap: 12, boxShadow: "0 10px 30px -8px rgba(0,0,0,.4)" }}>
+          <AlertCircle size={18} style={{ flexShrink: 0 }} />
+          <span style={{ flex: 1, fontSize: 13.5, fontWeight: 600 }}>{erro}</span>
+          <button onClick={() => setErro(null)} style={{ background: "transparent", border: "none", color: "#fff", cursor: "pointer", padding: 2, display: "flex" }} aria-label="Fechar"><X size={16} /></button>
+        </div>
+      )}
 
       {/* Edit Modal */}
       {editConta !== null && (

@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "1.30.0";
+export const VERSAO = "1.30.1";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -35,6 +35,14 @@ export const VERSAO_NOME = "Módulo de Indicações (referral)";
  * esta lista quer saber o que mudou para ele.
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
+  {
+    versao: "1.30.1",
+    data: "2026-09-02",
+    titulo: "Contas a Pagar avisa quando dá erro",
+    itens: [
+      "Correção: em Contas a Pagar, quando salvar, excluir, pagar ou estornar falhava (por exemplo, por falta de permissão), a tela não fazia nada e não mostrava aviso nenhum. Agora aparece uma mensagem clara explicando o que houve",
+    ],
+  },
   {
     versao: "1.30.0",
     data: "2026-09-02",
