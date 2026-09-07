@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "1.30.2";
+export const VERSAO = "1.31.0";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -35,6 +35,14 @@ export const VERSAO_NOME = "Módulo de Indicações (referral)";
  * esta lista quer saber o que mudou para ele.
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
+  {
+    versao: "1.31.0",
+    data: "2026-09-03",
+    titulo: "Botão de reiniciar o bot do WhatsApp (Super Admin)",
+    itens: [
+      "No painel Super Admin, um novo botão \"Reiniciar o bot do WhatsApp\": reconecta as instâncias em segundos, sem perder a sessão (não pede QR). É o conserto do \"Waiting for this message\" quando o bot trava — sem precisar acessar o servidor. Visível só para o super administrador",
+    ],
+  },
   {
     versao: "1.30.2",
     data: "2026-09-03",

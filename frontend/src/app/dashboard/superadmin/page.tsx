@@ -820,6 +820,18 @@ export default function SuperAdminPage() {
   const [novaReqOpen, setNovaReqOpen] = useState(false);
   const [newOrgOpen, setNewOrgOpen] = useState(false);
   const [pendingCount, setPendingCount] = useState(0);
+  const [reiniciando, setReiniciando] = useState(false);
+  const [reiniciarMsg, setReiniciarMsg] = useState<string | null>(null);
+
+  const reiniciarBot = async () => {
+    if (!confirm("Reiniciar o bot do WhatsApp? As instâncias reconectam em alguns segundos, sem perder a sessão (não pede QR).")) return;
+    setReiniciando(true); setReiniciarMsg(null);
+    try {
+      const { data } = await api.post("/superadmin/whatsapp/restart");
+      setReiniciarMsg(data?.ok ? `✅ Reiniciado — ${data.total ?? 0} instância(s) reconectando.` : "❌ Não consegui reiniciar.");
+    } catch { setReiniciarMsg("❌ Falha ao reiniciar o bot."); }
+    finally { setReiniciando(false); setTimeout(() => setReiniciarMsg(null), 8000); }
+  };
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -862,10 +874,16 @@ export default function SuperAdminPage() {
       <Topbar>{topbarActions}</Topbar>
       <div className="flex-1 overflow-y-auto p-6">
         <div style={{ maxWidth: (activeTab === "dashboard" || activeTab === "indicacoes") ? 1120 : 800, margin: "0 auto", display: "flex", flexDirection: "column", gap: 16 }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
             <div>
               <div style={{ fontFamily: "var(--font-display)", fontSize: 20, fontWeight: 700, color: "var(--text-primary)" }}> {/* ds-ok: titulo */}Super Admin</div>
               <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2 }}>{orgs.length} organização{orgs.length !== 1 ? "s" : ""} cadastrada{orgs.length !== 1 ? "s" : ""}</div>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+              {reiniciarMsg && <span style={{ fontSize: 12, color: "var(--text-muted)" }}>{reiniciarMsg}</span>}
+              <button className="btn btn-ghost" style={{ fontSize: 12 }} onClick={reiniciarBot} disabled={reiniciando} title="Reconecta as instâncias do WhatsApp (conserta o 'Waiting for this message')">
+                {reiniciando ? <Spin /> : "🔄 Reiniciar o bot do WhatsApp"}
+              </button>
             </div>
           </div>
 

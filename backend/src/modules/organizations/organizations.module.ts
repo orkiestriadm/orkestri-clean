@@ -312,6 +312,17 @@ class SuperAdminOrgsController {
 @Controller("superadmin")
 @UseGuards(AuthGuard("jwt"))
 class SuperAdminController {
+  constructor(private wa: WhatsAppService) {}
+
+  // Reinicia o bot do WhatsApp (reconecta as instâncias do Evolution). Só super admin.
+  @Post("whatsapp/restart")
+  @HttpCode(200)
+  async restartWhatsapp(@Req() req: any) {
+    if (!req.user?.isSuperAdmin) throw new ForbiddenException("Apenas super administradores.");
+    const r: any = await this.wa.restartAllInstances();
+    return { ok: !r.error, ...r };
+  }
+
   @Post("exit-impersonation")
   @HttpCode(200)
   exitImpersonation(@Req() req: any, @Res({ passthrough: true }) res: Response) {

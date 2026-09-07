@@ -84,6 +84,37 @@ export class WhatsAppService {
     }
   }
 
+  /**
+   * Reinicia (reconecta) uma instância SEM logout — mantém a sessão (file store),
+   * não pede QR. É o conserto do "Waiting for this message"/sessão instável.
+   * Evolution v1.8.2: PUT /instance/restart/{instance}.
+   */
+  async restartInstance(instanceName: string) {
+    try {
+      const r = await fetch(`${this.apiUrl}/instance/restart/${instanceName}`, { method: "PUT", headers: this.headers });
+      this.logger.log(`restartInstance [${instanceName}] status=${r.status}`);
+      return { instance: instanceName, ok: r.ok, status: r.status };
+    } catch (e: any) {
+      this.logger.error(`restartInstance error [${instanceName}]: ${e.message}`);
+      return { instance: instanceName, ok: false, error: e.message };
+    }
+  }
+
+  /** Reinicia todas as instâncias do Evolution (o "reiniciar o bot" do super admin). */
+  async restartAllInstances() {
+    try {
+      const d = await this.callApi("GET", "/instance/fetchInstances");
+      const arr = Array.isArray(d) ? d : [d];
+      const nomes = arr.map((i: any) => i?.instance?.instanceName || i?.instanceName || i?.name).filter(Boolean);
+      const restarted: any[] = [];
+      for (const n of nomes) restarted.push(await this.restartInstance(n));
+      return { total: nomes.length, restarted };
+    } catch (e: any) {
+      this.logger.error(`restartAllInstances error: ${e.message}`);
+      return { error: e.message };
+    }
+  }
+
   async getQrCode(instanceName: string = this.defaultInstance) {
     for (let i = 0; i < 10; i++) {
       try {
