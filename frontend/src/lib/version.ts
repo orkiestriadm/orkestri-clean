@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "1.31.0";
+export const VERSAO = "1.31.1";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -35,6 +35,14 @@ export const VERSAO_NOME = "Módulo de Indicações (referral)";
  * esta lista quer saber o que mudou para ele.
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
+  {
+    versao: "1.31.1",
+    data: "2026-09-07",
+    titulo: "Botão de reiniciar o bot na Saúde da Plataforma",
+    itens: [
+      "O botão \"Reiniciar o bot do WhatsApp\" passou para a tela Saúde da Plataforma (Plataforma › Super Admin), ao lado de \"Atualizar\" — o lugar de manutenção da plataforma. Antes estava na tela de Organizações",
+    ],
+  },
   {
     versao: "1.31.0",
     data: "2026-09-03",

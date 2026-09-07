@@ -71,6 +71,19 @@ export default function PlataformaSaudePage() {
     } finally { setRunning(""); load(); }
   }
 
+  async function reiniciarBot() {
+    if (!confirm("Reiniciar o bot do WhatsApp? As instâncias reconectam em alguns segundos, sem perder a sessão (não pede QR).")) return;
+    setRunning("bot"); setMsg(null);
+    try {
+      const r = await api.post("/superadmin/whatsapp/restart");
+      setMsg(r.data?.ok
+        ? { tipo: "ok", texto: `Bot reiniciado — ${r.data.total ?? 0} instância(s) reconectando.` }
+        : { tipo: "erro", texto: "Não consegui reiniciar o bot." });
+    } catch (e: any) {
+      setMsg({ tipo: "erro", texto: e?.response?.data?.message || "Falha ao reiniciar o bot." });
+    } finally { setRunning(""); }
+  }
+
   async function ligarAgendador(tipo: "full" | "incremental") {
     setRunning(`toggle-${tipo}`); setMsg(null);
     try {
@@ -181,10 +194,16 @@ export default function PlataformaSaudePage() {
               </div>
               <h2 className="font-display text-[26px] font-bold text-[var(--text-primary)] tracking-tight">Saúde da Plataforma</h2>
             </div>
-            <button onClick={load} disabled={loading}
-              className="flex items-center gap-2 px-3.5 py-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-secondary)] text-[12px] font-medium text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-all disabled:opacity-50">
-              <RefreshCw size={13} className={loading ? "animate-spin" : ""} /> Atualizar
-            </button>
+            <div className="flex items-center gap-2">
+              <button onClick={reiniciarBot} disabled={!!running} title="Reconecta as instâncias do WhatsApp — conserta o 'Waiting for this message'"
+                className="flex items-center gap-2 px-3.5 py-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-secondary)] text-[12px] font-medium text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-all disabled:opacity-50">
+                <RefreshCw size={13} className={running === "bot" ? "animate-spin" : ""} /> {running === "bot" ? "Reiniciando…" : "Reiniciar o bot do WhatsApp"}
+              </button>
+              <button onClick={load} disabled={loading}
+                className="flex items-center gap-2 px-3.5 py-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-secondary)] text-[12px] font-medium text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-all disabled:opacity-50">
+                <RefreshCw size={13} className={loading ? "animate-spin" : ""} /> Atualizar
+              </button>
+            </div>
           </div>
 
           {msg && (
