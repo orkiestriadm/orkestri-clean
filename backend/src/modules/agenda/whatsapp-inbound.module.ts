@@ -62,7 +62,10 @@ const AJUDA_VINCULAR =
 // A assistente do WhatsApp tem nome: "Aurélia". O /ajuda abre um menuzinho
 // ("Financeiro: 1, Agenda: 2, encerrar: 0") e, conforme a escolha, ela manda o
 // passo a passo SÓ daquele módulo. Mostra apenas o que a pessoa pode usar.
-const RODAPE_AJUDA = "\n\n❓ Quer o menu de novo? É só mandar *ajuda*. 😉";
+// Rodapé quando a pessoa chegou pelo MENU (tem os dois módulos): oferece voltar.
+const RODAPE_MENU = "\n\n🔙 Para voltar ao menu principal, responda *9*.\n0️⃣ Para encerrar nossa conversa, responda *0*.";
+// Rodapé simples (quem tem só um módulo — não há menu para voltar).
+const RODAPE_SIMPLES = "\n\n❓ Quer ver de novo? É só mandar *ajuda*. 😉";
 
 // Saudação da Aurélia + menu de módulos.
 function montarMenuAjuda(temAgenda: boolean, temGastos: boolean, nome: string): string {
@@ -127,7 +130,7 @@ function montarBoasVindas(temAgenda: boolean, temGastos: boolean, nome: string):
   if (!partes.length) {
     partes.push("Peça ao administrador para liberar a *Agenda* ou o *Financeiro* para você aproveitar tudo por aqui. 😉");
   }
-  m += partes.join("\n\n────────\n\n") + RODAPE_AJUDA +
+  m += partes.join("\n\n────────\n\n") + RODAPE_SIMPLES +
     "\n\n🎁 Veio por indicação de alguém? Envie o código dele assim: *INDICACAO ORK-XXXXXX*";
   return m;
 }
@@ -638,8 +641,8 @@ export class WhatsappInboundService {
     const saud = (nm ? `😊 *Oi, ${nm}!* ` : "😊 ") +
       "Eu sou a *Aurélia*, sua ajudante do Orkiestri aqui no WhatsApp.\n\n";
     let corpo: string;
-    if (ga) corpo = ajudaFinanceiro(ag) + RODAPE_AJUDA;
-    else if (ag) corpo = ajudaAgenda() + RODAPE_AJUDA;
+    if (ga) corpo = ajudaFinanceiro(ag) + RODAPE_SIMPLES;
+    else if (ag) corpo = ajudaAgenda() + RODAPE_SIMPLES;
     else corpo = "Peça ao administrador para liberar a *Agenda* ou o *Financeiro* para você aproveitar tudo por aqui. 😉";
     await this.responder(remoteJid, user.telefone, user.organizationId, inst, saud + corpo);
   }
@@ -661,16 +664,23 @@ export class WhatsappInboundService {
         "👋 Combinado! Encerrei nossa conversa. Quando precisar, é só mandar *ajuda*. 😊");
       return;
     }
-    if (opcao === "1" && ga) {
-      this.fecharMenu(remoteJid);
+    if (opcao === "9") {
+      // Voltar ao menu principal — mantém o menu aberto.
+      this.abrirMenu(remoteJid);
       await this.responder(remoteJid, user.telefone, user.organizationId, inst,
-        ajudaFinanceiro(ag) + RODAPE_AJUDA);
+        montarMenuAjuda(ag, ga, user.nome));
+      return;
+    }
+    if (opcao === "1" && ga) {
+      this.abrirMenu(remoteJid); // menu segue aberto para o "9" (voltar)
+      await this.responder(remoteJid, user.telefone, user.organizationId, inst,
+        ajudaFinanceiro(ag) + RODAPE_MENU);
       return;
     }
     if (opcao === "2" && ag) {
-      this.fecharMenu(remoteJid);
+      this.abrirMenu(remoteJid); // menu segue aberto para o "9" (voltar)
       await this.responder(remoteJid, user.telefone, user.organizationId, inst,
-        ajudaAgenda() + RODAPE_AJUDA);
+        ajudaAgenda() + RODAPE_MENU);
       return;
     }
     // Número que ela não pode usar / inválido — mantém o menu aberto e reexplica.
@@ -915,12 +925,17 @@ export class WhatsappInboundService {
     this.logger.log(`inbound jid=${remoteJid} fromMe=${key?.fromMe} texto="${texto.slice(0, 50)}"`);
     if (!texto) return;
 
-    // ── Ajuda? "/ajuda", "ajuda", "menu" — a Aurélia abre o menu de módulos ──
-    if (/^\/?(ajuda|help|menu)\s*[?!.]*$/i.test(texto)) { await this.enviarAjuda(remoteJid, inst); return; }
+    // ── Ajuda? "ajuda"/"menu"/"voltar (ao menu)" — a Aurélia abre o menu de módulos.
+    //    "voltar"/"menu" funcionam mesmo depois do estado expirar. ──
+    if (/^\/?(ajuda|help|menu(?: principal)?|voltar(?: ao menu(?: principal)?)?)\s*[?!.]*$/i.test(texto)) {
+      await this.enviarAjuda(remoteJid, inst);
+      return;
+    }
 
-    // ── Resposta ao menu da Aurélia (1/2/0)? Só interpretamos como escolha quando
-    //    o menu está aberto para esta conversa — senão um "1" solto seria roubado. ──
-    if (this.noMenu(remoteJid) && /^\/?[012]\s*[?!.]*$/.test(texto)) {
+    // ── Resposta ao menu da Aurélia (1/2/9/0)? Só interpretamos como escolha quando
+    //    o menu está aberto para esta conversa — senão um "1" solto seria roubado.
+    //    9 = voltar ao menu principal; 0 = encerrar. ──
+    if (this.noMenu(remoteJid) && /^\/?[0129]\s*[?!.]*$/.test(texto)) {
       await this.responderMenu(remoteJid, texto.replace(/\D/g, ""), inst);
       return;
     }

@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "1.32.0";
+export const VERSAO = "1.32.1";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -35,6 +35,14 @@ export const VERSAO_NOME = "Módulo de Indicações (referral)";
  * esta lista quer saber o que mudou para ele.
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
+  {
+    versao: "1.32.1",
+    data: "2026-09-08",
+    titulo: "Aurélia: voltar ao menu principal",
+    itens: [
+      "Depois de escolher um módulo, você pode responder *9* para voltar ao menu principal (ou mandar *menu* / *voltar* a qualquer momento). O *0* continua encerrando a conversa",
+    ],
+  },
   {
     versao: "1.32.0",
     data: "2026-09-08",
