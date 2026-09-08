@@ -1018,20 +1018,35 @@ export class WhatsappInboundService {
       return;
     }
 
-    // ── Nada casou explicitamente. Última chance: quem SÓ tem Gastos (e não a
-    //    agenda) pode mandar o gasto SEM a palavra "Gasto:" — ex.: "Mercado 150
-    //    crédito". Só tentamos se houver número no texto, para não bater no banco
-    //    a cada "bom dia". ──
+    // ── Nada casou explicitamente. Última chance: gasto SEM a palavra "Gasto:"
+    //    (ex.: "Mercado 150 crédito"). Só tentamos se houver número no texto, para
+    //    não bater no banco a cada "bom dia". ──
     if (!/\d/.test(texto)) return;
     const dono = await this.identificar(remoteJid);
     if (!dono) return;
     const perms = await this.auth.resolvePermissions(dono.id).catch(() => [] as string[]);
-    if (podeGastos(perms) && !podeAgenda(perms)) {
-      const gastoCru = parseComandoGasto(texto, new Date(), false);
-      if (gastoCru && gastoCru !== "sem_valor") {
-        await this.criarGasto(dono, gastoCru, texto, remoteJid, inst);
-      }
+    if (!podeGastos(perms)) return; // sem Financeiro, não há o que fazer aqui
+
+    const gastoCru = parseComandoGasto(texto, new Date(), false);
+    const ehGasto = gastoCru && gastoCru !== "sem_valor";
+
+    if (!podeAgenda(perms)) {
+      // Só-Gastos: atalho total — qualquer texto com valor vira gasto.
+      if (ehGasto) await this.criarGasto(dono, gastoCru as ParsedGasto, texto, remoteJid, inst);
+      return;
     }
+
+    // Tem os DOIS módulos: como o evento SEMPRE exige a palavra "Evento", um texto
+    // sem palavra-chave só pode ser gasto ou conversa fiada. Anotamos direto quando
+    // há sinal claro de gasto (forma de pagamento reconhecida: pix, cartão, crédito,
+    // débito, dinheiro, boleto). Se for ambíguo (número solto), respondemos uma dica
+    // em vez de ficar mudo.
+    if (ehGasto && (gastoCru as ParsedGasto).formaPagamento !== "NAO_INFORMADO") {
+      await this.criarGasto(dono, gastoCru as ParsedGasto, texto, remoteJid, inst);
+      return;
+    }
+    await this.responder(remoteJid, dono.telefone, dono.organizationId, inst,
+      "🤖 Não entendi. 💸 Para anotar um gasto: *Gasto: Cartão Nubank 400 pix*.\n🗓️ Para um compromisso: *Evento: Médico amanhã 14h*.\nOu mande *ajuda*.");
   }
 }
 

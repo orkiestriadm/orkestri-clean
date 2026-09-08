@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "1.32.1";
+export const VERSAO = "1.32.2";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -35,6 +35,15 @@ export const VERSAO_NOME = "Módulo de Indicações (referral)";
  * esta lista quer saber o que mudou para ele.
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
+  {
+    versao: "1.32.2",
+    data: "2026-09-08",
+    titulo: "Gasto pelo WhatsApp sem precisar do \"Gasto:\"",
+    itens: [
+      "Quem tem Financeiro e Agenda podia mandar um gasto e o bot não respondia nada. Agora, se a mensagem tem forma de pagamento clara (pix, cartão, crédito, débito, dinheiro), o gasto é anotado direto mesmo sem a palavra *Gasto:* — ex.: *Cartão Nubank 400 pix*",
+      "Se a mensagem for ambígua, a Aurélia responde uma dica em vez de ficar em silêncio",
+    ],
+  },
   {
     versao: "1.32.1",
     data: "2026-09-08",
