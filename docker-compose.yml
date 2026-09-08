@@ -39,7 +39,8 @@ volumes:
   # servido direto pelo nginx, e em camada de container o anexo some a cada
   # deploy.
   frota_docs_data:
-  evolution_data:
+  evolution_data:      # legado v1.8.2 (mantido para rollback)
+  evolution_v2_data:   # Evolution API v2 (em uso)
 
 services:
 
@@ -127,7 +128,7 @@ services:
       MASTER_PASSWORD: ${MASTER_PASSWORD:?MASTER_PASSWORD obrigatorio}
       MASTER_NOME: ${MASTER_NOME:-Administrator}
       TENANT_NOME: ${TENANT_NOME:-Orkestri}
-      EVOLUTION_API_URL: http://orkestri_evolution:8080
+      EVOLUTION_API_URL: http://orkestri_evolution_v2:8080
       EVOLUTION_API_KEY: ${EVOLUTION_API_KEY}
       APP_URL: ${APP_URL:-http://localhost}
       RESEND_API_KEY: ${RESEND_API_KEY}
@@ -225,31 +226,52 @@ services:
     networks:
       - orkestri_net
 
-  evolution:
-    image: atendai/evolution-api:v1.8.2
-    container_name: orkestri_evolution
+  # Evolution API v2 — substituiu o v1.8.2 em 08/09/2026. O v1.8.2 não sabia
+  # enviar para o novo endereçamento LID do WhatsApp e a sessão do telefone
+  # degradava em horas ("Waiting for this message"). A v2 usa Baileys novo +
+  # Postgres (banco dedicado `evolution`) + Redis, e entrega descriptografado.
+  # Detalhes/rollback em memory project_whatsapp_agenda_indicacoes.
+  evolution_v2:
+    image: evoapicloud/evolution-api:v2.3.7
+    container_name: orkestri_evolution_v2
     restart: unless-stopped
-    # Evolution geralmente usa ~50-200MB. 768MB é folga sem desperdício.
-    mem_limit: 768m
-    memswap_limit: 768m
+    mem_limit: 1024m
+    memswap_limit: 1024m
     logging:
       driver: "json-file"
       options:
         max-size: "5m"
         max-file: "3"
     volumes:
-      - evolution_data:/evolution/instances
+      - evolution_v2_data:/evolution/instances
     environment:
-      SERVER_URL: http://orkestri_evolution:8080
+      SERVER_URL: http://orkestri_evolution_v2:8080
       AUTHENTICATION_TYPE: apikey
-      AUTHENTICATION_API_KEY: orkestri_evolution_key
+      AUTHENTICATION_API_KEY: ${EVOLUTION_API_KEY}
       AUTHENTICATION_EXPOSE_IN_FETCH_INSTANCES: "true"
-      DATABASE_ENABLED: "false"
-      REDIS_ENABLED: "false"
+      DATABASE_ENABLED: "true"
+      DATABASE_PROVIDER: postgresql
+      DATABASE_CONNECTION_URI: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/evolution?schema=public
+      DATABASE_CONNECTION_CLIENT_NAME: orkestri_evo
+      DATABASE_SAVE_DATA_INSTANCE: "true"
+      DATABASE_SAVE_DATA_NEW_MESSAGE: "false"
+      DATABASE_SAVE_MESSAGE_UPDATE: "false"
+      DATABASE_SAVE_DATA_CONTACTS: "true"
+      DATABASE_SAVE_DATA_CHATS: "false"
+      CACHE_REDIS_ENABLED: "true"
+      CACHE_REDIS_URI: redis://:${REDIS_PASSWORD}@redis:6379/6
+      CACHE_REDIS_PREFIX_KEY: evo2
+      CACHE_REDIS_SAVE_INSTANCES: "false"
+      CACHE_LOCAL_ENABLED: "false"
       WEBHOOK_GLOBAL_ENABLED: "false"
       DEL_INSTANCE: "false"
       LANGUAGE: pt-BR
       QRCODE_LIMIT: "30"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     networks:
       - orkestri_net
 
