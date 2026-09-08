@@ -74,7 +74,9 @@ export class WhatsAppService {
    */
   async setInboundWebhook(url: string, instanceName: string = this.defaultInstance) {
     try {
-      const body = { webhook: { url, enabled: true, webhook_by_events: false, webhook_base64: false, events: ["MESSAGES_UPSERT"] } };
+      // Evolution v2: webhook aninhado com flags em camelCase (webhookByEvents/
+      // webhookBase64). enabled/url/events mantêm o mesmo nome.
+      const body = { webhook: { url, enabled: true, webhookByEvents: false, webhookBase64: false, events: ["MESSAGES_UPSERT"] } };
       const data = await this.callApi("POST", `/webhook/set/${instanceName}`, body);
       this.logger.log(`setInboundWebhook [${instanceName}] -> ${JSON.stringify(data).slice(0, 200)}`);
       return data;
@@ -169,7 +171,7 @@ export class WhatsAppService {
       const res = await fetch(`${this.apiUrl}/message/sendText/${instanceName}`, {
         method: "POST",
         headers: this.headers,
-        body: JSON.stringify({ number, options: { delay: 1200, presence: "composing" }, textMessage: { text: message } }),
+        body: JSON.stringify({ number, text: message, delay: 1200 }),
       });
       const raw = await res.text();
       this.logger.log(`WA send [${instanceName}][${res.status}]: ${raw.slice(0, 300)}`);
@@ -205,7 +207,7 @@ export class WhatsAppService {
       const res = await fetch(`${this.apiUrl}/message/sendText/${instanceName}`, {
         method: "POST",
         headers: this.headers,
-        body: JSON.stringify({ number: jid, options: { delay: 1200, presence: "composing" }, textMessage: { text: message } }),
+        body: JSON.stringify({ number: jid, text: message, delay: 1200 }),
       });
       const raw = await res.text();
       this.logger.log(`WA sendToJid [${instanceName}][${res.status}] -> ${jid}: ${raw.slice(0, 160)}`);
