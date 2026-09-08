@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "1.31.1";
+export const VERSAO = "1.32.0";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -23,7 +23,7 @@ export const VERSAO = "1.31.1";
  * Não é gerada no build: `new Date()` no bundle muda a cada compilação, e duas
  * builds do mesmo código pareceriam versões diferentes.
  */
-export const VERSAO_DATA = "2026-08-25";
+export const VERSAO_DATA = "2026-09-08";
 
 /** Nome da entrega, para dar contexto ao número. */
 export const VERSAO_NOME = "Módulo de Indicações (referral)";
@@ -35,6 +35,15 @@ export const VERSAO_NOME = "Módulo de Indicações (referral)";
  * esta lista quer saber o que mudou para ele.
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
+  {
+    versao: "1.32.0",
+    data: "2026-09-08",
+    titulo: "Aurélia: a ajudante do WhatsApp agora tem menu",
+    itens: [
+      "O comando *ajuda* virou um menuzinho: a assistente se apresenta como *Aurélia* e pergunta com qual módulo você quer ajuda — responda *1* para Financeiro, *2* para Agenda ou *0* para encerrar. Ela mostra só as opções que você tem acesso e manda o passo a passo daquele módulo",
+      "Quem tem só um módulo recebe o tutorial direto, sem menu",
+    ],
+  },
   {
     versao: "1.31.1",
     data: "2026-09-07",

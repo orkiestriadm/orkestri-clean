@@ -59,54 +59,77 @@ const AJUDA_VINCULAR =
   "     (por exemplo: *VINCULAR ABC123*)\n\n" +
   "Assim que fizer isso, eu te ensino todo o resto. 😉";
 
-// Monta o passo a passo mostrando SÓ o que a pessoa pode fazer (pelas permissões
-// dela). Assim quem entrou para testar só o Financeiro não vê instruções de
-// agenda, e vice-versa.
-function montarAjuda(temAgenda: boolean, temGastos: boolean, nome: string): string {
+// A assistente do WhatsApp tem nome: "Aurélia". O /ajuda abre um menuzinho
+// ("Financeiro: 1, Agenda: 2, encerrar: 0") e, conforme a escolha, ela manda o
+// passo a passo SÓ daquele módulo. Mostra apenas o que a pessoa pode usar.
+const RODAPE_AJUDA = "\n\n❓ Quer o menu de novo? É só mandar *ajuda*. 😉";
+
+// Saudação da Aurélia + menu de módulos.
+function montarMenuAjuda(temAgenda: boolean, temGastos: boolean, nome: string): string {
   const nm = primeiroNome(nome);
   let m =
     (nm ? `😊 *Oi, ${nm}!*` : "😊 *Oi!*") +
-    " Eu sou o ajudante do Orkiestri aqui no WhatsApp.\n" +
-    "É só me mandar uma mensagem. Veja como, bem devagar:\n\n";
-  if (temAgenda) {
-    m +=
-      "🗓️ *PARA MARCAR UM COMPROMISSO*\n" +
-      "Escreva a palavra *Evento* e depois diga o quê, o dia e a hora.\n" +
-      "Copie a linha abaixo e me mande:\n" +
-      "👉 *Evento: Médico amanhã 14h*\n\n" +
-      "Pronto! Eu marco na sua agenda e te aviso aqui. ✅\n\n";
-  }
-  if (temGastos) {
-    m +=
-      "💸 *PARA ANOTAR UM GASTO*\n" +
-      "Diga o que você gastou e quanto — e, se quiser, como pagou.\n" +
-      "Copie a linha abaixo e me mande:\n" +
-      "👉 *Gasto: Mercado 150 no crédito*\n\n" +
-      "Comprou parcelado? *Gasto: TV 2400 crédito 12x*\n" +
-      "Errou? Mande *apagar* (tira o último) ou *corrige o último pra 150*. ✅\n\n" +
-      "📊 *PARA VER QUANTO GASTOU*\n" +
-      "Mande: *Relatório: quanto gastei esse mês*\n" +
-      "(dá para pedir por *crédito*, *débito* ou *no total*)\n\n";
-    if (!temAgenda) {
-      m += "✨ *Mais fácil ainda:* pode mandar só *Mercado 150 crédito* que eu já entendo.\n\n";
-    }
-  }
-  if (!temAgenda && !temGastos) {
-    m += "Peça ao administrador para liberar a *Agenda* ou o *Financeiro* para você aproveitar tudo por aqui. 😉\n\n";
+    " Eu sou a *Aurélia*, sua ajudante do Orkiestri aqui no WhatsApp.\n" +
+    "Com qual módulo você quer a minha ajuda? É só responder o número:\n\n";
+  if (temGastos) m += "💸 Para *Financeiro*: responda *1*\n";
+  if (temAgenda) m += "🗓️ Para *Agenda*: responda *2*\n";
+  m += "👋 Para encerrar nossa conversa: responda *0*";
+  return m;
+}
+
+// Passo a passo do FINANCEIRO (anotar gastos).
+function ajudaFinanceiro(temAgenda: boolean): string {
+  let m =
+    "💸 *FINANCEIRO — ANOTAR UM GASTO*\n" +
+    "Diga o que você gastou e quanto — e, se quiser, como pagou.\n" +
+    "Copie a linha abaixo e me mande:\n" +
+    "👉 *Gasto: Mercado 150 no crédito*\n\n" +
+    "Comprou parcelado? *Gasto: TV 2400 crédito 12x*\n" +
+    "Errou? Mande *apagar* (tira o último) ou *corrige o último pra 150*. ✅\n\n" +
+    "📊 *PARA VER QUANTO GASTOU*\n" +
+    "Mande: *Relatório: quanto gastei esse mês*\n" +
+    "(dá para pedir por *crédito*, *débito* ou *no total*)\n\n";
+  if (!temAgenda) {
+    m += "✨ *Mais fácil ainda:* pode mandar só *Mercado 150 crédito* que eu já entendo.\n\n";
   }
   m +=
     "📌 *DICAS FÁCEIS*\n" +
     "• Pode escrever *hoje*, *ontem* ou *amanhã*.\n" +
-    "• O dia pode ser *10/09*.\n\n" +
-    "❓ Quer ver este passo a passo de novo? É só mandar *ajuda*. 😉";
+    "• O dia pode ser *10/09*.";
   return m;
 }
 
-// Boas-vindas logo após vincular: o mesmo passo a passo, com uma saudação de
-// "tudo pronto" e a dica de indicação.
+// Passo a passo da AGENDA (marcar compromissos).
+function ajudaAgenda(): string {
+  return (
+    "🗓️ *AGENDA — MARCAR UM COMPROMISSO*\n" +
+    "Escreva a palavra *Evento* e depois diga o quê, o dia e a hora.\n" +
+    "Copie a linha abaixo e me mande:\n" +
+    "👉 *Evento: Médico amanhã 14h*\n\n" +
+    "Quer que se repita? *Evento: Reunião toda semana 9h*\n" +
+    "Assim que eu marcar, te confirmo aqui na hora. ✅\n\n" +
+    "📌 *DICAS FÁCEIS*\n" +
+    "• Pode escrever *hoje*, *ontem* ou *amanhã*.\n" +
+    "• O dia pode ser *10/09*; a hora, *9h* ou *14:30*."
+  );
+}
+
+// Boas-vindas logo após vincular: a Aurélia se apresenta e já mostra o passo a
+// passo de tudo que a pessoa pode fazer (sem menu — é o primeiro contato).
 function montarBoasVindas(temAgenda: boolean, temGastos: boolean, nome: string): string {
-  return "🎉 *Tudo pronto!*\n\n" + montarAjuda(temAgenda, temGastos, nome) +
+  const nm = primeiroNome(nome);
+  let m = "🎉 *Tudo pronto!*\n\n" +
+    (nm ? `😊 *Oi, ${nm}!* ` : "😊 ") +
+    "Eu sou a *Aurélia*, sua ajudante do Orkiestri aqui no WhatsApp.\n\n";
+  const partes: string[] = [];
+  if (temAgenda) partes.push(ajudaAgenda());
+  if (temGastos) partes.push(ajudaFinanceiro(temAgenda));
+  if (!partes.length) {
+    partes.push("Peça ao administrador para liberar a *Agenda* ou o *Financeiro* para você aproveitar tudo por aqui. 😉");
+  }
+  m += partes.join("\n\n────────\n\n") + RODAPE_AJUDA +
     "\n\n🎁 Veio por indicação de alguém? Envie o código dele assim: *INDICACAO ORK-XXXXXX*";
+  return m;
 }
 
 // Permissões → o que a pessoa pode fazer pelo WhatsApp. Agenda é base (quase todo
@@ -492,6 +515,20 @@ function telefoneBate(jid: string, cadastrado: string | null): boolean {
 export class WhatsappInboundService {
   private readonly logger = new Logger("WhatsappInbound");
 
+  // Estado leve do menu da Aurélia: lembra que a pessoa mandou "ajuda" e está
+  // escolhendo o módulo (1/2/0). Em memória, com validade curta — se o processo
+  // reiniciar, é só mandar "ajuda" de novo. Chave = remoteJid.
+  private readonly menuAte = new Map<string, number>();
+  private static readonly MENU_TTL_MS = 10 * 60 * 1000;
+  private abrirMenu(jid: string) { this.menuAte.set(jid, Date.now() + WhatsappInboundService.MENU_TTL_MS); }
+  private noMenu(jid: string): boolean {
+    const t = this.menuAte.get(jid);
+    if (!t) return false;
+    if (t < Date.now()) { this.menuAte.delete(jid); return false; }
+    return true;
+  }
+  private fecharMenu(jid: string) { this.menuAte.delete(jid); }
+
   constructor(private prisma: PrismaService, private wa: WhatsAppService, private auth: AuthService) {}
 
   private fmtData(d: Date): string {
@@ -574,19 +611,71 @@ export class WhatsappInboundService {
     await this.wa.sendToJid(remoteJid, montarMensagemAtivacao(nome, codigoIndicacao(user.id)), inst).catch(() => {});
   }
 
-  // "/ajuda" (ou "ajuda"/"menu") — manda o passo a passo de uso pelo WhatsApp.
-  // Funciona mesmo sem vínculo (é justamente quem mais precisa de ajuda). Quem
-  // não está vinculado recebe o passo a passo para se conectar; quem está,
-  // recebe o tutorial — com a parte de Financeiro só se tiver acesso.
+  // "/ajuda" (ou "ajuda"/"menu") — a Aurélia se apresenta. Se a pessoa tem os
+  // DOIS módulos, mostra o menu (Financeiro: 1, Agenda: 2, encerrar: 0) e passa a
+  // aguardar a escolha. Com um módulo só, manda direto o passo a passo dele.
+  // Funciona mesmo sem vínculo (é justamente quem mais precisa de ajuda).
   private async enviarAjuda(remoteJid: string, inst: string) {
     const user = await this.identificar(remoteJid);
     if (!user) {
+      this.fecharMenu(remoteJid);
       await this.wa.sendToJid(remoteJid, AJUDA_VINCULAR, inst).catch(() => {});
       return;
     }
     const perms = await this.auth.resolvePermissions(user.id).catch(() => [] as string[]);
+    const ag = podeAgenda(perms), ga = podeGastos(perms);
+
+    if (ag && ga) {
+      this.abrirMenu(remoteJid); // aguarda 1/2/0
+      await this.responder(remoteJid, user.telefone, user.organizationId, inst,
+        montarMenuAjuda(ag, ga, user.nome));
+      return;
+    }
+
+    // Um módulo só (ou nenhum): sem menu — a Aurélia já entrega o tutorial.
+    this.fecharMenu(remoteJid);
+    const nm = primeiroNome(user.nome);
+    const saud = (nm ? `😊 *Oi, ${nm}!* ` : "😊 ") +
+      "Eu sou a *Aurélia*, sua ajudante do Orkiestri aqui no WhatsApp.\n\n";
+    let corpo: string;
+    if (ga) corpo = ajudaFinanceiro(ag) + RODAPE_AJUDA;
+    else if (ag) corpo = ajudaAgenda() + RODAPE_AJUDA;
+    else corpo = "Peça ao administrador para liberar a *Agenda* ou o *Financeiro* para você aproveitar tudo por aqui. 😉";
+    await this.responder(remoteJid, user.telefone, user.organizationId, inst, saud + corpo);
+  }
+
+  // Resposta ao menu da Aurélia: 1 = Financeiro, 2 = Agenda, 0 = encerrar.
+  private async responderMenu(remoteJid: string, opcao: string, inst: string) {
+    const user = await this.identificar(remoteJid);
+    if (!user) {
+      this.fecharMenu(remoteJid);
+      await this.wa.sendToJid(remoteJid, NAO_VINCULADO, inst).catch(() => {});
+      return;
+    }
+    const perms = await this.auth.resolvePermissions(user.id).catch(() => [] as string[]);
+    const ag = podeAgenda(perms), ga = podeGastos(perms);
+
+    if (opcao === "0") {
+      this.fecharMenu(remoteJid);
+      await this.responder(remoteJid, user.telefone, user.organizationId, inst,
+        "👋 Combinado! Encerrei nossa conversa. Quando precisar, é só mandar *ajuda*. 😊");
+      return;
+    }
+    if (opcao === "1" && ga) {
+      this.fecharMenu(remoteJid);
+      await this.responder(remoteJid, user.telefone, user.organizationId, inst,
+        ajudaFinanceiro(ag) + RODAPE_AJUDA);
+      return;
+    }
+    if (opcao === "2" && ag) {
+      this.fecharMenu(remoteJid);
+      await this.responder(remoteJid, user.telefone, user.organizationId, inst,
+        ajudaAgenda() + RODAPE_AJUDA);
+      return;
+    }
+    // Número que ela não pode usar / inválido — mantém o menu aberto e reexplica.
     await this.responder(remoteJid, user.telefone, user.organizationId, inst,
-      montarAjuda(podeAgenda(perms), podeGastos(perms), user.nome));
+      "🤖 Não entendi. Responda *1* para Financeiro, *2* para Agenda ou *0* para encerrar.");
   }
 
   // Valor em R$ formatado (1250.5 → "1.250,50").
@@ -826,8 +915,15 @@ export class WhatsappInboundService {
     this.logger.log(`inbound jid=${remoteJid} fromMe=${key?.fromMe} texto="${texto.slice(0, 50)}"`);
     if (!texto) return;
 
-    // ── Ajuda? "/ajuda", "ajuda", "menu" — passo a passo de uso pelo WhatsApp ──
+    // ── Ajuda? "/ajuda", "ajuda", "menu" — a Aurélia abre o menu de módulos ──
     if (/^\/?(ajuda|help|menu)\s*[?!.]*$/i.test(texto)) { await this.enviarAjuda(remoteJid, inst); return; }
+
+    // ── Resposta ao menu da Aurélia (1/2/0)? Só interpretamos como escolha quando
+    //    o menu está aberto para esta conversa — senão um "1" solto seria roubado. ──
+    if (this.noMenu(remoteJid) && /^\/?[012]\s*[?!.]*$/.test(texto)) {
+      await this.responderMenu(remoteJid, texto.replace(/\D/g, ""), inst);
+      return;
+    }
 
     // ── Ligar/desligar o resumo semanal de gastos ──
     const mResumo = texto.match(/^\/?(parar|desligar|cancelar|voltar|ligar|ativar)\s+(?:o\s+)?resumo\b/i);
