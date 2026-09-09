@@ -218,6 +218,31 @@ export class WhatsAppService {
     }
   }
 
+  /**
+   * Envia um DOCUMENTO (ex.: PDF) lido do disco, como anexo. Evolution v2:
+   * POST /message/sendMedia com {number, mediatype:"document", media:<base64>}.
+   * `to` pode ser telefone (formatado com 55) ou um jid cru. Best-effort.
+   */
+  async sendDocumentFile(to: string, filePath: string, fileName: string, caption: string, instanceName: string = this.defaultInstance): Promise<boolean> {
+    try {
+      const digits = (to || "").replace(/\D/g, "");
+      // Telefone → garante o 55; se não parecer telefone (ex.: veio um @lid), manda cru.
+      const number = digits.length >= 8 ? (digits.startsWith("55") ? digits : "55" + digits) : to;
+      const media = require("fs").readFileSync(filePath).toString("base64");
+      const res = await fetch(`${this.apiUrl}/message/sendMedia/${instanceName}`, {
+        method: "POST",
+        headers: this.headers,
+        body: JSON.stringify({ number, mediatype: "document", mimetype: "application/pdf", media, fileName, caption }),
+      });
+      const raw = await res.text();
+      this.logger.log(`WA sendDocument [${instanceName}][${res.status}] ${fileName} -> ${number}: ${raw.slice(0, 120)}`);
+      return res.ok;
+    } catch (e: any) {
+      this.logger.error("sendDocumentFile error: " + e.message);
+      return false;
+    }
+  }
+
   async resolveInstance(orgId?: string): Promise<string> {
     if (this.prisma && orgId) {
       try {

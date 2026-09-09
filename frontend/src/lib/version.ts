@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "1.32.3";
+export const VERSAO = "1.32.4";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -35,6 +35,14 @@ export const VERSAO_NOME = "Módulo de Indicações (referral)";
  * esta lista quer saber o que mudou para ele.
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
+  {
+    versao: "1.32.4",
+    data: "2026-09-09",
+    titulo: "Guia em PDF na boas-vindas do WhatsApp",
+    itens: [
+      "Quem vincula o WhatsApp agora recebe, junto do \"Tudo pronto!\", um guia rápido em PDF com o passo a passo (com as telas do sistema e do WhatsApp) para usar o Financeiro e a Agenda",
+    ],
+  },
   {
     versao: "1.32.3",
     data: "2026-09-08",

@@ -36,6 +36,9 @@ COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/prisma ./prisma
 COPY package*.json ./
+# Assets estáticos usados em runtime (ex.: o guia em PDF enviado no WhatsApp após
+# vincular). Não passam pelo `nest build`, então vêm direto do contexto de build.
+COPY assets ./assets
 # Os pontos de montagem precisam existir e pertencer ao usuário `app` ANTES do
 # volume ser montado: o Docker herda dono/permissão do diretório da imagem ao
 # inicializar um volume vazio. Sem isso o volume nasce como root e o processo,

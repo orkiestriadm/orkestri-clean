@@ -67,6 +67,12 @@ const RODAPE_MENU = "\n\n🔙 Para voltar ao menu principal, responda *9*.\n0️
 // Rodapé simples (quem tem só um módulo — não há menu para voltar).
 const RODAPE_SIMPLES = "\n\n❓ Quer ver de novo? É só mandar *ajuda*. 😉";
 
+// Guia em PDF enviado logo após vincular. O arquivo é empacotado na imagem
+// (COPY assets no Dockerfile); em produção o WORKDIR é /app → /app/assets/…
+const GUIA_PDF_PATH = require("path").join(process.cwd(), "assets", "guia-whatsapp.pdf");
+const GUIA_PDF_NOME = "Guia-Orkiestri-WhatsApp.pdf";
+const GUIA_PDF_LEGENDA = "📖 Preparei um guia rápido pra você começar — é só seguir o passo a passo. Qualquer dúvida, mande *ajuda*. 🧡";
+
 // Saudação da Aurélia + menu de módulos.
 function montarMenuAjuda(temAgenda: boolean, temGastos: boolean, nome: string): string {
   const nm = primeiroNome(nome);
@@ -593,6 +599,9 @@ export class WhatsappInboundService {
     const perms = await this.auth.resolvePermissions(alvo.id).catch(() => [] as string[]);
     await this.responder(remoteJid, tel, alvo.organizationId, inst,
       montarBoasVindas(podeAgenda(perms), podeGastos(perms), alvo.nome));
+    // 3º envio: o guia em PDF. Best-effort — se falhar, não atrapalha o vínculo.
+    // Vai para o telefone quando houver; senão tenta o jid cru (pode falhar no LID).
+    await this.wa.sendDocumentFile(tel || remoteJid, GUIA_PDF_PATH, GUIA_PDF_NOME, GUIA_PDF_LEGENDA, inst).catch(() => {});
   }
 
   // "INDICACAO <código>" — o próprio usuário (já vinculado) diz que veio pela
