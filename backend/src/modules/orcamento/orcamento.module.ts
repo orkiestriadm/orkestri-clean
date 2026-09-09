@@ -451,15 +451,24 @@ class OrcamentoController {
     const esc = (s: string) => (s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
     const nome = esc(req.user?.nome || req.user?.name || "");
     const assunto = (dto.assunto || "Orçamento — Resumo Executivo").slice(0, 200);
+    const filename = dto.filename || "orcamento.pdf";
+    const saudacao = nome
+      ? `<strong>${nome}</strong> compartilhou o resumo do orçamento com você.`
+      : `Você recebeu o resumo do orçamento.`;
     const corpo =
-      `<p>${nome ? `<strong>${nome}</strong> ` : ""}compartilhou o resumo do orçamento com você.</p>` +
+      `<p>${saudacao}</p>` +
+      `<p>O relatório executivo está anexado a este e-mail, em PDF.</p>` +
       (dto.mensagem ? `<p style="white-space:pre-line;color:#374151">${esc(dto.mensagem)}</p>` : "") +
-      `<p>O relatório em PDF está anexado a este e-mail.</p>`;
+      `<div class="info-box">` +
+        `<div class="info-row"><span class="info-label">Documento</span><span class="info-value">${esc(assunto)}</span></div>` +
+        `<div class="info-row"><span class="info-label">Anexo</span><span class="info-value">${esc(filename)}</span></div>` +
+      `</div>` +
+      this.email.botaoHtml(`${this.email.appBaseUrl}/dashboard/orcamento`, "Abrir no sistema");
     const ok = await this.email.sendWithAttachment(
       dto.para,
       assunto,
       corpo,
-      dto.filename || "orcamento.pdf",
+      filename,
       conteudo,
     );
     return { enviado: ok };

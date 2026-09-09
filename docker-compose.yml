@@ -140,6 +140,12 @@ services:
       # Trava de marca: se definido, o EmailService recusa enviar quando o
       # EMAIL_FROM não for deste domínio. Vazio = sem trava (ex.: produção).
       EMAIL_FROM_DOMINIO_ESPERADO: ${EMAIL_FROM_DOMINIO_ESPERADO:-}
+      # Tema do e-mail por marca. Vazios = visual atual da produção (Orkiestri).
+      # Um servidor white-label seta o acento, o fundo do cabeçalho e o caminho
+      # do logo (montado no container) para os e-mails saírem com a marca dele.
+      EMAIL_ACCENT: ${EMAIL_ACCENT:-}
+      EMAIL_HEADER_BG: ${EMAIL_HEADER_BG:-}
+      EMAIL_LOGO_PATH: ${EMAIL_LOGO_PATH:-}
       TZ: America/Sao_Paulo
       MP_ACCESS_TOKEN: ${MP_ACCESS_TOKEN}
       MP_WEBHOOK_SECRET: ${MP_WEBHOOK_SECRET}
