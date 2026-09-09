@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "1.32.4";
+export const VERSAO = "1.33.0";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -23,10 +23,10 @@ export const VERSAO = "1.32.4";
  * Não é gerada no build: `new Date()` no bundle muda a cada compilação, e duas
  * builds do mesmo código pareceriam versões diferentes.
  */
-export const VERSAO_DATA = "2026-09-08";
+export const VERSAO_DATA = "2026-09-09";
 
 /** Nome da entrega, para dar contexto ao número. */
-export const VERSAO_NOME = "Módulo de Indicações (referral)";
+export const VERSAO_NOME = "Orçamento — exportação da Dashboard (Imagem, PPT, E-mail)";
 
 /**
  * Histórico exibido na tela Sobre, do mais recente para o mais antigo.
@@ -35,6 +35,15 @@ export const VERSAO_NOME = "Módulo de Indicações (referral)";
  * esta lista quer saber o que mudou para ele.
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
+  {
+    versao: "1.33.0",
+    data: "2026-09-09",
+    titulo: "Orçamento: novas exportações da Dashboard",
+    itens: [
+      "A Dashboard do Orçamento agora exporta também em Imagem (PNG) e PowerPoint (PPT), além do Excel e PDF que já existiam",
+      "Novo botão E-mail: envia o resumo executivo em PDF anexado direto para um destinatário, com mensagem opcional",
+    ],
+  },
   {
     versao: "1.32.4",
     data: "2026-09-09",

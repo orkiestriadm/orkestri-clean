@@ -5,7 +5,8 @@ import {
   CheckCircle, Clock, ChevronDown, ChevronRight, Edit2, Trash2, X,
   BarChart3, DollarSign, Target, Zap, Filter, Download, Settings,
   Building, Tag, Truck, Package, Eye, EyeOff, Search, Upload, Loader2,
-  Users, Share2, User as UserIcon, Building2
+  Users, Share2, User as UserIcon, Building2,
+  Image as ImageIcon, Presentation, Mail, Send
 } from "lucide-react";
 import { useAuthStore } from "@/lib/store";
 import {
@@ -87,7 +88,9 @@ async function exportDashboardExcel(data:any, ano:string) {
   XLSX.writeFile(wb, `orcamento_${ano}.xlsx`);
 }
 
-async function exportDashboardPdf(data:any, ano:string) {
+// Monta o documento PDF (compartilhado entre o download e o envio por e-mail,
+// para os dois saírem idênticos).
+async function buildDashboardPdfDoc(data:any, ano:string) {
   const { jsPDF }:any = await import("jspdf");
   await import("jspdf-autotable");
   const doc:any = new jsPDF();
@@ -102,7 +105,80 @@ async function exportDashboardPdf(data:any, ano:string) {
   ]});
   doc.autoTable({ head:[["Categoria","Valor","%"]], theme:"striped", headStyles:{fillColor:[6,182,212]}, body:(data.distribuicaoCategoria||[]).map((d:any)=>[d.nome, R(d.valor), d.percentual+"%"]) });
   doc.autoTable({ head:[["Maiores Gastos","Orçado","Realizado","% Exec"]], theme:"striped", headStyles:{fillColor:[139,92,246]}, body:(data.topItens||[]).map((i:any)=>[i.nome, R(i.previsto), R(i.realizado), i.execucao+"%"]) });
+  return doc;
+}
+
+async function exportDashboardPdf(data:any, ano:string) {
+  const doc = await buildDashboardPdfDoc(data, ano);
   doc.save(`orcamento_${ano}.pdf`);
+}
+
+// Devolve o mesmo PDF como base64 puro (sem o prefixo data:), para o backend
+// anexar no e-mail via EmailService.sendWithAttachment.
+async function dashboardPdfBase64(data:any, ano:string): Promise<string> {
+  const doc = await buildDashboardPdfDoc(data, ano);
+  const uri:string = doc.output("datauristring");
+  return uri.split(",")[1] || "";
+}
+
+// Captura a área da dashboard (KPIs + gráficos) como PNG. html2canvas rasteriza
+// o DOM já renderizado — inclui os gráficos recharts (SVG). Fundo explícito
+// porque área transparente sai preta.
+async function exportDashboardImagem(node:HTMLElement, ano:string) {
+  const html2canvas:any = (await import("html2canvas")).default;
+  const bg = getComputedStyle(document.body).backgroundColor || "#0a0a0a";
+  const canvas = await html2canvas(node, { backgroundColor: bg, scale: 2, useCORS: true, logging: false });
+  const a = document.createElement("a");
+  a.href = canvas.toDataURL("image/png");
+  a.download = `orcamento_${ano}.png`;
+  a.click();
+}
+
+// Gera um deck executivo (.pptx): capa + KPIs + distribuição por categoria +
+// maiores gastos. Mesmos dados das outras exportações.
+async function exportDashboardPptx(data:any, ano:string) {
+  const PptxGen:any = (await import("pptxgenjs")).default;
+  const pptx = new PptxGen();
+  pptx.layout = "LAYOUT_WIDE"; // 13.3 × 7.5 pol
+  const k = data.kpis || {};
+  const R = (v:number)=> "R$ "+Math.round(v||0).toLocaleString("pt-BR");
+  const ACCENT = "8B5CF6", CYAN = "06B6D4", DARK = "0F1116", MUTED = "9CA3AF";
+  const th = (t:string)=>({ text:t, options:{ bold:true, color:"FFFFFF", fill:{ color:ACCENT } } });
+
+  const capa = pptx.addSlide();
+  capa.background = { color: DARK };
+  capa.addText(`Orçamento ${ano}`, { x:0.5, y:2.6, w:12.3, h:1, fontSize:44, bold:true, color:"FFFFFF", align:"center" });
+  capa.addText("Resumo Executivo", { x:0.5, y:3.7, w:12.3, h:0.6, fontSize:22, color:"A78BFA", align:"center" });
+  capa.addText(`Gerado em ${new Date().toLocaleString("pt-BR")}`, { x:0.5, y:6.7, w:12.3, h:0.4, fontSize:11, color:MUTED, align:"center" });
+
+  const sk = pptx.addSlide();
+  sk.addText("Indicadores", { x:0.5, y:0.35, w:12, h:0.6, fontSize:26, bold:true, color:ACCENT });
+  sk.addTable([
+    [th("Indicador"), th("Valor")],
+    ["Total Orçado", R(k.totalPrevisto)],
+    ["Total Realizado", R(k.totalRealizado)],
+    ["Desvio", `${R(k.desvio)} (${k.desvioPct}%)`],
+    ["Total OPEX", R(k.previstoOpex)],
+    ["Total CAPEX", R(k.previstoCapex)],
+    ["Centros de Custo", String(k.qtdCentrosCusto)],
+    ["Itens", String(k.qtdItens)],
+  ], { x:0.5, y:1.2, w:8, fontSize:15, rowH:0.5, border:{ pt:0.5, color:"DDDDDD" }, align:"left", valign:"middle" });
+
+  const scat = pptx.addSlide();
+  scat.addText("Distribuição por Categoria", { x:0.5, y:0.35, w:12, h:0.6, fontSize:26, bold:true, color:CYAN });
+  scat.addTable([
+    [th("Categoria"), th("Valor"), th("%")],
+    ...((data.distribuicaoCategoria||[]).slice(0,12).map((d:any)=>[d.nome, R(d.valor), d.percentual+"%"])),
+  ], { x:0.5, y:1.2, w:12, fontSize:14, rowH:0.42, border:{ pt:0.5, color:"DDDDDD" }, valign:"middle" });
+
+  const stop = pptx.addSlide();
+  stop.addText("Maiores Gastos", { x:0.5, y:0.35, w:12, h:0.6, fontSize:26, bold:true, color:ACCENT });
+  stop.addTable([
+    [th("Item"), th("Orçado"), th("Realizado"), th("% Exec")],
+    ...((data.topItens||[]).slice(0,12).map((i:any)=>[i.nome, R(i.previsto), R(i.realizado), i.execucao+"%"])),
+  ], { x:0.5, y:1.2, w:12, fontSize:14, rowH:0.42, border:{ pt:0.5, color:"DDDDDD" }, valign:"middle" });
+
+  await pptx.writeFile({ fileName: `orcamento_${ano}.pptx` });
 }
 
 function TabDashboard({ cicloId, ano, categorias, centrosCusto }:{ cicloId:string; ano?:number; categorias:Categoria[]; centrosCusto:CentroCusto[] }) {
@@ -112,11 +188,42 @@ function TabDashboard({ cicloId, ano, categorias, centrosCusto }:{ cicloId:strin
   const [fCat, setFCat] = useState("");
   const [mesIni, setMesIni] = useState(1);
   const [mesFim, setMesFim] = useState(12);
-  const [exporting, setExporting] = useState<""|"xlsx"|"pdf">("");
-  const doExport = async (kind:"xlsx"|"pdf")=>{
+  const [exporting, setExporting] = useState<""|"xlsx"|"pdf"|"png"|"pptx">("");
+  const captureRef = useRef<HTMLDivElement>(null);
+  const doExport = async (kind:"xlsx"|"pdf"|"png"|"pptx")=>{
     if(!data) return; setExporting(kind);
-    try { kind==="xlsx" ? await exportDashboardExcel(data, String(ano||"")) : await exportDashboardPdf(data, String(ano||"")); }
+    try {
+      if(kind==="xlsx") await exportDashboardExcel(data, String(ano||""));
+      else if(kind==="pdf") await exportDashboardPdf(data, String(ano||""));
+      else if(kind==="png") { if(captureRef.current) await exportDashboardImagem(captureRef.current, String(ano||"")); }
+      else if(kind==="pptx") await exportDashboardPptx(data, String(ano||""));
+    }
     catch(e){ console.error(e); } finally { setExporting(""); }
+  };
+
+  // Envio por e-mail: o PDF é montado no navegador e vai em base64 para o
+  // backend anexar. Depende de provedor de e-mail configurado no servidor
+  // (Resend/SMTP) — onde não houver, a API responde enviado:false.
+  const [emailOpen, setEmailOpen] = useState(false);
+  const [emailTo, setEmailTo] = useState("");
+  const [emailMsg, setEmailMsg] = useState("");
+  const [emailStatus, setEmailStatus] = useState<""|"sending"|"ok"|"off"|"err">("");
+  const enviarEmail = async ()=>{
+    if(!data || !emailTo.trim()) return;
+    setEmailStatus("sending");
+    try {
+      const conteudoBase64 = await dashboardPdfBase64(data, String(ano||""));
+      const r = await api.post("/orcamento/enviar-email", {
+        para: emailTo.trim(),
+        assunto: `Orçamento ${ano||""} — Resumo Executivo`,
+        mensagem: emailMsg.trim() || undefined,
+        filename: `orcamento_${ano||""}.pdf`,
+        conteudoBase64,
+      });
+      if(r.data?.enviado===false){ setEmailStatus("off"); return; }
+      setEmailStatus("ok");
+      setTimeout(()=>{ setEmailOpen(false); setEmailStatus(""); setEmailMsg(""); setEmailTo(""); }, 1500);
+    } catch(e){ console.error(e); setEmailStatus("err"); }
   };
 
   const load = useCallback(()=>{
@@ -179,9 +286,20 @@ function TabDashboard({ cicloId, ano, categorias, centrosCusto }:{ cicloId:strin
           <button onClick={()=>doExport("pdf")} disabled={!!exporting} className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border border-border bg-input hover:bg-accent disabled:opacity-50 transition-colors">
             {exporting==="pdf" ? <RefreshCw size={13} className="animate-spin"/> : <Download size={13} className="text-red-400"/>} PDF
           </button>
+          <button onClick={()=>doExport("png")} disabled={!!exporting} className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border border-border bg-input hover:bg-accent disabled:opacity-50 transition-colors">
+            {exporting==="png" ? <RefreshCw size={13} className="animate-spin"/> : <ImageIcon size={13} className="text-sky-400"/>} Imagem
+          </button>
+          <button onClick={()=>doExport("pptx")} disabled={!!exporting} className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border border-border bg-input hover:bg-accent disabled:opacity-50 transition-colors">
+            {exporting==="pptx" ? <RefreshCw size={13} className="animate-spin"/> : <Presentation size={13} className="text-amber-400"/>} PPT
+          </button>
+          <button onClick={()=>{ setEmailStatus(""); setEmailOpen(true); }} disabled={!!exporting} className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border border-border bg-input hover:bg-accent disabled:opacity-50 transition-colors">
+            <Mail size={13} className="text-violet-400"/> E-mail
+          </button>
         </div>
       </div>
 
+      {/* Área capturada na exportação em imagem (KPIs + gráficos, sem a barra de filtros) */}
+      <div ref={captureRef} className="space-y-6">
       {/* KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {KPIS.map(kp=>(
@@ -296,6 +414,35 @@ function TabDashboard({ cicloId, ano, categorias, centrosCusto }:{ cicloId:strin
           )}
         </div>
       </div>
+      </div>{/* fim da área capturada */}
+
+      {/* Modal — enviar por e-mail */}
+      {emailOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={()=>emailStatus!=="sending" && setEmailOpen(false)}>
+          <div className="w-full max-w-md bg-card border border-border rounded-2xl p-5 shadow-xl" onClick={e=>e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2 text-sm font-semibold"><Mail size={16} className="text-violet-400"/> Enviar Resumo por E-mail</div>
+              <button onClick={()=>setEmailOpen(false)} disabled={emailStatus==="sending"} className="text-muted-foreground hover:text-foreground disabled:opacity-40"><X size={16}/></button>
+            </div>
+            <p className="text-xs text-muted-foreground mb-3">O resumo executivo em PDF ({`orcamento_${ano||""}.pdf`}) vai anexado à mensagem.</p>
+            <label className="block text-xs text-muted-foreground mb-1">Destinatário</label>
+            <input type="email" value={emailTo} onChange={e=>setEmailTo(e.target.value)} placeholder="pessoa@empresa.com"
+              className="w-full bg-input border border-border rounded-lg px-3 py-2 text-sm outline-none focus:border-primary mb-3"/>
+            <label className="block text-xs text-muted-foreground mb-1">Mensagem (opcional)</label>
+            <textarea value={emailMsg} onChange={e=>setEmailMsg(e.target.value)} rows={3} placeholder="Segue o resumo do orçamento…"
+              className="w-full bg-input border border-border rounded-lg px-3 py-2 text-sm outline-none focus:border-primary resize-none mb-3"/>
+            {emailStatus==="ok"  && <div className="text-xs text-emerald-400 mb-2">✓ E-mail enviado.</div>}
+            {emailStatus==="off" && <div className="text-xs text-amber-400 mb-2">Serviço de e-mail não configurado neste ambiente — nada foi enviado.</div>}
+            {emailStatus==="err" && <div className="text-xs text-red-400 mb-2">Falha ao enviar. Tente novamente.</div>}
+            <div className="flex items-center justify-end gap-2">
+              <button onClick={()=>setEmailOpen(false)} disabled={emailStatus==="sending"} className="text-xs px-3 py-2 rounded-lg border border-border hover:bg-accent disabled:opacity-40">Cancelar</button>
+              <button onClick={enviarEmail} disabled={!emailTo.trim() || emailStatus==="sending"} className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-lg bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-40">
+                {emailStatus==="sending" ? <><RefreshCw size={13} className="animate-spin"/> Enviando…</> : <><Send size={13}/> Enviar</>}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

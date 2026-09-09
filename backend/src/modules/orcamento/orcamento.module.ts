@@ -4,11 +4,13 @@ import {
   NotFoundException, BadRequestException, ForbiddenException,
 } from "@nestjs/common";
 import { AuthGuard } from "@nestjs/passport";
-import { Allow, IsArray, IsBoolean, IsIn, IsNumber, IsOptional, IsString, Max, Min } from "class-validator";
+import { Allow, IsArray, IsBoolean, IsEmail, IsIn, IsNumber, IsOptional, IsString, Max, Min } from "class-validator";
 import { PrismaService } from "../../prisma/prisma.service";
 import { Permissions } from "../auth/permissions.decorator";
 import { PermissionsGuard } from "../auth/permissions.guard";
 import { acharNaOrganizacao } from "../../common/escopo-organizacao";
+import { NotificationsModule } from "../notifications/notifications.module";
+import { EmailService } from "../notifications/email.service";
 
 // ── DTOs ──────────────────────────────────────────────────────────────────────
 
@@ -181,10 +183,18 @@ class ImportarOpexOrcamentoDto {
   @IsOptional() @Allow() ciclos?: any;
 }
 
+class EnviarOrcamentoEmailDto {
+  @IsEmail() para!: string;
+  @IsOptional() @IsString() assunto?: string;
+  @IsOptional() @IsString() mensagem?: string;
+  @IsString() filename!: string;
+  @IsString() conteudoBase64!: string;
+}
+
 @Controller("orcamento")
 @UseGuards(AuthGuard("jwt"), PermissionsGuard)
 class OrcamentoController {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService, private email: EmailService) {}
 
   // ── Acesso a orçamentos (corporativo / pessoal / compartilhado) ──────────────
   //
@@ -423,6 +433,36 @@ class OrcamentoController {
       // compat com o frontend antigo
       distribuicao: distribuicaoCategoria.slice(0, 8).map(d => ({ categoria: d.nome, cor: "#a78bfa", previsto: d.valor, percentual: d.percentual })),
     };
+  }
+
+  // Envia o resumo executivo (PDF montado no navegador, chega em base64) por
+  // e-mail com anexo. Só entrega onde há provedor configurado no servidor
+  // (Resend suporta anexo) — sem provedor, responde { enviado:false } e o front
+  // avisa que o ambiente não está configurado.
+  @Post("enviar-email")
+  @Permissions("orcamento:ver")
+  async enviarEmail(@Req() req: any, @Body() dto: EnviarOrcamentoEmailDto) {
+    const conteudo = (dto.conteudoBase64 || "").trim();
+    if (!conteudo) throw new BadRequestException("Anexo vazio.");
+    // ~10 MB de base64 — o resumo é pequeno; o teto só barra payload abusivo.
+    if (conteudo.length > 10 * 1024 * 1024) throw new BadRequestException("Anexo grande demais.");
+    if (!this.email.isEnabled()) return { enviado: false, motivo: "email_desativado" };
+
+    const esc = (s: string) => (s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    const nome = esc(req.user?.nome || req.user?.name || "");
+    const assunto = (dto.assunto || "Orçamento — Resumo Executivo").slice(0, 200);
+    const corpo =
+      `<p>${nome ? `<strong>${nome}</strong> ` : ""}compartilhou o resumo do orçamento com você.</p>` +
+      (dto.mensagem ? `<p style="white-space:pre-line;color:#374151">${esc(dto.mensagem)}</p>` : "") +
+      `<p>O relatório em PDF está anexado a este e-mail.</p>`;
+    const ok = await this.email.sendWithAttachment(
+      dto.para,
+      assunto,
+      corpo,
+      dto.filename || "orcamento.pdf",
+      conteudo,
+    );
+    return { enviado: ok };
   }
 
   // Comparação entre dois ciclos (anos/versões), por dimensão (categoria/centro de custo/item).
@@ -1184,6 +1224,7 @@ class OrcamentoController {
 // ── Module ────────────────────────────────────────────────────────────────────
 
 @Module({
+  imports: [NotificationsModule],
   controllers: [OrcamentoController],
 })
 export class OrcamentoModule {}
