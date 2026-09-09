@@ -94,7 +94,12 @@ export class EmailService {
         // no volume transacional deste ambiente e a entrega fica confiável na
         // primeira tentativa.
         pool: false,
-        // Tetos de segurança: mesmo sem pool, uma conexão que trava não pode
+        // Força IPv4. O MX do M365 publica AAAA (IPv6), o container NÃO roteia
+        // IPv6 ("Network is unreachable"), e o Node v24 (DNS verbatim) às vezes
+        // tenta o IPv6 primeiro — dava "Connection timeout" intermitente (quando
+        // calhava IPv4, ia; IPv6, travava). Com family:4 sempre resolve por A.
+        family: 4,
+        // Tetos de segurança: mesmo assim, uma conexão que trava não pode
         // pendurar a request para sempre.
         connectionTimeout: 15000,
         greetingTimeout: 10000,
