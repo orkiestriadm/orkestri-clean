@@ -38,7 +38,10 @@ export class EmailService {
   constructor(private config: ConfigService) {
     const apiKey = this.config.get<string>("RESEND_API_KEY", "");
     const smtpHost = this.config.get<string>("SMTP_HOST", "");
-    const fromName = this.config.get<string>("EMAIL_FROM_NAME", MARCA);
+    // Vazio (não só ausente) também cai na MARCA: o compose base define a chave
+    // como "" quando o ambiente não a seta, e "" não dispararia o default do
+    // ConfigService. Sem este `|| MARCA`, o remetente sairia sem nome.
+    const fromName = this.config.get<string>("EMAIL_FROM_NAME", "").trim() || MARCA;
     const fromAddr = this.config.get<string>("EMAIL_FROM", "onboarding@resend.dev");
     this.from = `${fromName} <${fromAddr}>`;
     this.appUrl = this.config.get<string>("APP_URL", "http://localhost");
@@ -86,6 +89,33 @@ export class EmailService {
       this.logger.warn(
         "Sem RESEND_API_KEY e sem SMTP_HOST — envio de e-mails desativado.",
       );
+    }
+
+    // Trava de marca (white-label). Um ambiente que declara qual domínio o
+    // remetente PRECISA ter — `EMAIL_FROM_DOMINIO_ESPERADO` — se recusa a enviar
+    // quando o `EMAIL_FROM` não é daquele domínio, DESLIGANDO os provedores.
+    //
+    // É o que impede o servidor de um cliente de vazar a identidade de outra
+    // marca se o `.env` um dia perder o override e o remetente cair num default
+    // (o compose base ainda traz `onboarding@resend.dev`). Preferimos NÃO enviar
+    // a enviar como quem não somos — para o cliente, um e-mail com a marca errada
+    // é pior do que e-mail nenhum.
+    //
+    // Opt-in: quem não define a variável (ex.: produção) não muda em nada.
+    const domEsperado = this.config.get<string>("EMAIL_FROM_DOMINIO_ESPERADO", "").trim().toLowerCase();
+    if (domEsperado) {
+      const domDoFrom = (fromAddr.split("@")[1] || "").trim().toLowerCase();
+      if (domDoFrom !== domEsperado) {
+        this.logger.error(
+          `E-mail DESABILITADO: remetente "${fromAddr}" não é do domínio exigido ` +
+          `"${domEsperado}" (EMAIL_FROM_DOMINIO_ESPERADO). Recuso enviar para não ` +
+          `vazar a marca de outro. Ajuste EMAIL_FROM no ambiente.`,
+        );
+        this.resend = null;
+        this.smtp = null;
+      } else {
+        this.logger.log(`Trava de marca ativa: remetente confinado a @${domEsperado}.`);
+      }
     }
   }
 

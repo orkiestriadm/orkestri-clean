@@ -53,6 +53,45 @@ describe("escolha do provedor de e-mail", () => {
   });
 
   /**
+   * Trava de marca (white-label). Um servidor de cliente que exige um domínio de
+   * remetente NÃO pode enviar como outra marca se o EMAIL_FROM cair num default.
+   * Preferimos não enviar a vazar a identidade errada.
+   */
+  describe("trava de marca por domínio do remetente", () => {
+    it("recusa enviar quando EMAIL_FROM é de outro domínio — desliga os provedores", () => {
+      const service = new EmailService(configComo({
+        RESEND_API_KEY: "re_chave_valida",
+        EMAIL_FROM: "onboarding@resend.dev",
+        EMAIL_FROM_DOMINIO_ESPERADO: "triunfotransbrasiliana.com.br",
+      }));
+
+      expect(service.isEnabled()).toBe(false);
+      expect((service as any).resend).toBeNull();
+      expect((service as any).smtp).toBeNull();
+    });
+
+    it("envia normalmente quando o EMAIL_FROM é do domínio exigido", () => {
+      const service = new EmailService(configComo({
+        RESEND_API_KEY: "re_chave_valida",
+        EMAIL_FROM: "suporte.ti@triunfotransbrasiliana.com.br",
+        EMAIL_FROM_DOMINIO_ESPERADO: "triunfotransbrasiliana.com.br",
+      }));
+
+      expect(service.isEnabled()).toBe(true);
+      expect((service as any).resend).not.toBeNull();
+    });
+
+    it("sem a trava (ex.: produção), o remetente Orkiestri passa como hoje", () => {
+      const service = new EmailService(configComo({
+        RESEND_API_KEY: "re_chave_de_producao",
+        EMAIL_FROM: "noreply@orkiestri.com",
+      }));
+
+      expect(service.isEnabled()).toBe(true);
+    });
+  });
+
+  /**
    * O erro clássico de SMTP: marcar `secure` na 587 faz o servidor derrubar a
    * conexão sem mensagem útil. A 587 é STARTTLS (abre em claro e sobe), a 465
    * é TLS desde o primeiro byte.

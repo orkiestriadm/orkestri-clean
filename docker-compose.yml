@@ -133,7 +133,13 @@ services:
       APP_URL: ${APP_URL:-http://localhost}
       RESEND_API_KEY: ${RESEND_API_KEY}
       EMAIL_FROM: ${EMAIL_FROM:-onboarding@resend.dev}
-      EMAIL_FROM_NAME: ${EMAIL_FROM_NAME:-Orkestri}
+      # Sem default de marca: vazio faz o código cair na MARCA do ambiente, em
+      # vez de cravar "Orkestri" e vazar a marca do produto num servidor de
+      # cliente white-label.
+      EMAIL_FROM_NAME: ${EMAIL_FROM_NAME:-}
+      # Trava de marca: se definido, o EmailService recusa enviar quando o
+      # EMAIL_FROM não for deste domínio. Vazio = sem trava (ex.: produção).
+      EMAIL_FROM_DOMINIO_ESPERADO: ${EMAIL_FROM_DOMINIO_ESPERADO:-}
       TZ: America/Sao_Paulo
       MP_ACCESS_TOKEN: ${MP_ACCESS_TOKEN}
       MP_WEBHOOK_SECRET: ${MP_WEBHOOK_SECRET}
