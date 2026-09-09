@@ -63,11 +63,20 @@ export class EmailService {
         port: porta,
         secure,
         auth: usuario ? { user: usuario, pass: senha } : undefined,
-        // Sem teto, uma fila de avisos abre uma conexão por mensagem e o
-        // servidor corporativo corta por excesso.
-        pool: true,
-        maxConnections: 3,
-      });
+        // SEM pool: cada envio abre uma conexão nova. O pool guardava um socket
+        // entre envios, mas o M365 Direct Send derruba conexões ociosas — e no
+        // envio seguinte o nodemailer reusava o socket morto e ficava PENDURADO
+        // para sempre (a request nunca voltava). Uma conexão nova ao MX responde
+        // em ~1-2s (EHLO/STARTTLS/MAIL/RCPT, medido), então o custo é irrelevante
+        // no volume transacional deste ambiente e a entrega fica confiável na
+        // primeira tentativa.
+        pool: false,
+        // Tetos de segurança: mesmo sem pool, uma conexão que trava não pode
+        // pendurar a request para sempre.
+        connectionTimeout: 15000,
+        greetingTimeout: 10000,
+        socketTimeout: 20000,
+      } as any);
 
       this.logger.log(`E-mail por SMTP: ${smtpHost}:${porta} (secure=${secure}), remetente ${this.from}`);
 
