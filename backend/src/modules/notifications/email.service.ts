@@ -169,12 +169,34 @@ export class EmailService {
   }
 
   async sendWithAttachment(to: string, subject: string, html: string, filename: string, contentBase64: string): Promise<boolean> {
-    if (!to || !this.resend) {
+    if (!to || !this.isEnabled()) {
       this.logger.warn(`Email com anexo não enviado para ${to || "(vazio)"} — serviço de e-mail indisponível.`);
       return false;
     }
+
+    // Mesma precedência do `send`: SMTP quando definido (o servidor white-label
+    // usa Direct Send do M365, sem Resend), Resend caso contrário. Antes este
+    // método era Resend-only e devolvia false em qualquer ambiente SMTP — o
+    // anexo do resumo do Orçamento não saía onde o e-mail era por SMTP.
+    if (this.smtp) {
+      try {
+        await this.smtp.sendMail({
+          from: this.from,
+          to,
+          subject,
+          html: this.layout(html),
+          attachments: [{ filename, content: contentBase64, encoding: "base64" }],
+        });
+        this.logger.log(`Email com anexo ${filename} enviado por SMTP para ${to}: ${subject}`);
+        return true;
+      } catch (e: any) {
+        this.logger.error(`Erro ao enviar email com anexo por SMTP para ${to}: ${e.message}`);
+        return false;
+      }
+    }
+
     try {
-      const res: any = await this.resend.emails.send({
+      const res: any = await this.resend!.emails.send({
         from: this.from,
         to,
         subject,
