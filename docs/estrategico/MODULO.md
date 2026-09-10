@@ -96,12 +96,12 @@ linha são aplicadas no serviço.
 **Documentos** — `GET|POST /casos/:id/documentos` (documento:ver|enviar; multipart `arquivo`, 25 MB) ·
 `GET /documentos/:id/download` · `DELETE /documentos/:id` (documento:excluir)
 
-**Painel e relatórios** — `GET /painel` (relatorio:ver) · `GET /relatorios` · `GET /relatorios/:tipo` ·
+**Painel e relatórios** — `GET /painel` (relatorio:ver) · `GET /analises` · `GET /analises/:tipo` (prévias — fora do limite de exportação do nginx) ·
 `GET /relatorios/:tipo/exportar?formato=excel|csv|pdf` (relatorio:exportar)
 
 **Reuniões** — `GET /reunioes` · `GET /reunioes/:id` · `GET /reunioes/:id/ata.pdf` (reuniao:ver) ·
 `POST /reunioes` · `POST /reunioes/:id/pauta` · `PATCH /reunioes/:id/anotacoes` · `POST /reunioes/:id/decisoes` ·
-`POST /reunioes/:id/tarefas` · `PATCH /reunioes/:id/status` (reuniao:conduzir)
+`POST /reunioes/:id/tarefas` · `PATCH /reunioes/:id/status` · `DELETE /reunioes/:id` (reuniao:conduzir)
 
 **Administração** — `GET /admin/catalogos` · `GET /admin/config` (caso:ver) ·
 `POST|PUT /admin/catalogos` · `PUT /admin/config` · `GET /admin/perfis` ·
@@ -175,6 +175,13 @@ decisões pendentes (aguardando decisão / decisão recebida), ações vencidas.
 A pauta é congelada na reunião; "regerar" só antes de encerrar. Decisão com
 assunto vira decisão + andamento na timeline. Encerrar monta a ata (texto e
 PDF) e avisa cada responsável das ações definidas.
+
+Excluir reunião (1.36.0) é lógico e auditado. Decisões e tarefas continuam nos
+assuntos; a reunião sai da lista e da referência de "O que mudou" (o painel
+passa a comparar com a encerrada anterior, e decisões gerais — sem assunto —
+daquela reunião deixam de contar na evolução mensal). Se não foi encerrada, os
+compromissos futuros que ela criou saem da agenda — só os sem `externalId`;
+o sincronizado com calendário externo fica e a tela avisa.
 
 ### Importação (`domain/importacao.parser.ts`)
 

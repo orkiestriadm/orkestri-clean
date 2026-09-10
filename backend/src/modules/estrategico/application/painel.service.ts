@@ -204,7 +204,15 @@ export class PainelService {
         select: { dataEvento: true },
       }),
       this.db.estrategicoDecisao.findMany({
-        where: { organizationId: orgId, decididoEm: { gte: inicio }, OR: [{ casoId: { in: casoIds } }, { casoId: null }] },
+        where: {
+          organizationId: orgId, decididoEm: { gte: inicio },
+          AND: [
+            { OR: [{ casoId: { in: casoIds } }, { casoId: null }] },
+            // Decisão de reunião excluída não conta — a de assunto, sim (ela
+            // está na timeline do assunto, aconteceu de fato).
+            { OR: [{ reuniaoId: null }, { casoId: { not: null } }, { reuniao: { deletedAt: null } }] },
+          ],
+        },
         select: { decididoEm: true },
       }),
       this.db.estrategicoCaso.findMany({

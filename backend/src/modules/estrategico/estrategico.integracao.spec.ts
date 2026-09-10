@@ -260,6 +260,45 @@ suite("Strategy — integração com banco real", () => {
     expect(pdf.conteudo.length).toBeGreaterThan(500);
   });
 
+  it("excluir reunião: some da lista, tira da agenda o que não aconteceu e preserva o que foi decidido", async () => {
+    const beta = (await casos.listar(MASTER(), { q: "Beta" })).itens[0];
+
+    // Planejada, no futuro, agendada para 2 pessoas.
+    const futura = await reunioes.criar(MASTER(), {
+      titulo: "Reunião a excluir", dataReuniao: new Date(Date.now() + 2 * 86_400_000).toISOString(),
+      participantes: [{ userId: resp, nome: "x" }], agendar: true,
+    } as any);
+    expect(await prisma.event.count({ where: { origemTipo: "estrategico_reuniao", origemId: futura.id } })).toBe(2);
+    const r1 = await reunioes.excluir(MASTER(), futura.id);
+    expect(r1).toEqual({ ok: true, compromissosRemovidos: 2, compromissosMantidos: 0 });
+    expect(await prisma.event.count({ where: { origemTipo: "estrategico_reuniao", origemId: futura.id } })).toBe(0);
+    await expect(reunioes.obter(MASTER(), futura.id)).rejects.toThrow(/não encontrada/);
+    expect((await reunioes.listar(MASTER())).some((x: any) => x.id === futura.id)).toBe(false);
+
+    // Compromisso já sincronizado com calendário externo não é apagado por aqui.
+    const sincronizada = await reunioes.criar(MASTER(), {
+      titulo: "Reunião sincronizada", dataReuniao: new Date(Date.now() + 3 * 86_400_000).toISOString(), agendar: true,
+    } as any);
+    await prisma.event.updateMany({ where: { origemId: sincronizada.id }, data: { externalId: "graph-123" } });
+    expect((await reunioes.excluir(MASTER(), sincronizada.id)).compromissosMantidos).toBe(1);
+
+    // Encerrada: a agenda passada fica, a decisão continua no assunto e o painel
+    // deixa de usá-la como referência.
+    const encerrada = (await reunioes.listar(MASTER())).find((x: any) => x.status === "encerrada")!;
+    expect((await painel.painel(MASTER())).oQueMudou.referencia).toMatchObject({ tipo: "reuniao", id: encerrada.id });
+    const agendaAntes = await prisma.event.count({ where: { origemTipo: "estrategico_reuniao", origemId: encerrada.id } });
+    const r2 = await reunioes.excluir(MASTER(), encerrada.id);
+    expect(r2.compromissosRemovidos).toBe(0);
+    expect(await prisma.event.count({ where: { origemTipo: "estrategico_reuniao", origemId: encerrada.id } })).toBe(agendaAntes);
+    const eventos = await atividade.eventos(MASTER(), beta.id);
+    expect(eventos.some((e: any) => e.origem === "reuniao" && e.tipo === "decisao")).toBe(true);
+    expect((await painel.painel(MASTER())).oQueMudou.referencia.tipo).toBe("30_dias");
+    await expect(reunioes.excluir(MASTER(), encerrada.id)).rejects.toThrow(/não encontrada/);
+
+    const auditoria = await prisma.auditLog.findMany({ where: { tabela: "estrategico_reunioes", acao: "excluir", organizationId: org } });
+    expect(auditoria).toHaveLength(3);
+  });
+
   it("documento: grava fora da pasta pública, versiona e baixa", async () => {
     const alfa = (await casos.listar(MASTER(), { q: "Alfa" })).itens[0];
     const arq = (nome: string, texto: string) => ({ buffer: Buffer.from(texto), originalname: nome, size: texto.length, mimetype: "application/pdf" });

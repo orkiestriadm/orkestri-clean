@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "1.35.2";
+export const VERSAO = "1.36.0";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -26,7 +26,7 @@ export const VERSAO = "1.35.2";
 export const VERSAO_DATA = "2026-09-10";
 
 /** Nome da entrega, para dar contexto ao número. */
-export const VERSAO_NOME = "Strategy — relatórios sem bloqueio e exportação sem erro";
+export const VERSAO_NOME = "Strategy — excluir reunião";
 
 /**
  * Histórico exibido na tela Sobre, do mais recente para o mais antigo.
@@ -35,6 +35,16 @@ export const VERSAO_NOME = "Strategy — relatórios sem bloqueio e exportação
  * esta lista quer saber o que mudou para ele.
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
+  {
+    versao: "1.36.0",
+    data: "2026-09-10",
+    titulo: "Strategy: excluir reunião estratégica",
+    itens: [
+      "Reuniões estratégicas agora podem ser excluídas pela tela (na lista e na própria reunião), por quem conduz reuniões",
+      "Decisões e tarefas já registradas continuam nos assuntos; a reunião sai da lista e deixa de ser a referência de \"O que mudou\" no painel",
+      "Se a reunião ainda não aconteceu, os compromissos futuros criados na agenda dos participantes são removidos junto",
+    ],
+  },
   {
     versao: "1.35.2",
     data: "2026-09-10",

@@ -313,6 +313,52 @@ export class ReuniaoService {
     return this.obter(user, id);
   }
 
+  /**
+   * Exclusão lógica da reunião.
+   *
+   * O que foi DECIDIDO e COMBINADO continua: decisões e tarefas ficam nos
+   * assuntos (e na timeline), porque aconteceram de fato. A reunião só sai da
+   * lista e deixa de ser a referência de "O que mudou" no painel.
+   *
+   * Agenda: se a reunião não foi encerrada, os compromissos FUTUROS criados
+   * por ela saem da agenda dos participantes. Só os que nunca foram espelhados
+   * num calendário externo (`externalId` nulo) — apagar direto no banco um
+   * compromisso sincronizado deixaria o evento órfão no Outlook de alguém;
+   * esses ficam e a contagem volta para a tela avisar. Reunião encerrada
+   * aconteceu: o compromisso passado continua no histórico da agenda.
+   */
+  async excluir(user: Usuario, id: string, ip?: string) {
+    const r = await this.exigir(user, id);
+    const agora = new Date();
+    await this.db.estrategicoReuniao.update({ where: { id }, data: { deletedAt: agora } });
+
+    let compromissosRemovidos = 0;
+    let compromissosMantidos = 0;
+    if (r.status !== "encerrada") {
+      const futuros = await this.db.event.findMany({
+        where: { organizationId: user.organizationId, origemTipo: "estrategico_reuniao", origemId: id, inicio: { gte: agora } },
+        select: { id: true, externalId: true },
+      });
+      const locais = futuros.filter((e: any) => !e.externalId).map((e: any) => e.id);
+      compromissosMantidos = futuros.length - locais.length;
+      if (locais.length) {
+        compromissosRemovidos = (await this.db.event.deleteMany({ where: { id: { in: locais } } })).count;
+      }
+    }
+
+    const [decisoes, tarefas] = await Promise.all([
+      this.db.estrategicoDecisao.count({ where: { reuniaoId: id } }),
+      this.db.estrategicoTarefa.count({ where: { reuniaoId: id, deletedAt: null } }),
+    ]);
+    await this.audit.log({
+      organizationId: user.organizationId, userId: user.id, modulo: "estrategico", tabela: "estrategico_reunioes",
+      registroId: id, acao: "excluir", ip,
+      descricao: `${r.titulo} (${r.status}) — ${decisoes} decisão(ões) e ${tarefas} tarefa(s) mantidas nos assuntos`,
+      dados: { status: r.status, decisoes, tarefas, compromissosRemovidos, compromissosMantidos },
+    });
+    return { ok: true, compromissosRemovidos, compromissosMantidos };
+  }
+
   montarAta(r: any): string {
     const L: string[] = [];
     const anot = (r.anotacoes ?? {}) as Record<string, { discutido?: boolean; nota?: string }>;

@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Patch, Body, Param, Req, Res, StreamableFile, UseGuards } from "@nestjs/common";
+import { Controller, Get, Post, Patch, Delete, Body, Param, Req, Res, StreamableFile, UseGuards } from "@nestjs/common";
 import { AuthGuard } from "@nestjs/passport";
 import type { Response } from "express";
 import { PermissionsGuard } from "../../auth/permissions.guard";
@@ -75,5 +75,11 @@ export class ReuniaoController {
   @Permissions(P.reuniao.conduzir)
   status(@Req() req: any, @Param("id") id: string, @Body() dto: StatusReuniaoDto) {
     return this.service.mudarStatus(req.user, id, dto.status, ipDe(req));
+  }
+
+  @Delete(":id")
+  @Permissions(P.reuniao.conduzir)
+  excluir(@Req() req: any, @Param("id") id: string) {
+    return this.service.excluir(req.user, id, ipDe(req));
   }
 }

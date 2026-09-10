@@ -46,6 +46,7 @@ trechos sem data, valores citados no texto. Depois de conferir, clique em
 1. **Reuniões › Nova reunião** — a pauta é montada sozinha: críticos, vencidos, sem atualização, o que mudou desde a última reunião, oportunidades novas, decisões e ações pendentes.
 2. Durante a reunião, em cada item: anotação, **Discutido**, **Decisão** (vai para a timeline do assunto) e **Tarefa** (responsável e prazo).
 3. **Encerrar e gerar ata** — a ata fica na reunião, sai em PDF, e cada responsável é avisado das ações.
+4. **Excluir** (lixeira, na reunião ou na lista) — para reunião criada por engano ou que não vai acontecer. Decisões e tarefas já registradas continuam nos assuntos; se a reunião ainda não aconteceu, o compromisso sai da agenda dos participantes.
 
 ## Relatórios
 

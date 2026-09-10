@@ -3,12 +3,12 @@ export const dynamic = "force-dynamic";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import Topbar from "@/components/layout/Topbar";
 import { useAuthStore } from "@/lib/store";
 import { useToastStore } from "@/lib/toast";
 import { PageBody, BackLink, DetailHeader, ErrorState, PermissionDenied, StatusBadge } from "@/components/data-ui";
-import { Play, RefreshCw, CheckCircle2, Download, XCircle, Gavel, ListTodo, Presentation } from "lucide-react";
+import { Play, RefreshCw, CheckCircle2, Download, XCircle, Gavel, ListTodo, Presentation, Trash2 } from "lucide-react";
 import { estrategicoService } from "@/lib/estrategico/estrategico.service";
 import type { Reuniao, Filtros } from "@/lib/estrategico/types";
 import { BASE, pode, data, FarolPonto, Nota, mensagemErro, prazoEmPalavras, useEstreito } from "../../_components/comuns";
@@ -24,6 +24,7 @@ import { DecisaoModal, TarefaModal } from "../../_components/AtividadeModais";
  */
 export default function ReuniaoPage() {
   const { id } = useParams<{ id: string }>();
+  const router = useRouter();
   const user = useAuthStore(s => s.user);
   const toast = useToastStore();
   const estreito = useEstreito(1024);
@@ -67,6 +68,33 @@ export default function ReuniaoPage() {
     catch (e) { toast.error("Não foi possível atualizar", mensagemErro(e, "")); }
     finally { setOcupado(false); }
   }
+  async function excluir() {
+    if (!r) return;
+    const mantidos = [
+      r.decisoes.length ? `${r.decisoes.length} decisão(ões)` : null,
+      r.tarefas.length ? `${r.tarefas.length} tarefa(s)` : null,
+    ].filter(Boolean).join(" e ");
+    const aviso = [
+      `Excluir a reunião "${r.titulo}"?`,
+      mantidos ? `${mantidos} já registrada(s) continuam nos assuntos.` : null,
+      r.status === "encerrada"
+        ? "A ata deixa de aparecer na lista; o painel passa a comparar com a reunião encerrada anterior."
+        : "Os compromissos futuros desta reunião saem da agenda dos participantes.",
+    ].filter(Boolean).join("\n\n");
+    if (!confirm(aviso)) return;
+    setOcupado(true);
+    try {
+      const res = await estrategicoService.excluirReuniao(id);
+      toast.success("Reunião excluída", res.compromissosMantidos
+        ? `${res.compromissosMantidos} compromisso(s) sincronizado(s) com calendário externo foram mantidos — remova pela agenda.`
+        : res.compromissosRemovidos ? `${res.compromissosRemovidos} compromisso(s) removido(s) da agenda.` : undefined);
+      router.push(`${BASE}/reunioes`);
+    } catch (e) {
+      toast.error("Não foi possível excluir", mensagemErro(e, ""));
+      setOcupado(false);
+    }
+  }
+
   async function regerar() {
     setOcupado(true);
     try { setR(await estrategicoService.regerarPauta(id)); toast.success("Pauta atualizada com os dados de agora"); }
@@ -101,7 +129,8 @@ export default function ReuniaoPage() {
                     {aberta && <button type="button" className="btn btn-ghost" onClick={regerar} disabled={ocupado} title="Recalcula a pauta com os dados de agora"><RefreshCw size={14} /> Regerar pauta</button>}
                     {aberta && <button type="button" className="btn btn-primary" onClick={() => status("encerrada")} disabled={ocupado}><CheckCircle2 size={14} /> Encerrar e gerar ata</button>}
                     {r.status === "encerrada" && <button type="button" className="btn btn-ghost" onClick={() => estrategicoService.baixarAta(id).catch(e => toast.error("Falha no download", mensagemErro(e, "")))}><Download size={14} /> Ata em PDF</button>}
-                    {aberta && <button type="button" className="btn btn-ghost" onClick={() => status("cancelada")} disabled={ocupado}><XCircle size={14} /></button>}
+                    {aberta && <button type="button" className="btn btn-ghost" onClick={() => status("cancelada")} disabled={ocupado} title="Cancelar reunião"><XCircle size={14} /></button>}
+                    <button type="button" className="btn btn-ghost" onClick={excluir} disabled={ocupado} title="Excluir reunião" aria-label="Excluir reunião"><Trash2 size={14} /></button>
                   </>
                 ) : r.status === "encerrada" ? <button type="button" className="btn btn-ghost" onClick={() => estrategicoService.baixarAta(id)}><Download size={14} /> Ata em PDF</button> : undefined}
               />

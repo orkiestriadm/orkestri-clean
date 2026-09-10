@@ -237,6 +237,10 @@ export const estrategicoService = {
     const { data } = await api.patch(`${BASE}/reunioes/${id}/status`, { status });
     return data;
   },
+  async excluirReuniao(id: string): Promise<{ ok: boolean; compromissosRemovidos: number; compromissosMantidos: number }> {
+    const { data } = await api.delete(`${BASE}/reunioes/${id}`);
+    return data;
+  },
   baixarAta(id: string) {
     return baixar(`${BASE}/reunioes/${id}/ata.pdf`, {}, "ata-reuniao-estrategica.pdf");
   },

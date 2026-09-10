@@ -8,9 +8,10 @@ import { useAuthStore } from "@/lib/store";
 import { useToastStore } from "@/lib/toast";
 import {
   PageBody, BackLink, PageHeader, TableCard, EmptyState, LoadingRows, ErrorState, PermissionDenied, StatusBadge,
+  RowActions, RowAction,
   Modal, FormGrid, FormField, FormActions,
 } from "@/components/data-ui";
-import { Presentation, Plus } from "lucide-react";
+import { Presentation, Plus, Trash2 } from "lucide-react";
 import { estrategicoService } from "@/lib/estrategico/estrategico.service";
 import type { ReuniaoResumo, Filtros } from "@/lib/estrategico/types";
 import { BASE, pode, mensagemErro, Nota } from "../_components/comuns";
@@ -27,6 +28,8 @@ export default function ReunioesPage() {
   const [erro, setErro] = useState<string | null>(null);
   const [semPermissao, setSemPermissao] = useState(false);
   const [criando, setCriando] = useState(false);
+  const toast = useToastStore();
+  const conduz = pode(user, "estrategico.reuniao:conduzir");
 
   const carregar = useCallback(async () => {
     setErro(null);
@@ -37,6 +40,26 @@ export default function ReunioesPage() {
     }
   }, []);
   useEffect(() => { carregar(); }, [carregar]);
+
+  async function excluir(r: ReuniaoResumo) {
+    const aviso = [
+      `Excluir a reunião "${r.titulo}"?`,
+      r._count.decisoes ? `${r._count.decisoes} decisão(ões) já registrada(s) continuam nos assuntos.` : null,
+      r.status === "encerrada"
+        ? "A ata deixa de aparecer na lista; o painel passa a comparar com a reunião encerrada anterior."
+        : "Os compromissos futuros desta reunião saem da agenda dos participantes.",
+    ].filter(Boolean).join("\n\n");
+    if (!confirm(aviso)) return;
+    try {
+      const res = await estrategicoService.excluirReuniao(r.id);
+      toast.success("Reunião excluída", res.compromissosMantidos
+        ? `${res.compromissosMantidos} compromisso(s) sincronizado(s) com calendário externo foram mantidos — remova pela agenda.`
+        : undefined);
+      carregar();
+    } catch (e) {
+      toast.error("Não foi possível excluir", mensagemErro(e, ""));
+    }
+  }
   useEffect(() => { estrategicoService.filtros().then(setFiltros).catch(() => {}); }, []);
 
   return (
@@ -53,10 +76,10 @@ export default function ReunioesPage() {
           />
           {semPermissao ? <PermissionDenied /> : erro ? <ErrorState detail={erro} onRetry={carregar} /> : (
             <TableCard>
-              <thead><tr><th>Data</th><th>Reunião</th><th>Participantes</th><th>Decisões</th><th>Status</th></tr></thead>
+              <thead><tr><th>Data</th><th>Reunião</th><th>Participantes</th><th>Decisões</th><th>Status</th>{conduz && <th />}</tr></thead>
               <tbody>
-                {lista == null ? <LoadingRows colSpan={5} /> : lista.length === 0 ? (
-                  <EmptyState colSpan={5} title="Nenhuma reunião ainda" hint="A primeira pauta considera os últimos 30 dias; as seguintes, o que mudou desde a anterior." />
+                {lista == null ? <LoadingRows colSpan={conduz ? 6 : 5} /> : lista.length === 0 ? (
+                  <EmptyState colSpan={conduz ? 6 : 5} title="Nenhuma reunião ainda" hint="A primeira pauta considera os últimos 30 dias; as seguintes, o que mudou desde a anterior." />
                 ) : lista.map(r => (
                   <tr key={r.id} style={{ cursor: "pointer" }} onClick={() => router.push(`${BASE}/reunioes/${r.id}`)}>
                     <td className="num" style={{ fontSize: 12, whiteSpace: "nowrap" }}>{new Date(r.dataReuniao).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}</td>
@@ -64,6 +87,13 @@ export default function ReunioesPage() {
                     <td style={{ fontSize: 12 }}>{(r.participantes ?? []).map(p => p.nome).join(", ") || "—"}</td>
                     <td className="num">{r._count.decisoes}</td>
                     <td><StatusBadge label={ROTULO_STATUS[r.status]?.[0] ?? r.status} tone={ROTULO_STATUS[r.status]?.[1] ?? "neutro"} /></td>
+                    {conduz && (
+                      <td onClick={e => e.stopPropagation()}>
+                        <RowActions>
+                          <RowAction tone="danger" title="Excluir reunião" onClick={() => excluir(r)}><Trash2 size={13} /></RowAction>
+                        </RowActions>
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>
