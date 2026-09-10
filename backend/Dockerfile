@@ -26,7 +26,12 @@ COPY src ./src
 # e um degradar com criterio.
 ENV PRISMA_ENGINES_CHECKSUM_IGNORE_MISSING=1
 RUN npx prisma generate
-RUN npx nest build
+# Heap explicito para o `nest build`. O teto padrao do Node (~950 MB nesta
+# maquina) deixou de bastar com o modulo Strategy: em 10/09/2026 o build de
+# producao (instancia de 1,9 GB + 2 GB de swap) morreu com "JavaScript heap
+# out of memory", enquanto homologacao, com mais RAM, compilava. Em producao,
+# compilar um servico por vez (SERVICOS="api", depois "frontend").
+RUN NODE_OPTIONS=--max-old-space-size=1536 npx nest build
 
 FROM node:20-alpine AS production
 WORKDIR /app
