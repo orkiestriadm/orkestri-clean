@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "1.35.0";
+export const VERSAO = "1.35.1";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -26,7 +26,7 @@ export const VERSAO = "1.35.0";
 export const VERSAO_DATA = "2026-09-10";
 
 /** Nome da entrega, para dar contexto ao número. */
-export const VERSAO_NOME = "Strategy — Gestão Estratégica";
+export const VERSAO_NOME = "Strategy — correção da leitura dos andamentos";
 
 /**
  * Histórico exibido na tela Sobre, do mais recente para o mais antigo.
@@ -35,6 +35,14 @@ export const VERSAO_NOME = "Strategy — Gestão Estratégica";
  * esta lista quer saber o que mudou para ele.
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
+  {
+    versao: "1.35.1",
+    data: "2026-09-10",
+    titulo: "Strategy: leitura dos andamentos da planilha",
+    itens: [
+      "Linhas sem data logo abaixo de um andamento datado não são mais coladas nele: cada item fica separado (antes, reuniões, valores e prazos sem data apareciam dentro do andamento anterior)",
+    ],
+  },
   {
     versao: "1.35.0",
     data: "2026-09-10",

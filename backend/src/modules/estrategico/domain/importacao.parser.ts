@@ -264,8 +264,13 @@ export function extrairEventos(original: string | null, hoje: Date = new Date())
       // Data futura no início ("Previsão ... 09/10") não é andamento ocorrido.
       trechosSemData.push(linha);
       ultimo = null;
-    } else if (ultimo && !anteriorEmBranco) {
-      // Continuação da linha anterior (quebra de linha dentro do mesmo item).
+    } else if (ultimo && !anteriorEmBranco && /^[a-zà-ÿ]/.test(linha)) {
+      // Continuação da linha anterior: só quando a linha começa em minúscula,
+      // isto é, é a mesma frase quebrada ("…utilizado de \nreferência para…").
+      // Linha que começa em maiúscula ou número é OUTRO item sem data — na
+      // planilha real, "06 e 07/07 - Realizadas 10 reuniões" e "Prazo final
+      // COMPOR: 31/08/2026" foram grudados na Portaria de 07/05 pela regra
+      // anterior, que tratava qualquer linha seguinte como continuação.
       ultimo.descricao += " " + linha;
     } else {
       trechosSemData.push(linha);

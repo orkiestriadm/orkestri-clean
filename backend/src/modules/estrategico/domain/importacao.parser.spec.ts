@@ -93,6 +93,13 @@ describe("extrairEventos", () => {
     expect(r.eventos[0].descricao).toBe("Protocolo do pedido continuação");
   });
 
+  it("linha seguinte em maiúscula ou número é outro item, não continuação", () => {
+    const r = extrairEventos("07/05/2026 - Portaria nº 2 - Nomeação da Comissão\n06 e 07/07 - Realizadas 10 reuniões\nPrazo final: 31/08/2026", HOJE);
+    expect(r.eventos).toHaveLength(1);
+    expect(r.eventos[0].descricao).toBe("Portaria nº 2 - Nomeação da Comissão");
+    expect(r.trechosSemData).toEqual(["06 e 07/07 - Realizadas 10 reuniões", "Prazo final: 31/08/2026"]);
+  });
+
   it("título de bloco vira contexto dos eventos seguintes", () => {
     const r = extrairEventos("PROCESSO X 123\n20/03/26: ajuizada ação\n\nOutro parágrafo solto.", HOJE);
     expect(r.eventos[0]).toMatchObject({ data: "2026-03-20", contexto: "PROCESSO X 123" });
