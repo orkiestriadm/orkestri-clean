@@ -39,6 +39,10 @@ volumes:
   # servido direto pelo nginx, e em camada de container o anexo some a cada
   # deploy.
   frota_docs_data:
+  # Documentos dos assuntos estratégicos (Orkiestri Strategy): petição, parecer,
+  # estudo econômico. Volume NOMEADO e fora de /app/uploads pela mesma razão dos
+  # outros. Ver backend/src/modules/estrategico/infrastructure/documento-storage.service.ts
+  estrategico_docs_data:
   evolution_data:      # legado v1.8.2 (mantido para rollback)
   evolution_v2_data:   # Evolution API v2 (em uso)
 
@@ -165,6 +169,7 @@ services:
       - compliance_docs_data:/app/secure/compliance-docs
       - project_docs_data:/app/secure/project-docs
       - frota_docs_data:/app/secure/frota-docs
+      - estrategico_docs_data:/app/secure/estrategico-docs
     networks:
       - orkestri_net
     depends_on:

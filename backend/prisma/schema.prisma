@@ -212,6 +212,12 @@ model Organization {
   complianceFluxos         ComplianceFluxo[]            @relation("OrgComplianceFluxos")
   complianceEtapas         ComplianceFluxoEtapa[]       @relation("OrgComplianceEtapas")
   complianceAprovacoes     ComplianceAprovacao[]        @relation("OrgComplianceAprovacoes")
+  // ── Strategy (Gestão Estratégica) ──
+  estrategicoCatalogos     EstrategicoCatalogo[]        @relation("OrgEstrategicoCatalogos")
+  estrategicoCasos         EstrategicoCaso[]            @relation("OrgEstrategicoCasos")
+  estrategicoReunioes      EstrategicoReuniao[]         @relation("OrgEstrategicoReunioes")
+  estrategicoDecisoes      EstrategicoDecisao[]         @relation("OrgEstrategicoDecisoes")
+  estrategicoConfig        EstrategicoConfig?           @relation("OrgEstrategicoConfig")
 
   @@map("organizations")
 }
@@ -350,6 +356,13 @@ model User {
   complianceFavoritos        ComplianceFavorito[]        @relation("ComplianceFavoritoUser")
   complianceEscalonamentos   ComplianceEscalonamento[]   @relation("ComplianceEscalonamentoUser")
   complianceAprovacoes       ComplianceAprovacao[]       @relation("ComplianceAprovadorUser")
+  estrategicoExecutivoDe     EstrategicoCaso[]           @relation("EstrategicoRespExecutivo")
+  estrategicoOperacionalDe   EstrategicoCaso[]           @relation("EstrategicoRespOperacional")
+  estrategicoProximaAcaoDe   EstrategicoCaso[]           @relation("EstrategicoRespProximaAcao")
+  estrategicoTarefas         EstrategicoTarefa[]         @relation("EstrategicoTarefaResponsavel")
+  estrategicoEventos         EstrategicoEvento[]         @relation("EstrategicoEventoResponsavel")
+  estrategicoComentarios     EstrategicoComentario[]     @relation("EstrategicoComentarioUser")
+  estrategicoHistorico       EstrategicoHistorico[]      @relation("EstrategicoHistoricoUser")
 
   chamadosAtribuidosPorMim Chamado[] @relation("ChamadoAtribuidor")
 
@@ -4832,4 +4845,457 @@ model OrgNotificacaoConfig {
   atualizadoEm          DateTime @updatedAt @map("atualizado_em")
 
   @@map("org_notificacao_configs")
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// Orkiestri Strategy — Gestão Estratégica
+//
+// Substitui a planilha "Acompanhamento Estratégico". Entidade central:
+// EstrategicoCaso (o "assunto estratégico"). O que a planilha guardava como
+// texto livre ("Aguardando ANTT") vira combinação estruturada: etapa do
+// workflow + dependência + próxima ação com responsável e prazo.
+//
+// Especificação: docs/estrategico/MODULO.md.
+// ════════════════════════════════════════════════════════════════════════════
+
+/// Listas configuráveis por organização. Uma tabela só, com `tipo`, porque as
+/// cinco listas têm o mesmo formato e a mesma tela de manutenção.
+model EstrategicoCatalogo {
+  id             String   @id @default(uuid())
+  organizationId String   @map("organization_id")
+  /// grupo | objetivo | esfera | area | dependencia
+  tipo           String
+  nome           String
+  descricao      String?
+  cor            String?
+  /// Só para `dependencia`: interna | externa. Externa gera follow-up automático.
+  natureza       String?
+  ordem          Int      @default(0)
+  ativo          Boolean  @default(true)
+  criadoEm       DateTime @default(now()) @map("criado_em")
+  atualizadoEm   DateTime @updatedAt @map("atualizado_em")
+
+  organization  Organization             @relation("OrgEstrategicoCatalogos", fields: [organizationId], references: [id], onDelete: Cascade)
+  casosGrupo    EstrategicoCaso[]        @relation("EstrategicoCasoGrupo")
+  casosObjetivo EstrategicoCaso[]        @relation("EstrategicoCasoObjetivo")
+  casosEsfera   EstrategicoCaso[]        @relation("EstrategicoCasoEsfera")
+  casosAreaExec EstrategicoCaso[]        @relation("EstrategicoCasoAreaExecutiva")
+  casosAreaOper EstrategicoCaso[]        @relation("EstrategicoCasoAreaOperacional")
+  apoios        EstrategicoCasoArea[]
+  dependencias  EstrategicoDependencia[]
+
+  @@unique([organizationId, tipo, nome])
+  @@index([organizationId, tipo, ativo])
+  @@map("estrategico_catalogos")
+}
+
+model EstrategicoCaso {
+  id             String  @id @default(uuid())
+  organizationId String  @map("organization_id")
+  /// EST-0001 — legível, sequencial por organização.
+  codigo         String
+  titulo         String
+  descricao      String? @db.Text
+  /// assunto | oportunidade
+  tipo           String  @default("assunto")
+
+  grupoId    String? @map("grupo_id")
+  objetivoId String? @map("objetivo_id")
+  esferaId   String? @map("esfera_id")
+
+  /// Etapa do workflow (domain/caso.entity.ts → ETAPAS). Não é catálogo: o
+  /// farol, a pauta e os indicadores dependem da NATUREZA de cada etapa.
+  etapa               String  @default("em_analise")
+  /// Estágio no pipeline, quando tipo = oportunidade.
+  estagioOportunidade String? @map("estagio_oportunidade")
+  /// baixa | media | alta | critica
+  prioridade          String  @default("media")
+
+  // ── Responsabilidade: um executivo e um operacional; apoio em tabela ────
+  areaExecutivaId          String? @map("area_executiva_id")
+  areaOperacionalId        String? @map("area_operacional_id")
+  responsavelExecutivoId   String? @map("responsavel_executivo_id")
+  responsavelOperacionalId String? @map("responsavel_operacional_id")
+
+  // ── Próxima ação — obrigatória para assunto ativo ────────────────────────
+  proximaAcao                String?   @map("proxima_acao") @db.Text
+  proximaAcaoResponsavelId   String?   @map("proxima_acao_responsavel_id")
+  /// Quem age e não tem login (escritório externo, consultoria).
+  proximaAcaoResponsavelNome String?   @map("proxima_acao_responsavel_nome")
+  proximaAcaoPrazo           DateTime? @map("proxima_acao_prazo") @db.Date
+  proximaAcaoPrioridade      String?   @map("proxima_acao_prioridade")
+
+  prazoFinal           DateTime? @map("prazo_final") @db.Date
+  /// Data do último andamento. Base do aging; nulo = nunca houve andamento datado.
+  ultimaMovimentacaoEm DateTime? @map("ultima_movimentacao_em") @db.Date
+
+  // ── Financeiro — valores correntes; cada mudança grava EstrategicoValorHistorico
+  /// receita | reequilibrio | reducao_perda | recuperacao | investimento |
+  /// multa | condenacao | despesa | oportunidade
+  classificacaoFinanceira String?   @map("classificacao_financeira")
+  moeda                   String    @default("BRL")
+  valorPretendido         Decimal?  @map("valor_pretendido") @db.Decimal(18, 2)
+  valorSolicitado         Decimal?  @map("valor_solicitado") @db.Decimal(18, 2)
+  valorEmAnalise          Decimal?  @map("valor_em_analise") @db.Decimal(18, 2)
+  valorReconhecido        Decimal?  @map("valor_reconhecido") @db.Decimal(18, 2)
+  valorAlcancado          Decimal?  @map("valor_alcancado") @db.Decimal(18, 2)
+  valorRecebido           Decimal?  @map("valor_recebido") @db.Decimal(18, 2)
+  valorReequilibrio       Decimal?  @map("valor_reequilibrio") @db.Decimal(18, 2)
+  valorEmRisco            Decimal?  @map("valor_em_risco") @db.Decimal(18, 2)
+  valorPotencial          Decimal?  @map("valor_potencial") @db.Decimal(18, 2)
+  valoresReferenciaEm     DateTime? @map("valores_referencia_em") @db.Date
+
+  // ── Risco — escala 1..5 ──────────────────────────────────────────────────
+  probabilidade    Int?
+  impacto          Int?
+  riscoFinanceiro  Int?    @map("risco_financeiro")
+  riscoJuridico    Int?    @map("risco_juridico")
+  riscoRegulatorio Int?    @map("risco_regulatorio")
+  riscoOperacional Int?    @map("risco_operacional")
+  riscoPrazo       Int?    @map("risco_prazo")
+  planoMitigacao   String? @map("plano_mitigacao") @db.Text
+
+  // ── Farol — calculado; o override manual exige justificativa ─────────────
+  /// verde | amarelo | vermelho | cinza | azul
+  farolCalculado     String    @default("verde") @map("farol_calculado")
+  farolMotivos       Json      @default("[]") @map("farol_motivos")
+  farolCalculadoEm   DateTime? @map("farol_calculado_em")
+  farolManual        String?   @map("farol_manual")
+  farolJustificativa String?   @map("farol_justificativa") @db.Text
+
+  // ── Importação da planilha — o original nunca se perde ──────────────────
+  statusOriginal      String? @map("status_original") @db.Text
+  andamentosOriginais String? @map("andamentos_originais") @db.Text
+  importacaoChave     String? @map("importacao_chave")
+  importacaoDados     Json?   @map("importacao_dados")
+  revisarImportacao   Boolean @default(false) @map("revisar_importacao")
+
+  encerradoEm     DateTime? @map("encerrado_em")
+  criadoPorId     String?   @map("criado_por_id")
+  atualizadoPorId String?   @map("atualizado_por_id")
+  deletedAt       DateTime? @map("deleted_at")
+  criadoEm        DateTime  @default(now()) @map("criado_em")
+  atualizadoEm    DateTime  @updatedAt @map("atualizado_em")
+
+  organization           Organization         @relation("OrgEstrategicoCasos", fields: [organizationId], references: [id], onDelete: Cascade)
+  grupo                  EstrategicoCatalogo? @relation("EstrategicoCasoGrupo", fields: [grupoId], references: [id], onDelete: SetNull)
+  objetivo               EstrategicoCatalogo? @relation("EstrategicoCasoObjetivo", fields: [objetivoId], references: [id], onDelete: SetNull)
+  esfera                 EstrategicoCatalogo? @relation("EstrategicoCasoEsfera", fields: [esferaId], references: [id], onDelete: SetNull)
+  areaExecutiva          EstrategicoCatalogo? @relation("EstrategicoCasoAreaExecutiva", fields: [areaExecutivaId], references: [id], onDelete: SetNull)
+  areaOperacional        EstrategicoCatalogo? @relation("EstrategicoCasoAreaOperacional", fields: [areaOperacionalId], references: [id], onDelete: SetNull)
+  responsavelExecutivo   User?                @relation("EstrategicoRespExecutivo", fields: [responsavelExecutivoId], references: [id], onDelete: SetNull)
+  responsavelOperacional User?                @relation("EstrategicoRespOperacional", fields: [responsavelOperacionalId], references: [id], onDelete: SetNull)
+  proximaAcaoResponsavel User?                @relation("EstrategicoRespProximaAcao", fields: [proximaAcaoResponsavelId], references: [id], onDelete: SetNull)
+
+  apoios         EstrategicoCasoArea[]
+  eventos        EstrategicoEvento[]
+  tarefas        EstrategicoTarefa[]
+  dependencias   EstrategicoDependencia[]
+  documentos     EstrategicoDocumento[]
+  comentarios    EstrategicoComentario[]
+  valores        EstrategicoValorHistorico[]
+  historico      EstrategicoHistorico[]
+  decisoes       EstrategicoDecisao[]
+
+  @@unique([organizationId, codigo])
+  @@index([organizationId, deletedAt])
+  @@index([organizationId, etapa])
+  @@index([organizationId, proximaAcaoPrazo])
+  @@index([organizationId, importacaoChave])
+  @@map("estrategico_casos")
+}
+
+/// Áreas de apoio. Executivo e operacional ficam no caso — são um só cada.
+model EstrategicoCasoArea {
+  id     String @id @default(uuid())
+  casoId String @map("caso_id")
+  areaId String @map("area_id")
+
+  caso EstrategicoCaso     @relation(fields: [casoId], references: [id], onDelete: Cascade)
+  area EstrategicoCatalogo @relation(fields: [areaId], references: [id], onDelete: Cascade)
+
+  @@unique([casoId, areaId])
+  @@map("estrategico_caso_areas")
+}
+
+/// Timeline estruturada — substitui a coluna "Principais Andamentos".
+model EstrategicoEvento {
+  id             String   @id @default(uuid())
+  organizationId String   @map("organization_id")
+  casoId         String   @map("caso_id")
+  /// protocolo | reuniao | oficio | decisao | peticao | manifestacao | cobranca |
+  /// documento | calculo | aprovacao | alteracao_status | mudanca_responsavel | andamento
+  tipo           String   @default("andamento")
+  dataEvento     DateTime @map("data_evento") @db.Date
+  /// dia | mes — "09/2025" na planilha não tem dia, e não vamos inventar um.
+  precisaoData   String   @default("dia") @map("precisao_data")
+  titulo         String
+  descricao      String?  @db.Text
+  decisao        String?  @db.Text
+  proximoPasso   String?  @map("proximo_passo") @db.Text
+  responsavelId  String?  @map("responsavel_id")
+  autorId        String?  @map("autor_id")
+  /// manual | importacao | sistema | reuniao
+  origem         String   @default("manual")
+  documentoId    String?  @map("documento_id")
+  reuniaoId      String?  @map("reuniao_id")
+  /// Evento criado por conversão automática que precisa de conferência humana.
+  revisar        Boolean  @default(false)
+
+  deletedAt DateTime? @map("deleted_at")
+  criadoEm  DateTime  @default(now()) @map("criado_em")
+
+  caso        EstrategicoCaso @relation(fields: [casoId], references: [id], onDelete: Cascade)
+  responsavel User?           @relation("EstrategicoEventoResponsavel", fields: [responsavelId], references: [id], onDelete: SetNull)
+
+  @@index([casoId, dataEvento(sort: Desc)])
+  @@index([organizationId, dataEvento])
+  @@map("estrategico_eventos")
+}
+
+model EstrategicoTarefa {
+  id             String    @id @default(uuid())
+  organizationId String    @map("organization_id")
+  casoId         String    @map("caso_id")
+  titulo         String
+  descricao      String?   @db.Text
+  responsavelId  String?   @map("responsavel_id")
+  prazo          DateTime? @db.Date
+  prioridade     String    @default("media")
+  /// pendente | em_andamento | bloqueada | concluida | cancelada
+  status         String    @default("pendente")
+  dependencia    String?
+  conclusao      String?   @db.Text
+  concluidaEm    DateTime? @map("concluida_em")
+  /// manual | reuniao | automacao
+  origem         String    @default("manual")
+  reuniaoId      String?   @map("reuniao_id")
+  /// De-duplicação das tarefas geradas pela automação (follow-up).
+  chaveAutomacao String?   @map("chave_automacao")
+  criadoPorId    String?   @map("criado_por_id")
+  deletedAt      DateTime? @map("deleted_at")
+  criadoEm       DateTime  @default(now()) @map("criado_em")
+  atualizadoEm   DateTime  @updatedAt @map("atualizado_em")
+
+  caso        EstrategicoCaso @relation(fields: [casoId], references: [id], onDelete: Cascade)
+  responsavel User?           @relation("EstrategicoTarefaResponsavel", fields: [responsavelId], references: [id], onDelete: SetNull)
+
+  @@unique([organizationId, chaveAutomacao])
+  @@index([casoId, deletedAt])
+  @@index([organizationId, responsavelId, status])
+  @@index([organizationId, prazo])
+  @@map("estrategico_tarefas")
+}
+
+/// "Aguardando ANTT" deixa de ser status e vira dependência com data de início.
+model EstrategicoDependencia {
+  id                 String    @id @default(uuid())
+  organizationId     String    @map("organization_id")
+  casoId             String    @map("caso_id")
+  catalogoId         String?   @map("catalogo_id")
+  /// Nome livre quando não há item de catálogo (ex.: escritório específico).
+  organizacao        String?
+  contato            String?
+  descricao          String?   @db.Text
+  desde              DateTime? @db.Date
+  respostaEsperadaEm DateTime? @map("resposta_esperada_em") @db.Date
+  ultimoFollowUpEm   DateTime? @map("ultimo_follow_up_em") @db.Date
+  proximoFollowUpEm  DateTime? @map("proximo_follow_up_em") @db.Date
+  resolvidaEm        DateTime? @map("resolvida_em")
+  criadoEm           DateTime  @default(now()) @map("criado_em")
+  atualizadoEm       DateTime  @updatedAt @map("atualizado_em")
+
+  caso     EstrategicoCaso      @relation(fields: [casoId], references: [id], onDelete: Cascade)
+  catalogo EstrategicoCatalogo? @relation(fields: [catalogoId], references: [id], onDelete: SetNull)
+
+  @@index([casoId, resolvidaEm])
+  @@index([organizationId, resolvidaEm])
+  @@map("estrategico_dependencias")
+}
+
+/// Repositório de documentos do caso. Arquivo fora do diretório público.
+model EstrategicoDocumento {
+  id                String    @id @default(uuid())
+  organizationId    String    @map("organization_id")
+  casoId            String    @map("caso_id")
+  /// contrato | aditivo | oficio | nota_tecnica | parecer | estudo_economico |
+  /// peticao | decisao | planilha | evidencia | outro
+  categoria         String    @default("outro")
+  titulo            String
+  nomeOriginal      String    @map("nome_original")
+  arquivoRef        String    @map("arquivo_ref")
+  mime              String?
+  tamanho           Int?
+  versao            Int       @default(1)
+  /// Primeira versão do documento; as seguintes apontam para ela.
+  documentoOrigemId String?   @map("documento_origem_id")
+  eventoId          String?   @map("evento_id")
+  tarefaId          String?   @map("tarefa_id")
+  observacoes       String?   @db.Text
+  criadoPorId       String?   @map("criado_por_id")
+  deletedAt         DateTime? @map("deleted_at")
+  criadoEm          DateTime  @default(now()) @map("criado_em")
+
+  caso EstrategicoCaso @relation(fields: [casoId], references: [id], onDelete: Cascade)
+
+  @@index([casoId, deletedAt])
+  @@index([documentoOrigemId])
+  @@map("estrategico_documentos")
+}
+
+model EstrategicoComentario {
+  id             String    @id @default(uuid())
+  organizationId String    @map("organization_id")
+  casoId         String    @map("caso_id")
+  userId         String    @map("user_id")
+  conteudo       String    @db.Text
+  deletedAt      DateTime? @map("deleted_at")
+  criadoEm       DateTime  @default(now()) @map("criado_em")
+
+  caso EstrategicoCaso @relation(fields: [casoId], references: [id], onDelete: Cascade)
+  user User            @relation("EstrategicoComentarioUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([casoId, deletedAt])
+  @@map("estrategico_comentarios")
+}
+
+/// Pretendido → Negociado → Reconhecido → Realizado. Uma linha por alteração.
+model EstrategicoValorHistorico {
+  id             String    @id @default(uuid())
+  organizationId String    @map("organization_id")
+  casoId         String    @map("caso_id")
+  campo          String
+  valorAnterior  Decimal?  @map("valor_anterior") @db.Decimal(18, 2)
+  valorNovo      Decimal?  @map("valor_novo") @db.Decimal(18, 2)
+  referenciaEm   DateTime? @map("referencia_em") @db.Date
+  observacao     String?   @db.Text
+  userId         String?   @map("user_id")
+  origem         String    @default("web")
+  criadoEm       DateTime  @default(now()) @map("criado_em")
+
+  caso EstrategicoCaso @relation(fields: [casoId], references: [id], onDelete: Cascade)
+
+  @@index([casoId, criadoEm])
+  @@index([organizationId, criadoEm])
+  @@map("estrategico_valores_historico")
+}
+
+/// Trilha campo a campo do caso. Nunca apagada, nem na exclusão lógica.
+model EstrategicoHistorico {
+  id             String   @id @default(uuid())
+  organizationId String   @map("organization_id")
+  casoId         String   @map("caso_id")
+  userId         String?  @map("user_id")
+  /// criou | editou | mudou_etapa | mudou_responsavel | mudou_valor | mudou_prazo |
+  /// mudou_risco | farol_manual | farol_calculado | anexou | removeu_anexo |
+  /// comentou | decidiu | tarefa | evento | dependencia | excluiu | importou
+  acao           String
+  campo          String?
+  valorAnterior  String?  @map("valor_anterior") @db.Text
+  valorNovo      String?  @map("valor_novo") @db.Text
+  descricao      String?  @db.Text
+  /// web | sistema | importacao | reuniao
+  origem         String   @default("web")
+  ip             String?
+  criadoEm       DateTime @default(now()) @map("criado_em")
+
+  caso EstrategicoCaso @relation(fields: [casoId], references: [id], onDelete: Cascade)
+  user User?           @relation("EstrategicoHistoricoUser", fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([casoId, criadoEm(sort: Desc)])
+  @@index([organizationId, criadoEm(sort: Desc)])
+  @@map("estrategico_historico")
+}
+
+/// Reunião Estratégica — pauta gerada, decisões e ata.
+model EstrategicoReuniao {
+  id                String    @id @default(uuid())
+  organizationId    String    @map("organization_id")
+  titulo            String
+  dataReuniao       DateTime  @map("data_reuniao")
+  local             String?
+  /// planejada | em_andamento | encerrada | cancelada
+  status            String    @default("planejada")
+  /// [{ userId?, nome }]
+  participantes     Json      @default("[]")
+  /// Pauta congelada no momento da geração: seções com os casos e o porquê.
+  pauta             Json      @default("[]")
+  /// { [casoId]: { discutido: boolean, nota: string } }
+  anotacoes         Json      @default("{}")
+  ata               String?   @db.Text
+  /// Base do "o que mudou desde a última reunião".
+  referenciaDesde   DateTime? @map("referencia_desde")
+  reuniaoAnteriorId String?   @map("reuniao_anterior_id")
+  criadoPorId       String?   @map("criado_por_id")
+  iniciadaEm        DateTime? @map("iniciada_em")
+  encerradaEm       DateTime? @map("encerrada_em")
+  deletedAt         DateTime? @map("deleted_at")
+  criadoEm          DateTime  @default(now()) @map("criado_em")
+  atualizadoEm      DateTime  @updatedAt @map("atualizado_em")
+
+  organization Organization         @relation("OrgEstrategicoReunioes", fields: [organizationId], references: [id], onDelete: Cascade)
+  decisoes     EstrategicoDecisao[]
+
+  @@index([organizationId, dataReuniao(sort: Desc)])
+  @@map("estrategico_reunioes")
+}
+
+model EstrategicoDecisao {
+  id              String   @id @default(uuid())
+  organizationId  String   @map("organization_id")
+  casoId          String?  @map("caso_id")
+  reuniaoId       String?  @map("reuniao_id")
+  descricao       String   @db.Text
+  decididoEm      DateTime @map("decidido_em")
+  registradoPorId String?  @map("registrado_por_id")
+  criadoEm        DateTime @default(now()) @map("criado_em")
+
+  organization Organization        @relation("OrgEstrategicoDecisoes", fields: [organizationId], references: [id], onDelete: Cascade)
+  caso         EstrategicoCaso?    @relation(fields: [casoId], references: [id], onDelete: Cascade)
+  reuniao      EstrategicoReuniao? @relation(fields: [reuniaoId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, decididoEm(sort: Desc)])
+  @@index([casoId])
+  @@index([reuniaoId])
+  @@map("estrategico_decisoes")
+}
+
+/// Parâmetros do farol e das automações — configuração, não código.
+model EstrategicoConfig {
+  id                      String   @id @default(uuid())
+  organizationId          String   @unique @map("organization_id")
+  diasAtencaoSemMovimento Int      @default(30) @map("dias_atencao_sem_movimento")
+  diasCriticoSemMovimento Int      @default(90) @map("dias_critico_sem_movimento")
+  diasAtrasoCritico       Int      @default(15) @map("dias_atraso_critico")
+  diasDependenciaAtencao  Int      @default(30) @map("dias_dependencia_atencao")
+  diasFollowUp            Int      @default(30) @map("dias_follow_up")
+  antecedenciasAviso      Int[]    @default([15, 7, 3, 0]) @map("antecedencias_aviso")
+  diasEscalonamento       Int      @default(5) @map("dias_escalonamento")
+  limiarValorRelevante    Decimal? @map("limiar_valor_relevante") @db.Decimal(18, 2)
+  automacoesAtivas        Boolean  @default(true) @map("automacoes_ativas")
+  notificarEmail          Boolean  @default(false) @map("notificar_email")
+  /// Usuários que recebem o último degrau do escalonamento.
+  gestoresEscalonamento   String[] @default([]) @map("gestores_escalonamento")
+  atualizadoPorId         String?  @map("atualizado_por_id")
+  atualizadoEm            DateTime @updatedAt @map("atualizado_em")
+
+  organization Organization @relation("OrgEstrategicoConfig", fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@map("estrategico_configs")
+}
+
+/// Registro de cada aviso emitido pela automação — impede repetição.
+model EstrategicoAlertaEnvio {
+  id             String   @id @default(uuid())
+  organizationId String   @map("organization_id")
+  casoId         String?  @map("caso_id")
+  tarefaId       String?  @map("tarefa_id")
+  chave          String
+  tipo           String
+  destinatarioId String   @map("destinatario_id")
+  criadoEm       DateTime @default(now()) @map("criado_em")
+
+  @@unique([organizationId, chave])
+  @@index([organizationId, criadoEm])
+  @@map("estrategico_alerta_envios")
 }

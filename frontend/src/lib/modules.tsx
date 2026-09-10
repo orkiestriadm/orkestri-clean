@@ -9,7 +9,7 @@ import {
   GitBranch, Network, ShoppingBag, Radio, Wallet, FileSpreadsheet, Wrench,
   ClipboardCheck, FolderKanban, Boxes, ShieldCheck, HeartPulse, Bell,
   Briefcase, CalendarClock, Library, BarChart3, CalendarX, UsersRound, Inbox, Info, Route,
-  UserCircle, Scale,
+  UserCircle, Scale, Target, ClipboardList, UserCheck, Lightbulb, Presentation,
 } from "lucide-react";
 
 // `permission` como lista significa OU — ver canAccessModule.
@@ -113,6 +113,22 @@ export const NAV: NavGroup[] = [
       { href: "/dashboard/compliance/relatorios",  label: "Relatórios",  icon: BarChart3,       permission: "compliance.relatorio:ver" },
       { href: "/dashboard/compliance/categorias",  label: "Categorias",  icon: Library,         permission: "compliance.categoria:ver" },
       { href: "/dashboard/compliance/alertas",     label: "Alertas",     icon: Bell,            permission: "compliance.notificacao:ver" },
+    ],
+  },
+  {
+    // Orkiestri Strategy — Gestão Estratégica. Substitui a planilha de
+    // acompanhamento estratégico da Diretoria: farol calculado, próxima ação
+    // com prazo, timeline, reunião estratégica. Confidencial: nenhum papel
+    // padrão além do administrador recebe as permissões. Ver docs/estrategico/.
+    id: "strategy", produto: "Strategy", descritor: "Gestão Estratégica", icon: Target,
+    items: [
+      { href: "/dashboard/estrategico",               label: "Painel",        icon: LayoutDashboard, permission: "estrategico.relatorio:ver" },
+      { href: "/dashboard/estrategico/assuntos",      label: "Assuntos",      icon: ClipboardList,   permission: "estrategico.caso:ver" },
+      { href: "/dashboard/estrategico/minhas",        label: "Minhas ações",  icon: UserCheck,       permission: "estrategico.caso:ver" },
+      { href: "/dashboard/estrategico/oportunidades", label: "Oportunidades", icon: Lightbulb,       permission: "estrategico.caso:ver" },
+      { href: "/dashboard/estrategico/reunioes",      label: "Reuniões",      icon: Presentation,    permission: "estrategico.reuniao:ver" },
+      { href: "/dashboard/estrategico/relatorios",    label: "Relatórios",    icon: BarChart3,       permission: "estrategico.relatorio:ver" },
+      { href: "/dashboard/estrategico/configuracoes", label: "Configurações", icon: Settings,        permission: "estrategico.admin:gerenciar" },
     ],
   },
   {

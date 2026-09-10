@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "1.32.4";
+export const VERSAO = "1.33.0";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -23,10 +23,10 @@ export const VERSAO = "1.32.4";
  * Não é gerada no build: `new Date()` no bundle muda a cada compilação, e duas
  * builds do mesmo código pareceriam versões diferentes.
  */
-export const VERSAO_DATA = "2026-09-08";
+export const VERSAO_DATA = "2026-09-10";
 
 /** Nome da entrega, para dar contexto ao número. */
-export const VERSAO_NOME = "Módulo de Indicações (referral)";
+export const VERSAO_NOME = "Strategy — Gestão Estratégica";
 
 /**
  * Histórico exibido na tela Sobre, do mais recente para o mais antigo.
@@ -35,6 +35,21 @@ export const VERSAO_NOME = "Módulo de Indicações (referral)";
  * esta lista quer saber o que mudou para ele.
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
+  {
+    versao: "1.33.0",
+    data: "2026-09-10",
+    titulo: "Strategy: Gestão Estratégica",
+    itens: [
+      "Novo módulo Strategy, que substitui a planilha de acompanhamento estratégico: cada assunto com etapa, dependência, próxima ação (responsável e prazo), timeline, tarefas, documentos, riscos, valores e histórico auditável",
+      "Farol calculado (verde, amarelo, vermelho, cinza e azul) com o motivo escrito; alteração manual só com justificativa",
+      "Painel da Diretoria: críticos, vencidos, parados há 30/60/90 dias, quem precisa agir, quanto está envolvido, pipeline de oportunidades, mapa de riscos e o que mudou desde a última reunião",
+      "Reunião Estratégica com pauta gerada automaticamente, registro de decisões e ações, e ata em PDF",
+      "Importação da planilha com prévia, preservação do texto original e marcação do que precisa de revisão",
+      "Avisos de prazo (15/7/3/0 dias), aging, escalonamento de assunto crítico e tarefa automática de cobrança de terceiros",
+      "Relatórios executivo, financeiro, regulatório, jurídico, de oportunidades, riscos, pendências, aging e evolução mensal em PDF, Excel e CSV",
+      "Reuniões estratégicas podem ser excluídas pela tela; decisões e tarefas já registradas continuam nos assuntos",
+    ],
+  },
   {
     versao: "1.32.4",
     data: "2026-09-09",
