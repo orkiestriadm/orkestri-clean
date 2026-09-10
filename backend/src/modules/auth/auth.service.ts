@@ -15,6 +15,7 @@ import {
   COMPLIANCE_PERMISSION_CATALOG, COMPLIANCE_PERMISSOES_LEITURA,
   COMPLIANCE_PERMISSOES_OPERACAO, COMPLIANCE_PERMISSOES_AUDITOR,
 } from "../compliance/compliance.permissions";
+import { ESTRATEGICO_PERMISSION_CATALOG, ESTRATEGICO_PREFIXO } from "../estrategico/estrategico.permissions";
 import * as bcrypt from "bcryptjs";
 
 // Todas as permissões do sistema no formato "recurso:acao"
@@ -139,6 +140,9 @@ const ALL_PERMISSIONS: { recurso: string; acao: string; descricao: string }[] = 
   ...PEOPLE_PERMISSION_CATALOG,
   // Orkiestri Compliance — mesma razão: o dono da regra é o dono da lista.
   ...COMPLIANCE_PERMISSION_CATALOG,
+  // Orkiestri Strategy — confidencial: fica FORA do "todo :ver" automático do
+  // visualizador e do auditor (ver o filtro nos papéis abaixo).
+  ...ESTRATEGICO_PERMISSION_CATALOG,
 ];
 
 // Permissões base — todo usuário recebe automaticamente, independente do papel.
@@ -348,7 +352,7 @@ const ROLE_DEFAULTS: Record<string, { nivel: number; descricao: string; permisso
     descricao: "Somente leitura em todos os módulos",
     permissoes: [
       "dashboard:ver", "meurh:ver",
-      ...ALL_PERMISSIONS.filter(p => p.acao === "ver").map(p => `${p.recurso}:${p.acao}`),
+      ...ALL_PERMISSIONS.filter(p => p.acao === "ver" && !p.recurso.startsWith(ESTRATEGICO_PREFIXO)).map(p => `${p.recurso}:${p.acao}`),
       "whatsapp:ver",
     ],
   },
@@ -405,7 +409,7 @@ const ROLE_DEFAULTS: Record<string, { nivel: number; descricao: string; permisso
     descricao: "Acesso somente-leitura a todos os módulos incluindo trilha de auditoria",
     permissoes: [
       "dashboard:ver", "meurh:ver",
-      ...ALL_PERMISSIONS.filter(p => p.acao === "ver").map(p => `${p.recurso}:${p.acao}`),
+      ...ALL_PERMISSIONS.filter(p => p.acao === "ver" && !p.recurso.startsWith(ESTRATEGICO_PREFIXO)).map(p => `${p.recurso}:${p.acao}`),
       "relatorios:exportar",
       // Conformidade exige enxergar a organização inteira, não só a própria equipe.
       ...PEOPLE_PERMISSOES_AUDITOR,

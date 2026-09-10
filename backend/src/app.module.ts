@@ -53,6 +53,7 @@ import { GastosModule } from './modules/gastos/gastos.module';
 import { FrotaModule } from './modules/frota/frota.module';
 import { PeopleModule } from './modules/people/people.module';
 import { ComplianceModule } from './modules/compliance/compliance.module';
+import { EstrategicoModule } from './modules/estrategico/estrategico.module';
 import { IntegracoesModule } from './modules/integracoes/integracoes.module';
 import { WhatsappInboundModule } from './modules/agenda/whatsapp-inbound.module';
 import { ReferralModule } from './modules/referral/referral.module';
@@ -106,6 +107,8 @@ import { JwtModule } from '@nestjs/jwt';
     // Orkiestri Compliance — Gestão de Obrigações. Rotas em /api/v1/compliance/*.
     // Ver docs/architecture/gestaodeobrigacoes.md.
     ComplianceModule,
+    // Orkiestri Strategy — Gestão Estratégica. Rotas em /api/v1/estrategico/*.
+    EstrategicoModule,
     // Integração de calendário externo (Microsoft 365 / futuro Google).
     // Rotas em /api/integracoes/microsoft/*. Ver docs/integracoes/.
     IntegracoesModule,
