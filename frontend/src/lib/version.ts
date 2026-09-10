@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "1.35.1";
+export const VERSAO = "1.35.2";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -26,7 +26,7 @@ export const VERSAO = "1.35.1";
 export const VERSAO_DATA = "2026-09-10";
 
 /** Nome da entrega, para dar contexto ao número. */
-export const VERSAO_NOME = "Strategy — correção da leitura dos andamentos";
+export const VERSAO_NOME = "Strategy — relatórios sem bloqueio e exportação sem erro";
 
 /**
  * Histórico exibido na tela Sobre, do mais recente para o mais antigo.
@@ -35,6 +35,15 @@ export const VERSAO_NOME = "Strategy — correção da leitura dos andamentos";
  * esta lista quer saber o que mudou para ele.
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
+  {
+    versao: "1.35.2",
+    data: "2026-09-10",
+    titulo: "Strategy: relatórios sem bloqueio",
+    itens: [
+      "A tela de Relatórios do Strategy não é mais bloqueada ao consultar vários relatórios seguidos (antes, depois de 3 ou 4 cliques em um minuto aparecia \"Falha ao gerar o relatório\")",
+      "Correção técnica na entrega da ata em PDF e das exportações (o arquivo já saía certo, mas o servidor registrava um erro a cada download)",
+    ],
+  },
   {
     versao: "1.35.1",
     data: "2026-09-10",

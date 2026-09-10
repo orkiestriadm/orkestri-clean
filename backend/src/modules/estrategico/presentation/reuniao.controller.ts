@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Patch, Body, Param, Req, Res, UseGuards } from "@nestjs/common";
+import { Controller, Get, Post, Patch, Body, Param, Req, Res, StreamableFile, UseGuards } from "@nestjs/common";
 import { AuthGuard } from "@nestjs/passport";
 import type { Response } from "express";
 import { PermissionsGuard } from "../../auth/permissions.guard";
@@ -31,10 +31,14 @@ export class ReuniaoController {
   @Permissions(P.reuniao.ver)
   async ata(@Req() req: any, @Param("id") id: string, @Res({ passthrough: true }) res: Response) {
     const { conteudo, nome } = await this.service.ataPdf(req.user, id);
-    res.setHeader("Content-Type", "application/pdf");
-    res.setHeader("Content-Disposition", `attachment; filename="${nome}"`);
     res.setHeader("Cache-Control", "private, no-store");
-    return res.send(conteudo);
+    // StreamableFile: devolver `res.send(...)` com passthrough fazia o Nest
+    // tentar serializar o Response ("circular structure") depois do envio.
+    return new StreamableFile(conteudo, {
+      type: "application/pdf",
+      disposition: `attachment; filename="${nome}"`,
+      length: conteudo.length,
+    });
   }
 
   @Post()

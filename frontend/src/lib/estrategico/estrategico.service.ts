@@ -189,12 +189,14 @@ export const estrategicoService = {
     const { data } = await api.get(`${BASE}/painel`, { params: limpar(filtros) });
     return data;
   },
+  // Prévias em `/analises`: `/relatorios` cai no limite de 5 req/min do nginx
+  // para exportações (ver painel.controller.ts). Só o arquivo usa `/relatorios`.
   async tiposRelatorio(): Promise<TipoRelatorio[]> {
-    const { data } = await api.get(`${BASE}/relatorios`);
+    const { data } = await api.get(`${BASE}/analises`);
     return data;
   },
   async relatorio(tipo: string): Promise<TabelaRelatorio> {
-    const { data } = await api.get(`${BASE}/relatorios/${tipo}`);
+    const { data } = await api.get(`${BASE}/analises/${tipo}`);
     return data;
   },
   exportarRelatorio(tipo: string, formato: "excel" | "csv" | "pdf") {
