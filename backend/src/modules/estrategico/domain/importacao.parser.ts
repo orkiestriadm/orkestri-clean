@@ -61,6 +61,8 @@ export type CasoPrevia = {
   celulasOriginais: Record<string, string | number | null>;
   pendencias: string[];
   ultimaMovimentacao: string | null;
+  /** Coluna "Prazo" (yyyy-mm-dd). "N/A", "-" e vazio viram null. */
+  prazoFinal: string | null;
 };
 
 export type PreviaImportacao = {
@@ -97,7 +99,7 @@ const semAcento = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLo
 type MapaColunas = {
   assunto: number; objetivo?: number; andamentos?: number;
   valorPretendido?: number; valorAlcancado?: number; valorReequilibrio?: number;
-  esfera?: number; status?: number; area?: number; situacao?: number;
+  esfera?: number; status?: number; area?: number; situacao?: number; prazo?: number;
 };
 
 function reconhecerCabecalho(linha: Celula[]): MapaColunas | null {
@@ -117,6 +119,7 @@ function reconhecerCabecalho(linha: Celula[]): MapaColunas | null {
     esfera: idx(h => h.startsWith("esfera")),
     status: idx(h => h.includes("status")),
     area: idx(h => h.includes("area") && h.includes("respons")),
+    prazo: idx(h => h === "prazo" || h.startsWith("prazo ")),
   };
 }
 
@@ -328,6 +331,34 @@ function valorCelula(v: Celula, rotulo: string, pendencias: string[]): number | 
 
 /* ── Catálogo: unificar variações de digitação ────────────────────────────── */
 
+/**
+ * Coluna "Prazo" (entrou na planilha em 11/09/2026): vira o prazo final do assunto.
+ *
+ * O Excel guarda só o dia, mas a biblioteca entrega um Date com a hora do fuso
+ * de quem salvou (e às vezes segundos a menos). Somar 12h antes de cortar a
+ * data impede que 15/09 vire 14/09 — o mesmo cuidado que qualquer data de
+ * célula precisa.
+ */
+function prazoCelula(v: Celula, pendencias: string[]): string | null {
+  if (vazio(v)) return null;
+  if (v instanceof Date) return new Date(v.getTime() + 12 * 3_600_000).toISOString().slice(0, 10);
+  if (typeof v === "number") return new Date(Date.UTC(1899, 11, 30) + Math.round(v) * 86_400_000).toISOString().slice(0, 10);
+
+  const t = texto(v).trim();
+  if (/^(n\/?a|nao se aplica|sem prazo)$/.test(semAcento(t))) return null;
+  const br = t.match(/^(\d{1,2})[\/.](\d{1,2})[\/.](\d{2}|\d{4})$/);
+  if (br) {
+    const dia = Number(br[1]); const mes = Number(br[2]);
+    let ano = Number(br[3]); if (br[3].length === 2) ano += 2000;
+    if (dataValida(ano, mes, dia)) return `${ano}-${doisDigitos(mes)}-${doisDigitos(dia)}`;
+  }
+  const iso = t.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (iso && dataValida(Number(iso[1]), Number(iso[2]), Number(iso[3]))) return `${iso[1]}-${iso[2]}-${iso[3]}`;
+
+  pendencias.push(`Prazo: "${t}" não é uma data — não importado.`);
+  return null;
+}
+
 function unificar(nomes: (string | null)[]) {
   const grupos = new Map<string, Map<string, number>>();
   for (const bruto of nomes) {
@@ -383,7 +414,7 @@ export function lerPlanilha(
   }
 
   const get = (l: Celula[], i?: number) => (i === undefined ? null : l[i]);
-  const outrasColunas = (["objetivo", "andamentos", "valorPretendido", "valorAlcancado", "valorReequilibrio", "esfera", "status", "area", "situacao"] as const)
+  const outrasColunas = (["objetivo", "andamentos", "valorPretendido", "valorAlcancado", "valorReequilibrio", "esfera", "status", "area", "situacao", "prazo"] as const)
     .map(k => mapa[k]).filter((i): i is number => i !== undefined);
 
   // Linhas intermediárias: `_objetivo`, `_esfera` e `_areas` ainda com a
@@ -452,6 +483,7 @@ export function lerPlanilha(
     }
 
     const ultimaMovimentacao = eventos.length ? eventos.map(e => e.data).sort().reverse()[0] : null;
+    const prazoFinal = prazoCelula(get(l, mapa.prazo), pendencias);
 
     brutos.push({
       linha: r + 1,
@@ -475,6 +507,7 @@ export function lerPlanilha(
       celulasOriginais,
       pendencias,
       ultimaMovimentacao,
+      prazoFinal,
     });
   }
 

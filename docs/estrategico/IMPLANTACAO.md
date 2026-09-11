@@ -49,6 +49,38 @@ docker exec orkestri_api rm /tmp/planilha.xlsx
 
 A planilha **não** vai para o git: tem informação estratégica da empresa.
 
+A coluna **Prazo** (desde 1.39.0) vira o prazo final do assunto: data → prazo
+final (entra no farol: amarelo a 15 dias, vermelho vencido); "N/A", "-" e vazio →
+sem prazo; texto que não é data → pendência para revisar. Planilha sem a coluna
+continua sendo lida.
+
+## Substituir a carga por uma versão mais nova da planilha
+
+Reimportar sozinho **não** atualiza nada: o importador reconhece o assunto pelo
+título e ignora o que já existe — e um título alterado na planilha viraria um
+assunto NOVO ao lado do antigo. Para trocar a carga inteira:
+
+```bash
+docker cp "Acompanhamento Estratégico.xlsx" orkestri_api:/tmp/planilha.xlsx
+docker exec -u root orkestri_api chown app:app /tmp/planilha.xlsx
+docker exec orkestri_api node dist/modules/estrategico/cli/importar-planilha.js /tmp/planilha.xlsx <organizationId> --substituir --simular
+docker exec orkestri_api node dist/modules/estrategico/cli/importar-planilha.js /tmp/planilha.xlsx <organizationId> --substituir
+docker exec -u root orkestri_api rm /tmp/planilha.xlsx
+```
+
+- **Apaga de vez** a carga atual da organização — assuntos (inclusive os já
+  excluídos), andamentos, dependências, tarefas, documentos (e os arquivos),
+  comentários, valores, histórico, catálogos, reuniões, decisões e registros de
+  aviso — e importa a planilha no lugar, **na mesma transação**. Os códigos
+  recomeçam em EST-0001.
+- **É recusado** se houver trabalho feito sobre a carga: assunto cadastrado à
+  mão ou validado, próxima ação/responsável/risco/descrição/farol manual
+  preenchidos, andamento, tarefa, documento, comentário, decisão, reunião não
+  excluída, dependência com data e valor alterado no sistema. O `--simular`
+  mostra o que seria apagado e os bloqueios. Depois que a equipe começou a
+  trabalhar, a planilha deixa de ser a fonte: atualizar pelo sistema.
+- Faça `pg_dump -t 'estrategico_*'` antes, se quiser poder voltar.
+
 ## Acesso
 
 Nenhum papel além de master/administrador recebe o módulo. Conceder os

@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "1.38.2";
+export const VERSAO = "1.39.0";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -26,7 +26,7 @@ export const VERSAO = "1.38.2";
 export const VERSAO_DATA = "2026-09-11";
 
 /** Nome da entrega, para dar contexto ao número. */
-export const VERSAO_NOME = "Login com a cor do ambiente";
+export const VERSAO_NOME = "Strategy: carga da planilha atualizada";
 
 /**
  * Histórico exibido na tela Sobre, do mais recente para o mais antigo.
@@ -35,6 +35,15 @@ export const VERSAO_NOME = "Login com a cor do ambiente";
  * esta lista quer saber o que mudou para ele.
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
+  {
+    versao: "1.39.0",
+    data: "2026-09-11",
+    titulo: "Strategy: carga da planilha atualizada",
+    itens: [
+      "A importação da planilha passa a ler a coluna Prazo: a data vira o prazo final do assunto (N/A ou vazio ficam sem prazo) e entra no cálculo do farol",
+      "A carga da planilha pode ser substituída por uma versão mais nova sem duplicar assuntos — inclusive os que mudaram de nome. A troca é recusada automaticamente se já houver trabalho feito sobre a carga anterior",
+    ],
+  },
   {
     versao: "1.38.2",
     data: "2026-09-11",

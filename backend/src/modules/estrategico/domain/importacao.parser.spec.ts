@@ -140,3 +140,47 @@ describe("regras auxiliares", () => {
     expect(inferirTipoEvento("Qualquer coisa")).toBe("andamento");
   });
 });
+
+describe("coluna Prazo (layout de 11/09/2026)", () => {
+  const cabPrazo = [null, "Assunto", "Objetivo", "Principais Andamentos", "Valor envolvido - Pretensão", "Valor - Alcançado", "Valor de Reequilíbrio", "Esfera", "Status Atual", "Prazo", "Área Responsável", null];
+  const linha = (assunto: string, prazo: any) =>
+    [null, assunto, "Reequilíbrio", null, null, null, null, "Administrativa", "Aguardando ANTT", prazo, "Regulatório", "Em andamento"];
+  const previa = lerPlanilha([{
+    nome: "Assuntos",
+    linhas: [
+      [null, "ACOMPANHAMENTO"], cabPrazo,
+      [null, "Grupo X", null, null, null, null, null, null, null, null, null, null],
+      // 23:59:32 do dia 14 em UTC-3: o artefato de hora que a biblioteca entrega para o dia 15
+      linha("Com data do Excel", new Date(Date.UTC(2026, 8, 15, 2, 59, 32))),
+      linha("Com data meia-noite UTC", new Date(Date.UTC(2026, 8, 16))),
+      linha("Com data BR", "17/09/2026"),
+      linha("Sem prazo", "N/A"),
+      linha("Vazio", null),
+      linha("Texto qualquer", "até o fim do mês"),
+    ],
+  }], HOJE);
+  const porTitulo = Object.fromEntries(previa.casos.map(c => [c.titulo, c]));
+
+  it("reconhece a coluna sem confundir situação, área nem grupo", () => {
+    expect(previa.colunas.prazo).toBe("Prazo");
+    expect(previa.colunas.situacao).toBe("(sem cabeçalho)");
+    expect(previa.grupos).toEqual(["Grupo X"]);
+    expect(previa.casos).toHaveLength(6);
+    expect(previa.casos.every(c => c.areaOperacional === "Regulatório")).toBe(true);
+  });
+
+  it("data vira prazo final no dia certo; N/A e vazio ficam sem prazo; texto vira pendência", () => {
+    expect(porTitulo["Com data do Excel"].prazoFinal).toBe("2026-09-15");
+    expect(porTitulo["Com data meia-noite UTC"].prazoFinal).toBe("2026-09-16");
+    expect(porTitulo["Com data BR"].prazoFinal).toBe("2026-09-17");
+    expect(porTitulo["Sem prazo"].prazoFinal).toBeNull();
+    expect(porTitulo["Vazio"].prazoFinal).toBeNull();
+    expect(porTitulo["Texto qualquer"].prazoFinal).toBeNull();
+    expect(porTitulo["Texto qualquer"].pendencias.join(" ")).toContain('Prazo: "até o fim do mês"');
+    expect(porTitulo["Sem prazo"].pendencias.join(" ")).not.toContain("Prazo:");
+  });
+
+  it("planilha sem a coluna continua sendo lida, com prazo nulo", () => {
+    expect(lerPlanilha([{ nome: "Assuntos", linhas }], HOJE).casos.every(c => c.prazoFinal === null)).toBe(true);
+  });
+});
