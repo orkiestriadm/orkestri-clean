@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "1.37.0";
+export const VERSAO = "1.38.0";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -26,7 +26,7 @@ export const VERSAO = "1.37.0";
 export const VERSAO_DATA = "2026-09-11";
 
 /** Nome da entrega, para dar contexto ao número. */
-export const VERSAO_NOME = "Projetos — Keep da tarefa";
+export const VERSAO_NOME = "Projetos — concluídos, histórico e novo layout";
 
 /**
  * Histórico exibido na tela Sobre, do mais recente para o mais antigo.
@@ -35,6 +35,18 @@ export const VERSAO_NOME = "Projetos — Keep da tarefa";
  * esta lista quer saber o que mudou para ele.
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
+  {
+    versao: "1.38.0",
+    data: "2026-09-11",
+    titulo: "Projetos: concluídos, histórico do quadro e tela que cabe",
+    itens: [
+      "Todo membro do projeto pode arrastar as tarefas entre as colunas do quadro, inclusive quem tem só acesso de leitura ao módulo. Quem não faz parte do projeto acompanha, mas não move",
+      "Cada movimentação fica registrada: nova aba Histórico na tarefa e botão Histórico no projeto, com quem moveu, de qual coluna para qual e quando",
+      "Nova tela Projetos Concluídos: quando todas as tarefas chegam a Concluída, o projeto sai da fila e vai para lá, com aviso a quem participa. Se uma tarefa for reaberta ou uma nova for criada, ele volta para a fila",
+      "A barra de progresso só mostra 100% quando o projeto terminou de fato (antes, um projeto grande com uma tarefa em revisão já aparecia com 100%)",
+      "A tela de Projetos foi reorganizada para caber em telas de notebook e monitor: as cinco colunas dividem a largura disponível, a lista de projetos pode ser recolhida e nada fica cortado na lateral",
+    ],
+  },
   {
     versao: "1.37.0",
     data: "2026-09-11",

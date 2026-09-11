@@ -118,7 +118,7 @@ export default function AnexosProjeto({
   }
 
   return (
-    <div className="mb-6 card-premium p-4">
+    <div className="card-premium p-4">
       <div className="flex items-center justify-between mb-3">
         <span className="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider flex items-center gap-2">
           <Paperclip size={13} />

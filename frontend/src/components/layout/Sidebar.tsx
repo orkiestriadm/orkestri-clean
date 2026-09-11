@@ -34,7 +34,15 @@ function useFavorites() {
 }
 
 function isActive(href: string, path: string) {
-  return href === path || (href !== "/dashboard" && path.startsWith(href));
+  if (href === path) return true;
+  if (href === "/dashboard" || !path.startsWith(`${href}/`)) return false;
+  // Um item mais específico ganha: em /dashboard/projetos/concluidos acende
+  // "Concluídos", e não também "Projetos". Antes o prefixo solto acendia os dois
+  // (e ainda casava /dashboard/projetos-x com /dashboard/projetos).
+  return !ALL_ITEMS.some(outro =>
+    outro.href.length > href.length && outro.href.startsWith(`${href}/`) &&
+    (path === outro.href || path.startsWith(`${outro.href}/`)),
+  );
 }
 function groupHasActive(group: NavGroup, path: string) {
   return group.items.some(i => isActive(i.href, path));

@@ -2,19 +2,21 @@
 import { useRef, useState } from "react";
 import TaskComments from "./TaskComments";
 import TaskKeep from "./TaskKeep";
+import HistoricoProjeto from "./HistoricoProjeto";
 
 type Task = { id: string; titulo: string; descricao?: string; status: string; prioridade: string; dataVencimento?: string; assignee?: { id: string; nome: string }; _count?: { registros?: number } };
 
-export type AbaTarefa = "detalhes" | "keep" | "comentarios";
+export type AbaTarefa = "detalhes" | "keep" | "historico" | "comentarios";
 
-// Mesmas chaves do quadro (projetos/page.tsx): URGENTE, EM_REVISAO e CANCELADA
-// estavam com outro nome aqui e apareciam sem cor e sem rótulo.
+// Mesmas chaves do quadro (projetos/_components/ProjetosView.tsx): URGENTE,
+// EM_REVISAO e CANCELADA estavam com outro nome aqui e apareciam sem cor e sem rótulo.
 const PRIO_COLORS: Record<string,string> = { BAIXA:"var(--accent-green)", MEDIA:"var(--accent-cyan)", ALTA:"var(--accent-amber)", URGENTE:"var(--accent-red)" };
 const STATUS_LABELS: Record<string,string> = { A_FAZER:"A Fazer", EM_ANDAMENTO:"Em Andamento", EM_REVISAO:"Em Revisão", CANCELADA:"Cancelada", CONCLUIDA:"Concluída" };
 
 const ABAS: { key: AbaTarefa; label: string }[] = [
   { key:"detalhes",    label:"Detalhes" },
   { key:"keep",        label:"Keep" },
+  { key:"historico",   label:"Histórico" },
   { key:"comentarios", label:"Comentários" },
 ];
 
@@ -40,9 +42,9 @@ export default function TaskDetailModal({ projectId, task, abaInicial = "detalhe
     <div className="modal-overlay" onClick={e=>{ if((e.target as HTMLElement).classList.contains("modal-overlay"))onClose(); }}>
       <div className="modal-box" onClick={e=>e.stopPropagation()} style={{ maxWidth:620, maxHeight:"85vh", display:"flex", flexDirection:"column" }}>
         {/* Header */}
-        <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", marginBottom:16 }}>
+        <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", marginBottom:16, gap:12 }}>
           <div style={{ flex:1, minWidth:0 }}>
-            <h3 style={{ fontFamily:"var(--font-display)", fontSize:16, fontWeight:700, color:"var(--text-primary)", marginBottom:6 }}>{task.titulo}</h3>
+            <h3 style={{ fontFamily:"var(--font-display)", fontSize:16, fontWeight:700, color:"var(--text-primary)", marginBottom:6, overflowWrap:"anywhere" }}>{task.titulo}</h3>
             <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
               <span className="badge" style={{ fontSize:10, background:PRIO_COLORS[task.prioridade]+"15", color:PRIO_COLORS[task.prioridade], border:`1px solid ${PRIO_COLORS[task.prioridade]}30` }}>{task.prioridade}</span>
               <span className="badge badge-violet" style={{ fontSize:10 }}>{STATUS_LABELS[task.status]||task.status}</span>
@@ -59,9 +61,9 @@ export default function TaskDetailModal({ projectId, task, abaInicial = "detalhe
         </div>
 
         {/* Tabs */}
-        <div style={{ display:"flex", gap:4, borderBottom:"1px solid var(--border-subtle)", marginBottom:16 }}>
+        <div style={{ display:"flex", gap:2, borderBottom:"1px solid var(--border-subtle)", marginBottom:16, overflowX:"auto" }}>
           {ABAS.map(({ key, label }) => (
-            <button key={key} onClick={()=>setTab(key)} style={{ padding:"8px 16px", background:"none", border:"none", borderBottom:tab===key?"2px solid var(--accent-violet)":"2px solid transparent", color:tab===key?"var(--accent-violet)":"var(--text-muted)", cursor:"pointer", fontFamily:"var(--font-display)", fontSize:13, fontWeight:tab===key?600:400, marginBottom:-1, display:"flex", alignItems:"center", gap:6 }}>
+            <button key={key} onClick={()=>setTab(key)} style={{ padding:"8px 14px", background:"none", border:"none", borderBottom:tab===key?"2px solid var(--accent-violet)":"2px solid transparent", color:tab===key?"var(--accent-violet)":"var(--text-muted)", cursor:"pointer", fontFamily:"var(--font-display)", fontSize:13, fontWeight:tab===key?600:400, marginBottom:-1, display:"flex", alignItems:"center", gap:6, whiteSpace:"nowrap" }}>
               {label}
               {key === "keep" && totalKeep > 0 && (
                 <span style={{ fontSize:10, fontFamily:"var(--font-mono)", background:"var(--bg-hover)", color:"var(--text-muted)", borderRadius:10, padding:"1px 6px" }}>{totalKeep}</span>
@@ -96,6 +98,9 @@ export default function TaskDetailModal({ projectId, task, abaInicial = "detalhe
           )}
           {tab === "keep" && (
             <TaskKeep projectId={projectId} taskId={task.id} onTotal={aoMudarKeep} />
+          )}
+          {tab === "historico" && (
+            <HistoricoProjeto projectId={projectId} taskId={task.id} />
           )}
           {tab === "comentarios" && (
             <TaskComments projectId={projectId} taskId={task.id} />
