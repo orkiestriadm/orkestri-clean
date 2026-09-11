@@ -221,7 +221,15 @@ class ProjectsController {
     const p = await acharNaOrganizacao<any>(this.prisma.project, id, req, "Projeto nao encontrado", {
       include: {
         members: { include: { user: { select: { id: true, nome: true, email: true } } } },
-        tasks: { include: { assignee: { select: { id: true, nome: true } }, comments: { include: { user: { select: { id: true, nome: true } } } } }, orderBy: { criadoEm: "asc" } },
+        tasks: {
+          include: {
+            assignee: { select: { id: true, nome: true } },
+            comments: { include: { user: { select: { id: true, nome: true } } } },
+            // Contador do Keep no cartão do quadro — só o número, o conteúdo vem ao abrir.
+            _count: { select: { registros: true } },
+          },
+          orderBy: { criadoEm: "asc" },
+        },
         milestones: { orderBy: { dataAlvo: "asc" } },
         cliente: { select: { id: true, nome: true, empresa: true, email: true, telefone: true } },
       },

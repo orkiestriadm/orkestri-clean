@@ -78,7 +78,7 @@ export default function TaskComments({ projectId, taskId }: { projectId: string;
                 </div>
               </div>
               {isMe && (
-                <button onClick={async()=>{ await api.delete(`/projects/${projectId}/tasks/${c.id}/comments/${c.id}`); load(); }} style={{ background:"none", border:"none", cursor:"pointer", color:"var(--text-muted)", padding:4, flexShrink:0, display:"flex", opacity:0.5 }}
+                <button onClick={async()=>{ await api.delete(`/projects/${projectId}/tasks/${taskId}/comments/${c.id}`); load(); }} style={{ background:"none", border:"none", cursor:"pointer", color:"var(--text-muted)", padding:4, flexShrink:0, display:"flex", opacity:0.5 }}
                   onMouseEnter={e=>(e.currentTarget as HTMLElement).style.opacity="1"}
                   onMouseLeave={e=>(e.currentTarget as HTMLElement).style.opacity="0.5"}
                 >

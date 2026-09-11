@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "1.36.0";
+export const VERSAO = "1.37.0";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -23,10 +23,10 @@ export const VERSAO = "1.36.0";
  * Não é gerada no build: `new Date()` no bundle muda a cada compilação, e duas
  * builds do mesmo código pareceriam versões diferentes.
  */
-export const VERSAO_DATA = "2026-09-10";
+export const VERSAO_DATA = "2026-09-11";
 
 /** Nome da entrega, para dar contexto ao número. */
-export const VERSAO_NOME = "Strategy — excluir reunião";
+export const VERSAO_NOME = "Projetos — Keep da tarefa";
 
 /**
  * Histórico exibido na tela Sobre, do mais recente para o mais antigo.
@@ -35,6 +35,21 @@ export const VERSAO_NOME = "Strategy — excluir reunião";
  * esta lista quer saber o que mudou para ele.
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
+  {
+    versao: "1.37.0",
+    data: "2026-09-11",
+    titulo: "Projetos: Keep da tarefa",
+    itens: [
+      "Nova aba Keep dentro de cada tarefa: os membros do projeto registram o que fizeram, com texto e checklist, no mesmo jeito das notas do Keep. Todos do projeto leem; só quem escreveu edita, marca os itens ou apaga",
+      "O cartão da tarefa no quadro ganhou o atalho do Keep, que mostra quantos registros a tarefa tem e abre direto na aba",
+      "Ao criar um projeto, cada pessoa colocada como membro recebe um aviso no WhatsApp. Quem ainda não tem número verificado no perfil aparece num aviso na tela — o projeto é criado do mesmo jeito",
+      "Só o criador do projeto e seus membros podem mudar o status das tarefas. Quem não faz parte do projeto recebe um aviso do motivo em vez de a mudança falhar em silêncio",
+      "Projeto excluído deixa de avisar que vence hoje: ao excluir, os avisos, lembretes de agenda e mensagens pendentes do projeto e das suas tarefas saem junto",
+      "Trocar a data de vencimento ou o responsável de uma tarefa passa a atualizar o lembrete na agenda; concluir ou cancelar a tarefa remove o lembrete",
+      "Corrigido: comentários e tarefas de um projeto podiam ser alcançados por quem não tinha acesso a ele",
+      "Corrigido: o detalhe da tarefa mostrava a prioridade Urgente sem cor e os status Em Revisão e Cancelada sem nome",
+    ],
+  },
   {
     versao: "1.36.0",
     data: "2026-09-10",

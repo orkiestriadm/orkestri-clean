@@ -288,6 +288,7 @@ model User {
   tasksAssignee              Task[]                      @relation("TaskAssignee")
   tasksCriadas               Task[]                      @relation("TaskCreator")
   taskComments               TaskComment[]
+  taskRegistros              TaskRegistro[]              @relation("TaskRegistroAutor")
   notes                      Note[]
   noteLabels                 NoteLabel[]
   noteCollabs                NoteCollaborator[]
@@ -2103,6 +2104,7 @@ model Task {
   assignee       User?         @relation("TaskAssignee", fields: [assigneeId], references: [id])
   criadoPor      User          @relation("TaskCreator", fields: [criadoPorId], references: [id])
   comments       TaskComment[]
+  registros      TaskRegistro[]
 
   @@index([projectId, status])
   @@index([assigneeId])
@@ -2119,6 +2121,40 @@ model TaskComment {
   user     User     @relation(fields: [userId], references: [id])
 
   @@map("task_comments")
+}
+
+/// Keep da tarefa: cada membro do projeto registra o que fez nela.
+///
+/// Não é `Note`: a nota do Keep é pessoal (só o dono vê), e o registro é do
+/// projeto — todos os membros leem, só o autor altera. Nem `TaskComment`:
+/// comentário é conversa; registro é o andamento, com checklist.
+model TaskRegistro {
+  id           String             @id @default(uuid())
+  taskId       String             @map("task_id")
+  autorId      String             @map("autor_id")
+  conteudo     String?
+  cor          String?
+  criadoEm     DateTime           @default(now()) @map("criado_em")
+  atualizadoEm DateTime           @updatedAt @map("atualizado_em")
+  task         Task               @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  autor        User               @relation("TaskRegistroAutor", fields: [autorId], references: [id])
+  itens        TaskRegistroItem[]
+
+  @@index([taskId, criadoEm])
+  @@map("task_registros")
+}
+
+model TaskRegistroItem {
+  id         String       @id @default(uuid())
+  registroId String       @map("registro_id")
+  descricao  String
+  concluido  Boolean      @default(false)
+  ordem      Int          @default(0)
+  criadoEm   DateTime     @default(now()) @map("criado_em")
+  registro   TaskRegistro @relation(fields: [registroId], references: [id], onDelete: Cascade)
+
+  @@index([registroId, ordem])
+  @@map("task_registro_itens")
 }
 
 // ── Keep / Notes ──────────────────────────────────────────────────────────────

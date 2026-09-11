@@ -9,7 +9,7 @@ import { api } from "@/lib/api";
 import MemberSelector from "@/components/ui/MemberSelector";
 
 type Member  = { user: { id: string; nome: string; email: string } };
-type Task    = { id: string; titulo: string; descricao?: string; status: string; prioridade: string; dataVencimento?: string; assignee?: { id: string; nome: string }; };
+type Task    = { id: string; titulo: string; descricao?: string; status: string; prioridade: string; dataVencimento?: string; assignee?: { id: string; nome: string }; _count?: { registros?: number }; };
 type Project = { id: string; titulo: string; descricao?: string; status: string; prioridade: string; cor: string; progressoPct: number; dataFim?: string; members: Member[]; tasks: Task[]; totalTasks: number; tasksConcluidas: number; criadoPorId: string; };
 
 const COLUNAS = [
@@ -236,6 +236,12 @@ function KanbanBoard({ project, onMoveTask, onNewTask, onEditTask, onDeleteTask,
                       </div>
                       <div className="flex items-center gap-1.5">
                         {task.assignee && <Avatar nome={task.assignee.nome} size={22} />}
+                        <button onClick={()=>onDetailTask(task,"keep")}
+                          title={(task._count?.registros ?? 0) > 0 ? `Keep: ${task._count?.registros} registro${task._count?.registros !== 1 ? "s" : ""}` : "Keep: registrar o que foi feito"}
+                          className={`p-1 flex items-center gap-0.5 transition-colors hover:text-[var(--accent-violet)] ${(task._count?.registros ?? 0) > 0 ? "text-[var(--accent-violet)]" : "text-[var(--text-muted)]"}`}>
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h5"/></svg>
+                          {(task._count?.registros ?? 0) > 0 && <span className="text-[10px] font-mono leading-none">{task._count?.registros}</span>}
+                        </button>
                         <button onClick={()=>onEditTask(task)} className="p-1 text-[var(--text-muted)] hover:text-[var(--accent-violet)] transition-colors">
                           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4z"/></svg>
                         </button>
@@ -280,6 +286,8 @@ export default function ProjetosPage() {
   const [taskModal, setTaskModal] = useState<{status:string;task?:Task}|null>(null);
   const [deleteId,  setDeleteId]  = useState<string|null>(null);
   const [detailTask, setDetailTask] = useState<Task|null>(null);
+  // Aba em que o detalhe abre: o atalho do Keep no cartão cai direto nela.
+  const [detailAba,  setDetailAba]  = useState<"detalhes"|"keep"|"comentarios">("detalhes");
 
   // /users/picklist e uma lista enxuta (id, nome, email, avatar) que NAO exige
   // 'usuarios:ver' — qualquer usuario autenticado pode escolher colegas pra
@@ -426,7 +434,7 @@ export default function ProjetosPage() {
 
               <AnexosProjeto projectId={selected.id} podeEditar={podeEditarProjetos} />
 
-              <KanbanBoard project={selected} onMoveTask={handleMove} onNewTask={(status:string)=>setTaskModal({status})} onEditTask={(task:Task)=>setTaskModal({status:task.status,task})} onDeleteTask={handleDeleteTask} onDetailTask={(task:Task)=>setDetailTask(task)} />
+              <KanbanBoard project={selected} onMoveTask={handleMove} onNewTask={(status:string)=>setTaskModal({status})} onEditTask={(task:Task)=>setTaskModal({status:task.status,task})} onDeleteTask={handleDeleteTask} onDetailTask={(task:Task, aba:"detalhes"|"keep"|"comentarios"="detalhes")=>{ setDetailAba(aba); setDetailTask(task); }} />
             </>
           )}
         </div>
@@ -447,7 +455,7 @@ export default function ProjetosPage() {
           </div>
         </Modal>
       )}
-      {detailTask && selected && <TaskDetailModal projectId={selected.id} task={detailTask} onClose={()=>setDetailTask(null)} onUpdate={()=>refreshSelected(selected.id)} />}
+      {detailTask && selected && <TaskDetailModal key={detailTask.id + detailAba} projectId={selected.id} task={detailTask} abaInicial={detailAba} onClose={()=>setDetailTask(null)} onUpdate={()=>refreshSelected(selected.id)} />}
       <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
     </div>
   );
