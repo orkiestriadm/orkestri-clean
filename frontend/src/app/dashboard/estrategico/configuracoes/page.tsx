@@ -13,13 +13,13 @@ import {
 import { Settings2, Upload, CheckCircle2, Play, Plus } from "lucide-react";
 import { estrategicoService } from "@/lib/estrategico/estrategico.service";
 import type {
-  Catalogo, Config, Filtros, PerfilEstrategico, PreviaImportacao, ResultadoImportacao, ResultadoAutomacao,
+  AcessoEstrategico, Catalogo, Config, Filtros, PreviaImportacao, ResultadoImportacao, ResultadoAutomacao,
 } from "@/lib/estrategico/types";
 import { ROTULO_TIPO_CATALOGO } from "@/lib/estrategico/types";
 import { BASE, pode, Aviso, Nota, mensagemErro, dataEvento } from "../_components/comuns";
 import { Cartao } from "../_components/graficos";
 
-type Aba = "importacao" | "catalogos" | "parametros" | "perfis" | "automacoes";
+type Aba = "importacao" | "catalogos" | "parametros" | "acesso" | "automacoes";
 
 export default function ConfiguracoesPage() {
   const user = useAuthStore(s => s.user);
@@ -36,7 +36,7 @@ export default function ConfiguracoesPage() {
       <div style={{ flex: 1, overflowY: "auto" }}>
         <PageBody>
           <BackLink href={BASE} label="Painel estratégico" />
-          <PageHeader icon={<Settings2 size={19} />} title="Configurações do Strategy" subtitle="Importação da planilha, catálogos, parâmetros do farol, perfis de acesso e automações" />
+          <PageHeader icon={<Settings2 size={19} />} title="Configurações do Strategy" subtitle="Importação da planilha, catálogos, parâmetros do farol, quem tem acesso e automações" />
           {!admin ? <PermissionDenied hint="Exige a permissão estrategico.admin:gerenciar." /> : (
             <>
               <Tabs
@@ -44,7 +44,7 @@ export default function ConfiguracoesPage() {
                   { id: "importacao", label: "Importar planilha" },
                   { id: "catalogos", label: "Catálogos" },
                   { id: "parametros", label: "Parâmetros e alertas" },
-                  { id: "perfis", label: "Perfis de acesso" },
+                  { id: "acesso", label: "Quem tem acesso" },
                   { id: "automacoes", label: "Automações" },
                 ]}
                 active={aba}
@@ -54,7 +54,7 @@ export default function ConfiguracoesPage() {
                 {aba === "importacao" && <Importacao />}
                 {aba === "catalogos" && <Catalogos />}
                 {aba === "parametros" && <Parametros filtros={filtros} />}
-                {aba === "perfis" && <Perfis />}
+                {aba === "acesso" && <Acesso />}
                 {aba === "automacoes" && <Automacoes />}
               </div>
             </>
@@ -327,29 +327,40 @@ function Parametros({ filtros }: { filtros: Filtros | null }) {
   );
 }
 
-/* ── Perfis ─────────────────────────────────────────────────────────────── */
+/* ── Quem tem acesso ────────────────────────────────────────────────────── */
 
-function Perfis() {
-  const [dados, setDados] = useState<{ perfis: PerfilEstrategico[]; permissoes: { permissao: string; descricao: string }[] } | null>(null);
-  useEffect(() => { estrategicoService.perfis().then(setDados).catch(() => {}); }, []);
+function Acesso() {
+  const [dados, setDados] = useState<AcessoEstrategico | null>(null);
+  const [falhou, setFalhou] = useState(false);
+  useEffect(() => { estrategicoService.acessos().then(setDados).catch(() => setFalhou(true)); }, []);
+  if (falhou) return <Nota>Não foi possível carregar a lista de acesso. Recarregue a página.</Nota>;
   if (!dados) return <div className="skeleton" style={{ height: 200, borderRadius: 14 }} />;
-  const descricao = (p: string) => dados.permissoes.find(x => x.permissao === p)?.descricao ?? p;
   return (
     <>
       <Aviso tom="info">
-        <strong>O módulo é confidencial por padrão.</strong> Só o master e o papel Administrador enxergam de saída — nem Visualizador nem Auditor recebem
-        estas permissões automaticamente. Para dar acesso, conceda o conjunto do perfil desejado em <strong>Administração › Cadastros</strong> (permissões do usuário ou do papel).
+        <strong>O acesso ao Strategy é total.</strong> Quem entra no módulo cadastra, edita e exclui assuntos, reuniões e documentos, vê os valores e usa estas configurações.
+        Para incluir alguém da alta gestão: <strong>Administração › Cadastros › Usuários</strong>, marque o papel <strong>{dados.papel}</strong>.
+        Esse papel não dá acesso a nenhum outro módulo — quem já usa outras áreas continua com os papéis que tem. Os administradores do sistema também enxergam o Strategy.
       </Aviso>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 16 }}>
-        {dados.perfis.map(p => (
-          <Cartao key={p.id} titulo={p.nome}>
-            <p style={{ fontSize: 12.5, margin: "0 0 8px" }}>{p.descricao}</p>
-            <ul style={{ margin: 0, paddingLeft: 16, fontSize: 12, lineHeight: 1.6 }}>
-              {p.permissoes.map(x => <li key={x} title={x}>{descricao(x)}</li>)}
-            </ul>
-          </Cartao>
-        ))}
-      </div>
+      <Cartao titulo={`Quem tem acesso (${dados.pessoas.length})`}>
+        {dados.pessoas.length === 0 ? <Nota>Ninguém enxerga o módulo nesta organização.</Nota> : (
+          <ul style={{ listStyle: "none", margin: 0, padding: 0 }}>
+            {dados.pessoas.map((p, i) => (
+              <li key={p.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "9px 0", borderTop: i ? "1px solid var(--border-subtle)" : "none" }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)" }}>{p.nome}</div>
+                  {p.cargo && <div style={{ fontSize: 11.5, color: "var(--text-muted)" }}>{p.cargo}</div>}
+                </div>
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }}>
+                  {p.via.map(v => (
+                    <span key={v} style={{ fontSize: 11, padding: "2px 8px", borderRadius: 999, background: "var(--bg-hover)", border: "1px solid var(--border-subtle)", color: "var(--text-secondary)", whiteSpace: "nowrap" }}>{v}</span>
+                  ))}
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Cartao>
     </>
   );
 }

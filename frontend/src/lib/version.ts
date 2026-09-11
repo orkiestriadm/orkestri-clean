@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "1.39.1";
+export const VERSAO = "1.40.0";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -26,7 +26,7 @@ export const VERSAO = "1.39.1";
 export const VERSAO_DATA = "2026-09-11";
 
 /** Nome da entrega, para dar contexto ao número. */
-export const VERSAO_NOME = "Strategy: gráficos do painel redesenhados";
+export const VERSAO_NOME = "Strategy: acesso único para a alta gestão";
 
 /**
  * Histórico exibido na tela Sobre, do mais recente para o mais antigo.
@@ -35,6 +35,16 @@ export const VERSAO_NOME = "Strategy: gráficos do painel redesenhados";
  * esta lista quer saber o que mudou para ele.
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
+  {
+    versao: "1.40.0",
+    data: "2026-09-11",
+    titulo: "Strategy: acesso único para a alta gestão",
+    itens: [
+      "O acesso ao Strategy passa a ser por um papel só, \"Alta Gestão (Strategy)\": quem recebe cadastra, edita, exclui e configura o módulo, e não ganha acesso a nenhum outro",
+      "Para dar acesso: Administração › Cadastros › Usuários, marcando o papel. Quem só tem esse papel entra direto no Painel do Strategy; quem já usa outras áreas continua com os papéis que tem",
+      "Em Strategy › Configurações, a aba \"Perfis de acesso\" deu lugar a \"Quem tem acesso\", com a lista de quem enxerga o módulo",
+    ],
+  },
   {
     versao: "1.39.1",
     data: "2026-09-11",

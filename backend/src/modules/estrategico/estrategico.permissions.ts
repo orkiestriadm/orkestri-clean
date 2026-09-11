@@ -5,10 +5,12 @@
  * endpoint — permissão sem uso faz conceder acesso a nada.
  *
  * CONFIDENCIALIDADE: o módulo trata litígio, arbitragem e pleito regulatório.
- * Por isso NENHUM papel padrão recebe estas permissões automaticamente — nem
- * o `visualizador` nem o `auditor`, que ganham todo `:ver` do sistema (ver o
- * filtro em auth.service.ts). Só o master e o `administrador` enxergam de
- * saída; o resto é concessão explícita, usando os perfis abaixo como receita.
+ * Nem o `visualizador` nem o `auditor`, que ganham todo `:ver` do sistema,
+ * recebem estas permissões (ver o filtro em auth.service.ts). Enxergam o
+ * módulo: o master, o `administrador` e quem tiver o papel ESTRATEGICO_PAPEL.
+ *
+ * O catálogo continua granular porque é o que os endpoints verificam; o acesso
+ * das pessoas, não — ver ESTRATEGICO_PAPEL.
  */
 
 type Permissao = { recurso: string; acao: string; descricao: string };
@@ -80,29 +82,15 @@ export const ESTRATEGICO_PERMISSIONS = {
   admin: { gerenciar: str("estrategico.admin", "gerenciar") },
 } as const;
 
-const P = ESTRATEGICO_PERMISSIONS;
-
 /**
- * Receitas dos perfis da seção 15 do plano. Os papéis do sistema são fixos
- * (administrador, gestor, analista...), então os perfis estratégicos são
- * CONJUNTOS de permissões que o administrador concede — diretamente ou num
- * papel próprio. A tela de Configurações do módulo mostra estas receitas.
+ * Papel de quem usa o Strategy. O módulo é da alta gestão e o acesso é
+ * tudo-ou-nada (decisão de 11/09/2026): quem entra cadastra, edita, exclui e
+ * configura — não há perfil de consulta, colaborador ou diretoria. O papel
+ * carrega TODAS as permissões do módulo e nenhuma de outro, e é semeado em
+ * cada organização junto com os papéis padrão. Concede-se em Administração ›
+ * Cadastros, somando aos papéis que a pessoa já tenha.
  */
-const CONSULTA = [P.caso.ver, P.relatorio.ver, P.reuniao.ver, P.documento.ver];
-const COLABORADOR = [P.caso.ver, P.tarefa.executar, P.documento.ver, P.documento.enviar];
-const RESPONSAVEL = [...COLABORADOR, P.caso.editarProprios, P.financeiro.ver, P.relatorio.ver, P.reuniao.ver];
-const DIRETORIA = [...CONSULTA, P.financeiro.ver, P.relatorio.exportar, P.reuniao.conduzir, P.caso.farol];
-const TODAS = ESTRATEGICO_PERMISSION_CATALOG.map(x => str(x.recurso, x.acao));
-const GESTOR = TODAS.filter(x => x !== P.admin.gerenciar);
-
-export const ESTRATEGICO_PERFIS: readonly { id: string; nome: string; descricao: string; permissoes: string[] }[] = [
-  { id: "administrador", nome: "Administrador",      descricao: "Configurações, cadastros, importação e permissões.", permissoes: TODAS },
-  { id: "gestor",        nome: "Gestor Estratégico", descricao: "Acesso total aos assuntos e dashboards.",            permissoes: GESTOR },
-  { id: "responsavel",   nome: "Responsável",        descricao: "Atualiza os assuntos sob sua responsabilidade.",     permissoes: [...new Set(RESPONSAVEL)] },
-  { id: "colaborador",   nome: "Colaborador",        descricao: "Executa tarefas e registra informações.",            permissoes: COLABORADOR },
-  { id: "diretoria",     nome: "Diretoria",          descricao: "Visão executiva, reuniões e acompanhamento.",        permissoes: [...new Set(DIRETORIA)] },
-  { id: "consulta",      nome: "Consulta",           descricao: "Somente leitura, sem valores financeiros.",          permissoes: CONSULTA },
-];
+export const ESTRATEGICO_PAPEL = "Alta Gestão (Strategy)";
 
 export function tem(user: any, permissao: string): boolean {
   if (user?.isMaster) return true;

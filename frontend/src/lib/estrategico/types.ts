@@ -350,7 +350,8 @@ export type Config = {
   gestoresEscalonamento: string[];
 };
 
-export type PerfilEstrategico = { id: string; nome: string; descricao: string; permissoes: string[] };
+/** Quem enxerga o Strategy e por qual caminho (papel, administrador, master, concessão direta). */
+export type AcessoEstrategico = { papel: string; pessoas: { id: string; nome: string; cargo: string | null; via: string[] }[] };
 
 export type CasoPrevia = {
   linha: number; chave: string; titulo: string; grupo: string | null; tipo: string; estagioOportunidade: string | null;

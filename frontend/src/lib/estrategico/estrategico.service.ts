@@ -2,7 +2,7 @@ import { api } from "../api";
 import type {
   ListaCasos, CasoDetalhe, Filtros, Evento, Tarefa, Comentario, Dependencia, Documento, ItemHistorico,
   ValorHistorico, Painel, MinhasAcoes, ReuniaoResumo, Reuniao, TipoRelatorio, TabelaRelatorio, Catalogo,
-  Config, PerfilEstrategico, PreviaImportacao, ResultadoImportacao, ResultadoAutomacao,
+  Config, AcessoEstrategico, PreviaImportacao, ResultadoImportacao, ResultadoAutomacao,
 } from "./types";
 
 /**
@@ -266,8 +266,8 @@ export const estrategicoService = {
     const { data } = await api.put(`${BASE}/admin/config`, dados);
     return data;
   },
-  async perfis(): Promise<{ perfis: PerfilEstrategico[]; permissoes: { permissao: string; descricao: string }[] }> {
-    const { data } = await api.get(`${BASE}/admin/perfis`, { silent: true });
+  async acessos(): Promise<AcessoEstrategico> {
+    const { data } = await api.get(`${BASE}/admin/acessos`, { silent: true });
     return data;
   },
   async previaImportacao(arquivo: File): Promise<PreviaImportacao> {

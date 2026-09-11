@@ -15,7 +15,7 @@ import {
   COMPLIANCE_PERMISSION_CATALOG, COMPLIANCE_PERMISSOES_LEITURA,
   COMPLIANCE_PERMISSOES_OPERACAO, COMPLIANCE_PERMISSOES_AUDITOR,
 } from "../compliance/compliance.permissions";
-import { ESTRATEGICO_PERMISSION_CATALOG, ESTRATEGICO_PREFIXO } from "../estrategico/estrategico.permissions";
+import { ESTRATEGICO_PERMISSION_CATALOG, ESTRATEGICO_PREFIXO, ESTRATEGICO_PAPEL } from "../estrategico/estrategico.permissions";
 import * as bcrypt from "bcryptjs";
 
 // Todas as permissões do sistema no formato "recurso:acao"
@@ -428,6 +428,14 @@ const ROLE_DEFAULTS: Record<string, { nivel: number; descricao: string; permisso
       "conhecimento:ver",
       "whatsapp:ver",
     ],
+  },
+  // Orkiestri Strategy — alta gestão. Acesso TOTAL ao módulo (inclusive
+  // configurar, importar e excluir) e a nada mais: não traz Visão Geral nem
+  // outro módulo, e quem só tem este papel cai direto no Painel do Strategy.
+  [ESTRATEGICO_PAPEL]: {
+    nivel: 30,
+    descricao: "Alta gestão — acesso total ao Strategy, e só a ele",
+    permissoes: ESTRATEGICO_PERMISSION_CATALOG.map(p => `${p.recurso}:${p.acao}`),
   },
 };
 

@@ -52,10 +52,11 @@ export class AdminController {
     return this.admin.salvarConfig(req.user, dto);
   }
 
-  @Get("perfis")
+  /** Quem enxerga o módulo — para conferir; o acesso se dá em Cadastros. */
+  @Get("acessos")
   @Permissions(P.admin.gerenciar)
-  perfis() {
-    return this.admin.perfis();
+  acessos(@Req() req: any) {
+    return this.admin.acessos(req.user);
   }
 
   @Post("importacao/previa")

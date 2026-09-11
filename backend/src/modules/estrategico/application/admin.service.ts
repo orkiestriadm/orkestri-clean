@@ -3,10 +3,12 @@ import { PrismaService } from "../../../prisma/prisma.service";
 import { AuditService } from "../../audit/audit.module";
 import { CasoRepository } from "../infrastructure/caso.repository";
 import { Usuario, CONFIG_PADRAO } from "./contexto";
-import { ESTRATEGICO_PERFIS, ESTRATEGICO_PERMISSION_CATALOG } from "../estrategico.permissions";
+import { ESTRATEGICO_PAPEL, ESTRATEGICO_PREFIXO } from "../estrategico.permissions";
 import { CatalogoDto, ConfigDto } from "./dto/estrategico.dto";
 
-/** Catálogos, parâmetros e perfis do Strategy. */
+type PessoaComAcesso = { id: string; nome: string; cargo: string | null; via: string[] };
+
+/** Catálogos, parâmetros e quem tem acesso ao Strategy. */
 @Injectable()
 export class AdminService {
   constructor(
@@ -114,10 +116,53 @@ export class AdminService {
     return salvo;
   }
 
-  perfis() {
-    return {
-      perfis: ESTRATEGICO_PERFIS,
-      permissoes: ESTRATEGICO_PERMISSION_CATALOG.map(p => ({ permissao: `${p.recurso}:${p.acao}`, descricao: p.descricao })),
-    };
+  /**
+   * Quem enxerga o Strategy nesta organização e por qual caminho. Segue a
+   * mesma ordem do `resolvePermissions` (papéis, depois concessões e
+   * revogações diretas), para a lista não dizer "tem acesso" a quem o login
+   * nega. Só nome e cargo: a tela serve para conferir — o acesso se dá em
+   * Administração › Cadastros.
+   */
+  async acessos(user: Usuario): Promise<{ papel: string; pessoas: PessoaComAcesso[] }> {
+    const usuarios = await this.db.user.findMany({
+      where: { organizationId: user.organizationId, ativo: true, isTrial: false },
+      orderBy: { nome: "asc" },
+      select: {
+        id: true, nome: true,
+        profile: { select: { cargo: true } },
+        userRoles: { select: { role: { select: {
+          nome: true, isMaster: true,
+          rolePermissions: { select: { permission: { select: { recurso: true, acao: true } } } },
+        } } } },
+        permissionOverrides: { select: { conceder: true, permission: { select: { recurso: true, acao: true } } } },
+      },
+    });
+
+    const doModulo = (recurso: string) => recurso.startsWith(ESTRATEGICO_PREFIXO);
+    const pessoas: PessoaComAcesso[] = [];
+    for (const u of usuarios) {
+      const base = { id: u.id, nome: u.nome, cargo: u.profile?.cargo ?? null };
+      if (u.userRoles.some((ur: any) => ur.role.isMaster)) {
+        pessoas.push({ ...base, via: ["master"] });
+        continue;
+      }
+      const via: string[] = [];
+      const perms = new Set<string>();
+      for (const ur of u.userRoles) {
+        const doPapel = ur.role.rolePermissions.filter((rp: any) => doModulo(rp.permission.recurso));
+        if (doPapel.length) via.push(ur.role.nome);
+        for (const rp of doPapel) perms.add(`${rp.permission.recurso}:${rp.permission.acao}`);
+      }
+      let concedida = false;
+      for (const ov of u.permissionOverrides) {
+        if (!doModulo(ov.permission.recurso)) continue;
+        const chave = `${ov.permission.recurso}:${ov.permission.acao}`;
+        if (ov.conceder) { perms.add(chave); concedida = true; } else perms.delete(chave);
+      }
+      if (!perms.size) continue;
+      if (concedida) via.push("concessão direta");
+      pessoas.push({ ...base, via });
+    }
+    return { papel: ESTRATEGICO_PAPEL, pessoas };
   }
 }

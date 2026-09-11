@@ -83,8 +83,17 @@ docker exec -u root orkestri_api rm /tmp/planilha.xlsx
 
 ## Acesso
 
-Nenhum papel além de master/administrador recebe o módulo. Conceder os
-conjuntos de **Configurações › Perfis de acesso** em Administração › Cadastros.
+O acesso é tudo-ou-nada: o módulo é da alta gestão e quem entra cadastra,
+edita, exclui e configura (decisão de 11/09/2026). Enxergam o módulo:
+
+- quem tem o papel **Alta Gestão (Strategy)** — criado no boot da API em cada
+  organização, com as 17 permissões do módulo e nenhuma de outro. Conceder em
+  Administração › Cadastros › Usuários, somando aos papéis que a pessoa tenha;
+  quem só tem este papel cai direto no Painel do Strategy;
+- o papel **administrador** e o **master**.
+
+Nenhum outro papel padrão recebe o módulo (visualizador e auditor ficam de fora
+de propósito). Conferir em **Strategy › Configurações › Quem tem acesso**.
 
 ## Rollback
 

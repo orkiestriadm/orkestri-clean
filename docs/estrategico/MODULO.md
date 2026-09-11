@@ -33,7 +33,7 @@ estrategico/
     importacao.executor.ts gravação transacional (compartilhada com a CLI)
     automacao.service.ts   cron diário 07:30
     aviso.service.ts       sino + e-mail opcional pela fila do despachante
-    admin.service.ts       catálogos, parâmetros, perfis
+    admin.service.ts       catálogos, parâmetros, quem tem acesso
     presenter.ts           o caso "apresentado" (farol e derivados calculados na leitura)
   infrastructure/   caso.repository.ts, documento-storage.service.ts
   presentation/     6 controllers finos
@@ -104,7 +104,7 @@ linha são aplicadas no serviço.
 `POST /reunioes/:id/tarefas` · `PATCH /reunioes/:id/status` · `DELETE /reunioes/:id` (reuniao:conduzir)
 
 **Administração** — `GET /admin/catalogos` · `GET /admin/config` (caso:ver) ·
-`POST|PUT /admin/catalogos` · `PUT /admin/config` · `GET /admin/perfis` ·
+`POST|PUT /admin/catalogos` · `PUT /admin/config` · `GET /admin/acessos` ·
 `POST /admin/importacao/previa` · `POST /admin/importacao/confirmar` · `POST /admin/automacoes/executar` (admin:gerenciar)
 
 ---
@@ -201,7 +201,8 @@ o sincronizado com calendário externo fica e a tela avisa.
 
 Confidencial por padrão: o catálogo `estrategico.*` fica **fora** do
 "todo `:ver`" automático do `visualizador` e do `auditor`
-(`auth.service.ts`). De saída, só master e `administrador`.
+(`auth.service.ts`). Enxergam o módulo: master, `administrador` e o papel
+`Alta Gestão (Strategy)`.
 
 | Permissão | Uso |
 |---|---|
@@ -213,10 +214,14 @@ Confidencial por padrão: o catálogo `estrategico.*` fica **fora** do
 | `estrategico.relatorio:ver/exportar` | painel e relatórios |
 | `estrategico.admin:gerenciar` | catálogos, parâmetros, importação, automações |
 
-Perfis do plano (§15) como receitas em `ESTRATEGICO_PERFIS` (tela
-Configurações › Perfis): Administrador, Gestor Estratégico, Responsável,
-Colaborador, Diretoria, Consulta. Os papéis do sistema são fixos; concede-se o
-conjunto em Administração › Cadastros.
+**Acesso tudo-ou-nada** (decisão de 11/09/2026, substitui os perfis do plano
+§15): o módulo é da alta gestão e quem entra faz tudo. O papel
+`ESTRATEGICO_PAPEL` ("Alta Gestão (Strategy)") é semeado em cada organização
+com as 17 permissões do módulo e nenhuma de outro; concede-se em
+Administração › Cadastros › Usuários, somando aos papéis da pessoa. O
+catálogo acima continua granular porque é o que os endpoints verificam.
+A tela Configurações › Quem tem acesso (`GET /admin/acessos`) lista quem
+enxerga o módulo e por qual caminho.
 
 Documentos: fora de `UPLOAD_DIR`, só por download autenticado
 (`attachment`, `nosniff`, `no-store`), com auditoria de download; extensões em
