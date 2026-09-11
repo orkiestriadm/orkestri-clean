@@ -23,10 +23,10 @@ type Step = "escolha" | "email" | "enviado" | "whatsapp" | "codigo" | "nova-senh
 
 /** Campo e botão repetem a métrica do login: 52px de altura, raio 14. */
 const INPUT =
-  "h-[52px] w-full rounded-[14px] border border-white/[0.10] bg-white/[0.04] px-4 text-[15px] text-white outline-none transition-all placeholder:text-white/25 focus:border-[#f97316] focus:bg-white/[0.06] focus:ring-4 focus:ring-[#f97316]/15";
+  "h-[52px] w-full rounded-[14px] border border-white/[0.10] bg-white/[0.04] px-4 text-[15px] text-white outline-none transition-all placeholder:text-white/25 focus:border-marca focus:bg-white/[0.06] focus:ring-4 focus:ring-marca/15";
 
 const BOTAO =
-  "inline-flex h-[52px] w-full items-center justify-center gap-2 rounded-[14px] bg-[#f97316] text-[15px] font-semibold text-white shadow-[0_8px_24px_-6px_rgba(249,115,22,0.5)] transition-all hover:bg-[#ea580c] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f97316] disabled:cursor-not-allowed disabled:opacity-45 disabled:shadow-none";
+  "inline-flex h-[52px] w-full items-center justify-center gap-2 rounded-[14px] bg-marca text-[15px] font-semibold text-white shadow-[0_8px_24px_-6px_rgb(var(--marca-rgb)/0.5)] transition-all hover:bg-marca-forte focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-marca disabled:cursor-not-allowed disabled:opacity-45 disabled:shadow-none";
 
 function PasswordStrength({ senha }: { senha: string }) {
   const checks = [
@@ -181,7 +181,7 @@ export default function RecuperarSenhaPage() {
               <button
                 type="button"
                 onClick={() => { setStep("whatsapp"); setError(""); }}
-                className="flex items-center gap-3.5 rounded-[14px] border border-white/[0.10] bg-white/[0.04] p-4 text-left transition-all hover:border-[#f97316]/50 hover:bg-white/[0.06] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f97316]"
+                className="flex items-center gap-3.5 rounded-[14px] border border-white/[0.10] bg-white/[0.04] p-4 text-left transition-all hover:border-marca/50 hover:bg-white/[0.06] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-marca"
               >
                 <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-500/12 text-emerald-400">
                   <MessageCircle size={19} aria-hidden />
@@ -197,9 +197,9 @@ export default function RecuperarSenhaPage() {
               <button
                 type="button"
                 onClick={() => { setStep("email"); setError(""); }}
-                className="flex items-center gap-3.5 rounded-[14px] border border-white/[0.10] bg-white/[0.04] p-4 text-left transition-all hover:border-[#f97316]/50 hover:bg-white/[0.06] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f97316]"
+                className="flex items-center gap-3.5 rounded-[14px] border border-white/[0.10] bg-white/[0.04] p-4 text-left transition-all hover:border-marca/50 hover:bg-white/[0.06] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-marca"
               >
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#f97316]/12 text-[#fb923c]">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-marca/[0.12] text-marca-clara">
                   <Mail size={19} aria-hidden />
                 </span>
                 <span className="min-w-0">
@@ -311,7 +311,7 @@ export default function RecuperarSenhaPage() {
           {/* PASSO 2 — aguardar email */}
           {step === "enviado" && (
             <div className="flex flex-col items-center gap-4 py-1 text-center">
-              <span className="flex h-16 w-16 items-center justify-center rounded-full bg-[#f97316]/12 text-[#fb923c]">
+              <span className="flex h-16 w-16 items-center justify-center rounded-full bg-marca/[0.12] text-marca-clara">
                 <Mail size={28} aria-hidden />
               </span>
               <p className="text-[13.5px] leading-relaxed text-white/60">
@@ -403,7 +403,7 @@ export default function RecuperarSenhaPage() {
         <div className="mt-6 text-center">
           <Link
             href="/login"
-            className="inline-flex items-center gap-1.5 rounded text-[13.5px] font-medium text-white/60 transition-colors hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f97316]"
+            className="inline-flex items-center gap-1.5 rounded text-[13.5px] font-medium text-white/60 transition-colors hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-marca"
           >
             <ArrowLeft size={14} aria-hidden /> Voltar ao login
           </Link>
@@ -419,7 +419,7 @@ function Voltar({ onClick, rotulo = "Voltar" }: { onClick: () => void; rotulo?: 
     <button
       type="button"
       onClick={onClick}
-      className="rounded text-[13px] font-medium text-white/55 transition-colors hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f97316]"
+      className="rounded text-[13px] font-medium text-white/55 transition-colors hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-marca"
     >
       ← {rotulo}
     </button>
@@ -477,7 +477,7 @@ function AvisoSemCadastro({ numero, onFechar }: { numero: string; onFechar: () =
         <button
           type="button"
           onClick={onFechar}
-          className="w-full rounded-[12px] bg-[#f97316] px-4 py-3 text-[14px] font-semibold text-white transition-colors hover:bg-[#ea6a0c] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f97316]"
+          className="w-full rounded-[12px] bg-marca px-4 py-3 text-[14px] font-semibold text-white transition-colors hover:bg-marca-forte focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-marca"
         >
           Entendi
         </button>

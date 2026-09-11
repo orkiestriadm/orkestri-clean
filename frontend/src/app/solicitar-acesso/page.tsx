@@ -66,15 +66,15 @@ export default function SolicitarAcessoPage() {
   if (!mounted) return null;
 
   const inputCls =
-    "h-[52px] w-full rounded-[14px] border border-white/[0.10] bg-white/[0.04] px-4 text-[15px] text-white outline-none transition-all placeholder:text-white/25 focus:border-[#f97316] focus:bg-white/[0.06] focus:ring-4 focus:ring-[#f97316]/15";
+    "h-[52px] w-full rounded-[14px] border border-white/[0.10] bg-white/[0.04] px-4 text-[15px] text-white outline-none transition-all placeholder:text-white/25 focus:border-marca focus:bg-white/[0.06] focus:ring-4 focus:ring-marca/15";
 
   return (
     <div className="relative flex min-h-dvh overflow-hidden bg-[#08090c] text-white">
       {/* ── Atmosfera: glow quente + malha sutil (igual ao login) ───────────── */}
       <div aria-hidden className="pointer-events-none absolute inset-0">
-        <div className="absolute -left-40 -top-40 h-[560px] w-[720px] rounded-full bg-[#f97316]/[0.16] blur-[130px]" />
-        <div className="absolute -bottom-52 left-1/3 h-[460px] w-[620px] rounded-full bg-[#fb923c]/[0.10] blur-[130px]" />
-        <div className="absolute right-0 top-1/4 h-[380px] w-[420px] rounded-full bg-[#ea580c]/[0.08] blur-[120px]" />
+        <div className="absolute -left-40 -top-40 h-[560px] w-[720px] rounded-full bg-marca/[0.16] blur-[130px]" />
+        <div className="absolute -bottom-52 left-1/3 h-[460px] w-[620px] rounded-full bg-marca-clara/[0.10] blur-[130px]" />
+        <div className="absolute right-0 top-1/4 h-[380px] w-[420px] rounded-full bg-marca-forte/[0.08] blur-[120px]" />
         <div
           className="absolute inset-0 opacity-[0.16]"
           style={{
@@ -89,7 +89,7 @@ export default function SolicitarAcessoPage() {
 
       {/* ── Painel da marca (desktop) ───────────────────────────────────────── */}
       <aside className="relative z-10 hidden flex-1 flex-col justify-between p-12 xl:p-16 lg:flex">
-        <Link href="/" className="w-fit rounded focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#f97316]">
+        <Link href="/" className="w-fit rounded focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-marca">
           <BrandLogo size="lg" tone="light" />
         </Link>
 
@@ -98,7 +98,7 @@ export default function SolicitarAcessoPage() {
             Uma plataforma.
             <br />
             Toda a sua{" "}
-            <span className="bg-gradient-to-r from-[#f97316] to-[#fb923c] bg-clip-text text-transparent">
+            <span className="bg-gradient-to-r from-marca to-marca-clara bg-clip-text text-transparent">
               operação
             </span>
             .
@@ -114,7 +114,7 @@ export default function SolicitarAcessoPage() {
                 key={label}
                 className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-4 backdrop-blur-sm"
               >
-                <span className="inline-flex h-9 w-9 items-center justify-center rounded-[10px] bg-[#f97316]/15 text-[#fb923c] ring-1 ring-inset ring-[#f97316]/20">
+                <span className="inline-flex h-9 w-9 items-center justify-center rounded-[10px] bg-marca/15 text-marca-clara ring-1 ring-inset ring-marca/20">
                   <Icon className="h-[18px] w-[18px]" aria-hidden />
                 </span>
                 <p className="mt-3 text-sm font-semibold text-white">{label}</p>
@@ -153,7 +153,7 @@ export default function SolicitarAcessoPage() {
                 </p>
                 <Link
                   href="/login"
-                  className="mt-7 inline-flex h-[52px] w-full items-center justify-center gap-2 rounded-[14px] bg-[#f97316] text-[15px] font-semibold text-white shadow-[0_8px_24px_-6px_rgba(249,115,22,0.5)] transition-all hover:bg-[#ea580c] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f97316]"
+                  className="mt-7 inline-flex h-[52px] w-full items-center justify-center gap-2 rounded-[14px] bg-marca text-[15px] font-semibold text-white shadow-[0_8px_24px_-6px_rgb(var(--marca-rgb)/0.5)] transition-all hover:bg-marca-forte focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-marca"
                 >
                   Voltar ao login
                 </Link>
@@ -170,7 +170,7 @@ export default function SolicitarAcessoPage() {
                 <form onSubmit={handleSubmit} className="mt-8 flex flex-col gap-5" noValidate>
                   <div className="flex flex-col gap-2">
                     <label htmlFor="nome" className="text-[13px] font-medium text-white/70">
-                      Nome completo <span className="text-[#fb923c]">*</span>
+                      Nome completo <span className="text-marca-clara">*</span>
                     </label>
                     <input
                       id="nome"
@@ -188,7 +188,7 @@ export default function SolicitarAcessoPage() {
 
                   <div className="flex flex-col gap-2">
                     <label htmlFor="email" className="text-[13px] font-medium text-white/70">
-                      E-mail corporativo <span className="text-[#fb923c]">*</span>
+                      E-mail corporativo <span className="text-marca-clara">*</span>
                     </label>
                     <input
                       id="email"
@@ -233,7 +233,7 @@ export default function SolicitarAcessoPage() {
                   <button
                     type="submit"
                     disabled={loading}
-                    className="mt-1 inline-flex h-[52px] w-full items-center justify-center gap-2 rounded-[14px] bg-[#f97316] text-[15px] font-semibold text-white shadow-[0_8px_24px_-6px_rgba(249,115,22,0.5)] transition-all hover:bg-[#ea580c] hover:shadow-[0_12px_32px_-6px_rgba(249,115,22,0.6)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f97316] disabled:cursor-not-allowed disabled:opacity-45 disabled:shadow-none"
+                    className="mt-1 inline-flex h-[52px] w-full items-center justify-center gap-2 rounded-[14px] bg-marca text-[15px] font-semibold text-white shadow-[0_8px_24px_-6px_rgb(var(--marca-rgb)/0.5)] transition-all hover:bg-marca-forte hover:shadow-[0_12px_32px_-6px_rgb(var(--marca-rgb)/0.6)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-marca disabled:cursor-not-allowed disabled:opacity-45 disabled:shadow-none"
                   >
                     {loading ? (
                       <>
@@ -257,7 +257,7 @@ export default function SolicitarAcessoPage() {
               Já tem acesso?{" "}
               <Link
                 href="/login"
-                className="inline-flex items-center gap-1 rounded font-medium text-white/70 underline-offset-4 transition-colors hover:text-white hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f97316]"
+                className="inline-flex items-center gap-1 rounded font-medium text-white/70 underline-offset-4 transition-colors hover:text-white hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-marca"
               >
                 <ArrowLeft className="h-3.5 w-3.5" aria-hidden />
                 Voltar ao login

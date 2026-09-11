@@ -535,6 +535,22 @@ html[data-acento="vermelho"] .btn-violet:hover { background: #b91c1c; border-col
 html[data-acento="vermelho"] .btn-primary:active,
 html[data-acento="vermelho"] .btn-violet:active { box-shadow: 0 2px 4px rgba(220, 38, 38, 0.15); }
 html[data-acento="vermelho"] .badge-violet { border-color: rgba(220, 38, 38, 0.15); }
+
+/* Cor da marca para as telas de fora do sistema (login, recuperar senha,
+   solicitar acesso). Elas têm fundo escuro fixo, que não segue o tema claro ou
+   escuro — por isso não usam `--accent-violet`, que muda com o tema. Em canais
+   RGB para o Tailwind aplicar transparência: `bg-marca/15`
+   (ver `colors.marca` no tailwind.config.js). */
+:root {
+  --marca-rgb:       249 115 22;  /* #f97316 */
+  --marca-forte-rgb: 234 88 12;   /* #ea580c */
+  --marca-clara-rgb: 251 146 60;  /* #fb923c */
+}
+html[data-acento="vermelho"] {
+  --marca-rgb:       220 38 38;   /* #dc2626 */
+  --marca-forte-rgb: 185 28 28;   /* #b91c1c */
+  --marca-clara-rgb: 239 68 68;   /* #ef4444 */
+}
 .badge-cyan   { background: rgba(2, 132, 199, 0.1); color: var(--accent-cyan); border-color: rgba(2, 132, 199, 0.15); }
 .badge-green  { background: rgba(5, 150, 105, 0.1); color: var(--accent-green); border-color: rgba(5, 150, 105, 0.15); }
 .badge-amber  { background: rgba(217, 119, 6, 0.1); color: var(--accent-amber); border-color: rgba(217, 119, 6, 0.15); }

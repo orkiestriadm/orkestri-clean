@@ -56,6 +56,15 @@ module.exports = {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        // Cor da marca do ambiente nas telas de fora do sistema (login, recuperar
+        // senha, solicitar acesso): laranja por padrão, vermelho em homologação
+        // (NEXT_PUBLIC_ACENTO). Canais em globals.css; `<alpha-value>` mantém o
+        // `bg-marca/15` funcionando.
+        marca: {
+          DEFAULT: "rgb(var(--marca-rgb) / <alpha-value>)",
+          forte: "rgb(var(--marca-forte-rgb) / <alpha-value>)",
+          clara: "rgb(var(--marca-clara-rgb) / <alpha-value>)",
+        },
       },
       borderRadius: {
         lg: "var(--radius)",

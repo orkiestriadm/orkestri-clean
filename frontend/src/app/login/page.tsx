@@ -77,7 +77,7 @@ export default function LoginPage() {
             O sistema operacional
             <br />
             da sua{" "}
-            <span className="bg-gradient-to-r from-[#f97316] to-[#fb923c] bg-clip-text text-transparent">
+            <span className="bg-gradient-to-r from-marca to-marca-clara bg-clip-text text-transparent">
               empresa
             </span>
             .
@@ -95,7 +95,7 @@ export default function LoginPage() {
                   key={p.label}
                   className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-4 backdrop-blur-sm"
                 >
-                  <span className="inline-flex h-9 w-9 items-center justify-center rounded-[10px] bg-[#f97316]/15 text-[#fb923c] ring-1 ring-inset ring-[#f97316]/20">
+                  <span className="inline-flex h-9 w-9 items-center justify-center rounded-[10px] bg-marca/15 text-marca-clara ring-1 ring-inset ring-marca/20">
                     <Icon className="h-[18px] w-[18px]" aria-hidden />
                   </span>
                   <p className="mt-3 text-sm font-semibold text-white">{p.label}</p>
@@ -146,7 +146,7 @@ export default function LoginPage() {
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="nome@empresa.com"
                   aria-invalid={!!localError}
-                  className="h-[52px] w-full rounded-[14px] border border-white/[0.10] bg-white/[0.04] px-4 text-[15px] text-white outline-none transition-all placeholder:text-white/25 focus:border-[#f97316] focus:bg-white/[0.06] focus:ring-4 focus:ring-[#f97316]/15"
+                  className="h-[52px] w-full rounded-[14px] border border-white/[0.10] bg-white/[0.04] px-4 text-[15px] text-white outline-none transition-all placeholder:text-white/25 focus:border-marca focus:bg-white/[0.06] focus:ring-4 focus:ring-marca/15"
                 />
               </div>
 
@@ -160,7 +160,7 @@ export default function LoginPage() {
                   </label>
                   <Link
                     href="/recuperar-senha"
-                    className="rounded text-[13px] font-medium text-[#fb923c] transition-colors hover:text-[#f97316] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f97316]"
+                    className="rounded text-[13px] font-medium text-marca-clara transition-colors hover:text-marca focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-marca"
                   >
                     Esqueci a senha
                   </Link>
@@ -175,14 +175,14 @@ export default function LoginPage() {
                     onChange={(e) => setSenha(e.target.value)}
                     placeholder="••••••••"
                     aria-invalid={!!localError}
-                    className="h-[52px] w-full rounded-[14px] border border-white/[0.10] bg-white/[0.04] px-4 pr-12 text-[15px] text-white outline-none transition-all placeholder:text-white/25 focus:border-[#f97316] focus:bg-white/[0.06] focus:ring-4 focus:ring-[#f97316]/15"
+                    className="h-[52px] w-full rounded-[14px] border border-white/[0.10] bg-white/[0.04] px-4 pr-12 text-[15px] text-white outline-none transition-all placeholder:text-white/25 focus:border-marca focus:bg-white/[0.06] focus:ring-4 focus:ring-marca/15"
                   />
                   <button
                     type="button"
                     onClick={() => setShowSenha((v) => !v)}
                     aria-label={showSenha ? "Ocultar senha" : "Mostrar senha"}
                     aria-pressed={showSenha}
-                    className="absolute right-1.5 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-[10px] text-white/40 transition-colors hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f97316]"
+                    className="absolute right-1.5 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-[10px] text-white/40 transition-colors hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-marca"
                   >
                     {showSenha ? (
                       <EyeOff className="h-[18px] w-[18px]" aria-hidden />
@@ -205,7 +205,7 @@ export default function LoginPage() {
               <button
                 type="submit"
                 disabled={localLoading || !email || !senha}
-                className="mt-1 inline-flex h-[52px] w-full items-center justify-center gap-2 rounded-[14px] bg-[#f97316] text-[15px] font-semibold text-white shadow-[0_8px_24px_-6px_rgba(249,115,22,0.5)] transition-all hover:bg-[#ea580c] hover:shadow-[0_12px_32px_-6px_rgba(249,115,22,0.6)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f97316] disabled:cursor-not-allowed disabled:opacity-45 disabled:shadow-none"
+                className="mt-1 inline-flex h-[52px] w-full items-center justify-center gap-2 rounded-[14px] bg-marca text-[15px] font-semibold text-white shadow-[0_8px_24px_-6px_rgb(var(--marca-rgb)/0.5)] transition-all hover:bg-marca-forte hover:shadow-[0_12px_32px_-6px_rgb(var(--marca-rgb)/0.6)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-marca disabled:cursor-not-allowed disabled:opacity-45 disabled:shadow-none"
               >
                 {localLoading ? (
                   <>
@@ -226,7 +226,7 @@ export default function LoginPage() {
             Ainda não tem acesso?{" "}
             <Link
               href="/solicitar-acesso"
-              className="rounded font-medium text-white/70 underline-offset-4 transition-colors hover:text-white hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f97316]"
+              className="rounded font-medium text-white/70 underline-offset-4 transition-colors hover:text-white hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-marca"
             >
               Solicitar acesso
             </Link>

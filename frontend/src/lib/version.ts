@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "1.38.1";
+export const VERSAO = "1.38.2";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -26,7 +26,7 @@ export const VERSAO = "1.38.1";
 export const VERSAO_DATA = "2026-09-11";
 
 /** Nome da entrega, para dar contexto ao número. */
-export const VERSAO_NOME = "Cor de destaque por ambiente";
+export const VERSAO_NOME = "Login com a cor do ambiente";
 
 /**
  * Histórico exibido na tela Sobre, do mais recente para o mais antigo.
@@ -35,6 +35,14 @@ export const VERSAO_NOME = "Cor de destaque por ambiente";
  * esta lista quer saber o que mudou para ele.
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
+  {
+    versao: "1.38.2",
+    data: "2026-09-11",
+    titulo: "Login com a cor do ambiente",
+    itens: [
+      "As telas de login, recuperação de senha e solicitação de acesso passam a usar a cor de destaque do ambiente (botão Entrar, campos em foco, links e ícones), como o restante do sistema",
+    ],
+  },
   {
     versao: "1.38.1",
     data: "2026-09-11",
