@@ -41,6 +41,14 @@ const CORES_PROJ = ["#a78bfa","#22d3ee","#34d399","#fbbf24","#f87171","#60a5fa",
 const STATUS_LABELS: Record<string,string> = { PLANEJAMENTO:"Planejamento", EM_ANDAMENTO:"Em andamento", PAUSADO:"Pausado", CONCLUIDO:"Concluído", CANCELADO:"Cancelado" };
 const STATUS_COLORS: Record<string,string> = { PLANEJAMENTO:"var(--accent-violet)", EM_ANDAMENTO:"var(--accent-cyan)", PAUSADO:"var(--accent-amber)", CONCLUIDO:"var(--accent-green)", CANCELADO:"var(--accent-red)" };
 
+/**
+ * Abaixo desta largura (em px de CSS) a lista de projetos deixa de dividir a tela
+ * com o quadro: ela recolhe ao abrir um projeto e, se reaberta, flutua por cima.
+ * Medido em homologação: com a lista fixa ao lado, a 1366 cada coluna ficava com
+ * ~150px — títulos das colunas cortados e cartões com cinco linhas.
+ */
+const LARGURA_LISTA_FIXA = 1536;
+
 const dataBR = (iso?: string | null) => iso ? new Date(iso).toLocaleDateString("pt-BR") : "";
 
 function Avatar({ nome, size=28 }: { nome:string; size?:number }) {
@@ -241,7 +249,7 @@ function KanbanBoard({ project, podeMover, podeEditar, onMoveTask, onNewTask, on
 
   return (
     <div className="overflow-x-auto pb-1">
-      <div className="grid gap-3 min-w-[760px]" style={{ gridTemplateColumns:"repeat(5, minmax(0, 1fr))" }}>
+      <div className="grid gap-3 min-w-[860px]" style={{ gridTemplateColumns:"repeat(5, minmax(0, 1fr))" }}>
         {COLUNAS.map(col => {
           const tasks = (project.tasks||[]).filter(t => t.status === col.key);
           const destacada = alvo === col.key && !!dragging;
@@ -253,14 +261,12 @@ function KanbanBoard({ project, podeMover, podeEditar, onMoveTask, onNewTask, on
               onDragLeave={e=>{ if (!(e.currentTarget as HTMLElement).contains(e.relatedTarget as Node)) setAlvo(a => a === col.key ? null : a); }}
               onDrop={e=>{ e.preventDefault(); setAlvo(null); if (dragging) onMoveTask(dragging, col.key); setDragging(null); }}
             >
-              <div className="flex items-center justify-between gap-2 mb-2 px-1 min-w-0">
-                <div className="flex items-center gap-2 min-w-0">
-                  <span className="w-2 h-2 rounded-full shrink-0" style={{ background: col.color }} />
-                  <span className="text-[12.5px] font-semibold text-[var(--text-secondary)] font-display truncate">{col.label}</span>
-                  <span className="text-[11px] text-[var(--text-muted)] bg-[var(--bg-hover)] rounded-full px-2 py-0.5 shrink-0">{tasks.length}</span>
-                </div>
+              <div className="flex items-center gap-1.5 mb-2 px-1 min-w-0">
+                <span className="w-2 h-2 rounded-full shrink-0" style={{ background: col.color }} />
+                <span className="text-[12.5px] font-semibold text-[var(--text-secondary)] font-display whitespace-nowrap">{col.label}</span>
+                <span className="text-[11px] text-[var(--text-muted)] bg-[var(--bg-hover)] rounded-full px-1.5 py-0.5 shrink-0 leading-none">{tasks.length}</span>
                 {podeEditar && (
-                  <button onClick={()=>onNewTask(col.key)} title="Nova tarefa" className="w-6 h-6 shrink-0 rounded-md bg-transparent border border-[var(--border-subtle)] text-[var(--text-muted)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] transition-all flex items-center justify-center text-lg leading-none">+</button>
+                  <button onClick={()=>onNewTask(col.key)} title="Nova tarefa" className="ml-auto w-6 h-6 shrink-0 rounded-md bg-transparent border border-[var(--border-subtle)] text-[var(--text-muted)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] transition-all flex items-center justify-center text-lg leading-none">+</button>
                 )}
               </div>
 
@@ -286,11 +292,12 @@ function KanbanBoard({ project, podeMover, podeEditar, onMoveTask, onNewTask, on
                         {vencida && <span className="badge badge-red" style={{ fontSize:9 }}>VENCIDA</span>}
                       </div>
 
-                      <div className="flex items-center justify-between gap-2 mt-2 min-w-0">
-                        <span className={`text-[10px] font-mono truncate ${vencida?"text-[var(--accent-red)]":"text-[var(--text-muted)]"}`}>
+                      {/* Data e ações quebram de linha em coluna estreita, em vez de a data sumir. */}
+                      <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1 mt-2 min-w-0">
+                        <span className={`text-[10px] font-mono whitespace-nowrap ${vencida?"text-[var(--accent-red)]":"text-[var(--text-muted)]"}`}>
                           {dataBR(task.dataVencimento)}
                         </span>
-                        <div className="flex items-center gap-0.5 shrink-0">
+                        <div className="flex items-center gap-0.5 shrink-0 ml-auto">
                           {task.assignee && <Avatar nome={task.assignee.nome} size={20} />}
                           <button onClick={()=>onDetailTask(task,"keep")}
                             title={qtdKeep > 0 ? `Keep: ${qtdKeep} registro${qtdKeep !== 1 ? "s" : ""}` : "Keep: registrar o que foi feito"}
@@ -350,10 +357,21 @@ export default function ProjetosView({ modo }: { modo: ModoProjetos }) {
   // Aba em que o detalhe abre: o atalho do Keep no cartão cai direto nela.
   const [detailAba,  setDetailAba]  = useState<AbaTarefa>("detalhes");
   const [listaAberta, setListaAberta] = useState(true);
+  const [estreita,   setEstreita]   = useState(false);
   const [historicoAberto, setHistoricoAberto] = useState(false);
   const [historicoVersao, setHistoricoVersao] = useState(0);
   // Projeto que acabou de mudar de fila enquanto estava aberto aqui.
   const [aviso, setAviso] = useState<{ tipo: "concluido" | "reaberto"; titulo: string } | null>(null);
+
+  useEffect(() => {
+    const medir = () => setEstreita(window.innerWidth < LARGURA_LISTA_FIXA);
+    medir();
+    window.addEventListener("resize", medir);
+    return () => window.removeEventListener("resize", medir);
+  }, []);
+
+  // Tela estreita com projeto aberto: o quadro fica com a largura toda.
+  useEffect(() => { if (estreita && selected) setListaAberta(false); }, [estreita, selected?.id]);
 
   // /users/picklist e uma lista enxuta (id, nome, email, avatar) que NAO exige
   // 'usuarios:ver'. Chamadas SEPARADAS: falha numa nao deve impedir a outra.
@@ -379,6 +397,7 @@ export default function ProjetosView({ modo }: { modo: ModoProjetos }) {
       const { data } = await api.get("/projects/" + id);
       setSelected(data);
       setAviso(null);
+      if (estreita) setListaAberta(false);
     } catch { /* interceptor */ }
   };
 
@@ -441,6 +460,9 @@ export default function ProjetosView({ modo }: { modo: ModoProjetos }) {
   const concluidas = selected ? selected.tasks.filter(t => t.status === "CONCLUIDA").length : 0;
   const podeRemoverSelecionado = !!selected && (!!me?.isMaster || (tem("projetos:deletar") && selected.criadoPorId === me?.id));
   const vazioLista = modo === "ativos" ? "Nenhum projeto em andamento" : "Nenhum projeto concluído ainda";
+  // Em tela estreita, com projeto aberto, a lista reaberta flutua sobre o quadro
+  // em vez de espremer as colunas.
+  const listaFlutuante = estreita && !!selected;
 
   return (
     <div className="flex flex-col h-full min-w-0">
@@ -464,9 +486,12 @@ export default function ProjetosView({ modo }: { modo: ModoProjetos }) {
         )}
       </Topbar>
 
-      <div className="flex-1 flex min-h-0 overflow-hidden">
+      <div className="relative flex-1 flex min-h-0 overflow-hidden">
+        {listaAberta && listaFlutuante && (
+          <div className="absolute inset-0 z-10 bg-black/20" onClick={()=>setListaAberta(false)} aria-hidden />
+        )}
         {listaAberta && (
-          <aside className="w-[232px] 2xl:w-[272px] shrink-0 border-r border-[var(--border-subtle)] flex flex-col min-h-0 bg-[var(--bg-primary)]">
+          <aside className={`${listaFlutuante ? "absolute inset-y-0 left-0 z-20 w-[272px] shadow-2xl" : "w-[232px] 2xl:w-[272px] shrink-0"} border-r border-[var(--border-subtle)] flex flex-col min-h-0 bg-[var(--bg-primary)]`}>
             <div className="flex items-center justify-between gap-2 px-4 pt-4 pb-3">
               <span className="text-[11px] font-mono text-[var(--text-muted)] tracking-widest uppercase truncate">
                 {projects.length} {modo === "ativos" ? (projects.length !== 1 ? "projetos" : "projeto") : (projects.length !== 1 ? "concluídos" : "concluído")}
@@ -518,10 +543,10 @@ export default function ProjetosView({ modo }: { modo: ModoProjetos }) {
         )}
 
         <section className="flex-1 min-w-0 overflow-y-auto bg-[var(--bg-primary)]">
-          <div className="p-4 xl:p-6 flex flex-col gap-4 min-w-0">
+          <div className="p-4 2xl:p-6 flex flex-col gap-4 min-w-0">
             {!listaAberta && (
               <button className="btn btn-ghost self-start" style={{ fontSize:12 }} onClick={()=>setListaAberta(true)}>
-                <PanelLeftOpen size={14} /> {modo === "ativos" ? "Lista de projetos" : "Lista de concluídos"}
+                <PanelLeftOpen size={14} /> {modo === "ativos" ? `Lista de projetos (${projects.length})` : `Lista de concluídos (${projects.length})`}
               </button>
             )}
 
@@ -556,12 +581,12 @@ export default function ProjetosView({ modo }: { modo: ModoProjetos }) {
               </div>
             ) : (
               <>
-                <header className="card-premium p-4 xl:p-5 min-w-0">
+                <header className="card-premium p-4 2xl:p-5 min-w-0">
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="min-w-0 flex-1 basis-[320px]">
                       <div className="flex items-center gap-2.5 min-w-0">
                         <span className="w-3 h-3 rounded-full shrink-0" style={{ background:selected.cor, boxShadow:`0 0 10px ${selected.cor}80` }} />
-                        <h2 className="font-display text-xl xl:text-2xl font-bold text-[var(--text-primary)] tracking-tight break-words min-w-0">{selected.titulo}</h2>
+                        <h2 className="font-display text-xl 2xl:text-2xl font-bold text-[var(--text-primary)] tracking-tight break-words min-w-0">{selected.titulo}</h2>
                       </div>
                       {selected.descricao && <p className="text-[13px] text-[var(--text-secondary)] mt-1 ml-[22px] max-w-3xl break-words">{selected.descricao}</p>}
                       <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-2 ml-[22px] text-xs font-medium text-[var(--text-muted)]">
