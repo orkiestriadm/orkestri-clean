@@ -1,4 +1,4 @@
-import { Module, Controller, Get, Post, Put, Patch, Delete, Body, Param, Query, UseGuards, Req, Res, UseInterceptors, UploadedFile, NotFoundException, BadRequestException } from "@nestjs/common";
+import { Module, Controller, Get, Post, Put, Patch, Delete, Body, Param, Query, UseGuards, Req, Res, UseInterceptors, UploadedFile, NotFoundException, BadRequestException, ForbiddenException } from "@nestjs/common";
 import { FileInterceptor } from "@nestjs/platform-express";
 import { memoryStorage } from "multer";
 import { randomUUID } from "crypto";
@@ -266,13 +266,26 @@ class ProjectsController {
       await createDeadlineEvent(this.prisma, { ...project, dataFim: dto.dataFim }, allMemberIds, req.user.id);
     }
 
+    // WhatsApp para quem foi COLOCADO como membro (não para quem criou — essa
+    // pessoa está na tela). Devolve quem ficou sem número verificado, para o
+    // front abrir o pop-up de aviso. Não bloqueia a criação: não dá para exigir
+    // que um colega tenha WhatsApp cadastrado.
+    const membrosAdicionados = allMemberIds.filter(uid => uid !== req.user.id);
+    const semWhatsapp = orgId
+      ? await this.avisarNovosMembrosWhatsapp(
+          orgId,
+          { id: project.id, titulo: project.titulo, dataFim: dto.dataFim ?? null },
+          membrosAdicionados,
+        )
+      : [];
+
     // Trigger automacao + webhook
     this.automacao.executar("projeto_criado", {
       id: project.id, titulo: project.titulo, status: project.status,
       organizationId: orgId, criadoPorId: req.user.id,
     }).catch(() => {});
 
-    return project;
+    return { ...project, avisosWhatsapp: { semWhatsapp } };
   }
 
   @Put(":id")
@@ -345,8 +358,43 @@ class ProjectsController {
     // projeto por id solto: um master de outra organizacao passava nela.
     const p = await acharNaOrganizacao(this.prisma.project, id, req, "Projeto nao encontrado");
     if (p.criadoPorId !== req.user.id && !req.user.isMaster) throw new BadRequestException("Sem permissao");
-    // Remove eventos de prazo
-    await this.prisma.event.deleteMany({ where: { origemTipo: "projeto", origemId: id } });
+
+    // As tasks somem por cascade, mas o que aponta para elas por STRING (sem FK)
+    // não some sozinho: eventos de agenda e notificações do sino ficariam
+    // órfãos. Era exatamente a causa do "projeto excluído me avisa que vence
+    // hoje" — o cron das 07:00 já tinha gravado a notificação, e apagar o
+    // projeto não a apagava. Preciso dos ids das tasks para alcançá-las.
+    const tasks = await this.prisma.task.findMany({ where: { projectId: id }, select: { id: true } });
+    const taskIds = tasks.map(t => t.id);
+
+    // Eventos de agenda: do projeto E de cada tarefa.
+    await this.prisma.event.deleteMany({
+      where: {
+        OR: [
+          { origemTipo: "projeto", origemId: id },
+          ...(taskIds.length ? [{ origemTipo: "task", origemId: { in: taskIds } }] : []),
+        ],
+      },
+    });
+
+    // Sino: notificações do projeto e das tarefas. As duas grafias de referência
+    // ("projeto" do dispatcher/scheduler e "project" do createDeadlineEvent)
+    // porque as duas foram gravadas ao longo da vida do projeto.
+    await this.prisma.notification.deleteMany({
+      where: {
+        OR: [
+          { referenciaTipo: { in: ["projeto", "project"] }, referenciaId: id },
+          ...(taskIds.length ? [{ referenciaTipo: { in: ["task"] }, referenciaId: { in: taskIds } }] : []),
+        ],
+      },
+    });
+
+    // Outbox: envios AINDA pendentes deste projeto não devem sair depois do fim.
+    // A chave gravada é `projeto:{id}:...::canal::user`; o prefixo alcança todos.
+    await this.prisma.notificacaoEnvio.deleteMany({
+      where: { status: "pendente", chave: { startsWith: `projeto:${id}:` } },
+    }).catch(() => {});
+
     await this.prisma.project.delete({ where: { id } });
     return { message: "Projeto removido" };
   }
@@ -354,6 +402,10 @@ class ProjectsController {
   @Post(":id/tasks")
   @Permissions("projetos:editar")
   async createTask(@Param("id") projectId: string, @Body() dto: CreateTaskDto, @Req() req: any) {
+    // Valida projeto + organização antes de criar: fecha o IDOR de criar tarefa
+    // num projeto de outro tenant, e reaproveita o registro (título, cor, org).
+    const proj = await this.exigirProjeto(projectId, req);
+
     const task = await this.prisma.task.create({
       data: {
         projectId, titulo: dto.titulo, descricao: dto.descricao,
@@ -370,7 +422,6 @@ class ProjectsController {
     if (dto.dataVencimento && dto.assigneeId) {
       const venc = new Date(dto.dataVencimento);
       venc.setHours(9, 0, 0, 0);
-      const proj = await this.prisma.project.findUnique({ where: { id: projectId } });
       await this.prisma.event.create({
         data: {
           titulo: "Task: " + dto.titulo,
@@ -402,7 +453,6 @@ class ProjectsController {
     await recalcProgress(this.prisma, projectId);
 
     // Trigger automacao
-    const proj = await this.prisma.project.findUnique({ where: { id: projectId }, select: { organizationId: true } as any });
     const orgIdTask = (proj as any)?.organizationId;
     this.automacao.executar("tarefa_criada", {
       id: task.id, titulo: task.titulo, projectId, assigneeId: task.assigneeId, status: task.status, organizationId: orgIdTask,
@@ -422,7 +472,19 @@ class ProjectsController {
     @Param("id") projectId: string, @Param("taskId") taskId: string,
     @Body() dto: UpdateTaskDto, @Req() req: any,
   ) {
-    const before = await this.prisma.task.findUnique({ where: { id: taskId } });
+    // Fecha o IDOR: sem resolver a task DENTRO do projeto e da organização de
+    // quem pede, um taskId de outro tenant era editável só por ter
+    // `projetos:editar`. Traz também os membros para a trava de status.
+    const { projeto, task: before } = await this.exigirProjetoDaTask(projectId, taskId, req);
+
+    // Só o CRIADOR e os MEMBROS mexem no status das tarefas (pedido do usuário).
+    // Master mantém acesso. Os demais campos seguem em `projetos:editar`.
+    if (dto.status && dto.status !== before.status && !this.podeMexerStatus(projeto, req)) {
+      throw new ForbiddenException(
+        "Apenas o criador do projeto e seus membros podem alterar o status das tarefas.",
+      );
+    }
+
     const task = await this.prisma.task.update({
       where: { id: taskId },
       data: {
@@ -437,8 +499,12 @@ class ProjectsController {
     });
     await recalcProgress(this.prisma, projectId);
 
-    const proj = await this.prisma.project.findUnique({ where: { id: projectId }, select: { organizationId: true } as any });
-    const orgIdT = (proj as any)?.organizationId;
+    // Mantém o evento de agenda da task em dia com responsável/vencimento — sem
+    // isto, mudar a data deixava o lembrete antigo apontando para o dia errado,
+    // e trocar o responsável deixava o evento na agenda de quem saiu.
+    await this.sincronizarEventoDaTask(projeto, task, before);
+
+    const orgIdT = projeto.organizationId;
 
     // Avisa os envolvidos que a tarefa mudou de coluna.
     //
@@ -478,7 +544,17 @@ class ProjectsController {
 
   @Delete(":id/tasks/:taskId")
   @Permissions("projetos:editar")
-  async deleteTask(@Param("id") projectId: string, @Param("taskId") taskId: string) {
+  async deleteTask(@Param("id") projectId: string, @Param("taskId") taskId: string, @Req() req: any) {
+    // Valida projeto + organização e que a task é DESTE projeto: fecha o IDOR de
+    // apagar tarefa alheia por id solto.
+    await this.exigirProjetoDaTask(projectId, taskId, req);
+
+    // O evento de agenda da task aponta por string, sem FK — apagar a task não o
+    // remove. Sem isto, o lembrete "vence hoje" ficaria órfão na agenda do
+    // responsável, o mesmo sintoma do projeto excluído.
+    await this.prisma.event.deleteMany({ where: { origemTipo: "task", origemId: taskId } }).catch(() => {});
+    await this.prisma.notification.deleteMany({ where: { referenciaTipo: "task", referenciaId: taskId } }).catch(() => {});
+
     await this.prisma.task.delete({ where: { id: taskId } });
     await recalcProgress(this.prisma, projectId);
     return { message: "Task removida" };
@@ -518,8 +594,12 @@ class ProjectsController {
 
   // ── Members ───────────────────────────────────────────────────────────────
 
+  // Uma decorator só, de propósito. Duas `@Permissions` empilhadas gravam a
+  // mesma metadata: a segunda apagava a primeira e SÓ UMA valia — a intenção de
+  // exigir as duas se perdia sem erro. Consolidado em `projetos:editar`, que é o
+  // que gestor e analista têm e usam para definir membros já na criação; exigir
+  // `gerenciar` os travaria aqui, mas não na criação, o que é incoerente.
   @Post(":id/members")
-  @Permissions("projetos:gerenciar")
   @Permissions("projetos:editar")
   async addMember(@Param("id") id: string, @Body() body: AddMemberProjectsDto, @Req() req: any) {
     const project = await this.prisma.project.findUnique({ where: { id } });
@@ -571,7 +651,6 @@ class ProjectsController {
   }
 
   @Delete(":id/members/:userId")
-  @Permissions("projetos:gerenciar")
   @Permissions("projetos:editar")
   async removeMember(@Param("id") id: string, @Param("userId") userId: string) {
     await this.prisma.projectMember.delete({ where: { projectId_userId: { projectId: id, userId } } });
@@ -624,6 +703,60 @@ class ProjectsController {
       referenciaId: projectId,
       chave: aviso.chave,
     }).catch(() => {});
+  }
+
+  /**
+   * Avisa por WhatsApp quem foi posto como membro e devolve quem ficou de fora
+   * por não ter número — o front usa a lista para o pop-up.
+   *
+   * "Sem WhatsApp" aqui é a MESMA régua do despachante: número presente E
+   * verificado. Um número digitado errado, mas não confirmado, não recebe nada
+   * (o alerta chegaria a um desconhecido) — então prometer envio na tela seria
+   * mentira. Por isso não-verificado entra na lista de "sem WhatsApp".
+   *
+   * O envio vai pela OUTBOX (`enfileirarDireto`), não pelo `sendMessage` direto:
+   * ganha retentativa quando a instância está fora do ar, teto de vazão e a
+   * janela de silêncio — o mesmo caminho de todo o resto do módulo.
+   */
+  private async avisarNovosMembrosWhatsapp(
+    organizationId: string,
+    project: { id: string; titulo: string; dataFim?: Date | string | null },
+    memberIds: string[],
+  ): Promise<{ id: string; nome: string }[]> {
+    const alvos = memberIds.filter((u, i, a) => u && a.indexOf(u) === i);
+    if (!alvos.length) return [];
+
+    const membros = await this.prisma.user.findMany({
+      where: { id: { in: alvos } },
+      select: { id: true, nome: true, profile: { select: { whatsapp: true, whatsappVerificado: true } } },
+    });
+
+    const prazo = project.dataFim
+      ? ` Prazo: ${new Date(project.dataFim).toLocaleDateString("pt-BR")}.`
+      : "";
+
+    const semWhatsapp: { id: string; nome: string }[] = [];
+    for (const m of membros) {
+      const numero = m.profile?.whatsappVerificado ? (m.profile?.whatsapp || null) : null;
+      if (!numero) {
+        semWhatsapp.push({ id: m.id, nome: m.nome });
+        continue;
+      }
+      await this.notificacoes.enfileirarDireto({
+        organizationId,
+        canal: "whatsapp",
+        destino: numero,
+        modulo: "projects",
+        tipo: "projeto_membro_adicionado",
+        severidade: "info",
+        userId: m.id,
+        titulo: `Novo projeto: ${project.titulo}`,
+        mensagem: `Você foi adicionado como membro.${prazo}`,
+        // Uma linha por membro; salvar o formulário duas vezes não duplica.
+        chave: `projeto:${project.id}:membro:${m.id}`,
+      }).catch(() => {});
+    }
+    return semWhatsapp;
   }
 
   /**
@@ -680,6 +813,93 @@ class ProjectsController {
     });
     if (!projeto) throw new NotFoundException("Projeto não encontrado.");
     return projeto;
+  }
+
+  /**
+   * Resolve a task DENTRO do projeto e da organização de quem pede, e traz os
+   * membros para as travas de permissão.
+   *
+   * Existe para fechar o IDOR das rotas de tarefa: antes elas resolviam a task
+   * por id solto (`task.findUnique`), então um `taskId` de OUTRA organização era
+   * editável ou apagável por qualquer um com `projetos:editar`. Aqui o par
+   * (projeto da URL, organização do token) é a chave — id de fora não encontra.
+   */
+  private async exigirProjetoDaTask(projectId: string, taskId: string, req: any) {
+    const projeto = await this.prisma.project.findFirst({
+      where: { id: projectId, organizationId: req.user.organizationId },
+      select: {
+        id: true, titulo: true, cor: true, organizationId: true,
+        criadoPorId: true, members: { select: { userId: true } },
+      },
+    });
+    if (!projeto) throw new NotFoundException("Projeto não encontrado.");
+    const task = await this.prisma.task.findFirst({ where: { id: taskId, projectId } });
+    if (!task) throw new NotFoundException("Tarefa não encontrada.");
+    return { projeto, task };
+  }
+
+  /** Criador e membros mexem no status; master também. É a regra que o usuário
+   *  pediu — "só o criador e os membros envolvidos alteram o status". */
+  private podeMexerStatus(
+    projeto: { criadoPorId: string; members: { userId: string }[] },
+    req: any,
+  ): boolean {
+    if (req.user?.isMaster) return true;
+    if (projeto.criadoPorId === req.user.id) return true;
+    return projeto.members.some(m => m.userId === req.user.id);
+  }
+
+  /**
+   * Deixa o evento de agenda da task condizente com o estado atual.
+   *
+   * Regra: existe evento SE (e só se) a task tem responsável e vencimento e não
+   * está encerrada. Fora disso, o evento não deve existir. Isso cobre os três
+   * casos que antes divergiam em silêncio: mudou a data (evento no dia errado),
+   * trocou o responsável (evento na agenda de quem saiu) e concluiu/cancelou
+   * (lembrete de algo que já acabou).
+   */
+  private async sincronizarEventoDaTask(
+    projeto: { id?: string; titulo: string; cor: string | null; organizationId: string },
+    task: { id: string; titulo: string; assigneeId: string | null; dataVencimento: Date | null; status: string; criadoPorId?: string },
+    before: { assigneeId: string | null; dataVencimento: Date | null; status: string },
+  ) {
+    const encerradaAntes = before.status === "CONCLUIDA" || before.status === "CANCELADA";
+    const encerrada = task.status === "CONCLUIDA" || task.status === "CANCELADA";
+    const deveExistirAntes = !!before.assigneeId && !!before.dataVencimento && !encerradaAntes;
+    const deveExistirAgora = !!task.assigneeId && !!task.dataVencimento && !encerrada;
+
+    const dadosMudaram =
+      task.assigneeId !== before.assigneeId ||
+      task.dataVencimento?.getTime() !== before.dataVencimento?.getTime();
+
+    // Uma passagem A_FAZER→EM_ANDAMENTO (evento continua devido, mesmos dados)
+    // não deve tocar no evento: recriá-lo zeraria a confirmação de quem já
+    // aceitou o lembrete. Só age quando os DADOS mudaram, ou quando o evento
+    // passa a existir / deixa de existir (concluiu, cancelou, reabriu).
+    if (!dadosMudaram && deveExistirAntes === deveExistirAgora) return;
+
+    // A partir daqui parte do zero: remove o antigo e recria se for o caso.
+    await this.prisma.event.deleteMany({ where: { origemTipo: "task", origemId: task.id } }).catch(() => {});
+    if (!deveExistirAgora) return;
+
+    const venc = new Date(task.dataVencimento!);
+    venc.setHours(9, 0, 0, 0);
+    await this.prisma.event.create({
+      data: {
+        titulo: "Task: " + task.titulo,
+        descricao: "Vencimento da task no projeto " + projeto.titulo,
+        inicio: venc,
+        fim: new Date(venc.getTime() + 60 * 60 * 1000),
+        tipo: "PROJETO",
+        cor: projeto.cor || "#60a5fa",
+        userId: task.assigneeId,
+        criadoPorId: task.criadoPorId || task.assigneeId,
+        origemTipo: "task",
+        origemId: task.id,
+        confirmado: false,
+        organizationId: projeto.organizationId,
+      } as any,
+    }).catch(() => {});
   }
 
   @Get(":id/anexos")
