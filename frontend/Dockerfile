@@ -46,6 +46,12 @@ ARG NEXT_PUBLIC_LOGO_ARQUIVO_CLARO=
 ENV NEXT_PUBLIC_LOGIN_FUNDO=$NEXT_PUBLIC_LOGIN_FUNDO
 ENV NEXT_PUBLIC_LOGO_ARQUIVO=$NEXT_PUBLIC_LOGO_ARQUIVO
 ENV NEXT_PUBLIC_LOGO_ARQUIVO_CLARO=$NEXT_PUBLIC_LOGO_ARQUIVO_CLARO
+
+# Cor de destaque, pelo mesmo mecanismo. Padrão laranja (produto); homologação
+# passa `vermelho`. Em 11/09/2026 o vermelho de homologação, que vivia só no
+# disco do servidor, foi apagado por um deploy pelo git — mesma história da marca.
+ARG NEXT_PUBLIC_ACENTO=laranja
+ENV NEXT_PUBLIC_ACENTO=$NEXT_PUBLIC_ACENTO
 # Teto explícito de heap durante o build. Sem isso, o Node pode crescer até o
 # cgroup limit e ser OOM-killed silenciosamente em hosts pequenos como Lightsail 2GB.
 ENV NODE_OPTIONS="--max-old-space-size=1024"

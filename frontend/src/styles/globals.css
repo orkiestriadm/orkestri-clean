@@ -503,6 +503,38 @@ body.noc-mode .sidebar { display: none; }
 .mon-grupo__linha { flex: 1; height: 1px; background: var(--border-subtle); }
 
 .badge-violet { background: var(--accent-violet-dim); color: var(--accent-violet); border-color: rgba(249, 115, 22, 0.15); }
+
+/* ── Acento por ambiente ────────────────────────────────────────────────────
+   O padrão acima é o laranja do produto (produção). `NEXT_PUBLIC_ACENTO=vermelho`
+   no build (compose de homologação) marca o <html data-acento="vermelho"> e liga
+   o vermelho de antes de 26/07/2026 — os mesmos tons, claro e escuro.
+
+   Fica aqui, versionado, de propósito: até 11/09/2026 o vermelho de homologação
+   morava só no disco do servidor, e um deploy pelo git o trocou pelo laranja sem
+   nenhum erro. O seletor com `html` ganha do `:root`, e o com `[data-theme]`
+   ganha do bloco escuro — sem isso o tema escuro herdaria o vermelho claro. */
+html[data-acento="vermelho"] {
+  --bg-active:           rgba(220, 38, 38, 0.05);
+  --accent-violet:       #dc2626;
+  --accent-violet-dim:   rgba(220, 38, 38, 0.05);
+  --shadow-input:        0 0 0 3px rgba(220, 38, 38, 0.1);
+  --sidebar-active-bg:   rgba(220, 38, 38, 0.06);
+  --sidebar-active-text: #dc2626;
+}
+html[data-acento="vermelho"][data-theme="dark"] {
+  --bg-active:           rgba(255, 255, 255, 0.05);
+  --accent-violet:       #ef4444;
+  --accent-violet-dim:   rgba(239, 68, 68, 0.08);
+  --shadow-input:        0 0 0 3px rgba(239, 68, 68, 0.15);
+  --sidebar-active-bg:   rgba(239, 68, 68, 0.08);
+  --sidebar-active-text: #ef4444;
+}
+html[data-acento="vermelho"] .btn-violet { box-shadow: 0 2px 8px rgba(220, 38, 38, 0.2); }
+html[data-acento="vermelho"] .btn-primary:hover,
+html[data-acento="vermelho"] .btn-violet:hover { background: #b91c1c; border-color: #b91c1c; box-shadow: 0 6px 16px rgba(220, 38, 38, 0.28); }
+html[data-acento="vermelho"] .btn-primary:active,
+html[data-acento="vermelho"] .btn-violet:active { box-shadow: 0 2px 4px rgba(220, 38, 38, 0.15); }
+html[data-acento="vermelho"] .badge-violet { border-color: rgba(220, 38, 38, 0.15); }
 .badge-cyan   { background: rgba(2, 132, 199, 0.1); color: var(--accent-cyan); border-color: rgba(2, 132, 199, 0.15); }
 .badge-green  { background: rgba(5, 150, 105, 0.1); color: var(--accent-green); border-color: rgba(5, 150, 105, 0.15); }
 .badge-amber  { background: rgba(217, 119, 6, 0.1); color: var(--accent-amber); border-color: rgba(217, 119, 6, 0.15); }

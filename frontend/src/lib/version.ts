@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "1.38.0";
+export const VERSAO = "1.38.1";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -26,7 +26,7 @@ export const VERSAO = "1.38.0";
 export const VERSAO_DATA = "2026-09-11";
 
 /** Nome da entrega, para dar contexto ao número. */
-export const VERSAO_NOME = "Projetos — concluídos, histórico e novo layout";
+export const VERSAO_NOME = "Cor de destaque por ambiente";
 
 /**
  * Histórico exibido na tela Sobre, do mais recente para o mais antigo.
@@ -35,6 +35,14 @@ export const VERSAO_NOME = "Projetos — concluídos, histórico e novo layout";
  * esta lista quer saber o que mudou para ele.
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
+  {
+    versao: "1.38.1",
+    data: "2026-09-11",
+    titulo: "Cor de destaque de volta ao padrão do ambiente",
+    itens: [
+      "A cor de destaque (botões principais, item ativo do menu, dia de hoje na agenda) voltou a ser a do ambiente. Ela tinha mudado depois de uma atualização; agora faz parte da configuração de cada instalação e não se perde mais ao atualizar",
+    ],
+  },
   {
     versao: "1.38.0",
     data: "2026-09-11",
