@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "1.39.0";
+export const VERSAO = "1.39.1";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -26,7 +26,7 @@ export const VERSAO = "1.39.0";
 export const VERSAO_DATA = "2026-09-11";
 
 /** Nome da entrega, para dar contexto ao número. */
-export const VERSAO_NOME = "Strategy: carga da planilha atualizada";
+export const VERSAO_NOME = "Strategy: gráficos do painel redesenhados";
 
 /**
  * Histórico exibido na tela Sobre, do mais recente para o mais antigo.
@@ -35,6 +35,16 @@ export const VERSAO_NOME = "Strategy: carga da planilha atualizada";
  * esta lista quer saber o que mudou para ele.
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
+  {
+    versao: "1.39.1",
+    data: "2026-09-11",
+    titulo: "Strategy: gráficos do painel redesenhados",
+    itens: [
+      "Os quadros do Painel estratégico abrem com o número que importa (ex.: quanto da carteira pede atenção, quem concentra mais assuntos) e mostram a divisão numa barra única, com legenda clicável que leva à lista filtrada",
+      "\"O que está parado\" mostra as faixas na ordem do tempo (até 30, 31 a 60, 61 a 90, mais de 90 dias) e destaca em vermelho quando há assunto parado há mais de 90 dias",
+      "Quadros por objetivo, esfera, área, dependência, responsável e grupo deixam de usar vermelho em contagens comuns: o maior aparece em destaque e os menores são agrupados em \"Outros\"",
+    ],
+  },
   {
     versao: "1.39.0",
     data: "2026-09-11",

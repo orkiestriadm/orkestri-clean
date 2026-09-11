@@ -1260,3 +1260,8 @@ html[data-acento="vermelho"] {
   --border-subtle: rgba(255,255,255,0.1);
   --accent-violet: #8B5CF6;
 }
+
+/* ── Strategy: fatia clicável da barra de participação ───────── */
+.participacao__fatia { cursor: pointer; }
+.participacao__fatia:hover,
+.participacao__fatia:focus-visible { filter: brightness(1.18) saturate(1.1); outline: none; }

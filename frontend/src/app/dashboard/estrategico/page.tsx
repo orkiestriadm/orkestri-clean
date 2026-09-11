@@ -18,7 +18,7 @@ import {
   BASE, pode, data, dinheiro, dinheiroCurto, FarolPonto, SemAcao, prazoEmPalavras, Aviso, Nota, LINK_DISCRETO,
 } from "./_components/comuns";
 import {
-  BarrasComparativas, BarraEmpilhada, Cartao, MatrizRisco, FunilValores, ColunasMensais, PipelineResumo,
+  Cartao, MatrizRisco, FunilValores, ColunasMensais, PipelineResumo, AgingResumo, FarolResumo, DistribuicaoLider,
 } from "./_components/graficos";
 import CasoForm from "./_components/CasoForm";
 
@@ -96,11 +96,9 @@ export default function EstrategicoPainelPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   ], [k, recorte]);
 
-  const barras = (lista: { id: string; rotulo: string; valor: number; criticos?: number }[], param: string) =>
-    lista.map(b => ({
-      rotulo: b.rotulo, valor: b.valor, destaque: b.criticos, destaqueRotulo: "críticos",
-      href: b.id !== "sem" ? qs({ [param]: b.id }) : undefined,
-    }));
+  // "Sem objetivo/área/..." não tem filtro na lista — fica sem link.
+  const fatias = (lista: { id: string; rotulo: string; valor: number }[], param: string) =>
+    lista.map(b => ({ id: b.id, rotulo: b.rotulo, valor: b.valor, href: b.id !== "sem" ? qs({ [param]: b.id }) : undefined }));
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
@@ -237,27 +235,32 @@ export default function EstrategicoPainelPage() {
                   dica="Dias desde o último andamento datado."
                   acoes={<Link href={`${BASE}/relatorios?tipo=aging`} className="btn btn-ghost" style={{ padding: "4px 10px", fontSize: 11.5 }}>Aging <ArrowRight size={12} /></Link>}
                 >
-                  <BarrasComparativas itens={painel.graficos.aging.map(a => ({ rotulo: a.rotulo, valor: a.valor, cor: a.id === "acima_90" ? "var(--accent-red)" : a.id === "61_90" || a.id === "31_60" ? "var(--accent-amber)" : a.id === "sem_registro" ? "var(--text-muted)" : "var(--accent-green)" }))} />
-                  <div style={{ marginTop: 14 }}><ListaResumo itens={painel.oQueEstaParado.slice(0, 6)} mostrar="parado" /></div>
+                  <AgingResumo faixas={painel.graficos.aging} />
+                  <div style={{ marginTop: 18, paddingTop: 14, borderTop: "1px solid var(--border-subtle)" }}>
+                    <ListaResumo itens={painel.oQueEstaParado.slice(0, 6)} mostrar="parado" />
+                  </div>
                   {painel.semMovimentacao.length > 0 && <Nota>{painel.semMovimentacao.length} assunto(s) sem nenhum andamento datado — o aging não pode ser medido.</Nota>}
                 </Cartao>
 
                 {/* Status */}
                 <Cartao titulo="Saúde da carteira" dica="Farol calculado (ou manual, quando justificado).">
-                  <BarraEmpilhada fatias={painel.graficos.porFarol.map(f => ({ rotulo: f.rotulo, valor: f.valor, cor: f.cor! }))} />
-                  <div style={{ marginTop: 16 }}>
-                    <BarrasComparativas itens={painel.graficos.porEtapa.map(e => ({ rotulo: e.rotulo, valor: e.valor, href: qs({ etapa: e.id }) }))} />
+                  <FarolResumo fatias={painel.graficos.porFarol.map(f => ({ ...f, href: qs({ farol: f.id }) }))} />
+                  <div style={{ marginTop: 18, paddingTop: 14, borderTop: "1px solid var(--border-subtle)" }}>
+                    <div className="mono-cap" style={{ fontSize: 10.5, color: "var(--text-muted)", marginBottom: 10 }}>Por etapa</div>
+                    <DistribuicaoLider compacto itens={painel.graficos.porEtapa.map(e => ({ ...e, href: qs({ etapa: e.id }) }))} />
                   </div>
                 </Cartao>
               </div>
 
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 16 }}>
-                <Cartao titulo="Por objetivo"><BarrasComparativas itens={barras(painel.graficos.porObjetivo, "objetivoId")} /></Cartao>
-                <Cartao titulo="Por esfera"><BarrasComparativas itens={barras(painel.graficos.porEsfera, "esferaId")} /></Cartao>
-                <Cartao titulo="Por área operacional"><BarrasComparativas itens={barras(painel.graficos.porArea, "areaId")} /></Cartao>
-                <Cartao titulo="Por dependência" dica="Assuntos ativos aguardando cada parte."><BarrasComparativas itens={barras(painel.graficos.porDependencia, "dependenciaId")} vazio="Nenhuma dependência ativa." /></Cartao>
-                <Cartao titulo="Por responsável"><BarrasComparativas itens={barras(painel.graficos.porResponsavel, "responsavelId")} /></Cartao>
-                <Cartao titulo="Por grupo"><BarrasComparativas itens={barras(painel.graficos.porGrupo, "grupoId")} /></Cartao>
+                <Cartao titulo="Por objetivo"><DistribuicaoLider itens={fatias(painel.graficos.porObjetivo, "objetivoId")} /></Cartao>
+                <Cartao titulo="Por esfera"><DistribuicaoLider itens={fatias(painel.graficos.porEsfera, "esferaId")} /></Cartao>
+                <Cartao titulo="Por área operacional"><DistribuicaoLider itens={fatias(painel.graficos.porArea, "areaId")} /></Cartao>
+                <Cartao titulo="Por dependência" dica="Assuntos ativos aguardando cada parte.">
+                  <DistribuicaoLider itens={fatias(painel.graficos.porDependencia, "dependenciaId")} unidade="dependências ativas" textoVazio="Nenhuma dependência ativa." />
+                </Cartao>
+                <Cartao titulo="Por responsável"><DistribuicaoLider itens={fatias(painel.graficos.porResponsavel, "responsavelId")} unidade="assuntos ativos" /></Cartao>
+                <Cartao titulo="Por grupo"><DistribuicaoLider itens={fatias(painel.graficos.porGrupo, "grupoId")} /></Cartao>
               </div>
 
               {painel.financeiroVisivel && (painel.graficos.valorPorAssunto?.length ?? 0) > 0 && (

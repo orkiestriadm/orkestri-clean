@@ -10,7 +10,7 @@
  * funil de valores, pipeline e evolução mensal.
  */
 
-import { useState } from "react";
+import { useState, type ReactNode, type CSSProperties } from "react";
 import Link from "next/link";
 import { BASE, dinheiroCurto, dinheiro, FarolPonto } from "./comuns";
 import type { Farol } from "@/lib/estrategico/types";
@@ -20,6 +20,163 @@ export type { ItemBarra } from "../../compliance/_components/graficos";
 
 const fmt = (n: number) => Number(n || 0).toLocaleString("pt-BR");
 const vazio = (texto: string) => <p style={{ fontSize: 12.5, color: "var(--text-muted)", margin: "6px 0" }}>{texto}</p>;
+
+/* ── Participação executiva (direção "C", escolhida em 11/09/2026) ──────────
+   Cada quadro abre com o número que responde a pergunta dele e mostra a
+   divisão numa barra única, com legenda clicável. Duas regras de cor:
+   - status: a cor já quer dizer algo (farol, tempo sem andamento) e vem do dado;
+   - líder: categorias sem ordem natural (objetivo, área, dependência...) — o
+     maior em grafite, o resto em cinza. Pintar por posição no ranking faria a
+     categoria parecer escala e trocaria de cor a cada filtro do painel. */
+
+export type Fatia = { id: string; rotulo: string; valor: number; cor?: string; href?: string };
+
+const COR_LIDER = "color-mix(in srgb, var(--text-primary) 78%, transparent)";
+const COR_DEMAIS = "color-mix(in srgb, var(--text-muted) 42%, transparent)";
+const COR_OUTROS = "color-mix(in srgb, var(--text-muted) 20%, transparent)";
+const pct = (v: number, total: number) => (total ? Math.round((v / total) * 100) : 0);
+
+export function Destaque({ numero, texto, tom, compacto }: { numero: ReactNode; texto: ReactNode; tom?: string; compacto?: boolean }) {
+  return (
+    <div style={{ display: "flex", alignItems: "baseline", gap: 10, margin: compacto ? "0 0 8px" : "0 0 12px", minWidth: 0 }}>
+      <span className="metric" style={{ fontSize: compacto ? 20 : 30, lineHeight: 1, color: tom ?? "var(--text-primary)", flexShrink: 0 }}>{numero}</span>
+      <span style={{ fontSize: compacto ? 12 : 12.5, color: "var(--text-secondary)", lineHeight: 1.35, minWidth: 0 }}>{texto}</span>
+    </div>
+  );
+}
+
+function BarraParticipacao({ fatias, total }: { fatias: (Fatia & { cor: string })[]; total: number }) {
+  const visiveis = fatias.filter(f => f.valor > 0);
+  return (
+    <div
+      role="img"
+      aria-label={visiveis.map(f => `${f.rotulo}: ${fmt(f.valor)}`).join(", ")}
+      style={{ display: "flex", gap: 2, height: 12, borderRadius: 6, overflow: "hidden" }}
+    >
+      {visiveis.map(f => {
+        const estilo: CSSProperties = {
+          flex: `${f.valor} 1 0`, minWidth: 4, background: f.cor, display: "block",
+          transition: "flex-grow .4s cubic-bezier(.22,1,.36,1), filter .15s",
+        };
+        const titulo = `${f.rotulo}: ${fmt(f.valor)} (${pct(f.valor, total)}%)`;
+        return f.href
+          ? <Link key={f.id} href={f.href} title={titulo} aria-label={titulo} className="participacao__fatia" style={estilo} />
+          : <span key={f.id} title={titulo} style={estilo} />;
+      })}
+    </div>
+  );
+}
+
+function LegendaParticipacao({ fatias, total, mostrarZero }: { fatias: (Fatia & { cor: string })[]; total: number; mostrarZero?: boolean }) {
+  const estilo: CSSProperties = { display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, color: "inherit", textDecoration: "none" };
+  return (
+    <ul style={{ display: "flex", flexWrap: "wrap", gap: "6px 16px", listStyle: "none", padding: 0, margin: "10px 0 0" }}>
+      {fatias.filter(f => mostrarZero || f.valor > 0).map(f => {
+        const corpo = (
+          <>
+            <span style={{
+              width: 9, height: 9, borderRadius: 2, flexShrink: 0,
+              background: f.valor ? f.cor : "transparent", boxShadow: f.valor ? undefined : `inset 0 0 0 1.5px ${f.cor}`,
+            }} />
+            <span style={{ color: "var(--text-secondary)" }}>{f.rotulo}</span>
+            <span className="metric" style={{ color: "var(--text-primary)" }} title={`${pct(f.valor, total)}%`}>{fmt(f.valor)}</span>
+          </>
+        );
+        return <li key={f.id}>{f.href && f.valor ? <Link href={f.href} style={estilo}>{corpo}</Link> : <span style={estilo}>{corpo}</span>}</li>;
+      })}
+    </ul>
+  );
+}
+
+/** Categorias sem ordem natural: destaca quem concentra mais e agrupa a cauda em "Outros". */
+export function DistribuicaoLider({
+  itens, unidade = "assuntos", max = 4, compacto, textoVazio = "Sem dados.",
+}: { itens: Fatia[]; unidade?: string; max?: number; compacto?: boolean; textoVazio?: string }) {
+  const ordenados = itens.filter(i => i.valor > 0).sort((a, b) => b.valor - a.valor);
+  const total = ordenados.reduce((s, i) => s + i.valor, 0);
+  if (!total) return vazio(textoVazio);
+
+  // "Outros (1)" esconderia um nome sem ganhar espaço: aí mostra o item.
+  const corte = ordenados.length === max + 1 ? max + 1 : max;
+  const principais = ordenados.slice(0, corte);
+  const resto = ordenados.slice(corte);
+  const fatias: (Fatia & { cor: string })[] = [
+    ...principais.map((i, idx) => ({ ...i, cor: idx === 0 ? COR_LIDER : COR_DEMAIS })),
+    ...(resto.length ? [{ id: "__outros", rotulo: `Outros (${resto.length})`, valor: resto.reduce((s, i) => s + i.valor, 0), cor: COR_OUTROS }] : []),
+  ];
+  const lider = principais[0];
+
+  return (
+    <div>
+      <Destaque
+        compacto={compacto}
+        numero={`${pct(lider.valor, total)}%`}
+        texto={<><strong style={{ color: "var(--text-primary)", fontWeight: 600 }}>{lider.rotulo}</strong> · {fmt(lider.valor)} de {fmt(total)} {unidade}</>}
+      />
+      <BarraParticipacao fatias={fatias} total={total} />
+      <LegendaParticipacao fatias={fatias} total={total} />
+    </div>
+  );
+}
+
+const COR_AGING: Record<string, string> = {
+  ate_30: "var(--accent-green)",
+  "31_60": "var(--accent-amber)",
+  "61_90": "color-mix(in srgb, var(--accent-amber) 50%, var(--accent-red))",
+  acima_90: "var(--accent-red)",
+  sem_registro: "color-mix(in srgb, var(--text-muted) 45%, transparent)",
+};
+
+/** Tempo sem andamento: faixas na ordem do tempo, nunca pelo tamanho. */
+export function AgingResumo({ faixas }: { faixas: Fatia[] }) {
+  const total = faixas.reduce((s, f) => s + f.valor, 0);
+  if (!total) return vazio("Nenhum assunto ativo.");
+  const valor = (id: string) => faixas.find(f => f.id === id)?.valor ?? 0;
+  const fatias = faixas.map(f => ({ ...f, cor: COR_AGING[f.id] ?? COR_DEMAIS }));
+  const acima90 = valor("acima_90");
+  const recentes = valor("ate_30");
+
+  return (
+    <div>
+      {acima90 > 0 ? (
+        <Destaque
+          numero={fmt(acima90)} tom="var(--accent-red)"
+          texto={<>{acima90 === 1 ? "assunto parado" : "assuntos parados"} há mais de 90 dias · {pct(acima90, total)}% dos ativos</>}
+        />
+      ) : (
+        <Destaque
+          numero={`${pct(recentes, total)}%`}
+          texto={<>com andamento nos últimos 30 dias · {fmt(recentes)} de {fmt(total)} assuntos ativos</>}
+        />
+      )}
+      <BarraParticipacao fatias={fatias} total={total} />
+      <LegendaParticipacao fatias={fatias} total={total} mostrarZero />
+    </div>
+  );
+}
+
+/** Farol da carteira: a manchete é a cor mais grave que existe. */
+export function FarolResumo({ fatias: entrada }: { fatias: Fatia[] }) {
+  const total = entrada.reduce((s, f) => s + f.valor, 0);
+  if (!total) return vazio("Nenhum assunto.");
+  const valor = (id: string) => entrada.find(f => f.id === id)?.valor ?? 0;
+  const fatias = entrada.map(f => ({ ...f, cor: f.cor ?? COR_DEMAIS }));
+  const [vermelho, amarelo, verde] = [valor("vermelho"), valor("amarelo"), valor("verde")];
+
+  const manchete = vermelho
+    ? { numero: `${pct(vermelho, total)}%`, tom: "var(--accent-red)", texto: <>em risco (vermelho) · {fmt(vermelho)} de {fmt(total)} assuntos</> }
+    : amarelo
+      ? { numero: `${pct(amarelo, total)}%`, tom: undefined, texto: <>pedem atenção (amarelo) · {fmt(amarelo)} de {fmt(total)} assuntos</> }
+      : { numero: `${pct(verde, total)}%`, tom: undefined, texto: <>sob controle (verde) · {fmt(verde)} de {fmt(total)} assuntos</> };
+
+  return (
+    <div>
+      <Destaque numero={manchete.numero} tom={manchete.tom} texto={manchete.texto} />
+      <BarraParticipacao fatias={fatias} total={total} />
+      <LegendaParticipacao fatias={fatias} total={total} mostrarZero />
+    </div>
+  );
+}
 
 /* ── Matriz Probabilidade × Impacto ─────────────────────────────────────── */
 
