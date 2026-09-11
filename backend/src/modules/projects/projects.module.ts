@@ -1,9 +1,9 @@
-import { Module, Controller, Get, Post, Put, Patch, Delete, Body, Param, Query, UseGuards, Req, Res, UseInterceptors, UploadedFile, NotFoundException, BadRequestException } from "@nestjs/common";
+import { Module, Controller, Get, Post, Put, Patch, Delete, Body, Param, Query, UseGuards, Req, Res, UseInterceptors, UploadedFile, NotFoundException, BadRequestException, ForbiddenException } from "@nestjs/common";
 import { FileInterceptor } from "@nestjs/platform-express";
 import { memoryStorage } from "multer";
 import { randomUUID } from "crypto";
 import { AuthGuard } from "@nestjs/passport";
-import { IsArray, IsBoolean, IsDateString, IsNumber, IsOptional, IsString } from "class-validator";
+import { IsArray, IsBoolean, IsDateString, IsIn, IsNumber, IsOptional, IsString } from "class-validator";
 import { Type } from "class-transformer";
 import { PrismaService } from "../../prisma/prisma.service";
 import { Permissions } from "../auth/permissions.decorator";
@@ -11,12 +11,14 @@ import { PermissionsGuard } from "../auth/permissions.guard";
 import { acharNaOrganizacao } from "../../common/escopo-organizacao";
 import { WebhookService, WebhooksModule } from "../automacoes/webhooks.module";
 import { AutomacaoService, AutomacoesModule } from "../automacoes/automacoes.module";
+import { AuditModule, AuditService } from "../audit/audit.module";
 import { NotificacaoDispatcher } from "../notifications/notificacao-dispatcher.service";
 import type { Severidade } from "../notifications/notificacao-modulos";
 import { NotificationsModule } from "../notifications/notifications.module";
 
 import { ProjectAnexoStorageService } from "./project-anexo-storage.service";
 import { PrazosProjetoScheduler } from "./prazos.scheduler";
+import { calcPct, projetoConcluido, transicaoDeConclusao } from "./progresso";
 
 /**
  * Tipos aceitos em anexo de projeto — a mesma lista do Compliance.
@@ -93,22 +95,13 @@ class UpdateTaskDto {
   @IsOptional() @IsDateString() dataVencimento?: string;
 }
 
-// Progresso PONDERADO pelo estagio da tarefa (nao so concluidas), para a barra
-// "andar" conforme o trabalho avanca. Canceladas saem da conta (nao travam 100%).
-const PESO_STATUS: Record<string, number> = { A_FAZER: 0, EM_ANDAMENTO: 0.5, EM_REVISAO: 0.8, CONCLUIDA: 1 };
-function calcPct(tasks: { status: string }[]): number {
-  const ativas = tasks.filter(t => t.status !== "CANCELADA");
-  if (!ativas.length) return 0;
-  const soma = ativas.reduce((acc, t) => acc + (PESO_STATUS[t.status] ?? 0), 0);
-  return Math.round((soma / ativas.length) * 100);
+/** Colunas do quadro — o que a rota de mover aceita. */
+const STATUS_TAREFA = ["A_FAZER", "EM_ANDAMENTO", "EM_REVISAO", "CONCLUIDA", "CANCELADA"];
+
+class MoverStatusDto {
+  @IsIn(STATUS_TAREFA) status: string;
 }
 
-async function recalcProgress(prisma: PrismaService, projectId: string) {
-  const tasks = await prisma.task.findMany({ where: { projectId }, select: { status: true } });
-  const pct = calcPct(tasks);
-  await prisma.project.update({ where: { id: projectId }, data: { progressoPct: pct } });
-  return pct;
-}
 
 async function createDeadlineEvent(prisma: PrismaService, project: any, userIds: string[], criadoPorId: string) {
   if (!project.dataFim) return;
@@ -182,11 +175,12 @@ class ProjectsController {
     private automacao: AutomacaoService,
     private notificacoes: NotificacaoDispatcher,
     private anexos: ProjectAnexoStorageService,
+    private audit: AuditService,
   ) {}
 
   @Get()
   @Permissions("projetos:ver")
-  async findAll(@Req() req: any, @Query("tipo") tipo?: string) {
+  async findAll(@Req() req: any, @Query("tipo") tipo?: string, @Query("situacao") situacao?: string) {
     const orgId = req.user?.organizationId;
     const projects = await this.prisma.project.findMany({
       where: {
@@ -204,13 +198,25 @@ class ProjectsController {
       },
       orderBy: { criadoEm: "desc" },
     });
-    return projects.map((p: any) => ({
+    const lista = projects.map((p: any) => ({
       ...p,
       totalTasks: p._count.tasks,
       tasksConcluidas: p.tasks.filter((t: any) => t.status === "CONCLUIDA").length,
       // Recalcula na hora (ponderado) para projetos antigos refletirem ja na listagem
       progressoPct: calcPct(p.tasks),
+      // Derivado das tarefas, e não de `concluidoEm`: projeto que chegou a 100%
+      // antes desta regra existir também sai da fila, sem migração de dados.
+      concluido: projetoConcluido(p.tasks),
     }));
+
+    // Sem `situacao` devolve todos — a Linha do Tempo e as Automações usam esta
+    // mesma rota e continuam vendo os concluídos.
+    if (situacao === "ativos") return lista.filter(p => !p.concluido);
+    if (situacao === "concluidos") {
+      const quando = (p: any) => new Date(p.concluidoEm ?? p.atualizadoEm).getTime();
+      return lista.filter(p => p.concluido).sort((a, b) => quando(b) - quando(a));
+    }
+    return lista;
   }
 
   @Get(":id")
@@ -221,12 +227,26 @@ class ProjectsController {
     const p = await acharNaOrganizacao<any>(this.prisma.project, id, req, "Projeto nao encontrado", {
       include: {
         members: { include: { user: { select: { id: true, nome: true, email: true } } } },
-        tasks: { include: { assignee: { select: { id: true, nome: true } }, comments: { include: { user: { select: { id: true, nome: true } } } } }, orderBy: { criadoEm: "asc" } },
+        tasks: {
+          include: {
+            assignee: { select: { id: true, nome: true } },
+            comments: { include: { user: { select: { id: true, nome: true } } } },
+            // Contador do Keep no cartão do quadro — só o número, o conteúdo vem ao abrir.
+            _count: { select: { registros: true } },
+          },
+          orderBy: { criadoEm: "asc" },
+        },
         milestones: { orderBy: { dataAlvo: "asc" } },
         cliente: { select: { id: true, nome: true, empresa: true, email: true, telefone: true } },
       },
     });
-    return { ...p, progressoPct: calcPct(p.tasks) };
+    return {
+      ...p,
+      progressoPct: calcPct(p.tasks),
+      concluido: projetoConcluido(p.tasks),
+      // A tela usa para liberar o arrastar: quem não faz parte levaria 403.
+      podeMoverStatus: this.podeMexerStatus(p, req),
+    };
   }
 
   @Post()
@@ -266,13 +286,26 @@ class ProjectsController {
       await createDeadlineEvent(this.prisma, { ...project, dataFim: dto.dataFim }, allMemberIds, req.user.id);
     }
 
+    // WhatsApp para quem foi COLOCADO como membro (não para quem criou — essa
+    // pessoa está na tela). Devolve quem ficou sem número verificado, para o
+    // front abrir o pop-up de aviso. Não bloqueia a criação: não dá para exigir
+    // que um colega tenha WhatsApp cadastrado.
+    const membrosAdicionados = allMemberIds.filter(uid => uid !== req.user.id);
+    const semWhatsapp = orgId
+      ? await this.avisarNovosMembrosWhatsapp(
+          orgId,
+          { id: project.id, titulo: project.titulo, dataFim: dto.dataFim ?? null },
+          membrosAdicionados,
+        )
+      : [];
+
     // Trigger automacao + webhook
     this.automacao.executar("projeto_criado", {
       id: project.id, titulo: project.titulo, status: project.status,
       organizationId: orgId, criadoPorId: req.user.id,
     }).catch(() => {});
 
-    return project;
+    return { ...project, avisosWhatsapp: { semWhatsapp } };
   }
 
   @Put(":id")
@@ -307,7 +340,7 @@ class ProjectsController {
         tipo: "projeto_status",
         titulo: `Projeto ${updated.titulo}: ${ROTULO_STATUS_PROJETO[updated.status] ?? updated.status}`,
         mensagem:
-          `${req.user?.nome ?? "Alguém"} mudou o status de ` +
+          `${await this.nomeDoAutor(req)} mudou o status de ` +
           `${ROTULO_STATUS_PROJETO[existing.status] ?? existing.status} para ` +
           `${ROTULO_STATUS_PROJETO[updated.status] ?? updated.status}.`,
         // Cancelamento sobe de tom: interrompe o trabalho de quem esta no projeto.
@@ -345,8 +378,43 @@ class ProjectsController {
     // projeto por id solto: um master de outra organizacao passava nela.
     const p = await acharNaOrganizacao(this.prisma.project, id, req, "Projeto nao encontrado");
     if (p.criadoPorId !== req.user.id && !req.user.isMaster) throw new BadRequestException("Sem permissao");
-    // Remove eventos de prazo
-    await this.prisma.event.deleteMany({ where: { origemTipo: "projeto", origemId: id } });
+
+    // As tasks somem por cascade, mas o que aponta para elas por STRING (sem FK)
+    // não some sozinho: eventos de agenda e notificações do sino ficariam
+    // órfãos. Era exatamente a causa do "projeto excluído me avisa que vence
+    // hoje" — o cron das 07:00 já tinha gravado a notificação, e apagar o
+    // projeto não a apagava. Preciso dos ids das tasks para alcançá-las.
+    const tasks = await this.prisma.task.findMany({ where: { projectId: id }, select: { id: true } });
+    const taskIds = tasks.map(t => t.id);
+
+    // Eventos de agenda: do projeto E de cada tarefa.
+    await this.prisma.event.deleteMany({
+      where: {
+        OR: [
+          { origemTipo: "projeto", origemId: id },
+          ...(taskIds.length ? [{ origemTipo: "task", origemId: { in: taskIds } }] : []),
+        ],
+      },
+    });
+
+    // Sino: notificações do projeto e das tarefas. As duas grafias de referência
+    // ("projeto" do dispatcher/scheduler e "project" do createDeadlineEvent)
+    // porque as duas foram gravadas ao longo da vida do projeto.
+    await this.prisma.notification.deleteMany({
+      where: {
+        OR: [
+          { referenciaTipo: { in: ["projeto", "project"] }, referenciaId: id },
+          ...(taskIds.length ? [{ referenciaTipo: { in: ["task"] }, referenciaId: { in: taskIds } }] : []),
+        ],
+      },
+    });
+
+    // Outbox: envios AINDA pendentes deste projeto não devem sair depois do fim.
+    // A chave gravada é `projeto:{id}:...::canal::user`; o prefixo alcança todos.
+    await this.prisma.notificacaoEnvio.deleteMany({
+      where: { status: "pendente", chave: { startsWith: `projeto:${id}:` } },
+    }).catch(() => {});
+
     await this.prisma.project.delete({ where: { id } });
     return { message: "Projeto removido" };
   }
@@ -354,6 +422,10 @@ class ProjectsController {
   @Post(":id/tasks")
   @Permissions("projetos:editar")
   async createTask(@Param("id") projectId: string, @Body() dto: CreateTaskDto, @Req() req: any) {
+    // Valida projeto + organização antes de criar: fecha o IDOR de criar tarefa
+    // num projeto de outro tenant, e reaproveita o registro (título, cor, org).
+    const proj = await this.exigirProjeto(projectId, req);
+
     const task = await this.prisma.task.create({
       data: {
         projectId, titulo: dto.titulo, descricao: dto.descricao,
@@ -370,7 +442,6 @@ class ProjectsController {
     if (dto.dataVencimento && dto.assigneeId) {
       const venc = new Date(dto.dataVencimento);
       venc.setHours(9, 0, 0, 0);
-      const proj = await this.prisma.project.findUnique({ where: { id: projectId } });
       await this.prisma.event.create({
         data: {
           titulo: "Task: " + dto.titulo,
@@ -399,10 +470,10 @@ class ProjectsController {
       });
     }
 
-    await recalcProgress(this.prisma, projectId);
+    // Tarefa nova num projeto concluído o devolve à fila.
+    await this.atualizarProgresso(proj, req);
 
     // Trigger automacao
-    const proj = await this.prisma.project.findUnique({ where: { id: projectId }, select: { organizationId: true } as any });
     const orgIdTask = (proj as any)?.organizationId;
     this.automacao.executar("tarefa_criada", {
       id: task.id, titulo: task.titulo, projectId, assigneeId: task.assigneeId, status: task.status, organizationId: orgIdTask,
@@ -422,8 +493,21 @@ class ProjectsController {
     @Param("id") projectId: string, @Param("taskId") taskId: string,
     @Body() dto: UpdateTaskDto, @Req() req: any,
   ) {
-    const before = await this.prisma.task.findUnique({ where: { id: taskId } });
-    const task = await this.prisma.task.update({
+    // Fecha o IDOR: sem resolver a task DENTRO do projeto e da organização de
+    // quem pede, um taskId de outro tenant era editável só por ter
+    // `projetos:editar`. Traz também os membros para a trava de status.
+    const { projeto, task: before } = await this.exigirProjetoDaTask(projectId, taskId, req);
+
+    // Só o CRIADOR e os MEMBROS mexem no status das tarefas (pedido do usuário).
+    // Master mantém acesso. Os demais campos seguem em `projetos:editar`.
+    const mudouStatus = !!dto.status && dto.status !== before.status;
+    if (mudouStatus && !this.podeMexerStatus(projeto, req)) {
+      throw new ForbiddenException(
+        "Apenas o criador do projeto e seus membros podem alterar o status das tarefas.",
+      );
+    }
+
+    const atualizar = this.prisma.task.update({
       where: { id: taskId },
       data: {
         ...(dto.titulo && { titulo: dto.titulo }),
@@ -435,10 +519,137 @@ class ProjectsController {
       },
       include: { assignee: { select: { id: true, nome: true } } },
     });
-    await recalcProgress(this.prisma, projectId);
+    const [task] = mudouStatus
+      ? await this.prisma.$transaction([atualizar, this.registroDeMovimento(projeto.id, before, dto.status!, req)])
+      : [await atualizar];
 
-    const proj = await this.prisma.project.findUnique({ where: { id: projectId }, select: { organizationId: true } as any });
-    const orgIdT = (proj as any)?.organizationId;
+    if (mudouStatus) {
+      await this.aposMudarStatus(projeto, before, task, req);
+    } else {
+      // Mantém o evento de agenda da task em dia com responsável/vencimento — sem
+      // isto, mudar a data deixava o lembrete antigo apontando para o dia errado,
+      // e trocar o responsável deixava o evento na agenda de quem saiu.
+      await this.sincronizarEventoDaTask(projeto, task, before);
+    }
+
+    if (dto.assigneeId && before?.assigneeId !== task.assigneeId) {
+      this.automacao.executar("tarefa_atribuida", {
+        id: task.id, titulo: task.titulo, projectId, assigneeId: task.assigneeId, organizationId: projeto.organizationId,
+      }).catch(() => {});
+    }
+
+    return task;
+  }
+
+  /**
+   * Mover a tarefa de coluna — a rota do arrastar e soltar no quadro.
+   *
+   * Separada do PATCH geral de propósito: aquele exige `projetos:editar`, que o
+   * papel operador não tem. Num projeto com três membros, só quem tinha o papel
+   * certo conseguia arrastar; o pedido (11/09/2026) é que TODO membro mova. Aqui
+   * basta ver o módulo — a trava é fazer parte do projeto.
+   */
+  @Patch(":id/tasks/:taskId/status")
+  @Permissions("projetos:ver")
+  async moverStatus(
+    @Param("id") projectId: string, @Param("taskId") taskId: string,
+    @Body() dto: MoverStatusDto, @Req() req: any,
+  ) {
+    const { projeto, task: before } = await this.exigirProjetoDaTask(projectId, taskId, req);
+    if (!this.podeMexerStatus(projeto, req)) {
+      throw new ForbiddenException("Só quem faz parte do projeto move as tarefas no quadro.");
+    }
+    if (dto.status === before.status) return { task: before, conclusao: null };
+
+    // A mudança e a linha do histórico na mesma transação: não existe tarefa
+    // que andou sem registro de quem a moveu.
+    const [task] = await this.prisma.$transaction([
+      this.prisma.task.update({
+        where: { id: taskId },
+        data: { status: dto.status as any },
+        include: { assignee: { select: { id: true, nome: true } } },
+      }),
+      this.registroDeMovimento(projeto.id, before, dto.status, req),
+    ]);
+
+    const { progressoPct, conclusao } = await this.aposMudarStatus(projeto, before, task, req);
+    return { task, progressoPct, conclusao };
+  }
+
+  @Delete(":id/tasks/:taskId")
+  @Permissions("projetos:editar")
+  async deleteTask(@Param("id") projectId: string, @Param("taskId") taskId: string, @Req() req: any) {
+    // Valida projeto + organização e que a task é DESTE projeto: fecha o IDOR de
+    // apagar tarefa alheia por id solto.
+    const { projeto } = await this.exigirProjetoDaTask(projectId, taskId, req);
+
+    // O evento de agenda da task aponta por string, sem FK — apagar a task não o
+    // remove. Sem isto, o lembrete "vence hoje" ficaria órfão na agenda do
+    // responsável, o mesmo sintoma do projeto excluído.
+    await this.prisma.event.deleteMany({ where: { origemTipo: "task", origemId: taskId } }).catch(() => {});
+    await this.prisma.notification.deleteMany({ where: { referenciaTipo: "task", referenciaId: taskId } }).catch(() => {});
+
+    await this.prisma.task.delete({ where: { id: taskId } });
+    // Apagar a última tarefa pendente conclui o projeto.
+    const { conclusao } = await this.atualizarProgresso(projeto, req);
+    return { message: "Task removida", conclusao };
+  }
+
+  /** Histórico do projeto — ou de uma tarefa, com `?taskId=`. Mais recente primeiro. */
+  @Get(":id/historico")
+  @Permissions("projetos:ver")
+  async historico(@Param("id") id: string, @Req() req: any, @Query("taskId") taskId?: string) {
+    await this.exigirProjeto(id, req);
+    return this.prisma.projectHistorico.findMany({
+      where: { projectId: id, ...(taskId ? { taskId } : {}) },
+      orderBy: { criadoEm: "desc" },
+      take: 300,
+      select: {
+        id: true, tipo: true, de: true, para: true, criadoEm: true, taskId: true, taskTitulo: true,
+        user: { select: { id: true, nome: true } },
+      },
+    });
+  }
+
+  /* ── Andamento: status, histórico e conclusão ───────────────────────────── */
+
+  /** A linha do histórico de um movimento. Vai na MESMA transação da mudança. */
+  private registroDeMovimento(projectId: string, tarefa: { id: string; titulo: string; status: string }, para: string, req: any) {
+    return this.prisma.projectHistorico.create({
+      data: {
+        projectId, taskId: tarefa.id, taskTitulo: tarefa.titulo,
+        userId: req.user?.id ?? null, tipo: "tarefa_status", de: tarefa.status, para,
+      },
+    });
+  }
+
+  /**
+   * O que acontece depois que uma tarefa muda de coluna — pelo arrastar ou pelo
+   * PATCH geral. Num lugar só, para os dois caminhos avisarem e registrarem igual.
+   */
+  private async aposMudarStatus(
+    projeto: { id: string; titulo: string; cor: string | null; organizationId: string },
+    before: { status: string; assigneeId: string | null; dataVencimento: Date | null },
+    task: { id: string; titulo: string; status: string; assigneeId: string | null; dataVencimento: Date | null; criadoPorId: string },
+    req: any,
+  ) {
+    const de = before.status;
+    const para = task.status;
+
+    // Trilha de auditoria do sistema (tela Histórico), além do histórico do projeto.
+    await this.audit.log({
+      organizationId: projeto.organizationId,
+      userId: req.user?.id,
+      modulo: "projects",
+      tabela: "tasks",
+      registroId: task.id,
+      acao: "status",
+      descricao: `${await this.nomeDoAutor(req)} moveu "${task.titulo}" de ${ROTULO_STATUS_TAREFA[de] ?? de} para ${ROTULO_STATUS_TAREFA[para] ?? para}`,
+      dados: { projectId: projeto.id, de, para },
+    });
+
+    // Concluir ou cancelar tira o lembrete da agenda; reabrir devolve.
+    await this.sincronizarEventoDaTask(projeto, task, before);
 
     // Avisa os envolvidos que a tarefa mudou de coluna.
     //
@@ -446,42 +657,103 @@ class ProjectsController {
     // conhecido: num quadro ativo, cartão muda de coluna muitas vezes por dia.
     // A defesa contra virar ruído é a chave de deduplicação abaixo — sem ela,
     // arrastar o cartão de ida e volta mandaria uma mensagem por arrasto.
-    if (dto.status && before && dto.status !== before.status && orgIdT) {
-      await this.avisarEnvolvidos(projectId, orgIdT, req.user, {
-        tipo: "projeto_tarefa_status",
-        titulo: `${task.titulo}: ${ROTULO_STATUS_TAREFA[task.status] ?? task.status}`,
-        mensagem:
-          `${req.user?.nome ?? "Alguém"} moveu a tarefa de ` +
-          `${ROTULO_STATUS_TAREFA[before.status] ?? before.status} para ` +
-          `${ROTULO_STATUS_TAREFA[task.status] ?? task.status}.`,
-        // Cancelamento sobe de tom: interrompe trabalho de quem estava nela.
-        severidade: task.status === "CANCELADA" ? "aviso" : "info",
-        // A data entra na chave para o mesmo movimento repetido no MESMO dia
-        // não render duas mensagens — mas amanhã, se acontecer de novo, avisa.
-        chave: `tarefa:${taskId}:${task.status}:${new Date().toISOString().slice(0, 10)}`,
-      });
-    }
+    await this.avisarEnvolvidos(projeto.id, projeto.organizationId, req.user, {
+      tipo: "projeto_tarefa_status",
+      titulo: `${task.titulo}: ${ROTULO_STATUS_TAREFA[para] ?? para}`,
+      mensagem:
+        `${await this.nomeDoAutor(req)} moveu a tarefa de ` +
+        `${ROTULO_STATUS_TAREFA[de] ?? de} para ${ROTULO_STATUS_TAREFA[para] ?? para}.`,
+      // Cancelamento sobe de tom: interrompe trabalho de quem estava nela.
+      severidade: para === "CANCELADA" ? "aviso" : "info",
+      // A data entra na chave para o mesmo movimento repetido no MESMO dia
+      // não render duas mensagens — mas amanhã, se acontecer de novo, avisa.
+      chave: `tarefa:${task.id}:${para}:${new Date().toISOString().slice(0, 10)}`,
+    });
 
-    if (dto.status === "CONCLUIDA" && before?.status !== "CONCLUIDA") {
+    if (para === "CONCLUIDA") {
       this.automacao.executar("tarefa_concluida", {
-        id: task.id, titulo: task.titulo, projectId, assigneeId: task.assigneeId, organizationId: orgIdT,
-      }).catch(() => {});
-    }
-    if (dto.assigneeId && before?.assigneeId !== task.assigneeId) {
-      this.automacao.executar("tarefa_atribuida", {
-        id: task.id, titulo: task.titulo, projectId, assigneeId: task.assigneeId, organizationId: orgIdT,
+        id: task.id, titulo: task.titulo, projectId: projeto.id, assigneeId: task.assigneeId, organizationId: projeto.organizationId,
       }).catch(() => {});
     }
 
-    return task;
+    return this.atualizarProgresso(projeto, req);
   }
 
-  @Delete(":id/tasks/:taskId")
-  @Permissions("projetos:editar")
-  async deleteTask(@Param("id") projectId: string, @Param("taskId") taskId: string) {
-    await this.prisma.task.delete({ where: { id: taskId } });
-    await recalcProgress(this.prisma, projectId);
-    return { message: "Task removida" };
+  /**
+   * Recalcula o progresso e move o projeto entre a fila e Projetos Concluídos.
+   *
+   * Roda depois de TODA mudança nas tarefas — mover, criar, apagar: tarefa nova
+   * num projeto concluído o reabre, apagar a última pendente o conclui. A troca
+   * de fila vai para o histórico, a auditoria e o aviso de quem participa.
+   */
+  private async atualizarProgresso(
+    projeto: { id: string; organizationId: string },
+    req: any,
+  ): Promise<{ progressoPct: number; conclusao: "concluido" | "reaberto" | null }> {
+    const [tarefas, atual] = await Promise.all([
+      this.prisma.task.findMany({ where: { projectId: projeto.id }, select: { status: true } }),
+      this.prisma.project.findUnique({
+        where: { id: projeto.id },
+        select: { titulo: true, status: true, concluidoEm: true, clienteId: true },
+      }),
+    ]);
+    const progressoPct = calcPct(tarefas);
+    if (!atual) return { progressoPct, conclusao: null };
+
+    const transicao = transicaoDeConclusao(projetoConcluido(tarefas), atual.concluidoEm);
+    if (!transicao) {
+      await this.prisma.project.update({ where: { id: projeto.id }, data: { progressoPct } });
+      return { progressoPct, conclusao: null };
+    }
+
+    const concluir = transicao === "concluir";
+    const statusNovo = concluir ? "CONCLUIDO" : "EM_ANDAMENTO";
+    await this.prisma.$transaction([
+      this.prisma.project.update({
+        where: { id: projeto.id },
+        data: { progressoPct, status: statusNovo as any, concluidoEm: concluir ? new Date() : null },
+      }),
+      this.prisma.projectHistorico.create({
+        data: {
+          projectId: projeto.id, userId: req.user?.id ?? null,
+          tipo: concluir ? "projeto_concluido" : "projeto_reaberto", de: atual.status, para: statusNovo,
+        },
+      }),
+    ]);
+
+    await this.audit.log({
+      organizationId: projeto.organizationId,
+      userId: req.user?.id,
+      modulo: "projects",
+      tabela: "projects",
+      registroId: projeto.id,
+      acao: concluir ? "concluido" : "reaberto",
+      descricao: concluir
+        ? `Projeto "${atual.titulo}" concluído: todas as tarefas em Concluída`
+        : `Projeto "${atual.titulo}" reaberto: voltou para a fila`,
+      dados: { de: atual.status, para: statusNovo },
+    });
+
+    await this.avisarEnvolvidos(projeto.id, projeto.organizationId, req.user, {
+      tipo: "projeto_status",
+      titulo: concluir ? `Projeto concluído: ${atual.titulo}` : `Projeto reaberto: ${atual.titulo}`,
+      mensagem: concluir
+        ? "Todas as tarefas chegaram a Concluída. O projeto foi para Projetos Concluídos."
+        : `${await this.nomeDoAutor(req)} reabriu uma tarefa e o projeto voltou para a fila.`,
+      severidade: "info",
+      // O minuto na chave: concluir, reabrir e concluir de novo no mesmo dia são
+      // três fatos diferentes; a mesma requisição repetida não é.
+      chave: `projeto:${projeto.id}:${transicao}:${new Date().toISOString().slice(0, 16)}`,
+    });
+
+    if (concluir) {
+      this.webhook.fire("projeto.concluido", {
+        id: projeto.id, titulo: atual.titulo, status: statusNovo,
+        clienteId: atual.clienteId || null, progressoPct, concluidoEm: new Date(),
+      }, projeto.organizationId).catch(() => {});
+    }
+
+    return { progressoPct, conclusao: concluir ? "concluido" : "reaberto" };
   }
 
   // ── Milestones ───────────────────────────────────────────────────────────────
@@ -518,8 +790,12 @@ class ProjectsController {
 
   // ── Members ───────────────────────────────────────────────────────────────
 
+  // Uma decorator só, de propósito. Duas `@Permissions` empilhadas gravam a
+  // mesma metadata: a segunda apagava a primeira e SÓ UMA valia — a intenção de
+  // exigir as duas se perdia sem erro. Consolidado em `projetos:editar`, que é o
+  // que gestor e analista têm e usam para definir membros já na criação; exigir
+  // `gerenciar` os travaria aqui, mas não na criação, o que é incoerente.
   @Post(":id/members")
-  @Permissions("projetos:gerenciar")
   @Permissions("projetos:editar")
   async addMember(@Param("id") id: string, @Body() body: AddMemberProjectsDto, @Req() req: any) {
     const project = await this.prisma.project.findUnique({ where: { id } });
@@ -571,7 +847,6 @@ class ProjectsController {
   }
 
   @Delete(":id/members/:userId")
-  @Permissions("projetos:gerenciar")
   @Permissions("projetos:editar")
   async removeMember(@Param("id") id: string, @Param("userId") userId: string) {
     await this.prisma.projectMember.delete({ where: { projectId_userId: { projectId: id, userId } } });
@@ -624,6 +899,60 @@ class ProjectsController {
       referenciaId: projectId,
       chave: aviso.chave,
     }).catch(() => {});
+  }
+
+  /**
+   * Avisa por WhatsApp quem foi posto como membro e devolve quem ficou de fora
+   * por não ter número — o front usa a lista para o pop-up.
+   *
+   * "Sem WhatsApp" aqui é a MESMA régua do despachante: número presente E
+   * verificado. Um número digitado errado, mas não confirmado, não recebe nada
+   * (o alerta chegaria a um desconhecido) — então prometer envio na tela seria
+   * mentira. Por isso não-verificado entra na lista de "sem WhatsApp".
+   *
+   * O envio vai pela OUTBOX (`enfileirarDireto`), não pelo `sendMessage` direto:
+   * ganha retentativa quando a instância está fora do ar, teto de vazão e a
+   * janela de silêncio — o mesmo caminho de todo o resto do módulo.
+   */
+  private async avisarNovosMembrosWhatsapp(
+    organizationId: string,
+    project: { id: string; titulo: string; dataFim?: Date | string | null },
+    memberIds: string[],
+  ): Promise<{ id: string; nome: string }[]> {
+    const alvos = memberIds.filter((u, i, a) => u && a.indexOf(u) === i);
+    if (!alvos.length) return [];
+
+    const membros = await this.prisma.user.findMany({
+      where: { id: { in: alvos } },
+      select: { id: true, nome: true, profile: { select: { whatsapp: true, whatsappVerificado: true } } },
+    });
+
+    const prazo = project.dataFim
+      ? ` Prazo: ${new Date(project.dataFim).toLocaleDateString("pt-BR")}.`
+      : "";
+
+    const semWhatsapp: { id: string; nome: string }[] = [];
+    for (const m of membros) {
+      const numero = m.profile?.whatsappVerificado ? (m.profile?.whatsapp || null) : null;
+      if (!numero) {
+        semWhatsapp.push({ id: m.id, nome: m.nome });
+        continue;
+      }
+      await this.notificacoes.enfileirarDireto({
+        organizationId,
+        canal: "whatsapp",
+        destino: numero,
+        modulo: "projects",
+        tipo: "projeto_membro_adicionado",
+        severidade: "info",
+        userId: m.id,
+        titulo: `Novo projeto: ${project.titulo}`,
+        mensagem: `Você foi adicionado como membro.${prazo}`,
+        // Uma linha por membro; salvar o formulário duas vezes não duplica.
+        chave: `projeto:${project.id}:membro:${m.id}`,
+      }).catch(() => {});
+    }
+    return semWhatsapp;
   }
 
   /**
@@ -680,6 +1009,110 @@ class ProjectsController {
     });
     if (!projeto) throw new NotFoundException("Projeto não encontrado.");
     return projeto;
+  }
+
+  /**
+   * Resolve a task DENTRO do projeto e da organização de quem pede, e traz os
+   * membros para as travas de permissão.
+   *
+   * Existe para fechar o IDOR das rotas de tarefa: antes elas resolviam a task
+   * por id solto (`task.findUnique`), então um `taskId` de OUTRA organização era
+   * editável ou apagável por qualquer um com `projetos:editar`. Aqui o par
+   * (projeto da URL, organização do token) é a chave — id de fora não encontra.
+   */
+  private async exigirProjetoDaTask(projectId: string, taskId: string, req: any) {
+    const projeto = await this.prisma.project.findFirst({
+      where: { id: projectId, organizationId: req.user.organizationId },
+      select: {
+        id: true, titulo: true, cor: true, organizationId: true,
+        criadoPorId: true, members: { select: { userId: true } },
+      },
+    });
+    if (!projeto) throw new NotFoundException("Projeto não encontrado.");
+    const task = await this.prisma.task.findFirst({ where: { id: taskId, projectId } });
+    if (!task) throw new NotFoundException("Tarefa não encontrada.");
+    return { projeto, task };
+  }
+
+  /**
+   * Nome de quem fez a mudança, para o aviso e a auditoria.
+   *
+   * O usuário do token (jwt.strategy) traz id, e-mail e permissões — não o nome.
+   * Os textos usavam `req.user?.nome ?? "Alguém"` e, na prática, TODO aviso de
+   * projeto saía "Alguém moveu a tarefa…" (visto na auditoria em 11/09/2026).
+   * Guardado no próprio `req`: uma requisição que gera vários textos busca uma vez.
+   */
+  private async nomeDoAutor(req: any): Promise<string> {
+    if (req._nomeAutor) return req._nomeAutor;
+    const u = req.user?.id
+      ? await this.prisma.user.findUnique({ where: { id: req.user.id }, select: { nome: true } })
+      : null;
+    req._nomeAutor = u?.nome ?? "Alguém";
+    return req._nomeAutor;
+  }
+
+  /** Criador e membros mexem no status; master também. É a regra que o usuário
+   *  pediu — "só o criador e os membros envolvidos alteram o status". */
+  private podeMexerStatus(
+    projeto: { criadoPorId: string; members: { userId: string }[] },
+    req: any,
+  ): boolean {
+    if (req.user?.isMaster) return true;
+    if (projeto.criadoPorId === req.user.id) return true;
+    return projeto.members.some(m => m.userId === req.user.id);
+  }
+
+  /**
+   * Deixa o evento de agenda da task condizente com o estado atual.
+   *
+   * Regra: existe evento SE (e só se) a task tem responsável e vencimento e não
+   * está encerrada. Fora disso, o evento não deve existir. Isso cobre os três
+   * casos que antes divergiam em silêncio: mudou a data (evento no dia errado),
+   * trocou o responsável (evento na agenda de quem saiu) e concluiu/cancelou
+   * (lembrete de algo que já acabou).
+   */
+  private async sincronizarEventoDaTask(
+    projeto: { id?: string; titulo: string; cor: string | null; organizationId: string },
+    task: { id: string; titulo: string; assigneeId: string | null; dataVencimento: Date | null; status: string; criadoPorId?: string },
+    before: { assigneeId: string | null; dataVencimento: Date | null; status: string },
+  ) {
+    const encerradaAntes = before.status === "CONCLUIDA" || before.status === "CANCELADA";
+    const encerrada = task.status === "CONCLUIDA" || task.status === "CANCELADA";
+    const deveExistirAntes = !!before.assigneeId && !!before.dataVencimento && !encerradaAntes;
+    const deveExistirAgora = !!task.assigneeId && !!task.dataVencimento && !encerrada;
+
+    const dadosMudaram =
+      task.assigneeId !== before.assigneeId ||
+      task.dataVencimento?.getTime() !== before.dataVencimento?.getTime();
+
+    // Uma passagem A_FAZER→EM_ANDAMENTO (evento continua devido, mesmos dados)
+    // não deve tocar no evento: recriá-lo zeraria a confirmação de quem já
+    // aceitou o lembrete. Só age quando os DADOS mudaram, ou quando o evento
+    // passa a existir / deixa de existir (concluiu, cancelou, reabriu).
+    if (!dadosMudaram && deveExistirAntes === deveExistirAgora) return;
+
+    // A partir daqui parte do zero: remove o antigo e recria se for o caso.
+    await this.prisma.event.deleteMany({ where: { origemTipo: "task", origemId: task.id } }).catch(() => {});
+    if (!deveExistirAgora) return;
+
+    const venc = new Date(task.dataVencimento!);
+    venc.setHours(9, 0, 0, 0);
+    await this.prisma.event.create({
+      data: {
+        titulo: "Task: " + task.titulo,
+        descricao: "Vencimento da task no projeto " + projeto.titulo,
+        inicio: venc,
+        fim: new Date(venc.getTime() + 60 * 60 * 1000),
+        tipo: "PROJETO",
+        cor: projeto.cor || "#60a5fa",
+        userId: task.assigneeId,
+        criadoPorId: task.criadoPorId || task.assigneeId,
+        origemTipo: "task",
+        origemId: task.id,
+        confirmado: false,
+        organizationId: projeto.organizationId,
+      } as any,
+    }).catch(() => {});
   }
 
   @Get(":id/anexos")
@@ -796,7 +1229,7 @@ class ProjectsController {
 }
 
 @Module({
-  imports: [WebhooksModule, AutomacoesModule, NotificationsModule],
+  imports: [WebhooksModule, AutomacoesModule, NotificationsModule, AuditModule],
   providers: [ProjectAnexoStorageService, PrazosProjetoScheduler],
   controllers: [ProjectsController],
 })

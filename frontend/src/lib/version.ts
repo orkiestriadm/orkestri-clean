@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "1.33.0";
+export const VERSAO = "1.34.0";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -23,10 +23,10 @@ export const VERSAO = "1.33.0";
  * Não é gerada no build: `new Date()` no bundle muda a cada compilação, e duas
  * builds do mesmo código pareceriam versões diferentes.
  */
-export const VERSAO_DATA = "2026-09-10";
+export const VERSAO_DATA = "2026-09-11";
 
 /** Nome da entrega, para dar contexto ao número. */
-export const VERSAO_NOME = "Strategy — Gestão Estratégica";
+export const VERSAO_NOME = "Projetos — Keep, histórico do quadro e Concluídos";
 
 /**
  * Histórico exibido na tela Sobre, do mais recente para o mais antigo.
@@ -35,6 +35,24 @@ export const VERSAO_NOME = "Strategy — Gestão Estratégica";
  * esta lista quer saber o que mudou para ele.
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
+  {
+    versao: "1.34.0",
+    data: "2026-09-11",
+    titulo: "Projetos: Keep da tarefa, histórico do quadro e Projetos Concluídos",
+    itens: [
+      "Nova aba Keep dentro de cada tarefa: os membros do projeto registram o que fizeram, com texto e checklist, no mesmo jeito das notas do Keep. Todos do projeto leem; só quem escreveu edita, marca os itens ou apaga. O cartão da tarefa no quadro ganhou o atalho, com a quantidade de registros",
+      "Todo membro do projeto pode arrastar as tarefas entre as colunas, inclusive quem tem só acesso de leitura ao módulo. Quem não faz parte do projeto acompanha, mas não move",
+      "Cada movimentação fica registrada: aba Histórico na tarefa e botão Histórico no projeto, com quem moveu, de qual coluna para qual e quando",
+      "Nova tela Projetos Concluídos: quando todas as tarefas chegam a Concluída, o projeto sai da fila e vai para lá, com aviso a quem participa. Se uma tarefa for reaberta ou uma nova for criada, ele volta para a fila",
+      "A barra de progresso só mostra 100% quando o projeto terminou de fato",
+      "A tela de Projetos foi reorganizada para caber em notebook e monitor: as cinco colunas dividem a largura, a lista de projetos recolhe ao abrir um projeto em tela menor e nada fica cortado na lateral",
+      "Ao criar um projeto, cada pessoa colocada como membro recebe um aviso no WhatsApp. Quem ainda não tem número verificado aparece num aviso na tela — o projeto é criado do mesmo jeito",
+      "Projeto excluído deixa de avisar que vence hoje: os avisos, lembretes de agenda e mensagens pendentes dele e das suas tarefas saem junto. Trocar o vencimento ou o responsável de uma tarefa atualiza o lembrete; concluir ou cancelar remove",
+      "Corrigido: os avisos de projeto diziam \"Alguém moveu…\" em vez do nome de quem mexeu, e a menção nos comentários saía sem nome",
+      "Corrigido: comentários e tarefas de um projeto podiam ser alcançados por quem não tinha acesso a ele",
+      "Corrigido: o detalhe da tarefa mostrava a prioridade Urgente sem cor e os status Em Revisão e Cancelada sem nome",
+    ],
+  },
   {
     versao: "1.33.0",
     data: "2026-09-10",

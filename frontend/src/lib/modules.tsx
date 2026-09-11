@@ -9,7 +9,7 @@ import {
   GitBranch, Network, ShoppingBag, Radio, Wallet, FileSpreadsheet, Wrench,
   ClipboardCheck, FolderKanban, Boxes, ShieldCheck, HeartPulse, Bell,
   Briefcase, CalendarClock, Library, BarChart3, CalendarX, UsersRound, Inbox, Info, Route,
-  UserCircle, Scale, Target, ClipboardList, UserCheck, Lightbulb, Presentation,
+  UserCircle, Scale, Target, ClipboardList, UserCheck, Lightbulb, Presentation, CheckCircle2,
 } from "lucide-react";
 
 // `permission` como lista significa OU — ver canAccessModule.
@@ -153,6 +153,7 @@ export const NAV: NavGroup[] = [
     id: "projects", produto: "Projects", descritor: "Projetos", icon: FolderKanban,
     items: [
       { href: "/dashboard/projetos",  label: "Projetos",       icon: Layers,       permission: "projetos:ver" },
+      { href: "/dashboard/projetos/concluidos", label: "Concluídos", icon: CheckCircle2, permission: "projetos:ver" },
       { href: "/dashboard/gantt",     label: "Linha do Tempo", icon: GanttChart,   permission: "gantt:ver" },
     ],
   },
