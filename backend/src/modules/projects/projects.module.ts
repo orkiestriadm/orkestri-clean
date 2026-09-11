@@ -340,7 +340,7 @@ class ProjectsController {
         tipo: "projeto_status",
         titulo: `Projeto ${updated.titulo}: ${ROTULO_STATUS_PROJETO[updated.status] ?? updated.status}`,
         mensagem:
-          `${req.user?.nome ?? "Alguém"} mudou o status de ` +
+          `${await this.nomeDoAutor(req)} mudou o status de ` +
           `${ROTULO_STATUS_PROJETO[existing.status] ?? existing.status} para ` +
           `${ROTULO_STATUS_PROJETO[updated.status] ?? updated.status}.`,
         // Cancelamento sobe de tom: interrompe o trabalho de quem esta no projeto.
@@ -644,7 +644,7 @@ class ProjectsController {
       tabela: "tasks",
       registroId: task.id,
       acao: "status",
-      descricao: `${req.user?.nome ?? "Alguém"} moveu "${task.titulo}" de ${ROTULO_STATUS_TAREFA[de] ?? de} para ${ROTULO_STATUS_TAREFA[para] ?? para}`,
+      descricao: `${await this.nomeDoAutor(req)} moveu "${task.titulo}" de ${ROTULO_STATUS_TAREFA[de] ?? de} para ${ROTULO_STATUS_TAREFA[para] ?? para}`,
       dados: { projectId: projeto.id, de, para },
     });
 
@@ -661,7 +661,7 @@ class ProjectsController {
       tipo: "projeto_tarefa_status",
       titulo: `${task.titulo}: ${ROTULO_STATUS_TAREFA[para] ?? para}`,
       mensagem:
-        `${req.user?.nome ?? "Alguém"} moveu a tarefa de ` +
+        `${await this.nomeDoAutor(req)} moveu a tarefa de ` +
         `${ROTULO_STATUS_TAREFA[de] ?? de} para ${ROTULO_STATUS_TAREFA[para] ?? para}.`,
       // Cancelamento sobe de tom: interrompe trabalho de quem estava nela.
       severidade: para === "CANCELADA" ? "aviso" : "info",
@@ -739,7 +739,7 @@ class ProjectsController {
       titulo: concluir ? `Projeto concluído: ${atual.titulo}` : `Projeto reaberto: ${atual.titulo}`,
       mensagem: concluir
         ? "Todas as tarefas chegaram a Concluída. O projeto foi para Projetos Concluídos."
-        : `${req.user?.nome ?? "Alguém"} reabriu uma tarefa e o projeto voltou para a fila.`,
+        : `${await this.nomeDoAutor(req)} reabriu uma tarefa e o projeto voltou para a fila.`,
       severidade: "info",
       // O minuto na chave: concluir, reabrir e concluir de novo no mesmo dia são
       // três fatos diferentes; a mesma requisição repetida não é.
@@ -1032,6 +1032,23 @@ class ProjectsController {
     const task = await this.prisma.task.findFirst({ where: { id: taskId, projectId } });
     if (!task) throw new NotFoundException("Tarefa não encontrada.");
     return { projeto, task };
+  }
+
+  /**
+   * Nome de quem fez a mudança, para o aviso e a auditoria.
+   *
+   * O usuário do token (jwt.strategy) traz id, e-mail e permissões — não o nome.
+   * Os textos usavam `req.user?.nome ?? "Alguém"` e, na prática, TODO aviso de
+   * projeto saía "Alguém moveu a tarefa…" (visto na auditoria em 11/09/2026).
+   * Guardado no próprio `req`: uma requisição que gera vários textos busca uma vez.
+   */
+  private async nomeDoAutor(req: any): Promise<string> {
+    if (req._nomeAutor) return req._nomeAutor;
+    const u = req.user?.id
+      ? await this.prisma.user.findUnique({ where: { id: req.user.id }, select: { nome: true } })
+      : null;
+    req._nomeAutor = u?.nome ?? "Alguém";
+    return req._nomeAutor;
   }
 
   /** Criador e membros mexem no status; master também. É a regra que o usuário

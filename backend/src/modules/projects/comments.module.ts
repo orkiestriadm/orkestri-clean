@@ -39,6 +39,11 @@ class CommentsController {
 
     // Notifica membros mencionados com @
     const mentions = dto.conteudo.match(/@(\w+)/g) || [];
+    // O usuário do token não traz o nome (só id, e-mail e permissões): sem esta
+    // busca o aviso saía "undefined mencionou voce em uma task".
+    const autor = mentions.length
+      ? (await this.prisma.user.findUnique({ where: { id: req.user.id }, select: { nome: true } }))?.nome ?? "Alguém"
+      : "";
     for (const m of mentions) {
       const name = m.slice(1).toLowerCase();
       const member = projeto.members.find(pm => pm.user.nome.toLowerCase().startsWith(name));
@@ -47,7 +52,7 @@ class CommentsController {
           data: {
             userId: member.userId,
             tipo: "mencao",
-            titulo: `${req.user.nome} mencionou voce em uma task`,
+            titulo: `${autor} mencionou voce em uma task`,
             mensagem: dto.conteudo.slice(0, 80),
             referenciaTipo: "task",
             referenciaId: taskId,
