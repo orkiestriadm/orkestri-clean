@@ -5,9 +5,9 @@ import Link from "next/link";
 import { useAuthStore } from "@/lib/store";
 import { authApi } from "@/lib/api";
 import { homeRoute } from "@/lib/modules";
-import { Eye, EyeOff, ArrowRight, Loader2, ShieldCheck, Cloud, Sparkles, Network } from "lucide-react";
+import { Eye, EyeOff, ArrowRight, ArrowUpRight, Loader2, ShieldCheck, Cloud, Sparkles, Network, Newspaper } from "lucide-react";
 import { BrandLogo } from "@/components/ui/logo";
-import { MARCA, LOGIN_FUNDO } from "@/lib/marca";
+import { MARCA, LOGIN_FUNDO, NOTICIAS_NO_LOGIN } from "@/lib/marca";
 
 const pilares = [
   { icon: ShieldCheck, label: "Segurança", text: "MFA, criptografia e auditoria" },
@@ -15,6 +15,95 @@ const pilares = [
   { icon: Cloud, label: "Cloud Native", text: "99,9% de disponibilidade" },
   { icon: Network, label: "API First", text: "Integrações sem retrabalho" },
 ];
+
+type Noticia = { titulo: string; resumo: string; data: string; link: string; imagem: string | null };
+
+/** "2026-09-08T09:16:21" → "08/09/2026" sem passar por fuso horário. */
+function dataCurta(iso: string) {
+  const [a, m, d] = String(iso).slice(0, 10).split("-");
+  return a && m && d ? `${d}/${m}/${a}` : "";
+}
+
+/**
+ * Últimas notícias do site do cliente (ver NOTICIAS_NO_LOGIN). Cada cartão abre
+ * a notícia no site, em outra aba — o login continua onde estava.
+ */
+function NoticiasLogin({ fonte, itens }: { fonte: string; itens: Noticia[] }) {
+  return (
+    <div className="w-full max-w-3xl">
+      <div className="flex items-end justify-between gap-6">
+        <div>
+          <p className="flex items-center gap-2 text-[12px] font-semibold uppercase tracking-[0.14em] text-marca-clara">
+            <Newspaper className="h-4 w-4" aria-hidden /> Acontece na {MARCA.replace(/^HUB\s+/i, "")}
+          </p>
+          <h2 className="mt-2 text-[2rem] font-bold leading-tight tracking-[-0.03em] xl:text-[2.3rem]">
+            Últimas <span className="text-marca-clara">notícias</span>
+          </h2>
+          <span aria-hidden className="mt-3 block h-1 w-16 rounded-full bg-marca" />
+        </div>
+        <a
+          href={`${fonte}/noticias/`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="group mb-1 inline-flex shrink-0 items-center gap-1.5 text-[13px] font-medium text-white/60 transition-colors hover:text-white"
+        >
+          Todas as notícias
+          <ArrowUpRight className="h-4 w-4 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" aria-hidden />
+        </a>
+      </div>
+
+      <ul className="mt-7 grid grid-cols-2 gap-4">
+        {itens.map((n) => (
+          <li key={n.link}>
+            <a
+              href={n.link}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="group flex h-full flex-col overflow-hidden rounded-2xl border border-white/[0.08] bg-white/[0.04] backdrop-blur-sm transition duration-200 hover:-translate-y-0.5 hover:border-white/[0.16] hover:bg-white/[0.07]"
+            >
+              <div className="relative h-32 overflow-hidden bg-white/[0.04] [@media(max-height:820px)]:h-24">
+                {n.imagem && (
+                  <img
+                    src={n.imagem}
+                    alt=""
+                    loading="lazy"
+                    referrerPolicy="no-referrer"
+                    className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
+                  />
+                )}
+                <div aria-hidden className="absolute inset-0 bg-gradient-to-t from-[#08090c]/60 to-transparent" />
+              </div>
+              <div className="flex flex-1 flex-col p-4">
+                <p className="text-[11.5px] font-medium tabular-nums text-white/45">{dataCurta(n.data)}</p>
+                <p className="mt-1 line-clamp-2 text-[14.5px] font-semibold leading-snug text-white">{n.titulo}</p>
+                {n.resumo && (
+                  <p className="mt-1.5 line-clamp-2 text-[12.5px] leading-relaxed text-white/50 [@media(max-height:820px)]:hidden">{n.resumo}</p>
+                )}
+                <span className="mt-auto inline-flex items-center gap-1 pt-3 text-[12px] font-semibold uppercase tracking-wide text-marca-clara">
+                  Ler mais <ArrowUpRight className="h-3.5 w-3.5" aria-hidden />
+                </span>
+              </div>
+            </a>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function NoticiasCarregando() {
+  return (
+    <div className="w-full max-w-3xl" aria-hidden>
+      <div className="h-4 w-40 animate-pulse rounded bg-white/10" />
+      <div className="mt-3 h-9 w-72 animate-pulse rounded bg-white/10" />
+      <ul className="mt-9 grid grid-cols-2 gap-4">
+        {[0, 1, 2, 3].map((i) => (
+          <li key={i} className="h-60 animate-pulse rounded-2xl border border-white/[0.06] bg-white/[0.04]" />
+        ))}
+      </ul>
+    </div>
+  );
+}
 
 export default function LoginPage() {
   const router = useRouter();
@@ -25,6 +114,18 @@ export default function LoginPage() {
   const [mounted, setMounted] = useState(false);
   const [localLoading, setLocalLoading] = useState(false);
   const [localError, setLocalError] = useState("");
+  // null = ainda carregando; lista vazia = sem fonte ou site fora → texto de sempre.
+  const [noticias, setNoticias] = useState<{ fonte: string; itens: Noticia[] } | null>(
+    NOTICIAS_NO_LOGIN ? null : { fonte: "", itens: [] },
+  );
+
+  useEffect(() => {
+    if (!NOTICIAS_NO_LOGIN) return;
+    fetch("/api/login-noticias")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => setNoticias({ fonte: d?.fonte || "", itens: Array.isArray(d?.itens) ? d.itens : [] }))
+      .catch(() => setNoticias({ fonte: "", itens: [] }));
+  }, []);
 
   useEffect(() => {
     setMounted(true);
@@ -72,6 +173,11 @@ export default function LoginPage() {
       <aside className="relative z-10 hidden flex-1 flex-col justify-between p-12 xl:p-16 lg:flex">
         <BrandLogo size="lg" tone="light" />
 
+        {noticias === null ? (
+          <NoticiasCarregando />
+        ) : noticias.itens.length > 0 && noticias.fonte ? (
+          <NoticiasLogin fonte={noticias.fonte} itens={noticias.itens} />
+        ) : (
         <div className="max-w-lg">
           <h2 className="text-[2.6rem] font-bold leading-[1.08] tracking-[-0.035em] xl:text-[3.1rem]">
             O sistema operacional
@@ -105,6 +211,7 @@ export default function LoginPage() {
             })}
           </ul>
         </div>
+        )}
 
         <p className="text-[13px] text-white/30">
           &copy; {new Date().getFullYear()} {MARCA} — Enterprise Software Company

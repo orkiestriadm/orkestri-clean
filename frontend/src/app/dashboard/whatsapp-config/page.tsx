@@ -82,26 +82,50 @@ function OrgWhatsAppPanel() {
     setTimeout(() => setMsg(null), ms);
   };
 
+  const getQrCode = useCallback(async (silencioso = false) => {
+    if (!silencioso) { setQrLoading(true); setQr(null); }
+    try {
+      const r = await api.get("/organizations/me/whatsapp/qrcode");
+      // Só `base64` é imagem. `code` é o texto cru do QR — usá-lo como PNG
+      // gerava imagem quebrada quando o base64 ainda não tinha chegado.
+      const raw = r.data?.base64 || r.data?.qrcode?.base64;
+      if (raw) setQr(raw.startsWith("data:") ? raw : `data:image/png;base64,${raw}`);
+      else if (!silencioso) aviso("QR Code indisponível. Tente novamente.", false);
+    } catch { if (!silencioso) aviso("Erro ao buscar QR Code.", false); }
+    finally { if (!silencioso) setQrLoading(false); }
+  }, []);
+
+  /** Não apaga nada: cria se não existe, reinicia a sessão se travou. */
   const createInstance = async () => {
     setLoading(true);
     try {
-      await api.post("/organizations/me/whatsapp/create-instance");
-      aviso("Instância criada. Aguarde e clique em Ver QR Code.", true);
+      const r = await api.post("/organizations/me/whatsapp/create-instance");
+      if (r.data?.jaConectada) aviso("O WhatsApp já está conectado.", true);
+      else {
+        aviso(r.data?.reiniciada ? "Conexão reiniciada. Leia o QR Code abaixo." : "Instância criada. Leia o QR Code abaixo.", true);
+        await new Promise(res => setTimeout(res, 3000));
+        await getQrCode();
+      }
       await refreshStatus();
-    } catch { aviso("Erro ao criar instância.", false); }
+    } catch { aviso("Erro ao preparar a instância.", false); }
     finally { setLoading(false); }
   };
 
-  const getQrCode = async () => {
-    setQrLoading(true); setQr(null);
-    try {
-      const r = await api.get("/organizations/me/whatsapp/qrcode");
-      const raw = r.data?.base64 || r.data?.qrcode?.base64 || r.data?.code;
-      if (raw) setQr(raw.startsWith("data:") ? raw : `data:image/png;base64,${raw}`);
-      else aviso("QR Code indisponível. Tente novamente.", false);
-    } catch { aviso("Erro ao buscar QR Code.", false); }
-    finally { setQrLoading(false); }
-  };
+  // Enquanto o QR está na tela: o código do WhatsApp vence em ~40 s, então
+  // renova sozinho a cada 30 s e confere a conexão a cada 5 s. Antes a pessoa
+  // lia um QR já vencido e achava que "não conecta".
+  useEffect(() => {
+    if (!qr) return;
+    const renovar = setInterval(() => getQrCode(true), 30_000);
+    const conferir = setInterval(async () => {
+      try {
+        const r = await api.get("/organizations/me/whatsapp/status");
+        setStatus(r.data);
+        if (r.data?.connected) { setQr(null); aviso("WhatsApp conectado!", true, 6000); }
+      } catch {}
+    }, 5_000);
+    return () => { clearInterval(renovar); clearInterval(conferir); };
+  }, [qr, getQrCode]);
 
   const disconnect = async () => {
     if (!confirm("Desconectar o WhatsApp da organização? Nenhuma mensagem sai até parear de novo.")) return;
@@ -159,7 +183,8 @@ function OrgWhatsAppPanel() {
                 {/* Fundo branco fixo: em tema escuro o QR fica ilegível sem ele. */}
                 <img src={qr} alt="QR Code de pareamento"
                      style={{ width: 210, height: 210, borderRadius: 10, background: "#fff", padding: 8 }} />
-                <button className="btn btn-ghost" style={{ fontSize: 11, gap: 6 }} onClick={getQrCode} disabled={qrLoading}>
+                <div style={{ fontSize: 11, color: "var(--text-muted)" }}>O código se renova sozinho a cada 30 segundos.</div>
+                <button className="btn btn-ghost" style={{ fontSize: 11, gap: 6 }} onClick={() => getQrCode()} disabled={qrLoading}>
                   <RefreshCw size={12} /> Gerar novo código
                 </button>
               </div>
@@ -168,10 +193,11 @@ function OrgWhatsAppPanel() {
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
               {!conectado && (
                 <>
-                  <button className="btn btn-violet" style={{ fontSize: 12, gap: 6 }} onClick={createInstance}>
-                    <Plug size={13} /> Criar instância
+                  <button className="btn btn-violet" style={{ fontSize: 12, gap: 6 }} onClick={createInstance}
+                          title="Cria a instância se não existir ou reinicia a sessão travada. Não apaga nada.">
+                    <Plug size={13} /> Preparar conexão
                   </button>
-                  <button className="btn btn-ghost" style={{ fontSize: 12, gap: 6 }} onClick={getQrCode} disabled={qrLoading}>
+                  <button className="btn btn-ghost" style={{ fontSize: 12, gap: 6 }} onClick={() => getQrCode()} disabled={qrLoading}>
                     {qrLoading ? <Spin /> : <QrCode size={13} />} Ver QR Code
                   </button>
                 </>
@@ -188,7 +214,7 @@ function OrgWhatsAppPanel() {
                 margin: 0, paddingLeft: 18, display: "flex", flexDirection: "column", gap: 6,
                 fontSize: 12, color: "var(--text-muted)", lineHeight: 1.6,
               }}>
-                <li><strong style={{ color: "var(--text-secondary)" }}>Criar instância</strong> — registra o canal no servidor de mensagens</li>
+                <li><strong style={{ color: "var(--text-secondary)" }}>Preparar conexão</strong> — cria o canal ou reinicia a sessão travada (não apaga nada)</li>
                 <li><strong style={{ color: "var(--text-secondary)" }}>Ver QR Code</strong> e aguardar o código aparecer</li>
                 <li>No celular da empresa: WhatsApp → Menu → <em>Dispositivos conectados</em> → <em>Conectar dispositivo</em></li>
                 <li>Escanear o código exibido acima</li>

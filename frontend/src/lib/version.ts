@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "1.40.4";
+export const VERSAO = "1.41.0";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -26,7 +26,7 @@ export const VERSAO = "1.40.4";
 export const VERSAO_DATA = "2026-09-14";
 
 /** Nome da entrega, para dar contexto ao número. */
-export const VERSAO_NOME = "Perfil no vermelho do Hub";
+export const VERSAO_NOME = "Notícias no login e WhatsApp mais estável";
 
 /**
  * Histórico exibido na tela Sobre, do mais recente para o mais antigo.
@@ -35,6 +35,17 @@ export const VERSAO_NOME = "Perfil no vermelho do Hub";
  * esta lista quer saber o que mudou para ele.
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
+  {
+    versao: "1.41.0",
+    data: "2026-09-14",
+    titulo: "Notícias no login e WhatsApp mais estável",
+    itens: [
+      "A tela de entrada do Hub mostra as últimas notícias do site da Triunfo Transbrasiliana, com link para cada uma",
+      "WhatsApp: \"Criar instância\" virou \"Preparar conexão\" e não apaga mais a conexão existente — só cria ou reinicia a sessão travada",
+      "WhatsApp: o QR Code se renova sozinho enquanto espera a leitura, e a tela avisa quando conecta",
+      "Queda do WhatsApp durante uma atualização do sistema agora também gera aviso no sino dos masters",
+    ],
+  },
   {
     versao: "1.40.4",
     data: "2026-09-14",

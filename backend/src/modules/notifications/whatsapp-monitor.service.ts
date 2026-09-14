@@ -51,7 +51,15 @@ export class WhatsAppMonitor {
 
         const status = await this.wa.getStatus(instancia).catch(() => ({ connected: false, status: "error" }));
         const conectado = !!status?.connected;
-        const anterior = this.ultimoEstado.get(org.id);
+        // Primeira checagem depois de subir a API: o estado anterior vem do
+        // cadastro. Sem isso, um deploy no meio de uma queda apagava a
+        // transição e ninguém era avisado — foi o que deixou o WhatsApp de
+        // homologação fora de 11/09 a 14/09/2026 sem aviso no sino.
+        let anterior = this.ultimoEstado.get(org.id);
+        if (anterior === undefined) {
+          const cfg = await this.db.orgWhatsappConfig.findUnique({ where: { organizationId: org.id }, select: { conectado: true } }).catch(() => null);
+          if (cfg) anterior = !!cfg.conectado;
+        }
         this.ultimoEstado.set(org.id, conectado);
 
         // Espelha o estado no cadastro, para a tela mostrar sem consultar a

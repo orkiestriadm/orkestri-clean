@@ -67,3 +67,11 @@ export const LOGO_ARQUIVO_CLARO =
  * os cartões — nunca some com eles em produção.
  */
 export const RECURSOS_COMERCIAIS = process.env.NEXT_PUBLIC_AMBIENTE?.trim() !== "homologacao";
+
+/**
+ * Tela de login com as últimas notícias do site do cliente no lugar do texto de
+ * apresentação do produto (Hub da Triunfo, 14/09/2026). A lista vem da API
+ * (`/login-noticias`, que só tem fonte onde `LOGIN_NOTICIAS_WP_URL` existe);
+ * se vier vazia, a tela volta ao texto de sempre.
+ */
+export const NOTICIAS_NO_LOGIN = process.env.NEXT_PUBLIC_AMBIENTE?.trim() === "homologacao";

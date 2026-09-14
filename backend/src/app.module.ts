@@ -4,6 +4,7 @@ import { PrismaModule } from "./prisma/prisma.module";
 import { AuthModule } from "./modules/auth/auth.module";
 import { UsersModule } from "./modules/users/users.module";
 import { HealthModule } from "./modules/health/health.module";
+import { LoginNoticiasModule } from "./modules/login-noticias/login-noticias.module";
 import { StatsModule } from "./modules/stats/stats.module";
 import { AgendaModule } from "./modules/agenda/agenda.module";
 import { NotificationsModule } from "./modules/notifications/notifications.module";
@@ -63,7 +64,7 @@ import { JwtModule } from '@nestjs/jwt';
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     CacheModule,
-    PrismaModule, HealthModule, AuthModule, UsersModule,
+    PrismaModule, HealthModule, LoginNoticiasModule, AuthModule, UsersModule,
     StatsModule, AgendaModule, NotificationsModule, WhatsappInboundModule, ReferralModule,
     ProjectsModule, KeepModule, SetoresModule,
     AuditModule, StatusModule, CommentsModule,

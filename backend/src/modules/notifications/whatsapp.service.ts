@@ -43,12 +43,28 @@ export class WhatsAppService {
 
   // ── Instance management (per-tenant) ──────────────────────────────────────
 
+  /**
+   * Prepara a instância para parear — NUNCA apaga a que existe.
+   *
+   * Antes, "Criar instância" começava com `DELETE /instance/delete`. Em
+   * homologação isso derrubou a conexão duas vezes (11/09/2026 com o aparelho
+   * pareado, e 14/09): um clique a mais apagava a sessão boa, e a conexão
+   * aberta passava a falhar ao gravar numa instância que não existia mais.
+   *
+   *  · já conectada → não mexe;
+   *  · existe mas não conectada (QR vencido, limite de QR atingido) → logout,
+   *    que zera a sessão e o contador de QR sem apagar o registro;
+   *  · não existe → cria.
+   */
   async createInstance(instanceName: string = this.defaultInstance) {
     try {
-      try {
-        await fetch(`${this.apiUrl}/instance/delete/${instanceName}`, { method: "DELETE", headers: this.headers });
-        await new Promise(r => setTimeout(r, 2000));
-      } catch {}
+      const atual = await this.getStatus(instanceName);
+      if (atual.connected) return { instanceName, jaConectada: true, status: atual.status };
+      if (atual.status !== "not_found" && atual.status !== "error") {
+        await fetch(`${this.apiUrl}/instance/logout/${instanceName}`, { method: "DELETE", headers: this.headers }).catch(() => {});
+        this.logger.log(`Instância reiniciada (logout) [${instanceName}] estado anterior: ${atual.status}`);
+        return { instanceName, reiniciada: true, status: atual.status };
+      }
       const data = await this.callApi("POST", "/instance/create", {
         // Token explícito por instância. Sem ele, o Evolution v1.8.2 gera um
         // token padrão que COLIDE com a chave global (AUTHENTICATION_API_KEY) e
