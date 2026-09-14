@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "1.41.0";
+export const VERSAO = "1.41.1";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -35,6 +35,14 @@ export const VERSAO_NOME = "Notícias no login e WhatsApp mais estável";
  * esta lista quer saber o que mudou para ele.
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
+  {
+    versao: "1.41.1",
+    data: "2026-09-14",
+    titulo: "Notícias do login ajustadas a telas menores",
+    itens: [
+      "As notícias da tela de entrada não encostam mais no logotipo em notebooks: imagens menores e resumo oculto em telas baixas",
+    ],
+  },
   {
     versao: "1.41.0",
     data: "2026-09-14",

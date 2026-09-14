@@ -36,7 +36,7 @@ function NoticiasLogin({ fonte, itens }: { fonte: string; itens: Noticia[] }) {
           <p className="flex items-center gap-2 text-[12px] font-semibold uppercase tracking-[0.14em] text-marca-clara">
             <Newspaper className="h-4 w-4" aria-hidden /> Acontece na {MARCA.replace(/^HUB\s+/i, "")}
           </p>
-          <h2 className="mt-2 text-[2rem] font-bold leading-tight tracking-[-0.03em] xl:text-[2.3rem]">
+          <h2 className="mt-2 text-[2rem] font-bold leading-tight tracking-[-0.03em] [@media(min-height:961px)]:xl:text-[2.3rem]">
             Últimas <span className="text-marca-clara">notícias</span>
           </h2>
           <span aria-hidden className="mt-3 block h-1 w-16 rounded-full bg-marca" />
@@ -52,7 +52,7 @@ function NoticiasLogin({ fonte, itens }: { fonte: string; itens: Noticia[] }) {
         </a>
       </div>
 
-      <ul className="mt-7 grid grid-cols-2 gap-4">
+      <ul className="mt-6 grid grid-cols-2 gap-4">
         {itens.map((n) => (
           <li key={n.link}>
             <a
@@ -61,7 +61,7 @@ function NoticiasLogin({ fonte, itens }: { fonte: string; itens: Noticia[] }) {
               rel="noopener noreferrer"
               className="group flex h-full flex-col overflow-hidden rounded-2xl border border-white/[0.08] bg-white/[0.04] backdrop-blur-sm transition duration-200 hover:-translate-y-0.5 hover:border-white/[0.16] hover:bg-white/[0.07]"
             >
-              <div className="relative h-32 overflow-hidden bg-white/[0.04] [@media(max-height:820px)]:h-24">
+              <div className="relative h-32 overflow-hidden bg-white/[0.04] [@media(max-height:960px)]:h-24 [@media(max-height:740px)]:hidden">
                 {n.imagem && (
                   <img
                     src={n.imagem}
@@ -73,13 +73,13 @@ function NoticiasLogin({ fonte, itens }: { fonte: string; itens: Noticia[] }) {
                 )}
                 <div aria-hidden className="absolute inset-0 bg-gradient-to-t from-[#08090c]/60 to-transparent" />
               </div>
-              <div className="flex flex-1 flex-col p-4">
+              <div className="flex flex-1 flex-col p-4 [@media(max-height:960px)]:py-3">
                 <p className="text-[11.5px] font-medium tabular-nums text-white/45">{dataCurta(n.data)}</p>
                 <p className="mt-1 line-clamp-2 text-[14.5px] font-semibold leading-snug text-white">{n.titulo}</p>
                 {n.resumo && (
-                  <p className="mt-1.5 line-clamp-2 text-[12.5px] leading-relaxed text-white/50 [@media(max-height:820px)]:hidden">{n.resumo}</p>
+                  <p className="mt-1.5 line-clamp-2 text-[12.5px] leading-relaxed text-white/50 [@media(max-height:960px)]:hidden">{n.resumo}</p>
                 )}
-                <span className="mt-auto inline-flex items-center gap-1 pt-3 text-[12px] font-semibold uppercase tracking-wide text-marca-clara">
+                <span className="mt-auto inline-flex items-center gap-1 pt-2.5 text-[12px] font-semibold uppercase tracking-wide text-marca-clara">
                   Ler mais <ArrowUpRight className="h-3.5 w-3.5" aria-hidden />
                 </span>
               </div>
@@ -170,7 +170,7 @@ export default function LoginPage() {
       </div>
 
       {/* ── Painel da marca (desktop) ───────────────────────────────────────── */}
-      <aside className="relative z-10 hidden flex-1 flex-col justify-between p-12 xl:p-16 lg:flex">
+      <aside className="relative z-10 hidden flex-1 flex-col justify-between gap-8 p-12 xl:p-16 lg:flex">
         <BrandLogo size="lg" tone="light" />
 
         {noticias === null ? (
