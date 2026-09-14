@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "1.40.0";
+export const VERSAO = "1.40.1";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -23,10 +23,10 @@ export const VERSAO = "1.40.0";
  * Não é gerada no build: `new Date()` no bundle muda a cada compilação, e duas
  * builds do mesmo código pareceriam versões diferentes.
  */
-export const VERSAO_DATA = "2026-09-11";
+export const VERSAO_DATA = "2026-09-14";
 
 /** Nome da entrega, para dar contexto ao número. */
-export const VERSAO_NOME = "Strategy: acesso único para a alta gestão";
+export const VERSAO_NOME = "Strategy: acesso só ao módulo";
 
 /**
  * Histórico exibido na tela Sobre, do mais recente para o mais antigo.
@@ -35,6 +35,15 @@ export const VERSAO_NOME = "Strategy: acesso único para a alta gestão";
  * esta lista quer saber o que mudou para ele.
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
+  {
+    versao: "1.40.1",
+    data: "2026-09-14",
+    titulo: "Strategy: acesso só ao módulo",
+    itens: [
+      "Quem tem apenas o papel \"Alta Gestão (Strategy)\" deixa de ver Agenda, Keep e Meus Gastos no menu: enxerga só o Strategy",
+      "Quem também tem papel de outro módulo continua com as ferramentas pessoais da conta",
+    ],
+  },
   {
     versao: "1.40.0",
     data: "2026-09-11",

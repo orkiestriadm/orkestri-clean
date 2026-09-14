@@ -393,4 +393,41 @@ describe("AuthService", () => {
       expect(mockPrisma.notification.create).not.toHaveBeenCalled();
     });
   });
+
+  // ── resolvePermissions: acesso só ao Strategy ─
+
+  describe("resolvePermissions — papel só do Strategy", () => {
+    const perm = (recurso: string, acao: string) => ({ permission: { recurso, acao } });
+    const usuario = (rolePermissions: any[], permissionOverrides: any[] = []) => ({
+      isTrial: false,
+      userRoles: [{ role: { isMaster: false, rolePermissions } }],
+      permissionOverrides,
+    });
+
+    beforeEach(() => mockCache.get.mockResolvedValue(null));
+
+    it("não entrega Agenda, Keep nem Meus Gastos a quem só tem o Strategy", async () => {
+      mockPrisma.user.findUnique.mockResolvedValue(usuario([perm("estrategico.caso", "ver"), perm("estrategico.admin", "gerenciar")]));
+      const perms = await service.resolvePermissions("u1");
+      expect(perms.sort()).toEqual(["estrategico.admin:gerenciar", "estrategico.caso:ver"]);
+    });
+
+    it("mantém as ferramentas pessoais quando há papel de outro módulo", async () => {
+      mockPrisma.user.findUnique.mockResolvedValue(usuario([perm("estrategico.caso", "ver"), perm("frota", "ver")]));
+      const perms = await service.resolvePermissions("u1");
+      expect(perms).toEqual(expect.arrayContaining(["gastos:ver", "agenda:ver", "keep:ver", "frota:ver", "estrategico.caso:ver"]));
+    });
+
+    it("concessão direta de outro módulo também devolve as ferramentas pessoais", async () => {
+      mockPrisma.user.findUnique.mockResolvedValue(usuario([perm("estrategico.caso", "ver")], [{ conceder: true, ...perm("frota", "ver") }]));
+      const perms = await service.resolvePermissions("u1");
+      expect(perms).toEqual(expect.arrayContaining(["gastos:ver", "frota:ver"]));
+    });
+
+    it("sem papel nenhum continua recebendo as ferramentas pessoais", async () => {
+      mockPrisma.user.findUnique.mockResolvedValue({ isTrial: false, userRoles: [], permissionOverrides: [] });
+      const perms = await service.resolvePermissions("u1");
+      expect(perms).toEqual(expect.arrayContaining(["agenda:ver", "gastos:ver"]));
+    });
+  });
 });

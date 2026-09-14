@@ -146,6 +146,7 @@ const ALL_PERMISSIONS: { recurso: string; acao: string; descricao: string }[] = 
 ];
 
 // Permissões base — todo usuário recebe automaticamente, independente do papel.
+// Exceção: quem só tem permissões do Strategy (ver resolvePermissions).
 //
 // Agenda e Keep são os dois módulos que acompanham a conta: ferramenta pessoal,
 // sem dado de terceiro dentro, que não faz sentido alguém ter de pedir ao
@@ -610,12 +611,23 @@ export class AuthService implements OnModuleInit {
       }
       result = Array.from(perms);
     } else {
-      const perms = new Set<string>(BASE_PERMISSIONS);
+      const perms = new Set<string>();
       for (const ur of user.userRoles) {
         for (const rp of ur.role.rolePermissions) {
           perms.add(`${rp.permission.recurso}:${rp.permission.acao}`);
         }
       }
+      // Quem só tem acesso ao Strategy enxerga SÓ o Strategy (decisão de
+      // 14/09/2026): as ferramentas pessoais da conta (Agenda, Keep, Meus
+      // Gastos) não vêm junto. Elas não aparecem em nenhum papel na tela de
+      // controle de acesso, então o administrador não teria como tirá-las.
+      // Um papel ou concessão direta com qualquer outra permissão devolve as
+      // ferramentas pessoais.
+      const concedidas = user.permissionOverrides.filter(ov => ov.conceder).map(ov => ov.permission.recurso);
+      const soStrategy = perms.size > 0
+        && [...perms].every(p => p.startsWith(ESTRATEGICO_PREFIXO))
+        && concedidas.every(r => r.startsWith(ESTRATEGICO_PREFIXO));
+      if (!soStrategy) for (const p of BASE_PERMISSIONS) perms.add(p);
       for (const ov of user.permissionOverrides) {
         const key = `${ov.permission.recurso}:${ov.permission.acao}`;
         if (ov.conceder) perms.add(key);
