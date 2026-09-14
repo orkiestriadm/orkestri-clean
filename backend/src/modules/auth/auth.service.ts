@@ -5,6 +5,7 @@ import { ConfigService } from "@nestjs/config";
 import { PrismaService } from "../../prisma/prisma.service";
 import { CacheService } from "../cache/cache.service";
 import { registrarIndicacao, montarMensagemAtivacao, codigoIndicacao } from "../referral/referral.helpers";
+import { LEMBRETE_ANTECEDENCIA_MS, precisaLembrete, montarLembrete, codigoRenovacao, faseDaConta, acessoVencido } from "./trial-renovacao";
 import { WhatsAppService } from "../notifications/whatsapp.service";
 import { EmailService } from "../notifications/email.service";
 import { AutomacaoService } from "../automacoes/automacoes.module";
@@ -646,11 +647,14 @@ export class AuthService implements OnModuleInit {
       if (bloquear) throw new UnauthorizedException("Conta bloqueada após múltiplas tentativas. Contate o Administrador.");
       throw new UnauthorizedException("Credenciais inválidas");
     }
-    // Trial vencido: a senha está certa, mas o teste de 7 dias acabou. Bloqueia
-    // aqui (não desativa a conta) para o suporte ainda ver o registro e fazer o
-    // contato de conversão.
-    if ((user as any).isTrial && (user as any).trialExpiraEm && new Date((user as any).trialExpiraEm).getTime() < Date.now()) {
-      throw new UnauthorizedException("Seu teste de 7 dias expirou. Nossa equipe vai falar com você pelo WhatsApp para liberar o acesso completo.");
+    // Acesso vencido: a senha está certa, mas acabou o teste de 7 dias (sem
+    // efetivar) ou o mês pago (sem renovar). Bloqueia aqui (não desativa a conta)
+    // para o suporte ainda ver o registro e fazer o contato. Responder "1" no
+    // WhatsApp em até 15 dias libera de novo.
+    if (acessoVencido(user as any, new Date())) {
+      throw new UnauthorizedException((user as any).assinaturaEm
+        ? "Sua mensalidade venceu. Responda 1 no aviso que enviamos no WhatsApp para renovar, ou fale com a nossa equipe."
+        : "Seu teste de 7 dias expirou. Responda 1 no aviso que enviamos no WhatsApp para continuar, ou fale com a nossa equipe.");
     }
     await this.prisma.user.update({
       where: { id: user.id },
@@ -1224,14 +1228,22 @@ export class AuthService implements OnModuleInit {
   }
 
   /**
-   * Chamado pelo cron diário: para cada trial vencido ainda não avisado, cria
-   * uma notificação para master+administradores (com o WhatsApp) para o contato
-   * de conversão, e marca como avisado para não repetir. O bloqueio do login já
-   * acontece em `login()`.
+   * Chamado pelo cron diário: para cada acesso vencido ainda não avisado — teste
+   * sem efetivar ou mensalidade sem renovar — cria uma notificação para
+   * master+administradores (com o WhatsApp) para o contato, e marca como avisado
+   * para não repetir (renovar zera a marca). O bloqueio do login já acontece em
+   * `login()`.
    */
   async processarTrialsVencidos(): Promise<number> {
+    const agora = new Date();
     const vencidos = await this.prisma.user.findMany({
-      where: { isTrial: true, trialAvisadoSuporte: false, trialExpiraEm: { lt: new Date() } } as any,
+      where: {
+        isTrial: true, trialAvisadoSuporte: false,
+        OR: [
+          { assinaturaEm: null, trialExpiraEm: { lt: agora } },
+          { assinaturaEm: { not: null }, assinaturaValidaAte: { lt: agora } },
+        ],
+      } as any,
       include: { profile: true },
     });
     if (vencidos.length === 0) return 0;
@@ -1244,12 +1256,16 @@ export class AuthService implements OnModuleInit {
     });
     for (const u of vencidos) {
       const zap = (u as any).profile?.whatsapp || "(sem número)";
+      const mensal = !!(u as any).assinaturaEm;
       for (const admin of admins) {
         await this.prisma.notification.create({
           data: {
-            id: require("crypto").randomUUID(), userId: admin.id, tipo: "trial_expirado",
-            titulo: "Teste expirado — contato de conversão",
-            mensagem: `O teste de ${u.email} expirou. Fale pelo WhatsApp ${zap} para efetivar o acesso.`,
+            id: require("crypto").randomUUID(), userId: admin.id,
+            tipo: mensal ? "assinatura_vencida" : "trial_expirado",
+            titulo: mensal ? "Mensalidade vencida sem renovação" : "Teste expirado — contato de conversão",
+            mensagem: mensal
+              ? `A mensalidade de ${u.email} venceu e não foi renovada. Fale pelo WhatsApp ${zap}.`
+              : `O teste de ${u.email} expirou. Fale pelo WhatsApp ${zap} para efetivar o acesso.`,
             referenciaTipo: "user", referenciaId: u.id,
           } as any,
         });
@@ -1257,6 +1273,76 @@ export class AuthService implements OnModuleInit {
       await this.prisma.user.update({ where: { id: u.id }, data: { trialAvisadoSuporte: true } as any });
     }
     return vencidos.length;
+  }
+
+  /**
+   * Chamado de hora em hora (horário comercial): manda no WhatsApp o aviso de
+   * que o acesso vence em menos de 24 h — fim do teste ou fim do mês pago — com
+   * a opção de renovar respondendo "1". Uma vez por ciclo: `trialLembreteEm` é
+   * reservado ANTES do envio (para duas rodadas não mandarem em dobro) e volta
+   * ao valor anterior se o envio falhar, para tentar de novo na hora seguinte.
+   */
+  async enviarLembretesTrial(agora = new Date()): Promise<number> {
+    const janela = { gt: agora, lte: new Date(agora.getTime() + LEMBRETE_ANTECEDENCIA_MS) };
+    const candidatos = await this.prisma.user.findMany({
+      where: {
+        isTrial: true, ativo: true,
+        OR: [
+          { assinaturaEm: null, trialExpiraEm: janela },
+          { assinaturaEm: { not: null }, assinaturaValidaAte: janela },
+        ],
+        profile: { whatsapp: { not: null } },
+      } as any,
+      select: {
+        id: true, nome: true, organizationId: true, isTrial: true, trialExpiraEm: true, trialModulo: true,
+        assinaturaEm: true, assinaturaValidaAte: true, trialLembreteEm: true,
+        profile: { select: { whatsapp: true } },
+      } as any,
+    });
+    let enviados = 0;
+    for (const u of candidatos as any[]) {
+      const f = faseDaConta(u);
+      if (!f || !precisaLembrete(u, agora) || !u.profile?.whatsapp) continue;
+      const anterior: Date | null = u.trialLembreteEm ?? null;
+      const reserva = await this.prisma.user.updateMany({
+        where: { id: u.id, trialLembreteEm: anterior } as any,
+        data: { trialLembreteEm: agora } as any,
+      });
+      if (reserva.count === 0) continue;
+      const msg = montarLembrete({ fase: f.fase, nome: u.nome, modulo: u.trialModulo, limite: f.limite, codigo: codigoRenovacao(u.id) });
+      const inst = await this.wa.resolveInstance(u.organizationId || this.TRIAL_ORG).catch(() => undefined);
+      const ok = await this.wa.sendMessage(u.profile.whatsapp, msg, inst).catch(() => false);
+      if (!ok) {
+        await this.prisma.user.update({ where: { id: u.id }, data: { trialLembreteEm: anterior } as any }).catch(() => {});
+        this.logger.warn(`Aviso de vencimento (${f.fase}) não saiu para user=${u.id}; tenta de novo na próxima rodada.`);
+        continue;
+      }
+      enviados++;
+    }
+    return enviados;
+  }
+
+  /**
+   * Notificação (sino) para master + administradores da organização default
+   * sobre um acesso de teste — usada quando a pessoa responde ao aviso de
+   * renovação pelo WhatsApp.
+   */
+  async notificarEquipeTrial(userId: string, tipo: string, titulo: string, mensagem: string): Promise<void> {
+    const admins = await this.prisma.user.findMany({
+      where: {
+        ativo: true, organizationId: this.TRIAL_ORG,
+        userRoles: { some: { role: { OR: [{ isMaster: true }, { nome: "administrador" }] } } },
+      } as any,
+      select: { id: true },
+    });
+    for (const admin of admins) {
+      await this.prisma.notification.create({
+        data: {
+          id: require("crypto").randomUUID(), userId: admin.id, tipo, titulo, mensagem,
+          referenciaTipo: "user", referenciaId: userId,
+        } as any,
+      }).catch(() => {});
+    }
   }
 
   // ── Reset de senha via Email ───────────────────────────────────────────────────

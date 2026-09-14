@@ -7,6 +7,13 @@ import { NotificationsModule } from "../notifications/notifications.module";
 import { AuthModule } from "../auth/auth.module";
 import { AuthService } from "../auth/auth.service";
 import { registrarIndicacao, montarMensagemAtivacao, codigoIndicacao } from "../referral/referral.helpers";
+import { ReferralModule, ReferralService } from "../referral/referral.module";
+import {
+  interpretarRespostaRenovacao, podeRenovar, codigoRenovacao, produtoLabel, faseDaConta, avisoDoCicloAtual,
+  proximaValidade, LEMBRETE_ANTECEDENCIA_MS, RespostaRenovacao,
+  montarRespostaEfetivou, montarRespostaRenovouMes, montarRespostaRecusou,
+  RESPOSTA_JA_RENOVADO, RESPOSTA_PRAZO_ENCERRADO, RESPOSTA_CODIGO_INVALIDO, RESPOSTA_NAO_IDENTIFICADO,
+} from "../auth/trial-renovacao";
 import { createHash } from "crypto";
 
 // Código de vínculo do WhatsApp (mostrado no Perfil). Determinístico por usuário
@@ -538,7 +545,10 @@ export class WhatsappInboundService {
   }
   private fecharMenu(jid: string) { this.menuAte.delete(jid); }
 
-  constructor(private prisma: PrismaService, private wa: WhatsAppService, private auth: AuthService) {}
+  constructor(
+    private prisma: PrismaService, private wa: WhatsAppService, private auth: AuthService,
+    private referral: ReferralService,
+  ) {}
 
   private fmtData(d: Date): string {
     return d.toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
@@ -547,22 +557,164 @@ export class WhatsappInboundService {
   // Identifica o usuário DONO daquele chat: primeiro pelo LID vinculado, depois
   // (só quando o chat é @s.whatsapp.net) pelo telefone cadastrado — assim o
   // caso "mandar para si mesmo" com número próprio ainda funciona sem vínculo.
-  private async identificar(remoteJid: string): Promise<{ id: string; organizationId: string; nome: string; telefone: string | null } | null> {
+  // `jidAlternativo`: o Evolution v2 pode mandar, junto do "@lid", o jid com o
+  // telefone (key.remoteJidAlt / key.senderPn). Quando vem, também serve para
+  // achar a conta pelo número cadastrado. Por ora só a renovação do teste passa.
+  private async identificar(remoteJid: string, jidAlternativo?: string): Promise<{ id: string; organizationId: string; nome: string; telefone: string | null } | null> {
     const idPart = remoteJid.split("@")[0];
     const byLid = await this.prisma.userProfile.findFirst({
       where: { whatsappLid: idPart } as any,
       select: { whatsapp: true, user: { select: { id: true, organizationId: true, ativo: true, nome: true } } },
     });
     if (byLid?.user?.ativo) return { ...byLid.user, telefone: byLid.whatsapp };
-    if (remoteJid.endsWith("@s.whatsapp.net")) {
+    const jidTelefone = remoteJid.endsWith("@s.whatsapp.net") ? remoteJid
+      : jidAlternativo?.endsWith("@s.whatsapp.net") ? jidAlternativo : null;
+    if (jidTelefone) {
+      const tel = jidTelefone.split("@")[0];
       const perfis = await this.prisma.userProfile.findMany({
         where: { NOT: { whatsapp: null } },
         select: { whatsapp: true, user: { select: { id: true, organizationId: true, ativo: true, nome: true } } },
       });
-      const p = perfis.find(x => x.user?.ativo && telefoneBate(idPart, x.whatsapp));
+      const p = perfis.find(x => x.user?.ativo && telefoneBate(tel, x.whatsapp));
       if (p?.user) return { ...p.user, telefone: p.whatsapp };
     }
     return null;
+  }
+
+  // ── Renovação pelo WhatsApp (resposta ao aviso de "vence amanhã") ────────────
+  //
+  // Vale para o fim do TESTE (o "1" efetiva a conta e abre o primeiro mês) e
+  // para o fim de cada MÊS pago (o "1" soma mais um mês). Devolve true quando a
+  // mensagem era mesmo sobre a renovação e já foi respondida. "1"/"2" soltos só
+  // contam para quem recebeu o aviso do vencimento atual — para qualquer outra
+  // pessoa seguem o fluxo normal (menu, gasto etc.).
+  private async tratarRenovacao(remoteJid: string, jidAlt: string, resp: RespostaRenovacao & { soNumero: boolean }, inst: string): Promise<boolean> {
+    const campos = {
+      id: true, nome: true, email: true, organizationId: true, isTrial: true, trialExpiraEm: true, trialModulo: true,
+      assinaturaEm: true, assinaturaValidaAte: true, trialLembreteEm: true,
+      trialRenovacaoResposta: true, trialRenovacaoRespostaEm: true, profile: { select: { whatsapp: true } },
+    } as any;
+    const agora = new Date();
+    const renovouAgoraPouco = (u: any) =>
+      u.trialRenovacaoResposta === "RENOVOU" && u.trialRenovacaoRespostaEm &&
+      new Date(u.trialRenovacaoRespostaEm).getTime() > agora.getTime() - 3 * 24 * 60 * 60 * 1000;
+
+    let alvo: any = null;
+    if (resp.codigo) {
+      // O código veio no aviso: identifica a conta sem depender do número e já
+      // liga este chat a ela (como o VINCULAR), para as próximas mensagens.
+      const contas = await this.prisma.user.findMany({ where: { isTrial: true, ativo: true } as any, select: campos });
+      alvo = (contas as any[]).find(u => codigoRenovacao(u.id) === resp.codigo) || null;
+      if (!alvo) { await this.wa.sendToJid(remoteJid, RESPOSTA_CODIGO_INVALIDO, inst).catch(() => {}); return true; }
+      if (remoteJid.endsWith("@lid")) {
+        await this.prisma.userProfile.upsert({
+          where: { userId: alvo.id },
+          update: { whatsappLid: remoteJid.split("@")[0] } as any,
+          create: { userId: alvo.id, whatsappLid: remoteJid.split("@")[0] } as any,
+        }).catch(() => {});
+      }
+    } else {
+      const quem = await this.identificar(remoteJid, jidAlt);
+      if (!quem) {
+        if (resp.soNumero) {
+          // Número solto de alguém que não reconhecemos: só orienta se saiu aviso
+          // nos últimos dias (é quase certo que seja um deles).
+          const recente = await this.prisma.user.count({
+            where: { isTrial: true, trialLembreteEm: { gte: new Date(agora.getTime() - 3 * 24 * 60 * 60 * 1000) } } as any,
+          });
+          if (!recente) return false;
+        }
+        await this.wa.sendToJid(remoteJid, RESPOSTA_NAO_IDENTIFICADO, inst).catch(() => {});
+        return true;
+      }
+      alvo = await this.prisma.user.findUnique({ where: { id: quem.id }, select: campos });
+      if (!alvo?.isTrial) return false;
+    }
+
+    const tel: string | null = alvo.profile?.whatsapp ?? null;
+    const falar = (msg: string) => this.responder(remoteJid, tel, alvo.organizationId, inst, msg);
+    const contato = `${alvo.email}${tel ? ` · WhatsApp ${tel}` : ""}`;
+    const produto = produtoLabel(alvo.trialModulo);
+
+    const f = faseDaConta(alvo);
+    if (!f) {
+      // Efetivada antes da mensalidade existir: fora do ciclo, a equipe cuida.
+      if (resp.soNumero) return false;
+      if (alvo.assinaturaEm) { await falar(RESPOSTA_JA_RENOVADO); return true; }
+      return false;
+    }
+    const avisoAtual = avisoDoCicloAtual(alvo);
+    if (resp.soNumero && !avisoAtual) {
+      // "1" repetido depois de já ter renovado: confirma em vez de ficar mudo.
+      if (renovouAgoraPouco(alvo)) { await falar(RESPOSTA_JA_RENOVADO); return true; }
+      return false; // não recebeu o aviso deste vencimento
+    }
+
+    if (resp.opcao === "RECUSAR") {
+      await this.prisma.user.update({
+        where: { id: alvo.id },
+        data: { trialRenovacaoResposta: "RECUSOU", trialRenovacaoRespostaEm: agora } as any,
+      });
+      const vencido = f.limite.getTime() < agora.getTime();
+      await falar(montarRespostaRecusou({ fase: f.fase, nome: alvo.nome, limite: f.limite, vencido, codigo: codigoRenovacao(alvo.id) }));
+      await this.auth.notificarEquipeTrial(alvo.id, f.fase === "TESTE" ? "trial_recusou" : "assinatura_recusou",
+        f.fase === "TESTE" ? "Teste: não quer continuar" : "Mensalidade: não quer renovar",
+        `${contato} respondeu 2 (não quer continuar o ${produto}).`).catch(() => {});
+      this.logger.log(`Renovação recusada pelo WhatsApp (${f.fase}): user=${alvo.id}`);
+      return true;
+    }
+
+    if (!podeRenovar(alvo, agora)) {
+      await falar(RESPOSTA_PRAZO_ENCERRADO);
+      await this.auth.notificarEquipeTrial(alvo.id, "renovacao_fora_prazo",
+        "Pediu renovação fora do prazo",
+        `${contato} pediu para renovar pelo WhatsApp, mas o acesso venceu há mais de 15 dias. Fale com a pessoa para liberar.`).catch(() => {});
+      return true;
+    }
+
+    if (f.fase === "TESTE") {
+      // Reserva atômica: dois "1" seguidos não efetivam (nem geram comissão) duas vezes.
+      const validaAte = proximaValidade(f.limite, agora);
+      const reserva = await this.prisma.user.updateMany({
+        where: { id: alvo.id, assinaturaEm: null } as any,
+        data: {
+          assinaturaEm: agora, assinaturaValidaAte: validaAte, trialAvisadoSuporte: false,
+          trialRenovacaoResposta: "RENOVOU", trialRenovacaoRespostaEm: agora,
+        } as any,
+      });
+      if (reserva.count === 0) { await falar(RESPOSTA_JA_RENOVADO); return true; }
+      // Mesma efetivação do painel de Indicações: valor da assinatura + comissão do indicador.
+      await this.referral.efetivar(alvo.id).catch((e: any) =>
+        this.logger.error(`Efetivação pelo WhatsApp gravou a assinatura mas falhou no restante (user=${alvo.id}): ${e?.message || e}`));
+      await falar(montarRespostaEfetivou({ nome: alvo.nome }));
+      await this.auth.notificarEquipeTrial(alvo.id, "trial_renovou",
+        "Teste efetivado pelo WhatsApp — combinar pagamento",
+        `${contato} respondeu 1 e efetivou o ${produto} (R$ 27,00 por mês, 1º mês até ${validaAte.toLocaleDateString("pt-BR")}). Fale com a pessoa para combinar o pagamento.`).catch(() => {});
+      this.logger.log(`Trial efetivado pelo WhatsApp: user=${alvo.id}`);
+      return true;
+    }
+
+    // MENSAL. Só renova perto do vencimento (ou já vencido): reenviar o código no
+    // meio do mês não pode ir somando meses sem querer.
+    if (!avisoAtual && f.limite.getTime() - agora.getTime() > LEMBRETE_ANTECEDENCIA_MS) {
+      await falar(RESPOSTA_JA_RENOVADO);
+      return true;
+    }
+    const validaAte = proximaValidade(f.limite, agora);
+    const reserva = await this.prisma.user.updateMany({
+      where: { id: alvo.id, assinaturaValidaAte: f.limite } as any,
+      data: {
+        assinaturaValidaAte: validaAte, trialAvisadoSuporte: false,
+        trialRenovacaoResposta: "RENOVOU", trialRenovacaoRespostaEm: agora,
+      } as any,
+    });
+    if (reserva.count === 0) { await falar(RESPOSTA_JA_RENOVADO); return true; }
+    await falar(montarRespostaRenovouMes({ nome: alvo.nome, modulo: alvo.trialModulo, validaAte }));
+    await this.auth.notificarEquipeTrial(alvo.id, "assinatura_renovou",
+      "Mensalidade renovada pelo WhatsApp — cobrar",
+      `${contato} respondeu 1 e renovou o ${produto} por mais um mês (R$ 27,00, até ${validaAte.toLocaleDateString("pt-BR")}). Fale com a pessoa para o pagamento.`).catch(() => {});
+    this.logger.log(`Mensalidade renovada pelo WhatsApp: user=${alvo.id} até ${validaAte.toISOString()}`);
+    return true;
   }
 
   // Responde à pessoa. O Evolution v1.8.2 NÃO envia para "@lid" (400 exists:false),
@@ -949,6 +1101,15 @@ export class WhatsappInboundService {
       return;
     }
 
+    // ── Resposta ao aviso de fim do teste? "1" (renovar) / "2" (não) / "RENOVAR <código>" ──
+    //    Só mensagem que CHEGOU: um "1" digitado no celular do bot, na conversa
+    //    com a pessoa (fromMe), não pode efetivar a conta dela.
+    const renov = key?.fromMe ? null : interpretarRespostaRenovacao(texto);
+    if (renov) {
+      const jidAlt: string = key?.remoteJidAlt || key?.senderPn || "";
+      if (await this.tratarRenovacao(remoteJid, jidAlt, renov, inst)) return;
+    }
+
     // ── Ligar/desligar o resumo semanal de gastos ──
     const mResumo = texto.match(/^\/?(parar|desligar|cancelar|voltar|ligar|ativar)\s+(?:o\s+)?resumo\b/i);
     if (mResumo) { await this.configurarResumo(remoteJid, /^(parar|desligar|cancelar)/i.test(mResumo[1]), inst); return; }
@@ -1082,7 +1243,7 @@ export class WhatsappInboundController {
 }
 
 @Module({
-  imports: [NotificationsModule, AuthModule],
+  imports: [NotificationsModule, AuthModule, ReferralModule],
   controllers: [WhatsappInboundController],
   providers: [WhatsappInboundService],
 })

@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "1.34.0";
+export const VERSAO = "1.35.0";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -23,10 +23,10 @@ export const VERSAO = "1.34.0";
  * Não é gerada no build: `new Date()` no bundle muda a cada compilação, e duas
  * builds do mesmo código pareceriam versões diferentes.
  */
-export const VERSAO_DATA = "2026-09-11";
+export const VERSAO_DATA = "2026-09-13";
 
 /** Nome da entrega, para dar contexto ao número. */
-export const VERSAO_NOME = "Projetos — Keep, histórico do quadro e Concluídos";
+export const VERSAO_NOME = "Renovação do teste pelo WhatsApp";
 
 /**
  * Histórico exibido na tela Sobre, do mais recente para o mais antigo.
@@ -35,6 +35,19 @@ export const VERSAO_NOME = "Projetos — Keep, histórico do quadro e Concluído
  * esta lista quer saber o que mudou para ele.
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
+  {
+    versao: "1.35.0",
+    data: "2026-09-13",
+    titulo: "Renovação do teste pelo WhatsApp",
+    itens: [
+      "Quem está no teste de 7 dias, em qualquer módulo, recebe no WhatsApp um aviso quando falta um dia para acabar, com duas opções: responder 1 para continuar (R$ 27,00 por mês) ou 2 para encerrar. O aviso sai nunca de madrugada (das 8h às 20h)",
+      "Respondendo 1, o acesso é efetivado na hora, na mesma organização e com o mesmo login, e o primeiro mês conta a partir do fim do teste. Se a pessoa veio por indicação, a comissão de quem indicou é gerada como no botão do painel",
+      "A assinatura é mensal: na véspera do fim de cada mês chega um novo aviso, e responder 1 libera mais um mês. Sem renovar, o login é bloqueado quando vence — responder 1 em até 15 dias libera de novo",
+      "A equipe (master e administradores) recebe uma notificação a cada resposta, para combinar o pagamento ou conversar com quem não quis continuar, e outra quando uma mensalidade vence sem renovação",
+      "No Super Admin › Indicações, cada pessoa mostra até quando vale o mês pago (ou \"Mensalidade vencida\"), se o aviso já saiu e o que respondeu. Marcar efetivado no painel também abre o primeiro mês",
+      "Corrigido: quem era marcado como efetivado no painel continuava barrado no login quando o teste vencia, e a equipe ainda recebia o aviso de \"teste expirado\" dessa pessoa",
+    ],
+  },
   {
     versao: "1.34.0",
     data: "2026-09-11",

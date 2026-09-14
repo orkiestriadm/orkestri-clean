@@ -267,9 +267,17 @@ model User {
   trialExpiraEm    DateTime? @map("trial_expira_em")
   trialModulo      String?   @map("trial_modulo")
   trialAvisadoSuporte Boolean @default(false) @map("trial_avisado_suporte")
+  // Aviso de "falta 1 dia" enviado no WhatsApp — o último, vale para o teste e
+  // para cada mensalidade — e a última resposta: RENOVOU (1) ou RECUSOU (2).
+  trialLembreteEm           DateTime? @map("trial_lembrete_em")
+  trialRenovacaoResposta    String?   @map("trial_renovacao_resposta")
+  trialRenovacaoRespostaEm  DateTime? @map("trial_renovacao_resposta_em")
   // Efetivação (assinatura) marcada à mão pelo admin no painel de Indicações.
   assinaturaEm        DateTime? @map("assinatura_em")
   assinaturaValor     Int?      @map("assinatura_valor")
+  // Fim do mês pago (R$ 27/mês). Renovar pelo WhatsApp soma um mês; vencido,
+  // o login bloqueia. Nulo em quem foi efetivado antes da mensalidade existir.
+  assinaturaValidaAte DateTime? @map("assinatura_valida_ate")
   criadoEm         DateTime  @default(now()) @map("criado_em")
   atualizadoEm     DateTime  @updatedAt @map("atualizado_em")
 

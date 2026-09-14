@@ -9,6 +9,8 @@ type Linha = {
   modulo: string | null; inicio: string; expira: string | null;
   diasRestantes: number | null; vencido: boolean;
   efetivado: boolean; assinaturaEm: string | null;
+  validaAte: string | null; mensalidadeVencida: boolean;
+  lembreteEm: string | null; respostaWhats: "RENOVOU" | "RECUSOU" | null; respostaWhatsEm: string | null;
   indicadoPor: string | null; referralId: string | null; comissao: Comissao | null;
 };
 type Painel = {
@@ -27,6 +29,8 @@ const waLink = (tel: string | null) => {
   if (!d.startsWith("55")) d = "55" + d;
   return `https://wa.me/${d}`;
 };
+const dataHora = (iso: string | null) =>
+  iso ? new Date(iso).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) : "";
 const CARD: React.CSSProperties = { background: "var(--bg-card)", border: "1px solid var(--border-subtle)", borderRadius: 14, padding: 16 };
 
 type Filtro = "todos" | "trial" | "vencidos" | "efetivados";
@@ -54,7 +58,7 @@ export default function ReferralPanel() {
   };
 
   const efetivar = (u: Linha) => {
-    if (!confirm(`Marcar que ${u.nome} EFETIVOU a assinatura (R$ 27,00)?` + (u.indicadoPor ? `\n\nComo foi indicado por ${u.indicadoPor}, será criada a comissão de R$ 5,00.` : ""))) return;
+    if (!confirm(`Marcar que ${u.nome} EFETIVOU a assinatura (R$ 27,00 por mês)? O primeiro mês conta do fim do teste (ou de hoje, se o teste já venceu).` + (u.indicadoPor ? `\n\nComo foi indicado por ${u.indicadoPor}, será criada a comissão de R$ 5,00.` : ""))) return;
     acao(() => api.post(`/referral/admin/${u.id}/efetivar`), u.id);
   };
   const desfazer = (u: Linha) => {
@@ -143,12 +147,21 @@ export default function ReferralPanel() {
               </div>
               {/* Status do trial / efetivação */}
               <div style={{ textAlign: "right" }}>
-                {u.efetivado ? (
-                  <span style={badge("var(--accent-green)")}><Check size={12} /> Efetivado</span>
+                {u.efetivado && u.mensalidadeVencida ? (
+                  <span style={badge("var(--accent-red)")}><AlertTriangle size={12} /> Mensalidade vencida</span>
+                ) : u.efetivado ? (
+                  <span style={badge("var(--accent-green)")}><Check size={12} /> Efetivado{u.validaAte ? ` · até ${new Date(u.validaAte).toLocaleDateString("pt-BR")}` : ""}</span>
                 ) : u.vencido ? (
                   <span style={badge("var(--accent-red)")}><AlertTriangle size={12} /> Trial vencido</span>
                 ) : (
                   <span style={badge("var(--accent-cyan)")}><Clock size={12} /> {u.diasRestantes} {u.diasRestantes === 1 ? "dia" : "dias"}</span>
+                )}
+                {(u.lembreteEm || u.respostaWhats) && (
+                  <div style={{ fontSize: 11, marginTop: 6, color: u.respostaWhats === "RENOVOU" ? "var(--accent-green)" : u.respostaWhats === "RECUSOU" ? "var(--accent-red)" : "var(--text-muted)" }}>
+                    {u.respostaWhats === "RENOVOU" ? `Renovou no WhatsApp · ${dataHora(u.respostaWhatsEm)}`
+                      : u.respostaWhats === "RECUSOU" ? `Não quer continuar · ${dataHora(u.respostaWhatsEm)}`
+                      : `Aviso de vencimento enviado · ${dataHora(u.lembreteEm)}`}
+                  </div>
                 )}
                 {u.comissao?.valor != null && (
                   <div style={{ fontSize: 11, marginTop: 6, color: u.comissao.status === "PAGA" ? "var(--accent-green)" : "var(--accent-violet)" }}>

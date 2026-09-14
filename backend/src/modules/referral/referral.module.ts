@@ -7,6 +7,7 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { WhatsAppService } from "../notifications/whatsapp.service";
 import { NotificationsModule } from "../notifications/notifications.module";
 import { registrarIndicacao, codigoIndicacao, montarMensagemAtivacao } from "./referral.helpers";
+import { proximaValidade } from "../auth/trial-renovacao";
 
 // Valores fixos do MVP (centavos). Configuráveis depois.
 const VALOR_ASSINATURA = 2700; // R$ 27,00
@@ -29,6 +30,7 @@ export class ReferralService {
       select: {
         id: true, nome: true, email: true, criadoEm: true, ativo: true,
         trialExpiraEm: true, trialModulo: true, assinaturaEm: true,
+        trialLembreteEm: true, trialRenovacaoResposta: true, trialRenovacaoRespostaEm: true, assinaturaValidaAte: true,
         profile: { select: { whatsapp: true } },
         indicacaoRecebida: {
           select: { id: true, status: true, comissaoValor: true, comissaoStatus: true, indicador: { select: { nome: true } } },
@@ -47,6 +49,11 @@ export class ReferralService {
         modulo: u.trialModulo, inicio: u.criadoEm, expira,
         diasRestantes, vencido,
         efetivado: !!u.assinaturaEm, assinaturaEm: u.assinaturaEm,
+        // Mensalidade (R$ 27/mês): até quando vale o mês pago e se já venceu sem renovar.
+        validaAte: u.assinaturaValidaAte,
+        mensalidadeVencida: !!u.assinaturaEm && !!u.assinaturaValidaAte && new Date(u.assinaturaValidaAte).getTime() < now,
+        // Aviso de fim do teste no WhatsApp e a resposta (RENOVOU / RECUSOU).
+        lembreteEm: u.trialLembreteEm, respostaWhats: u.trialRenovacaoResposta, respostaWhatsEm: u.trialRenovacaoRespostaEm,
         indicadoPor: r?.indicador?.nome || null,
         referralId: r?.id || null,
         comissao: r ? { valor: r.comissaoValor, status: r.comissaoStatus } : null,
@@ -77,16 +84,22 @@ export class ReferralService {
     };
   }
 
-  // Marca a assinatura (R$27). Se o usuário foi indicado, cria a comissão (R$5).
+  // Marca a assinatura (R$27/mês). Se o usuário foi indicado, cria a comissão (R$5).
+  // Sem mês pago ainda, abre o primeiro — a partir do fim do teste se ele não
+  // acabou. Quem chama já com a validade gravada (o "1" do WhatsApp) mantém a dela.
   async efetivar(userId: string) {
     const u = await this.prisma.user.findUnique({
       where: { id: userId },
-      select: { id: true, indicacaoRecebida: { select: { id: true } } } as any,
+      select: { id: true, trialExpiraEm: true, assinaturaValidaAte: true, indicacaoRecebida: { select: { id: true } } } as any,
     });
     if (!u) throw new NotFoundException("Usuário não encontrado.");
+    const agora = new Date();
     await this.prisma.user.update({
       where: { id: userId },
-      data: { assinaturaEm: new Date(), assinaturaValor: VALOR_ASSINATURA } as any,
+      data: {
+        assinaturaEm: agora, assinaturaValor: VALOR_ASSINATURA,
+        ...((u as any).assinaturaValidaAte ? {} : { assinaturaValidaAte: proximaValidade((u as any).trialExpiraEm, agora) }),
+      } as any,
     });
     const r = (u as any).indicacaoRecebida;
     if (r) {
@@ -105,7 +118,7 @@ export class ReferralService {
   async desfazerEfetivacao(userId: string) {
     await this.prisma.user.update({
       where: { id: userId },
-      data: { assinaturaEm: null, assinaturaValor: null } as any,
+      data: { assinaturaEm: null, assinaturaValor: null, assinaturaValidaAte: null } as any,
     });
     const r = await this.prisma.referral.findUnique({ where: { indicadoUserId: userId } as any });
     if (r && (r as any).comissaoStatus !== "PAGA") {

@@ -22,4 +22,18 @@ export class TrialScheduler {
       this.logger.error(`Falha ao processar trials vencidos: ${e?.message || e}`);
     }
   }
+
+  // Aviso de "vence amanhã" no WhatsApp — fim do teste ou fim do mês pago — com
+  // a opção de renovar. De hora em hora
+  // das 8h às 20h (Brasília): pega quem entrou na janela das últimas 24 h sem
+  // mandar mensagem de madrugada — quem vence cedo recebe na véspera.
+  @Cron("0 8-20 * * *", { timeZone: "America/Sao_Paulo" })
+  async avisarFimDoTeste() {
+    try {
+      const n = await this.auth.enviarLembretesTrial();
+      if (n > 0) this.logger.log(`Avisos de fim de teste enviados no WhatsApp: ${n}`);
+    } catch (e: any) {
+      this.logger.error(`Falha ao enviar avisos de fim de teste: ${e?.message || e}`);
+    }
+  }
 }
