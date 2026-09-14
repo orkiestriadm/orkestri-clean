@@ -520,6 +520,11 @@ html[data-acento="vermelho"] {
   --shadow-input:        0 0 0 3px rgba(220, 38, 38, 0.1);
   --sidebar-active-bg:   rgba(220, 38, 38, 0.06);
   --sidebar-active-text: #dc2626;
+  /* Tokens do shadcn (`bg-primary`, `text-primary`, `ring`): o Perfil e as
+     telas em Tailwind usam estes, não o --accent-violet, e seguiam laranja
+     em homologação (14/09/2026). Mesmos tons do vermelho acima, em HSL. */
+  --primary:             0 72% 51%;
+  --ring:                0 72% 51%;
 }
 html[data-acento="vermelho"][data-theme="dark"] {
   --bg-active:           rgba(255, 255, 255, 0.05);
@@ -528,6 +533,8 @@ html[data-acento="vermelho"][data-theme="dark"] {
   --shadow-input:        0 0 0 3px rgba(239, 68, 68, 0.15);
   --sidebar-active-bg:   rgba(239, 68, 68, 0.08);
   --sidebar-active-text: #ef4444;
+  --primary:             0 84% 60%;
+  --ring:                0 84% 60%;
 }
 html[data-acento="vermelho"] .btn-violet { box-shadow: 0 2px 8px rgba(220, 38, 38, 0.2); }
 html[data-acento="vermelho"] .btn-primary:hover,

@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "1.40.3";
+export const VERSAO = "1.40.4";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -26,7 +26,7 @@ export const VERSAO = "1.40.3";
 export const VERSAO_DATA = "2026-09-14";
 
 /** Nome da entrega, para dar contexto ao número. */
-export const VERSAO_NOME = "Perfil sem WhatsApp e Indique e Ganhe no Hub";
+export const VERSAO_NOME = "Perfil no vermelho do Hub";
 
 /**
  * Histórico exibido na tela Sobre, do mais recente para o mais antigo.
@@ -35,6 +35,14 @@ export const VERSAO_NOME = "Perfil sem WhatsApp e Indique e Ganhe no Hub";
  * esta lista quer saber o que mudou para ele.
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
+  {
+    versao: "1.40.4",
+    data: "2026-09-14",
+    titulo: "Perfil no vermelho do Hub",
+    itens: [
+      "Botões, abas e destaques do Perfil (e das demais telas que ainda saíam em laranja) passam a usar o vermelho do Hub Triunfo Transbrasiliana",
+    ],
+  },
   {
     versao: "1.40.3",
     data: "2026-09-14",
