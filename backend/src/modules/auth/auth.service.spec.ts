@@ -406,10 +406,11 @@ describe("AuthService", () => {
 
     beforeEach(() => mockCache.get.mockResolvedValue(null));
 
-    it("não entrega Agenda, Keep nem Meus Gastos a quem só tem o Strategy", async () => {
+    it("quem só tem o Strategy fica com o Space (Agenda e Keep), mas sem Meus Gastos", async () => {
       mockPrisma.user.findUnique.mockResolvedValue(usuario([perm("estrategico.caso", "ver"), perm("estrategico.admin", "gerenciar")]));
       const perms = await service.resolvePermissions("u1");
-      expect(perms.sort()).toEqual(["estrategico.admin:gerenciar", "estrategico.caso:ver"]);
+      expect(perms).toEqual(expect.arrayContaining(["estrategico.caso:ver", "agenda:ver", "agenda:criar", "keep:ver", "integracoes:conectar"]));
+      expect(perms.filter(p => p.startsWith("gastos:"))).toEqual([]);
     });
 
     it("mantém as ferramentas pessoais quando há papel de outro módulo", async () => {

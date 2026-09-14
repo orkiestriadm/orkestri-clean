@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "1.40.1";
+export const VERSAO = "1.40.2";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -26,7 +26,7 @@ export const VERSAO = "1.40.1";
 export const VERSAO_DATA = "2026-09-14";
 
 /** Nome da entrega, para dar contexto ao número. */
-export const VERSAO_NOME = "Strategy: acesso só ao módulo";
+export const VERSAO_NOME = "Strategy: Space volta para quem só tem o Strategy";
 
 /**
  * Histórico exibido na tela Sobre, do mais recente para o mais antigo.
@@ -35,6 +35,14 @@ export const VERSAO_NOME = "Strategy: acesso só ao módulo";
  * esta lista quer saber o que mudou para ele.
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
+  {
+    versao: "1.40.2",
+    data: "2026-09-14",
+    titulo: "Strategy: Space volta para quem só tem o Strategy",
+    itens: [
+      "Quem tem apenas o papel \"Alta Gestão (Strategy)\" volta a ver o Space (Agenda e Keep), que é de toda conta; continua sem Meus Gastos",
+    ],
+  },
   {
     versao: "1.40.1",
     data: "2026-09-14",

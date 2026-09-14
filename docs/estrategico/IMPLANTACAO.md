@@ -89,8 +89,8 @@ edita, exclui e configura (decisão de 11/09/2026). Enxergam o módulo:
 - quem tem o papel **Alta Gestão (Strategy)** — criado no boot da API em cada
   organização, com as 17 permissões do módulo e nenhuma de outro. Conceder em
   Administração › Cadastros › Usuários, somando aos papéis que a pessoa tenha;
-  quem só tem este papel cai direto no Painel do Strategy e **não** recebe as
-  ferramentas pessoais da conta (Agenda, Keep, Meus Gastos) — desde 1.40.1;
+  quem só tem este papel cai direto no Painel do Strategy e **não** recebe
+  Meus Gastos (desde 1.40.1); o Space (Agenda e Keep) é de toda conta e continua;
 - o papel **administrador** e o **master**.
 
 Nenhum outro papel padrão recebe o módulo (visualizador e auditor ficam de fora
