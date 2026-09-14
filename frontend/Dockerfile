@@ -52,6 +52,12 @@ ENV NEXT_PUBLIC_LOGO_ARQUIVO_CLARO=$NEXT_PUBLIC_LOGO_ARQUIVO_CLARO
 # disco do servidor, foi apagado por um deploy pelo git — mesma história da marca.
 ARG NEXT_PUBLIC_ACENTO=laranja
 ENV NEXT_PUBLIC_ACENTO=$NEXT_PUBLIC_ACENTO
+
+# Ambiente, pelo mesmo mecanismo. Padrão produção; homologação passa
+# `homologacao` e esconde os recursos comerciais do Perfil (WhatsApp e Indique e
+# Ganhe) — ver RECURSOS_COMERCIAIS em src/lib/marca.ts.
+ARG NEXT_PUBLIC_AMBIENTE=producao
+ENV NEXT_PUBLIC_AMBIENTE=$NEXT_PUBLIC_AMBIENTE
 # Teto explícito de heap durante o build. Sem isso, o Node pode crescer até o
 # cgroup limit e ser OOM-killed silenciosamente em hosts pequenos como Lightsail 2GB.
 ENV NODE_OPTIONS="--max-old-space-size=1024"

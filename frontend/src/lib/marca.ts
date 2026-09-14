@@ -56,3 +56,14 @@ export const LOGO_ARQUIVO = process.env.NEXT_PUBLIC_LOGO_ARQUIVO?.trim() || "";
  */
 export const LOGO_ARQUIVO_CLARO =
   process.env.NEXT_PUBLIC_LOGO_ARQUIVO_CLARO?.trim() || LOGO_ARQUIVO;
+
+/**
+ * Recursos comerciais do produto Orkiestri no Perfil — "Criar evento pelo
+ * WhatsApp" e "Indique e Ganhe". Existem só em produção: em homologação (o Hub
+ * da Triunfo) o usuário pediu para não aparecerem (14/09/2026).
+ *
+ * Mesmo mecanismo da marca: build arg `NEXT_PUBLIC_AMBIENTE` no compose do
+ * servidor. O padrão é produção, então esquecer o arg num servidor novo mostra
+ * os cartões — nunca some com eles em produção.
+ */
+export const RECURSOS_COMERCIAIS = process.env.NEXT_PUBLIC_AMBIENTE?.trim() !== "homologacao";

@@ -4,6 +4,7 @@ import { api } from "@/lib/api";
 import { useAuthStore } from "@/lib/store";
 import { User, Lock, Bell, Shield, Save, Loader2, CheckCircle, Eye, EyeOff, MessageCircle, Gift } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { RECURSOS_COMERCIAIS } from "@/lib/marca";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 interface Perfil {
@@ -73,6 +74,7 @@ export default function PerfilPage() {
       setWhatsapp(p.whatsapp || "");
       setWhatsappAlertas(p.whatsappAlertas ?? false);
     }).finally(() => setLoading(false));
+    if (!RECURSOS_COMERCIAIS) return;
     api.get<{ codigo: string; vinculado: boolean }>("/agenda/whatsapp-link")
       .then(r => setWaLink(r.data)).catch(() => {});
     api.get<{ codigo: string; indicados: number; efetivados: number; aReceber: number; recebida: number }>("/referral/meu-codigo")
@@ -271,6 +273,8 @@ export default function PerfilPage() {
             </div>
           </div>
 
+          {/* Só em produção — ver RECURSOS_COMERCIAIS */}
+          {RECURSOS_COMERCIAIS && (<>
           {/* ── Criar evento pelo WhatsApp (vínculo) ── */}
           <div className="rounded-2xl border border-border bg-card p-6 space-y-4">
             <div className="flex items-center gap-2">
@@ -335,6 +339,7 @@ export default function PerfilPage() {
               </>
             ) : <div className="text-xs text-muted-foreground">Carregando…</div>}
           </div>
+          </>)}
           </div>
         )}
 

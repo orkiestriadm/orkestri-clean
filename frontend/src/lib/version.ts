@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "1.40.2";
+export const VERSAO = "1.40.3";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -26,7 +26,7 @@ export const VERSAO = "1.40.2";
 export const VERSAO_DATA = "2026-09-14";
 
 /** Nome da entrega, para dar contexto ao número. */
-export const VERSAO_NOME = "Strategy: Space volta para quem só tem o Strategy";
+export const VERSAO_NOME = "Perfil sem WhatsApp e Indique e Ganhe no Hub";
 
 /**
  * Histórico exibido na tela Sobre, do mais recente para o mais antigo.
@@ -35,6 +35,14 @@ export const VERSAO_NOME = "Strategy: Space volta para quem só tem o Strategy";
  * esta lista quer saber o que mudou para ele.
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
+  {
+    versao: "1.40.3",
+    data: "2026-09-14",
+    titulo: "Perfil sem WhatsApp e Indique e Ganhe no Hub",
+    itens: [
+      "Os quadros \"Criar evento pelo WhatsApp\" e \"Indique e Ganhe\" saem do Perfil no Hub Triunfo Transbrasiliana",
+    ],
+  },
   {
     versao: "1.40.2",
     data: "2026-09-14",
