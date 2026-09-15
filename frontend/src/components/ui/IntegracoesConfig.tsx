@@ -213,8 +213,11 @@ export default function IntegracoesConfig() {
     return <div style={{ color: "var(--text-muted)", fontSize: 13 }}>Carregando integração…</div>;
   }
 
-  // Administrador ainda não configurou o App Registration.
-  if (status && status.configured === false) {
+  // Ainda sem App Registration. Quem não é admin só vê o aviso; o admin segue
+  // para a tela, senão nunca alcança o botão de configurar (era o que
+  // acontecia na primeira configuração).
+  const naoConfigurado = status?.configured === false;
+  if (naoConfigurado && !isAdmin) {
     return (
       <div style={{ maxWidth: 620 }}>
         <Header />
@@ -244,7 +247,15 @@ export default function IntegracoesConfig() {
         </div>
       )}
 
+      {naoConfigurado && (
+        <div style={{ padding: 16, borderRadius: 10, border: "1px solid var(--border-subtle)", display: "flex", gap: 12, fontSize: 13, color: "var(--text-muted)", lineHeight: 1.6 }}>
+          <AlertTriangle size={18} style={{ color: "var(--accent-amber, #f59e0b)", flexShrink: 0, marginTop: 2 }} />
+          <div>A integração ainda não tem as credenciais do aplicativo. Clique em <b>Configurar credenciais</b> abaixo e preencha os dados do registro no Microsoft Entra; depois disso o botão de conexão aparece aqui.</div>
+        </div>
+      )}
+
       {/* Cartão de status */}
+      {!naoConfigurado && (
       <div style={{ padding: 18, borderRadius: 12, border: "1px solid var(--border-subtle)", display: "flex", flexDirection: "column", gap: 14 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <div style={{ width: 40, height: 40, borderRadius: 10, background: "#0078d41a", display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -295,6 +306,7 @@ export default function IntegracoesConfig() {
           )}
         </div>
       </div>
+      )}
 
       {/* Opção de envio: sistema → Outlook */}
       {isConnected && (

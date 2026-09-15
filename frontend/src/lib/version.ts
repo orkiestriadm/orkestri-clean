@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "1.41.2";
+export const VERSAO = "1.41.3";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -23,10 +23,10 @@ export const VERSAO = "1.41.2";
  * Não é gerada no build: `new Date()` no bundle muda a cada compilação, e duas
  * builds do mesmo código pareceriam versões diferentes.
  */
-export const VERSAO_DATA = "2026-09-14";
+export const VERSAO_DATA = "2026-09-15";
 
 /** Nome da entrega, para dar contexto ao número. */
-export const VERSAO_NOME = "Notícias no login e WhatsApp mais estável";
+export const VERSAO_NOME = "Primeira configuração do Outlook pela tela";
 
 /**
  * Histórico exibido na tela Sobre, do mais recente para o mais antigo.
@@ -35,6 +35,14 @@ export const VERSAO_NOME = "Notícias no login e WhatsApp mais estável";
  * esta lista quer saber o que mudou para ele.
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
+  {
+    versao: "1.41.3",
+    data: "2026-09-15",
+    titulo: "Outlook: primeira configuração pela tela",
+    itens: [
+      "O administrador passa a ver Configurar credenciais em Configurações › Integrações mesmo antes da primeira configuração",
+    ],
+  },
   {
     versao: "1.41.2",
     data: "2026-09-14",
