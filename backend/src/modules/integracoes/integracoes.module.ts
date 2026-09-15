@@ -12,6 +12,7 @@ import { GraphWebhookController } from "./webhooks/graph-webhook.controller";
 import { IntegracoesController } from "./integracoes.controller";
 import { OAuthCallbackController } from "./oauth-callback.controller";
 import { IntegrationConfigService } from "./integration-config.service";
+import { IntegrationAccessService } from "./integration-access.service";
 
 /**
  * Integração de calendário externo (Microsoft 365 / futuro Google).
@@ -40,6 +41,7 @@ import { IntegrationConfigService } from "./integration-config.service";
     SubscriptionService,
     SubscriptionScheduler,
     IntegrationConfigService,
+    IntegrationAccessService,
   ],
   exports: [CalendarWritebackService],
 })

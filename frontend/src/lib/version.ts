@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "1.41.4";
+export const VERSAO = "1.42.0";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -26,7 +26,7 @@ export const VERSAO = "1.41.4";
 export const VERSAO_DATA = "2026-09-15";
 
 /** Nome da entrega, para dar contexto ao número. */
-export const VERSAO_NOME = "Outlook: títulos, sincronização e agenda do mês";
+export const VERSAO_NOME = "Integração com o Outlook por solicitação";
 
 /**
  * Histórico exibido na tela Sobre, do mais recente para o mais antigo.
@@ -35,6 +35,17 @@ export const VERSAO_NOME = "Outlook: títulos, sincronização e agenda do mês"
  * esta lista quer saber o que mudou para ele.
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
+  {
+    versao: "1.42.0",
+    data: "2026-09-15",
+    titulo: "Integração com o Outlook por solicitação",
+    itens: [
+      "Na Agenda do Space, o botão Integrar com Outlook envia a solicitação aos administradores",
+      "Administradores recebem o aviso no sino e liberam em Configurações › Integrações › Usuários e Microsoft 365",
+      "Depois de liberado, o usuário é avisado e conecta a própria conta Microsoft uma única vez",
+      "Remover a integração desconecta a conta e tira da agenda os compromissos futuros do Outlook; o histórico fica",
+    ],
+  },
   {
     versao: "1.41.4",
     data: "2026-09-15",

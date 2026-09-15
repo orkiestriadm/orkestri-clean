@@ -3,7 +3,8 @@ import { useState, useEffect, useCallback } from "react";
 import { api } from "@/lib/api";
 import { MARCA } from "@/lib/marca";
 import { useAuthStore } from "@/lib/store";
-import { RefreshCw, Link2, Unlink, CheckCircle2, AlertTriangle, Clock, Calendar, Settings, Copy, Save, Trash2 } from "lucide-react";
+import { RefreshCw, Link2, Unlink, CheckCircle2, AlertTriangle, Clock, Calendar, Settings, Copy, Save, Trash2, Send, Users } from "lucide-react";
+import UsuariosMicrosoft365Modal from "./UsuariosMicrosoft365Modal";
 
 /**
  * Integrações → Microsoft 365 / Outlook.
@@ -16,6 +17,8 @@ import { RefreshCw, Link2, Unlink, CheckCircle2, AlertTriangle, Clock, Calendar,
 type Status = {
   configured: boolean;
   webhookViable?: boolean;
+  /** Liberação pelo administrador: nenhum | pendente | liberado | recusado | removido */
+  acesso?: string;
   connected: boolean;
   status: string; // CONNECTED | SYNCING | SYNCED | ERROR | DISCONNECTED | REAUTH_REQUIRED
   account?: string | null;
@@ -70,7 +73,12 @@ const MS_FEEDBACK: Record<string, { text: string; ok: boolean }> = {
   error:         { text: "Não foi possível concluir a conexão. Tente novamente.", ok: false },
 };
 
-export default function IntegracoesConfig() {
+/**
+ * `modo="usuario"` é o que abre pela Agenda do Space: só a conta da própria
+ * pessoa (solicitar, conectar, sincronizar). `completo` é a aba de
+ * Configurações, onde o administrador também vê credenciais e usuários.
+ */
+export default function IntegracoesConfig({ modo = "completo" }: { modo?: "completo" | "usuario" }) {
   const [status, setStatus] = useState<Status | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<string | null>(null);
@@ -78,6 +86,20 @@ export default function IntegracoesConfig() {
 
   const { user } = useAuthStore();
   const isAdmin = !!(user?.isMaster || user?.isSuperAdmin || user?.permissions?.includes("integracoes:configurar"));
+  const mostrarAdmin = isAdmin && modo === "completo";
+  const [showUsuarios, setShowUsuarios] = useState(false);
+
+  // O sino do administrador aponta para cá com ?usuarios=1.
+  useEffect(() => {
+    if (!mostrarAdmin || typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("usuarios") === "1") {
+      setShowUsuarios(true);
+      params.delete("usuarios");
+      const qs = params.toString();
+      window.history.replaceState({}, "", window.location.pathname + (qs ? `?${qs}` : ""));
+    }
+  }, [mostrarAdmin]);
 
   // Configuração de credenciais (admin).
   const [showConfig, setShowConfig] = useState(false);
@@ -122,6 +144,17 @@ export default function IntegracoesConfig() {
       setMsg({ text: e?.response?.data?.message || "Integração indisponível no momento.", ok: false });
       setBusy(null);
     }
+  };
+
+  const solicitar = async () => {
+    setBusy("solicitar");
+    try {
+      await api.post("/integracoes/microsoft/acesso/solicitar");
+      setMsg({ text: "Solicitação enviada. Você recebe um aviso quando um administrador liberar.", ok: true });
+      await load();
+    } catch (e: any) {
+      setMsg({ text: e?.response?.data?.message || "Não foi possível enviar a solicitação.", ok: false });
+    } finally { setBusy(null); }
   };
 
   const syncNow = async () => {
@@ -217,7 +250,7 @@ export default function IntegracoesConfig() {
   // para a tela, senão nunca alcança o botão de configurar (era o que
   // acontecia na primeira configuração).
   const naoConfigurado = status?.configured === false;
-  if (naoConfigurado && !isAdmin) {
+  if (naoConfigurado && !mostrarAdmin) {
     return (
       <div style={{ maxWidth: 620 }}>
         <Header />
@@ -236,6 +269,7 @@ export default function IntegracoesConfig() {
   const meta = STATUS_META[st] || STATUS_META.DISCONNECTED;
   const Icon = meta.icon;
   const isConnected = !!status?.connected && st !== "DISCONNECTED";
+  const acesso = status?.acesso || "nenhum";
 
   return (
     <div style={{ maxWidth: 620, display: "flex", flexDirection: "column", gap: 16 }}>
@@ -290,10 +324,28 @@ export default function IntegracoesConfig() {
 
         {/* Ações */}
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-          {!isConnected || st === "REAUTH_REQUIRED" ? (
+          {(!isConnected || st === "REAUTH_REQUIRED") && acesso === "liberado" ? (
             <button className="btn btn-primary" style={{ fontSize: 13, display: "flex", alignItems: "center", gap: 7 }} disabled={busy === "connect"} onClick={connect}>
               <Link2 size={15} /> {st === "REAUTH_REQUIRED" ? "Reconectar Microsoft 365" : "Conectar Microsoft 365"}
             </button>
+          ) : !isConnected && acesso === "pendente" ? (
+            <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: "var(--text-muted)" }}>
+              <Clock size={15} style={{ color: "var(--accent-amber, #f59e0b)" }} />
+              Solicitação enviada — aguardando um administrador liberar.
+            </div>
+          ) : !isConnected ? (
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              <div style={{ fontSize: 13, color: "var(--text-muted)", lineHeight: 1.5 }}>
+                {acesso === "recusado"
+                  ? "Sua solicitação anterior não foi liberada. Você pode pedir de novo."
+                  : acesso === "removido"
+                    ? "Um administrador removeu a integração. Para voltar a usar, peça de novo."
+                    : "A integração com o Outlook é liberada por um administrador. Envie a solicitação e você recebe um aviso quando for liberada."}
+              </div>
+              <button className="btn btn-primary" style={{ fontSize: 13, display: "flex", alignItems: "center", gap: 7, alignSelf: "flex-start" }} disabled={busy === "solicitar"} onClick={solicitar}>
+                <Send size={15} /> Solicitar integração com o Outlook
+              </button>
+            </div>
           ) : (
             <>
               <button className="btn btn-ghost" style={{ fontSize: 13, display: "flex", alignItems: "center", gap: 7 }} disabled={busy === "sync"} onClick={syncNow}>
@@ -323,12 +375,20 @@ export default function IntegracoesConfig() {
       )}
 
       {/* ── Configuração de credenciais (administrador) ────────────────────── */}
-      {isAdmin && (
+      {mostrarAdmin && (
         <div style={{ marginTop: 8, borderTop: "1px solid var(--border-subtle)", paddingTop: 16 }}>
+          <UsuariosMicrosoft365Modal aberto={showUsuarios} onFechar={() => { setShowUsuarios(false); load(); }} />
           {!showConfig ? (
-            <button className="btn btn-ghost" style={{ fontSize: 13, display: "flex", alignItems: "center", gap: 7 }} onClick={openConfig}>
-              <Settings size={15} /> Configurar credenciais (Microsoft Entra)
-            </button>
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+              {!naoConfigurado && (
+                <button className="btn btn-primary" style={{ fontSize: 13, display: "flex", alignItems: "center", gap: 7 }} onClick={() => setShowUsuarios(true)}>
+                  <Users size={15} /> Usuários e Microsoft 365
+                </button>
+              )}
+              <button className="btn btn-ghost" style={{ fontSize: 13, display: "flex", alignItems: "center", gap: 7 }} onClick={openConfig}>
+                <Settings size={15} /> Configurar credenciais (Microsoft Entra)
+              </button>
+            </div>
           ) : (
             <div style={{ border: "1px solid var(--border-subtle)", borderRadius: 12, padding: 18, display: "flex", flexDirection: "column", gap: 14 }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>

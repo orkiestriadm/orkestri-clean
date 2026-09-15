@@ -1,6 +1,7 @@
-import { Controller, Get, Post, Put, Delete, Patch, Body, Query, Req, Res, UseGuards, Logger, ForbiddenException, ServiceUnavailableException } from "@nestjs/common";
+import { Controller, Get, Post, Put, Delete, Patch, Body, Param, Query, Req, Res, UseGuards, Logger, BadRequestException, ForbiddenException, ServiceUnavailableException } from "@nestjs/common";
 import { AuthGuard } from "@nestjs/passport";
 import { IsBoolean, IsOptional, IsString } from "class-validator";
+import { IntegrationAccessService, AcaoAdmin } from "./integration-access.service";
 import { Response } from "express";
 import { Permissions } from "../auth/permissions.decorator";
 import { PermissionsGuard } from "../auth/permissions.guard";
@@ -47,6 +48,7 @@ export class IntegracoesController {
     private readonly subscriptions: SubscriptionService,
     private readonly configService: IntegrationConfigService,
     private readonly prisma: PrismaService,
+    private readonly acesso: IntegrationAccessService,
   ) {}
 
   // ── Configuração do app (credenciais do Entra) por tela ────────────────────
@@ -87,15 +89,40 @@ export class IntegracoesController {
   @Get("status")
   @Permissions("integracoes:conectar")
   async status(@Req() req: any) {
-    const [conn, cfg] = await Promise.all([
+    const [conn, cfg, acesso] = await Promise.all([
       this.connections.getConnection(req.user.id),
       this.resolver.resolve(req.user.organizationId),
+      this.acesso.getStatus(req.user.id),
     ]);
     return {
       configured: cfg.isConfigured,
       webhookViable: cfg.isWebhookViable,
+      acesso,
       ...this.connections.toStatusDto(conn),
     };
+  }
+
+  // ── Liberação: o usuário solicita, o administrador libera ──────────────────
+
+  /** O usuário pede a integração com o Outlook (botão no Space). */
+  @Post("acesso/solicitar")
+  @Permissions("integracoes:conectar")
+  solicitarAcesso(@Req() req: any) {
+    return this.acesso.solicitar({ id: req.user.id, organizationId: req.user.organizationId });
+  }
+
+  /** Todos os usuários da organização com a situação da integração (modal do ADM/SA). */
+  @Get("usuarios")
+  @Permissions("integracoes:configurar")
+  listarUsuarios(@Req() req: any) {
+    return this.acesso.listarUsuarios(req.user.organizationId);
+  }
+
+  @Post("usuarios/:userId/:acao")
+  @Permissions("integracoes:configurar")
+  decidirUsuario(@Req() req: any, @Param("userId") userId: string, @Param("acao") acao: string) {
+    if (!["liberar", "recusar", "remover"].includes(acao)) throw new BadRequestException("Ação inválida.");
+    return this.acesso.decidir(req.user.organizationId, req.user.id, userId, acao as AcaoAdmin);
   }
 
   /** Devolve a URL de autorização; o frontend redireciona o navegador para ela. */
@@ -107,6 +134,12 @@ export class IntegracoesController {
       throw new ServiceUnavailableException({
         code: "MS_NOT_CONFIGURED",
         message: "Integração Microsoft ainda não configurada pelo administrador.",
+      });
+    }
+    if (!(await this.acesso.isLiberado(req.user.id))) {
+      throw new ForbiddenException({
+        code: "NAO_LIBERADO",
+        message: "A integração com o Outlook precisa ser liberada por um administrador. Solicite pela Agenda do Space.",
       });
     }
     const url = await this.oauth.buildAuthorizeUrl(req.user.id, req.user.organizationId);
@@ -144,28 +177,8 @@ export class IntegracoesController {
   @Post("disconnect")
   @Permissions("integracoes:conectar")
   async disconnect(@Req() req: any, @Body() dto: DisconnectDto) {
-    const conn = await this.connections.getConnection(req.user.id);
-    if (!conn) return { disconnected: true };
-
-    await this.subscriptions.deleteForConnection(conn.id);
-
-    const now = new Date();
-    const where: any = { connectionId: conn.id, provider: "microsoft" };
-    if (!dto?.purgeAll) where.inicio = { gte: now };
-    const del = await this.prisma.event.deleteMany({ where });
-
-    await this.prisma.calendarConnection.update({
-      where: { id: conn.id },
-      data: {
-        status: "disconnected",
-        accessTokenEnc: null,
-        refreshTokenEnc: null,
-        tokenExpiresAt: null,
-        deltaLink: null,
-        lastError: null,
-      },
-    });
-    this.logger.log(`Usuário ${req.user.id} desconectou Microsoft (${del.count} eventos removidos, purgeAll=${!!dto?.purgeAll})`);
-    return { disconnected: true, eventsRemoved: del.count };
+    const { eventsRemoved } = await this.acesso.desconectar(req.user.id, !!dto?.purgeAll);
+    this.logger.log(`Usuário ${req.user.id} desconectou Microsoft (${eventsRemoved} eventos removidos, purgeAll=${!!dto?.purgeAll})`);
+    return { disconnected: true, eventsRemoved };
   }
 }

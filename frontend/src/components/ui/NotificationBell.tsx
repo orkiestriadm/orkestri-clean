@@ -21,6 +21,17 @@ const TIPO_META: Record<string, { icon: string; color: string; label: string }> 
   reset_senha:      { icon: "key",      color: "var(--accent-amber)",  label: "Senha"       },
   solicitacao_acesso:{ icon: "users",   color: "var(--accent-amber)",  label: "Acesso"      },
   teste:            { icon: "bell",     color: "var(--accent-cyan)",   label: "Teste"       },
+  integracao_365_solicitacao: { icon: "calendar", color: "var(--accent-amber)", label: "Outlook" },
+  integracao_365_liberada:    { icon: "check",    color: "var(--accent-green)", label: "Outlook" },
+  integracao_365_recusada:    { icon: "alert",    color: "var(--accent-red)",   label: "Outlook" },
+  integracao_365_removida:    { icon: "alert",    color: "var(--accent-red)",   label: "Outlook" },
+};
+
+// Avisos da integração com o Outlook levam direto a quem resolve: o
+// administrador ao modal de usuários, o usuário à Agenda com a integração aberta.
+const LINK_TIPO: Record<string, { href: string; label: string }> = {
+  integracao_365_solicitacao: { href: "/dashboard/configuracoes/integracoes?usuarios=1", label: "Abrir liberação" },
+  integracao_365_liberada:    { href: "/dashboard/agenda?outlook=1", label: "Conectar Outlook" },
 };
 
 function Icon({ name }: { name: string }) {
@@ -363,6 +374,12 @@ export default function NotificationBell() {
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <div style={{ fontSize: 13, fontWeight: 500, color: "var(--text-primary)", lineHeight: 1.4 }}>{n.titulo}</div>
                             {n.mensagem && <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>{n.mensagem}</div>}
+                            {LINK_TIPO[n.tipo] && (
+                              <a href={LINK_TIPO[n.tipo].href} onClick={() => { markRead(n.id); }}
+                                style={{ display: "inline-block", marginTop: 6, fontSize: 12, fontWeight: 600, color: "var(--accent-violet)", textDecoration: "none" }}>
+                                {LINK_TIPO[n.tipo].label} →
+                              </a>
+                            )}
                             <div style={{ fontSize: 10, color: "var(--text-muted)", fontFamily: "var(--font-mono)", marginTop: 4 }}>{timeAgo(n.criadoEm)}</div>
                           </div>
                           <button onClick={() => markRead(n.id)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)", flexShrink: 0, padding: 4, display: "flex" }} title="Marcar como lida">

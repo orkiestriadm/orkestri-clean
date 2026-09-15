@@ -282,6 +282,7 @@ model User {
   eventsCriados              Event[]                     @relation("EventCreator")
   eventParticipants          EventParticipant[]
   calendarConnections        CalendarConnection[]
+  calendarIntegrationAccess  CalendarIntegrationAccess[]
   projectsOwner              Project[]                   @relation("ProjectOwner")
   projectAnexosCriados       ProjectAnexo[]              @relation("ProjectAnexoAutor")
   projectMembers             ProjectMember[]
@@ -1631,6 +1632,29 @@ model CalendarProviderConfig {
   // (unicidade da linha de plataforma garantida por índice parcial na migration.)
   @@unique([organizationId, provider])
   @@map("calendar_provider_configs")
+}
+
+/// Quem pode conectar o calendário externo. O Space é de todos, mas a
+/// integração com o Outlook passa por liberação: o usuário solicita e um
+/// administrador (integracoes:configurar) libera. Só depois o usuário conecta.
+/// status: pendente | liberado | recusado | removido
+model CalendarIntegrationAccess {
+  id             String           @id @default(uuid())
+  organizationId String           @map("organization_id")
+  userId         String           @map("user_id")
+  provider       CalendarProvider @default(microsoft)
+  status         String
+  solicitadoEm   DateTime?        @map("solicitado_em")
+  decididoPorId  String?          @map("decidido_por_id")
+  decididoEm     DateTime?        @map("decidido_em")
+  criadoEm       DateTime         @default(now()) @map("criado_em")
+  atualizadoEm   DateTime         @updatedAt @map("atualizado_em")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, provider])
+  @@index([organizationId, status])
+  @@map("calendar_integration_access")
 }
 
 // Assinatura de webhook (Change Notification) do Microsoft Graph. Tem ciclo de
