@@ -73,6 +73,30 @@ function parseGraphDateTime(dt?: { dateTime?: string; timeZone?: string; date?: 
   return isNaN(d.getTime()) ? null : d;
 }
 
+/**
+ * Completa uma ocorrência de série com os dados do mestre. O delta entrega a
+ * ocorrência sem assunto; sem isto, toda reunião recorrente aparecia como
+ * "(Sem título)". O que a própria ocorrência trouxer (uma exceção editada)
+ * prevalece; datas são sempre as da ocorrência.
+ */
+export function withSeriesMaster(ev: GraphEventLike, master?: GraphEventLike | null): GraphEventLike {
+  if (!master || !ev.seriesMasterId) return ev;
+  return {
+    ...ev,
+    subject: ev.subject?.trim() ? ev.subject : master.subject,
+    bodyPreview: ev.bodyPreview?.trim() ? ev.bodyPreview : master.bodyPreview,
+    location: ev.location?.displayName?.trim() ? ev.location : master.location,
+    showAs: ev.showAs || master.showAs,
+    onlineMeeting: ev.onlineMeeting || master.onlineMeeting,
+    onlineMeetingUrl: ev.onlineMeetingUrl || master.onlineMeetingUrl,
+  };
+}
+
+/** Ocorrência de série que chegou sem os dados do mestre. */
+export function needsSeriesMaster(ev: GraphEventLike): boolean {
+  return !!ev.seriesMasterId && ev.type !== "seriesMaster" && !ev["@removed"] && !ev.subject?.trim();
+}
+
 /** É um evento que devemos ignorar por não ter data utilizável (seriesMaster). */
 export function isSeriesMasterWithoutInstance(ev: GraphEventLike): boolean {
   return ev.type === "seriesMaster";

@@ -26,9 +26,28 @@ export class OAuthCallbackController {
     private readonly subscriptions: SubscriptionService,
   ) {}
 
+  /**
+   * Volta para a tela de integrações por uma página intermediária, e não por
+   * 302. O cookie de sessão é `SameSite=Strict`: numa cadeia de redirects que
+   * começou em login.microsoftonline.com o navegador não o envia, e o usuário
+   * caía no /login mesmo logado. O meta refresh parte de uma página do próprio
+   * domínio, então a navegação é same-site e o cookie vai. (Script inline não
+   * serve: a CSP do nginx só permite script de 'self'.)
+   */
   private redirectTo(res: Response, status: string) {
     const url = `${this.config.appUrl}/dashboard/configuracoes/integracoes?ms=${encodeURIComponent(status)}`;
-    res.redirect(302, url);
+    const attr = url.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
+    res
+      .status(200)
+      .set("Cache-Control", "no-store")
+      .type("html")
+      .send(
+        `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">` +
+        `<meta http-equiv="refresh" content="0;url=${attr}"><title>Voltando…</title></head>` +
+        `<body style="font-family:system-ui,sans-serif;padding:32px">` +
+        `<p>Voltando para o sistema… <a href="${attr}">clique aqui</a> se não acontecer sozinho.</p>` +
+        `</body></html>`,
+      );
   }
 
   @Get("callback")

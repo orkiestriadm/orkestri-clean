@@ -121,8 +121,10 @@ export class IntegracoesController {
     if (!conn || conn.status === "disconnected") {
       throw new ServiceUnavailableException({ code: "NOT_CONNECTED", message: "Nenhuma conta conectada." });
     }
-    // Não bloqueia a requisição HTTP com a varredura.
-    this.sync.deltaSync(conn.id).catch((e) => this.logger.warn(`sync-now falhou: ${e?.message || e}`));
+    // Não bloqueia a requisição HTTP com a varredura. Varredura completa, e não
+    // delta: quem clica quer ver tudo em dia, inclusive o que o delta não
+    // reenvia (eventos que já tinham chegado incompletos).
+    this.sync.initialSync(conn.id).catch((e) => this.logger.warn(`sync-now falhou: ${e?.message || e}`));
     return { started: true };
   }
 

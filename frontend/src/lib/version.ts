@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "1.41.3";
+export const VERSAO = "1.41.4";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -26,7 +26,7 @@ export const VERSAO = "1.41.3";
 export const VERSAO_DATA = "2026-09-15";
 
 /** Nome da entrega, para dar contexto ao número. */
-export const VERSAO_NOME = "Primeira configuração do Outlook pela tela";
+export const VERSAO_NOME = "Outlook: títulos, sincronização e agenda do mês";
 
 /**
  * Histórico exibido na tela Sobre, do mais recente para o mais antigo.
@@ -35,6 +35,18 @@ export const VERSAO_NOME = "Primeira configuração do Outlook pela tela";
  * esta lista quer saber o que mudou para ele.
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
+  {
+    versao: "1.41.4",
+    data: "2026-09-15",
+    titulo: "Outlook: títulos, sincronização e agenda do mês",
+    itens: [
+      "Reuniões recorrentes do Outlook deixam de aparecer como \"(Sem título)\"",
+      "O que muda no Outlook chega à Agenda em até 10 minutos (antes, até 4 horas); Sincronizar agora refaz tudo",
+      "Depois de conectar a conta Microsoft, o sistema volta para Integrações sem pedir login de novo",
+      "Agenda do mês com colunas alinhadas aos dias da semana, mesmo com títulos longos",
+      "O navegador não preenche mais e-mail e senha no formulário de credenciais do Microsoft Entra",
+    ],
+  },
   {
     versao: "1.41.3",
     data: "2026-09-15",

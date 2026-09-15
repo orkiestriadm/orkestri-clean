@@ -2,7 +2,7 @@ import { Injectable, Logger } from "@nestjs/common";
 import { PrismaService } from "../../../prisma/prisma.service";
 import { CalendarConnectionService } from "./calendar-connection.service";
 import { MicrosoftGraphClient, GraphAuthError, GraphForbiddenError } from "../graph/microsoft-graph.client";
-import { graphEventToOrkestri, isSeriesMasterWithoutInstance, GraphEventLike } from "./outlook-mapper";
+import { graphEventToOrkestri, isSeriesMasterWithoutInstance, needsSeriesMaster, withSeriesMaster, GraphEventLike } from "./outlook-mapper";
 
 const PROVIDER = "microsoft";
 // Janela sincronizada: passado recente (histórico útil) + futuro amplo (agenda).
@@ -93,19 +93,42 @@ export class CalendarSyncService {
         timezone: SYNC_TIMEZONE,
       });
 
+      // Lê todas as páginas antes de aplicar: o mestre de uma série pode vir
+      // numa página depois das ocorrências dele.
       let pages = 0;
       let deltaLink: string | null = null;
+      const items: GraphEventLike[] = [];
       while (page) {
         pages++;
-        const items: GraphEventLike[] = page.value || [];
-        for (const ev of items) {
-          const r = await this.applyEvent(conn, ev);
-          result[r]++;
-        }
+        items.push(...(page.value || []));
         deltaLink = page["@odata.deltaLink"] || null;
         const nextLink = page["@odata.nextLink"] || null;
         if (deltaLink || !nextLink || pages >= MAX_PAGES) break;
         page = await this.graph.followLink(accessToken, nextLink, SYNC_TIMEZONE);
+      }
+
+      const masters = new Map<string, GraphEventLike | null>();
+      for (const ev of items) {
+        if (ev.type === "seriesMaster" && ev.id) masters.set(ev.id, ev);
+      }
+      for (const ev of items) {
+        let full = ev;
+        if (needsSeriesMaster(ev)) {
+          const id = ev.seriesMasterId!;
+          if (!masters.has(id)) {
+            // Delta incremental costuma trazer só a ocorrência: busca o mestre
+            // uma vez por série. Falhar aqui não derruba a sincronização.
+            try {
+              masters.set(id, await this.graph.getSeriesMaster(accessToken, id));
+            } catch (e: any) {
+              if (e instanceof GraphAuthError) throw e;
+              masters.set(id, null);
+            }
+          }
+          full = withSeriesMaster(ev, masters.get(id));
+        }
+        const r = await this.applyEvent(conn, full);
+        result[r]++;
       }
 
       await this.prisma.calendarConnection.update({
@@ -162,8 +185,12 @@ export class CalendarSyncService {
       return "skipped";
     }
 
-    // Anti-eco: mesmo etag = nada mudou.
-    if (existing && mapped.externalEtag && existing.externalEtag === mapped.externalEtag) {
+    // Anti-eco: mesmo etag = nada mudou. Se o conteúdo que calculamos mudou
+    // (ex.: a ocorrência agora ganha o título do mestre da série), atualiza.
+    if (
+      existing && mapped.externalEtag && existing.externalEtag === mapped.externalEtag &&
+      (!existing.syncHash || existing.syncHash === mapped.syncHash)
+    ) {
       return "skipped";
     }
 

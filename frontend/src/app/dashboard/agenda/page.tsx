@@ -250,10 +250,10 @@ function CalendarSkeleton({ view }: { view: View }) {
   if (view === "mes") {
     return (
       <div className="card" style={{ padding: 16 }}>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", marginBottom: 6 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(7,minmax(0,1fr))", marginBottom: 6 }}>
           {DAYS_SHORT.map(d => <div key={d} style={{ textAlign: "center", fontSize: 11, fontFamily: "var(--font-mono)", color: "var(--text-muted)", padding: "4px 0" }}>{d}</div>)}
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 2 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(7,minmax(0,1fr))", gap: 2 }}>
           {Array.from({ length: 35 }).map((_, i) => (
             <div key={i} style={{ minHeight: 96, borderRadius: 8, background: "var(--bg-hover)", opacity: 0.4, animation: `pulse 1.5s ease-in-out ${i * 0.02}s infinite` }} />
           ))}
@@ -522,7 +522,7 @@ function EventPill({ ev, conflict, onClick }: { ev: Event; conflict: boolean; on
       {conflict && <span style={{ fontSize: 9 }}>⚠️</span>}
       {!ev.diaTodo && <span style={{ opacity: 0.7, flexShrink: 0 }}>{fmtTime(ev.inicio)}</span>}
       {!ev.confirmado && <span>⏳</span>}
-      <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{ev.titulo}</span>
+      <span style={{ overflow: "hidden", textOverflow: "ellipsis", minWidth: 0 }}>{ev.titulo}</span>
     </div>
   );
 }
@@ -553,10 +553,10 @@ function MonthView({ events, cur, onDayClick, onDayDblClick, onEventClick, selec
 
   return (
     <div className="card animate-up" style={{ padding:16, position: "relative" }}>
-      <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", marginBottom:6 }}>
+      <div style={{ display:"grid", gridTemplateColumns:"repeat(7,minmax(0,1fr))", marginBottom:6 }}>
         {DAYS_SHORT.map(d=><div key={d} style={{ textAlign:"center", fontSize:11, fontFamily:"var(--font-mono)", color:"var(--text-muted)", padding:"4px 0" }}>{d}</div>)}
       </div>
-      <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap:2 }}>
+      <div style={{ display:"grid", gridTemplateColumns:"repeat(7,minmax(0,1fr))", gap:2 }}>
         {Array(firstDay).fill(null).map((_,i)=><div key={"e"+i} />)}
         {Array(daysInMonth).fill(null).map((_,i)=>{
           const d=i+1; const ds=dayStr(d);
@@ -582,7 +582,9 @@ function MonthView({ events, cur, onDayClick, onDayDblClick, onEventClick, selec
                 if (e.key === "Enter") onDayDblClick(ds);
               }}
               style={{
-                minHeight: 96, borderRadius: 8, padding: "5px 6px", cursor: "pointer",
+                // minWidth 0 + minmax(0,1fr) na grade: título longo do Outlook
+                // (nowrap) alargava a coluna e desalinhava os dias do cabeçalho.
+                minHeight: 96, minWidth: 0, borderRadius: 8, padding: "5px 6px", cursor: "pointer",
                 background: vis.bg, border: isSelected ? "1px solid var(--accent-violet)" : vis.border,
                 transition: "all 0.15s",
                 position: "relative",
@@ -830,7 +832,7 @@ function WeekView({ events, weekStart, onSlotClick, onEventClick }: any) {
   return (
     <div className="card animate-up" style={{ overflow:"hidden" }}>
       {/* Header com nomes dos dias */}
-      <div style={{ display:"grid", gridTemplateColumns:"48px repeat(7,1fr)", borderBottom:"1px solid var(--border-subtle)" }}>
+      <div style={{ display:"grid", gridTemplateColumns:"48px repeat(7,minmax(0,1fr))", borderBottom:"1px solid var(--border-subtle)" }}>
         <div />
         {days.map(d=>{
           const vis = dayVisual(d);                            // item #1
@@ -846,7 +848,7 @@ function WeekView({ events, weekStart, onSlotClick, onEventClick }: any) {
       {/* Container scrollável com timeline absoluta */}
       <div ref={scrollRef} style={{ overflowY:"auto", maxHeight:"calc(100vh - 260px)", position: "relative" }}>
         <NowLine visible={showNowLine} />
-        <div style={{ display: "grid", gridTemplateColumns: "48px repeat(7,1fr)", position: "relative" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "48px repeat(7,minmax(0,1fr))", position: "relative" }}>
           {/* Coluna de horas (ticks) */}
           <div style={{ position: "relative", height: 24 * HOUR_HEIGHT }}>
             {HOURS.map(h => (

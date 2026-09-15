@@ -3,10 +3,54 @@ import {
   orkestriEventToGraph,
   computeSyncHash,
   isSeriesMasterWithoutInstance,
+  needsSeriesMaster,
+  withSeriesMaster,
   GraphEventLike,
 } from "./outlook-mapper";
 
 describe("outlook-mapper", () => {
+  describe("ocorrência de série recorrente", () => {
+    // Formato real do calendarView/delta: a ocorrência vem sem assunto.
+    const occ: GraphEventLike = {
+      id: "OCC-1",
+      type: "occurrence",
+      seriesMasterId: "MASTER-1",
+      start: { dateTime: "2026-09-14T18:00:00", timeZone: "UTC" },
+      end: { dateTime: "2026-09-14T19:00:00", timeZone: "UTC" },
+    };
+    const master: GraphEventLike = {
+      id: "MASTER-1",
+      type: "seriesMaster",
+      subject: "Daily do time",
+      location: { displayName: "Sala 2" },
+      showAs: "busy",
+      start: { dateTime: "2026-01-05T10:00:00", timeZone: "UTC" },
+    };
+
+    it("pede o mestre só quando falta o assunto", () => {
+      expect(needsSeriesMaster(occ)).toBe(true);
+      expect(needsSeriesMaster({ ...occ, subject: "Exceção editada" })).toBe(false);
+      expect(needsSeriesMaster(master)).toBe(false);
+      expect(needsSeriesMaster({ ...occ, "@removed": { reason: "deleted" } })).toBe(false);
+    });
+
+    it("ganha título e local do mestre, mas mantém as próprias datas", () => {
+      const m = graphEventToOrkestri(withSeriesMaster(occ, master))!;
+      expect(m.titulo).toBe("Daily do time");
+      expect(m.local).toBe("Sala 2");
+      expect(m.inicio.toISOString()).toBe("2026-09-14T18:00:00.000Z");
+    });
+
+    it("herda o 'livre' do mestre (não ocupa a agenda)", () => {
+      const m = graphEventToOrkestri(withSeriesMaster(occ, { ...master, showAs: "free" }))!;
+      expect(m.showAsFree).toBe(true);
+    });
+
+    it("sem mestre disponível, continua como (Sem título)", () => {
+      expect(graphEventToOrkestri(withSeriesMaster(occ, null))!.titulo).toBe("(Sem título)");
+    });
+  });
+
   describe("graphEventToOrkestri", () => {
     it("converte horário UTC do Graph para Date correto (sem adivinhar fuso)", () => {
       const ev: GraphEventLike = {

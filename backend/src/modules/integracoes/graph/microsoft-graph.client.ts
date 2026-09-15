@@ -123,6 +123,17 @@ export class MicrosoftGraphClient {
     });
   }
 
+  /**
+   * Campos do mestre de uma série recorrente. As ocorrências que o
+   * calendarView/delta entrega vêm só com id, datas e seriesMasterId — sem
+   * assunto, local nem showAs — e o que falta está aqui.
+   */
+  getSeriesMaster(accessToken: string, seriesMasterId: string) {
+    return this.request<any>(accessToken, {
+      path: `/me/events/${encodeURIComponent(seriesMasterId)}?$select=id,subject,bodyPreview,location,showAs,onlineMeeting,onlineMeetingUrl`,
+    });
+  }
+
   /** Segue nextLink/deltaLink de paginação. */
   followLink(accessToken: string, link: string, timezone?: string) {
     return this.request<any>(accessToken, { url: link, timezone });

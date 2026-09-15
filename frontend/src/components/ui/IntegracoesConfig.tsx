@@ -356,15 +356,20 @@ export default function IntegracoesConfig() {
               )}
 
               <Field label="Client ID (Application ID)">
+                {/* autoComplete: sem isto o Chrome trata o par texto + senha como
+                    login e preenche e-mail e senha salvos do próprio sistema. */}
                 <input value={form.clientId} onChange={e => setForm(f => ({ ...f, clientId: e.target.value }))}
+                  name="ms-client-id" autoComplete="off" spellCheck={false}
                   placeholder="00000000-0000-0000-0000-000000000000" style={inp} />
               </Field>
               <Field label="Tenant ID (Directory ID) — ou 'common' para multitenant">
                 <input value={form.tenantId} onChange={e => setForm(f => ({ ...f, tenantId: e.target.value }))}
+                  name="ms-tenant-id" autoComplete="off" spellCheck={false}
                   placeholder="common" style={inp} />
               </Field>
               <Field label={`Client Secret ${cfg?.secretConfigured ? "(já configurado — preencha só para trocar)" : ""}`}>
                 <input type="password" value={form.clientSecret} onChange={e => setForm(f => ({ ...f, clientSecret: e.target.value }))}
+                  name="ms-client-secret" autoComplete="new-password"
                   placeholder={cfg?.secretConfigured ? "•••••••••• (mantém o atual)" : "cole o Value do secret"} style={inp} />
               </Field>
 

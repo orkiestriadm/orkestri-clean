@@ -19,6 +19,7 @@ export class SubscriptionScheduler {
   private readonly logger = new Logger(SubscriptionScheduler.name);
   private renewing = false;
   private reconciling = false;
+  private polling = false;
 
   constructor(
     private readonly subscriptions: SubscriptionService,
@@ -53,6 +54,36 @@ export class SubscriptionScheduler {
       this.logger.warn(`Renovação de assinaturas falhou: ${e?.message || e}`);
     } finally {
       this.renewing = false;
+    }
+  }
+
+  /**
+   * Sincronização incremental a cada 10 minutos para quem está SEM assinatura
+   * ativa. Quando o servidor não é alcançável pela internet (DNS só interno),
+   * a Microsoft recusa criar o webhook e, sem isto, o que muda no Outlook
+   * esperava a reconciliação de 4 em 4 horas. Com webhook ativo, não roda.
+   */
+  @Cron("*/10 * * * *")
+  async pollSemWebhook() {
+    if (this.polling || this.reconciling) return;
+    this.polling = true;
+    try {
+      const conns = await this.prisma.calendarConnection.findMany({
+        where: {
+          provider: "microsoft",
+          syncEnabled: true,
+          status: { in: ["connected", "synced", "error"] },
+          subscriptions: { none: { expiresAt: { gt: new Date() } } },
+        },
+        select: { id: true },
+      });
+      for (const c of conns) {
+        await this.sync.deltaSync(c.id).catch((e) => this.logger.warn(`Sync de 10 min falhou (conn ${c.id}): ${e?.message || e}`));
+      }
+    } catch (e: any) {
+      this.logger.warn(`Sync de 10 min falhou: ${e?.message || e}`);
+    } finally {
+      this.polling = false;
     }
   }
 

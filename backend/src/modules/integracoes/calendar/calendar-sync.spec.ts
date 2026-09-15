@@ -50,6 +50,13 @@ describe("CalendarSyncService.applyEvent", () => {
     expect(prisma.event.create).not.toHaveBeenCalled();
   });
 
+  it("mesmo etag, mas conteúdo calculado mudou (título do mestre da série): atualiza", async () => {
+    const { svc, prisma } = makeService({ id: "e1", externalEtag: 'W/"v1"', syncHash: "hash-de-sem-titulo" });
+    const r = await (svc as any).applyEvent(conn, busyEvent);
+    expect(r).toBe("updated");
+    expect(prisma.event.update.mock.calls[0][0].data.titulo).toBe("Reunião interna");
+  });
+
   it("atualiza quando o etag mudou", async () => {
     const { svc, prisma } = makeService({ id: "e1", externalEtag: 'W/"OLD"' });
     const r = await (svc as any).applyEvent(conn, busyEvent);
