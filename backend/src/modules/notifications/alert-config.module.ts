@@ -4,12 +4,15 @@ import { IsString, IsInt, IsBoolean, IsOptional, Min, Max } from "class-validato
 import { PrismaService } from "../../prisma/prisma.service";
 import { Injectable, Logger } from "@nestjs/common";
 
+// Só o de 15 minutos nasce ligado: cinco mensagens por compromisso, com a agenda
+// do Outlook sincronizada, era volume de banimento no WhatsApp. Os outros ficam
+// disponíveis para o administrador ligar na tela.
 const DEFAULT_CONFIGS = [
-  { minutos: 60, ativo: true, emoji: "🔔", titulo: "Lembrete — 1 hora",     mensagem: "Você tem um evento em 60 minutos:\n\n📅 *{evento}*\n🕐 {horario}\n\n🔗 {url}" },
-  { minutos: 30, ativo: true, emoji: "⏰", titulo: "Lembrete — 30 minutos", mensagem: "Seu evento começa em 30 minutos:\n\n📅 *{evento}*\n🕐 {horario}\n\n🔗 {url}" },
-  { minutos: 15, ativo: true, emoji: "⏰", titulo: "Lembrete — 15 minutos", mensagem: "Atenção! Seu evento começa em 15 minutos:\n\n📅 *{evento}*\n🕐 {horario}\n\nPrepare-se! 🔗 {url}" },
-  { minutos: 5,  ativo: true, emoji: "⚠️", titulo: "URGENTE — 5 minutos",   mensagem: "URGENTE! Faltam apenas 5 minutos:\n\n🚨 *{evento}*\n🕐 {horario}\n\nNão perca! 🔗 {url}" },
-  { minutos: 0,  ativo: true, emoji: "🚨", titulo: "Acontecendo AGORA",     mensagem: "Seu evento está acontecendo AGORA:\n\n🚨 *{evento}*\n\nBoa reunião! 🔗 {url}" },
+  { minutos: 60, ativo: false, emoji: "🔔", titulo: "Lembrete — 1 hora",     mensagem: "Seu compromisso começa em 1 hora:\n\n📅 *{evento}*\n🕐 {horario}\n\n🔗 {url}" },
+  { minutos: 30, ativo: false, emoji: "⏰", titulo: "Lembrete — 30 minutos", mensagem: "Seu compromisso começa em 30 minutos:\n\n📅 *{evento}*\n🕐 {horario}\n\n🔗 {url}" },
+  { minutos: 15, ativo: true,  emoji: "⏰", titulo: "Lembrete — 15 minutos", mensagem: "Seu compromisso começa em 15 minutos:\n\n📅 *{evento}*\n🕐 {horario}\n\n🔗 {url}" },
+  { minutos: 5,  ativo: false, emoji: "⚠️", titulo: "Faltam 5 minutos",      mensagem: "Faltam 5 minutos para o seu compromisso:\n\n📅 *{evento}*\n🕐 {horario}\n\n🔗 {url}" },
+  { minutos: 0,  ativo: false, emoji: "🚨", titulo: "Começando agora",       mensagem: "Seu compromisso está começando agora:\n\n📅 *{evento}*\n\n🔗 {url}" },
 ];
 
 @Injectable()

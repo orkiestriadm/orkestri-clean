@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "1.42.0";
+export const VERSAO = "1.42.1";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -26,7 +26,7 @@ export const VERSAO = "1.42.0";
 export const VERSAO_DATA = "2026-09-15";
 
 /** Nome da entrega, para dar contexto ao número. */
-export const VERSAO_NOME = "Integração com o Outlook por solicitação";
+export const VERSAO_NOME = "Lembrete da agenda: um aviso, 15 minutos antes";
 
 /**
  * Histórico exibido na tela Sobre, do mais recente para o mais antigo.

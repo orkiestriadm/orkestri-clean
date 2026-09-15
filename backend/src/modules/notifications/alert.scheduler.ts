@@ -10,12 +10,9 @@ import { OS_ENCERRADAS } from "../frota/frota-status";
 import { carregarAgendaRevisao, ItemAgendaRevisao } from "../frota/frota-revisao-agenda";
 import { sincronizarKmPorAbastecimento } from "../frota/frota-km";
 
-const DEFAULT_CONFIGS = [
-  { id:"d60", minutos:60, ativo:true, emoji:"ðŸ””", titulo:"Lembrete 1 hora",    mensagem:"Voce tem um evento em 60 minutos:\n\n*{evento}*\n{horario}\n\n{url}" },
-  { id:"d15", minutos:15, ativo:true, emoji:"â°", titulo:"Lembrete 15 minutos", mensagem:"Atencao! Seu evento comeca em 15 minutos:\n\n*{evento}*\n{horario}\n\n{url}" },
-  { id:"d5",  minutos:5,  ativo:true, emoji:"âš ", titulo:"URGENTE 5 minutos",   mensagem:"URGENTE! Faltam apenas 5 minutos:\n\n*{evento}*\n{horario}\n\n{url}" },
-  { id:"d0",  minutos:0,  ativo:true, emoji:"ðŸš¨", titulo:"Acontecendo AGORA",   mensagem:"Seu evento esta acontecendo AGORA:\n\n*{evento}*\n\n{url}" },
-];
+import {
+  LEMBRETE_PADRAO, JANELA_MINUTOS, regrasDaOrganizacao, horaDoAvisoDiaInteiro, recebeWhatsApp,
+} from "./agenda-lembrete";
 
 // Offset fixo para America/Sao_Paulo em ms (-3h)
 // Usa a variavel de ambiente TZ se disponivel, senao usa offset manual
@@ -46,7 +43,7 @@ export class AlertScheduler implements OnModuleInit {
 
   onModuleInit() {
     const tz = process.env.TZ || "UTC";
-    this.logger.log(`AlertScheduler iniciado â€” TZ: ${tz}`);
+    this.logger.log(`AlertScheduler iniciado — TZ: ${tz}`);
     setTimeout(() => this.run(), 5000);
     setInterval(() => this.run(), 30000);
   }
@@ -57,6 +54,30 @@ export class AlertScheduler implements OnModuleInit {
 
   private fmtTempo(mins: number): string {
     return mins >= 60 ? `${Math.floor(mins / 60)}h ${mins % 60}min` : `${mins}min`;
+  }
+
+  /**
+   * Aviso de um compromisso: sino sempre; WhatsApp só para número confirmado
+   * pelo código, pela instância da organização do evento (multi-tenant).
+   */
+  private async avisarCompromisso(ev: any, a: { tipo: string; titulo: string; mensagem: string; whatsapp: string }) {
+    try {
+      await this.prisma.notification.create({
+        data: {
+          userId: ev.userId, tipo: a.tipo, modulo: "space",
+          titulo: a.titulo, mensagem: a.mensagem,
+          referenciaTipo: "event", referenciaId: ev.id,
+        } as any,
+      });
+    } catch (e: any) { this.logger.error("Notif erro: " + e.message); }
+
+    const profile = ev.user?.profile;
+    if (!recebeWhatsApp(profile)) return;
+    try {
+      const inst = await this.wa.resolveInstance(ev.organizationId);
+      const ok = await this.wa.sendMessage(profile.whatsapp, a.whatsapp, inst);
+      this.logger.log(`WA ${ok ? "OK" : "FALHOU"} [${inst}] -> ${profile.whatsapp}`);
+    } catch (e: any) { this.logger.error("WA erro: " + e.message); }
   }
 
   private async runSlaCheck() {
@@ -179,25 +200,31 @@ export class AlertScheduler implements OnModuleInit {
 
       this.logger.debug(`Scheduler tick: ${now.toISOString()} (local: ${now.toLocaleString("pt-BR", { timeZone: process.env.TZ || "America/Sao_Paulo" })})`);
 
-      let configs: any[] = DEFAULT_CONFIGS;
+      // Regras por organização: cada org tem as suas em `alert_configs`. Antes
+      // as linhas de todas as organizações eram aplicadas a todos os eventos.
+      let regras: any[] = [];
       try {
-        const dbCfgs = await this.prisma.alertConfig.findMany({ where: { ativo: true } });
-        if (dbCfgs.length > 0) configs = dbCfgs;
+        regras = await this.prisma.alertConfig.findMany();
       } catch {}
-
-      const maxMin = Math.max(...configs.map((c: any) => c.minutos));
+      const maxMin = Math.max(
+        LEMBRETE_PADRAO.minutos,
+        ...regras.filter((c: any) => c.ativo).map((c: any) => c.minutos),
+      );
       const windowEnd = new Date(now.getTime() + (maxMin + 3) * 60 * 1000);
+      const urlAgenda = `${String(appUrl).replace(/\/+$/, "")}/dashboard/agenda`;
 
-      const events = await this.prisma.event.findMany({
-        where: { inicio: { gte: now, lte: windowEnd } },
-        include: {
-          user: {
-            select: {
-              id: true, email: true, nome: true,
-              profile: { select: { whatsapp: true, whatsappAlertas: true } },
-            },
-          },
+      const selectUser = {
+        select: {
+          id: true, email: true, nome: true,
+          profile: { select: { whatsapp: true, whatsappVerificado: true } },
         },
+      };
+
+      // Compromissos com horário. Dia inteiro tem aviso próprio (abaixo): a
+      // "hora de início" dele é meia-noite, e avisar nela não serve a ninguém.
+      const events = await this.prisma.event.findMany({
+        where: { inicio: { gte: now, lte: windowEnd }, diaTodo: false, user: { ativo: true } },
+        include: { user: selectUser },
       });
 
       if (events.length > 0) {
@@ -205,50 +232,49 @@ export class AlertScheduler implements OnModuleInit {
       }
 
       for (const ev of events) {
-        const diffMs  = new Date(ev.inicio).getTime() - now.getTime();
-        const diffMin = diffMs / 60000;
+        const diffMin = (new Date(ev.inicio).getTime() - now.getTime()) / 60000;
         const horario = fmtHorario(new Date(ev.inicio));
 
-        for (const cfg of configs) {
-          if (Math.abs(diffMin - cfg.minutos) > 2.5) continue;
+        for (const cfg of regrasDaOrganizacao(regras, (ev as any).organizationId)) {
+          if (Math.abs(diffMin - cfg.minutos) > JANELA_MINUTOS) continue;
 
           const key = `${ev.id}::${cfg.minutos}`;
           const lastSent = this.sent.get(key) || 0;
           if (Date.now() - lastSent < 8 * 60 * 1000) continue;
-
           this.sent.set(key, Date.now());
+
           this.logger.log(`ALERTA [${cfg.minutos}min] "${ev.titulo}" -> ${(ev.user as any).email}`);
-
-          // Notificacao in-app
-          try {
-            await this.prisma.notification.create({
-              data: {
-                userId: ev.userId,
-                tipo: cfg.minutos === 0 ? "evento_agora" : "evento_lembrete",
-                titulo: `${cfg.emoji} ${cfg.titulo}: ${ev.titulo}`,
-                mensagem: `${horario} â€” ${ev.titulo}`,
-                referenciaTipo: "event",
-                referenciaId: ev.id,
-              },
-            });
-          } catch (e: any) { this.logger.error("Notif erro: " + e.message); }
-
-          // WhatsApp — usa a instância da organização do evento (multi-tenant).
-          // Basta ter o número: o antigo opt-in `whatsappAlertas` nascia false e
-          // seu único toggle vivia na aba de WhatsApp de Configurações, que foi
-          // removida — então o lembrete de agenda nunca saía para ninguém. Quem
-          // cadastrou o WhatsApp recebe o lembrete do próprio compromisso.
-          const profile = (ev.user as any).profile;
-          if (profile?.whatsapp) {
-            const body = this.fmt(cfg.mensagem, ev.titulo, horario, appUrl);
-            const msg  = `${cfg.emoji} *${MARCA}*\n\n${body}`;
-            try {
-              const inst = await this.wa.resolveInstance((ev as any).organizationId);
-              const ok = await this.wa.sendMessage(profile.whatsapp, msg, inst);
-              this.logger.log(`WA ${ok ? "OK" : "FALHOU"} [${inst}] -> ${profile.whatsapp}`);
-            } catch (e: any) { this.logger.error("WA erro: " + e.message); }
-          }
+          await this.avisarCompromisso(ev, {
+            tipo: cfg.minutos === 0 ? "evento_agora" : "evento_lembrete",
+            titulo: `${cfg.emoji} ${cfg.titulo}: ${ev.titulo}`,
+            mensagem: `${horario} — ${ev.titulo}`,
+            whatsapp: `${cfg.emoji} *${MARCA}*\n\n${this.fmt(cfg.mensagem, ev.titulo, horario, urlAgenda)}`,
+          });
         }
+      }
+
+      // Dia inteiro: um aviso às 08:00 do próprio dia.
+      const diaInteiro = await this.prisma.event.findMany({
+        where: {
+          diaTodo: true,
+          inicio: { gte: new Date(now.getTime() - 24 * 3600_000), lte: new Date(now.getTime() + 24 * 3600_000) },
+          user: { ativo: true },
+        },
+        include: { user: selectUser },
+      });
+      for (const ev of diaInteiro) {
+        if (!horaDoAvisoDiaInteiro(new Date(ev.inicio), now)) continue;
+        const key = `${ev.id}::dia-inteiro`;
+        if (this.sent.has(key)) continue;
+        this.sent.set(key, Date.now());
+
+        this.logger.log(`ALERTA [dia inteiro] "${ev.titulo}" -> ${(ev.user as any).email}`);
+        await this.avisarCompromisso(ev, {
+          tipo: "evento_lembrete",
+          titulo: `📅 Hoje: ${ev.titulo}`,
+          mensagem: `Dia inteiro — ${ev.titulo}`,
+          whatsapp: `📅 *${MARCA}*\n\nHoje você tem, o dia inteiro:\n\n*${ev.titulo}*\n\n🔗 ${urlAgenda}`,
+        });
       }
 
       // Limpa cache antigo (exceto chaves sla-violado que tem ciclo proprio de 2h)
