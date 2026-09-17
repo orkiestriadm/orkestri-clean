@@ -134,18 +134,24 @@ export class FeedbackDesempenhoService {
     // (gestor que mudou de área continua vendo o que conduziu). Quem decide
     // exclusão vê a organização inteira — precisa achar o que vai decidir.
     const escopo = await this.escopo.resolve(user);
+    const organizacaoInteira = escopo.tipo === "organizacao" || ehRh;
+
+    // Sem `OR` quando o alcance é a organização inteira. `OR: [{}]` parece
+    // "nenhuma restrição", mas o Prisma não casa nada com a condição vazia — e
+    // o RH abria a lista vazia enquanto os pedidos de exclusão o esperavam.
     const alcance: any[] = [];
-    if (escopo.tipo === "organizacao" || ehRh) alcance.push({});
-    else if (escopo.tipo === "equipe" || escopo.tipo === "proprio") {
-      alcance.push({ collaboratorId: { in: escopo.collaboratorIds } });
+    if (!organizacaoInteira) {
+      if (escopo.tipo === "equipe" || escopo.tipo === "proprio") {
+        alcance.push({ collaboratorId: { in: escopo.collaboratorIds } });
+      }
+      if (eu) alcance.push({ gestorId: eu });
+      if (alcance.length === 0) return { success: true, data: [] };
     }
-    if (eu) alcance.push({ gestorId: eu });
-    if (alcance.length === 0) return { success: true, data: [] };
 
     const where: any = {
       organizationId,
       excluidoEm: null,
-      OR: alcance,
+      ...(organizacaoInteira ? {} : { OR: alcance }),
       ...(eu ? { NOT: { collaboratorId: eu } } : {}),
       ...(filtro.status ? { status: filtro.status } : {}),
       ...(filtro.collaboratorId ? { collaboratorId: filtro.collaboratorId } : {}),

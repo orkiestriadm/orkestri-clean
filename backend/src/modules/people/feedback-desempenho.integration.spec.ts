@@ -121,6 +121,17 @@ descreve("People — feedback de desempenho", () => {
       await expect(svc.meu(ana, fid)).rejects.toThrow(/não encontrado/);
     });
 
+    // O RH chega pela notificação de exclusão e precisa ACHAR o registro. Uma
+    // lista vazia para ele deixaria o pedido sem quem decidisse, e foi
+    // exatamente o que aconteceu no homolog: o alcance "organização inteira"
+    // virava uma condição vazia dentro de um OR, que não casa com nada.
+    it("RH enxerga a organização inteira na lista", async () => {
+      const lista = (await svc.listar(rh, {})).data;
+      expect(lista.map((f: any) => f.id)).toContain(fid);
+      expect(lista.every((f: any) => f.souGestor === false)).toBe(true);
+      expect((await svc.obter(rh, fid)).data.papeis).toEqual(["rh"]);
+    });
+
     it("quem está fora da árvore não enxerga; o próprio colaborador não lê pela gestão", async () => {
       await expect(svc.obter(gestorB, fid)).rejects.toThrow(/não encontrado/);
       expect((await svc.listar(gestorB, {})).data).toHaveLength(0);
