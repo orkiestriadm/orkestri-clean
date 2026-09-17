@@ -98,6 +98,7 @@ export type Orgao = {
   email: string | null;
   site: string | null;
   endereco: string | null;
+  observacoes?: string | null;
   totalObrigacoes?: number;
 };
 

@@ -324,7 +324,7 @@ export default function ObrigacaoForm({
               <input className="input-o" value={form.numeroDocumento} onChange={e => set("numeroDocumento", e.target.value)} />
             </FormField>
 
-            <FormField label="Órgão emissor">
+            <FormField label="Órgão emissor" dica="Falta algum? Cadastre em Compliance › Órgãos.">
               <select className="input-o" value={form.orgaoId} onChange={e => set("orgaoId", e.target.value)}>
                 <option value="">Não informado</option>
                 {orgaos.map(o => <option key={o.id} value={o.id}>{o.nome}</option>)}

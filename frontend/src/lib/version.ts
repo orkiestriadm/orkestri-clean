@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "1.43.0";
+export const VERSAO = "1.43.1";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -26,7 +26,7 @@ export const VERSAO = "1.43.0";
 export const VERSAO_DATA = "2026-09-17";
 
 /** Nome da entrega, para dar contexto ao número. */
-export const VERSAO_NOME = "Feedback da Avaliação de Desempenho";
+export const VERSAO_NOME = "Cadastro de órgãos emissores no Compliance";
 
 /**
  * Histórico exibido na tela Sobre, do mais recente para o mais antigo.
@@ -35,6 +35,17 @@ export const VERSAO_NOME = "Feedback da Avaliação de Desempenho";
  * esta lista quer saber o que mudou para ele.
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
+  {
+    versao: "1.43.1",
+    data: "2026-09-17",
+    titulo: "Cadastro de órgãos emissores no Compliance",
+    itens: [
+      "Nova tela Compliance › Órgãos: cadastre CETESB, Corpo de Bombeiros, Prefeitura e os demais órgãos que emitem os documentos",
+      "Cada órgão guarda sigla, contato, telefone, e-mail, site, endereço e observações — o telefone muda em um lugar só, e não em cada obrigação",
+      "Os órgãos cadastrados passam a aparecer na lista 'Órgão emissor' do cadastro de obrigações",
+      "Órgão que já tem obrigação vinculada não pode ser excluído",
+    ],
+  },
   {
     versao: "1.43.0",
     data: "2026-09-17",

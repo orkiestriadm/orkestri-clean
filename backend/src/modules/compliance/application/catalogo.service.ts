@@ -156,6 +156,15 @@ export class CatalogoService {
   }
 
   async criarOrgao(user: Usuario, dto: SalvarOrgaoDto) {
+    // O nome é único por organização mesmo entre os excluídos: recadastrar um
+    // órgão apagado reativa o registro, em vez de estourar "já existe".
+    const excluido = await this.repo.buscarOrgaoExcluido(user.organizationId, dto.nome);
+    if (excluido) {
+      const reativado = await this.repo.atualizarOrgao(excluido.id, { ...dto, deletedAt: null });
+      await this.auditar(user, excluido.id, "criar", `Órgão "${dto.nome}" recadastrado`);
+      return reativado;
+    }
+
     const criado = await this.repo.criarOrgao({ organizationId: user.organizationId, ...dto })
       .catch(this.traduzirDuplicidade("Já existe um órgão com esse nome."));
     await this.auditar(user, criado.id, "criar", `Órgão "${dto.nome}" criado`);

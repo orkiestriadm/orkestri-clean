@@ -111,6 +111,12 @@ export class CatalogoRepository {
     });
   }
 
+  async buscarOrgaoExcluido(organizationId: string, nome: string) {
+    return this.db.complianceOrgao.findFirst({
+      where: { organizationId, nome, deletedAt: { not: null } },
+    });
+  }
+
   async criarOrgao(dados: any) {
     return this.db.complianceOrgao.create({ data: dados });
   }

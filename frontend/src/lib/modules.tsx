@@ -9,7 +9,7 @@ import {
   GitBranch, Network, ShoppingBag, Radio, Wallet, FileSpreadsheet, Wrench,
   ClipboardCheck, FolderKanban, Boxes, ShieldCheck, HeartPulse, Bell,
   Briefcase, CalendarClock, Library, BarChart3, CalendarX, UsersRound, Inbox, Info, Route,
-  UserCircle, Scale, Target, ClipboardList, UserCheck, Lightbulb, Presentation, CheckCircle2,
+  UserCircle, Scale, Target, Landmark, ClipboardList, UserCheck, Lightbulb, Presentation, CheckCircle2,
   MessagesSquare,
 } from "lucide-react";
 
@@ -118,6 +118,10 @@ export const NAV: NavGroup[] = [
       { href: "/dashboard/compliance/relatorios",  label: "Relatórios",  icon: BarChart3,       permission: "compliance.relatorio:ver" },
       { href: "/dashboard/compliance/categorias",  label: "Categorias",  icon: Library,         permission: "compliance.categoria:ver" },
       { href: "/dashboard/compliance/alertas",     label: "Alertas",     icon: Bell,            permission: "compliance.notificacao:ver" },
+      // Cadastro de quem emite os documentos. Fica com a permissão de
+      // administrar o módulo porque é ela que a API exige para criar e editar —
+      // tela que só mostra a lista sem deixar mexer é armadilha.
+      { href: "/dashboard/compliance/orgaos",      label: "Órgãos",      icon: Landmark,        permission: "compliance.admin:gerenciar" },
     ],
   },
   {
