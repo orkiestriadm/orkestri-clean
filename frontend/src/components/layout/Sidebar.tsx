@@ -286,11 +286,17 @@ export default function Sidebar() {
                 />
               </button>
 
+              {/* A abertura anima por `grid-rows`, e não por `max-height`.
+                  Com `max-h-96` o grupo ficava preso em 384px: People precisa
+                  de 549px com 14 itens, e os QUATRO ÚLTIMOS simplesmente não
+                  apareciam — sem corte visível, sem rolagem, como se não
+                  existissem. Frotas, com 472px, era o próximo. Teto em pixel
+                  não sobrevive a item novo; `1fr` mede o conteúdo. */}
               <div className={cn(
-                "overflow-hidden transition-all duration-300 ease-in-out",
-                open ? "max-h-96 opacity-100 mt-1" : "max-h-0 opacity-0"
+                "grid transition-all duration-300 ease-in-out",
+                open ? "grid-rows-[1fr] opacity-100 mt-1" : "grid-rows-[0fr] opacity-0"
               )}>
-                <div className="space-y-0.5 pb-2">
+                <div className="space-y-0.5 pb-2 min-h-0 overflow-hidden">
                   {visible.map(item => (
                     <NavItem
                       key={item.href}

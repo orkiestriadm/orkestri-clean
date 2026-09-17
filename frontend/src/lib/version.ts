@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "1.44.1";
+export const VERSAO = "1.44.2";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -26,7 +26,7 @@ export const VERSAO = "1.44.1";
 export const VERSAO_DATA = "2026-09-17";
 
 /** Nome da entrega, para dar contexto ao número. */
-export const VERSAO_NOME = "Acompanhamento: nomes sem quebrar na tabela";
+export const VERSAO_NOME = "Menu lateral escondia os últimos itens do grupo";
 
 /**
  * Histórico exibido na tela Sobre, do mais recente para o mais antigo.
@@ -35,6 +35,15 @@ export const VERSAO_NOME = "Acompanhamento: nomes sem quebrar na tabela";
  * esta lista quer saber o que mudou para ele.
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
+  {
+    versao: "1.44.2",
+    data: "2026-09-17",
+    titulo: "Menu lateral escondia os últimos itens do grupo",
+    itens: [
+      "Grupos com muitos itens tinham os últimos cortados no menu lateral: em People sumiam Indicadores, Calibração, Avaliação de Desempenho e Privacidade; Frotas seria o próximo",
+      "O grupo agora abre na altura do conteúdo, sem teto fixo",
+    ],
+  },
   {
     versao: "1.44.1",
     data: "2026-09-17",
