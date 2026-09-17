@@ -40,6 +40,12 @@ export default function OrgaosPage() {
 
   const podeGerenciar = pode(user, "compliance.admin:gerenciar");
 
+  // Excluir é mais restrito que cadastrar e editar — a API recusa quem não for
+  // a administração da organização, e o botão acompanha para ninguém descobrir
+  // isso por um 403.
+  const podeExcluir =
+    !!user?.isMaster || !!user?.isSuperAdmin || (user?.roles ?? []).includes("administrador");
+
   const carregar = useCallback(async () => {
     setCarregando(true);
     setErro(null);
@@ -124,7 +130,7 @@ export default function OrgaosPage() {
                             </RowAction>
                             {/* Com obrigação vinculada, excluir deixaria o documento apontando
                                 para um órgão que some da lista. */}
-                            {(o.totalObrigacoes ?? 0) === 0 && (
+                            {podeExcluir && (o.totalObrigacoes ?? 0) === 0 && (
                               <RowAction tone="danger" title="Excluir" onClick={() => excluir(o)}>
                                 <Trash2 size={13} />
                               </RowAction>

@@ -1,5 +1,6 @@
 import {
   Injectable, NotFoundException, BadRequestException, ConflictException,
+  ForbiddenException,
 } from "@nestjs/common";
 import { AuditService } from "../../audit/audit.module";
 import { CatalogoRepository } from "../infrastructure/catalogo.repository";
@@ -10,7 +11,13 @@ import {
   SalvarTemplateDto, SalvarEscalonamentoDto, SalvarFluxoDto, CampoDefinicaoDto,
 } from "./dto/configuracao.dto";
 
-type Usuario = { id: string; organizationId: string };
+type Usuario = {
+  id: string;
+  organizationId: string;
+  roles?: string[];
+  isMaster?: boolean;
+  isSuperAdmin?: boolean;
+};
 
 /**
  * Casos de uso de tudo que se CONFIGURA: categorias e campos, órgãos, tags,
@@ -180,10 +187,22 @@ export class CatalogoService {
   }
 
   async excluirOrgao(user: Usuario, id: string) {
+    // Excluir é mais restrito que cadastrar e editar: só a administração da
+    // organização (master, papel "administrador") e o super admin. Quem
+    // administra o Compliance mantém a lista em dia, mas o órgão é a
+    // identificação de quem emitiu o documento — sumir com ele é decisão de
+    // quem responde pela organização, e não se desfaz pela tela.
+    this.exigirAdministracao(user);
     await this.exigirOrgao(user, id);
     await this.repo.excluirOrgao(id);
     await this.auditar(user, id, "excluir", "Órgão excluído");
     return { success: true };
+  }
+
+  /** Master da organização, papel "administrador" ou super admin da plataforma. */
+  private exigirAdministracao(user: Usuario) {
+    const ok = user?.isMaster || user?.isSuperAdmin || (user?.roles ?? []).includes("administrador");
+    if (!ok) throw new ForbiddenException("Excluir órgão é restrito à administração da organização");
   }
 
   private async exigirOrgao(user: Usuario, id: string) {
