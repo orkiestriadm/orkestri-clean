@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "1.44.0";
+export const VERSAO = "1.44.1";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -26,7 +26,7 @@ export const VERSAO = "1.44.0";
 export const VERSAO_DATA = "2026-09-17";
 
 /** Nome da entrega, para dar contexto ao número. */
-export const VERSAO_NOME = "Acompanhamento dos feedbacks para o RH";
+export const VERSAO_NOME = "Acompanhamento: nomes sem quebrar na tabela";
 
 /**
  * Histórico exibido na tela Sobre, do mais recente para o mais antigo.
@@ -35,6 +35,14 @@ export const VERSAO_NOME = "Acompanhamento dos feedbacks para o RH";
  * esta lista quer saber o que mudou para ele.
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
+  {
+    versao: "1.44.1",
+    data: "2026-09-17",
+    titulo: "Acompanhamento: nomes sem quebrar na tabela",
+    itens: [
+      "Na aba Acompanhamento, o nome do gestor e do colaborador deixam de quebrar no meio da palavra; os títulos das colunas ficaram mais curtos",
+    ],
+  },
   {
     versao: "1.44.0",
     data: "2026-09-17",

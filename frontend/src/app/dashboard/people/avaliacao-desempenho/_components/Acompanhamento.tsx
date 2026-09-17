@@ -67,7 +67,7 @@ export default function Acompanhamento() {
   if (erro) return <ErrorState detail={erro} onRetry={carregar} />;
 
   const r = dados?.resumo;
-  const COL_GESTORES = ["Gestor", "Liderados", "Feedbacks", "Pessoas alcançadas", "Reunião feita", "Ciência dada", "Cobertura"];
+  const COL_GESTORES = ["Gestor", "Liderados", "Feedbacks", "Pessoas", "Reuniões", "Ciências", "Cobertura"];
   const COL_FILA = ["Colaborador", "Gestor", "Liberado em", "Esperando há"];
 
   return (
@@ -141,7 +141,7 @@ export default function Acompanhamento() {
             ) : (
               dados!.gestores.map(g => (
                 <tr key={g.id}>
-                  <td style={{ fontWeight: 600, color: "var(--text-primary)" }}>
+                  <td style={{ fontWeight: 600, color: "var(--text-primary)", whiteSpace: "nowrap" }}>
                     <Link href={`/dashboard/people/${g.id}`} style={{ color: "inherit", textDecoration: "none" }}>
                       {g.nome}
                     </Link>
@@ -182,7 +182,7 @@ export default function Acompanhamento() {
             ) : (
               dados!.semRetorno.map(s => (
                 <tr key={s.id}>
-                  <td style={{ fontWeight: 600, color: "var(--text-primary)" }}>
+                  <td style={{ fontWeight: 600, color: "var(--text-primary)", whiteSpace: "nowrap" }}>
                     <Link
                       href={`/dashboard/people/avaliacao-desempenho/feedback/${s.id}`}
                       style={{ color: "inherit", textDecoration: "none" }}
@@ -190,7 +190,7 @@ export default function Acompanhamento() {
                       {s.colaborador}
                     </Link>
                   </td>
-                  <td>{s.gestor}</td>
+                  <td style={{ whiteSpace: "nowrap" }}>{s.gestor}</td>
                   <td className="num">{formatarDataHora(s.reuniaoRealizadaEm)}</td>
                   <td className="num" style={{ color: s.diasEsperando >= 7 ? "var(--accent-red)" : "var(--text-secondary)", fontWeight: 600 }}>
                     {s.diasEsperando === 0
