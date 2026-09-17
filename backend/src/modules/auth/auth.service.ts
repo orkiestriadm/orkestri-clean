@@ -447,6 +447,18 @@ const ROLE_DEFAULTS: Record<string, { nivel: number; descricao: string; permisso
     descricao: "Alta gestão — acesso total ao Strategy, e só a ele",
     permissoes: ESTRATEGICO_PERMISSION_CATALOG.map(p => `${p.recurso}:${p.acao}`),
   },
+  // Quem usa só o Projects (pedido de 17/09/2026). Antes disso, dar acesso a um
+  // módulo só era partir do `gestor` e revogar dezenas de permissões uma a uma.
+  // Traz o grupo Projects inteiro (inclusive a Linha do Tempo) e nada mais: sem
+  // Visão Geral, sem Processos/Capacidade do Quality. O Space vem da conta.
+  Projetos: {
+    nivel: 30,
+    descricao: "Acesso ao Projects (projetos, concluídos e linha do tempo), e só a ele",
+    permissoes: [
+      "projetos:ver","projetos:criar","projetos:editar","projetos:deletar","projetos:gerenciar",
+      "gantt:ver",
+    ],
+  },
 };
 
 @Injectable()

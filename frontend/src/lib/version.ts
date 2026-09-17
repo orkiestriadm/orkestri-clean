@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "1.42.2";
+export const VERSAO = "1.42.3";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -26,7 +26,7 @@ export const VERSAO = "1.42.2";
 export const VERSAO_DATA = "2026-09-17";
 
 /** Nome da entrega, para dar contexto ao número. */
-export const VERSAO_NOME = "Processos e Capacidade com permissão própria";
+export const VERSAO_NOME = "Papel Projetos";
 
 /**
  * Histórico exibido na tela Sobre, do mais recente para o mais antigo.
@@ -35,6 +35,15 @@ export const VERSAO_NOME = "Processos e Capacidade com permissão própria";
  * esta lista quer saber o que mudou para ele.
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
+  {
+    versao: "1.42.3",
+    data: "2026-09-17",
+    titulo: "Papel Projetos",
+    itens: [
+      "Novo papel \"Projetos\" em Administração › Cadastros: dá acesso a Projetos, Concluídos e Linha do Tempo, e a nenhum outro módulo",
+      "Quem recebe só esse papel continua com o Space (Agenda e Keep), como toda conta",
+    ],
+  },
   {
     versao: "1.42.2",
     data: "2026-09-17",
