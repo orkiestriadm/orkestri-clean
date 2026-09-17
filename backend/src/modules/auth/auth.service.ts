@@ -10,6 +10,7 @@ import { EmailService } from "../notifications/email.service";
 import { AutomacaoService } from "../automacoes/automacoes.module";
 import {
   PEOPLE_PERMISSION_CATALOG, PEOPLE_PERMISSOES_LEITURA, PEOPLE_PERMISSOES_AUDITOR,
+  PEOPLE_RECURSO_FEEDBACK_DESEMPENHO,
 } from "../people/people.permissions";
 import {
   COMPLIANCE_PERMISSION_CATALOG, COMPLIANCE_PERMISSOES_LEITURA,
@@ -363,7 +364,7 @@ const ROLE_DEFAULTS: Record<string, { nivel: number; descricao: string; permisso
     descricao: "Somente leitura em todos os módulos",
     permissoes: [
       "dashboard:ver", "meurh:ver",
-      ...ALL_PERMISSIONS.filter(p => p.acao === "ver" && !p.recurso.startsWith(ESTRATEGICO_PREFIXO)).map(p => `${p.recurso}:${p.acao}`),
+      ...ALL_PERMISSIONS.filter(p => p.acao === "ver" && !p.recurso.startsWith(ESTRATEGICO_PREFIXO) && p.recurso !== PEOPLE_RECURSO_FEEDBACK_DESEMPENHO).map(p => `${p.recurso}:${p.acao}`),
       "whatsapp:ver",
     ],
   },
@@ -422,7 +423,7 @@ const ROLE_DEFAULTS: Record<string, { nivel: number; descricao: string; permisso
     descricao: "Acesso somente-leitura a todos os módulos incluindo trilha de auditoria",
     permissoes: [
       "dashboard:ver", "meurh:ver",
-      ...ALL_PERMISSIONS.filter(p => p.acao === "ver" && !p.recurso.startsWith(ESTRATEGICO_PREFIXO)).map(p => `${p.recurso}:${p.acao}`),
+      ...ALL_PERMISSIONS.filter(p => p.acao === "ver" && !p.recurso.startsWith(ESTRATEGICO_PREFIXO) && p.recurso !== PEOPLE_RECURSO_FEEDBACK_DESEMPENHO).map(p => `${p.recurso}:${p.acao}`),
       "relatorios:exportar",
       // Conformidade exige enxergar a organização inteira, não só a própria equipe.
       ...PEOPLE_PERMISSOES_AUDITOR,

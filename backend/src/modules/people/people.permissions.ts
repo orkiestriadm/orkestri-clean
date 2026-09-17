@@ -105,6 +105,16 @@ export const PEOPLE_PERMISSION_CATALOG: readonly Permissao[] = [
   p("people.privacidade", "gerenciar", "Eliminar dados pessoais de ex-colaborador (LGPD)"),
 ];
 
+/**
+ * Recurso do feedback formal, exportado para os papéis padrão.
+ *
+ * Visualizador e auditor recebem automaticamente TODO `:ver` do catálogo. O
+ * feedback de desempenho fica fora dessa varredura pela mesma razão que a nota
+ * e o salário: é dado de carreira de uma pessoa, escrito para a conversa entre
+ * ela e o gestor. Quem precisar auditar recebe por concessão explícita.
+ */
+export const PEOPLE_RECURSO_FEEDBACK_DESEMPENHO = "people.feedback_desempenho";
+
 const str = (recurso: string, acao: string) => `${recurso}:${acao}`;
 
 /** Referência simbólica usada por controllers e serviços. */

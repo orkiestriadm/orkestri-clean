@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "1.43.1";
+export const VERSAO = "1.43.2";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -26,7 +26,7 @@ export const VERSAO = "1.43.1";
 export const VERSAO_DATA = "2026-09-17";
 
 /** Nome da entrega, para dar contexto ao número. */
-export const VERSAO_NOME = "Cadastro de órgãos emissores no Compliance";
+export const VERSAO_NOME = "Feedback: leitura restrita ao gestor e ao RH";
 
 /**
  * Histórico exibido na tela Sobre, do mais recente para o mais antigo.
@@ -35,6 +35,14 @@ export const VERSAO_NOME = "Cadastro de órgãos emissores no Compliance";
  * esta lista quer saber o que mudou para ele.
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
+  {
+    versao: "1.43.2",
+    data: "2026-09-17",
+    titulo: "Feedback: leitura restrita ao gestor e ao RH",
+    itens: [
+      "Os papéis auditor e visualizador deixam de receber automaticamente a leitura dos feedbacks de desempenho — é dado de carreira, como a nota e o salário. Quem precisar recebe por concessão explícita",
+    ],
+  },
   {
     versao: "1.43.1",
     data: "2026-09-17",
