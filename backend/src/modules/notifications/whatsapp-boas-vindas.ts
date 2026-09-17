@@ -58,6 +58,8 @@ export function montarBoasVindasCadastro(p: {
   permissoes: string[];
   marca: string;
   url: string;
+  /** Só quando o chamador conferiu que é a senha gravada e a troca está pendente. */
+  senhaInicial?: string | null;
 }): string {
   const tudo = p.permissoes.includes("*");
   const blocos = BLOCOS.filter(b => tudo || p.permissoes.includes(b.permissao));
@@ -77,7 +79,9 @@ export function montarBoasVindasCadastro(p: {
   m += "🔐 *Como acessar*\n" +
     `Endereço: ${p.url}\n` +
     `Usuário: ${p.email}\n` +
-    "A senha inicial é passada pelo administrador. No primeiro acesso você cria a sua.\n\n" +
+    (p.senhaInicial
+      ? `Senha inicial: ${p.senhaInicial}\nNo primeiro acesso o sistema pede para você criar a sua senha.\n\n`
+      : "A senha inicial é passada pelo administrador. No primeiro acesso você cria a sua.\n\n") +
     "Não reconhece este cadastro? Fale com o administrador do sistema.";
   return m;
 }

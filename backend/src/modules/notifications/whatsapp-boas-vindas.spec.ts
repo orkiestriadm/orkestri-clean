@@ -50,9 +50,22 @@ describe("whatsapp-boas-vindas", () => {
       expect(m).toContain("Como acessar");
     });
 
-    it("nunca leva senha", () => {
+    it("sem senha inicial informada, não escreve senha nenhuma", () => {
       const m = montarBoasVindasCadastro({ ...base, permissoes: ["*"] });
-      expect(m.toLowerCase()).not.toMatch(/senha:\s*\S/);
+      expect(m.toLowerCase()).not.toMatch(/senha inicial:\s*\S/);
+      expect(m).toContain("A senha inicial é passada pelo administrador");
+    });
+
+    it("com senha inicial, mostra a senha e avisa da troca no primeiro acesso", () => {
+      const m = montarBoasVindasCadastro({ ...base, permissoes: ["projetos:ver"], senhaInicial: "123@Mudar" });
+      expect(m).toContain("Senha inicial: 123@Mudar");
+      expect(m).toContain("No primeiro acesso o sistema pede para você criar a sua senha.");
+      expect(m).not.toContain("passada pelo administrador");
+    });
+
+    it("nada de Orkiestri no texto", () => {
+      const m = montarBoasVindasCadastro({ ...base, permissoes: ["*"], senhaInicial: "123@Mudar" });
+      expect(m.toLowerCase()).not.toMatch(/orkiestri|orkestri/);
     });
   });
 });

@@ -6,11 +6,15 @@ import { MARCA } from "@/lib/marca";
 
 const ToastContainer = dynamic(() => import("@/components/ui/ToastContainer"), { ssr: false });
 
+// "One" é nome de produto do Orkiestri. No white-label (Hub) a aba mostra só a
+// marca do cliente: "HUB Triunfo Transbrasiliana One" misturava as duas.
+const NOME_NA_ABA = MARCA === "Orkiestri" ? `${MARCA} One` : MARCA;
+
 export const metadata: Metadata = {
   // Crase, não aspas: com aspas a interpolação vira texto literal e a aba
   // exibia "${MARCA} One" para o usuário.
-  title: { default: `${MARCA} One`, template: `%s · ${MARCA} One` },
-  description: `${MARCA} One — o Business Operating System da sua empresa.`,
+  title: { default: NOME_NA_ABA, template: `%s · ${NOME_NA_ABA}` },
+  description: MARCA === "Orkiestri" ? `${MARCA} One — o Business Operating System da sua empresa.` : MARCA,
   robots: { index: false, follow: false },
 };
 

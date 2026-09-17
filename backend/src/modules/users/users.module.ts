@@ -71,6 +71,7 @@ function camposWhatsapp(bruto: string): Record<string, any> {
   };
 }
 class ChangePasswordDto { @IsString() @MinLength(6) novaSenha: string; }
+class BoasVindasWhatsappDto { @IsOptional() @IsString() senhaInicial?: string; }
 class UpdateModulosDto { @IsArray() modulos: string[]; }
 
 function mapUser(u: any) {
@@ -338,7 +339,7 @@ class UsersController {
    * sabe exigir todas; a checagem é feita aqui.
    */
   @Post(":id/whatsapp/boas-vindas")
-  async boasVindasWhatsapp(@Param("id") id: string, @Req() req: any) {
+  async boasVindasWhatsapp(@Param("id") id: string, @Req() req: any, @Body() body: BoasVindasWhatsappDto) {
     const perms: string[] = req.user?.permissions || [];
     const pode = req.user?.isMaster || perms.includes("*") || perms.includes("usuarios:criar") || perms.includes("usuarios:editar");
     if (!pode) throw new ForbiddenException("Sem permissão para cadastrar usuários.");
@@ -347,6 +348,14 @@ class UsersController {
       include: { profile: { select: { whatsapp: true, whatsappVerificado: true } } },
     });
     if (!user.ativo || !user.profile?.whatsapp || !user.profile?.whatsappVerificado) return { enviado: false };
+
+    // A senha só vai na mensagem se ainda for a inicial: troca pendente e o
+    // valor bate com o gravado. Nunca manda uma senha que não abre a conta,
+    // nem a de quem já definiu a própria.
+    let senhaInicial: string | null = null;
+    if (body?.senhaInicial && user.primeiroAcesso && await bcrypt.compare(body.senhaInicial, user.senhaHash)) {
+      senhaInicial = body.senhaInicial;
+    }
 
     // O papel acabou de ser gravado: sem limpar o cache, a mensagem sairia com
     // as permissões de antes (ou nenhuma).
@@ -360,7 +369,7 @@ class UsersController {
       modulo: "core",
       tipo: "boas_vindas_whatsapp",
       titulo: "Boas-vindas",
-      mensagem: montarBoasVindasCadastro({ nome: user.nome, email: user.email, permissoes, marca: MARCA, url }),
+      mensagem: montarBoasVindasCadastro({ nome: user.nome, email: user.email, permissoes, marca: MARCA, url, senhaInicial }),
       userId: id,
       // Disparada por quem cadastra, na hora: não espera a janela de silêncio.
       ignorarSilencio: true,

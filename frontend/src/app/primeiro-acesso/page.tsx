@@ -5,6 +5,7 @@ import { api, authApi } from "@/lib/api";
 import { useAuthStore } from "@/lib/store";
 import { homeRoute } from "@/lib/modules";
 import { OrkestriLogo } from "@/components/ui/logo";
+import { MARCA, LOGO_ARQUIVO, LOGO_ARQUIVO_CLARO } from "@/lib/marca";
 
 function PasswordStrength({ senha }: { senha: string }) {
   const checks = [
@@ -72,14 +73,23 @@ export default function PrimeiroAcessoPage() {
 
       <div className="relative z-10 w-full max-w-[440px] px-8">
         <div className="flex flex-col items-center mb-10">
-          <div className="mb-5 shadow-xl rounded-[30px] overflow-hidden">
-            <OrkestriLogo size={48} />
-          </div>
+          {LOGO_ARQUIVO ? (
+            // White-label (Hub): a marca do cliente, nunca o símbolo do produto.
+            // Duas variantes porque a tela acompanha o tema.
+            <div className="mb-6">
+              <img src={LOGO_ARQUIVO_CLARO} alt={MARCA} className="h-12 w-auto block dark:hidden object-contain" />
+              <img src={LOGO_ARQUIVO}       alt={MARCA} className="h-12 w-auto hidden dark:block object-contain" />
+            </div>
+          ) : (
+            <div className="mb-5 shadow-xl rounded-[30px] overflow-hidden">
+              <OrkestriLogo size={48} />
+            </div>
+          )}
           <h1 className="text-3xl font-semibold tracking-tight text-zinc-900 dark:text-white mb-1">
             Definir senha
           </h1>
           <p className="text-[14px] text-zinc-500 dark:text-zinc-400 text-center">
-            Este é seu primeiro acesso. Crie uma senha segura para continuar.
+            Este é seu primeiro acesso ao {MARCA}. Crie uma senha segura para continuar.
           </p>
         </div>
 

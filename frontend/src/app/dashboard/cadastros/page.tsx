@@ -233,7 +233,9 @@ function UserModal({ user, setores, roles, onClose, onSave }: { user?: User; set
         // liberados) e só para número novo — salvar de novo não reenvia.
         const soDigitos = (v?: string) => (v||"").replace(/\D/g, "");
         if (soDigitos(whatsapp) && soDigitos(whatsapp) !== soDigitos(user?.whatsapp)) {
-          await api.post("/users/"+userId+"/whatsapp/boas-vindas").catch(()=>{});
+          // No cadastro novo a senha digitada vai junto; a API só a coloca na
+          // mensagem se ainda for a inicial (troca obrigatória no 1º acesso).
+          await api.post("/users/"+userId+"/whatsapp/boas-vindas", isEdit ? {} : { senhaInicial: senha }).catch(()=>{});
         }
       }
       onSave(); onClose();
