@@ -198,6 +198,48 @@ descreve("People — feedback de desempenho", () => {
     });
   });
 
+  describe("acompanhamento do RH", () => {
+    it("mostra os gestores do organograma, inclusive quem não registrou nada", async () => {
+      const r = (await svc.acompanhamento(rh, 90)).data;
+
+      const porId = new Map(r.gestores.map((g: any) => [g.id, g]));
+      // Os dois gestores do organograma: A (Ana e Bruno) e B (Carla).
+      expect(porId.get(id.gestorA).liderados).toBe(2);
+      expect(porId.get(id.gestorA).registrados).toBeGreaterThan(0);
+      // GestorB nunca registrou — é a linha que a lista de feedbacks não teria.
+      expect(porId.get(id.gestorB)).toMatchObject({ liderados: 1, registrados: 0, cobertura: 0 });
+      // Quem não lidera ninguém não é cobrado.
+      expect(porId.has(id.ana)).toBe(false);
+      expect(r.resumo.gestoresSemRegistro).toBeGreaterThanOrEqual(1);
+    });
+
+    it("a fila de quem não deu ciência traz os dias de espera", async () => {
+      const fid = (await registrar(id.ana)).data.id;
+      await svc.agendarReuniao(gestorA, fid, { inicio: new Date().toISOString() });
+      await svc.registrarReuniao(gestorA, fid, {
+        realizadaEm: new Date(Date.now() - 3 * 86_400_000).toISOString(),
+        alinhamentos: "Combinados",
+      });
+
+      const r = (await svc.acompanhamento(rh, 90)).data;
+      const linha = r.semRetorno.find((s: any) => s.id === fid);
+      expect(linha).toBeDefined();
+      expect(linha.diasEsperando).toBe(3);
+      expect(linha.colaborador).toBe("Ana Liderada");
+
+      await svc.registrarCiencia(ana, fid, {});
+      const depois = (await svc.acompanhamento(rh, 90)).data;
+      expect(depois.semRetorno.some((s: any) => s.id === fid)).toBe(false);
+      expect(depois.resumo.percentualRetorno).toBeGreaterThan(0);
+    });
+
+    it("gestor vê só a própria equipe no acompanhamento", async () => {
+      const r = (await svc.acompanhamento(gestorA, 90)).data;
+      expect(r.gestores.map((g: any) => g.id)).toEqual([id.gestorA]);
+      expect(r.semRetorno.every((s: any) => s.gestor === "Gestor A")).toBe(true);
+    });
+  });
+
   describe("exclusão: gestor pede, RH decide", () => {
     let fid: string;
 

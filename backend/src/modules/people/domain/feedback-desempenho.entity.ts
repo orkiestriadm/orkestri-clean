@@ -152,3 +152,103 @@ export function realizacaoValida(realizadaEm: Date, agora: Date = new Date()): b
 }
 
 export const DURACAO_REUNIAO_MIN = 60;
+
+/* ── Acompanhamento do RH ──────────────────────────────────────────────────
+   O RH precisa de duas respostas que a lista não dá: QUEM AINDA NÃO FEZ e QUEM
+   NÃO RETORNOU. As duas são contas sobre os mesmos registros, e ficam aqui —
+   puras — para poderem ser conferidas sem banco. */
+
+export type FeedbackParaContagem = {
+  gestorId: string;
+  collaboratorId: string;
+  status: string;
+  temReuniaoRealizada: boolean;
+  temCiencia: boolean;
+};
+
+export type GestorDoQuadro = { id: string; nome: string; liderados: number };
+
+export type LinhaAcompanhamento = GestorDoQuadro & {
+  registrados: number;
+  colaboradoresAtingidos: number;
+  reuniaoRealizada: number;
+  cienciaDada: number;
+  /** Liderados que receberam ao menos um feedback, em % — 0 quando não lidera ninguém. */
+  cobertura: number;
+};
+
+const pct = (parte: number, total: number) => (total === 0 ? 0 : Math.round((parte / total) * 100));
+
+/**
+ * Uma linha por gestor do quadro, INCLUSIVE quem não registrou nada.
+ *
+ * Gestor sem feedback é a informação mais útil da tela: quem já fez aparece na
+ * lista de feedbacks, quem não fez não aparece em lugar nenhum. Por isso a
+ * lista parte dos gestores do organograma, e não dos registros existentes.
+ *
+ * A ordem coloca primeiro a menor cobertura: a tela existe para ser lida de
+ * cima para baixo e virar cobrança.
+ */
+export function consolidarPorGestor(
+  gestores: GestorDoQuadro[],
+  feedbacks: FeedbackParaContagem[],
+): LinhaAcompanhamento[] {
+  const porGestor = new Map<string, FeedbackParaContagem[]>();
+  for (const f of feedbacks) {
+    const atual = porGestor.get(f.gestorId);
+    if (atual) atual.push(f);
+    else porGestor.set(f.gestorId, [f]);
+  }
+
+  return gestores
+    .map(g => {
+      const meus = porGestor.get(g.id) ?? [];
+      const atingidos = new Set(meus.map(f => f.collaboratorId)).size;
+      return {
+        ...g,
+        registrados: meus.length,
+        colaboradoresAtingidos: atingidos,
+        reuniaoRealizada: meus.filter(f => f.temReuniaoRealizada).length,
+        cienciaDada: meus.filter(f => f.temCiencia).length,
+        cobertura: pct(atingidos, g.liderados),
+      };
+    })
+    .sort((a, b) => a.cobertura - b.cobertura || b.liderados - a.liderados || a.nome.localeCompare(b.nome, "pt-BR"));
+}
+
+export type ResumoAcompanhamento = {
+  registrados: number;
+  aguardandoReuniao: number;
+  aguardandoCiencia: number;
+  encerrados: number;
+  /** Dos que chegaram à etapa de ciência, quantos % voltaram. */
+  percentualRetorno: number;
+  gestoresSemRegistro: number;
+};
+
+export function resumoDoPeriodo(
+  feedbacks: FeedbackParaContagem[],
+  linhas: LinhaAcompanhamento[],
+): ResumoAcompanhamento {
+  const encerrados = feedbacks.filter(f => f.status === STATUS_FEEDBACK.ENCERRADO).length;
+  const aguardandoCiencia = feedbacks.filter(f => f.status === STATUS_FEEDBACK.AGUARDANDO_CIENCIA).length;
+  return {
+    registrados: feedbacks.length,
+    // Registrado e agendado contam juntos: para o RH, os dois são "a conversa
+    // ainda não aconteceu".
+    aguardandoReuniao: feedbacks.filter(
+      f => f.status === STATUS_FEEDBACK.REGISTRADO || f.status === STATUS_FEEDBACK.REUNIAO_AGENDADA,
+    ).length,
+    aguardandoCiencia,
+    encerrados,
+    // Só entra na conta quem já podia dar ciência — incluir quem nem teve a
+    // reunião faria o indicador cair por culpa do gestor, não do colaborador.
+    percentualRetorno: pct(encerrados, encerrados + aguardandoCiencia),
+    gestoresSemRegistro: linhas.filter(l => l.registrados === 0).length,
+  };
+}
+
+/** Dias corridos de espera, nunca negativo. */
+export function diasDeEspera(desde: Date, agora: Date = new Date()): number {
+  return Math.max(0, Math.floor((agora.getTime() - new Date(desde).getTime()) / 86_400_000));
+}

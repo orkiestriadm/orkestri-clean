@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "1.43.4";
+export const VERSAO = "1.44.0";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -26,7 +26,7 @@ export const VERSAO = "1.43.4";
 export const VERSAO_DATA = "2026-09-17";
 
 /** Nome da entrega, para dar contexto ao número. */
-export const VERSAO_NOME = "Correção: o RH via a lista de feedbacks vazia";
+export const VERSAO_NOME = "Acompanhamento dos feedbacks para o RH";
 
 /**
  * Histórico exibido na tela Sobre, do mais recente para o mais antigo.
@@ -35,6 +35,17 @@ export const VERSAO_NOME = "Correção: o RH via a lista de feedbacks vazia";
  * esta lista quer saber o que mudou para ele.
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
+  {
+    versao: "1.44.0",
+    data: "2026-09-17",
+    titulo: "Acompanhamento dos feedbacks para o RH",
+    itens: [
+      "Nova aba Acompanhamento em People › Avaliação de Desempenho, com os números do período: registrados, conversas pendentes, aguardando ciência e percentual de retorno",
+      "Tabela de gestores com liderados, feedbacks, pessoas alcançadas e cobertura — todo gestor do organograma aparece, inclusive quem não registrou nenhum",
+      "Fila de quem ainda não deu ciência, do mais antigo para o mais novo, com os dias de espera",
+      "O RH vê a empresa inteira; o gestor vê a própria equipe",
+    ],
+  },
   {
     versao: "1.43.4",
     data: "2026-09-17",

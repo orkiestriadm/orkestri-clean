@@ -1,6 +1,6 @@
 import {
-  acoesDisponiveis, camposFaltantesRegistro, colaboradorLeConteudo, proximoStatus,
-  realizacaoValida, validarAcao,
+  acoesDisponiveis, camposFaltantesRegistro, colaboradorLeConteudo, consolidarPorGestor,
+  diasDeEspera, proximoStatus, realizacaoValida, resumoDoPeriodo, validarAcao,
 } from "./feedback-desempenho.entity";
 
 const estado = (status: string, exclusaoStatus: string | null = null) => ({ status, exclusaoStatus });
@@ -86,6 +86,73 @@ describe("exclusão com aprovação do RH", () => {
     const reprovada = estado("AGUARDANDO_CIENCIA", "REPROVADA");
     expect(validarAcao("registrar_ciencia", "colaborador", reprovada)).toBeNull();
     expect(validarAcao("solicitar_exclusao", "gestor", reprovada)).toBeNull();
+  });
+});
+
+describe("acompanhamento do RH", () => {
+  const gestores = [
+    { id: "ana", nome: "Ana", liderados: 4 },
+    { id: "bruno", nome: "Bruno", liderados: 2 },
+    { id: "carla", nome: "Carla", liderados: 3 },
+  ];
+  const fb = (gestorId: string, collaboratorId: string, status: string, reuniao = true, ciencia = false) =>
+    ({ gestorId, collaboratorId, status, temReuniaoRealizada: reuniao, temCiencia: ciencia });
+
+  const feedbacks = [
+    fb("ana", "c1", "ENCERRADO", true, true),
+    fb("ana", "c2", "AGUARDANDO_CIENCIA", true, false),
+    // Dois registros da mesma pessoa contam uma vez na cobertura.
+    fb("ana", "c2", "ENCERRADO", true, true),
+    fb("bruno", "c9", "REGISTRADO", false, false),
+  ];
+
+  it("gestor que não registrou nada aparece na lista, com cobertura zero", () => {
+    const linhas = consolidarPorGestor(gestores, feedbacks);
+    const carla = linhas.find(l => l.id === "carla")!;
+    expect(carla.registrados).toBe(0);
+    expect(carla.cobertura).toBe(0);
+  });
+
+  it("cobertura conta pessoas alcançadas, não registros", () => {
+    const ana = consolidarPorGestor(gestores, feedbacks).find(l => l.id === "ana")!;
+    expect(ana.registrados).toBe(3);
+    expect(ana.colaboradoresAtingidos).toBe(2);
+    expect(ana.cobertura).toBe(50); // 2 de 4 liderados
+    expect(ana.cienciaDada).toBe(2);
+    expect(ana.reuniaoRealizada).toBe(3);
+  });
+
+  // Ana e Bruno empatam em 50% de cobertura; Ana vem antes porque a equipe dela
+  // é maior — mesma proporção, mais gente sem feedback.
+  it("ordena pela menor cobertura e, no empate, pela equipe maior", () => {
+    expect(consolidarPorGestor(gestores, feedbacks).map(l => l.id)).toEqual(["carla", "ana", "bruno"]);
+  });
+
+  it("o retorno só considera quem já podia dar ciência", () => {
+    const linhas = consolidarPorGestor(gestores, feedbacks);
+    const r = resumoDoPeriodo(feedbacks, linhas);
+    expect(r.registrados).toBe(4);
+    // O de Bruno ainda não teve reunião: entra em "aguardando reunião" e fica
+    // fora da conta de retorno.
+    expect(r.aguardandoReuniao).toBe(1);
+    expect(r.aguardandoCiencia).toBe(1);
+    expect(r.encerrados).toBe(2);
+    expect(r.percentualRetorno).toBe(67);
+    expect(r.gestoresSemRegistro).toBe(1);
+  });
+
+  it("sem feedback nenhum, os indicadores são zero e não NaN", () => {
+    const linhas = consolidarPorGestor(gestores, []);
+    const r = resumoDoPeriodo([], linhas);
+    expect(r.percentualRetorno).toBe(0);
+    expect(r.gestoresSemRegistro).toBe(3);
+    expect(linhas.every(l => l.cobertura === 0)).toBe(true);
+  });
+
+  it("dias de espera não ficam negativos com data futura", () => {
+    const agora = new Date("2026-09-17T12:00:00Z");
+    expect(diasDeEspera(new Date("2026-09-10T12:00:00Z"), agora)).toBe(7);
+    expect(diasDeEspera(new Date("2026-09-18T12:00:00Z"), agora)).toBe(0);
   });
 });
 

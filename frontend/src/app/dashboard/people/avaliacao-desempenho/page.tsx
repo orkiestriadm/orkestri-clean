@@ -16,6 +16,7 @@ import {
 import { MessagesSquare, Plus, AlertTriangle } from "lucide-react";
 import { NovoFeedback } from "./_components/ModaisFeedback";
 import { TOM_STATUS } from "./_components/EtapasFeedback";
+import Acompanhamento from "./_components/Acompanhamento";
 
 /**
  * Avaliação de Desempenho — por enquanto, só o Feedback.
@@ -30,7 +31,7 @@ function pode(user: any, ...perms: string[]): boolean {
   return atuais.includes("*") || perms.some(p => atuais.includes(p));
 }
 
-type Aba = "feedback";
+type Aba = "feedback" | "acompanhamento";
 
 export default function AvaliacaoDesempenhoPage() {
   const router = useRouter();
@@ -96,10 +97,19 @@ export default function AvaliacaoDesempenhoPage() {
             }
           />
 
-          <Tabs<Aba> active={aba} onChange={setAba} tabs={[{ id: "feedback", label: "Feedback" }]} />
+          <Tabs<Aba>
+            active={aba}
+            onChange={setAba}
+            tabs={[
+              { id: "feedback", label: "Feedback" },
+              { id: "acompanhamento", label: "Acompanhamento" },
+            ]}
+          />
 
           {semPermissao ? (
             <PermissionDenied hint="Você não tem permissão para ver os feedbacks de desempenho." />
+          ) : aba === "acompanhamento" ? (
+            <Acompanhamento />
           ) : (
             <>
               <Toolbar>

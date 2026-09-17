@@ -105,6 +105,41 @@ export const ROTULO_EVENTO: Record<string, string> = {
   exclusao_reprovada: "Exclusão reprovada pelo RH",
 };
 
+export type LinhaGestorAcompanhamento = {
+  id: string;
+  nome: string;
+  liderados: number;
+  registrados: number;
+  colaboradoresAtingidos: number;
+  reuniaoRealizada: number;
+  cienciaDada: number;
+  /** Liderados alcançados por ao menos um feedback, em %. */
+  cobertura: number;
+};
+
+export type Acompanhamento = {
+  dias: number;
+  resumo: {
+    registrados: number;
+    aguardandoReuniao: number;
+    aguardandoCiencia: number;
+    encerrados: number;
+    percentualRetorno: number;
+    gestoresSemRegistro: number;
+    gestores: number;
+  } | null;
+  exclusoesPendentes: number;
+  gestores: LinhaGestorAcompanhamento[];
+  /** Ciência pendente — sem filtro de período, é a fila de cobrança. */
+  semRetorno: {
+    id: string;
+    colaborador: string;
+    gestor: string;
+    reuniaoRealizadaEm: string | null;
+    diasEsperando: number;
+  }[];
+};
+
 export type FiltroFeedback = {
   status?: string;
   collaboratorId?: string;
@@ -122,6 +157,10 @@ export const feedbackDesempenhoService = {
         busca: f.busca?.trim() || undefined,
       },
     }).then(r => r.data),
+
+  acompanhamento: (dias: number) =>
+    api.get<{ success: boolean; data: Acompanhamento }>(`${BASE}/acompanhamento`, { params: { dias } })
+      .then(r => r.data),
 
   obter: (id: string) =>
     api.get<{ success: boolean; data: DetalheFeedbackDesempenho }>(`${BASE}/${id}`).then(r => r.data),

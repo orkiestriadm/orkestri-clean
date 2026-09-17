@@ -33,6 +33,16 @@ export class FeedbackDesempenhoController {
     return this.service.colaboradoresElegiveis(req.user);
   }
 
+  // Acompanhamento: mesma faixa de acesso da lista, conferida no serviço.
+  // `dias` limitado ao que a tela oferece — período livre viraria varredura
+  // aberta na tabela por querystring.
+  @Get("acompanhamento")
+  acompanhamento(@Req() req: any, @Query("dias") dias?: string) {
+    const permitidos = [30, 90, 180, 365];
+    const pedido = Number(dias);
+    return this.service.acompanhamento(req.user, permitidos.includes(pedido) ? pedido : 90);
+  }
+
   // Sem `@Permissions`: o guard exige TODAS as listadas, e a lista vale para
   // quem tem `ver` OU `aprovar_exclusao` (o RH que só decide pedidos). O
   // serviço confere.

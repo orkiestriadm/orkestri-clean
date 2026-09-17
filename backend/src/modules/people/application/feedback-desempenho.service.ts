@@ -15,8 +15,8 @@ import { PEOPLE_PERMISSIONS } from "../people.permissions";
 import {
   AcaoFeedback, DURACAO_REUNIAO_MIN, EXCLUSAO, EXPLICACAO_RECUSA, PapelNoFeedback,
   ROTULO_STATUS, STATUS_FEEDBACK, StatusFeedback,
-  acoesDisponiveis, camposFaltantesRegistro, colaboradorLeConteudo, proximoStatus,
-  realizacaoValida, validarAcao,
+  acoesDisponiveis, camposFaltantesRegistro, colaboradorLeConteudo, consolidarPorGestor,
+  diasDeEspera, proximoStatus, realizacaoValida, resumoDoPeriodo, validarAcao,
 } from "../domain/feedback-desempenho.entity";
 
 /**
@@ -122,37 +122,59 @@ export class FeedbackDesempenhoService {
 
   /* ── Visão de gestão ────────────────────────────────────────────────────── */
 
-  async listar(user: UsuarioContexto, filtro: FiltroFeedbackDesempenhoDto) {
+  /**
+   * O filtro base de tudo que se LÊ pela gestão: lista e acompanhamento.
+   *
+   * Devolve nulo quando a pessoa não alcança nada. Quem decide exclusão vê a
+   * organização inteira — precisa achar o que vai decidir. Um gestor vê a
+   * equipe no escopo mais o que ele mesmo registrou (gestor que mudou de área
+   * continua respondendo pelo que conduziu), e nunca o próprio feedback, que é
+   * lido pelo Meu RH.
+   */
+  private async alcanceDeLeitura(user: UsuarioContexto) {
     const organizationId = this.exigirOrganizacao(user);
-    const eu = await this.escopo.proprioCollaboratorId(user);
     const ehRh = this.tem(user, PEOPLE_PERMISSIONS.feedbackDesempenho.aprovarExclusao);
     if (!ehRh && !this.tem(user, PEOPLE_PERMISSIONS.feedbackDesempenho.ver)) {
       throw new ForbiddenException("Sem permissão para ver feedbacks de desempenho.");
     }
 
-    // Quem pode aparecer: a equipe no escopo, mais o que eu mesmo registrei
-    // (gestor que mudou de área continua vendo o que conduziu). Quem decide
-    // exclusão vê a organização inteira — precisa achar o que vai decidir.
+    const eu = await this.escopo.proprioCollaboratorId(user);
     const escopo = await this.escopo.resolve(user);
     const organizacaoInteira = escopo.tipo === "organizacao" || ehRh;
 
     // Sem `OR` quando o alcance é a organização inteira. `OR: [{}]` parece
     // "nenhuma restrição", mas o Prisma não casa nada com a condição vazia — e
     // o RH abria a lista vazia enquanto os pedidos de exclusão o esperavam.
-    const alcance: any[] = [];
+    const clausulas: any[] = [];
     if (!organizacaoInteira) {
       if (escopo.tipo === "equipe" || escopo.tipo === "proprio") {
-        alcance.push({ collaboratorId: { in: escopo.collaboratorIds } });
+        clausulas.push({ collaboratorId: { in: escopo.collaboratorIds } });
       }
-      if (eu) alcance.push({ gestorId: eu });
-      if (alcance.length === 0) return { success: true, data: [] };
+      if (eu) clausulas.push({ gestorId: eu });
+      if (clausulas.length === 0) return null;
     }
 
-    const where: any = {
+    return {
       organizationId,
-      excluidoEm: null,
-      ...(organizacaoInteira ? {} : { OR: alcance }),
-      ...(eu ? { NOT: { collaboratorId: eu } } : {}),
+      eu,
+      organizacaoInteira,
+      escopo,
+      where: {
+        organizationId,
+        excluidoEm: null,
+        ...(organizacaoInteira ? {} : { OR: clausulas }),
+        ...(eu ? { NOT: { collaboratorId: eu } } : {}),
+      } as any,
+    };
+  }
+
+  async listar(user: UsuarioContexto, filtro: FiltroFeedbackDesempenhoDto) {
+    const alcance = await this.alcanceDeLeitura(user);
+    if (!alcance) return { success: true, data: [] };
+    const { eu, where: base } = alcance;
+
+    const where: any = {
+      ...base,
       ...(filtro.status ? { status: filtro.status } : {}),
       ...(filtro.collaboratorId ? { collaboratorId: filtro.collaboratorId } : {}),
       ...(filtro.exclusaoPendente ? { exclusaoStatus: EXCLUSAO.PENDENTE } : {}),
@@ -198,6 +220,106 @@ export class FeedbackDesempenhoService {
   async obter(user: UsuarioContexto, id: string) {
     const { feedback, papeis } = await this.carregarParaGestao(user, id);
     return { success: true, data: await this.montarDetalhe(user, feedback, papeis) };
+  }
+
+  /**
+   * Acompanhamento: quem já fez e quem não retornou.
+   *
+   * A lista responde "como está este feedback"; isto responde as duas perguntas
+   * que ela não responde. A primeira delas só é respondível partindo dos
+   * GESTORES DO ORGANOGRAMA — quem não registrou nada não tem linha na lista de
+   * feedbacks, e é justamente quem o RH procura.
+   *
+   * A fila de quem não deu ciência IGNORA o período de propósito: um feedback
+   * parado há seis meses é o que mais precisa de cobrança, e some da tela se o
+   * filtro de período o cortar.
+   */
+  async acompanhamento(user: UsuarioContexto, dias: number) {
+    const alcance = await this.alcanceDeLeitura(user);
+    if (!alcance) {
+      return { success: true, data: { dias, resumo: null, gestores: [], semRetorno: [], exclusoesPendentes: 0 } };
+    }
+    const { organizationId, organizacaoInteira, escopo, where: base } = alcance;
+
+    const desde = new Date();
+    desde.setDate(desde.getDate() - dias);
+
+    const [doPeriodo, aguardando, exclusoesPendentes] = await Promise.all([
+      this.db.feedbackDesempenho.findMany({
+        where: { ...base, criadoEm: { gte: desde } },
+        select: { gestorId: true, collaboratorId: true, status: true, reuniaoRealizadaEm: true, cienciaEm: true },
+      }),
+      this.db.feedbackDesempenho.findMany({
+        where: { ...base, status: STATUS_FEEDBACK.AGUARDANDO_CIENCIA },
+        orderBy: { reuniaoRealizadaEm: "asc" },
+        take: 100,
+        include: INCLUDE_PESSOAS,
+      }),
+      this.db.feedbackDesempenho.count({ where: { ...base, exclusaoStatus: EXCLUSAO.PENDENTE } }),
+    ]);
+
+    const gestores = await this.gestoresDoQuadro(organizationId, organizacaoInteira ? null : escopo);
+    const contagem = doPeriodo.map((f: any) => ({
+      gestorId: f.gestorId,
+      collaboratorId: f.collaboratorId,
+      status: f.status,
+      temReuniaoRealizada: !!f.reuniaoRealizadaEm,
+      temCiencia: !!f.cienciaEm,
+    }));
+
+    const linhas = consolidarPorGestor(gestores, contagem);
+
+    return {
+      success: true,
+      data: {
+        dias,
+        resumo: { ...resumoDoPeriodo(contagem, linhas), gestores: gestores.length },
+        exclusoesPendentes,
+        gestores: linhas,
+        semRetorno: aguardando.map((f: any) => ({
+          id: f.id,
+          colaborador: collaboratorDisplayName(f.collaborator),
+          gestor: collaboratorDisplayName(f.gestor),
+          reuniaoRealizadaEm: f.reuniaoRealizadaEm,
+          diasEsperando: f.reuniaoRealizadaEm ? diasDeEspera(f.reuniaoRealizadaEm) : 0,
+        })),
+      },
+    };
+  }
+
+  /**
+   * Os gestores do organograma: quem tem ao menos um liderado ativo.
+   *
+   * Decisão do usuário em 17/09/2026 — "gestor" aqui é o do organograma, não o
+   * cargo nem o setor. Quem não lidera ninguém não aparece cobrado por não ter
+   * registrado feedback.
+   */
+  private async gestoresDoQuadro(organizationId: string, escopo: any | null) {
+    const grupos = await this.db.collaborator.groupBy({
+      by: ["gestorId"],
+      where: { organizationId, excluidoEm: null, gestorId: { not: null } },
+      _count: { _all: true },
+    });
+
+    const idsNoEscopo: string[] | null =
+      escopo && (escopo.tipo === "equipe" || escopo.tipo === "proprio") ? escopo.collaboratorIds : null;
+
+    const relevantes = grupos
+      .map((g: any) => ({ id: g.gestorId as string, liderados: g._count._all as number }))
+      .filter((g: { id: string }) => !idsNoEscopo || idsNoEscopo.includes(g.id));
+    if (relevantes.length === 0) return [];
+
+    const nomes = await this.db.collaborator.findMany({
+      where: { id: { in: relevantes.map((g: { id: string }) => g.id) }, excluidoEm: null },
+      select: { id: true, nomeCompleto: true, user: { select: { nome: true } } },
+    });
+    const porId = new Map(nomes.map((c: any) => [c.id, collaboratorDisplayName(c)]));
+
+    // Gestor desligado sai do quadro: cobrar feedback de quem não está mais na
+    // empresa só empurraria a cobertura para baixo sem ninguém a quem cobrar.
+    return relevantes
+      .filter((g: { id: string }) => porId.has(g.id))
+      .map((g: { id: string; liderados: number }) => ({ ...g, nome: porId.get(g.id) as string }));
   }
 
   /**
