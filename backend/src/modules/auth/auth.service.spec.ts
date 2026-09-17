@@ -431,4 +431,40 @@ describe("AuthService", () => {
       expect(perms).toEqual(expect.arrayContaining(["agenda:ver", "gastos:ver"]));
     });
   });
+
+  describe("resolvePermissions — Meus Gastos no Hub (AMBIENTE=homologacao)", () => {
+    const perm = (recurso: string, acao: string) => ({ permission: { recurso, acao } });
+    const usuario = (rolePermissions: any[], permissionOverrides: any[] = []) => ({
+      isTrial: false,
+      userRoles: [{ role: { isMaster: false, rolePermissions } }],
+      permissionOverrides,
+    });
+    const gastos = (perms: string[]) => perms.filter(p => p.startsWith("gastos:"));
+
+    beforeEach(() => { mockCache.get.mockResolvedValue(null); process.env.AMBIENTE = "homologacao"; });
+    afterEach(() => { delete process.env.AMBIENTE; });
+
+    it("papel Projetos: Space sim, Meus Gastos não", async () => {
+      mockPrisma.user.findUnique.mockResolvedValue(usuario([perm("projetos", "ver"), perm("gantt", "ver")]));
+      const perms = await service.resolvePermissions("u1");
+      expect(perms).toEqual(expect.arrayContaining(["projetos:ver", "agenda:ver", "keep:ver"]));
+      expect(gastos(perms)).toEqual([]);
+    });
+
+    it("papel com Financeiro recebe Meus Gastos", async () => {
+      mockPrisma.user.findUnique.mockResolvedValue(usuario([perm("projetos", "ver"), perm("financeiro", "ver")]));
+      expect(gastos(await service.resolvePermissions("u1"))).toEqual(["gastos:ver", "gastos:registrar"]);
+    });
+
+    it("concessão direta do Financeiro também libera", async () => {
+      mockPrisma.user.findUnique.mockResolvedValue(usuario([perm("projetos", "ver")], [{ conceder: true, ...perm("financeiro", "ver") }]));
+      expect(gastos(await service.resolvePermissions("u1"))).toEqual(["gastos:ver", "gastos:registrar"]);
+    });
+
+    it("fora do Hub (produção) nada muda: Meus Gastos segue a conta", async () => {
+      delete process.env.AMBIENTE;
+      mockPrisma.user.findUnique.mockResolvedValue(usuario([perm("projetos", "ver")]));
+      expect(gastos(await service.resolvePermissions("u1"))).toEqual(["gastos:ver", "gastos:registrar"]);
+    });
+  });
 });

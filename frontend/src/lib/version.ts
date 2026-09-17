@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "1.42.5";
+export const VERSAO = "1.42.6";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -26,7 +26,7 @@ export const VERSAO = "1.42.5";
 export const VERSAO_DATA = "2026-09-17";
 
 /** Nome da entrega, para dar contexto ao número. */
-export const VERSAO_NOME = "Boas-vindas com senha inicial e primeiro acesso com a marca do Hub";
+export const VERSAO_NOME = "Meus Gastos só com acesso ao Financeiro";
 
 /**
  * Histórico exibido na tela Sobre, do mais recente para o mais antigo.
@@ -35,6 +35,15 @@ export const VERSAO_NOME = "Boas-vindas com senha inicial e primeiro acesso com 
  * esta lista quer saber o que mudou para ele.
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
+  {
+    versao: "1.42.6",
+    data: "2026-09-17",
+    titulo: "Meus Gastos só com acesso ao Financeiro",
+    itens: [
+      "Meus Gastos deixa de vir com toda conta: aparece só para quem tem um papel (ou concessão) com acesso ao Financeiro",
+      "O Space (Agenda e Keep) continua em todas as contas",
+    ],
+  },
   {
     versao: "1.42.5",
     data: "2026-09-17",

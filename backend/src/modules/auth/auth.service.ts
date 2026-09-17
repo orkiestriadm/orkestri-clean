@@ -647,8 +647,14 @@ export class AuthService implements OnModuleInit {
       const soStrategy = perms.size > 0
         && [...perms].every(p => p.startsWith(ESTRATEGICO_PREFIXO))
         && concedidas.every(r => r.startsWith(ESTRATEGICO_PREFIXO));
+      // No Hub (AMBIENTE=homologacao, variável do compose de lá) Meus Gastos não
+      // acompanha a conta: só vê quem tem o Financeiro por papel ou concessão
+      // direta (decisão de 17/09/2026 — o papel Projetos mostrava o Finance).
+      // O Space continua de toda conta, nos dois ambientes.
+      const temFinanceiro = [...perms].some(p => p.startsWith("financeiro:")) || concedidas.includes("financeiro");
+      const semGastos = soStrategy || (process.env.AMBIENTE?.trim() === "homologacao" && !temFinanceiro);
       for (const p of BASE_PERMISSIONS) {
-        if (soStrategy && p.startsWith("gastos:")) continue;
+        if (semGastos && p.startsWith("gastos:")) continue;
         perms.add(p);
       }
       for (const ov of user.permissionOverrides) {
