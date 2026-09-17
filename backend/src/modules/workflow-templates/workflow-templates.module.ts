@@ -4,6 +4,8 @@ import {
 } from "@nestjs/common";
 import { IsArray, IsBoolean, IsOptional, IsString } from "class-validator";
 import { AuthGuard } from "@nestjs/passport";
+import { Permissions } from "../auth/permissions.decorator";
+import { PermissionsGuard } from "../auth/permissions.guard";
 import { PrismaService } from "../../prisma/prisma.service";
 import { v4 as uuid } from "uuid";
 
@@ -174,7 +176,8 @@ export class WorkflowTemplatesService {
 }
 
 @Controller("workflow-templates")
-@UseGuards(AuthGuard("jwt"))
+@UseGuards(AuthGuard("jwt"), PermissionsGuard)
+@Permissions("processos:ver")
 export class WorkflowTemplatesController {
   constructor(private svc: WorkflowTemplatesService) {}
 
@@ -196,16 +199,19 @@ export class WorkflowTemplatesController {
   }
 
   @Post()
+  @Permissions("processos:editar")
   create(@Req() req: any, @Body() dto: CreateTemplateDto) {
     return this.svc.create(dto, req.user);
   }
 
   @Put(":id")
+  @Permissions("processos:editar")
   update(@Req() req: any, @Param("id") id: string, @Body() dto: UpdateTemplateDto) {
     return this.svc.update(id, dto, req.user);
   }
 
   @Delete(":id")
+  @Permissions("processos:editar")
   remove(@Req() req: any, @Param("id") id: string) {
     return this.svc.remove(id, req.user);
   }

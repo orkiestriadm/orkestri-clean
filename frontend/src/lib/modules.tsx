@@ -145,8 +145,8 @@ export const NAV: NavGroup[] = [
     id: "quality", produto: "Quality", descritor: "Procedimentos", icon: ClipboardCheck,
     items: [
       { href: "/dashboard/conhecimento", label: "Conhecimento", icon: BookOpen,     permission: "conhecimento:ver" },
-      { href: "/dashboard/processos",    label: "Processos",    icon: GitBranch,    permission: "projetos:ver" },
-      { href: "/dashboard/capacity",     label: "Capacidade",   icon: Activity,     permission: "projetos:ver" },
+      { href: "/dashboard/processos",    label: "Processos",    icon: GitBranch,    permission: "processos:ver" },
+      { href: "/dashboard/capacity",     label: "Capacidade",   icon: Activity,     permission: "capacidade:ver" },
     ],
   },
   {

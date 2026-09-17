@@ -2,6 +2,8 @@ import {
   Module, Controller, Get, Query, Param, UseGuards, Req, Injectable, BadRequestException,
 } from "@nestjs/common";
 import { AuthGuard } from "@nestjs/passport";
+import { Permissions } from "../auth/permissions.decorator";
+import { PermissionsGuard } from "../auth/permissions.guard";
 import { PrismaService } from "../../prisma/prisma.service";
 import { AusenciasModule, AusenciasService } from "../ausencias/ausencias.module";
 import { collaboratorDisplayName } from "../../common/collaborator";
@@ -337,7 +339,9 @@ export class CapacityService {
 }
 
 @Controller("capacity")
-@UseGuards(AuthGuard("jwt"))
+// Carga de trabalho da equipe inteira: exige permissão própria, não basta estar logado.
+@UseGuards(AuthGuard("jwt"), PermissionsGuard)
+@Permissions("capacidade:ver")
 export class CapacityController {
   constructor(private svc: CapacityService) {}
 

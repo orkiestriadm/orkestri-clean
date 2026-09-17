@@ -157,8 +157,8 @@ function AddStepButton({ onAdd }: { onAdd: (tipo: StepTipo) => void }) {
 }
 
 // ── FlowEditor ─────────────────────────────────────────────────────────────────
-function FlowEditor({ template, onSave, onDelete, saving }: {
-  template: Template; saving: boolean;
+function FlowEditor({ template, onSave, onDelete, saving, podeEditar }: {
+  template: Template; saving: boolean; podeEditar: boolean;
   onSave: (t: Template) => Promise<void>; onDelete: () => Promise<void>;
 }) {
   const [nome,   setNome]   = useState(template.nome);
@@ -190,6 +190,7 @@ function FlowEditor({ template, onSave, onDelete, saving }: {
           {TIPO_LABELS[template.tipo] || template.tipo}
         </span>
         <span className="text-[11px] text-[var(--text-muted)] shrink-0 font-mono">{etapas.length} etapa{etapas.length !== 1 ? "s" : ""}</span>
+        {podeEditar && <>
         <button className={cn("btn text-[12px] flex items-center gap-1.5 shrink-0", dirty ? "btn-violet" : "btn-ghost")}
           onClick={() => onSave({ ...template, nome, etapas })} disabled={saving || !dirty}>
           {saving ? <Loader2 size={13} className="animate-spin" /> : <Save size={13} />}
@@ -198,6 +199,7 @@ function FlowEditor({ template, onSave, onDelete, saving }: {
         <button className="btn-icon shrink-0" style={{ color:"var(--accent-red)" }} onClick={onDelete} title="Excluir">
           <Trash2 size={14} />
         </button>
+        </>}
       </div>
 
       {/* Canvas */}
@@ -234,7 +236,7 @@ function FlowEditor({ template, onSave, onDelete, saving }: {
               </div>
             </div>
           ))}
-          <AddStepButton onAdd={addStep} />
+          {podeEditar && <AddStepButton onAdd={addStep} />}
         </div>
       </div>
     </div>
@@ -297,8 +299,8 @@ function NewTemplateModal({ onClose, onCreate }: { onClose: () => void; onCreate
 }
 
 // ── TemplateSidebar ────────────────────────────────────────────────────────────
-function TemplateSidebar({ templates, selectedId, onSelect, onNew, loading }: {
-  templates: Template[]; selectedId: string | null; loading: boolean;
+function TemplateSidebar({ templates, selectedId, onSelect, onNew, loading, podeEditar }: {
+  templates: Template[]; selectedId: string | null; loading: boolean; podeEditar: boolean;
   onSelect: (t: Template) => void; onNew: () => void;
 }) {
   const grouped = groupByTipo(templates);
@@ -307,9 +309,11 @@ function TemplateSidebar({ templates, selectedId, onSelect, onNew, loading }: {
       style={{ width:250, background:"var(--bg-secondary)" }}>
       <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border-subtle)] shrink-0">
         <span className="text-[11px] font-mono text-[var(--text-muted)] uppercase tracking-wider">Processos</span>
+        {podeEditar && (
         <button className="btn btn-violet text-[11px] flex items-center gap-1 py-1 px-2.5" onClick={onNew}>
           <Plus size={11} /> Novo
         </button>
+        )}
       </div>
       <div className="flex-1 overflow-y-auto py-2">
         {loading && <div className="flex items-center justify-center py-10"><Loader2 size={16} className="animate-spin text-[var(--text-muted)]" /></div>}
@@ -348,7 +352,10 @@ function TemplateSidebar({ templates, selectedId, onSelect, onNew, loading }: {
 
 // ── Main Page ──────────────────────────────────────────────────────────────────
 export default function ProcessosPage() {
-  useAuthStore(); // ensure store is initialized
+  const { user } = useAuthStore();
+  // Quem só tem `processos:ver` consulta os modelos; criar, salvar e excluir
+  // exigem `processos:editar` (a API recusa sem ela).
+  const podeEditar = !!(user?.isMaster || user?.permissions?.includes("*") || user?.permissions?.includes("processos:editar"));
   const [templates, setTemplates] = useState<Template[]>([]);
   const [selected,  setSelected]  = useState<Template | null>(null);
   const [loading,   setLoading]   = useState(true);
@@ -414,7 +421,7 @@ export default function ProcessosPage() {
       </Topbar>
       <div className="flex flex-1 overflow-hidden">
         <TemplateSidebar templates={templates} selectedId={selected?.id ?? null}
-          onSelect={setSelected} onNew={() => setShowNew(true)} loading={loading} />
+          onSelect={setSelected} onNew={() => setShowNew(true)} loading={loading} podeEditar={podeEditar} />
         <div className="flex-1 overflow-hidden" style={{ background:"var(--bg-primary)" }}>
           {!selected ? (
             <div className="flex flex-col items-center justify-center h-full gap-4 text-center px-8">
@@ -426,13 +433,15 @@ export default function ProcessosPage() {
                   Selecione um processo na lista ou crie um novo para desenhar o fluxo de etapas.
                 </div>
               </div>
+              {podeEditar && (
               <button className="btn btn-violet text-[13px] flex items-center gap-2" onClick={() => setShowNew(true)}>
                 <Plus size={14} /> Novo processo
               </button>
+              )}
             </div>
           ) : (
             <FlowEditor key={selected.id} template={selected}
-              onSave={handleSave} onDelete={handleDelete} saving={saving} />
+              onSave={handleSave} onDelete={handleDelete} saving={saving} podeEditar={podeEditar} />
           )}
         </div>
       </div>
