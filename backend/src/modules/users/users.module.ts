@@ -1,4 +1,4 @@
-import { Module, Controller, Get, Post, Put, Patch, Delete, Body, Param, Query, UseGuards, Req, ConflictException, BadRequestException, NotFoundException } from "@nestjs/common";
+import { Module, Controller, Get, Post, Put, Patch, Delete, Body, Param, Query, UseGuards, Req, ConflictException, BadRequestException, NotFoundException, ForbiddenException } from "@nestjs/common";
 import { AuthGuard } from "@nestjs/passport";
 import { IsArray, IsBoolean, IsEmail, IsOptional, IsString, MinLength } from "class-validator";
 import { PrismaService } from "../../prisma/prisma.service";
@@ -9,6 +9,13 @@ import { acharNaOrganizacao } from "../../common/escopo-organizacao";
 import { CacheService } from "../cache/cache.service";
 import { WebhookService, WebhooksModule } from "../automacoes/webhooks.module";
 import { AutomacaoService, AutomacoesModule } from "../automacoes/automacoes.module";
+import { ConfigService } from "@nestjs/config";
+import { AuthModule } from "../auth/auth.module";
+import { AuthService } from "../auth/auth.service";
+import { NotificationsModule } from "../notifications/notifications.module";
+import { NotificacaoDispatcher } from "../notifications/notificacao-dispatcher.service";
+import { montarBoasVindasCadastro, normalizarWhatsapp } from "../notifications/whatsapp-boas-vindas";
+import { MARCA } from "../../common/marca";
 
 const CACHE_USERS_LIST = "cache:users:list";
 const CACHE_USER       = (id: string) => `cache:user:${id}`;
@@ -34,6 +41,7 @@ class CreateUserDto {
   @IsString() @MinLength(6) senha: string;
   @IsOptional() @IsString() cargo?: string;
   @IsOptional() @IsString() telefone?: string;
+  @IsOptional() @IsString() whatsapp?: string;
   @IsOptional() @IsString() setorId?: string;
   @IsOptional() @IsArray() modulos?: string[];
 }
@@ -43,7 +51,24 @@ class UpdateUserDto {
   @IsOptional() @IsBoolean() ativo?: boolean;
   @IsOptional() @IsString() cargo?: string;
   @IsOptional() @IsString() telefone?: string;
+  @IsOptional() @IsString() whatsapp?: string;
   @IsOptional() @IsString() setorId?: string;
+}
+
+/**
+ * WhatsApp informado pelo administrador no cadastro. Já nasce confirmado
+ * (decisão de 17/09/2026: a palavra de quem cadastra substitui o código) e com
+ * os alertas ligados. Trocar o número derruba o código pendente; apagar desliga.
+ */
+function camposWhatsapp(bruto: string): Record<string, any> {
+  let numero: string | null;
+  try { numero = normalizarWhatsapp(bruto); }
+  catch (e: any) { throw new BadRequestException(e.message); }
+  if (!numero) return { whatsapp: null, whatsappVerificado: false, whatsappAlertas: false };
+  return {
+    whatsapp: numero, whatsappVerificado: true, whatsappAlertas: true,
+    whatsappCodigo: null, whatsappCodigoExpira: null, whatsappTentativas: 0,
+  };
 }
 class ChangePasswordDto { @IsString() @MinLength(6) novaSenha: string; }
 class UpdateModulosDto { @IsArray() modulos: string[]; }
@@ -54,6 +79,7 @@ function mapUser(u: any) {
     avatar: u.avatar, ultimoLogin: u.ultimoLogin, criadoEm: u.criadoEm,
     cargo: u.profile?.cargo,
     telefone: u.profile?.telefone,
+    whatsapp: u.profile?.whatsapp,
     setor: u.profile?.setor ? { id: u.profile.setor.id, nome: u.profile.setor.nome, cor: u.profile.setor.cor } : null,
     roles: u.userRoles.map((ur: any) => ur.role.nome),
     isMaster: u.userRoles.some((ur: any) => ur.role.isMaster),
@@ -89,6 +115,9 @@ class UsersController {
     private cache: CacheService,
     private webhook: WebhookService,
     private automacao: AutomacaoService,
+    private auth: AuthService,
+    private dispatcher: NotificacaoDispatcher,
+    private config: ConfigService,
   ) {}
 
   @Get()
@@ -239,12 +268,13 @@ class UsersController {
 
     const hash = await bcrypt.hash(dto.senha, 12);
     const modulosJson = JSON.stringify(dto.modulos ?? ALL_MODULOS);
+    const whatsapp = dto.whatsapp !== undefined ? camposWhatsapp(dto.whatsapp) : {};
 
     const user = await this.prisma.user.create({
       data: {
         nome: dto.nome, email: dto.email, senhaHash: hash,
         ...(orgId ? { organizationId: orgId } : {}),
-        profile: { create: { cargo: dto.cargo, telefone: dto.telefone, setorId: dto.setorId || null, modulos: modulosJson } },
+        profile: { create: { cargo: dto.cargo, telefone: dto.telefone, setorId: dto.setorId || null, modulos: modulosJson, ...whatsapp } },
       } as any,
       include: { userRoles: { include: { role: true } }, profile: { include: { setor: true } } },
     });
@@ -278,10 +308,18 @@ class UsersController {
         ...(dto.ativo !== undefined && { ativo: dto.ativo }),
       },
     });
+    // Só mexe no WhatsApp quando o número MUDOU: salvar o cadastro sem tocar no
+    // campo não pode religar alertas que a pessoa desligou no próprio perfil.
+    let whatsapp: Record<string, any> = {};
+    if (dto.whatsapp !== undefined) {
+      const atual = await this.prisma.userProfile.findUnique({ where: { userId: id }, select: { whatsapp: true } });
+      const novo = camposWhatsapp(dto.whatsapp);
+      if ((novo.whatsapp ?? null) !== (atual?.whatsapp ?? null)) whatsapp = novo;
+    }
     await this.prisma.userProfile.upsert({
       where: { userId: id },
-      update: { cargo: dto.cargo, telefone: dto.telefone, ...(dto.setorId !== undefined && { setorId: dto.setorId || null }) },
-      create: { userId: id, cargo: dto.cargo, telefone: dto.telefone, setorId: dto.setorId || null },
+      update: { cargo: dto.cargo, telefone: dto.telefone, ...(dto.setorId !== undefined && { setorId: dto.setorId || null }), ...whatsapp },
+      create: { userId: id, cargo: dto.cargo, telefone: dto.telefone, setorId: dto.setorId || null, ...whatsapp },
     });
     await this.cache.del(CACHE_USER(id));
     // A lista é cacheada por `${CACHE_USERS_LIST}:${orgId}:${incluirMaster}` — o
@@ -289,6 +327,45 @@ class UsersController {
     // edição só "aparecia" após o TTL de 60s. delPattern limpa todas as variantes.
     await this.cache.delPattern(`${CACHE_USERS_LIST}:*`);
     return this.findOne(id, req);
+  }
+
+  /**
+   * Manda as boas-vindas pelo WhatsApp. Rota separada, e não dentro do POST,
+   * porque a tela grava os papéis DEPOIS de criar o usuário: enviada no create,
+   * a mensagem sairia sem nenhum módulo. A tela chama ao fim do salvamento.
+   *
+   * Sem `@Permissions` porque serve a quem cria OU a quem edita, e o guard só
+   * sabe exigir todas; a checagem é feita aqui.
+   */
+  @Post(":id/whatsapp/boas-vindas")
+  async boasVindasWhatsapp(@Param("id") id: string, @Req() req: any) {
+    const perms: string[] = req.user?.permissions || [];
+    const pode = req.user?.isMaster || perms.includes("*") || perms.includes("usuarios:criar") || perms.includes("usuarios:editar");
+    if (!pode) throw new ForbiddenException("Sem permissão para cadastrar usuários.");
+
+    const user: any = await acharNaOrganizacao(this.prisma.user, id, req, "Usuario nao encontrado", {
+      include: { profile: { select: { whatsapp: true, whatsappVerificado: true } } },
+    });
+    if (!user.ativo || !user.profile?.whatsapp || !user.profile?.whatsappVerificado) return { enviado: false };
+
+    // O papel acabou de ser gravado: sem limpar o cache, a mensagem sairia com
+    // as permissões de antes (ou nenhuma).
+    await this.auth.invalidatePermissionsCache(id);
+    const permissoes = await this.auth.resolvePermissions(id);
+    const url = this.config.get<string>("APP_URL") || "";
+    const enviado = await this.dispatcher.enfileirarDireto({
+      organizationId: user.organizationId,
+      canal: "whatsapp",
+      destino: user.profile.whatsapp,
+      modulo: "core",
+      tipo: "boas_vindas_whatsapp",
+      titulo: "Boas-vindas",
+      mensagem: montarBoasVindasCadastro({ nome: user.nome, email: user.email, permissoes, marca: MARCA, url }),
+      userId: id,
+      // Disparada por quem cadastra, na hora: não espera a janela de silêncio.
+      ignorarSilencio: true,
+    });
+    return { enviado };
   }
 
   @Patch(":id/password")
@@ -444,7 +521,7 @@ class UsersCsvController {
 }
 
 @Module({
-  imports: [WebhooksModule, AutomacoesModule],
+  imports: [WebhooksModule, AutomacoesModule, AuthModule, NotificationsModule],
   controllers: [UsersController, UsersCsvController],
   providers: [CacheService],
 })

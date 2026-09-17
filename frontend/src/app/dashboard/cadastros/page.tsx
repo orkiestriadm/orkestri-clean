@@ -6,7 +6,7 @@ import { api } from "@/lib/api";
 
 // ── Tipos ─────────────────────────────────────────────────────────────────────
 type Setor   = { id: string; nome: string; cor?: string; descricao?: string; parentId?: string; responsavelId?: string; responsavel?: { id: string; nome: string } | null; _count?: { users: number }; filhos?: Setor[]; };
-type User    = { id: string; nome: string; email: string; ativo: boolean; roles: string[]; isMaster: boolean; ultimoLogin?: string; criadoEm: string; cargo?: string; telefone?: string; setor?: Setor; modulos: string[]; };
+type User    = { id: string; nome: string; email: string; ativo: boolean; roles: string[]; isMaster: boolean; ultimoLogin?: string; criadoEm: string; cargo?: string; telefone?: string; whatsapp?: string; setor?: Setor; modulos: string[]; };
 type Permission = { id: string; recurso: string; acao: string; descricao?: string; };
 type Role    = { id: string; nome: string; descricao?: string; isMaster: boolean; nivel: number; _count?: { userRoles: number }; rolePermissions?: { permission: Permission }[]; };
 type Solicitacao = { id: string; nome: string; email: string; whatsapp?: string; cargo?: string; departamento?: string; empresa?: string; motivacao?: string; produtos?: string[]; status: string; criado_em: string; };
@@ -175,6 +175,7 @@ function UserModal({ user, setores, roles, onClose, onSave }: { user?: User; set
   const [senha,    setSenha]   = useState("");
   const [cargo,    setCargo]   = useState(user?.cargo||"");
   const [telefone, setTelefone]= useState(user?.telefone||"");
+  const [whatsapp, setWhatsapp]= useState(user?.whatsapp||"");
   const [setorId,  setSetorId] = useState(user?.setor?.id||"");
   const [roleId,   setRoleId]  = useState<string>("");
   const [loading,  setLoading] = useState(false);
@@ -210,9 +211,9 @@ function UserModal({ user, setores, roles, onClose, onSave }: { user?: User; set
     try {
       let userId = user?.id;
       if (isEdit) {
-        await api.put("/users/"+user!.id, { nome, email, cargo, telefone, setorId:setorId||undefined });
+        await api.put("/users/"+user!.id, { nome, email, cargo, telefone, whatsapp, setorId:setorId||undefined });
       } else {
-        const res = await api.post("/users", { nome, email, senha, cargo, telefone, setorId:setorId||undefined, modulos:[] });
+        const res = await api.post("/users", { nome, email, senha, cargo, telefone, whatsapp, setorId:setorId||undefined, modulos:[] });
         userId = res.data.id;
       }
       // Grava a DIFERENÇA em vez de apagar tudo e regravar: assim um papel que
@@ -227,6 +228,12 @@ function UserModal({ user, setores, roles, onClose, onSave }: { user?: User; set
         }
         for (const id of desejados.filter((x:string)=>!atuais.includes(x))) {
           await api.post("/rbac/users/"+userId+"/roles", { roleId: id }).catch(()=>{});
+        }
+        // Boas-vindas só depois dos papéis gravados (a mensagem lista os módulos
+        // liberados) e só para número novo — salvar de novo não reenvia.
+        const soDigitos = (v?: string) => (v||"").replace(/\D/g, "");
+        if (soDigitos(whatsapp) && soDigitos(whatsapp) !== soDigitos(user?.whatsapp)) {
+          await api.post("/users/"+userId+"/whatsapp/boas-vindas").catch(()=>{});
         }
       }
       onSave(); onClose();
@@ -277,6 +284,14 @@ function UserModal({ user, setores, roles, onClose, onSave }: { user?: User; set
             {!isEdit && <Field label="SENHA INICIAL"><input className="input-o" type="password" placeholder="Minimo 6 caracteres" value={senha} onChange={e=>setSenha(e.target.value)} /></Field>}
             <Field label="CARGO / FUNCAO"><input className="input-o" placeholder="Ex: Analista..." value={cargo} onChange={e=>setCargo(e.target.value)} /></Field>
             <Field label="TELEFONE"><input className="input-o" placeholder="(11) 99999-9999" value={telefone} onChange={e=>setTelefone(e.target.value)} /></Field>
+            <div style={{ gridColumn:"1/-1" }}>
+              <Field label="WHATSAPP">
+                <input className="input-o" placeholder="(11) 99999-9999" inputMode="tel" value={whatsapp} onChange={e=>setWhatsapp(e.target.value)} />
+                <div style={{ fontSize:11, color:"var(--text-muted)", marginTop:4 }}>
+                  Já fica ativo para os avisos dos módulos liberados. Ao salvar, a pessoa recebe uma mensagem de boas-vindas.
+                </div>
+              </Field>
+            </div>
             <div style={{ gridColumn:"1/-1" }}>
               <Field label="SETOR">
                 <select className="input-o" value={setorId} onChange={e=>setSetorId(e.target.value)}>

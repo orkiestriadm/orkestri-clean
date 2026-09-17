@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "1.42.3";
+export const VERSAO = "1.42.4";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -26,7 +26,7 @@ export const VERSAO = "1.42.3";
 export const VERSAO_DATA = "2026-09-17";
 
 /** Nome da entrega, para dar contexto ao número. */
-export const VERSAO_NOME = "Papel Projetos";
+export const VERSAO_NOME = "WhatsApp no cadastro, com boas-vindas";
 
 /**
  * Histórico exibido na tela Sobre, do mais recente para o mais antigo.
@@ -35,6 +35,16 @@ export const VERSAO_NOME = "Papel Projetos";
  * esta lista quer saber o que mudou para ele.
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
+  {
+    versao: "1.42.4",
+    data: "2026-09-17",
+    titulo: "WhatsApp no cadastro, com boas-vindas",
+    itens: [
+      "Cadastro de usuário ganha o campo WhatsApp: o número já fica ativo para os avisos, sem código de confirmação",
+      "Ao salvar, a pessoa recebe no WhatsApp uma mensagem de boas-vindas com os avisos dos módulos liberados para ela e o endereço de acesso",
+      "Editar o cadastro sem trocar o número não reenvia a mensagem",
+    ],
+  },
   {
     versao: "1.42.3",
     data: "2026-09-17",
