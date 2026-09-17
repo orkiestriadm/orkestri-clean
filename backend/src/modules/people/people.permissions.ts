@@ -73,6 +73,17 @@ export const PEOPLE_PERMISSION_CATALOG: readonly Permissao[] = [
   p("people.feedback",    "ver",       "Ver feedbacks do colaborador"),
   p("people.feedback",    "registrar", "Registrar feedback e ver anotação privada"),
 
+  // Avaliação de Desempenho › Feedback — o fluxo formal do RH (registro,
+  // reunião, ciência). Separado do feedback contínuo acima: um é anotação do
+  // dia a dia, o outro é registro de que o colaborador dá ciência.
+  //
+  // Dar ciência NÃO exige permissão: é do próprio colaborador, pelo Meu RH.
+  // Aprovar exclusão é do RH e fica fora do perfil de gestor — quem pede não
+  // pode ser quem decide.
+  p("people.feedback_desempenho", "ver",              "Ver feedbacks de desempenho da equipe"),
+  p("people.feedback_desempenho", "registrar",        "Registrar feedback de desempenho, agendar e registrar a reunião"),
+  p("people.feedback_desempenho", "aprovar_exclusao", "Aprovar ou reprovar a exclusão de feedback de desempenho (RH)"),
+
   // Carreira é leitura ampla de propósito: o plano só muda comportamento se a
   // pessoa souber o que falta para o próximo degrau. Quem DESENHA a trilha é
   // que precisa de concessão explícita.
@@ -140,6 +151,11 @@ export const PEOPLE_PERMISSIONS = {
   feedback: {
     ver:       str("people.feedback", "ver"),
     registrar: str("people.feedback", "registrar"),
+  },
+  feedbackDesempenho: {
+    ver:             str("people.feedback_desempenho", "ver"),
+    registrar:       str("people.feedback_desempenho", "registrar"),
+    aprovarExclusao: str("people.feedback_desempenho", "aprovar_exclusao"),
   },
   checklist: {
     ver:       str("people.checklist", "ver"),

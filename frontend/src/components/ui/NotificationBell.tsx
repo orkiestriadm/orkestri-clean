@@ -25,14 +25,31 @@ const TIPO_META: Record<string, { icon: string; color: string; label: string }> 
   integracao_365_liberada:    { icon: "check",    color: "var(--accent-green)", label: "Outlook" },
   integracao_365_recusada:    { icon: "alert",    color: "var(--accent-red)",   label: "Outlook" },
   integracao_365_removida:    { icon: "alert",    color: "var(--accent-red)",   label: "Outlook" },
+  people_feedback_reuniao:            { icon: "calendar", color: "var(--accent-cyan)",  label: "Feedback" },
+  people_feedback_ciencia:            { icon: "check",    color: "var(--accent-amber)", label: "Feedback" },
+  people_feedback_encerrado:          { icon: "check",    color: "var(--accent-green)", label: "Feedback" },
+  people_feedback_exclusao:           { icon: "alert",    color: "var(--accent-red)",   label: "Exclusão" },
+  people_feedback_exclusao_aprovada:  { icon: "check",    color: "var(--accent-green)", label: "Feedback" },
+  people_feedback_exclusao_reprovada: { icon: "alert",    color: "var(--accent-red)",   label: "Feedback" },
 };
 
 // Avisos da integração com o Outlook levam direto a quem resolve: o
 // administrador ao modal de usuários, o usuário à Agenda com a integração aberta.
-const LINK_TIPO: Record<string, { href: string; label: string }> = {
+// `href` pode depender da notificação: os avisos de feedback levam ao registro
+// específico pelo `referenciaId`.
+const LINK_TIPO: Record<string, { href: string | ((n: Notif) => string); label: string }> = {
   integracao_365_solicitacao: { href: "/dashboard/configuracoes/integracoes?usuarios=1", label: "Abrir liberação" },
   integracao_365_liberada:    { href: "/dashboard/agenda?outlook=1", label: "Conectar Outlook" },
+  people_feedback_reuniao:            { href: "/dashboard/meu-rh?aba=feedback", label: "Ver no Meu RH" },
+  people_feedback_ciencia:            { href: "/dashboard/meu-rh?aba=feedback", label: "Ler e dar ciência" },
+  people_feedback_encerrado:          { href: n => `/dashboard/people/avaliacao-desempenho/feedback/${n.referenciaId}`, label: "Ver feedback" },
+  people_feedback_exclusao_reprovada: { href: n => `/dashboard/people/avaliacao-desempenho/feedback/${n.referenciaId}`, label: "Ver feedback" },
 };
+
+function hrefDe(n: Notif): string {
+  const h = LINK_TIPO[n.tipo]?.href;
+  return typeof h === "function" ? h(n) : h ?? "#";
+}
 
 function Icon({ name }: { name: string }) {
   const icons: Record<string, JSX.Element> = {
@@ -179,9 +196,32 @@ export default function NotificationBell() {
     }
   };
 
+  // Pedido de exclusão de feedback de desempenho: o RH aprova ou reprova daqui
+  // mesmo. A decisão marca como lida a notificação de TODOS os aprovadores no
+  // backend; aqui basta tirar da lista de quem decidiu.
+  const respondExclusaoFeedback = async (notif: Notif, aprovar: boolean) => {
+    if (!notif.referenciaId) return;
+    setResponding(notif.id + (aprovar ? "aprovar" : "reprovar"));
+    setFlash(null);
+    try {
+      await api.post(`/v1/people/feedbacks-desempenho/${notif.referenciaId}/exclusao/decisao`, { aprovar });
+      setFlash({
+        tone: "ok",
+        text: aprovar ? "Exclusão aprovada — feedback excluído." : "Exclusão reprovada — o gestor foi avisado.",
+      });
+      await markRead(notif.id);
+    } catch (e: any) {
+      setFlash({ tone: "err", text: e?.response?.data?.message || "Não foi possível registrar a decisão." });
+    } finally {
+      setResponding(null);
+    }
+  };
+
+  const ACAO_DIRETA = ["solicitacao_acesso", "people_feedback_exclusao"];
   const acessos  = notifs.filter(n => n.tipo === "solicitacao_acesso");
+  const exclusoesFeedback = notifs.filter(n => n.tipo === "people_feedback_exclusao");
   const invites  = notifs.filter(n => INVITE_TIPOS.includes(n.tipo));
-  const regular  = notifs.filter(n => !INVITE_TIPOS.includes(n.tipo) && n.tipo !== "solicitacao_acesso");
+  const regular  = notifs.filter(n => !INVITE_TIPOS.includes(n.tipo) && !ACAO_DIRETA.includes(n.tipo));
   const unread   = notifs.length;
 
   return (
@@ -292,6 +332,58 @@ export default function NotificationBell() {
                   </div>
                 )}
 
+                {/* ── Exclusões de feedback aguardando o RH ─────────── */}
+                {exclusoesFeedback.length > 0 && (
+                  <div>
+                    <div style={{ fontSize: 10, fontFamily: "var(--font-mono)", letterSpacing: "0.1em", color: "var(--text-muted)", padding: "10px 16px 4px", background: "rgba(248,113,113,0.05)", borderBottom: "1px solid var(--border-subtle)" }}>
+                      EXCLUSÃO DE FEEDBACK — {exclusoesFeedback.length}
+                    </div>
+                    {exclusoesFeedback.map((n, i) => {
+                      const meta = TIPO_META[n.tipo];
+                      const isAprovar  = responding === n.id + "aprovar";
+                      const isReprovar = responding === n.id + "reprovar";
+                      const isBusy     = isAprovar || isReprovar;
+                      return (
+                        <div key={n.id} style={{ padding: "12px 16px", borderBottom: i < exclusoesFeedback.length - 1 ? "1px solid var(--border-subtle)" : "none", background: "rgba(248,113,113,0.03)" }}>
+                          <div style={{ display: "flex", gap: 10, marginBottom: 10 }}>
+                            <div style={{ width: 34, height: 34, borderRadius: 9, background: `${meta.color}18`, border: `1px solid ${meta.color}35`, display: "flex", alignItems: "center", justifyContent: "center", color: meta.color, flexShrink: 0 }}>
+                              <Icon name={meta.icon} />
+                            </div>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
+                                <span style={{ fontSize: 10, fontFamily: "var(--font-mono)", color: meta.color, background: `${meta.color}18`, padding: "1px 6px", borderRadius: 4 }}>{meta.label.toUpperCase()}</span>
+                                <span style={{ fontSize: 10, color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>{timeAgo(n.criadoEm)}</span>
+                              </div>
+                              <div style={{ fontSize: 13, fontWeight: 500, color: "var(--text-primary)", lineHeight: 1.35 }}>{n.titulo}</div>
+                              {n.mensagem && <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>{n.mensagem}</div>}
+                              <a href={`/dashboard/people/avaliacao-desempenho/feedback/${n.referenciaId}`}
+                                style={{ display: "inline-block", marginTop: 6, fontSize: 12, fontWeight: 600, color: "var(--accent-violet)", textDecoration: "none" }}>
+                                Ver feedback →
+                              </a>
+                            </div>
+                          </div>
+                          <div style={{ display: "flex", gap: 8 }}>
+                            <button
+                              disabled={isBusy}
+                              onClick={() => respondExclusaoFeedback(n, true)}
+                              style={{ flex: 1, padding: "7px 0", borderRadius: 7, border: "1px solid rgba(248,113,113,0.4)", background: isAprovar ? "rgba(248,113,113,0.25)" : "rgba(248,113,113,0.1)", color: "#f87171", fontSize: 12, fontWeight: 600, cursor: isBusy ? "default" : "pointer" }}
+                            >
+                              {isAprovar ? "Aprovando..." : "Aprovar exclusão"}
+                            </button>
+                            <button
+                              disabled={isBusy}
+                              onClick={() => respondExclusaoFeedback(n, false)}
+                              style={{ flex: 1, padding: "7px 0", borderRadius: 7, border: "1px solid var(--border-medium)", background: isReprovar ? "var(--bg-hover)" : "transparent", color: "var(--text-secondary)", fontSize: 12, fontWeight: 600, cursor: isBusy ? "default" : "pointer" }}
+                            >
+                              {isReprovar ? "Reprovando..." : "Reprovar"}
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
                 {/* ── Convites pendentes ─────────────────────────────── */}
                 {invites.length > 0 && (
                   <div>
@@ -356,7 +448,7 @@ export default function NotificationBell() {
                 {/* ── Outras notificacoes ────────────────────────────── */}
                 {regular.length > 0 && (
                   <div>
-                    {(invites.length > 0 || acessos.length > 0) && (
+                    {(invites.length > 0 || acessos.length > 0 || exclusoesFeedback.length > 0) && (
                       <div style={{ fontSize: 10, fontFamily: "var(--font-mono)", letterSpacing: "0.1em", color: "var(--text-muted)", padding: "10px 16px 4px", borderBottom: "1px solid var(--border-subtle)" }}>
                         INFORMACOES
                       </div>
@@ -375,7 +467,7 @@ export default function NotificationBell() {
                             <div style={{ fontSize: 13, fontWeight: 500, color: "var(--text-primary)", lineHeight: 1.4 }}>{n.titulo}</div>
                             {n.mensagem && <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>{n.mensagem}</div>}
                             {LINK_TIPO[n.tipo] && (
-                              <a href={LINK_TIPO[n.tipo].href} onClick={() => { markRead(n.id); }}
+                              <a href={hrefDe(n)} onClick={() => { markRead(n.id); }}
                                 style={{ display: "inline-block", marginTop: 6, fontSize: 12, fontWeight: 600, color: "var(--accent-violet)", textDecoration: "none" }}>
                                 {LINK_TIPO[n.tipo].label} →
                               </a>

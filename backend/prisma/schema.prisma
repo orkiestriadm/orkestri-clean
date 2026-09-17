@@ -140,7 +140,8 @@ model Organization {
   perfGoals               PerformanceGoal[]            @relation("OrgPerfGoals")
   salarios                CollaboratorSalary[]         @relation("OrgSalaries")
   feedbacks               PerformanceFeedback[]        @relation("OrgFeedbacks")
-  skills                  Skill[]                      @relation("OrgSkills")
+  feedbacksDesempenho     FeedbackDesempenho[]         @relation("OrgFeedbacksDesempenho")
+  skills                 Skill[]                      @relation("OrgSkills")
   ausencias               Ausencia[]                   @relation("OrgAusencias")
   workflowRequests        WorkflowRequest[]            @relation("OrgWorkflowRequests")
   squads                  Squad[]                      @relation("OrgSquads")
@@ -910,6 +911,8 @@ model Collaborator {
   salarios                 CollaboratorSalary[]
   feedbacks                PerformanceFeedback[]        @relation("FeedbackSobre")
   feedbacksDados           PerformanceFeedback[]        @relation("FeedbackAutor")
+  feedbacksDesempenho      FeedbackDesempenho[]         @relation("FeedbackDesempenhoColaborador")
+  feedbacksDesempenhoDados FeedbackDesempenho[]         @relation("FeedbackDesempenhoGestor")
   careerTrack              CareerTrack?                 @relation("TrackCollaborators", fields: [careerTrackId], references: [id], onDelete: SetNull)
   checklists               CollaboratorChecklist[]
   complianceResponsavelPor ComplianceResponsavel[]
@@ -4217,6 +4220,82 @@ model PerformanceFeedback {
   @@index([organizationId])
   @@index([reviewId])
   @@map("performance_feedbacks")
+}
+
+// ── People: Avaliação de Desempenho › Feedback ─────────────────────────────
+// Fluxo formal do RH: registro → reunião → ciência → encerramento. Não substitui
+// o feedback contínuo acima. Regras em domain/feedback-desempenho.entity.ts.
+
+model FeedbackDesempenho {
+  id                     String    @id @default(uuid())
+  organizationId         String    @map("organization_id")
+  /// Quem recebe. Precisa ter login: é ele quem registra a ciência.
+  collaboratorId         String    @map("collaborator_id")
+  /// Quem dá — o cadastro do usuário que registrou.
+  gestorId               String    @map("gestor_id")
+  /// REGISTRADO | REUNIAO_AGENDADA | AGUARDANDO_CIENCIA | ENCERRADO
+  status                 String    @default("REGISTRADO")
+
+  // 1. Registro
+  pontosFortes           String    @map("pontos_fortes")
+  oportunidades          String
+
+  // 2. Reunião
+  reuniaoInicio          DateTime? @map("reuniao_inicio")
+  /// Local da conversa ou link da chamada.
+  reuniaoLocal           String?   @map("reuniao_local")
+  reuniaoRealizadaEm     DateTime? @map("reuniao_realizada_em")
+  /// Expectativas e próximos passos alinhados na conversa.
+  alinhamentos           String?
+
+  // 3. Ciência
+  cienciaEm              DateTime? @map("ciencia_em")
+  comentarioColaborador  String?   @map("comentario_colaborador")
+
+  // Exclusão — pedida pelo gestor, decidida pelo RH.
+  /// PENDENTE | REPROVADA | nulo
+  exclusaoStatus         String?   @map("exclusao_status")
+  exclusaoMotivo         String?   @map("exclusao_motivo")
+  exclusaoSolicitadaPor  String?   @map("exclusao_solicitada_por")
+  exclusaoSolicitadaEm   DateTime? @map("exclusao_solicitada_em")
+  exclusaoDecididaPor    String?   @map("exclusao_decidida_por")
+  exclusaoDecididaEm     DateTime? @map("exclusao_decidida_em")
+  exclusaoParecer        String?   @map("exclusao_parecer")
+  /// Exclusão aprovada é lógica: o registro sai das telas, a trilha fica.
+  excluidoEm             DateTime? @map("excluido_em")
+
+  criadoEm               DateTime  @default(now()) @map("criado_em")
+  criadoPorId            String?   @map("criado_por_id")
+  atualizadoEm           DateTime  @updatedAt @map("atualizado_em")
+
+  organization Organization               @relation("OrgFeedbacksDesempenho", fields: [organizationId], references: [id], onDelete: Cascade)
+  collaborator Collaborator               @relation("FeedbackDesempenhoColaborador", fields: [collaboratorId], references: [id], onDelete: Cascade)
+  gestor       Collaborator               @relation("FeedbackDesempenhoGestor", fields: [gestorId], references: [id], onDelete: Cascade)
+  eventos      FeedbackDesempenhoEvento[]
+
+  @@index([organizationId, status])
+  @@index([collaboratorId])
+  @@index([gestorId])
+  @@map("feedbacks_desempenho")
+}
+
+/// Linha do tempo do feedback. Só cresce: nada aqui é editado nem apagado.
+model FeedbackDesempenhoEvento {
+  id         String   @id @default(uuid())
+  feedbackId String   @map("feedback_id")
+  /// registrado | editado | reuniao_agendada | reuniao_reagendada | reuniao_realizada |
+  /// ciencia | exclusao_solicitada | exclusao_aprovada | exclusao_reprovada
+  tipo       String
+  userId     String?  @map("user_id")
+  /// Nome no momento do evento — o usuário pode ser renomeado ou removido depois.
+  autorNome  String?  @map("autor_nome")
+  detalhe    String?
+  criadoEm   DateTime @default(now()) @map("criado_em")
+
+  feedback FeedbackDesempenho @relation(fields: [feedbackId], references: [id], onDelete: Cascade)
+
+  @@index([feedbackId, criadoEm])
+  @@map("feedbacks_desempenho_eventos")
 }
 
 // ═══════════════════════════════════════════════════════════════════════════

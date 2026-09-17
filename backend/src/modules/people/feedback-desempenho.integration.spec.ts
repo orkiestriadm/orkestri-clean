@@ -1,0 +1,257 @@
+import { Test } from "@nestjs/testing";
+import { randomUUID } from "crypto";
+import { PrismaService } from "../../prisma/prisma.service";
+import { PeopleModule } from "./people.module";
+import { EmployeeService } from "./application/employee.service";
+import { FeedbackDesempenhoService } from "./application/feedback-desempenho.service";
+
+/**
+ * Avaliação de Desempenho › Feedback — o fluxo do RH contra o banco.
+ *
+ * As regras de etapa têm teste unitário (domain/feedback-desempenho.entity.spec.ts).
+ * Este prova o que só aparece com banco: quem enxerga o quê, o texto escondido
+ * do colaborador antes da reunião, a agenda, as notificações e a exclusão com
+ * aprovação do RH.
+ *
+ *   GestorA ─┬─ Ana    (com login — recebe o feedback)
+ *            └─ Bruno  (sem login — não pode receber)
+ *   GestorB ─── Carla  (fora da árvore de GestorA)
+ */
+
+const DB = process.env.PEOPLE_IT_DATABASE_URL;
+const descreve = DB ? describe : describe.skip;
+
+descreve("People — feedback de desempenho", () => {
+  let moduloRef: any;
+  let prisma: any;
+  let employees: EmployeeService;
+  let svc: FeedbackDesempenhoService;
+
+  const orgId = `fd-org-${randomUUID()}`;
+  type Ctx = { id: string; organizationId: string; permissions: string[] };
+
+  const GESTOR = [
+    "people.colaborador:ver", "people.feedback_desempenho:ver", "people.feedback_desempenho:registrar",
+  ];
+
+  let rh: Ctx, gestorA: Ctx, gestorB: Ctx, ana: Ctx;
+  const id = {} as Record<"gestorA" | "gestorB" | "ana" | "bruno" | "carla", string>;
+
+  async function criarUsuario(nome: string, permissions: string[]): Promise<Ctx> {
+    const u = await prisma.user.create({
+      data: { id: `fd-user-${randomUUID()}`, organizationId: orgId, nome, email: `${randomUUID().slice(0, 8)}@fd.local`, senhaHash: "x" },
+    });
+    return { id: u.id, organizationId: orgId, permissions };
+  }
+
+  const notificacoes = (userId: string, tipo: string) =>
+    prisma.notification.findMany({ where: { userId, tipo } });
+
+  beforeAll(async () => {
+    process.env.DATABASE_URL = DB;
+    moduloRef = await Test.createTestingModule({ imports: [PeopleModule] }).compile();
+    await moduloRef.init();
+    prisma = moduloRef.get(PrismaService);
+    employees = moduloRef.get(EmployeeService);
+    svc = moduloRef.get(FeedbackDesempenhoService);
+
+    await prisma.organization.create({ data: { id: orgId, nome: "Feedback IT", slug: `fd-${randomUUID().slice(0, 8)}` } });
+
+    rh = await criarUsuario("RH Aprovador", [
+      "people.colaborador:ver_todos", "people.feedback_desempenho:ver", "people.feedback_desempenho:aprovar_exclusao",
+    ]);
+    gestorA = await criarUsuario("Gestor A", GESTOR);
+    gestorB = await criarUsuario("Gestor B", GESTOR);
+    ana = await criarUsuario("Ana", []);
+
+    // O RH precisa ter a permissão NO BANCO: é por lá que se descobre a quem
+    // mandar o pedido de exclusão (o JWT só existe durante a requisição).
+    const perm = await prisma.permission.upsert({
+      where: { recurso_acao: { recurso: "people.feedback_desempenho", acao: "aprovar_exclusao" } },
+      create: { id: randomUUID(), recurso: "people.feedback_desempenho", acao: "aprovar_exclusao" },
+      update: {},
+    });
+    const papel = await prisma.role.create({ data: { id: randomUUID(), organizationId: orgId, nome: "rh-it", nivel: 50 } });
+    await prisma.rolePermission.create({ data: { roleId: papel.id, permissionId: perm.id } });
+    await prisma.userRole.create({ data: { userId: rh.id, roleId: papel.id } });
+
+    const nova = async (nomeCompleto: string, extra: Record<string, unknown> = {}) =>
+      (await employees.criar(rh as any, { nomeCompleto, dataAdmissao: "2024-01-10", ...extra } as any)).data.id;
+
+    id.gestorA = await nova("Gestor A", { userId: gestorA.id });
+    id.gestorB = await nova("Gestor B", { userId: gestorB.id });
+    id.ana     = await nova("Ana Liderada", { userId: ana.id, gestorId: id.gestorA });
+    id.bruno   = await nova("Bruno Sem Login", { gestorId: id.gestorA });
+    id.carla   = await nova("Carla de Fora", { gestorId: id.gestorB });
+  }, 90_000);
+
+  afterAll(async () => {
+    if (!prisma) return;
+    await prisma.organization.deleteMany({ where: { id: orgId } }).catch(() => {});
+    await moduloRef?.close().catch(() => {});
+  }, 30_000);
+
+  const registrar = (collaboratorId: string, quem: Ctx = gestorA) =>
+    svc.criar(quem, { collaboratorId, pontosFortes: "Entrega com qualidade", oportunidades: "Comunicar atrasos antes" });
+
+  describe("etapa 1 — registro", () => {
+    it("gestor só pode escolher liderado com login", async () => {
+      const r = await svc.colaboradoresElegiveis(gestorA);
+      expect(r.data.map((c: any) => c.id)).toEqual([id.ana]);
+    });
+
+    it("recusa colaborador sem login, fora da árvore e a si mesmo", async () => {
+      await expect(registrar(id.bruno)).rejects.toThrow(/não tem acesso ao sistema/);
+      await expect(registrar(id.carla)).rejects.toThrow(/não encontrado/);
+      await expect(registrar(id.gestorA)).rejects.toThrow(/você mesmo/);
+    });
+
+    it("exige pontos fortes e oportunidades", async () => {
+      await expect(svc.criar(gestorA, { collaboratorId: id.ana, pontosFortes: " ", oportunidades: "x" }))
+        .rejects.toThrow(/pontos fortes/);
+    });
+  });
+
+  describe("fluxo completo: registro → reunião → ciência → encerramento", () => {
+    let fid: string;
+
+    it("registrado não existe para o colaborador", async () => {
+      fid = (await registrar(id.ana)).data.id;
+      expect((await svc.meus(ana)).data).toHaveLength(0);
+      await expect(svc.meu(ana, fid)).rejects.toThrow(/não encontrado/);
+    });
+
+    it("quem está fora da árvore não enxerga; o próprio colaborador não lê pela gestão", async () => {
+      await expect(svc.obter(gestorB, fid)).rejects.toThrow(/não encontrado/);
+      expect((await svc.listar(gestorB, {})).data).toHaveLength(0);
+      await expect(svc.obter({ ...ana, permissions: GESTOR }, fid)).rejects.toThrow(/não encontrado/);
+    });
+
+    it("agendar entra na agenda dos dois e avisa o colaborador, sem liberar o texto", async () => {
+      const inicio = new Date(Date.now() + 2 * 86_400_000);
+      const r = await svc.agendarReuniao(gestorA, fid, { inicio: inicio.toISOString(), local: "Sala 3" });
+      expect(r.data.status).toBe("REUNIAO_AGENDADA");
+
+      const eventos = await prisma.event.findMany({ where: { origemTipo: "people_feedback", origemId: fid } });
+      expect(eventos.map((e: any) => e.userId).sort()).toEqual([gestorA.id, ana.id].sort());
+      expect(await notificacoes(ana.id, "people_feedback_reuniao")).toHaveLength(1);
+
+      const meu = (await svc.meus(ana)).data[0];
+      expect(meu.status).toBe("REUNIAO_AGENDADA");
+      expect(meu.pontosFortes).toBeNull();
+      expect(meu.oportunidades).toBeNull();
+    });
+
+    it("remarcar atualiza os mesmos compromissos em vez de criar outros", async () => {
+      const novo = new Date(Date.now() + 3 * 86_400_000);
+      await svc.agendarReuniao(gestorA, fid, { inicio: novo.toISOString() });
+      const eventos = await prisma.event.findMany({ where: { origemTipo: "people_feedback", origemId: fid } });
+      expect(eventos).toHaveLength(2);
+      expect(eventos.every((e: any) => e.inicio.getTime() === novo.getTime())).toBe(true);
+    });
+
+    it("colaborador não dá ciência antes da reunião; reunião não pode ser registrada no futuro", async () => {
+      await expect(svc.registrarCiencia(ana, fid, {})).rejects.toThrow(/etapa atual/);
+      await expect(svc.registrarReuniao(gestorA, fid, {
+        realizadaEm: new Date(Date.now() + 86_400_000).toISOString(), alinhamentos: "x",
+      })).rejects.toThrow(/futura/);
+    });
+
+    it("reunião realizada libera o texto ao colaborador e trava a edição", async () => {
+      const r = await svc.registrarReuniao(gestorA, fid, { alinhamentos: "Avisar atraso em até 1 dia" });
+      expect(r.data.status).toBe("AGUARDANDO_CIENCIA");
+      expect(await notificacoes(ana.id, "people_feedback_ciencia")).toHaveLength(1);
+
+      const meu = (await svc.meu(ana, fid)).data;
+      expect(meu.pontosFortes).toBe("Entrega com qualidade");
+      expect(meu.alinhamentos).toBe("Avisar atraso em até 1 dia");
+      expect(meu.podeDarCiencia).toBe(true);
+
+      await expect(svc.editar(gestorA, fid, { pontosFortes: "outro" })).rejects.toThrow(/etapa atual/);
+    });
+
+    it("ciência encerra, guarda o comentário e avisa o gestor", async () => {
+      const r = await svc.registrarCiencia(ana, fid, { comentario: "Concordo em parte" });
+      expect(r.data.status).toBe("ENCERRADO");
+      expect(r.data.comentarioColaborador).toBe("Concordo em parte");
+      expect(await notificacoes(gestorA.id, "people_feedback_encerrado")).toHaveLength(1);
+
+      const detalhe = (await svc.obter(gestorA, fid)).data;
+      expect(detalhe.eventos.map((e: any) => e.tipo)).toEqual([
+        "registrado", "reuniao_agendada", "reuniao_reagendada", "reuniao_realizada", "ciencia",
+      ]);
+      expect(detalhe.eventos[0].autorNome).toBe("Gestor A");
+      expect(detalhe.acoes).toEqual(["solicitar_exclusao"]);
+
+      await expect(svc.registrarCiencia(ana, fid, {})).rejects.toThrow(/etapa atual/);
+    });
+  });
+
+  describe("exclusão: gestor pede, RH decide", () => {
+    let fid: string;
+
+    beforeAll(async () => {
+      fid = (await registrar(id.ana)).data.id;
+      await svc.agendarReuniao(gestorA, fid, { inicio: new Date(Date.now() + 86_400_000).toISOString() });
+    });
+
+    it("pedido notifica o RH e para o fluxo", async () => {
+      const r = await svc.solicitarExclusao(gestorA, fid, { motivo: "Registrado para a pessoa errada" });
+      expect(r.aprovadoresNotificados).toBe(1);
+      expect(r.data.exclusao?.status).toBe("PENDENTE");
+      expect(await notificacoes(rh.id, "people_feedback_exclusao")).toHaveLength(1);
+
+      await expect(svc.registrarReuniao(gestorA, fid, { alinhamentos: "x" })).rejects.toThrow(/aguardando o RH/);
+      await expect(svc.solicitarExclusao(gestorA, fid, { motivo: "de novo" })).rejects.toThrow(/Já existe/);
+    });
+
+    it("gestor não decide o próprio pedido", async () => {
+      await expect(svc.decidirExclusao(gestorA, fid, { aprovar: true })).rejects.toThrow(/não cabe a você/);
+    });
+
+    it("reprovada: registro continua, gestor é avisado, pedido sai da fila do RH", async () => {
+      await svc.decidirExclusao(rh, fid, { aprovar: false, parecer: "Corrija pela edição" });
+
+      const f = await prisma.feedbackDesempenho.findUnique({ where: { id: fid } });
+      expect(f.excluidoEm).toBeNull();
+      expect(f.exclusaoStatus).toBe("REPROVADA");
+      expect(f.status).toBe("REUNIAO_AGENDADA");
+
+      const avisos = await notificacoes(gestorA.id, "people_feedback_exclusao_reprovada");
+      expect(avisos).toHaveLength(1);
+      expect(avisos[0].mensagem).toContain("Corrija pela edição");
+      expect((await notificacoes(rh.id, "people_feedback_exclusao")).every((n: any) => n.lida)).toBe(true);
+
+      // O fluxo volta a andar.
+      expect((await svc.obter(gestorA, fid)).data.acoes).toContain("registrar_reuniao");
+    });
+
+    it("aprovada: some das telas, sai da agenda futura e o gestor é avisado", async () => {
+      await svc.solicitarExclusao(gestorA, fid, { motivo: "Duplicado" });
+      const r = await svc.decidirExclusao(rh, fid, { aprovar: true });
+      expect((r.data as any).excluido).toBe(true);
+
+      expect((await svc.listar(gestorA, {})).data.some((f: any) => f.id === fid)).toBe(false);
+      await expect(svc.obter(rh, fid)).rejects.toThrow(/não encontrado/);
+      expect((await svc.meus(ana)).data.some((f: any) => f.id === fid)).toBe(false);
+      expect(await prisma.event.count({ where: { origemTipo: "people_feedback", origemId: fid } })).toBe(0);
+      expect(await notificacoes(gestorA.id, "people_feedback_exclusao_aprovada")).toHaveLength(1);
+
+      // A trilha fica.
+      const eventos = await prisma.feedbackDesempenhoEvento.findMany({ where: { feedbackId: fid } });
+      expect(eventos.map((e: any) => e.tipo)).toContain("exclusao_aprovada");
+    });
+
+    it("RH que registrou e pediu não decide o próprio pedido", async () => {
+      const rhGestor = { ...rh, permissions: [...rh.permissions, "people.feedback_desempenho:registrar"] };
+      const idRhGestor = await employees.criar(rh as any, {
+        nomeCompleto: "Liderado do RH", dataAdmissao: "2024-01-10",
+        userId: (await criarUsuario("Liderado do RH", [])).id,
+        gestorId: (await employees.criar(rh as any, { nomeCompleto: "RH Aprovador", dataAdmissao: "2024-01-10", userId: rh.id } as any)).data.id,
+      } as any);
+      const f = (await registrar(idRhGestor.data.id, rhGestor)).data.id;
+      await svc.solicitarExclusao(rhGestor, f, { motivo: "Teste" });
+      await expect(svc.decidirExclusao(rhGestor, f, { aprovar: true })).rejects.toThrow(/próprio pedido/);
+    });
+  });
+});

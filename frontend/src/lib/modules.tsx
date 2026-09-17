@@ -10,6 +10,7 @@ import {
   ClipboardCheck, FolderKanban, Boxes, ShieldCheck, HeartPulse, Bell,
   Briefcase, CalendarClock, Library, BarChart3, CalendarX, UsersRound, Inbox, Info, Route,
   UserCircle, Scale, Target, ClipboardList, UserCheck, Lightbulb, Presentation, CheckCircle2,
+  MessagesSquare,
 } from "lucide-react";
 
 // `permission` como lista significa OU — ver canAccessModule.
@@ -84,6 +85,10 @@ export const NAV: NavGroup[] = [
       // desempenho, que é dado de carreira — quem vê indicador de quadro não
       // necessariamente pode ler a nota que cada gestor deu.
       { href: "/dashboard/people/calibracao",  label: "Calibração",    icon: Scale,         permission: "people.avaliacao:ver" },
+      // Submódulo com o Feedback como primeira aba. O RH entra também por
+      // `aprovar_exclusao`: é quem decide os pedidos de exclusão, mesmo sem
+      // acompanhar o dia a dia dos feedbacks.
+      { href: "/dashboard/people/avaliacao-desempenho", label: "Avaliação de Desempenho", icon: MessagesSquare, permission: ["people.feedback_desempenho:ver", "people.feedback_desempenho:aprovar_exclusao"] },
       // Permissão própria, fora de qualquer perfil padrão: eliminar dado
       // pessoal é irreversível, ao contrário de excluir colaborador.
       { href: "/dashboard/people/privacidade", label: "Privacidade",   icon: ShieldCheck,   permission: "people.privacidade:gerenciar" },

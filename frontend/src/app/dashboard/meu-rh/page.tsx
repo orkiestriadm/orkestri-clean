@@ -18,6 +18,7 @@ import MinhasFerias from "./_components/MinhasFerias";
 import MeusDocumentos from "./_components/MeusDocumentos";
 import MinhaCarreira from "./_components/MinhaCarreira";
 import MinhasAvaliacoes from "./_components/MinhasAvaliacoes";
+import MeusFeedbacks from "./_components/MeusFeedbacks";
 
 /**
  * Meu RH — o módulo pela ótica de quem é o objeto dele.
@@ -31,7 +32,8 @@ import MinhasAvaliacoes from "./_components/MinhasAvaliacoes";
  * pelo token, e é isso que garante que não há como pedir o dado de um colega.
  */
 
-type Aba = "resumo" | "ferias" | "documentos" | "avaliacoes" | "carreira";
+type Aba = "resumo" | "ferias" | "documentos" | "avaliacoes" | "feedback" | "carreira";
+const ABAS: Aba[] = ["resumo", "ferias", "documentos", "avaliacoes", "feedback", "carreira"];
 
 export default function MeuRhPage() {
   const [resumo, setResumo] = useState<MeuResumo | null>(null);
@@ -59,6 +61,12 @@ export default function MeuRhPage() {
   }, []);
 
   useEffect(() => { carregar(); }, [carregar]);
+
+  // ?aba=feedback vem da notificação "feedback aguardando sua ciência".
+  useEffect(() => {
+    const pedida = new URLSearchParams(window.location.search).get("aba") as Aba | null;
+    if (pedida && ABAS.includes(pedida)) setAba(pedida);
+  }, []);
 
   if (semVinculo) {
     return (
@@ -116,6 +124,7 @@ export default function MeuRhPage() {
             { id: "ferias",     label: "Férias" },
             { id: "documentos", label: "Documentos" },
             { id: "avaliacoes", label: "Avaliações" },
+            { id: "feedback",   label: "Feedback" },
             { id: "carreira",   label: "Carreira" },
           ]}
         />
@@ -126,6 +135,7 @@ export default function MeuRhPage() {
         {aba === "ferias" && <MinhasFerias onAlterou={carregar} />}
         {aba === "documentos" && <MeusDocumentos onAlterou={carregar} />}
         {aba === "avaliacoes" && <MinhasAvaliacoes />}
+        {aba === "feedback" && <MeusFeedbacks />}
         {aba === "carreira" && <MinhaCarreira />}
       </PageBody>
     </>

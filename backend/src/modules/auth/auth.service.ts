@@ -303,6 +303,9 @@ const ROLE_DEFAULTS: Record<string, { nivel: number; descricao: string; permisso
       "colaboradores:ver","colaboradores:criar","colaboradores:editar","colaboradores:excluir",
       // People: gestor enxerga a própria equipe — sem `ver_todos` de propósito.
       ...PEOPLE_PERMISSOES_LEITURA,
+      // Feedback de desempenho: o gestor registra e conduz. Aprovar a exclusão
+      // fica com o RH — quem pede não decide.
+      "people.feedback_desempenho:ver","people.feedback_desempenho:registrar",
       "conhecimento:ver","conhecimento:criar","conhecimento:editar","conhecimento:publicar",
       "sla:ver","sla:gerenciar",
       "automacoes:ver","automacoes:criar","automacoes:editar","automacoes:excluir",

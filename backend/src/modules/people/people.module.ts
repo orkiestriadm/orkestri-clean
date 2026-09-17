@@ -47,6 +47,11 @@ import { AusenciasModule } from "../ausencias/ausencias.module";
 import { Review360Service } from "./application/review360.service";
 import { Review360Repository } from "./infrastructure/review360.repository";
 import { Review360Controller } from "./presentation/review360.controller";
+import { FeedbackDesempenhoService } from "./application/feedback-desempenho.service";
+import {
+  FeedbackDesempenhoController, MeusFeedbacksDesempenhoController,
+} from "./presentation/feedback-desempenho.controller";
+import { IntegracoesModule } from "../integracoes/integracoes.module";
 
 /**
  * Orkiestri People — gestão de pessoas.
@@ -70,7 +75,9 @@ import { Review360Controller } from "./presentation/review360.controller";
   // AusenciasModule entra por causa do autoatendimento: cancelar um pedido de
   // férias é o MESMO caso de uso que o gestor usa, e reimplementá-lo aqui
   // criaria dois caminhos para cancelar a mesma coisa. Ver SelfServiceService.
-  imports: [PrismaModule, AuditModule, AusenciasModule, ScheduleModule.forRoot()],
+  // IntegracoesModule entra pelo feedback de desempenho: a reunião vai para a
+  // agenda, e quem tem Outlook conectado precisa recebê-la lá também.
+  imports: [PrismaModule, AuditModule, AusenciasModule, IntegracoesModule, ScheduleModule.forRoot()],
   controllers: [
     EmployeeController, DocumentController, PositionController, VacationController,
     BenefitController, DevelopmentController, ReportController, SalaryController,
@@ -79,6 +86,8 @@ import { Review360Controller } from "./presentation/review360.controller";
     SelfServiceController,
     PrivacyController,
     Review360Controller,
+    FeedbackDesempenhoController,
+    MeusFeedbacksDesempenhoController,
   ],
   providers: [
     EmployeeService,
@@ -96,6 +105,7 @@ import { Review360Controller } from "./presentation/review360.controller";
     PrivacyService,
     Review360Service,
     Review360Repository,
+    FeedbackDesempenhoService,
     PeopleNotificationsService,
     PeopleScopeService,
     EmployeeRepository,

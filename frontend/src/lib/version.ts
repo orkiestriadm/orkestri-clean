@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "1.42.6";
+export const VERSAO = "1.43.0";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -26,7 +26,7 @@ export const VERSAO = "1.42.6";
 export const VERSAO_DATA = "2026-09-17";
 
 /** Nome da entrega, para dar contexto ao número. */
-export const VERSAO_NOME = "Meus Gastos só com acesso ao Financeiro";
+export const VERSAO_NOME = "Feedback da Avaliação de Desempenho";
 
 /**
  * Histórico exibido na tela Sobre, do mais recente para o mais antigo.
@@ -35,6 +35,18 @@ export const VERSAO_NOME = "Meus Gastos só com acesso ao Financeiro";
  * esta lista quer saber o que mudou para ele.
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
+  {
+    versao: "1.43.0",
+    data: "2026-09-17",
+    titulo: "Feedback da Avaliação de Desempenho",
+    itens: [
+      "People › Avaliação de Desempenho: o gestor registra o feedback (pontos fortes e oportunidades de desenvolvimento), agenda e registra a reunião individual",
+      "A reunião entra na agenda do gestor e do colaborador; remarcar atualiza os dois compromissos",
+      "O colaborador lê o feedback no Meu RH depois da reunião e registra ciência, com comentário opcional — o processo é encerrado",
+      "Excluir um feedback exige aprovação do RH: o pedido chega nas notificações com Aprovar e Reprovar, e o gestor é avisado da decisão",
+      "O feedback contínuo (elogio, correção, anotação) continua como estava",
+    ],
+  },
   {
     versao: "1.42.6",
     data: "2026-09-17",
