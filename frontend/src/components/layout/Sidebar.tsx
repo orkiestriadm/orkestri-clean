@@ -294,9 +294,12 @@ export default function Sidebar() {
                   não sobrevive a item novo; `1fr` mede o conteúdo. */}
               <div className={cn(
                 "grid transition-all duration-300 ease-in-out",
-                open ? "grid-rows-[1fr] opacity-100 mt-1" : "grid-rows-[0fr] opacity-0"
+                // O respiro de baixo fica no grupo ABERTO: dentro da linha de
+                // altura zero, o padding do filho ainda ocupava 8px e somava
+                // folga entre os grupos fechados.
+                open ? "grid-rows-[1fr] opacity-100 mt-1 pb-2" : "grid-rows-[0fr] opacity-0"
               )}>
-                <div className="space-y-0.5 pb-2 min-h-0 overflow-hidden">
+                <div className="space-y-0.5 min-h-0 overflow-hidden">
                   {visible.map(item => (
                     <NavItem
                       key={item.href}

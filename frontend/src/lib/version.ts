@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "1.44.2";
+export const VERSAO = "1.44.3";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -36,12 +36,13 @@ export const VERSAO_NOME = "Menu lateral escondia os últimos itens do grupo";
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
   {
-    versao: "1.44.2",
+    versao: "1.44.3",
     data: "2026-09-17",
     titulo: "Menu lateral escondia os últimos itens do grupo",
     itens: [
       "Grupos com muitos itens tinham os últimos cortados no menu lateral: em People sumiam Indicadores, Calibração, Avaliação de Desempenho e Privacidade; Frotas seria o próximo",
       "O grupo agora abre na altura do conteúdo, sem teto fixo",
+      "Sem folga sobrando entre os grupos fechados",
     ],
   },
   {
