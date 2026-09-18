@@ -166,7 +166,12 @@ export const feedbackDesempenhoService = {
     api.get<{ success: boolean; data: DetalheFeedbackDesempenho }>(`${BASE}/${id}`).then(r => r.data),
 
   elegiveis: () =>
-    api.get<{ success: boolean; data: { id: string; nome: string; cargo: string | null }[] }>(
+    api.get<{
+      success: boolean;
+      data: { id: string; nome: string; cargo: string | null }[];
+      /** Quem abriu não tem cadastro de colaborador — não pode ser o gestor do registro. */
+      semVinculo?: boolean;
+    }>(
       `${BASE}/colaboradores-elegiveis`,
     ).then(r => r.data),
 

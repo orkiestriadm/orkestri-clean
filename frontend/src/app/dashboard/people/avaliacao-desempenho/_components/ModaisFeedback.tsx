@@ -53,16 +53,45 @@ export function NovoFeedback({ aberto, onFechar, onCriado }: {
   const [oportunidades, setOportunidades] = useState("");
   const [erro, setErro] = useState("");
   const [salvando, setSalvando] = useState(false);
+  const [semVinculo, setSemVinculo] = useState(false);
 
   useEffect(() => {
     if (!aberto) return;
-    setCollaboratorId(""); setPontosFortes(""); setOportunidades(""); setErro("");
+    setCollaboratorId(""); setPontosFortes(""); setOportunidades(""); setErro(""); setSemVinculo(false);
     setCarregandoOpcoes(true);
     feedbackDesempenhoService.elegiveis()
-      .then(r => setOpcoes(r.data ?? []))
+      .then(r => { setOpcoes(r.data ?? []); setSemVinculo(!!r.semVinculo); })
       .catch(e => setErro(mensagemDeErro(e)))
       .finally(() => setCarregandoOpcoes(false));
   }, [aberto]);
+
+  // Quem não tem cadastro de colaborador não pode ser o gestor do registro. O
+  // aviso vem ANTES de escrever: descobrir isso depois de preencher o feedback
+  // inteiro era o que acontecia com a gestora de RH.
+  if (aberto && semVinculo) {
+    return (
+      <Modal aberto={aberto} onFechar={onFechar} largura={520} titulo="Registrar feedback">
+        <div
+          style={{
+            padding: "14px 16px", borderRadius: 12, fontSize: 13, lineHeight: 1.65,
+            background: "color-mix(in srgb, var(--accent-amber) 9%, transparent)",
+            border: "1px solid color-mix(in srgb, var(--accent-amber) 28%, transparent)",
+            color: "var(--text-secondary)",
+          }}
+        >
+          <strong style={{ color: "var(--text-primary)" }}>Seu usuário não tem cadastro de colaborador.</strong>
+          <br />
+          Quem registra o feedback é o gestor no organograma, e para isso o seu usuário precisa estar
+          vinculado a uma ficha no People. Peça ao RH para criar ou vincular a sua ficha em People › Colaboradores.
+          <br />
+          Enquanto isso, você continua acompanhando os feedbacks e decidindo os pedidos de exclusão, se for do RH.
+        </div>
+        <FormActions>
+          <button type="button" className="btn btn-primary" onClick={onFechar}>Entendi</button>
+        </FormActions>
+      </Modal>
+    );
+  }
 
   async function salvar(e: React.FormEvent) {
     e.preventDefault();

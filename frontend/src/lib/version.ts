@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "1.44.3";
+export const VERSAO = "1.44.4";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -23,10 +23,10 @@ export const VERSAO = "1.44.3";
  * Não é gerada no build: `new Date()` no bundle muda a cada compilação, e duas
  * builds do mesmo código pareceriam versões diferentes.
  */
-export const VERSAO_DATA = "2026-09-17";
+export const VERSAO_DATA = "2026-09-18";
 
 /** Nome da entrega, para dar contexto ao número. */
-export const VERSAO_NOME = "Menu lateral escondia os últimos itens do grupo";
+export const VERSAO_NOME = "Papéis do People no formato novo voltam a ver Colaboradores";
 
 /**
  * Histórico exibido na tela Sobre, do mais recente para o mais antigo.
@@ -35,6 +35,16 @@ export const VERSAO_NOME = "Menu lateral escondia os últimos itens do grupo";
  * esta lista quer saber o que mudou para ele.
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
+  {
+    versao: "1.44.4",
+    data: "2026-09-18",
+    titulo: "Papéis do People no formato novo voltam a ver Colaboradores",
+    itens: [
+      "Papéis personalizados criados com as permissões novas do People (como o Gestor de RH) passam a ver Colaboradores, Ausências, Organograma, Equipes e Workforce no menu, e Equipes deixa de dar erro de acesso",
+      "Quem enxerga a empresa inteira pelo papel novo passa a ver as ausências de toda a organização, como já acontecia com o papel antigo",
+      "Registrar feedback: quem não tem cadastro de colaborador é avisado ao abrir o formulário, em vez de descobrir depois de escrever tudo",
+    ],
+  },
   {
     versao: "1.44.3",
     data: "2026-09-17",

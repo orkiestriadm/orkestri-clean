@@ -7,7 +7,7 @@ import { useAuthStore } from "@/lib/store";
 import { authApi } from "@/lib/api";
 import UserStatus from "@/components/ui/UserStatus";
 import { cn } from "@/lib/utils";
-import { NAV, canAccessGroup, canAccessItemLevel, type NavGroup, type NavItem as NavItemT } from "@/lib/modules";
+import { NAV, canAccessGroup, canAccessItemLevel, temPermissao, type NavGroup, type NavItem as NavItemT } from "@/lib/modules";
 import { BrandLogo } from "@/components/ui/logo";
 import { MARCA, LOGO_ARQUIVO, LOGO_ARQUIVO_CLARO } from "@/lib/marca";
 
@@ -145,10 +145,10 @@ export default function Sidebar() {
     if (!permission || user?.isMaster) return true;
     // freshPerms: permissões buscadas direto da API ao montar (evita store desatualizado)
     const perms: string[] = freshPerms ?? user?.permissions ?? [];
-    if (perms.includes("*")) return true;
-    // Lista = OU: basta uma. Ver canAccessModule em lib/modules.
+    // Lista = OU: basta uma. `temPermissao` traduz o formato antigo nos dois
+    // sentidos — ver lib/modules.
     const exigidas = Array.isArray(permission) ? permission : [permission];
-    return exigidas.some(p => perms.includes(p));
+    return exigidas.some(p => temPermissao(perms, p));
   };
 
   const initials = (user?.nome || "U").split(" ").map((n: string) => n[0]).slice(0, 2).join("").toUpperCase();

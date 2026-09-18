@@ -85,3 +85,42 @@ describe("formato das permissões", () => {
     }
   });
 });
+
+/**
+ * O sentido que faltava: papel criado já no formato novo precisa passar nas
+ * telas ainda guardadas pelo formato antigo. Caso real: "Gestor de RH" no Hub,
+ * 17/09/2026 — sem isto, a gestora de RH não via Colaboradores no menu e
+ * Equipes respondia 403.
+ */
+describe("temPermissao — exigência antiga atendida pelas novas", () => {
+  const { temPermissao } = require("./permission-aliases");
+  const RH = [PEOPLE_PERMISSIONS.colaborador.ver, PEOPLE_PERMISSIONS.cargo.ver, PEOPLE_PERMISSIONS.colaborador.verTodos];
+
+  it("quem tem as novas equivalentes atende colaboradores:ver", () => {
+    expect(temPermissao(RH, "colaboradores:ver")).toBe(true);
+  });
+
+  it("exige TODAS as novas: só ver colaborador não basta para colaboradores:ver", () => {
+    // A antiga concedia colaborador E cargo. Aceitar metade seria conceder a
+    // mais do que o papel novo deu.
+    expect(temPermissao([PEOPLE_PERMISSIONS.colaborador.ver], "colaboradores:ver")).toBe(false);
+  });
+
+  it("editar antigo exige editar e mudar situação", () => {
+    expect(temPermissao([PEOPLE_PERMISSIONS.colaborador.editar], "colaboradores:editar")).toBe(false);
+    expect(temPermissao(
+      [PEOPLE_PERMISSIONS.colaborador.editar, PEOPLE_PERMISSIONS.colaborador.mudarSituacao],
+      "colaboradores:editar",
+    )).toBe(true);
+  });
+
+  it("o sentido antigo continua: quem tem a antiga atende a nova", () => {
+    expect(temPermissao(["colaboradores:ver"], PEOPLE_PERMISSIONS.colaborador.ver)).toBe(true);
+    expect(temPermissao(["colaboradores:ver"], "colaboradores:ver")).toBe(true);
+  });
+
+  it("não inventa equivalência para permissão sem alias", () => {
+    expect(temPermissao(RH, "chamados:ver")).toBe(false);
+    expect(temPermissao(["*"], "chamados:ver")).toBe(true);
+  });
+});

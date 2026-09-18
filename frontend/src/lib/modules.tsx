@@ -275,6 +275,34 @@ export function canAccessItemLevel(user: any, item: { access?: ItemAccess }): bo
   return true;
 }
 
+/**
+ * Espelho de `backend/src/common/permission-aliases.ts` — manter os dois iguais.
+ *
+ * Permissão antiga → as novas que ela concede. Serve nos dois sentidos: quem
+ * tem a antiga passa na exigência nova, e quem tem TODAS as novas passa na
+ * exigência antiga. O segundo sentido faltava, e o papel "Gestor de RH" do Hub
+ * (criado já no formato novo) não via Colaboradores, Ausências, Organograma,
+ * Equipes nem Workforce no menu — itens ainda guardados por `colaboradores:ver`.
+ */
+const LEGADO_PARA_NOVO: Readonly<Record<string, readonly string[]>> = {
+  "colaboradores:ver":     ["people.colaborador:ver", "people.cargo:ver"],
+  "colaboradores:criar":   ["people.colaborador:criar"],
+  "colaboradores:editar":  ["people.colaborador:editar", "people.colaborador:mudar_situacao"],
+  "colaboradores:excluir": ["people.colaborador:excluir"],
+};
+
+/** A permissão exigida está atendida pelas do usuário? Considera o coringa e os dois sentidos da tradução. */
+export function temPermissao(perms: readonly string[], exigida: string): boolean {
+  if (perms.includes("*") || perms.includes(exigida)) return true;
+  // Tenho a antiga que concede a exigida?
+  for (const [antiga, novas] of Object.entries(LEGADO_PARA_NOVO)) {
+    if (novas.includes(exigida) && perms.includes(antiga)) return true;
+  }
+  // Tenho todas as novas que a antiga exigida concedia?
+  const novas = LEGADO_PARA_NOVO[exigida];
+  return !!novas && novas.every(n => perms.includes(n));
+}
+
 // Um item é acessível se não exige permissão, se o usuário é master,
 // ou se possui o coringa "*" ou a permissão específica.
 /**
@@ -291,7 +319,7 @@ export function canAccessModule(user: any, permission: string | string[] | null)
   const perms: string[] = user?.permissions ?? [];
   if (perms.includes("*")) return true;
   const exigidas = Array.isArray(permission) ? permission : [permission];
-  return exigidas.some(p => perms.includes(p));
+  return exigidas.some(p => temPermissao(perms, p));
 }
 
 /**

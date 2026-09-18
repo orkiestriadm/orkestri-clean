@@ -331,6 +331,13 @@ export class FeedbackDesempenhoService {
   async colaboradoresElegiveis(user: UsuarioContexto) {
     this.exigirOrganizacao(user);
     const eu = await this.escopo.proprioCollaboratorId(user);
+
+    // Sem cadastro vinculado não há como ser o gestor do registro. Antes a
+    // lista vinha preenchida (quem enxerga a organização via todo mundo) e o
+    // erro só aparecia depois de escrever o feedback inteiro — caso da
+    // gestora de RH no Hub. Agora a tela sabe disso ao abrir.
+    if (!eu) return { success: true, data: [], semVinculo: true };
+
     const where = await this.escopo.whereColaborador(user);
     const itens = await this.db.collaborator.findMany({
       where: {

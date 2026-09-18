@@ -43,6 +43,31 @@ export function expandLegacyPermissions(permissions: readonly string[]): Set<str
   return expandidas;
 }
 
+/**
+ * A permissão exigida está atendida?
+ *
+ * Os dois sentidos da tradução, num ponto só:
+ *
+ *  - quem tem a ANTIGA atende a exigência NOVA (`expandLegacyPermissions`);
+ *  - quem tem as NOVAS atende a exigência ANTIGA — mas só com TODAS as novas
+ *    que ela representa. `colaboradores:ver` concedia ver colaborador E ver
+ *    cargo; exigir as duas é conceder exatamente o que a antiga concedia, nem
+ *    mais, nem menos.
+ *
+ * O segundo sentido faltava. Papel personalizado criado já no formato novo
+ * (o "Gestor de RH" do Hub, com `people.colaborador:ver_todos` e tudo) não
+ * passava em nenhuma tela ainda guardada por `colaboradores:ver`: a gestora
+ * de RH não via Colaboradores, Ausências, Organograma nem Equipes no menu, e
+ * Equipes respondia 403.
+ */
+export function temPermissao(permissoes: readonly string[], exigida: string): boolean {
+  if (permissoes.includes("*")) return true;
+  const efetivas = expandLegacyPermissions(permissoes);
+  if (efetivas.has(exigida)) return true;
+  const modernas = LEGACY_TO_MODERN[exigida];
+  return !!modernas && modernas.every(m => efetivas.has(m));
+}
+
 /** Somente para diagnóstico e testes — não usar em decisão de acesso. */
 export function legacyAliasesOf(permission: string): readonly string[] {
   return LEGACY_TO_MODERN[permission] ?? [];

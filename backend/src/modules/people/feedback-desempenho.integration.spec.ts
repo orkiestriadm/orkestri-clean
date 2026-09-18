@@ -100,6 +100,15 @@ descreve("People — feedback de desempenho", () => {
       expect(r.data.map((c: any) => c.id)).toEqual([id.ana]);
     });
 
+    // Caso da gestora de RH no Hub: via a empresa inteira na lista do modal e
+    // só descobria que não podia registrar depois de escrever tudo.
+    it("quem não tem cadastro vinculado é avisado ao abrir, não ao salvar", async () => {
+      const r = await svc.colaboradoresElegiveis(rh);
+      expect(r.semVinculo).toBe(true);
+      expect(r.data).toEqual([]);
+      expect((await svc.colaboradoresElegiveis(gestorA)).semVinculo).toBeUndefined();
+    });
+
     it("recusa colaborador sem login, fora da árvore e a si mesmo", async () => {
       await expect(registrar(id.bruno)).rejects.toThrow(/não tem acesso ao sistema/);
       await expect(registrar(id.carla)).rejects.toThrow(/não encontrado/);

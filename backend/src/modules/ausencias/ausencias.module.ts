@@ -1,3 +1,4 @@
+import { temPermissao } from "../../common/permission-aliases";
 import {
   Module, Controller, Get, Post, Put, Patch, Delete, Body, Param, Query,
   UseGuards, Req, Injectable, BadRequestException, NotFoundException, ForbiddenException,
@@ -45,7 +46,7 @@ export class AusenciasService {
   /** Master ou quem tem colaboradores:ver enxerga ausências de toda a org. */
   private isPrivileged(user: any) {
     return !!user?.isMaster ||
-      (user?.permissions || []).some((p: string) => p === "*" || p === "colaboradores:ver");
+      temPermissao(user?.permissions || [], "colaboradores:ver");
   }
 
   private async notify(userId: string | null | undefined, tipo: string, titulo: string, mensagem: string, refId?: string) {
