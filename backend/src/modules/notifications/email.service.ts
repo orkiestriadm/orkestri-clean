@@ -680,6 +680,83 @@ export class EmailService {
     );
   }
 
+  // ── People › Feedback de desempenho ───────────────────────────────────────
+  //
+  // Texto sem o nome do produto escrito à mão: a marca vem do ambiente
+  // (`MARCA`), e o link, de `APP_URL` — no Hub, os dois são da Triunfo.
+  // O que o gestor digita (local da reunião) e os nomes passam por `esc`:
+  // "<" num campo de texto não pode virar HTML no e-mail de outra pessoa.
+
+  private esc(texto: string | null | undefined): string {
+    return String(texto ?? "")
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+  }
+
+  /** Reunião de feedback marcada (ou remarcada): data, horário e local. */
+  async sendFeedbackReuniaoAgendada(
+    toEmail: string, nome: string, gestorNome: string, quando: string, local: string | null, remarcada: boolean,
+  ): Promise<boolean> {
+    const titulo = remarcada ? "Sua reunião de feedback foi remarcada" : "Você tem uma reunião de feedback marcada";
+    return this.send(
+      toEmail,
+      `${titulo} — ${MARCA}`,
+      this.layout(`
+        <p>Olá, <strong>${this.esc(nome)}</strong>!</p>
+        <p><strong>${this.esc(gestorNome)}</strong> ${remarcada ? "remarcou" : "marcou"} uma conversa individual de feedback com você.</p>
+        <div class="info-box">
+          <div class="info-row"><span class="info-label">Data e horário:</span><span class="info-value">${this.esc(quando)}</span></div>
+          <div class="info-row"><span class="info-label">Local:</span><span class="info-value">${local ? this.esc(local) : "a combinar com o gestor"}</span></div>
+          <div class="info-row"><span class="info-label">Com:</span><span class="info-value">${this.esc(gestorNome)}</span></div>
+        </div>
+        <p>Na conversa, o gestor apresenta o feedback, esclarece dúvidas e alinha com você as expectativas e os próximos passos.</p>
+        <p style="font-size:13px;color:#6b7280">O compromisso já está na sua agenda no ${this.esc(MARCA)}. Depois da reunião você recebe outro e-mail para ler o feedback e registrar a sua ciência.</p>
+      `),
+    );
+  }
+
+  /**
+   * Feedback liberado para ciência — com o passo a passo.
+   *
+   * Sai quando o gestor registra a reunião como realizada, e não quando ele
+   * escreve o feedback: antes da conversa o texto não aparece para o
+   * colaborador, e um e-mail pedindo para "concluir o processo" o levaria a
+   * uma tela vazia.
+   */
+  async sendFeedbackDisponivel(toEmail: string, nome: string, gestorNome: string): Promise<boolean> {
+    const link = `${this.appUrl}/dashboard/meu-rh?aba=feedback`;
+    const passo = (n: number, texto: string) => `
+      <tr>
+        <td style="vertical-align:top;padding:6px 12px 6px 0;width:28px">
+          <span style="display:inline-block;width:24px;height:24px;line-height:24px;border-radius:12px;background:${this.accent};color:#fff;font-size:12px;font-weight:700;text-align:center">${n}</span>
+        </td>
+        <td style="vertical-align:top;padding:8px 0;font-size:14px;color:#374151;line-height:1.5">${texto}</td>
+      </tr>`;
+    return this.send(
+      toEmail,
+      `Você recebeu um feedback — ${MARCA}`,
+      this.layout(`
+        <p>Olá, <strong>${this.esc(nome)}</strong>!</p>
+        <p>Você recebeu um feedback de <strong>${this.esc(gestorNome)}</strong>, apresentado na reunião de vocês. Agora falta só a sua parte para concluir o processo:</p>
+        <table role="presentation" cellpadding="0" cellspacing="0" style="margin:8px 0 20px">
+          ${passo(1, `Acesse o <strong>${this.esc(MARCA)}</strong> com o seu usuário e senha.`)}
+          ${passo(2, `No menu, abra <strong>People › Meu RH</strong>.`)}
+          ${passo(3, `Clique na aba <strong>Feedback</strong>.`)}
+          ${passo(4, `Leia o feedback: pontos fortes, oportunidades de desenvolvimento e os próximos passos combinados.`)}
+          ${passo(5, `Clique em <strong>Registrar ciência</strong>. Se quiser, deixe um comentário — ele fica registrado junto, sem alterar o texto do gestor.`)}
+        </table>
+        <div style="text-align:center;margin:24px 0;">
+          <a href="${link}" class="btn">Abrir meu feedback</a>
+        </div>
+        <div class="info-box" style="font-size:12px;color:#6b7280;">
+          Registrar ciência confirma que você leu o feedback e participou da conversa. Não significa concordar com tudo — use o comentário para registrar a sua visão.
+        </div>
+        <p style="font-size:11px;color:#9ca3af;">Se o botão não funcionar, copie e cole este endereço no navegador:<br>
+        <span style="word-break:break-all;">${link}</span></p>
+      `),
+    );
+  }
+
   /** Email genérico para automações — assunto e corpo definidos pelo usuário */
   async sendGeneric(toEmail: string, nome: string, assunto: string, mensagem: string): Promise<boolean> {
     return this.send(

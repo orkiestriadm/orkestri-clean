@@ -1,5 +1,6 @@
 import { Module } from "@nestjs/common";
 import { ScheduleModule } from "@nestjs/schedule";
+import { ConfigModule } from "@nestjs/config";
 import { PrismaModule } from "../../prisma/prisma.module";
 import { AuditModule } from "../audit/audit.module";
 
@@ -52,6 +53,7 @@ import {
   FeedbackDesempenhoController, MeusFeedbacksDesempenhoController,
 } from "./presentation/feedback-desempenho.controller";
 import { IntegracoesModule } from "../integracoes/integracoes.module";
+import { EmailService } from "../notifications/email.service";
 
 /**
  * Orkiestri People — gestão de pessoas.
@@ -77,7 +79,7 @@ import { IntegracoesModule } from "../integracoes/integracoes.module";
   // criaria dois caminhos para cancelar a mesma coisa. Ver SelfServiceService.
   // IntegracoesModule entra pelo feedback de desempenho: a reunião vai para a
   // agenda, e quem tem Outlook conectado precisa recebê-la lá também.
-  imports: [PrismaModule, AuditModule, AusenciasModule, IntegracoesModule, ScheduleModule.forRoot()],
+  imports: [PrismaModule, AuditModule, AusenciasModule, IntegracoesModule, ConfigModule, ScheduleModule.forRoot()],
   controllers: [
     EmployeeController, DocumentController, PositionController, VacationController,
     BenefitController, DevelopmentController, ReportController, SalaryController,
@@ -106,6 +108,11 @@ import { IntegracoesModule } from "../integracoes/integracoes.module";
     Review360Service,
     Review360Repository,
     FeedbackDesempenhoService,
+    // E-mail direto, e não o NotificationsModule inteiro: o feedback só precisa
+    // mandar mensagem, e o módulo de notificações traz agendadores e o monitor
+    // do WhatsApp junto. O ConfigModule vem importado acima: no sistema ele é
+    // global, mas o módulo precisa se sustentar sozinho (testes de integração).
+    EmailService,
     PeopleNotificationsService,
     PeopleScopeService,
     EmployeeRepository,

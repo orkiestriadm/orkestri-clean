@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "1.44.6";
+export const VERSAO = "1.45.0";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -26,7 +26,7 @@ export const VERSAO = "1.44.6";
 export const VERSAO_DATA = "2026-09-18";
 
 /** Nome da entrega, para dar contexto ao número. */
-export const VERSAO_NOME = "Menu Feedback no People";
+export const VERSAO_NOME = "E-mails do feedback para o colaborador";
 
 /**
  * Histórico exibido na tela Sobre, do mais recente para o mais antigo.
@@ -35,6 +35,15 @@ export const VERSAO_NOME = "Menu Feedback no People";
  * esta lista quer saber o que mudou para ele.
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
+  {
+    versao: "1.45.0",
+    data: "2026-09-18",
+    titulo: "E-mails do feedback para o colaborador",
+    itens: [
+      "Quando o gestor marca ou remarca a reunião de feedback, o colaborador recebe um e-mail com a data, o horário, o local e o nome do gestor",
+      "Quando o feedback fica disponível, depois da reunião, o colaborador recebe um e-mail avisando que recebeu um feedback, com o passo a passo até registrar a ciência no Meu RH e um botão que abre direto a aba Feedback",
+    ],
+  },
   {
     versao: "1.44.6",
     data: "2026-09-18",

@@ -9,6 +9,7 @@ import { PrismaService } from "../../../prisma/prisma.service";
 import { PeopleScopeService, UsuarioContexto } from "./people-scope.service";
 import { AuditService } from "../../audit/audit.module";
 import { CalendarWritebackService } from "../../integracoes/calendar/calendar-writeback.service";
+import { EmailService } from "../../notifications/email.service";
 import { collaboratorDisplayName } from "../../../common/collaborator";
 import { expandLegacyPermissions } from "../../../common/permission-aliases";
 import { PEOPLE_PERMISSIONS } from "../people.permissions";
@@ -89,8 +90,8 @@ export class FiltroFeedbackDesempenhoDto {
 const INCLUDE_PESSOAS = {
   collaborator: {
     select: {
-      id: true, nomeCompleto: true, userId: true,
-      user: { select: { nome: true } },
+      id: true, nomeCompleto: true, userId: true, emailCorporativo: true,
+      user: { select: { nome: true, email: true } },
       position: { select: { titulo: true } },
     },
   },
@@ -114,6 +115,7 @@ export class FeedbackDesempenhoService {
     private readonly escopo: PeopleScopeService,
     private readonly audit: AuditService,
     private readonly writeback: CalendarWritebackService,
+    private readonly email: EmailService,
   ) {}
 
   private get db(): any {
@@ -468,6 +470,11 @@ export class FeedbackDesempenhoService {
       id,
     );
 
+    // E-mail com data e local — pedido do RH em 18/09/2026: o aviso dentro do
+    // sistema só é visto por quem entra nele, e a reunião precisa chegar antes.
+    this.enviarEmail(feedback.collaborator, id, "reunião", (email, nome) =>
+      this.email.sendFeedbackReuniaoAgendada(email, nome, gestorNome, fmtDataHora(inicio), local, reagendar));
+
     return this.obter(user, id);
   }
 
@@ -506,6 +513,12 @@ export class FeedbackDesempenhoService {
       `Leia o feedback de ${collaboratorDisplayName(feedback.gestor)} e registre sua ciência no Meu RH.`,
       id,
     );
+
+    // "Você recebeu um feedback", com o passo a passo até a ciência. Sai AQUI,
+    // e não no registro: antes da reunião o texto não aparece para o
+    // colaborador, e o e-mail o levaria a uma tela vazia.
+    this.enviarEmail(feedback.collaborator, id, "feedback disponível", (email, nome) =>
+      this.email.sendFeedbackDisponivel(email, nome, collaboratorDisplayName(feedback.gestor)));
 
     return this.obter(user, id);
   }
@@ -973,6 +986,32 @@ export class FeedbackDesempenhoService {
         userId: user.id ?? null, autorNome: autor?.nome ?? null, detalhe: detalhe ?? null,
       },
     });
+  }
+
+  /**
+   * Manda e-mail ao colaborador sem segurar a resposta nem desfazer a ação.
+   *
+   * O e-mail é aviso, não parte da regra: se o servidor de e-mail falhar, o
+   * agendamento e a liberação continuam valendo e o aviso no sistema já foi
+   * criado. Por isso roda solto e só registra no log.
+   *
+   * Destino: o e-mail do login (quem recebe feedback tem login, por regra); o
+   * corporativo da ficha só entra se o login não tiver e-mail.
+   */
+  private enviarEmail(
+    colaborador: any, feedbackId: string, oque: string,
+    enviar: (email: string, nome: string) => Promise<boolean>,
+  ) {
+    const destino = colaborador?.user?.email || colaborador?.emailCorporativo;
+    if (!destino) {
+      this.logger.warn(`Feedback ${feedbackId}: colaborador sem e-mail — e-mail de ${oque} não enviado.`);
+      return;
+    }
+    enviar(destino, collaboratorDisplayName(colaborador))
+      .then(ok => {
+        if (!ok) this.logger.warn(`Feedback ${feedbackId}: e-mail de ${oque} para ${destino} não saiu (ver EmailService).`);
+      })
+      .catch(erro => this.logger.error(`Feedback ${feedbackId}: falha no e-mail de ${oque}`, erro as Error));
   }
 
   private async notificar(userId: string | null | undefined, tipo: string, titulo: string, mensagem: string, feedbackId: string) {

@@ -4,6 +4,7 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { PeopleModule } from "./people.module";
 import { EmployeeService } from "./application/employee.service";
 import { FeedbackDesempenhoService } from "./application/feedback-desempenho.service";
+import { EmailService } from "../notifications/email.service";
 
 /**
  * Avaliação de Desempenho › Feedback — o fluxo do RH contra o banco.
@@ -148,8 +149,17 @@ descreve("People — feedback de desempenho", () => {
     });
 
     it("agendar entra na agenda dos dois e avisa o colaborador, sem liberar o texto", async () => {
+      const email = moduloRef.get(EmailService);
+      const enviado = jest.spyOn(email, "sendFeedbackReuniaoAgendada").mockResolvedValue(true);
       const inicio = new Date(Date.now() + 2 * 86_400_000);
       const r = await svc.agendarReuniao(gestorA, fid, { inicio: inicio.toISOString(), local: "Sala 3" });
+
+      // E-mail ao colaborador — no endereço do login dele — com data e local.
+      const usuarioAna = await prisma.user.findUnique({ where: { id: ana.id } });
+      expect(enviado).toHaveBeenCalledWith(
+        usuarioAna.email, "Ana Liderada", "Gestor A", expect.stringMatching(/\d{2}\/\d{2}\/\d{4}/), "Sala 3", false,
+      );
+      enviado.mockRestore();
       expect(r.data.status).toBe("REUNIAO_AGENDADA");
 
       const eventos = await prisma.event.findMany({ where: { origemTipo: "people_feedback", origemId: fid } });
@@ -163,8 +173,14 @@ descreve("People — feedback de desempenho", () => {
     });
 
     it("remarcar atualiza os mesmos compromissos em vez de criar outros", async () => {
+      const email = moduloRef.get(EmailService);
+      const enviado = jest.spyOn(email, "sendFeedbackReuniaoAgendada").mockResolvedValue(true);
       const novo = new Date(Date.now() + 3 * 86_400_000);
       await svc.agendarReuniao(gestorA, fid, { inicio: novo.toISOString() });
+      // Remarcou: novo e-mail, sinalizado como remarcação e sem local.
+      expect(enviado.mock.calls[0][4]).toBeNull();
+      expect(enviado.mock.calls[0][5]).toBe(true);
+      enviado.mockRestore();
       const eventos = await prisma.event.findMany({ where: { origemTipo: "people_feedback", origemId: fid } });
       expect(eventos).toHaveLength(2);
       expect(eventos.every((e: any) => e.inicio.getTime() === novo.getTime())).toBe(true);
@@ -178,7 +194,13 @@ descreve("People — feedback de desempenho", () => {
     });
 
     it("reunião realizada libera o texto ao colaborador e trava a edição", async () => {
+      const email = moduloRef.get(EmailService);
+      const disponivel = jest.spyOn(email, "sendFeedbackDisponivel").mockResolvedValue(true);
       const r = await svc.registrarReuniao(gestorA, fid, { alinhamentos: "Avisar atraso em até 1 dia" });
+      // O e-mail "você recebeu um feedback" sai só agora, quando há o que ler.
+      expect(disponivel).toHaveBeenCalledTimes(1);
+      expect(disponivel.mock.calls[0][1]).toBe("Ana Liderada");
+      disponivel.mockRestore();
       expect(r.data.status).toBe("AGUARDANDO_CIENCIA");
       expect(await notificacoes(ana.id, "people_feedback_ciencia")).toHaveLength(1);
 
