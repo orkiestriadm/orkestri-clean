@@ -80,6 +80,15 @@ export class DecidirExclusaoDto {
   @IsOptional() @IsString() @MaxLength(1000) parecer?: string;
 }
 
+export class FiltroImpressaoDto {
+  @IsOptional() @IsDateString() de?: string;
+  @IsOptional() @IsDateString() ate?: string;
+  @IsOptional() @IsString() gestorId?: string;
+  @IsOptional() @IsIn(Object.values(STATUS_FEEDBACK)) status?: string;
+  /** "1" traz o conteúdo inteiro de cada feedback — para as fichas. */
+  @IsOptional() @IsIn(["1", "true"]) completo?: string;
+}
+
 export class FiltroFeedbackDesempenhoDto {
   @IsOptional() @IsIn(Object.values(STATUS_FEEDBACK)) status?: string;
   @IsOptional() @IsString() collaboratorId?: string;
@@ -236,6 +245,112 @@ export class FeedbackDesempenhoService {
    * parado há seis meses é o que mais precisa de cobrança, e some da tela se o
    * filtro de período o cortar.
    */
+  /**
+   * Dados para imprimir: o relatório consolidado e as fichas completas.
+   *
+   * Mesmo recorte da lista — o gestor imprime a própria equipe, o RH a
+   * organização inteira — porque sai do mesmo `alcanceDeLeitura`. Imprimir
+   * não pode alcançar mais do que a tela.
+   *
+   * O período filtra pela DATA DO REGISTRO. Sem período, os últimos 90 dias:
+   * um relatório sem data de corte vira a base inteira, e ninguém pede isso
+   * de propósito.
+   */
+  async impressao(user: UsuarioContexto, filtro: FiltroImpressaoDto) {
+    const alcance = await this.alcanceDeLeitura(user);
+    const ate = filtro.ate ? new Date(filtro.ate) : new Date();
+    const de = filtro.de ? new Date(filtro.de) : new Date(ate.getTime() - 90 * 86_400_000);
+    // `ate` é o dia inteiro: quem pede "até 30/09" espera ver o registro das 16h do dia 30.
+    const ateFimDoDia = new Date(ate);
+    ateFimDoDia.setHours(23, 59, 59, 999);
+
+    const autor = user.id ? await this.db.user.findUnique({ where: { id: user.id }, select: { nome: true } }) : null;
+    const cabecalho = {
+      geradoEm: new Date(),
+      geradoPor: autor?.nome ?? null,
+      de, ate: ateFimDoDia,
+      alcance: alcance?.organizacaoInteira ? "organizacao" : "equipe",
+    };
+
+    if (!alcance) {
+      return { success: true, data: { ...cabecalho, resumo: null, itens: [], opcoesGestores: [] } };
+    }
+
+    const completo = !!filtro.completo;
+    const itens = await this.db.feedbackDesempenho.findMany({
+      where: {
+        ...alcance.where,
+        criadoEm: { gte: de, lte: ateFimDoDia },
+        ...(filtro.gestorId ? { gestorId: filtro.gestorId } : {}),
+        ...(filtro.status ? { status: filtro.status } : {}),
+      },
+      orderBy: [{ criadoEm: "asc" }],
+      take: 500,
+      include: INCLUDE_PESSOAS,
+    });
+
+    // Linha do tempo numa consulta só — uma por feedback seria N idas ao
+    // banco para um relatório de 200 fichas.
+    const eventos = completo && itens.length
+      ? await this.db.feedbackDesempenhoEvento.findMany({
+          where: { feedbackId: { in: itens.map((f: any) => f.id) } },
+          orderBy: { criadoEm: "asc" },
+        })
+      : [];
+    const eventosPor = new Map<string, any[]>();
+    for (const e of eventos) {
+      const lista = eventosPor.get(e.feedbackId) ?? [];
+      lista.push({ tipo: e.tipo, autorNome: e.autorNome, detalhe: e.detalhe, criadoEm: e.criadoEm });
+      eventosPor.set(e.feedbackId, lista);
+    }
+
+    const contagem = itens.map((f: any) => ({
+      gestorId: f.gestorId, collaboratorId: f.collaboratorId, status: f.status,
+      temReuniaoRealizada: !!f.reuniaoRealizadaEm, temCiencia: !!f.cienciaEm,
+    }));
+    const gestores = await this.gestoresDoQuadro(alcance.organizationId, alcance.organizacaoInteira ? null : alcance.escopo);
+    const linhas = consolidarPorGestor(gestores, contagem);
+
+    await this.auditar(
+      user, "impressao", "imprimir",
+      // Sem conteúdo na trilha, como no resto do módulo: só o que foi impresso e quanto.
+      `Impressão de ${completo ? "fichas completas" : "relatório consolidado"}: ${itens.length} feedback(s)`,
+    );
+
+    return {
+      success: true,
+      data: {
+        ...cabecalho,
+        resumo: resumoDoPeriodo(contagem, linhas),
+        // Com um gestor escolhido, o quadro mostra só ele; sem filtro, todos os
+        // gestores do organograma — inclusive quem não registrou nada.
+        porGestor: filtro.gestorId ? linhas.filter(l => l.id === filtro.gestorId) : linhas,
+        opcoesGestores: gestores.map(g => ({ id: g.id, nome: g.nome })).sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR")),
+        itens: itens.map((f: any) => ({
+          id: f.id,
+          status: f.status,
+          rotuloStatus: ROTULO_STATUS[f.status as StatusFeedback] ?? f.status,
+          colaborador: { nome: collaboratorDisplayName(f.collaborator), cargo: f.collaborator.position?.titulo ?? null },
+          gestor: { nome: collaboratorDisplayName(f.gestor) },
+          criadoEm: f.criadoEm,
+          reuniaoInicio: f.reuniaoInicio,
+          reuniaoLocal: f.reuniaoLocal,
+          reuniaoRealizadaEm: f.reuniaoRealizadaEm,
+          cienciaEm: f.cienciaEm,
+          ...(completo
+            ? {
+                pontosFortes: f.pontosFortes,
+                oportunidades: f.oportunidades,
+                alinhamentos: f.alinhamentos,
+                comentarioColaborador: f.comentarioColaborador,
+                eventos: eventosPor.get(f.id) ?? [],
+              }
+            : {}),
+        })),
+      },
+    };
+  }
+
   async acompanhamento(user: UsuarioContexto, dias: number) {
     const alcance = await this.alcanceDeLeitura(user);
     if (!alcance) {

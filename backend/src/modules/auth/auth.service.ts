@@ -9,8 +9,8 @@ import { WhatsAppService } from "../notifications/whatsapp.service";
 import { EmailService } from "../notifications/email.service";
 import { AutomacaoService } from "../automacoes/automacoes.module";
 import {
-  PEOPLE_PERMISSION_CATALOG, PEOPLE_PERMISSOES_LEITURA, PEOPLE_PERMISSOES_AUDITOR,
-  PEOPLE_RECURSO_FEEDBACK_DESEMPENHO,
+  PEOPLE_PERMISSION_CATALOG,
+  recursoSoDoRh,
 } from "../people/people.permissions";
 import {
   COMPLIANCE_PERMISSION_CATALOG, COMPLIANCE_PERMISSOES_LEITURA,
@@ -172,6 +172,13 @@ const BASE_PERMISSIONS = [
   // Conectar o PRÓPRIO calendário externo é ferramenta de conta pessoal (só
   // afeta a agenda do próprio usuário), então acompanha a conta como agenda/keep.
   "integracoes:conectar",
+  // Meu RH e Feedback são de toda conta (decisão de 18/09/2026): todo mundo dá
+  // ciência no feedback que recebe, e quem lidera alguém no organograma
+  // registra o da equipe. O escopo é que limita — sem liderado, o Feedback não
+  // oferece ninguém para registrar. O RESTO do People é só do RH e do
+  // administrador. Revogar por concessão direta continua possível.
+  "meurh:ver",
+  "people.feedback_desempenho:ver", "people.feedback_desempenho:registrar",
 ];
 
 /**
@@ -301,12 +308,8 @@ const ROLE_DEFAULTS: Record<string, { nivel: number; descricao: string; permisso
       "relatorios:exportar","relatorios:criar",
       "ativos:ver","ativos:criar","ativos:editar","ativos:mover",
       "solicitacoes:ver","solicitacoes:criar","solicitacoes:editar","solicitacoes:aprovar",
-      "colaboradores:ver","colaboradores:criar","colaboradores:editar","colaboradores:excluir",
-      // People: gestor enxerga a própria equipe — sem `ver_todos` de propósito.
-      ...PEOPLE_PERMISSOES_LEITURA,
-      // Feedback de desempenho: o gestor registra e conduz. Aprovar a exclusão
-      // fica com o RH — quem pede não decide.
-      "people.feedback_desempenho:ver","people.feedback_desempenho:registrar",
+      // People: nada além do que toda conta tem (Meu RH e Feedback, pelas
+      // permissões base). O resto é do RH — decisão de 18/09/2026.
       "conhecimento:ver","conhecimento:criar","conhecimento:editar","conhecimento:publicar",
       "sla:ver","sla:gerenciar",
       "automacoes:ver","automacoes:criar","automacoes:editar","automacoes:excluir",
@@ -364,7 +367,7 @@ const ROLE_DEFAULTS: Record<string, { nivel: number; descricao: string; permisso
     descricao: "Somente leitura em todos os módulos",
     permissoes: [
       "dashboard:ver", "meurh:ver",
-      ...ALL_PERMISSIONS.filter(p => p.acao === "ver" && !p.recurso.startsWith(ESTRATEGICO_PREFIXO) && p.recurso !== PEOPLE_RECURSO_FEEDBACK_DESEMPENHO).map(p => `${p.recurso}:${p.acao}`),
+      ...ALL_PERMISSIONS.filter(p => p.acao === "ver" && !p.recurso.startsWith(ESTRATEGICO_PREFIXO) && !recursoSoDoRh(p.recurso)).map(p => `${p.recurso}:${p.acao}`),
       "whatsapp:ver",
     ],
   },
@@ -387,8 +390,7 @@ const ROLE_DEFAULTS: Record<string, { nivel: number; descricao: string; permisso
       "orcamento:ver",
       "fornecedores:ver",
       "solicitacoes:ver","solicitacoes:criar","solicitacoes:editar","solicitacoes:aprovar",
-      "colaboradores:ver","colaboradores:criar","colaboradores:editar",
-      ...PEOPLE_PERMISSOES_LEITURA,
+      // People: só Meu RH e Feedback, que vêm das permissões base (18/09/2026).
       "conhecimento:ver","conhecimento:criar","conhecimento:editar",
       "sla:ver",
       "ativos:ver","ativos:criar","ativos:editar",
@@ -423,10 +425,10 @@ const ROLE_DEFAULTS: Record<string, { nivel: number; descricao: string; permisso
     descricao: "Acesso somente-leitura a todos os módulos incluindo trilha de auditoria",
     permissoes: [
       "dashboard:ver", "meurh:ver",
-      ...ALL_PERMISSIONS.filter(p => p.acao === "ver" && !p.recurso.startsWith(ESTRATEGICO_PREFIXO) && p.recurso !== PEOPLE_RECURSO_FEEDBACK_DESEMPENHO).map(p => `${p.recurso}:${p.acao}`),
+      ...ALL_PERMISSIONS.filter(p => p.acao === "ver" && !p.recurso.startsWith(ESTRATEGICO_PREFIXO) && !recursoSoDoRh(p.recurso)).map(p => `${p.recurso}:${p.acao}`),
       "relatorios:exportar",
-      // Conformidade exige enxergar a organização inteira, não só a própria equipe.
-      ...PEOPLE_PERMISSOES_AUDITOR,
+      // People fora do auditor desde 18/09/2026: é do RH. Quem precisar
+      // auditar pessoas recebe o papel de RH ou concessão direta.
       // Compliance é o módulo que o auditor mais usa: além da leitura, precisa
       // ver PARA QUEM cada aviso foi mandado e exportar a carteira.
       ...COMPLIANCE_PERMISSOES_AUDITOR,

@@ -264,6 +264,27 @@ descreve("People — feedback de desempenho", () => {
       expect(depois.resumo.percentualRetorno).toBeGreaterThan(0);
     });
 
+    it("impressão: fichas trazem o texto inteiro, consolidado não; recorte igual ao da tela", async () => {
+      const fichas = (await svc.impressao(rh, { completo: "1" })).data;
+      expect(fichas.itens.length).toBeGreaterThan(0);
+      expect(fichas.itens[0].pontosFortes).toBeTruthy();
+      expect(fichas.itens.find((f: any) => f.eventos?.length)).toBeDefined();
+      expect(fichas.alcance).toBe("organizacao");
+
+      const consolidado = (await svc.impressao(rh, {})).data;
+      expect(consolidado.itens[0].pontosFortes).toBeUndefined();
+      expect(consolidado.resumo.registrados).toBe(consolidado.itens.length);
+
+      // Gestor B não lidera ninguém que recebeu feedback: imprime zero.
+      const doB = (await svc.impressao(gestorB, { completo: "1" })).data;
+      expect(doB.itens).toHaveLength(0);
+      expect(doB.alcance).toBe("equipe");
+
+      // Período sem registro nenhum.
+      const vazio = (await svc.impressao(rh, { de: "2020-01-01", ate: "2020-01-31" })).data;
+      expect(vazio.itens).toHaveLength(0);
+    });
+
     it("gestor vê só a própria equipe no acompanhamento", async () => {
       const r = (await svc.acompanhamento(gestorA, 90)).data;
       expect(r.gestores.map((g: any) => g.id)).toEqual([id.gestorA]);

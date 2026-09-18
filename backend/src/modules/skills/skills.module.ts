@@ -295,8 +295,11 @@ export class SkillsController {
     return this.svc.findAll(req.user, categoria);
   }
 
+  // Guardada pela atribuição de chamado, e não por `colaboradores:ver`: é o
+  // botão "sugerir técnico" da tela de Chamados. Desde 18/09/2026 o People
+  // (colaboradores) é só do RH, e quem distribui chamado perderia a sugestão.
   @Get("suggest")
-  @Permissions("colaboradores:ver")
+  @Permissions("chamados:atribuir")
   suggest(@Req() req: any, @Query("skillId") skillId?: string, @Query("nivelMinimo") nivelMinimo?: string, @Query("limit") limit?: string) {
     return this.svc.suggest(req.user, skillId, nivelMinimo, limit ? parseInt(limit, 10) : 5);
   }

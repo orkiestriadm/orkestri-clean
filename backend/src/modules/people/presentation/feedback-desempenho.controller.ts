@@ -5,7 +5,7 @@ import { Permissions } from "../../auth/permissions.decorator";
 import {
   FeedbackDesempenhoService,
   AgendarReuniaoDto, CriarFeedbackDesempenhoDto, DecidirExclusaoDto, EditarFeedbackDesempenhoDto,
-  FiltroFeedbackDesempenhoDto, RegistrarCienciaDto, RegistrarReuniaoDto, SolicitarExclusaoDto,
+  FiltroFeedbackDesempenhoDto, FiltroImpressaoDto, RegistrarCienciaDto, RegistrarReuniaoDto, SolicitarExclusaoDto,
 } from "../application/feedback-desempenho.service";
 import { PEOPLE_PERMISSIONS } from "../people.permissions";
 
@@ -31,6 +31,14 @@ export class FeedbackDesempenhoController {
   @Permissions(P.registrar)
   elegiveis(@Req() req: any) {
     return this.service.colaboradoresElegiveis(req.user);
+  }
+
+  // Impressão (relatório consolidado e fichas). O nome NÃO leva "relatorio":
+  // o nginx limita a 5 req/min qualquer rota com essa palavra — o filtro da
+  // tela bateria no limite em poucos cliques. Mesma faixa de acesso da lista.
+  @Get("impressao")
+  impressao(@Req() req: any, @Query() filtro: FiltroImpressaoDto) {
+    return this.service.impressao(req.user, filtro);
   }
 
   // Acompanhamento: mesma faixa de acesso da lista, conferida no serviço.

@@ -17,6 +17,7 @@ import { MessagesSquare, Plus, AlertTriangle } from "lucide-react";
 import { NovoFeedback } from "./_components/ModaisFeedback";
 import { TOM_STATUS } from "./_components/EtapasFeedback";
 import Acompanhamento from "./_components/Acompanhamento";
+import Relatorios from "./_components/Relatorios";
 
 /**
  * Avaliação de Desempenho — por enquanto, só o Feedback.
@@ -31,7 +32,7 @@ function pode(user: any, ...perms: string[]): boolean {
   return atuais.includes("*") || perms.some(p => atuais.includes(p));
 }
 
-type Aba = "feedback" | "acompanhamento";
+type Aba = "feedback" | "acompanhamento" | "relatorios";
 
 export default function AvaliacaoDesempenhoPage() {
   const router = useRouter();
@@ -82,7 +83,7 @@ export default function AvaliacaoDesempenhoPage() {
       <Topbar />
       <div style={{ flex: 1, overflowY: "auto" }}>
         <PageBody>
-          <BackLink href="/dashboard/people" label="People" />
+          <BackLink />
 
           <PageHeader
             icon={<MessagesSquare size={19} />}
@@ -103,6 +104,7 @@ export default function AvaliacaoDesempenhoPage() {
             tabs={[
               { id: "feedback", label: "Feedback" },
               { id: "acompanhamento", label: "Acompanhamento" },
+              { id: "relatorios", label: "Relatórios" },
             ]}
           />
 
@@ -110,6 +112,8 @@ export default function AvaliacaoDesempenhoPage() {
             <PermissionDenied hint="Você não tem permissão para ver os feedbacks de desempenho." />
           ) : aba === "acompanhamento" ? (
             <Acompanhamento />
+          ) : aba === "relatorios" ? (
+            <Relatorios />
           ) : (
             <>
               <Toolbar>

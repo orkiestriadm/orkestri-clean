@@ -432,6 +432,43 @@ describe("AuthService", () => {
     });
   });
 
+  // Decisão de 18/09/2026: Meu RH e Feedback acompanham toda conta; o resto
+  // do People é do RH e do administrador.
+  describe("resolvePermissions — Meu RH e Feedback em toda conta", () => {
+    const perm = (recurso: string, acao: string) => ({ permission: { recurso, acao } });
+    const usuario = (rolePermissions: any[], permissionOverrides: any[] = []) => ({
+      isTrial: false,
+      userRoles: [{ role: { isMaster: false, rolePermissions } }],
+      permissionOverrides,
+    });
+    const DO_FEEDBACK = ["meurh:ver", "people.feedback_desempenho:ver", "people.feedback_desempenho:registrar"];
+
+    beforeEach(() => mockCache.get.mockResolvedValue(null));
+
+    it("papel de outra área (ex.: Frotas) ganha Meu RH e Feedback, e nada do resto do People", async () => {
+      mockPrisma.user.findUnique.mockResolvedValue(usuario([perm("frota", "ver")]));
+      const perms = await service.resolvePermissions("u1");
+      expect(perms).toEqual(expect.arrayContaining(DO_FEEDBACK));
+      expect(perms.filter(p => p.startsWith("people.") && !p.startsWith("people.feedback_desempenho"))).toEqual([]);
+      expect(perms).not.toContain("people.feedback_desempenho:aprovar_exclusao");
+    });
+
+    it("quem só tem o Strategy também ganha Meu RH e Feedback", async () => {
+      mockPrisma.user.findUnique.mockResolvedValue(usuario([perm("estrategico.caso", "ver")]));
+      const perms = await service.resolvePermissions("u1");
+      expect(perms).toEqual(expect.arrayContaining(DO_FEEDBACK));
+    });
+
+    it("o administrador ainda pode tirar o Feedback de alguém por concessão negada", async () => {
+      mockPrisma.user.findUnique.mockResolvedValue(
+        usuario([perm("frota", "ver")], [{ conceder: false, ...perm("people.feedback_desempenho", "registrar") }]),
+      );
+      const perms = await service.resolvePermissions("u1");
+      expect(perms).not.toContain("people.feedback_desempenho:registrar");
+      expect(perms).toContain("meurh:ver");
+    });
+  });
+
   describe("resolvePermissions — Meus Gastos no Hub (AMBIENTE=homologacao)", () => {
     const perm = (recurso: string, acao: string) => ({ permission: { recurso, acao } });
     const usuario = (rolePermissions: any[], permissionOverrides: any[] = []) => ({

@@ -115,6 +115,19 @@ export const PEOPLE_PERMISSION_CATALOG: readonly Permissao[] = [
  */
 export const PEOPLE_RECURSO_FEEDBACK_DESEMPENHO = "people.feedback_desempenho";
 
+/**
+ * O People é do RH (decisão de 18/09/2026): só o administrador e papéis de RH
+ * recebem suas permissões. Meu RH (`meurh`) e o Feedback acompanham toda conta
+ * pelas permissões base, e ficam fora desta regra.
+ *
+ * Inclui a permissão antiga `colaboradores:*`, porque ela concede o People por
+ * alias — deixá-la num papel devolveria o menu Colaboradores pela porta dos
+ * fundos.
+ */
+export function recursoSoDoRh(recurso: string): boolean {
+  return recurso === "colaboradores" || recurso.startsWith("people.");
+}
+
 const str = (recurso: string, acao: string) => `${recurso}:${acao}`;
 
 /** Referência simbólica usada por controllers e serviços. */

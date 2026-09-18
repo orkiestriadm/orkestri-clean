@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "1.45.0";
+export const VERSAO = "1.46.0";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -26,7 +26,7 @@ export const VERSAO = "1.45.0";
 export const VERSAO_DATA = "2026-09-18";
 
 /** Nome da entrega, para dar contexto ao número. */
-export const VERSAO_NOME = "E-mails do feedback para o colaborador";
+export const VERSAO_NOME = "Relatórios de feedback e People só para o RH";
 
 /**
  * Histórico exibido na tela Sobre, do mais recente para o mais antigo.
@@ -35,6 +35,17 @@ export const VERSAO_NOME = "E-mails do feedback para o colaborador";
  * esta lista quer saber o que mudou para ele.
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
+  {
+    versao: "1.46.0",
+    data: "2026-09-18",
+    titulo: "Relatórios de feedback e People só para o RH",
+    itens: [
+      "Nova aba Relatórios no Feedback: relatório consolidado do período e fichas completas de cada feedback, para imprimir ou salvar em PDF. O gestor imprime a própria equipe; o RH, a empresa inteira",
+      "Cada feedback ganha o botão Imprimir, com a ficha completa do registro",
+      "Meu RH e Feedback passam a estar disponíveis para todas as contas",
+      "O restante do People (Colaboradores, Cargos, Ausências, Organograma, Equipes, Férias, Carreira, Catálogos, Indicadores, Calibração, Privacidade e Workforce) fica só com o RH e os administradores",
+    ],
+  },
   {
     versao: "1.45.0",
     data: "2026-09-18",

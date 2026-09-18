@@ -10,7 +10,9 @@ import {
 import {
   feedbackDesempenhoService, DetalheFeedbackDesempenho, ROTULO_EVENTO, formatarDataHora,
 } from "@/lib/people/feedback-desempenho.service";
-import { AlertTriangle, CalendarClock, CalendarCheck, Pencil, Trash2, Check, X } from "lucide-react";
+import { AlertTriangle, CalendarClock, CalendarCheck, Pencil, Trash2, Check, X, Printer } from "lucide-react";
+import { useAuthStore } from "@/lib/store";
+import { AreaImpressao, FichaFeedback } from "../../_components/ImpressaoFeedback";
 import EtapasFeedback, { TOM_STATUS } from "../../_components/EtapasFeedback";
 import {
   AgendarReuniao, DecidirExclusao, EditarFeedback, RegistrarReuniao, SolicitarExclusao,
@@ -55,6 +57,9 @@ export default function DetalheFeedbackPage() {
   const [f, setF] = useState<DetalheFeedbackDesempenho | null>(null);
   const [erro, setErro] = useState("");
   const [modal, setModal] = useState<Modal>(null);
+  const [imprimindo, setImprimindo] = useState(false);
+  const usuario = useAuthStore(s => s.user);
+  const fimImpressao = useCallback(() => setImprimindo(false), []);
 
   const carregar = useCallback(async () => {
     setErro("");
@@ -116,6 +121,9 @@ export default function DetalheFeedbackPage() {
             meta={<span className="num">Registrado em {formatarDataHora(f.criadoEm)}</span>}
             actions={
               <>
+                <button type="button" className="btn btn-ghost" onClick={() => setImprimindo(true)}>
+                  <Printer size={13} /> Imprimir
+                </button>
                 {pode("editar") && (
                   <button type="button" className="btn btn-ghost" onClick={() => setModal("editar")}>
                     <Pencil size={13} /> Editar
@@ -239,6 +247,12 @@ export default function DetalheFeedbackPage() {
           </div>
         </PageBody>
       </div>
+
+      {imprimindo && (
+        <AreaImpressao onFim={fimImpressao}>
+          <FichaFeedback f={f} geradoPor={usuario?.nome} geradoEm={new Date()} />
+        </AreaImpressao>
+      )}
 
       <EditarFeedback aberto={modal === "editar"} feedback={f} onFechar={fechar} onFeito={concluir} />
       <AgendarReuniao aberto={modal === "agendar"} feedback={f} onFechar={fechar} onFeito={concluir} />

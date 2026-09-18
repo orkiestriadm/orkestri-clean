@@ -158,6 +158,18 @@ export const feedbackDesempenhoService = {
       },
     }).then(r => r.data),
 
+  /** Dados para imprimir. `completo` traz o texto inteiro de cada feedback (fichas). */
+  impressao: (f: { de?: string; ate?: string; gestorId?: string; status?: string; completo?: boolean }) =>
+    api.get<{ success: boolean; data: any }>(`${BASE}/impressao`, {
+      params: {
+        de: f.de || undefined,
+        ate: f.ate || undefined,
+        gestorId: f.gestorId || undefined,
+        status: f.status || undefined,
+        completo: f.completo ? "1" : undefined,
+      },
+    }).then(r => r.data),
+
   acompanhamento: (dias: number) =>
     api.get<{ success: boolean; data: Acompanhamento }>(`${BASE}/acompanhamento`, { params: { dias } })
       .then(r => r.data),
