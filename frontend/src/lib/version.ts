@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "1.46.0";
+export const VERSAO = "1.46.1";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -26,7 +26,7 @@ export const VERSAO = "1.46.0";
 export const VERSAO_DATA = "2026-09-18";
 
 /** Nome da entrega, para dar contexto ao número. */
-export const VERSAO_NOME = "Relatórios de feedback e People só para o RH";
+export const VERSAO_NOME = "Relatório de feedback inclui o dia de hoje";
 
 /**
  * Histórico exibido na tela Sobre, do mais recente para o mais antigo.
@@ -35,6 +35,14 @@ export const VERSAO_NOME = "Relatórios de feedback e People só para o RH";
  * esta lista quer saber o que mudou para ele.
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
+  {
+    versao: "1.46.1",
+    data: "2026-09-18",
+    titulo: "Relatório de feedback inclui o dia de hoje",
+    itens: [
+      "O filtro \"até\" dos relatórios de feedback cortava o próprio dia: o que foi registrado hoje não saía no relatório de hoje",
+    ],
+  },
   {
     versao: "1.46.0",
     data: "2026-09-18",

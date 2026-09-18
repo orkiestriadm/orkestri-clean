@@ -283,6 +283,14 @@ descreve("People — feedback de desempenho", () => {
       // Período sem registro nenhum.
       const vazio = (await svc.impressao(rh, { de: "2020-01-01", ate: "2020-01-31" })).data;
       expect(vazio.itens).toHaveLength(0);
+
+      // "De hoje até hoje" traz o que foi registrado hoje. A data chega sem
+      // hora e é o dia em São Paulo — lida como UTC, o "até" recuava para as
+      // 21h do dia anterior e o registro de hoje sumia do relatório (homolog,
+      // 18/09/2026).
+      const hojeSP = new Date().toLocaleDateString("sv-SE", { timeZone: "America/Sao_Paulo" });
+      const deHoje = (await svc.impressao(rh, { de: hojeSP, ate: hojeSP })).data;
+      expect(deHoje.itens.length).toBe(consolidado.itens.length);
     });
 
     it("gestor vê só a própria equipe no acompanhamento", async () => {

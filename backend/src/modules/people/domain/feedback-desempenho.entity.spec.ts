@@ -177,3 +177,16 @@ describe("leitura e validações", () => {
     expect(realizacaoValida(new Date("2026-09-18T15:00:00Z"), agora)).toBe(false);
   });
 });
+
+describe("dia da tela em São Paulo", () => {
+  const { diaEmSaoPaulo } = require("../application/feedback-desempenho.service");
+
+  it("'até 18/09' vai até 23:59 de 18/09 em São Paulo, não 21h do dia 17", () => {
+    expect(diaEmSaoPaulo("2026-09-18", "fim").toISOString()).toBe("2026-09-19T02:59:59.999Z");
+    expect(diaEmSaoPaulo("2026-09-18", "inicio").toISOString()).toBe("2026-09-18T03:00:00.000Z");
+  });
+
+  it("data com hora passa direto", () => {
+    expect(diaEmSaoPaulo("2026-09-18T12:00:00.000Z", "fim").toISOString()).toBe("2026-09-18T12:00:00.000Z");
+  });
+});

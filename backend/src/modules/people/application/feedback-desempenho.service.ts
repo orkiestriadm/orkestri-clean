@@ -109,6 +109,19 @@ const INCLUDE_PESSOAS = {
   },
 };
 
+/**
+ * "2026-09-18" → o começo ou o fim desse dia em São Paulo.
+ *
+ * Brasil sem horário de verão desde 2019: -03:00 fixo. Data com hora (ISO
+ * completa) passa direto.
+ */
+export function diaEmSaoPaulo(valor: string, ponta: "inicio" | "fim"): Date {
+  if (/^\d{4}-\d{2}-\d{2}$/.test(valor)) {
+    return new Date(`${valor}T${ponta === "inicio" ? "00:00:00.000" : "23:59:59.999"}-03:00`);
+  }
+  return new Date(valor);
+}
+
 const fmtDataHora = (d: Date) =>
   new Date(d).toLocaleString("pt-BR", {
     timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", year: "numeric",
@@ -258,11 +271,12 @@ export class FeedbackDesempenhoService {
    */
   async impressao(user: UsuarioContexto, filtro: FiltroImpressaoDto) {
     const alcance = await this.alcanceDeLeitura(user);
-    const ate = filtro.ate ? new Date(filtro.ate) : new Date();
-    const de = filtro.de ? new Date(filtro.de) : new Date(ate.getTime() - 90 * 86_400_000);
-    // `ate` é o dia inteiro: quem pede "até 30/09" espera ver o registro das 16h do dia 30.
-    const ateFimDoDia = new Date(ate);
-    ateFimDoDia.setHours(23, 59, 59, 999);
+    // Datas da tela chegam SEM hora ("2026-09-18") e significam o dia em São
+    // Paulo. `new Date("2026-09-18")` é meia-noite em UTC — 21h do dia 17 aqui —
+    // e o "até" cortava tudo que tinha sido registrado no próprio dia. Achado
+    // imprimindo de verdade: o feedback de hoje não saía no relatório de hoje.
+    const ateFimDoDia = filtro.ate ? diaEmSaoPaulo(filtro.ate, "fim") : new Date();
+    const de = filtro.de ? diaEmSaoPaulo(filtro.de, "inicio") : new Date(ateFimDoDia.getTime() - 90 * 86_400_000);
 
     const autor = user.id ? await this.db.user.findUnique({ where: { id: user.id }, select: { nome: true } }) : null;
     const cabecalho = {

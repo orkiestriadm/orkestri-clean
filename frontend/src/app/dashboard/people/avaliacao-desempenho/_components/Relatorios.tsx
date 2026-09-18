@@ -19,8 +19,10 @@ import { AreaImpressao, FichaFeedback, RelatorioConsolidado, RelatorioDados } fr
  * Quem decide é o backend; esta aba só escolhe período e filtros.
  */
 
-const hoje = () => new Date().toISOString().slice(0, 10);
-const haDias = (n: number) => new Date(Date.now() - n * 86_400_000).toISOString().slice(0, 10);
+// O dia em São Paulo, e não em UTC: `toISOString` depois das 21h já seria amanhã.
+const diaSP = (d: Date) => d.toLocaleDateString("sv-SE", { timeZone: "America/Sao_Paulo" });
+const hoje = () => diaSP(new Date());
+const haDias = (n: number) => diaSP(new Date(Date.now() - n * 86_400_000));
 
 type Pedido = { tipo: "consolidado" | "fichas"; dados: RelatorioDados; filtrosTexto: string };
 
