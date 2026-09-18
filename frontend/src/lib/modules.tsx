@@ -74,7 +74,7 @@ export const NAV: NavGroup[] = [
       // frequente do gestor e ficava no fim do grupo. O RH entra também por
       // `aprovar_exclusao`: é quem decide os pedidos de exclusão, mesmo sem
       // acompanhar o dia a dia dos feedbacks.
-      { href: "/dashboard/people/avaliacao-desempenho", label: "Avaliação de Desempenho", icon: MessagesSquare, permission: ["people.feedback_desempenho:ver", "people.feedback_desempenho:aprovar_exclusao"] },
+      { href: "/dashboard/people/avaliacao-desempenho", label: "Feedback", icon: MessagesSquare, permission: ["people.feedback_desempenho:ver", "people.feedback_desempenho:aprovar_exclusao"] },
       { href: "/dashboard/people/cargos",      label: "Cargos",        icon: Briefcase,     permission: "people.cargo:ver" },
       { href: "/dashboard/people/ausencias",   label: "Ausências",     icon: CalendarX,     permission: "colaboradores:ver" },
       { href: "/dashboard/people/organograma", label: "Organograma",   icon: Network,       permission: "colaboradores:ver" },
