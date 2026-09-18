@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "1.44.4";
+export const VERSAO = "1.44.5";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -26,7 +26,7 @@ export const VERSAO = "1.44.4";
 export const VERSAO_DATA = "2026-09-18";
 
 /** Nome da entrega, para dar contexto ao número. */
-export const VERSAO_NOME = "Papéis do People no formato novo voltam a ver Colaboradores";
+export const VERSAO_NOME = "Avaliação de Desempenho logo abaixo de Colaboradores";
 
 /**
  * Histórico exibido na tela Sobre, do mais recente para o mais antigo.
@@ -35,6 +35,14 @@ export const VERSAO_NOME = "Papéis do People no formato novo voltam a ver Colab
  * esta lista quer saber o que mudou para ele.
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
+  {
+    versao: "1.44.5",
+    data: "2026-09-18",
+    titulo: "Avaliação de Desempenho logo abaixo de Colaboradores",
+    itens: [
+      "No menu People, Avaliação de Desempenho passa a ficar logo depois de Colaboradores, em vez de no fim do grupo",
+    ],
+  },
   {
     versao: "1.44.4",
     data: "2026-09-18",

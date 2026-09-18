@@ -69,6 +69,12 @@ export const NAV: NavGroup[] = [
       // alguém ver o próprio saldo de férias inverteria o controle de acesso.
       { href: "/dashboard/meu-rh",             label: "Meu RH",        icon: UserCircle,    permission: "meurh:ver" },
       { href: "/dashboard/people",             label: "Colaboradores", icon: Users,         permission: "colaboradores:ver" },
+      // Submódulo com o Feedback como primeira aba, logo abaixo de
+      // Colaboradores a pedido do usuário (18/09/2026): é tela de uso
+      // frequente do gestor e ficava no fim do grupo. O RH entra também por
+      // `aprovar_exclusao`: é quem decide os pedidos de exclusão, mesmo sem
+      // acompanhar o dia a dia dos feedbacks.
+      { href: "/dashboard/people/avaliacao-desempenho", label: "Avaliação de Desempenho", icon: MessagesSquare, permission: ["people.feedback_desempenho:ver", "people.feedback_desempenho:aprovar_exclusao"] },
       { href: "/dashboard/people/cargos",      label: "Cargos",        icon: Briefcase,     permission: "people.cargo:ver" },
       { href: "/dashboard/people/ausencias",   label: "Ausências",     icon: CalendarX,     permission: "colaboradores:ver" },
       { href: "/dashboard/people/organograma", label: "Organograma",   icon: Network,       permission: "colaboradores:ver" },
@@ -85,10 +91,6 @@ export const NAV: NavGroup[] = [
       // desempenho, que é dado de carreira — quem vê indicador de quadro não
       // necessariamente pode ler a nota que cada gestor deu.
       { href: "/dashboard/people/calibracao",  label: "Calibração",    icon: Scale,         permission: "people.avaliacao:ver" },
-      // Submódulo com o Feedback como primeira aba. O RH entra também por
-      // `aprovar_exclusao`: é quem decide os pedidos de exclusão, mesmo sem
-      // acompanhar o dia a dia dos feedbacks.
-      { href: "/dashboard/people/avaliacao-desempenho", label: "Avaliação de Desempenho", icon: MessagesSquare, permission: ["people.feedback_desempenho:ver", "people.feedback_desempenho:aprovar_exclusao"] },
       // Permissão própria, fora de qualquer perfil padrão: eliminar dado
       // pessoal é irreversível, ao contrário de excluir colaborador.
       { href: "/dashboard/people/privacidade", label: "Privacidade",   icon: ShieldCheck,   permission: "people.privacidade:gerenciar" },
