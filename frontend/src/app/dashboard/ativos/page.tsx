@@ -68,6 +68,18 @@ function StatCard({ label, value, color, onClick, active }: { label:string; valu
   );
 }
 
+// No escopo do módulo de propósito. Definida dentro de AtivoForm, esta função
+// virava um tipo de componente novo a cada render: o React remontava a subárvore
+// e os <input type="date"> de "data aquisição" e "fim de garantia" perdiam o
+// buffer de digitação do ano, travando em 0002. Confirmado na tela em
+// 23/09/2026, mesmo defeito do cadastro de CNH (ver frota/motoristas/page.tsx).
+const F = ({ label, children }: { label: string; children: React.ReactNode }) => (
+  <div>
+    <label style={{ fontSize:10, color:"var(--text-muted)", fontFamily:"var(--font-mono)", display:"block", marginBottom:4 }}>{label}</label>
+    {children}
+  </div>
+);
+
 // ── AtivoForm ─────────────────────────────────────────────────────────────────
 function AtivoForm({ ativo, categorias, users, setores, onSave, onCancel }: {
   ativo?: Ativo; categorias: Categoria[];
@@ -91,12 +103,6 @@ function AtivoForm({ ativo, categorias, users, setores, onSave, onCancel }: {
     finally { setSaving(false); }
   };
 
-  const F = ({ label, children }: { label: string; children: React.ReactNode }) => (
-    <div>
-      <label style={{ fontSize:10, color:"var(--text-muted)", fontFamily:"var(--font-mono)", display:"block", marginBottom:4 }}>{label}</label>
-      {children}
-    </div>
-  );
 
   return (
     <div style={{ maxWidth:680, display:"flex", flexDirection:"column", gap:14 }}>
