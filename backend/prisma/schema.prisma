@@ -2537,6 +2537,9 @@ model CategoriaVeiculo {
   organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   veiculos        Veiculo[]
 
+  /// No banco este indice e PARCIAL (`WHERE deleted_at IS NULL`) pela mesma
+  /// razao do model Veiculo: sem o filtro, uma categoria excluida segurava o
+  /// nome e impedia recria-lo. Ver 20260922000001_frota_unique_parcial_soft_delete.
   @@unique([organizationId, nome])
   @@index([organizationId, deletedAt])
   @@map("categorias_veiculo")
@@ -2593,6 +2596,13 @@ model Veiculo {
   reservas         ReservaVeiculo[]
   chamados         Chamado[]           @relation("ChamadoVeiculo")
 
+  /// ATENCAO: no banco estes dois indices sao PARCIAIS (`WHERE deleted_at IS
+  /// NULL`) -- o Prisma nao sabe expressar isso, entao a declaracao aqui fica
+  /// mais restritiva que a realidade. E proposital: exclusao aqui e soft
+  /// delete, e sem o filtro a placa de um veiculo excluido continuava ocupada,
+  /// recusando o recadastro com "Registro duplicado". Ver a migration
+  /// 20260922000001_frota_unique_parcial_soft_delete. Nao "corrigir" a
+  /// divergencia rodando prisma migrate dev contra o banco.
   @@unique([organizationId, placa])
   @@unique([organizationId, codigo])
   @@index([organizationId, status])
