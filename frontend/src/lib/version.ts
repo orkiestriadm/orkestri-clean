@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "1.46.1";
+export const VERSAO = "1.46.2";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -23,10 +23,10 @@ export const VERSAO = "1.46.1";
  * Não é gerada no build: `new Date()` no bundle muda a cada compilação, e duas
  * builds do mesmo código pareceriam versões diferentes.
  */
-export const VERSAO_DATA = "2026-09-18";
+export const VERSAO_DATA = "2026-09-25";
 
 /** Nome da entrega, para dar contexto ao número. */
-export const VERSAO_NOME = "Relatório de feedback inclui o dia de hoje";
+export const VERSAO_NOME = "Desbloqueio de usuário na Gestão de Usuários";
 
 /**
  * Histórico exibido na tela Sobre, do mais recente para o mais antigo.
@@ -35,6 +35,16 @@ export const VERSAO_NOME = "Relatório de feedback inclui o dia de hoje";
  * esta lista quer saber o que mudou para ele.
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
+  {
+    versao: "1.46.2",
+    data: "2026-09-25",
+    titulo: "Desbloqueio de usuário na Gestão de Usuários",
+    itens: [
+      "Quem erra a senha 5 vezes aparece com o selo BLOQUEADO na lista de usuários",
+      "Novo botão Desbloquear para o administrador da empresa: zera as tentativas e libera o acesso. Antes só era possível pelo banco de dados",
+      "Bloqueios e desbloqueios ficam registrados no Histórico",
+    ],
+  },
   {
     versao: "1.46.1",
     data: "2026-09-18",

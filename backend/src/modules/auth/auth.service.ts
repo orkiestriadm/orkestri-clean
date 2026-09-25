@@ -698,7 +698,14 @@ export class AuthService implements OnModuleInit {
         where: { id: user.id },
         data: { tentativasFalhas: novasTentativas, ...(bloquear ? { bloqueado: true } : {}) } as any,
       });
-      if (bloquear) throw new UnauthorizedException("Conta bloqueada após múltiplas tentativas. Contate o Administrador.");
+      if (bloquear) {
+        // Registra no histórico e derruba o cache da lista, para o selo
+        // "Bloqueado" aparecer na Gestão de Usuários na hora.
+        await this.logAudit(user.id, "usuarios", "users", user.id, "BLOCK",
+          `${user.nome} bloqueado após ${novasTentativas} tentativas de senha`, (user as any).organizationId);
+        await this.cache.delPattern("cache:users:list:*").catch(() => {});
+        throw new UnauthorizedException("Conta bloqueada após múltiplas tentativas. Contate o Administrador.");
+      }
       throw new UnauthorizedException("Credenciais inválidas");
     }
     // Trial vencido: a senha está certa, mas o teste de 7 dias acabou. Bloqueia
@@ -1487,12 +1494,26 @@ export class AuthService implements OnModuleInit {
     return { message: "Senha definida com sucesso." };
   }
 
+  // Conta bloqueada não se recupera sozinha: a recuperação por e-mail e por
+  // WhatsApp recusa quem está bloqueado. Então quem destrava é o administrador
+  // da organização (ou o master/super-admin), pelo botão da Gestão de Usuários.
   async unblockUser(targetId: string, requestUser: any) {
-    if (!requestUser.isMaster) throw new ForbiddenException("Acesso negado.");
+    const pode = requestUser.isMaster || requestUser.isSuperAdmin
+      || (requestUser.roles || []).includes("administrador");
+    if (!pode) throw new ForbiddenException("Apenas administradores podem desbloquear usuários.");
+    // Super-admin atende qualquer organização; os demais, só a própria.
+    const alvo = await this.prisma.user.findFirst({
+      where: { id: targetId, ...(requestUser.isSuperAdmin ? {} : { organizationId: requestUser.organizationId }) } as any,
+    });
+    if (!alvo) throw new NotFoundException("Usuário não encontrado.");
     await this.prisma.user.update({
       where: { id: targetId },
       data: { bloqueado: false, tentativasFalhas: 0 } as any,
     });
+    await this.logAudit(requestUser.id, "usuarios", "users", targetId, "UNBLOCK",
+      `Desbloqueou ${alvo.nome} (${alvo.email})`, (alvo as any).organizationId);
+    await this.cache.del(`cache:user:${targetId}`);
+    await this.cache.delPattern("cache:users:list:*");
     return { message: "Usuário desbloqueado." };
   }
 

@@ -6,7 +6,7 @@ import { api } from "@/lib/api";
 
 // ── Tipos ─────────────────────────────────────────────────────────────────────
 type Setor   = { id: string; nome: string; cor?: string; descricao?: string; parentId?: string; responsavelId?: string; responsavel?: { id: string; nome: string } | null; _count?: { users: number }; filhos?: Setor[]; };
-type User    = { id: string; nome: string; email: string; ativo: boolean; roles: string[]; isMaster: boolean; ultimoLogin?: string; criadoEm: string; cargo?: string; telefone?: string; whatsapp?: string; setor?: Setor; modulos: string[]; };
+type User    = { id: string; nome: string; email: string; ativo: boolean; bloqueado?: boolean; roles: string[]; isMaster: boolean; ultimoLogin?: string; criadoEm: string; cargo?: string; telefone?: string; whatsapp?: string; setor?: Setor; modulos: string[]; };
 type Permission = { id: string; recurso: string; acao: string; descricao?: string; };
 type Role    = { id: string; nome: string; descricao?: string; isMaster: boolean; nivel: number; _count?: { userRoles: number }; rolePermissions?: { permission: Permission }[]; };
 type Solicitacao = { id: string; nome: string; email: string; whatsapp?: string; cargo?: string; departamento?: string; empresa?: string; motivacao?: string; produtos?: string[]; status: string; criado_em: string; };
@@ -1658,6 +1658,9 @@ export default function CadastrosPage() {
   const [modalNewUser,   setModalNewUser]   = useState(false);
   const [modalEditUser,  setModalEditUser]  = useState<User|null>(null);
   const [modalPwd,       setModalPwd]       = useState<User|null>(null);
+  const [modalUnlock,    setModalUnlock]    = useState<User|null>(null);
+  // Desbloqueio: administrador da organização, master ou super-admin (o backend confere de novo).
+  const podeDesbloquear = !!(me?.isMaster || me?.isSuperAdmin || me?.roles?.includes("administrador"));
   const [modalToggle,    setModalToggle]    = useState<User|null>(null);
   const [modalDelUser,   setModalDelUser]   = useState<User|null>(null);
   const [modalUserPerms, setModalUserPerms] = useState<User|null>(null);
@@ -1957,8 +1960,19 @@ export default function CadastrosPage() {
                       <span style={{ fontSize:11, fontWeight:600, fontFamily:"var(--font-mono)", letterSpacing:"0.05em", padding:"4px 10px", borderRadius:20, background:u.ativo?"rgba(34,197,94,0.1)":"rgba(239,68,68,0.1)", color:u.ativo?"var(--accent-green)":"var(--accent-red)", border:`1px solid ${u.ativo?"rgba(34,197,94,0.2)":"rgba(239,68,68,0.2)"}` }}>
                         {u.ativo ? "ATIVO" : "INATIVO"}
                       </span>
+                      {u.bloqueado && (
+                        <span title="Bloqueado após 5 tentativas de senha erradas" style={{ display:"inline-block", marginTop:6, fontSize:11, fontWeight:600, fontFamily:"var(--font-mono)", letterSpacing:"0.05em", padding:"4px 10px", borderRadius:20, background:"rgba(239,68,68,0.1)", color:"var(--accent-red)", border:"1px solid rgba(239,68,68,0.2)" }}>
+                          BLOQUEADO
+                        </span>
+                      )}
                     </div>
                     <div style={{ display:"flex", gap:6, justifyContent:"flex-end" }}>
+                      {u.bloqueado && podeDesbloquear && (
+                        <button style={{ height:32, padding:"0 10px", borderRadius:8, background:"rgba(239,68,68,0.1)", border:"1px solid rgba(239,68,68,0.3)", color:"var(--accent-red)", cursor:"pointer", transition:"all 0.2s", display:"flex", alignItems:"center", gap:6, fontSize:12, fontWeight:600 }} title="Desbloquear conta" onClick={()=>setModalUnlock(u)} onMouseEnter={e=>{e.currentTarget.style.background="rgba(239,68,68,0.18)";}} onMouseLeave={e=>{e.currentTarget.style.background="rgba(239,68,68,0.1)";}}>
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 017.5-2" strokeLinecap="round"/></svg>
+                          Desbloquear
+                        </button>
+                      )}
                       <button style={{ width:32, height:32, borderRadius:8, background:"transparent", border:"1px solid transparent", color:"var(--text-secondary)", cursor:"pointer", transition:"all 0.2s", display:"flex", alignItems:"center", justifyContent:"center" }} title="Editar" onClick={()=>setModalEditUser(u)} onMouseEnter={e=>{e.currentTarget.style.background="var(--bg-hover)"; e.currentTarget.style.borderColor="var(--border-subtle)"; e.currentTarget.style.color="var(--accent-violet)";}} onMouseLeave={e=>{e.currentTarget.style.background="transparent"; e.currentTarget.style.borderColor="transparent"; e.currentTarget.style.color="var(--text-secondary)";}}>
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4z"/></svg>
                       </button>
@@ -3003,6 +3017,7 @@ export default function CadastrosPage() {
       {modalNewUser  && <UserModal setores={setores} roles={roles} onClose={()=>setModalNewUser(false)} onSave={load} />}
       {modalEditUser && <UserModal user={modalEditUser} setores={setores} roles={roles} onClose={()=>setModalEditUser(null)} onSave={load} />}
       {modalPwd      && <ResetPwdModal user={modalPwd} onClose={()=>setModalPwd(null)} />}
+      {modalUnlock   && <ConfirmModal title="Desbloquear usuário" message={`${modalUnlock.nome} foi bloqueado após errar a senha 5 vezes. Ao desbloquear, as tentativas voltam a zero e o acesso é liberado. Se a pessoa não lembra a senha, use também "Resetar senha".`} confirmLabel="Desbloquear" onConfirm={async()=>{ await api.patch("/auth/desbloquear/"+modalUnlock.id); await load(); }} onClose={()=>setModalUnlock(null)} />}
       {modalToggle   && <ConfirmModal title={modalToggle.ativo?"Desativar usuario":"Ativar usuario"} message={modalToggle.ativo?`${modalToggle.nome} perdera acesso ao sistema.`:`${modalToggle.nome} voltara a ter acesso.`} confirmLabel={modalToggle.ativo?"Desativar":"Ativar"} danger={modalToggle.ativo} onConfirm={async()=>{ await api.patch("/users/"+modalToggle.id+"/toggle"); await load(); }} onClose={()=>setModalToggle(null)} />}
       {modalDelUser  && <ConfirmModal title="Remover usuario" message={`Tem certeza que deseja remover ${modalDelUser.nome}? Todos os seus dados serao excluidos.`} confirmLabel="Remover permanentemente" danger onConfirm={()=>confirmarDelete("/users/"+modalDelUser.id)} onClose={()=>setModalDelUser(null)} />}
       {/* Modais setores */}
