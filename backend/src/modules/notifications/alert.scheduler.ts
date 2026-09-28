@@ -129,7 +129,7 @@ export class AlertScheduler implements OnModuleInit {
             if (phone && alertsOn) {
               const overMin = Math.round(-remainingMs / 60000);
               const inst = await this.wa.resolveInstance((c as any).organizationId);
-              await this.wa.sendSlaViolado(phone, c.numero, c.titulo, overMin, appUrl, inst).catch(() => {});
+              await this.wa.sendSlaViolado(phone, c.numero, c.id, c.titulo, overMin, appUrl, inst).catch(() => {});
               this.logger.warn(`SLA VIOLADO #${c.numero} [${inst}] -> ${phone}`);
             }
           }
@@ -151,7 +151,7 @@ export class AlertScheduler implements OnModuleInit {
             if (phone && alertsOn) {
               const remMin = Math.round(remainingMs / 60000);
               const inst = await this.wa.resolveInstance((c as any).organizationId);
-              await this.wa.sendSlaRisco(phone, c.numero, c.titulo, remMin, appUrl, inst).catch(() => {});
+              await this.wa.sendSlaRisco(phone, c.numero, c.id, c.titulo, remMin, appUrl, inst).catch(() => {});
               this.logger.log(`SLA risco #${c.numero} [${inst}] -> ${phone}`);
             }
           }

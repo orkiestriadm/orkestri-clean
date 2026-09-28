@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "1.46.4";
+export const VERSAO = "1.46.5";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -26,7 +26,7 @@ export const VERSAO = "1.46.4";
 export const VERSAO_DATA = "2026-09-28";
 
 /** Nome da entrega, para dar contexto ao número. */
-export const VERSAO_NOME = "Correção no motor de alertas";
+export const VERSAO_NOME = "Mensagens de WhatsApp reescritas";
 
 /**
  * Histórico exibido na tela Sobre, do mais recente para o mais antigo.
@@ -35,6 +35,17 @@ export const VERSAO_NOME = "Correção no motor de alertas";
  * esta lista quer saber o que mudou para ele.
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
+  {
+    versao: "1.46.5",
+    data: "2026-09-28",
+    titulo: "Mensagens de WhatsApp reescritas",
+    itens: [
+      "Os avisos de SLA e de chamado dizem logo na primeira linha o que aconteceu — antes a prévia do WhatsApp mostrava só o nome do sistema",
+      "O prazo aparece em hora certa (\"vence às 15:40\") no lugar de \"restam 45 min\", que envelhecia enquanto a mensagem esperava na tela",
+      "O link abre o chamado em questão, não a lista inteira",
+      "Acentuação corrigida em todas as mensagens",
+    ],
+  },
   {
     versao: "1.46.4",
     data: "2026-09-28",
