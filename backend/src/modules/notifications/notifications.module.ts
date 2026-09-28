@@ -76,11 +76,18 @@ class NotificationsController {
     }));
   }
 
+  /**
+   * Testa o SINO de quem clicou - e nada alem disso.
+   *
+   * Antes chamava `scheduler.run()` e esperava terminar: a varredura inteira
+   * (agenda, SLA, faturas, frota) rodava dentro da requisicao, passava dos 30s
+   * de timeout do cliente e a tela dizia "Sem conexao" mesmo tendo funcionado.
+   * Pior: disparava WhatsApp real de SLA para OUTRAS pessoas - um botao de
+   * teste nao manda mensagem para terceiros. O agendador ja roda de 30 em 30s.
+   */
   @Post("test-alert")
   @UseGuards(AuthGuard("jwt"))
   async testAlert(@Req() req: any) {
-    // ForÃƒÂ§a verificacao imediata
-    await this.scheduler.run();
     // Cria notificacao de teste
     await this.prisma.notification.create({
       data: {

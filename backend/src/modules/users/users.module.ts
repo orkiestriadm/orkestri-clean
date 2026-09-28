@@ -77,6 +77,7 @@ class UpdateModulosDto { @IsArray() modulos: string[]; }
 function mapUser(u: any) {
   return {
     id: u.id, nome: u.nome, email: u.email, ativo: u.ativo,
+    bloqueado: !!u.bloqueado,
     avatar: u.avatar, ultimoLogin: u.ultimoLogin, criadoEm: u.criadoEm,
     cargo: u.profile?.cargo,
     telefone: u.profile?.telefone,

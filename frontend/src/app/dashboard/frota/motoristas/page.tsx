@@ -31,6 +31,28 @@ function getMotoristaCnhGroup(validade?: string | null) {
   return "validas";
 }
 
+// `F` e `SH` PRECISAM ficar aqui fora, no escopo do módulo.
+//
+// Definidas dentro de MotoristaForm, viravam um tipo de componente NOVO a cada
+// render — e o React desmonta e remonta a subárvore inteira quando o tipo muda.
+// O <input type="date"> era recriado a cada tecla e o Chrome perdia o buffer de
+// edição do segmento: digitar o ano parava no primeiro dígito e a data ficava
+// 23/09/0002 para sempre. Ninguém conseguia cadastrar validade de CNH (achado
+// na tela em 23/09/2026, com a empresa já usando o módulo).
+//
+// O formulário de veículos nunca teve o problema porque o `wrap` do
+// _components/crud.tsx é uma função CHAMADA (`wrap(<input/>)`), não um
+// componente JSX — o elemento mantém a identidade entre renders.
+const F = ({ label, children, full }: { label: string; children: React.ReactNode; full?: boolean }) => (
+  <div style={full ? { gridColumn: "1/-1" } : undefined}>
+    <label style={{ fontSize: 11, color: "var(--text-muted)", fontFamily: "var(--font-mono)", letterSpacing: "0.08em", display: "block", marginBottom: 6 }}>{label}</label>
+    {children}
+  </div>
+);
+const SH = ({ label }: { label: string }) => (
+  <div style={{ gridColumn: "1/-1", fontSize: 10, fontFamily: "var(--font-mono)", letterSpacing: "0.1em", color: "var(--text-muted)", borderBottom: "1px solid var(--border-subtle)", paddingBottom: 8, marginTop: 6 }}>{label}</div>
+);
+
 // ── Modal de cadastro/edição ────────────────────────────────────────────────────
 function MotoristaForm({ motorista, onSaved, onClose }: { motorista?: Motorista; onSaved: () => void; onClose: () => void }) {
   const [d, setD] = useState<any>(motorista || { status: "ativo" });
@@ -70,16 +92,6 @@ function MotoristaForm({ motorista, onSaved, onClose }: { motorista?: Motorista;
       onSaved();
     } catch (e: any) { setErr(e?.response?.data?.message || "Erro ao salvar"); setSaving(false); }
   };
-
-  const F = ({ label, children, full }: { label: string; children: React.ReactNode; full?: boolean }) => (
-    <div style={full ? { gridColumn: "1/-1" } : undefined}>
-      <label style={{ fontSize: 11, color: "var(--text-muted)", fontFamily: "var(--font-mono)", letterSpacing: "0.08em", display: "block", marginBottom: 6 }}>{label}</label>
-      {children}
-    </div>
-  );
-  const SH = ({ label }: { label: string }) => (
-    <div style={{ gridColumn: "1/-1", fontSize: 10, fontFamily: "var(--font-mono)", letterSpacing: "0.1em", color: "var(--text-muted)", borderBottom: "1px solid var(--border-subtle)", paddingBottom: 8, marginTop: 6 }}>{label}</div>
-  );
 
   const filtered = users.filter(u => !userQuery || u.nome?.toLowerCase().includes(userQuery.toLowerCase()) || u.email?.toLowerCase().includes(userQuery.toLowerCase()));
 

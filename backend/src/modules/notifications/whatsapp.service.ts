@@ -327,48 +327,95 @@ export class WhatsAppService {
   }
 
   // ── Typed message helpers ──────────────────────────────────────────────────
+  //
+  // Padrão destas mensagens (revisado 28/09/2026):
+  //  - a PRIMEIRA linha diz o que aconteceu. Na lista de conversas do WhatsApp
+  //    só o começo aparece; abrir com a marca obrigava a pessoa a entrar na
+  //    conversa para descobrir do que se tratava.
+  //  - a marca vai no rodapé, em itálico: identifica sem ocupar a prévia.
+  //  - prazo em HORA ABSOLUTA. "Faltam 45 min" mente assim que a mensagem
+  //    espera 20 minutos na tela; "vence às 15:40" continua verdade.
+  //  - o link aponta para O chamado, não para a lista.
+
+  /** Rodapé com a marca — sempre a última linha. */
+  private get assinatura(): string {
+    return `\n\n_${MARCA}_`;
+  }
+
+  /**
+   * Prioridade como a tela de Chamados mostra — sem acento, "CRITICA" lia-se
+   * como o verbo criticar. O fallback capitaliza em vez de devolver o valor
+   * cru: a base tem `urgente`, que não está no mapa de nenhuma tela, e sem
+   * isto a mensagem sairia com "*Prioridade:* urgente" em minúscula.
+   */
+  private prioridadeLabel(p: string): string {
+    const mapa: Record<string, string> = { baixa: "Baixa", media: "Média", alta: "Alta", critica: "Crítica" };
+    return mapa[p] ?? (p ? p.charAt(0).toUpperCase() + p.slice(1) : "—");
+  }
+
+  /** Hora do prazo; inclui a data só quando não é hoje. */
+  private horaLimite(d: Date): string {
+    const tz = "America/Sao_Paulo";
+    const hoje = new Date().toLocaleDateString("pt-BR", { timeZone: tz });
+    const dia = d.toLocaleDateString("pt-BR", { timeZone: tz });
+    const hora = d.toLocaleTimeString("pt-BR", { timeZone: tz, hour: "2-digit", minute: "2-digit" });
+    return dia === hoje ? `às ${hora}` : `em ${dia} às ${hora}`;
+  }
+
+  private linkChamado(appUrl: string, chamadoId: string): string {
+    return `${appUrl}/dashboard/chamados/${chamadoId}`;
+  }
+
+  /** Duração em pt-BR; omite os minutos quando são zero ("26h", não "26h 0min"). */
+  private duracao(mins: number): string {
+    if (mins < 60) return `${mins} min`;
+    const h = Math.floor(mins / 60);
+    const m = mins % 60;
+    return m === 0 ? `${h}h` : `${h}h ${m}min`;
+  }
 
   async sendTest(phone: string, instanceName?: string): Promise<boolean> {
-    const msg = `*${MARCA}* - Teste de conexao\n\nSeu WhatsApp esta configurado corretamente!\nVoce recebera alertas de eventos por aqui.`;
+    const msg = `✅ *WhatsApp configurado*\n\nEstá tudo certo — os lembretes da sua agenda chegam por aqui.${this.assinatura}`;
     return this.sendMessage(phone, msg, instanceName);
   }
 
   async sendEventAlert(phone: string, eventName: string, minutosRestantes: number, appUrl: string, instanceName?: string): Promise<boolean> {
-    const tempo = minutosRestantes <= 0 ? "agora" : `em ${minutosRestantes} minuto${minutosRestantes > 1 ? "s" : ""}`;
-    const msg = `*${MARCA} - Lembrete*\n\nVoce tem um evento *${tempo}*:\n\n- ${eventName}\n\nAcesse: ${appUrl}/dashboard/agenda`;
+    const quando = minutosRestantes <= 0
+      ? "Começando agora"
+      : `Começa em ${minutosRestantes} minuto${minutosRestantes > 1 ? "s" : ""}`;
+    const msg = `⏰ *${quando}*\n\n${eventName}\n\nAbrir agenda: ${appUrl}/dashboard/agenda${this.assinatura}`;
     return this.sendMessage(phone, msg, instanceName);
   }
 
-  async sendChamadoAberto(phone: string, numero: number, titulo: string, prioridade: string, slaHoras: number | null, appUrl: string, instanceName?: string): Promise<boolean> {
-    const slaText = slaHoras ? `\n*SLA:* Resposta em ate ${slaHoras}h` : "";
-    const prio = { baixa: "Baixa", media: "Media", alta: "Alta", critica: "CRITICA" }[prioridade] ?? prioridade;
-    const msg = `*${MARCA} - Chamado #${numero} aberto*\n\nSeu chamado foi registrado com sucesso.\n*Assunto:* ${titulo}\n*Prioridade:* ${prio}${slaText}\n\nAcompanhe: ${appUrl}/dashboard/chamados`;
+  async sendChamadoAberto(phone: string, numero: number, chamadoId: string, titulo: string, prioridade: string, slaHoras: number | null, appUrl: string, instanceName?: string): Promise<boolean> {
+    const slaText = slaHoras ? `\n*Prazo de resposta:* até ${slaHoras}h` : "";
+    const msg = `🎫 *Chamado #${numero} registrado*\n\n${titulo}\n*Prioridade:* ${this.prioridadeLabel(prioridade)}${slaText}\n\nAcompanhar: ${this.linkChamado(appUrl, chamadoId)}${this.assinatura}`;
     return this.sendMessage(phone, msg, instanceName);
   }
 
-  async sendChamadoAtribuido(phone: string, numero: number, titulo: string, prioridade: string, deadline: Date | null, appUrl: string, instanceName?: string): Promise<boolean> {
-    const prio = { baixa: "Baixa", media: "Media", alta: "Alta", critica: "CRITICA" }[prioridade] ?? prioridade;
-    const prazoText = deadline
-      ? `\n*Prazo SLA:* ${deadline.toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", dateStyle: "short", timeStyle: "short" })}`
-      : "";
-    const msg = `*${MARCA} - Chamado #${numero} atribuido a voce*\n\n*Assunto:* ${titulo}\n*Prioridade:* ${prio}${prazoText}\n\nAcesse: ${appUrl}/dashboard/chamados`;
+  async sendChamadoAtribuido(phone: string, numero: number, chamadoId: string, titulo: string, prioridade: string, deadline: Date | null, appUrl: string, instanceName?: string): Promise<boolean> {
+    const prazoText = deadline ? `\n*Prazo:* vence ${this.horaLimite(deadline)}` : "";
+    const msg = `👤 *Chamado #${numero} é seu agora*\n\n${titulo}\n*Prioridade:* ${this.prioridadeLabel(prioridade)}${prazoText}\n\nAbrir: ${this.linkChamado(appUrl, chamadoId)}${this.assinatura}`;
     return this.sendMessage(phone, msg, instanceName);
   }
 
-  async sendChamadoStatus(phone: string, numero: number, titulo: string, status: string, appUrl: string, instanceName?: string): Promise<boolean> {
+  async sendChamadoStatus(phone: string, numero: number, chamadoId: string, titulo: string, status: string, appUrl: string, instanceName?: string): Promise<boolean> {
     const labels: Record<string, string> = { em_atendimento: "Em atendimento", aguardando: "Aguardando sua resposta", resolvido: "Resolvido", fechado: "Fechado" };
-    const msg = `*${MARCA} - Chamado #${numero} atualizado*\n\nNovo status: *${labels[status] || status}*\n*Assunto:* ${titulo}\n\nAcompanhe: ${appUrl}/dashboard/chamados`;
+    const msg = `🔄 *Chamado #${numero} — ${labels[status] || status}*\n\n${titulo}\n\nAcompanhar: ${this.linkChamado(appUrl, chamadoId)}${this.assinatura}`;
     return this.sendMessage(phone, msg, instanceName);
   }
 
-  async sendChamadoResolvido(phone: string, numero: number, titulo: string, appUrl: string, instanceName?: string): Promise<boolean> {
-    const msg = `*${MARCA} - Chamado #${numero} resolvido*\n\nSeu chamado foi resolvido!\n*Assunto:* ${titulo}\n\nAvalie o atendimento de 1 a 5 acessando:\n${appUrl}/dashboard/chamados`;
+  async sendChamadoResolvido(phone: string, numero: number, chamadoId: string, titulo: string, appUrl: string, instanceName?: string): Promise<boolean> {
+    // Não prometemos a avaliação aqui: o link abre o chamado, não a tela de
+    // nota. Pedir algo que a mensagem não entrega é pior que não pedir.
+    const msg = `✅ *Chamado #${numero} resolvido*\n\n${titulo}\n\nVer o atendimento: ${this.linkChamado(appUrl, chamadoId)}${this.assinatura}`;
     return this.sendMessage(phone, msg, instanceName);
   }
 
-  async sendSlaRisco(phone: string, numero: number, titulo: string, restanteMins: number, appUrl: string, instanceName?: string): Promise<boolean> {
-    const tempo = restanteMins >= 60 ? `${Math.floor(restanteMins / 60)}h ${restanteMins % 60}min` : `${restanteMins}min`;
-    const msg = `*${MARCA} - SLA em Risco*\n\nChamado *#${numero}* esta proximo do prazo!\n*${titulo}*\n*Restam:* ${tempo}\n\nAcesse agora: ${appUrl}/dashboard/chamados`;
+  async sendSlaRisco(phone: string, numero: number, chamadoId: string, titulo: string, restanteMins: number, appUrl: string, instanceName?: string): Promise<boolean> {
+    const tempo = this.duracao(restanteMins);
+    const vence = this.horaLimite(new Date(Date.now() + restanteMins * 60000));
+    const msg = `⏱️ *SLA vence ${vence}* — faltam ${tempo}\n\nChamado #${numero}\n${titulo}\n\nAbrir: ${this.linkChamado(appUrl, chamadoId)}${this.assinatura}`;
     return this.sendMessage(phone, msg, instanceName);
   }
 
@@ -408,9 +455,10 @@ export class WhatsAppService {
     return this.sendMessage(phone, msg, instanceName);
   }
 
-  async sendSlaViolado(phone: string, numero: number, titulo: string, atrasadoMins: number, appUrl: string, instanceName?: string): Promise<boolean> {
-    const tempo = atrasadoMins >= 60 ? `${Math.floor(atrasadoMins / 60)}h ${atrasadoMins % 60}min` : `${atrasadoMins}min`;
-    const msg = `*${MARCA} - SLA VIOLADO*\n\nChamado *#${numero}* esta em atraso!\n*${titulo}*\n*Atraso:* ${tempo}\n\nAcesse: ${appUrl}/dashboard/chamados`;
+  async sendSlaViolado(phone: string, numero: number, chamadoId: string, titulo: string, atrasadoMins: number, appUrl: string, instanceName?: string): Promise<boolean> {
+    const tempo = this.duracao(atrasadoMins);
+    const venceu = this.horaLimite(new Date(Date.now() - atrasadoMins * 60000));
+    const msg = `🚨 *SLA venceu ${venceu}* — ${tempo} de atraso\n\nChamado #${numero}\n${titulo}\n\nAbrir: ${this.linkChamado(appUrl, chamadoId)}${this.assinatura}`;
     return this.sendMessage(phone, msg, instanceName);
   }
 }

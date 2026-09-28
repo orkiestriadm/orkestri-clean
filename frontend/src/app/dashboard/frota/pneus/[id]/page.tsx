@@ -36,6 +36,14 @@ function kmRodado(p: any) { const ini = p.kmInicial ?? p.kmInstalacao; return (i
 function custoKm(p: any) { const r = kmRodado(p); return (p.valorCompra != null && r && r > 0) ? p.valorCompra / r : null; }
 
 // ── Modal de ação ────────────────────────────────────────────────────────────────
+// No escopo do módulo de propósito — dentro de AcaoModal, virava um tipo de
+// componente novo a cada render e o React remontava a subárvore, fazendo o
+// <input type="date"> da ação perder a digitação do ano. Mesmo defeito do
+// cadastro de CNH em 22/09/2026 (ver o comentário em ../../motoristas/page.tsx).
+const L = ({ label, children }: { label: string; children: React.ReactNode }) => (
+  <div><label style={{ fontSize: 11, color: "var(--text-muted)", fontFamily: "var(--font-mono)", letterSpacing: "0.08em", display: "block", marginBottom: 6 }}>{label}</label>{children}</div>
+);
+
 function AcaoModal({ pneu, tipo, onSaved, onClose }: { pneu: any; tipo: string; onSaved: () => void; onClose: () => void }) {
   const [d, setD] = useState<any>({ km: pneu.kmAtual ?? "", data: new Date().toISOString().slice(0, 10), status: "estoque" });
   const [veiculos, setVeiculos] = useState<any[]>([]);
@@ -58,10 +66,6 @@ function AcaoModal({ pneu, tipo, onSaved, onClose }: { pneu: any; tipo: string; 
     try { await api.post(`/frota/pneus/${pneu.id}/evento`, { ...d, tipo }); onSaved(); }
     catch (e: any) { setErr(e?.response?.data?.message || "Erro"); setSaving(false); }
   };
-  const L = ({ label, children }: { label: string; children: React.ReactNode }) => (
-    <div><label style={{ fontSize: 11, color: "var(--text-muted)", fontFamily: "var(--font-mono)", letterSpacing: "0.08em", display: "block", marginBottom: 6 }}>{label}</label>{children}</div>
-  );
-
   return (
     <div className="modal-overlay" onClick={e => { if ((e.target as HTMLElement).classList.contains("modal-overlay")) onClose(); }}>
       <div className="modal-box" style={{ maxWidth: 440, display: "flex", flexDirection: "column", gap: 14 }} onClick={e => e.stopPropagation()}>

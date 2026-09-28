@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "1.46.1";
+export const VERSAO = "1.46.5";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -23,10 +23,10 @@ export const VERSAO = "1.46.1";
  * Não é gerada no build: `new Date()` no bundle muda a cada compilação, e duas
  * builds do mesmo código pareceriam versões diferentes.
  */
-export const VERSAO_DATA = "2026-09-18";
+export const VERSAO_DATA = "2026-09-28";
 
 /** Nome da entrega, para dar contexto ao número. */
-export const VERSAO_NOME = "Relatório de feedback inclui o dia de hoje";
+export const VERSAO_NOME = "Mensagens de WhatsApp reescritas";
 
 /**
  * Histórico exibido na tela Sobre, do mais recente para o mais antigo.
@@ -35,6 +35,46 @@ export const VERSAO_NOME = "Relatório de feedback inclui o dia de hoje";
  * esta lista quer saber o que mudou para ele.
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
+  {
+    versao: "1.46.5",
+    data: "2026-09-28",
+    titulo: "Mensagens de WhatsApp reescritas",
+    itens: [
+      "Os avisos de SLA e de chamado dizem logo na primeira linha o que aconteceu — antes a prévia do WhatsApp mostrava só o nome do sistema",
+      "O prazo aparece em hora certa (\"vence às 15:40\") no lugar de \"restam 45 min\", que envelhecia enquanto a mensagem esperava na tela",
+      "O link abre o chamado em questão, não a lista inteira",
+      "Acentuação corrigida em todas as mensagens",
+    ],
+  },
+  {
+    versao: "1.46.4",
+    data: "2026-09-28",
+    titulo: "Correção no motor de alertas",
+    itens: [
+      "O botão Testar alerta agora só testa o seu sino. Antes ele executava a varredura completa de alertas e chegava a disparar WhatsApp de SLA para outras pessoas",
+      "A tela não mostra mais \"Sem conexão\" ao testar: a resposta é imediata, sem esperar a varredura",
+      "O motor de alertas não roda mais sobreposto consigo mesmo — causa de lentidão e de mensagens repetidas",
+    ],
+  },
+  {
+    versao: "1.46.3",
+    data: "2026-09-28",
+    titulo: "Ajuste na tela de Usuários e Microsoft 365",
+    itens: [
+      "A coluna Ação não fica mais cortada na borda: os botões Integrar 365, Recusar e Remover aparecem inteiros, sem rolagem lateral",
+      "E-mails longos cabem em uma linha só, sem quebrar no meio do endereço",
+    ],
+  },
+  {
+    versao: "1.46.2",
+    data: "2026-09-25",
+    titulo: "Desbloqueio de usuário na Gestão de Usuários",
+    itens: [
+      "Quem erra a senha 5 vezes aparece com o selo BLOQUEADO na lista de usuários",
+      "Novo botão Desbloquear para o administrador da empresa: zera as tentativas e libera o acesso. Antes só era possível pelo banco de dados",
+      "Bloqueios e desbloqueios ficam registrados no Histórico",
+    ],
+  },
   {
     versao: "1.46.1",
     data: "2026-09-18",

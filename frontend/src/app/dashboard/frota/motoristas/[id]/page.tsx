@@ -18,6 +18,18 @@ const ANEXO_CATS = [
   { tipo: "certificado", label: "Certificados" },
 ];
 
+// Fica no escopo do módulo de propósito: definida dentro de RenovarModal, esta
+// função virava um tipo de componente novo a cada render, o React remontava a
+// subárvore e os dois <input type="date"> abaixo (nova validade e data da
+// renovação) perdiam a digitação do ano no primeiro dígito. Mesmo defeito que
+// travou o cadastro de CNH em 22/09/2026 — ver o comentário em ../page.tsx.
+const InputField = ({ label, children }: { label: string; children: React.ReactNode }) => (
+  <div>
+    <label className="text-[11px] font-medium text-muted-o mb-1.5 block uppercase tracking-wider">{label}</label>
+    {children}
+  </div>
+);
+
 // ── Modal Renovar CNH ────────────────────────────────────────────────────────────
 function RenovarModal({ motorista, onSaved, onClose }: { motorista: any; onSaved: () => void; onClose: () => void }) {
   const [d, setD] = useState<any>({ numeroNovo: motorista.cnh || "", categoriaNova: motorista.categoriaCnh || "", orgaoEmissor: motorista.orgaoEmissor || "", dataRenovacao: new Date().toISOString().slice(0, 10) });
@@ -31,13 +43,6 @@ function RenovarModal({ motorista, onSaved, onClose }: { motorista: any; onSaved
     try { await api.post(`/frota/motoristas/${motorista.id}/renovar`, d); onSaved(); }
     catch (e: any) { setErr(e?.response?.data?.message || "Erro ao renovar"); setSaving(false); }
   };
-
-  const InputField = ({ label, children }: { label: string; children: React.ReactNode }) => (
-    <div>
-      <label className="text-[11px] font-medium text-muted-o mb-1.5 block uppercase tracking-wider">{label}</label>
-      {children}
-    </div>
-  );
 
   return (
     <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 transition-all" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>

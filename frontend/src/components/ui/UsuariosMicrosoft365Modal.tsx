@@ -101,7 +101,7 @@ export default function UsuariosMicrosoft365Modal({ aberto, onFechar }: { aberto
     <Modal
       aberto={aberto}
       onFechar={onFechar}
-      largura={920}
+      largura={1100}
       titulo="Usuários e Microsoft 365"
       subtitulo="Libere quem pode integrar a agenda do Space com o Outlook. Depois de liberado, o próprio usuário conecta a conta uma vez."
     >
@@ -134,10 +134,12 @@ export default function UsuariosMicrosoft365Modal({ aberto, onFechar }: { aberto
         <TableCard>
           <thead>
             <tr>
-              <th>Usuário</th>
-              <th>Situação</th>
-              <th>Conta Microsoft</th>
-              <th style={{ textAlign: "right" }}>Ação</th>
+              {/* Larguras fixas: sem elas o auto-layout espremia a coluna do
+                  usuário e os e-mails quebravam no meio da palavra. */}
+              <th style={{ width: "31%" }}>Usuário</th>
+              <th style={{ width: "19%" }}>Situação</th>
+              <th style={{ width: "28%" }}>Conta Microsoft</th>
+              <th style={{ width: "22%", textAlign: "right" }}>Ação</th>
             </tr>
           </thead>
           <tbody>
@@ -152,7 +154,7 @@ export default function UsuariosMicrosoft365Modal({ aberto, onFechar }: { aberto
                 <tr key={u.id}>
                   <td>
                     <div style={{ fontWeight: 500 }}>{u.nome}</div>
-                    <div style={{ fontSize: 12, color: "var(--text-muted)", whiteSpace: "nowrap" }}>{u.email}</div>
+                    <div style={{ fontSize: 12, color: "var(--text-muted)", overflowWrap: "anywhere" }}>{u.email}</div>
                   </td>
                   <td>
                     <StatusBadge label={s.label} tone={s.tone} />
@@ -163,7 +165,7 @@ export default function UsuariosMicrosoft365Modal({ aberto, onFechar }: { aberto
                   <td>
                     {u.conexao ? (
                       <>
-                        <div style={{ fontSize: 12, whiteSpace: "nowrap" }}>{u.conexao.email || "—"}</div>
+                        <div style={{ fontSize: 12, overflowWrap: "anywhere" }}>{u.conexao.email || "—"}</div>
                         <div style={{ fontSize: 11, color: "var(--text-muted)" }}>sincronizado {quando(u.conexao.lastSyncAt)}</div>
                         {divergente && (
                           <div style={{ fontSize: 11, color: "var(--accent-amber, #f59e0b)", marginTop: 2 }}>e-mail diferente do cadastro</div>
@@ -186,9 +188,10 @@ export default function UsuariosMicrosoft365Modal({ aberto, onFechar }: { aberto
                         </button>
                       )}
                       {(u.conexao || u.acesso === "liberado") && (
-                        <button type="button" className="btn btn-ghost" style={{ fontSize: 12, padding: "5px 10px", display: "inline-flex", alignItems: "center", gap: 6, color: "var(--accent-red)" }}
+                        <button type="button" className="btn btn-ghost" title="Remover integração" aria-label={`Remover integração de ${u.nome}`}
+                          style={{ fontSize: 12, padding: "5px 10px", display: "inline-flex", alignItems: "center", gap: 6, color: "var(--accent-red)" }}
                           disabled={!!ocupado} onClick={() => decidir(u, "remover")}>
-                          <Unlink size={13} /> Remover integração
+                          <Unlink size={13} /> Remover
                         </button>
                       )}
                     </div>
