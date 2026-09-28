@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "1.46.3";
+export const VERSAO = "1.46.4";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -26,7 +26,7 @@ export const VERSAO = "1.46.3";
 export const VERSAO_DATA = "2026-09-28";
 
 /** Nome da entrega, para dar contexto ao número. */
-export const VERSAO_NOME = "Ajuste na tela de Usuários e Microsoft 365";
+export const VERSAO_NOME = "Correção no motor de alertas";
 
 /**
  * Histórico exibido na tela Sobre, do mais recente para o mais antigo.
@@ -35,6 +35,16 @@ export const VERSAO_NOME = "Ajuste na tela de Usuários e Microsoft 365";
  * esta lista quer saber o que mudou para ele.
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
+  {
+    versao: "1.46.4",
+    data: "2026-09-28",
+    titulo: "Correção no motor de alertas",
+    itens: [
+      "O botão Testar alerta agora só testa o seu sino. Antes ele executava a varredura completa de alertas e chegava a disparar WhatsApp de SLA para outras pessoas",
+      "A tela não mostra mais \"Sem conexão\" ao testar: a resposta é imediata, sem esperar a varredura",
+      "O motor de alertas não roda mais sobreposto consigo mesmo — causa de lentidão e de mensagens repetidas",
+    ],
+  },
   {
     versao: "1.46.3",
     data: "2026-09-28",

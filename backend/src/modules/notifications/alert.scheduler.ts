@@ -33,6 +33,13 @@ export class AlertScheduler implements OnModuleInit {
   private sent = new Map<string, number>();
   /** Último ciclo em que a frota foi varrida por inteiro (KM + agenda). */
   private ultimoCicloPesadoFrota = 0;
+  /**
+   * Trava de sobreposição: uma passada varre agenda, SLA, faturas e frota e
+   * dispara WhatsApp. Se demorar mais que o intervalo de 30s, sem esta trava a
+   * passada seguinte começava por cima e elas se acumulavam — degradando a API
+   * inteira e duplicando mensagens.
+   */
+  private rodando = false;
 
   constructor(
     private prisma: PrismaService,
@@ -44,8 +51,10 @@ export class AlertScheduler implements OnModuleInit {
   onModuleInit() {
     const tz = process.env.TZ || "UTC";
     this.logger.log(`AlertScheduler iniciado — TZ: ${tz}`);
-    setTimeout(() => this.run(), 5000);
-    setInterval(() => this.run(), 30000);
+    // `void` + catch: o callback do setInterval não aguarda a promessa, então
+    // uma rejeição aqui viraria unhandled rejection e derrubaria o processo.
+    setTimeout(() => void this.run().catch(() => {}), 5000);
+    setInterval(() => void this.run().catch(() => {}), 30000);
   }
 
   private fmt(t: string, evento: string, horario: string, url: string) {
@@ -194,6 +203,12 @@ export class AlertScheduler implements OnModuleInit {
   }
 
   async run() {
+    if (this.rodando) {
+      this.logger.warn("Passada anterior ainda rodando — este ciclo foi pulado.");
+      return;
+    }
+    this.rodando = true;
+    const comecou = Date.now();
     try {
       const now = getNow();
       const appUrl = this.config.get("APP_URL", "http://localhost");
@@ -288,11 +303,21 @@ export class AlertScheduler implements OnModuleInit {
       this.logger.error("Scheduler erro: " + e.message);
     }
 
-    await this.runSlaCheck();
-    await this.runFaturaCheck();
-    await this.runFrotaCheck();
-    await this.runOrcamentoAlertCheck();
-    await this.runScheduledReports();
+    try {
+      await this.runSlaCheck();
+      await this.runFaturaCheck();
+      await this.runFrotaCheck();
+      await this.runOrcamentoAlertCheck();
+      await this.runScheduledReports();
+    } finally {
+      // Libera a trava SEMPRE: uma exceção aqui sem o finally deixaria o
+      // agendador travado para sempre, em silêncio.
+      this.rodando = false;
+      const levou = Date.now() - comecou;
+      if (levou > 30000) {
+        this.logger.warn(`Passada levou ${Math.round(levou / 1000)}s — mais que o intervalo de 30s.`);
+      }
+    }
   }
 
   // Alerta de estouro de orçamento — guiado pelas Regras de Alertas da organização
