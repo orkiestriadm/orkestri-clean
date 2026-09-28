@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "1.46.2";
+export const VERSAO = "1.46.3";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -23,10 +23,10 @@ export const VERSAO = "1.46.2";
  * Não é gerada no build: `new Date()` no bundle muda a cada compilação, e duas
  * builds do mesmo código pareceriam versões diferentes.
  */
-export const VERSAO_DATA = "2026-09-25";
+export const VERSAO_DATA = "2026-09-28";
 
 /** Nome da entrega, para dar contexto ao número. */
-export const VERSAO_NOME = "Desbloqueio de usuário na Gestão de Usuários";
+export const VERSAO_NOME = "Ajuste na tela de Usuários e Microsoft 365";
 
 /**
  * Histórico exibido na tela Sobre, do mais recente para o mais antigo.
@@ -35,6 +35,15 @@ export const VERSAO_NOME = "Desbloqueio de usuário na Gestão de Usuários";
  * esta lista quer saber o que mudou para ele.
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
+  {
+    versao: "1.46.3",
+    data: "2026-09-28",
+    titulo: "Ajuste na tela de Usuários e Microsoft 365",
+    itens: [
+      "A coluna Ação não fica mais cortada na borda: os botões Integrar 365, Recusar e Remover aparecem inteiros, sem rolagem lateral",
+      "E-mails longos cabem em uma linha só, sem quebrar no meio do endereço",
+    ],
+  },
   {
     versao: "1.46.2",
     data: "2026-09-25",
