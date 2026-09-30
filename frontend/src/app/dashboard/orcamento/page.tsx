@@ -6,7 +6,7 @@ import {
   BarChart3, DollarSign, Target, Zap, Filter, Download, Settings,
   Building, Tag, Truck, Package, Eye, EyeOff, Search, Upload, Loader2,
   Users, Share2, User as UserIcon, Building2,
-  Image as ImageIcon, Presentation, Mail, Send
+  Image as ImageIcon, Presentation, Mail, Send, SlidersHorizontal, Repeat
 } from "lucide-react";
 import { useAuthStore } from "@/lib/store";
 import {
@@ -68,13 +68,27 @@ function ExecBar({ pct, height="h-1.5" }:{ pct:number; height?:string }) {
 const CHART_COLORS = ["#8b5cf6","#06b6d4","#f59e0b","#ef4444","#10b981","#3b82f6","#ec4899","#14b8a6","#a78bfa","#f97316","#84cc16","#eab308"];
 const fmtR0 = (v:number)=> "R$ "+Math.round(v||0).toLocaleString("pt-BR");
 
+// Faixas de execução. São derivadas do previsto × realizado do período, por isso
+// o backend as aplica depois de somar os meses — não existem como coluna.
+const EXEC_OPCOES = [
+  { v:"",         l:"Toda a execução" },
+  { v:"estouro",  l:"Estourado (> 100%)" },
+  { v:"atencao",  l:"Atenção (80–100%)" },
+  { v:"dentro",   l:"Dentro (< 80%)" },
+] as const;
+const EXEC_LABEL:Record<string,string> = { estouro:"Estourado (>100%)", atencao:"Atenção (80–100%)", dentro:"Dentro (<80%)" };
+const BASE_LABEL:Record<string,string> = { ambos:"Orçado × Realizado", orcado:"Orçado", realizado:"Realizado" };
+
 // ── Exportações da Dashboard ──────────────────────────────────────────────────
-async function exportDashboardExcel(data:any, ano:string) {
+async function exportDashboardExcel(data:any, ano:string, filtro:string) {
   const XLSX:any = await import("xlsx");
   const k = data.kpis || {};
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([
-    ["Orçamento", ano],["Gerado em", new Date().toLocaleString("pt-BR")],[],
+    ["Orçamento", ano],["Gerado em", new Date().toLocaleString("pt-BR")],
+    // Sem esta linha, duas planilhas do mesmo ano com números diferentes são
+    // indistinguíveis — e é o filtro que explica a diferença.
+    ["Filtro aplicado", filtro],[],
     ["Indicador","Valor"],
     ["Total Orçado", k.totalPrevisto],["Total Realizado", k.totalRealizado],
     ["Desvio (R$)", k.desvio],["Desvio (%)", k.desvioPct],
@@ -88,9 +102,9 @@ async function exportDashboardExcel(data:any, ano:string) {
   XLSX.writeFile(wb, `orcamento_${ano}.xlsx`);
 }
 
-// Monta o documento PDF (compartilhado entre o download e o envio por e-mail,
-// para os dois saírem idênticos).
-async function buildDashboardPdfDoc(data:any, ano:string) {
+// Monta o documento PDF. Fatorado porque o download e o envio por e-mail têm
+// de sair IDÊNTICOS — quando eram dois códigos, divergiam em silêncio.
+async function buildDashboardPdfDoc(data:any, ano:string, filtro:string) {
   const { jsPDF }:any = await import("jspdf");
   await import("jspdf-autotable");
   const doc:any = new jsPDF();
@@ -98,7 +112,12 @@ async function buildDashboardPdfDoc(data:any, ano:string) {
   const R = (v:number)=> "R$ "+Math.round(v||0).toLocaleString("pt-BR");
   doc.setFontSize(16); doc.text(`Orçamento ${ano} — Resumo Executivo`, 14, 18);
   doc.setFontSize(9); doc.setTextColor(130); doc.text(`Gerado em ${new Date().toLocaleString("pt-BR")}`, 14, 24);
-  doc.autoTable({ startY: 30, head:[["Indicador","Valor"]], theme:"grid", headStyles:{fillColor:[139,92,246]}, body:[
+  // O filtro vai impresso: é ele que explica por que dois PDFs do mesmo ano
+  // trazem totais diferentes. Quebra em linhas para não vazar da margem.
+  const linhasFiltro:string[] = filtro ? doc.splitTextToSize(`Filtro: ${filtro}`, 182) : [];
+  if (linhasFiltro.length) { doc.setFontSize(8); doc.text(linhasFiltro, 14, 29); }
+  doc.setTextColor(0);
+  doc.autoTable({ startY: 30 + linhasFiltro.length * 4, head:[["Indicador","Valor"]], theme:"grid", headStyles:{fillColor:[139,92,246]}, body:[
     ["Total Orçado", R(k.totalPrevisto)],["Total Realizado", R(k.totalRealizado)],
     ["Desvio", `${R(k.desvio)} (${k.desvioPct}%)`],["Total OPEX", R(k.previstoOpex)],["Total CAPEX", R(k.previstoCapex)],
     ["Centros de Custo", String(k.qtdCentrosCusto)],["Itens", String(k.qtdItens)],
@@ -108,22 +127,22 @@ async function buildDashboardPdfDoc(data:any, ano:string) {
   return doc;
 }
 
-async function exportDashboardPdf(data:any, ano:string) {
-  const doc = await buildDashboardPdfDoc(data, ano);
+async function exportDashboardPdf(data:any, ano:string, filtro:string) {
+  const doc = await buildDashboardPdfDoc(data, ano, filtro);
   doc.save(`orcamento_${ano}.pdf`);
 }
 
-// Devolve o mesmo PDF como base64 puro (sem o prefixo data:), para o backend
-// anexar no e-mail via EmailService.sendWithAttachment.
-async function dashboardPdfBase64(data:any, ano:string): Promise<string> {
-  const doc = await buildDashboardPdfDoc(data, ano);
+// O mesmo PDF como base64 puro (sem o prefixo data:), para o backend anexar via
+// EmailService.sendWithAttachment.
+async function dashboardPdfBase64(data:any, ano:string, filtro:string): Promise<string> {
+  const doc = await buildDashboardPdfDoc(data, ano, filtro);
   const uri:string = doc.output("datauristring");
   return uri.split(",")[1] || "";
 }
 
-// Captura a área da dashboard (KPIs + gráficos) como PNG. html2canvas rasteriza
-// o DOM já renderizado — inclui os gráficos recharts (SVG). Fundo explícito
-// porque área transparente sai preta.
+// Captura a área da dashboard (carimbo do filtro + KPIs + gráficos) como PNG.
+// html2canvas rasteriza o DOM já renderizado, então os gráficos recharts (SVG)
+// entram na imagem. Fundo explícito porque área transparente sai preta.
 async function exportDashboardImagem(node:HTMLElement, ano:string) {
   const html2canvas:any = (await import("html2canvas")).default;
   const bg = getComputedStyle(document.body).backgroundColor || "#0a0a0a";
@@ -134,9 +153,9 @@ async function exportDashboardImagem(node:HTMLElement, ano:string) {
   a.click();
 }
 
-// Gera um deck executivo (.pptx): capa + KPIs + distribuição por categoria +
-// maiores gastos. Mesmos dados das outras exportações.
-async function exportDashboardPptx(data:any, ano:string) {
+// Deck executivo (.pptx): capa + KPIs + distribuição por categoria + maiores
+// gastos. Mesmos dados e mesmo filtro das outras exportações.
+async function exportDashboardPptx(data:any, ano:string, filtro:string) {
   const PptxGen:any = (await import("pptxgenjs")).default;
   const pptx = new PptxGen();
   pptx.layout = "LAYOUT_WIDE"; // 13.3 × 7.5 pol
@@ -144,11 +163,15 @@ async function exportDashboardPptx(data:any, ano:string) {
   const R = (v:number)=> "R$ "+Math.round(v||0).toLocaleString("pt-BR");
   const ACCENT = "8B5CF6", CYAN = "06B6D4", DARK = "0F1116", MUTED = "9CA3AF";
   const th = (t:string)=>({ text:t, options:{ bold:true, color:"FFFFFF", fill:{ color:ACCENT } } });
+  // Rodapé com o filtro em TODO slide de dado: o slide viaja solto num e-mail,
+  // longe da capa.
+  const rodape = (sl:any)=> filtro && sl.addText(filtro, { x:0.5, y:7.0, w:12.3, h:0.3, fontSize:9, color:MUTED, align:"center" });
 
   const capa = pptx.addSlide();
   capa.background = { color: DARK };
-  capa.addText(`Orçamento ${ano}`, { x:0.5, y:2.6, w:12.3, h:1, fontSize:44, bold:true, color:"FFFFFF", align:"center" });
-  capa.addText("Resumo Executivo", { x:0.5, y:3.7, w:12.3, h:0.6, fontSize:22, color:"A78BFA", align:"center" });
+  capa.addText(`Orçamento ${ano}`, { x:0.5, y:2.5, w:12.3, h:1, fontSize:44, bold:true, color:"FFFFFF", align:"center" });
+  capa.addText("Resumo Executivo", { x:0.5, y:3.6, w:12.3, h:0.6, fontSize:22, color:"A78BFA", align:"center" });
+  if (filtro) capa.addText(filtro, { x:0.9, y:4.4, w:11.5, h:0.6, fontSize:12, color:MUTED, align:"center" });
   capa.addText(`Gerado em ${new Date().toLocaleString("pt-BR")}`, { x:0.5, y:6.7, w:12.3, h:0.4, fontSize:11, color:MUTED, align:"center" });
 
   const sk = pptx.addSlide();
@@ -163,6 +186,7 @@ async function exportDashboardPptx(data:any, ano:string) {
     ["Centros de Custo", String(k.qtdCentrosCusto)],
     ["Itens", String(k.qtdItens)],
   ], { x:0.5, y:1.2, w:8, fontSize:15, rowH:0.5, border:{ pt:0.5, color:"DDDDDD" }, align:"left", valign:"middle" });
+  rodape(sk);
 
   const scat = pptx.addSlide();
   scat.addText("Distribuição por Categoria", { x:0.5, y:0.35, w:12, h:0.6, fontSize:26, bold:true, color:CYAN });
@@ -170,6 +194,7 @@ async function exportDashboardPptx(data:any, ano:string) {
     [th("Categoria"), th("Valor"), th("%")],
     ...((data.distribuicaoCategoria||[]).slice(0,12).map((d:any)=>[d.nome, R(d.valor), d.percentual+"%"])),
   ], { x:0.5, y:1.2, w:12, fontSize:14, rowH:0.42, border:{ pt:0.5, color:"DDDDDD" }, valign:"middle" });
+  rodape(scat);
 
   const stop = pptx.addSlide();
   stop.addText("Maiores Gastos", { x:0.5, y:0.35, w:12, h:0.6, fontSize:26, bold:true, color:ACCENT });
@@ -177,33 +202,71 @@ async function exportDashboardPptx(data:any, ano:string) {
     [th("Item"), th("Orçado"), th("Realizado"), th("% Exec")],
     ...((data.topItens||[]).slice(0,12).map((i:any)=>[i.nome, R(i.previsto), R(i.realizado), i.execucao+"%"])),
   ], { x:0.5, y:1.2, w:12, fontSize:14, rowH:0.42, border:{ pt:0.5, color:"DDDDDD" }, valign:"middle" });
+  rodape(stop);
 
   await pptx.writeFile({ fileName: `orcamento_${ano}.pptx` });
 }
 
-function TabDashboard({ cicloId, ano, categorias, centrosCusto }:{ cicloId:string; ano?:number; categorias:Categoria[]; centrosCusto:CentroCusto[] }) {
+function TabDashboard({ cicloId, ano, categorias, centrosCusto, fornecedores }:{ cicloId:string; ano?:number; categorias:Categoria[]; centrosCusto:CentroCusto[]; fornecedores:Fornecedor[] }) {
   const [data, setData] = useState<any|null>(null);
   const [loading, setLoading] = useState(true);
   const [fCentro, setFCentro] = useState("");
   const [fCat, setFCat] = useState("");
   const [mesIni, setMesIni] = useState(1);
   const [mesFim, setMesFim] = useState(12);
+  // `base` responde "o que estes gráficos estão medindo?". O padrão "ambos"
+  // preserva o comportamento antigo (realizado, caindo no orçado onde não há
+  // realizado); quem precisa de uma grandeza só agora escolhe.
+  const [base, setBase] = useState<"ambos"|"orcado"|"realizado">("ambos");
+  const [fTipo, setFTipo] = useState<""|"OPEX"|"CAPEX">("");
+  const [fForn, setFForn] = useState("");
+  const [fExec, setFExec] = useState("");
+  const [fRec, setFRec] = useState("");         // "" | "true" | "false"
+  const [fQ, setFQ] = useState("");
+  const [qDeb, setQDeb] = useState("");         // busca com fôlego: sem isto, um request por tecla
+  const [maisFiltros, setMaisFiltros] = useState(false);
+  useEffect(()=>{ const t=setTimeout(()=>setQDeb(fQ), 350); return ()=>clearTimeout(t); },[fQ]);
+
+  const nomeCentro = centrosCusto.find(c=>c.id===fCentro)?.nome;
+  const nomeCat    = categorias.find(c=>c.id===fCat)?.nome;
+  const nomeForn   = fornecedores.find(f=>f.id===fForn)?.nome;
+
+  // Descrição legível do filtro. Vai na tela, dentro da imagem exportada, no
+  // Excel, no PDF, no PPT e no corpo do e-mail — um documento que não diz o
+  // filtro é um documento que ninguém consegue reconciliar depois.
+  const filtroTexto = useMemo(()=>{
+    const p:string[] = [BASE_LABEL[base]];
+    if(fTipo) p.push(fTipo);
+    if(nomeCentro) p.push(`Centro: ${nomeCentro}`);
+    if(nomeCat) p.push(`Categoria: ${nomeCat}`);
+    if(nomeForn) p.push(`Fornecedor: ${nomeForn}`);
+    p.push(mesIni===1 && mesFim===12 ? "Jan–Dez" : `${MESES[mesIni-1]}–${MESES[mesFim-1]}`);
+    if(fExec) p.push(EXEC_LABEL[fExec]);
+    if(fRec) p.push(fRec==="true" ? "Só recorrentes" : "Só não recorrentes");
+    if(qDeb.trim()) p.push(`Busca: "${qDeb.trim()}"`);
+    return p.join(" · ");
+  },[base,fTipo,nomeCentro,nomeCat,nomeForn,mesIni,mesFim,fExec,fRec,qDeb]);
+
+  const filtrado = !!(fCentro||fCat||fForn||fTipo||fExec||fRec||qDeb.trim()||mesIni!==1||mesFim!==12||base!=="ambos");
+  const limpar = ()=>{ setFCentro(""); setFCat(""); setFForn(""); setFTipo(""); setFExec(""); setFRec(""); setFQ(""); setMesIni(1); setMesFim(12); setBase("ambos"); };
+
   const [exporting, setExporting] = useState<""|"xlsx"|"pdf"|"png"|"pptx">("");
   const captureRef = useRef<HTMLDivElement>(null);
   const doExport = async (kind:"xlsx"|"pdf"|"png"|"pptx")=>{
     if(!data) return; setExporting(kind);
+    const a = String(ano||"");
     try {
-      if(kind==="xlsx") await exportDashboardExcel(data, String(ano||""));
-      else if(kind==="pdf") await exportDashboardPdf(data, String(ano||""));
-      else if(kind==="png") { if(captureRef.current) await exportDashboardImagem(captureRef.current, String(ano||"")); }
-      else if(kind==="pptx") await exportDashboardPptx(data, String(ano||""));
+      if(kind==="xlsx") await exportDashboardExcel(data, a, filtroTexto);
+      else if(kind==="pdf") await exportDashboardPdf(data, a, filtroTexto);
+      else if(kind==="png") { if(captureRef.current) await exportDashboardImagem(captureRef.current, a); }
+      else if(kind==="pptx") await exportDashboardPptx(data, a, filtroTexto);
     }
     catch(e){ console.error(e); } finally { setExporting(""); }
   };
 
   // Envio por e-mail: o PDF é montado no navegador e vai em base64 para o
-  // backend anexar. Depende de provedor de e-mail configurado no servidor
-  // (Resend/SMTP) — onde não houver, a API responde enviado:false.
+  // backend anexar. Depende de provedor configurado no servidor — onde não
+  // houver, a API responde enviado:false e o modal diz isso, em vez de mentir.
   const [emailOpen, setEmailOpen] = useState(false);
   const [emailTo, setEmailTo] = useState("");
   const [emailMsg, setEmailMsg] = useState("");
@@ -212,11 +275,12 @@ function TabDashboard({ cicloId, ano, categorias, centrosCusto }:{ cicloId:strin
     if(!data || !emailTo.trim()) return;
     setEmailStatus("sending");
     try {
-      const conteudoBase64 = await dashboardPdfBase64(data, String(ano||""));
+      const conteudoBase64 = await dashboardPdfBase64(data, String(ano||""), filtroTexto);
       const r = await api.post("/orcamento/enviar-email", {
         para: emailTo.trim(),
         assunto: `Orçamento ${ano||""} — Resumo Executivo`,
         mensagem: emailMsg.trim() || undefined,
+        filtro: filtroTexto,
         filename: `orcamento_${ano||""}.pdf`,
         conteudoBase64,
       });
@@ -229,11 +293,16 @@ function TabDashboard({ cicloId, ano, categorias, centrosCusto }:{ cicloId:strin
   const load = useCallback(()=>{
     if(!cicloId) return;
     setLoading(true);
-    const p = new URLSearchParams({ cicloId, mesIni:String(mesIni), mesFim:String(mesFim) });
+    const p = new URLSearchParams({ cicloId, mesIni:String(mesIni), mesFim:String(mesFim), base });
     if(fCentro) p.set("centroCustoId", fCentro);
     if(fCat) p.set("categoriaId", fCat);
+    if(fForn) p.set("fornecedorId", fForn);
+    if(fTipo) p.set("tipo", fTipo);
+    if(fExec) p.set("execucao", fExec);
+    if(fRec) p.set("recorrente", fRec);
+    if(qDeb.trim()) p.set("q", qDeb.trim());
     api.get(`/orcamento/dashboard?${p.toString()}`).then(r=>setData(r.data)).catch(()=>{}).finally(()=>setLoading(false));
-  },[cicloId,fCentro,fCat,mesIni,mesFim]);
+  },[cicloId,fCentro,fCat,fForn,fTipo,fExec,fRec,qDeb,mesIni,mesFim,base]);
   useEffect(()=>{ load(); },[load]);
 
   if(loading && !data) return <div className="flex items-center justify-center h-48 text-muted-foreground text-sm">Carregando...</div>;
@@ -256,50 +325,104 @@ function TabDashboard({ cicloId, ano, categorias, centrosCusto }:{ cicloId:strin
   return (
     <div className="space-y-6">
       {/* Filtros */}
-      <div className="flex items-center gap-3 flex-wrap bg-card border border-border rounded-xl p-3">
-        <span className="text-xs text-muted-foreground flex items-center gap-1.5"><Filter size={13}/> Filtros</span>
-        <select value={fCentro} onChange={e=>setFCentro(e.target.value)} className="bg-input border border-border rounded-lg px-3 py-1.5 text-xs outline-none focus:border-primary">
-          <option value="">Todos os centros de custo</option>
-          {centrosCusto.filter(c=>c.ativo).map(c=><option key={c.id} value={c.id}>{c.nome}</option>)}
-        </select>
-        <select value={fCat} onChange={e=>setFCat(e.target.value)} className="bg-input border border-border rounded-lg px-3 py-1.5 text-xs outline-none focus:border-primary">
-          <option value="">Todas as categorias</option>
-          {cats.map(c=><option key={c.id} value={c.id}>{c.nome}</option>)}
-        </select>
-        <div className="flex items-center gap-1 text-xs text-muted-foreground">
-          <span>Período</span>
-          <select value={mesIni} onChange={e=>setMesIni(Number(e.target.value))} className="bg-input border border-border rounded-lg px-2 py-1.5 outline-none focus:border-primary">
-            {MESES.map((m,i)=><option key={i} value={i+1}>{m}</option>)}
+      <div className="bg-card border border-border rounded-xl p-3 space-y-2.5">
+        <div className="flex items-center gap-3 flex-wrap">
+          <span className="text-xs text-muted-foreground flex items-center gap-1.5"><Filter size={13}/> Filtros</span>
+
+          {/* Base: a pergunta "orçado ou realizado?" vem antes de qualquer
+              recorte, porque muda o SIGNIFICADO de todo o resto da tela. */}
+          <div className="flex rounded-lg border border-border overflow-hidden text-xs">
+            {([["ambos","Ambos"],["orcado","Orçado"],["realizado","Realizado"]] as const).map(([v,l])=>(
+              <button key={v} onClick={()=>setBase(v)}
+                className={cn("px-2.5 py-1.5 transition-colors", base===v?"bg-primary text-primary-foreground":"text-muted-foreground hover:bg-accent")}>{l}</button>
+            ))}
+          </div>
+
+          <div className="flex rounded-lg border border-border overflow-hidden text-xs">
+            {([["","OPEX+CAPEX"],["OPEX","OPEX"],["CAPEX","CAPEX"]] as const).map(([v,l])=>(
+              <button key={v||"all"} onClick={()=>setFTipo(v)}
+                className={cn("px-2.5 py-1.5 transition-colors", fTipo===v?"bg-primary text-primary-foreground":"text-muted-foreground hover:bg-accent")}>{l}</button>
+            ))}
+          </div>
+
+          <select value={fCentro} onChange={e=>setFCentro(e.target.value)} className="bg-input border border-border rounded-lg px-3 py-1.5 text-xs outline-none focus:border-primary">
+            <option value="">Todos os centros de custo</option>
+            {centrosCusto.filter(c=>c.ativo).map(c=><option key={c.id} value={c.id}>{c.nome}</option>)}
           </select>
-          <span>—</span>
-          <select value={mesFim} onChange={e=>setMesFim(Number(e.target.value))} className="bg-input border border-border rounded-lg px-2 py-1.5 outline-none focus:border-primary">
-            {MESES.map((m,i)=><option key={i} value={i+1}>{m}</option>)}
+          <select value={fCat} onChange={e=>setFCat(e.target.value)} className="bg-input border border-border rounded-lg px-3 py-1.5 text-xs outline-none focus:border-primary">
+            <option value="">Todas as categorias</option>
+            {cats.map(c=><option key={c.id} value={c.id}>{c.nome}</option>)}
           </select>
+          <div className="flex items-center gap-1 text-xs text-muted-foreground">
+            <span>Período</span>
+            <select value={mesIni} onChange={e=>setMesIni(Number(e.target.value))} className="bg-input border border-border rounded-lg px-2 py-1.5 outline-none focus:border-primary">
+              {MESES.map((m,i)=><option key={i} value={i+1}>{m}</option>)}
+            </select>
+            <span>—</span>
+            <select value={mesFim} onChange={e=>setMesFim(Number(e.target.value))} className="bg-input border border-border rounded-lg px-2 py-1.5 outline-none focus:border-primary">
+              {MESES.map((m,i)=><option key={i} value={i+1}>{m}</option>)}
+            </select>
+          </div>
+          <button onClick={()=>setMaisFiltros(v=>!v)}
+            className={cn("flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border transition-colors",
+              maisFiltros||fForn||fExec||fRec||qDeb.trim() ? "border-primary/60 text-primary" : "border-border text-muted-foreground hover:bg-accent")}>
+            <SlidersHorizontal size={13}/> Mais filtros
+          </button>
+          {filtrado && <button onClick={limpar} className="text-xs text-muted-foreground hover:text-foreground">Limpar filtros</button>}
+
+          <div className="ml-auto flex items-center gap-1.5">
+            <button onClick={()=>doExport("xlsx")} disabled={!!exporting} className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border border-border bg-input hover:bg-accent disabled:opacity-50 transition-colors">
+              {exporting==="xlsx" ? <RefreshCw size={13} className="animate-spin"/> : <Download size={13} className="text-emerald-400"/>} Excel
+            </button>
+            <button onClick={()=>doExport("pdf")} disabled={!!exporting} className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border border-border bg-input hover:bg-accent disabled:opacity-50 transition-colors">
+              {exporting==="pdf" ? <RefreshCw size={13} className="animate-spin"/> : <Download size={13} className="text-red-400"/>} PDF
+            </button>
+            <button onClick={()=>doExport("png")} disabled={!!exporting} className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border border-border bg-input hover:bg-accent disabled:opacity-50 transition-colors">
+              {exporting==="png" ? <RefreshCw size={13} className="animate-spin"/> : <ImageIcon size={13} className="text-sky-400"/>} Imagem
+            </button>
+            <button onClick={()=>doExport("pptx")} disabled={!!exporting} className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border border-border bg-input hover:bg-accent disabled:opacity-50 transition-colors">
+              {exporting==="pptx" ? <RefreshCw size={13} className="animate-spin"/> : <Presentation size={13} className="text-amber-400"/>} PPT
+            </button>
+            <button onClick={()=>{ setEmailStatus(""); setEmailOpen(true); }} disabled={!!exporting} className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border border-border bg-input hover:bg-accent disabled:opacity-50 transition-colors">
+              <Mail size={13} className="text-violet-400"/> E-mail
+            </button>
+          </div>
         </div>
-        {(fCentro||fCat||mesIni!==1||mesFim!==12) && (
-          <button onClick={()=>{setFCentro("");setFCat("");setMesIni(1);setMesFim(12);}} className="text-xs text-muted-foreground hover:text-foreground">Limpar filtros</button>
+
+        {/* Segunda linha, sob demanda: são filtros de recorte fino, e deixá-los
+            sempre abertos empurraria os KPIs para fora da primeira tela. */}
+        {maisFiltros && (
+          <div className="flex items-center gap-2.5 flex-wrap pt-2.5 border-t border-border">
+            <select value={fForn} onChange={e=>setFForn(e.target.value)} className="bg-input border border-border rounded-lg px-3 py-1.5 text-xs outline-none focus:border-primary">
+              <option value="">Todos os fornecedores</option>
+              {fornecedores.filter(f=>f.ativo).map(f=><option key={f.id} value={f.id}>{f.nome}</option>)}
+            </select>
+            <select value={fExec} onChange={e=>setFExec(e.target.value)} className="bg-input border border-border rounded-lg px-3 py-1.5 text-xs outline-none focus:border-primary">
+              {EXEC_OPCOES.map(o=><option key={o.v} value={o.v}>{o.l}</option>)}
+            </select>
+            <select value={fRec} onChange={e=>setFRec(e.target.value)} className="bg-input border border-border rounded-lg px-3 py-1.5 text-xs outline-none focus:border-primary">
+              <option value="">Recorrentes e avulsos</option>
+              <option value="true">Só recorrentes</option>
+              <option value="false">Só avulsos</option>
+            </select>
+            <div className="relative min-w-[180px]">
+              <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground"/>
+              <input value={fQ} onChange={e=>setFQ(e.target.value)} placeholder="Buscar item pelo nome..."
+                className="w-full bg-input border border-border rounded-lg pl-8 pr-3 py-1.5 text-xs outline-none focus:border-primary"/>
+            </div>
+          </div>
         )}
-        <div className="ml-auto flex items-center gap-1.5">
-          <button onClick={()=>doExport("xlsx")} disabled={!!exporting} className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border border-border bg-input hover:bg-accent disabled:opacity-50 transition-colors">
-            {exporting==="xlsx" ? <RefreshCw size={13} className="animate-spin"/> : <Download size={13} className="text-emerald-400"/>} Excel
-          </button>
-          <button onClick={()=>doExport("pdf")} disabled={!!exporting} className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border border-border bg-input hover:bg-accent disabled:opacity-50 transition-colors">
-            {exporting==="pdf" ? <RefreshCw size={13} className="animate-spin"/> : <Download size={13} className="text-red-400"/>} PDF
-          </button>
-          <button onClick={()=>doExport("png")} disabled={!!exporting} className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border border-border bg-input hover:bg-accent disabled:opacity-50 transition-colors">
-            {exporting==="png" ? <RefreshCw size={13} className="animate-spin"/> : <ImageIcon size={13} className="text-sky-400"/>} Imagem
-          </button>
-          <button onClick={()=>doExport("pptx")} disabled={!!exporting} className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border border-border bg-input hover:bg-accent disabled:opacity-50 transition-colors">
-            {exporting==="pptx" ? <RefreshCw size={13} className="animate-spin"/> : <Presentation size={13} className="text-amber-400"/>} PPT
-          </button>
-          <button onClick={()=>{ setEmailStatus(""); setEmailOpen(true); }} disabled={!!exporting} className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border border-border bg-input hover:bg-accent disabled:opacity-50 transition-colors">
-            <Mail size={13} className="text-violet-400"/> E-mail
-          </button>
-        </div>
       </div>
 
-      {/* Área capturada na exportação em imagem (KPIs + gráficos, sem a barra de filtros) */}
+      {/* Área capturada na exportação em imagem. O carimbo do filtro entra
+          dentro dela de propósito: um PNG sem o filtro não é reconciliável. */}
       <div ref={captureRef} className="space-y-6">
+      <div className="flex items-baseline gap-2 flex-wrap">
+        <span className="text-sm font-semibold text-foreground">Orçamento {ano||""}</span>
+        <span className="text-[11px] text-muted-foreground">{filtroTexto}</span>
+        {loading && <RefreshCw size={11} className="animate-spin text-muted-foreground"/>}
+      </div>
+
       {/* KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {KPIS.map(kp=>(
@@ -316,7 +439,7 @@ function TabDashboard({ cicloId, ano, categorias, centrosCusto }:{ cicloId:strin
       {/* Evolução + CAPEX×OPEX */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         <div className="lg:col-span-2 bg-card border border-border rounded-xl p-5">
-          <div className="text-sm font-semibold mb-4">Evolução Mensal — Orçado × Realizado</div>
+          <div className="text-sm font-semibold mb-4">Evolução Mensal — {BASE_LABEL[base]}</div>
           <ResponsiveContainer width="100%" height={240}>
             <AreaChart data={data.evolucaoMensal}>
               <defs>
@@ -328,53 +451,59 @@ function TabDashboard({ cicloId, ano, categorias, centrosCusto }:{ cicloId:strin
               <YAxis tickFormatter={(v)=>"R$"+(v/1000).toFixed(0)+"k"} tick={{fontSize:10,fill:"#94a3b8"}} width={56}/>
               <Tooltip formatter={tt}/>
               <Legend wrapperStyle={{fontSize:12}}/>
-              <Area type="monotone" dataKey="previsto" name="Orçado" stroke="#8b5cf6" fill="url(#gP)" strokeWidth={2}/>
-              <Area type="monotone" dataKey="realizado" name="Realizado" stroke="#06b6d4" fill="url(#gR)" strokeWidth={2}/>
+              {base!=="realizado" && <Area type="monotone" dataKey="previsto" name="Orçado" stroke="#8b5cf6" fill="url(#gP)" strokeWidth={2}/>}
+              {base!=="orcado" && <Area type="monotone" dataKey="realizado" name="Realizado" stroke="#06b6d4" fill="url(#gR)" strokeWidth={2}/>}
             </AreaChart>
           </ResponsiveContainer>
         </div>
         <div className="bg-card border border-border rounded-xl p-5">
           <div className="text-sm font-semibold mb-4">CAPEX × OPEX</div>
           <ResponsiveContainer width="100%" height={240}>
-            <BarChart data={data.capexOpex}>
+            <BarChart data={(data.capexOpex||[]).filter((r:any)=>!fTipo || r.tipo===fTipo)}>
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.15)"/>
               <XAxis dataKey="tipo" tick={{fontSize:11,fill:"#94a3b8"}}/>
               <YAxis tickFormatter={(v)=>"R$"+(v/1000).toFixed(0)+"k"} tick={{fontSize:10,fill:"#94a3b8"}} width={56}/>
               <Tooltip formatter={tt}/>
               <Legend wrapperStyle={{fontSize:12}}/>
-              <Bar dataKey="previsto" name="Orçado" fill="#8b5cf6" radius={[4,4,0,0]}/>
-              <Bar dataKey="realizado" name="Realizado" fill="#06b6d4" radius={[4,4,0,0]}/>
+              {base!=="realizado" && <Bar dataKey="previsto" name="Orçado" fill="#8b5cf6" radius={[4,4,0,0]}/>}
+              {base!=="orcado" && <Bar dataKey="realizado" name="Realizado" fill="#06b6d4" radius={[4,4,0,0]}/>}
             </BarChart>
           </ResponsiveContainer>
         </div>
       </div>
 
-      {/* Distribuições */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+      {/* Distribuições — as três dimensões pelas quais o orçamento é cobrado:
+          conta contábil, área que gasta e quem recebe o dinheiro. */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
         {[
-          { titulo:"Distribuição por Categoria", arr:data.distribuicaoCategoria },
-          { titulo:"Distribuição por Centro de Custo", arr:data.distribuicaoCentroCusto },
+          { titulo:"Por Categoria", arr:data.distribuicaoCategoria },
+          { titulo:"Por Centro de Custo", arr:data.distribuicaoCentroCusto },
+          { titulo:"Por Fornecedor", arr:data.distribuicaoFornecedor },
         ].map((blk,bi)=>(
           <div key={bi} className="bg-card border border-border rounded-xl p-5">
-            <div className="text-sm font-semibold mb-4">{blk.titulo}</div>
-            {(!blk.arr || blk.arr.length===0) ? <div className="text-xs text-muted-foreground h-48 flex items-center justify-center">Sem dados</div> : (
-              <div className="flex items-center gap-4">
-                <ResponsiveContainer width="50%" height={200}>
+            <div className="text-sm font-semibold">{blk.titulo}</div>
+            {/* Qual grandeza a fatia representa. Sem isto, trocar a base muda a
+                pizza e nada na tela explica por quê. */}
+            <div className="text-[10px] text-muted-foreground uppercase tracking-wide mb-3">{BASE_LABEL[base]}</div>
+            {(!blk.arr || blk.arr.length===0) ? <div className="text-xs text-muted-foreground h-44 flex items-center justify-center">Sem dados</div> : (
+              <div className="flex items-center gap-3">
+                <ResponsiveContainer width="48%" height={180}>
                   <PieChart>
-                    <Pie data={blk.arr} dataKey="valor" nameKey="nome" cx="50%" cy="50%" innerRadius={45} outerRadius={80}>
+                    <Pie data={blk.arr} dataKey="valor" nameKey="nome" cx="50%" cy="50%" innerRadius={34} outerRadius={64}>
                       {blk.arr.map((_:any,i:number)=><Cell key={i} fill={CHART_COLORS[i%CHART_COLORS.length]}/>)}
                     </Pie>
                     <Tooltip formatter={tt}/>
                   </PieChart>
                 </ResponsiveContainer>
                 <div className="flex-1 space-y-1.5 min-w-0">
-                  {blk.arr.slice(0,6).map((d:any,i:number)=>(
+                  {blk.arr.slice(0,5).map((d:any,i:number)=>(
                     <div key={i} className="flex items-center gap-2 text-xs">
                       <span className="w-2.5 h-2.5 rounded-sm shrink-0" style={{background:CHART_COLORS[i%CHART_COLORS.length]}}/>
                       <span className="text-foreground truncate flex-1">{d.nome}</span>
                       <span className="text-muted-foreground font-mono shrink-0">{d.percentual}%</span>
                     </div>
                   ))}
+                  {blk.arr.length>5 && <div className="text-[10px] text-muted-foreground/70 pl-[18px]">+{blk.arr.length-5} outros</div>}
                 </div>
               </div>
             )}
@@ -393,8 +522,8 @@ function TabDashboard({ cicloId, ano, categorias, centrosCusto }:{ cicloId:strin
               <YAxis type="category" dataKey="nome" tick={{fontSize:10,fill:"#94a3b8"}} width={130}/>
               <Tooltip formatter={tt}/>
               <Legend wrapperStyle={{fontSize:12}}/>
-              <Bar dataKey="previsto" name="Orçado" fill="#8b5cf6" radius={[0,3,3,0]}/>
-              <Bar dataKey="realizado" name="Realizado" fill="#06b6d4" radius={[0,3,3,0]}/>
+              {base!=="realizado" && <Bar dataKey="previsto" name="Orçado" fill="#8b5cf6" radius={[0,3,3,0]}/>}
+              {base!=="orcado" && <Bar dataKey="realizado" name="Realizado" fill="#06b6d4" radius={[0,3,3,0]}/>}
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -424,7 +553,12 @@ function TabDashboard({ cicloId, ano, categorias, centrosCusto }:{ cicloId:strin
               <div className="flex items-center gap-2 text-sm font-semibold"><Mail size={16} className="text-violet-400"/> Enviar Resumo por E-mail</div>
               <button onClick={()=>setEmailOpen(false)} disabled={emailStatus==="sending"} className="text-muted-foreground hover:text-foreground disabled:opacity-40"><X size={16}/></button>
             </div>
-            <p className="text-xs text-muted-foreground mb-3">O resumo executivo em PDF ({`orcamento_${ano||""}.pdf`}) vai anexado à mensagem.</p>
+            <p className="text-xs text-muted-foreground mb-2">O resumo executivo em PDF ({`orcamento_${ano||""}.pdf`}) vai anexado à mensagem.</p>
+            {/* Quem envia vê o filtro que vai junto ANTES de mandar — o número
+                do anexo é o número da tela, não o do ano inteiro. */}
+            <div className="text-[11px] text-muted-foreground bg-input border border-border rounded-lg px-2.5 py-2 mb-3">
+              <span className="text-foreground font-medium">Filtro no anexo: </span>{filtroTexto}
+            </div>
             <label className="block text-xs text-muted-foreground mb-1">Destinatário</label>
             <input type="email" value={emailTo} onChange={e=>setEmailTo(e.target.value)} placeholder="pessoa@empresa.com"
               className="w-full bg-input border border-border rounded-lg px-3 py-2 text-sm outline-none focus:border-primary mb-3"/>
@@ -669,6 +803,10 @@ function TabItens({ tipo, cicloId, categorias, centrosCusto, fornecedores, podeE
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [search, setSearch] = useState("");
   const [filterCat, setFilterCat] = useState("");
+  const [filterCC, setFilterCC] = useState("");
+  const [filterForn, setFilterForn] = useState("");
+  const [filterExec, setFilterExec] = useState("");
+  const [filterRec, setFilterRec] = useState("");   // "" | "true" | "false"
 
   const load = useCallback(()=>{
     if(!cicloId) return;
@@ -683,9 +821,22 @@ function TabItens({ tipo, cicloId, categorias, centrosCusto, fornecedores, podeE
 
   const filtered = items.filter(it=>{
     if(search && !it.nome.toLowerCase().includes(search.toLowerCase())) return false;
-    if(filterCat && it.categoria?.id!==filterCat) return false;
+    // Categoria-pai arrasta as filhas: o seletor só lista as raízes, então
+    // filtrar por "Infraestrutura" tinha de trazer "Infraestrutura > Cloud".
+    if(filterCat && it.categoria?.id!==filterCat && it.categoria?.paiId!==filterCat) return false;
+    if(filterCC && it.centroCusto?.id!==filterCC) return false;
+    if(filterForn && it.fornecedor?.id!==filterForn) return false;
+    if(filterRec && String(it.recorrente)!==filterRec) return false;
+    if(filterExec){
+      const e = it.totais.execucao;
+      if(filterExec==="estouro" && !(e>100)) return false;
+      if(filterExec==="atencao" && !(e>=80 && e<=100)) return false;
+      if(filterExec==="dentro"  && !(e<80)) return false;
+    }
     return true;
   });
+  const temFiltro = !!(search||filterCat||filterCC||filterForn||filterExec||filterRec);
+  const limparGrid = ()=>{ setSearch(""); setFilterCat(""); setFilterCC(""); setFilterForn(""); setFilterExec(""); setFilterRec(""); };
 
   const cats = categorias.filter(c=>c.tipo===tipo && !c.paiId);
 
@@ -707,6 +858,31 @@ function TabItens({ tipo, cicloId, categorias, centrosCusto, fornecedores, podeE
           <option value="">Todas as categorias</option>
           {cats.map(c=><option key={c.id} value={c.id}>{c.nome}</option>)}
         </select>
+        <select value={filterCC} onChange={e=>setFilterCC(e.target.value)}
+          className="bg-input border border-border rounded-lg px-3 py-2 text-sm text-foreground outline-none focus:border-primary">
+          <option value="">Todos os centros de custo</option>
+          {centrosCusto.filter(c=>c.ativo).map(c=><option key={c.id} value={c.id}>{c.nome}</option>)}
+        </select>
+        <select value={filterForn} onChange={e=>setFilterForn(e.target.value)}
+          className="bg-input border border-border rounded-lg px-3 py-2 text-sm text-foreground outline-none focus:border-primary">
+          <option value="">Todos os fornecedores</option>
+          {fornecedores.filter(f=>f.ativo).map(f=><option key={f.id} value={f.id}>{f.nome}</option>)}
+        </select>
+        <select value={filterExec} onChange={e=>setFilterExec(e.target.value)}
+          className="bg-input border border-border rounded-lg px-3 py-2 text-sm text-foreground outline-none focus:border-primary">
+          {EXEC_OPCOES.map(o=><option key={o.v} value={o.v}>{o.l}</option>)}
+        </select>
+        <select value={filterRec} onChange={e=>setFilterRec(e.target.value)}
+          className="bg-input border border-border rounded-lg px-3 py-2 text-sm text-foreground outline-none focus:border-primary">
+          <option value="">Recorrentes e avulsos</option>
+          <option value="true">Só recorrentes</option>
+          <option value="false">Só avulsos</option>
+        </select>
+        {temFiltro && (
+          <button onClick={limparGrid} className="flex items-center gap-1.5 text-xs px-2.5 py-2 rounded-lg border border-border text-muted-foreground hover:bg-accent">
+            <X size={12}/> Limpar
+          </button>
+        )}
         {!readOnly && (
           <button onClick={()=>setShowNew(true)}
             className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90">
@@ -715,11 +891,17 @@ function TabItens({ tipo, cicloId, categorias, centrosCusto, fornecedores, podeE
         )}
       </div>
 
-      {/* Totals strip */}
+      {/* Totais — do que está FILTRADO, e a legenda diz isso: com um filtro
+          ativo, "Total Previsto" não é o total do ciclo. */}
+      {temFiltro && (
+        <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+          <Filter size={11}/> Mostrando {filtered.length} de {items.length} {items.length===1?"item":"itens"}
+        </div>
+      )}
       <div className="grid grid-cols-3 gap-3">
         {[
-          { l:"Total Previsto", v:fmtBRL(totalPrevisto), c:"text-violet-400" },
-          { l:"Total Realizado", v:fmtBRL(totalRealizado), c:execColor(totalExec) },
+          { l:temFiltro?"Previsto (filtrado)":"Total Previsto", v:fmtBRL(totalPrevisto), c:"text-violet-400" },
+          { l:temFiltro?"Realizado (filtrado)":"Total Realizado", v:fmtBRL(totalRealizado), c:execColor(totalExec) },
           { l:"Execução", v:fmtPct(totalExec), c:execColor(totalExec) },
         ].map(k=>(
           <div key={k.l} className="bg-card border border-border rounded-xl p-3">
@@ -1111,12 +1293,22 @@ function KpiCmp({ label, value, color }:{ label:string; value:string; color:stri
   );
 }
 
-function TabComparacao({ ciclos, cicloId }:{ ciclos:Ciclo[]; cicloId:string }) {
+function TabComparacao({ ciclos, cicloId, categorias, centrosCusto, fornecedores }:{
+  ciclos:Ciclo[]; cicloId:string; categorias:Categoria[]; centrosCusto:CentroCusto[]; fornecedores:Fornecedor[];
+}) {
   const sorted = [...ciclos].sort((a,b)=>a.ano-b.ano);
   const [cicloB, setCicloB] = useState(cicloId || sorted[sorted.length-1]?.id || "");
   const [cicloA, setCicloA] = useState("");
-  const [dim, setDim] = useState<"categoria"|"centroCusto"|"item">("categoria");
+  const [dim, setDim] = useState<"categoria"|"centroCusto"|"item"|"fornecedor">("categoria");
   const [base, setBase] = useState<"realizado"|"previsto">("realizado");
+  // Os mesmos recortes da dashboard, aplicados aos DOIS ciclos: comparar
+  // "TI 2025 × TI 2026" era impossível antes, só dava ciclo inteiro × inteiro.
+  const [fTipo, setFTipo] = useState<""|"OPEX"|"CAPEX">("");
+  const [fCentro, setFCentro] = useState("");
+  const [fCat, setFCat] = useState("");
+  const [fForn, setFForn] = useState("");
+  const [mesIni, setMesIni] = useState(1);
+  const [mesFim, setMesFim] = useState(12);
   const [data, setData] = useState<any|null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -1130,16 +1322,21 @@ function TabComparacao({ ciclos, cicloId }:{ ciclos:Ciclo[]; cicloId:string }) {
   const load = useCallback(()=>{
     if(!cicloA||!cicloB||cicloA===cicloB){ setData(null); return; }
     setLoading(true);
-    const p = new URLSearchParams({ cicloA, cicloB, dimensao:dim, base });
+    const p = new URLSearchParams({ cicloA, cicloB, dimensao:dim, base, mesIni:String(mesIni), mesFim:String(mesFim) });
+    if(fCentro) p.set("centroCustoId", fCentro);
+    if(fCat) p.set("categoriaId", fCat);
+    if(fForn) p.set("fornecedorId", fForn);
+    if(fTipo) p.set("tipo", fTipo);
     api.get(`/orcamento/comparacao?${p.toString()}`).then(r=>setData(r.data)).catch(()=>setData(null)).finally(()=>setLoading(false));
-  },[cicloA,cicloB,dim,base]);
+  },[cicloA,cicloB,dim,base,fTipo,fCentro,fCat,fForn,mesIni,mesFim]);
   useEffect(()=>{ load(); },[load]);
 
   const anoA = ciclos.find(c=>c.id===cicloA)?.ano;
   const anoB = ciclos.find(c=>c.id===cicloB)?.ano;
   const varColor = (v:number)=> v>0?"text-red-400": v<0?"text-emerald-400":"text-muted-foreground";
   const heatBg = (pct:number)=>{ const a=Math.min(Math.abs(pct)/100,1); return pct>0?`rgba(239,68,68,${0.08+a*0.32})`:pct<0?`rgba(16,185,129,${0.08+a*0.32})`:"transparent"; };
-  const dimLabel = dim==="centroCusto"?"centro de custo":dim==="item"?"item":"categoria";
+  const dimLabel = dim==="centroCusto"?"centro de custo":dim==="fornecedor"?"fornecedor":dim==="item"?"item":"categoria";
+  const catsRaiz = categorias.filter(c=>!c.paiId);
 
   if(ciclos.length<2) return <div className="h-48 flex flex-col items-center justify-center gap-2 text-sm text-muted-foreground"><BarChart3 size={28} className="opacity-30"/>Você precisa de pelo menos 2 ciclos (anos) para comparar.</div>;
 
@@ -1161,12 +1358,49 @@ function TabComparacao({ ciclos, cicloId }:{ ciclos:Ciclo[]; cicloId:string }) {
         <select value={dim} onChange={e=>setDim(e.target.value as any)} className="bg-input border border-border rounded-lg px-3 py-1.5 text-xs outline-none focus:border-primary">
           <option value="categoria">Por categoria (conta)</option>
           <option value="centroCusto">Por centro de custo</option>
+          <option value="fornecedor">Por fornecedor</option>
           <option value="item">Por item</option>
         </select>
         <div className="flex rounded-lg border border-border overflow-hidden text-xs">
           {(["realizado","previsto"] as const).map(b=>(
             <button key={b} onClick={()=>setBase(b)} className={cn("px-3 py-1.5", base===b?"bg-primary text-primary-foreground":"text-muted-foreground hover:bg-accent")}>{b==="realizado"?"Realizado":"Orçado"}</button>
           ))}
+        </div>
+
+        {/* Recortes — valem para os dois lados da comparação */}
+        <div className="w-full flex items-center gap-2.5 flex-wrap pt-2.5 border-t border-border">
+          <div className="flex rounded-lg border border-border overflow-hidden text-xs">
+            {([["","OPEX+CAPEX"],["OPEX","OPEX"],["CAPEX","CAPEX"]] as const).map(([v,l])=>(
+              <button key={v||"all"} onClick={()=>setFTipo(v)}
+                className={cn("px-2.5 py-1.5 transition-colors", fTipo===v?"bg-primary text-primary-foreground":"text-muted-foreground hover:bg-accent")}>{l}</button>
+            ))}
+          </div>
+          <select value={fCentro} onChange={e=>setFCentro(e.target.value)} className="bg-input border border-border rounded-lg px-3 py-1.5 text-xs outline-none focus:border-primary">
+            <option value="">Todos os centros de custo</option>
+            {centrosCusto.filter(c=>c.ativo).map(c=><option key={c.id} value={c.id}>{c.nome}</option>)}
+          </select>
+          <select value={fCat} onChange={e=>setFCat(e.target.value)} className="bg-input border border-border rounded-lg px-3 py-1.5 text-xs outline-none focus:border-primary">
+            <option value="">Todas as categorias</option>
+            {catsRaiz.map(c=><option key={c.id} value={c.id}>{c.nome}</option>)}
+          </select>
+          <select value={fForn} onChange={e=>setFForn(e.target.value)} className="bg-input border border-border rounded-lg px-3 py-1.5 text-xs outline-none focus:border-primary">
+            <option value="">Todos os fornecedores</option>
+            {fornecedores.filter(f=>f.ativo).map(f=><option key={f.id} value={f.id}>{f.nome}</option>)}
+          </select>
+          <div className="flex items-center gap-1 text-xs text-muted-foreground">
+            <span>Período</span>
+            <select value={mesIni} onChange={e=>setMesIni(Number(e.target.value))} className="bg-input border border-border rounded-lg px-2 py-1.5 outline-none focus:border-primary">
+              {MESES.map((m,i)=><option key={i} value={i+1}>{m}</option>)}
+            </select>
+            <span>—</span>
+            <select value={mesFim} onChange={e=>setMesFim(Number(e.target.value))} className="bg-input border border-border rounded-lg px-2 py-1.5 outline-none focus:border-primary">
+              {MESES.map((m,i)=><option key={i} value={i+1}>{m}</option>)}
+            </select>
+          </div>
+          {(fTipo||fCentro||fCat||fForn||mesIni!==1||mesFim!==12) && (
+            <button onClick={()=>{setFTipo("");setFCentro("");setFCat("");setFForn("");setMesIni(1);setMesFim(12);}}
+              className="text-xs text-muted-foreground hover:text-foreground">Limpar recortes</button>
+          )}
         </div>
       </div>
 
@@ -1658,10 +1892,10 @@ export default function OrcamentoPage() {
           </div>
 
           <div>
-            {tab==="Dashboard" && <TabDashboard cicloId={cicloId} ano={ciclos.find(c=>c.id===cicloId)?.ano} categorias={categorias} centrosCusto={centrosCusto}/>}
+            {tab==="Dashboard" && <TabDashboard cicloId={cicloId} ano={ciclos.find(c=>c.id===cicloId)?.ano} categorias={categorias} centrosCusto={centrosCusto} fornecedores={fornecedores}/>}
             {tab==="OPEX" && <TabItens tipo="OPEX" cicloId={cicloId} categorias={categorias} centrosCusto={centrosCusto} fornecedores={fornecedores} podeEditar={cicloAtual?.podeEditar!==false}/>}
             {tab==="CAPEX" && <TabItens tipo="CAPEX" cicloId={cicloId} categorias={categorias} centrosCusto={centrosCusto} fornecedores={fornecedores} podeEditar={cicloAtual?.podeEditar!==false}/>}
-            {tab==="Comparação" && <TabComparacao ciclos={ciclos} cicloId={cicloId}/>}
+            {tab==="Comparação" && <TabComparacao ciclos={ciclos} cicloId={cicloId} categorias={categorias} centrosCusto={centrosCusto} fornecedores={fornecedores}/>}
             {tab==="Configurações" && <TabConfiguracoes categorias={categorias} centrosCusto={centrosCusto} fornecedores={fornecedores} reload={loadConfig}/>}
           </div>
         </>

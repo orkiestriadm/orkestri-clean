@@ -187,6 +187,9 @@ class EnviarOrcamentoEmailDto {
   @IsEmail() para!: string;
   @IsOptional() @IsString() assunto?: string;
   @IsOptional() @IsString() mensagem?: string;
+  /// Descricao legivel do filtro aplicado na tela (ex.: "Base: Realizado | OPEX
+  /// | Jan-Jun"). Vai no corpo do e-mail para o numero anexado ser reconciliavel.
+  @IsOptional() @IsString() filtro?: string;
   @IsString() filename!: string;
   @IsString() conteudoBase64!: string;
 }
@@ -325,46 +328,94 @@ class OrcamentoController {
   async dashboard(
     @Req() req: any, @Query("ano") anoQ?: string, @Query("cicloId") cicloId?: string,
     @Query("centroCustoId") centroCustoId?: string, @Query("categoriaId") categoriaId?: string,
+    @Query("fornecedorId") fornecedorId?: string, @Query("tipo") tipoQ?: string,
     @Query("mesIni") mesIniQ?: string, @Query("mesFim") mesFimQ?: string,
+    @Query("base") baseQ?: string, @Query("execucao") execQ?: string,
+    @Query("recorrente") recorrenteQ?: string, @Query("q") q?: string,
   ) {
+    // `base` decide o que as distribuicoes e o ranking MEDEM. "ambos" e o
+    // comportamento historico -- realizado, caindo no previsto onde ainda nao ha
+    // realizado -- que serve para o ano corrente mas soma duas grandezas na
+    // mesma fatia. Quem precisa de uma so agora escolhe.
+    const base = baseQ === "orcado" || baseQ === "realizado" ? baseQ : "ambos";
+    const tipo = tipoQ === "OPEX" || tipoQ === "CAPEX" ? tipoQ : "";
+    const faixa = ["estouro", "atencao", "dentro"].includes(execQ || "") ? execQ! : "";
+    const recorrente = recorrenteQ === "true" ? true : recorrenteQ === "false" ? false : null;
+    const busca = (q || "").trim();
+
+    const mesIni = Math.max(1, Math.min(12, parseInt(mesIniQ || "1") || 1));
+    const mesFim = Math.max(mesIni, Math.min(12, parseInt(mesFimQ || "12") || 12));
+
+    // Eco do filtro aplicado. Vai nas DUAS saidas (com e sem ciclo) porque o
+    // front carimba isso nos documentos exportados -- um PDF que nao diz o
+    // filtro e um PDF que ninguem consegue reconciliar depois.
+    const filtro = {
+      mesIni, mesFim, base,
+      centroCustoId: centroCustoId || null,
+      categoriaId: categoriaId || null,
+      fornecedorId: fornecedorId || null,
+      tipo: tipo || null,
+      execucao: faixa || null,
+      recorrente,
+      q: busca || null,
+    };
+
     const resolvedId = await this.resolveCicloIdLeitura(cicloId, anoQ ? parseInt(anoQ) : undefined, req.user);
     const ciclo = resolvedId
       ? await (this.prisma as any).orcamentoCiclo.findUnique({ where: { id: resolvedId } })
       : null;
-    if (!ciclo) return { ciclo: null, kpis: null, evolucaoMensal: [], topItens: [], alertas: [], distribuicao: [], distribuicaoCategoria: [], distribuicaoCentroCusto: [], capexOpex: [] };
+    if (!ciclo) return { ciclo: null, filtro, kpis: null, evolucaoMensal: [], topItens: [], alertas: [], distribuicao: [], distribuicaoCategoria: [], distribuicaoCentroCusto: [], distribuicaoFornecedor: [], capexOpex: [] };
 
-    const mesIni = Math.max(1, Math.min(12, parseInt(mesIniQ || "1") || 1));
-    const mesFim = Math.max(mesIni, Math.min(12, parseInt(mesFimQ || "12") || 12));
     const inRange = (m: number) => m >= mesIni && m <= mesFim;
 
     const itemWhere: any = { cicloId: ciclo.id, status: { not: "cancelado" } };
     if (centroCustoId) itemWhere.centroCustoId = centroCustoId;
-    if (categoriaId)   itemWhere.categoriaId   = categoriaId;
+    // Categoria-pai arrasta as filhas. A arvore existe para agrupar, e filtrar
+    // por "Infraestrutura" sem trazer "Infraestrutura > Cloud" devolveria quase
+    // nada. E o que `GET /itens` ja fazia -- a dashboard e que divergia.
+    if (categoriaId) itemWhere.OR = [{ categoriaId }, { categoria: { paiId: categoriaId } }];
+    if (fornecedorId) itemWhere.fornecedorId = fornecedorId;
+    if (tipo) itemWhere.tipo = tipo;
+    if (recorrente !== null) itemWhere.recorrente = recorrente;
+    if (busca) itemWhere.nome = { contains: busca, mode: "insensitive" };
 
-    const itens = await (this.prisma as any).itemOrcamento.findMany({
+    const itensBrutos = await (this.prisma as any).itemOrcamento.findMany({
       where: itemWhere,
-      include: { meses: true, categoria: true, centroCusto: true },
+      include: { meses: true, categoria: true, centroCusto: true, fornecedor: true },
     });
 
     const sumPrev = (i: any) => i.meses.reduce((s: number, m: any) => s + (inRange(m.mes) ? (m.valorPrevisto  || 0) : 0), 0);
     const sumReal = (i: any) => i.meses.reduce((s: number, m: any) => s + (inRange(m.mes) ? (m.valorRealizado || 0) : 0), 0);
     const mesAtual = new Date().getMonth() + 1;
 
+    // A faixa de execucao e DERIVADA: nao existe como coluna e so pode ser
+    // aplicada depois de somar os meses do periodo escolhido.
+    const itens = faixa
+      ? itensBrutos.filter((i: any) => {
+          const e = calcExecucao(sumPrev(i), sumReal(i));
+          return faixa === "estouro" ? e > 100 : faixa === "atencao" ? e >= 80 && e <= 100 : e < 80;
+        })
+      : itensBrutos;
+
     let prevOpex = 0, realOpex = 0, prevCap = 0, realCap = 0;
     const centrosSet = new Set<string>();
     const distCat: Record<string, number> = {};
     const distCC: Record<string, number> = {};
+    const distForn: Record<string, number> = {};
 
     for (const item of itens) {
       const prev = sumPrev(item), real = sumReal(item);
       if (item.tipo === "OPEX") { prevOpex += prev; realOpex += real; }
       else                      { prevCap  += prev; realCap  += real; }
       if (item.centroCusto?.id) centrosSet.add(item.centroCusto.id);
-      const base = real || prev; // realizado, ou previsto se ainda sem realizado
+      // O que a fatia representa segue a `base` escolhida.
+      const valor = base === "orcado" ? prev : base === "realizado" ? real : (real || prev);
       const cat = item.categoria?.nome || "Outros";
-      distCat[cat] = (distCat[cat] || 0) + base;
+      distCat[cat] = (distCat[cat] || 0) + valor;
       const cc = item.centroCusto?.nome || "Sem centro de custo";
-      distCC[cc] = (distCC[cc] || 0) + base;
+      distCC[cc] = (distCC[cc] || 0) + valor;
+      const fn = item.fornecedor?.nome || "Sem fornecedor";
+      distForn[fn] = (distForn[fn] || 0) + valor;
     }
 
     const totalPrevisto  = prevOpex + prevCap;
@@ -372,21 +423,23 @@ class OrcamentoController {
     const desvio = totalRealizado - totalPrevisto;
     const desvioPct = totalPrevisto ? Math.round((desvio / totalPrevisto) * 1000) / 10 : 0;
 
-    // Evolução mensal (Jan–Dez, ano todo)
+    // Evolucao mensal (Jan-Dez, ano todo)
     const evolucaoMensal = MESES.map(mes => ({
       mes, label: fmtMes(mes),
       previsto:  itens.reduce((s: number, i: any) => s + (i.meses.find((m: any) => m.mes === mes)?.valorPrevisto  || 0), 0),
       realizado: itens.reduce((s: number, i: any) => s + (i.meses.find((m: any) => m.mes === mes)?.valorRealizado || 0), 0),
     }));
 
-    // Ranking dos maiores (por realizado, ou previsto se sem realizado)
+    // Ranking dos maiores -- ordenado pela mesma `base` das distribuicoes, senao
+    // o grafico contradiz a pizza ao lado dele.
+    const ordena = (i: any) => base === "orcado" ? i.previsto : base === "realizado" ? i.realizado : (i.realizado || i.previsto);
     const topItens = itens
       .map((i: any) => ({ id: i.id, nome: i.nome, tipo: i.tipo, categoria: i.categoria?.nome, previsto: sumPrev(i), realizado: sumReal(i) }))
-      .sort((a: any, b: any) => (b.realizado || b.previsto) - (a.realizado || a.previsto))
+      .sort((a: any, b: any) => ordena(b) - ordena(a))
       .slice(0, 8)
       .map((i: any) => ({ ...i, execucao: calcExecucao(i.previsto, i.realizado) }));
 
-    // Alertas de estouro (mês atual)
+    // Alertas de estouro (mes atual)
     const alertasNorm: any[] = [];
     for (const item of itens) {
       const mesObj = item.meses.find((m: any) => m.mes === mesAtual);
@@ -407,10 +460,11 @@ class OrcamentoController {
     };
     const distribuicaoCategoria   = toArr(distCat).slice(0, 12);
     const distribuicaoCentroCusto = toArr(distCC).slice(0, 12);
+    const distribuicaoFornecedor  = toArr(distForn).slice(0, 12);
 
     return {
       ciclo: { id: ciclo.id, ano: ciclo.ano, status: ciclo.status },
-      filtro: { mesIni, mesFim, centroCustoId: centroCustoId || null, categoriaId: categoriaId || null },
+      filtro,
       kpis: {
         totalPrevisto, totalRealizado,
         execucao: calcExecucao(totalPrevisto, totalRealizado),
@@ -426,6 +480,7 @@ class OrcamentoController {
       alertas: alertasNorm.slice(0, 8),
       distribuicaoCategoria,
       distribuicaoCentroCusto,
+      distribuicaoFornecedor,
       capexOpex: [
         { tipo: "OPEX",  previsto: prevOpex, realizado: realOpex },
         { tipo: "CAPEX", previsto: prevCap,  realizado: realCap },
@@ -436,9 +491,9 @@ class OrcamentoController {
   }
 
   // Envia o resumo executivo (PDF montado no navegador, chega em base64) por
-  // e-mail com anexo. Só entrega onde há provedor configurado no servidor
-  // (Resend suporta anexo) — sem provedor, responde { enviado:false } e o front
-  // avisa que o ambiente não está configurado.
+  // e-mail com anexo. Só entrega onde há provedor configurado no servidor —
+  // sem provedor, responde { enviado:false } e o front avisa que o ambiente
+  // não está configurado, em vez de mentir que enviou.
   @Post("enviar-email")
   @Permissions("orcamento:ver")
   async enviarEmail(@Req() req: any, @Body() dto: EnviarOrcamentoEmailDto) {
@@ -448,10 +503,11 @@ class OrcamentoController {
     if (conteudo.length > 10 * 1024 * 1024) throw new BadRequestException("Anexo grande demais.");
     if (!this.email.isEnabled()) return { enviado: false, motivo: "email_desativado" };
 
-    const esc = (s: string) => (s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    const esc = (x: string) => (x || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
     const nome = esc(req.user?.nome || req.user?.name || "");
     const assunto = (dto.assunto || "Orçamento — Resumo Executivo").slice(0, 200);
     const filename = dto.filename || "orcamento.pdf";
+    const filtro = (dto.filtro || "").slice(0, 300);
     const saudacao = nome
       ? `<strong>${nome}</strong> compartilhou o resumo do orçamento com você.`
       : `Você recebeu o resumo do orçamento.`;
@@ -462,29 +518,34 @@ class OrcamentoController {
       `<div class="info-box">` +
         `<div class="info-row"><span class="info-label">Documento</span><span class="info-value">${esc(assunto)}</span></div>` +
         `<div class="info-row"><span class="info-label">Anexo</span><span class="info-value">${esc(filename)}</span></div>` +
+        // Sem isto, dois PDFs com o mesmo nome e números diferentes chegam sem
+        // explicação para quem recebe.
+        (filtro ? `<div class="info-row"><span class="info-label">Filtro aplicado</span><span class="info-value">${esc(filtro)}</span></div>` : "") +
       `</div>` +
       this.email.botaoHtml(`${this.email.appBaseUrl}/dashboard/orcamento`, "Abrir no sistema");
-    const ok = await this.email.sendWithAttachment(
-      dto.para,
-      assunto,
-      corpo,
-      filename,
-      conteudo,
-    );
+    const ok = await this.email.sendWithAttachment(dto.para, assunto, corpo, filename, conteudo);
     return { enviado: ok };
   }
 
-  // Comparação entre dois ciclos (anos/versões), por dimensão (categoria/centro de custo/item).
+  // Comparação entre dois ciclos (anos/versões), por dimensão, com os mesmos
+  // filtros da dashboard — comparar "TI 2025 × TI 2026" era impossível antes.
   @Get("comparacao")
   @Permissions("orcamento:ver")
   async comparacao(
     @Req() req: any,
     @Query("cicloA") cicloAId?: string, @Query("cicloB") cicloBId?: string,
     @Query("dimensao") dimQ?: string, @Query("base") baseQ?: string,
+    @Query("centroCustoId") centroCustoId?: string, @Query("categoriaId") categoriaId?: string,
+    @Query("fornecedorId") fornecedorId?: string, @Query("tipo") tipoQ?: string,
+    @Query("mesIni") mesIniQ?: string, @Query("mesFim") mesFimQ?: string,
   ) {
     if (!cicloAId || !cicloBId) throw new BadRequestException("Selecione dois ciclos para comparar");
-    const dim  = ["categoria", "centroCusto", "item"].includes(dimQ || "") ? dimQ! : "categoria";
+    const dim  = ["categoria", "centroCusto", "item", "fornecedor"].includes(dimQ || "") ? dimQ! : "categoria";
     const base = baseQ === "previsto" ? "previsto" : "realizado";
+    const tipo = tipoQ === "OPEX" || tipoQ === "CAPEX" ? tipoQ : "";
+    const mesIni = Math.max(1, Math.min(12, parseInt(mesIniQ || "1") || 1));
+    const mesFim = Math.max(mesIni, Math.min(12, parseInt(mesFimQ || "12") || 12));
+    const inRange = (m: number) => m >= mesIni && m <= mesFim;
 
     await Promise.all([this.assertPodeVerCiclo(cicloAId, req.user), this.assertPodeVerCiclo(cicloBId, req.user)]);
     const [ca, cb] = await Promise.all([
@@ -493,15 +554,25 @@ class OrcamentoController {
     ]);
     if (!ca || !cb) throw new BadRequestException("Ciclo não encontrado");
 
+    // Os filtros valem para os DOIS ciclos: comparar só o centro de custo de TI
+    // não faria sentido se um dos lados viesse inteiro.
     const loadItens = (cicloId: string) => (this.prisma as any).itemOrcamento.findMany({
-      where: { cicloId, status: { not: "cancelado" } },
-      include: { meses: true, categoria: true, centroCusto: true },
+      where: {
+        cicloId, status: { not: "cancelado" },
+        ...(centroCustoId ? { centroCustoId } : {}),
+        ...(categoriaId ? { OR: [{ categoriaId }, { categoria: { paiId: categoriaId } }] } : {}),
+        ...(fornecedorId ? { fornecedorId } : {}),
+        ...(tipo ? { tipo } : {}),
+      },
+      include: { meses: true, categoria: true, centroCusto: true, fornecedor: true },
     });
     const [itensA, itensB] = await Promise.all([loadItens(ca.id), loadItens(cb.id)]);
 
-    const mesVal = (m: any) => (base === "previsto" ? (m.valorPrevisto || 0) : (m.valorRealizado || 0));
+    // O período recorta os meses dos dois lados, igual à dashboard.
+    const mesVal = (m: any) => !inRange(m.mes) ? 0 : (base === "previsto" ? (m.valorPrevisto || 0) : (m.valorRealizado || 0));
     const valorItem = (i: any) => i.meses.reduce((s: number, m: any) => s + mesVal(m), 0);
     const grupo = (i: any) => dim === "centroCusto" ? (i.centroCusto?.nome || "Sem centro de custo")
+      : dim === "fornecedor" ? (i.fornecedor?.nome || "Sem fornecedor")
       : dim === "item" ? i.nome : (i.categoria?.nome || "Outros");
 
     const aggr = (itens: any[]) => {
@@ -529,6 +600,13 @@ class OrcamentoController {
       cicloA: { id: ca.id, ano: ca.ano, descricao: ca.descricao },
       cicloB: { id: cb.id, ano: cb.ano, descricao: cb.descricao },
       dimensao: dim, base,
+      filtro: {
+        mesIni, mesFim, base, dimensao: dim,
+        centroCustoId: centroCustoId || null,
+        categoriaId: categoriaId || null,
+        fornecedorId: fornecedorId || null,
+        tipo: tipo || null,
+      },
       totais: { valorA: totA, valorB: totB, variacao: totB - totA, variacaoPct: totA ? Math.round(((totB - totA) / totA) * 1000) / 10 : 0 },
       linhas,
       evolucaoMensal,

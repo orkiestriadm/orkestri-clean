@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "1.46.1";
+export const VERSAO = "1.47.0";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -23,10 +23,10 @@ export const VERSAO = "1.46.1";
  * Não é gerada no build: `new Date()` no bundle muda a cada compilação, e duas
  * builds do mesmo código pareceriam versões diferentes.
  */
-export const VERSAO_DATA = "2026-09-18";
+export const VERSAO_DATA = "2026-09-30";
 
 /** Nome da entrega, para dar contexto ao número. */
-export const VERSAO_NOME = "Relatório de feedback inclui o dia de hoje";
+export const VERSAO_NOME = "Filtros do Orçamento";
 
 /**
  * Histórico exibido na tela Sobre, do mais recente para o mais antigo.
@@ -35,6 +35,20 @@ export const VERSAO_NOME = "Relatório de feedback inclui o dia de hoje";
  * esta lista quer saber o que mudou para ele.
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
+  {
+    versao: "1.47.0",
+    data: "2026-09-30",
+    titulo: "Filtros do Orçamento",
+    itens: [
+      "A Dashboard do Orçamento ganhou um alternador Orçado / Realizado / Ambos. Ele não muda só a aparência: muda o que os gráficos e as pizzas estão medindo, e some com a linha que não interessa",
+      "Filtros novos na Dashboard: OPEX ou CAPEX, fornecedor, faixa de execução (estourado acima de 100%, atenção entre 80% e 100%, dentro abaixo de 80%), só recorrentes ou só avulsos, e busca pelo nome do item",
+      "Nova distribuição por fornecedor, ao lado das de categoria e centro de custo",
+      "Nos quadros de OPEX e CAPEX dá para filtrar por centro de custo, fornecedor, faixa de execução e recorrência. Com filtro ligado, os totais passam a dizer \"(filtrado)\" e aparece quantos itens de quantos estão à vista",
+      "A Comparação aceita os mesmos recortes, aplicados aos dois ciclos ao mesmo tempo — dá para comparar só o centro de custo de TI entre dois anos — e ganhou a dimensão \"por fornecedor\"",
+      "As exportações (Excel, PDF, PowerPoint, Imagem e e-mail) saem com os dados já filtrados e com o filtro escrito no próprio documento, para dois relatórios do mesmo ano com números diferentes não chegarem sem explicação",
+      "Filtrar por uma categoria-pai agora traz também as subcategorias dela, na Dashboard e nos quadros",
+    ],
+  },
   {
     versao: "1.46.1",
     data: "2026-09-18",
