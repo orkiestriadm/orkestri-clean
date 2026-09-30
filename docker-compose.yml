@@ -137,16 +137,16 @@ services:
       APP_URL: ${APP_URL:-http://localhost}
       RESEND_API_KEY: ${RESEND_API_KEY}
       EMAIL_FROM: ${EMAIL_FROM:-onboarding@resend.dev}
-      # Sem default de marca: vazio faz o codigo cair na MARCA do ambiente, em
+      # Sem default de marca: vazio faz o código cair na MARCA do ambiente, em
       # vez de cravar "Orkestri" e vazar a marca do produto num servidor de
       # cliente white-label.
       EMAIL_FROM_NAME: ${EMAIL_FROM_NAME:-}
       # Trava de marca: se definido, o EmailService recusa enviar quando o
-      # EMAIL_FROM nao for deste dominio. Vazio = sem trava (ex.: producao).
+      # EMAIL_FROM não for deste domínio. Vazio = sem trava (ex.: produção).
       EMAIL_FROM_DOMINIO_ESPERADO: ${EMAIL_FROM_DOMINIO_ESPERADO:-}
-      # Tema do e-mail por marca. Vazios = visual atual da producao (Orkiestri).
-      # Um servidor white-label seta o acento, o fundo do cabecalho e o caminho
-      # do logo (montado no container) para os e-mails sairem com a marca dele.
+      # Tema do e-mail por marca. Vazios = visual atual da produção (Orkiestri).
+      # Um servidor white-label seta o acento, o fundo do cabeçalho e o caminho
+      # do logo (montado no container) para os e-mails saírem com a marca dele.
       EMAIL_ACCENT: ${EMAIL_ACCENT:-}
       EMAIL_HEADER_BG: ${EMAIL_HEADER_BG:-}
       EMAIL_LOGO_PATH: ${EMAIL_LOGO_PATH:-}
