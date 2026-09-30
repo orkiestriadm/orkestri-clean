@@ -6,7 +6,7 @@ import {
   BarChart3, DollarSign, Target, Zap, Filter, Download, Settings,
   Building, Tag, Truck, Package, Eye, EyeOff, Search, Upload, Loader2,
   Users, Share2, User as UserIcon, Building2,
-  Image as ImageIcon, Presentation, Mail, Send, SlidersHorizontal, Repeat
+  Image as ImageIcon, Presentation, Mail, Send, SlidersHorizontal, Repeat, Printer
 } from "lucide-react";
 import { useAuthStore } from "@/lib/store";
 import {
@@ -16,6 +16,7 @@ import {
 import { cn } from "@/lib/utils";
 import { api } from "@/lib/api";
 import Topbar from "@/components/layout/Topbar";
+import { MESES, exportGridExcel, imprimirGrid } from "./exportar-quadro";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 type EscopoCiclo = "corporativo" | "proprio" | "compartilhado";
@@ -48,7 +49,6 @@ interface Aprovacao { id:string; tipo:string; status:string; observacoes?:string
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 const fmtBRL = (v:number) => new Intl.NumberFormat("pt-BR",{style:"currency",currency:"BRL",minimumFractionDigits:0,maximumFractionDigits:0}).format(v);
 const fmtPct = (v:number) => `${v.toFixed(1)}%`;
-const MESES = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
 const execColor = (p:number) => p >= 100 ? "text-red-400" : p >= 80 ? "text-yellow-400" : "text-emerald-400";
 const execBg = (p:number) => p >= 100 ? "bg-red-500" : p >= 80 ? "bg-yellow-400" : "bg-emerald-500";
 
@@ -789,8 +789,8 @@ function LancarModal({ item, mes, onClose, onSaved }:{ item:Item; mes:number; on
   );
 }
 
-function TabItens({ tipo, cicloId, categorias, centrosCusto, fornecedores, podeEditar=true }:{
-  tipo:"OPEX"|"CAPEX"; cicloId:string; categorias:Categoria[]; centrosCusto:CentroCusto[]; fornecedores:Fornecedor[]; podeEditar?:boolean;
+function TabItens({ tipo, cicloId, ano, categorias, centrosCusto, fornecedores, podeEditar=true }:{
+  tipo:"OPEX"|"CAPEX"; cicloId:string; ano?:number; categorias:Categoria[]; centrosCusto:CentroCusto[]; fornecedores:Fornecedor[]; podeEditar?:boolean;
 }) {
   const readOnly = !podeEditar;
   const [items, setItems] = useState<Item[]>([]);
@@ -838,6 +838,37 @@ function TabItens({ tipo, cicloId, categorias, centrosCusto, fornecedores, podeE
   const temFiltro = !!(search||filterCat||filterCC||filterForn||filterExec||filterRec);
   const limparGrid = ()=>{ setSearch(""); setFilterCat(""); setFilterCC(""); setFilterForn(""); setFilterExec(""); setFilterRec(""); };
 
+  // O mesmo carimbo das outras saídas: o papel diz de que recorte ele é.
+  const nomeCatF  = categorias.find(c=>c.id===filterCat)?.nome;
+  const nomeCCF   = centrosCusto.find(c=>c.id===filterCC)?.nome;
+  const nomeFornF = fornecedores.find(f=>f.id===filterForn)?.nome;
+  const filtroGrid = useMemo(()=>{
+    const p:string[] = [`Orçamento ${ano||""}`.trim(), tipo];
+    if(nomeCatF) p.push(`Categoria: ${nomeCatF}`);
+    if(nomeCCF) p.push(`Centro: ${nomeCCF}`);
+    if(nomeFornF) p.push(`Fornecedor: ${nomeFornF}`);
+    if(filterExec) p.push(EXEC_LABEL[filterExec]);
+    if(filterRec) p.push(filterRec==="true" ? "Só recorrentes" : "Só avulsos");
+    if(search.trim()) p.push(`Busca: "${search.trim()}"`);
+    return p.filter(Boolean).join(" · ");
+  },[ano,tipo,nomeCatF,nomeCCF,nomeFornF,filterExec,filterRec,search]);
+
+  // Exportar e imprimir leem `filtered` — o que está NA TELA. Não há segunda
+  // consulta ao servidor, então o papel não tem como discordar do que se vê.
+  const [saindo, setSaindo] = useState<""|"xlsx"|"print">("");
+  const exportar = async ()=>{
+    if(!filtered.length) return;
+    setSaindo("xlsx");
+    try { await exportGridExcel(tipo, String(ano||""), filtered, filtroGrid, items.length); }
+    catch(e){ console.error(e); } finally { setSaindo(""); }
+  };
+  const imprimir = ()=>{
+    if(!filtered.length) return;
+    setSaindo("print");
+    try { imprimirGrid(tipo, String(ano||""), filtered, filtroGrid, items.length); }
+    catch(e){ console.error(e); } finally { setTimeout(()=>setSaindo(""), 600); }
+  };
+
   const cats = categorias.filter(c=>c.tipo===tipo && !c.paiId);
 
   const totalPrevisto = filtered.reduce((s,it)=>s+it.totais.previsto,0);
@@ -883,6 +914,18 @@ function TabItens({ tipo, cicloId, categorias, centrosCusto, fornecedores, podeE
             <X size={12}/> Limpar
           </button>
         )}
+        <div className="flex items-center gap-1.5">
+          <button onClick={exportar} disabled={!!saindo || !filtered.length}
+            title="Baixar o quadro como está na tela, em Excel"
+            className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-border bg-input text-sm text-muted-foreground hover:bg-accent hover:text-foreground disabled:opacity-50 transition-colors">
+            {saindo==="xlsx" ? <RefreshCw size={14} className="animate-spin"/> : <Download size={14} className="text-emerald-400"/>} Exportar
+          </button>
+          <button onClick={imprimir} disabled={!!saindo || !filtered.length}
+            title="Imprimir o quadro como está na tela"
+            className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-border bg-input text-sm text-muted-foreground hover:bg-accent hover:text-foreground disabled:opacity-50 transition-colors">
+            {saindo==="print" ? <RefreshCw size={14} className="animate-spin"/> : <Printer size={14} className="text-sky-400"/>} Imprimir
+          </button>
+        </div>
         {!readOnly && (
           <button onClick={()=>setShowNew(true)}
             className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90">
@@ -1893,8 +1936,8 @@ export default function OrcamentoPage() {
 
           <div>
             {tab==="Dashboard" && <TabDashboard cicloId={cicloId} ano={ciclos.find(c=>c.id===cicloId)?.ano} categorias={categorias} centrosCusto={centrosCusto} fornecedores={fornecedores}/>}
-            {tab==="OPEX" && <TabItens tipo="OPEX" cicloId={cicloId} categorias={categorias} centrosCusto={centrosCusto} fornecedores={fornecedores} podeEditar={cicloAtual?.podeEditar!==false}/>}
-            {tab==="CAPEX" && <TabItens tipo="CAPEX" cicloId={cicloId} categorias={categorias} centrosCusto={centrosCusto} fornecedores={fornecedores} podeEditar={cicloAtual?.podeEditar!==false}/>}
+            {tab==="OPEX" && <TabItens tipo="OPEX" cicloId={cicloId} ano={cicloAtual?.ano} categorias={categorias} centrosCusto={centrosCusto} fornecedores={fornecedores} podeEditar={cicloAtual?.podeEditar!==false}/>}
+            {tab==="CAPEX" && <TabItens tipo="CAPEX" cicloId={cicloId} ano={cicloAtual?.ano} categorias={categorias} centrosCusto={centrosCusto} fornecedores={fornecedores} podeEditar={cicloAtual?.podeEditar!==false}/>}
             {tab==="Comparação" && <TabComparacao ciclos={ciclos} cicloId={cicloId} categorias={categorias} centrosCusto={centrosCusto} fornecedores={fornecedores}/>}
             {tab==="Configurações" && <TabConfiguracoes categorias={categorias} centrosCusto={centrosCusto} fornecedores={fornecedores} reload={loadConfig}/>}
           </div>

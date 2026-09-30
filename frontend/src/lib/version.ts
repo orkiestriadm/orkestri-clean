@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "1.47.0";
+export const VERSAO = "1.48.0";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -26,7 +26,7 @@ export const VERSAO = "1.47.0";
 export const VERSAO_DATA = "2026-09-30";
 
 /** Nome da entrega, para dar contexto ao número. */
-export const VERSAO_NOME = "Filtros do Orçamento";
+export const VERSAO_NOME = "Exportar e imprimir o quadro do Orçamento";
 
 /**
  * Histórico exibido na tela Sobre, do mais recente para o mais antigo.
@@ -35,6 +35,17 @@ export const VERSAO_NOME = "Filtros do Orçamento";
  * esta lista quer saber o que mudou para ele.
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
+  {
+    versao: "1.48.0",
+    data: "2026-09-30",
+    titulo: "Exportar e imprimir o quadro do Orçamento",
+    itens: [
+      "Os quadros de OPEX e CAPEX ganharam os botões Exportar e Imprimir. Sai exatamente o que está na tela: as mesmas colunas, na mesma ordem, e só os itens que sobraram do filtro",
+      "As cores vão junto e continuam significando a mesma coisa: ciano é realizado lançado, vermelho é realizado acima do orçado, violeta é mês ainda sem realizado (o número mostrado é o orçado) e célula vazia é mês sem nada. A legenda sai no rodapé, para quem recebe o papel entender sem o sistema aberto",
+      "A impressão já sai em paisagem, ocupando uma página de largura, com o cabeçalho repetido em toda página e numeração no rodapé",
+      "A planilha traz o filtro aplicado no topo, a faixa de totais, o total do que está à vista e fórmulas de soma — dá para continuar trabalhando nela no Excel",
+    ],
+  },
   {
     versao: "1.47.0",
     data: "2026-09-30",
