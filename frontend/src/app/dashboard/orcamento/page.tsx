@@ -17,6 +17,7 @@ import { cn } from "@/lib/utils";
 import { api } from "@/lib/api";
 import Topbar from "@/components/layout/Topbar";
 import { MESES, exportGridExcel, imprimirGrid } from "./exportar-quadro";
+import { lerPlanilhaOpex, montarPayloadOpex, type LeituraOpex, type EscolhaBloco, type TipoBloco } from "./importar-opex";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 type EscopoCiclo = "corporativo" | "proprio" | "compartilhado";
@@ -1285,45 +1286,115 @@ function TabConfiguracoes({ categorias, centrosCusto, fornecedores, reload }:{
 }
 
 // ─── Importação da planilha OPEX ──────────────────────────────────────────────
-// Layout: linha 0=título, 1=meses, 2=cabeçalho/totais, 3+=despesas.
-// Colunas: conta=0, despesa=5, 2025 real=8..19, 2026 v2 previsto=21..32, v1 total=48, 2026 realizado=49..60.
-async function parseOpexXlsx(file: File): Promise<any> {
-  const XLSX: any = await import("xlsx");
-  const wb = XLSX.read(await file.arrayBuffer(), { type: "array", cellDates: true });
-  const ws = wb.Sheets[wb.SheetNames[0]];
-  const raw: any[][] = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null });
-  const num = (r: any[], c: number) => { const v = r?.[c]; return typeof v === "number" ? v : 0; };
-  const st  = (r: any[], c: number) => (r?.[c] != null ? String(r[c]).trim() : "");
+//
+// O parser de colunas fixas saiu daqui: ele lia "2026 realizado" na coluna 49 e,
+// quando a planilha ganhou 2027 nessa posição, teria gravado o orçamento de um
+// ano como realizado de outro, em silêncio. A leitura agora mora em
+// `importar-opex.ts`, descobre as colunas pelos cabeçalhos e é conferida contra
+// as duas planilhas num teste. Aqui ficou só a tela que MOSTRA o que foi
+// encontrado antes de qualquer gravação.
 
-  const itens2026: any[] = [], itens2025: any[] = [];
-  for (let i = 3; i < raw.length; i++) {
-    const r = raw[i] || [];
-    const conta = st(r, 0), desp = st(r, 5);
-    if (!desp) continue;
-    // 2026 v2 previsto + realizado
-    const prev: Record<number, number> = {}, real: Record<number, number> = {};
-    let any26 = false;
-    for (let m = 1; m <= 12; m++) {
-      const p = num(r, 20 + m), rl = num(r, 48 + m);
-      if (p)  { prev[m] = Math.round(p * 100) / 100; any26 = true; }
-      if (rl) { real[m] = Math.round(rl * 100) / 100; any26 = true; }
-    }
-    const v1 = num(r, 48);
-    const obs = v1 ? `Orçamento original (v1): R$ ${v1.toLocaleString("pt-BR", { maximumFractionDigits: 0 })}` : undefined;
-    if (any26) itens2026.push({ categoria: conta, despesa: desp, previsto: prev, realizado: real, observacoes: obs });
-    // 2025 realizado (previsto = realizado para histórico)
-    const p25: Record<number, number> = {}, r25: Record<number, number> = {};
-    let any25 = false;
-    for (let m = 1; m <= 12; m++) {
-      const v = num(r, 7 + m);
-      if (v) { const x = Math.round(v * 100) / 100; p25[m] = x; r25[m] = x; any25 = true; }
-    }
-    if (any25) itens2025.push({ categoria: conta, despesa: desp, previsto: p25, realizado: r25 });
-  }
-  return { ciclos: [
-    { ano: 2026, descricao: "OPEX 2026", itens: itens2026 },
-    { ano: 2025, descricao: "OPEX 2025 (realizado)", itens: itens2025 },
-  ] };
+function ModalImportarOpex({ leitura, escolhas, setEscolhas, conflitos, busy, onCancelar, onConfirmar }:{
+  leitura:LeituraOpex; escolhas:EscolhaBloco[]; setEscolhas:(e:EscolhaBloco[])=>void;
+  conflitos:{ano:number;itens:number}[]; busy:boolean;
+  onCancelar:()=>void; onConfirmar:(substituir:boolean)=>void;
+}) {
+  const fmt = (v:number)=> "R$ " + Math.round(v).toLocaleString("pt-BR");
+  const marcados = escolhas.filter(e=>e.importar);
+
+  // Dois blocos ORÇADOS do mesmo ano (as versões v1 e v2) não podem entrar
+  // juntos: um sobrescreveria o outro sem ninguém ver qual venceu.
+  const anosEmConflito = Array.from(new Set(
+    marcados.filter(e=>e.tipo==="previsto")
+      .map(e=>e.ano)
+      .filter((ano,i,arr)=>arr.indexOf(ano)!==i)
+  ));
+
+  const mudar = (id:string, campo:"importar"|"tipo", valor:any)=>
+    setEscolhas(escolhas.map(e=> e.id===id ? { ...e, [campo]: valor } : e));
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+      <div className="bg-card border border-border rounded-2xl w-full max-w-3xl shadow-2xl p-6 max-h-[88vh] overflow-y-auto">
+        <div className="flex items-center justify-between mb-1">
+          <div className="text-sm font-semibold flex items-center gap-2"><Upload size={15} className="text-primary"/> Importar planilha OPEX</div>
+          <button onClick={onCancelar} disabled={busy} className="p-1.5 rounded-lg hover:bg-accent disabled:opacity-40"><X size={16}/></button>
+        </div>
+        <p className="text-xs text-muted-foreground mb-4">
+          Estes são os blocos de 12 meses encontrados na planilha. Confira o ano e se cada um é
+          orçado ou realizado — <span className="text-foreground">o total tem que bater com a sua planilha</span> — e marque o que quer importar.
+        </p>
+
+        <div className="rounded-xl border border-border overflow-hidden mb-4">
+          <div className="grid items-center gap-2 px-3 py-2 bg-white/3 text-[10px] uppercase tracking-wide text-muted-foreground"
+            style={{gridTemplateColumns:"32px 64px 130px 1fr 80px 120px"}}>
+            <div/><div>Ano</div><div>Conteúdo</div><div>Rótulo na planilha</div><div className="text-right">Linhas</div><div className="text-right">Total</div>
+          </div>
+          {leitura.blocos.map(b=>{
+            const e = escolhas.find(x=>x.id===b.id);
+            if(!e) return null;
+            const vazio = b.linhas===0;
+            return (
+              <div key={b.id} className="grid items-center gap-2 px-3 py-2.5 border-t border-border text-xs"
+                style={{gridTemplateColumns:"32px 64px 130px 1fr 80px 120px"}}>
+                <input type="checkbox" checked={e.importar} disabled={vazio}
+                  onChange={ev=>mudar(b.id,"importar",ev.target.checked)}
+                  className="w-4 h-4 accent-primary disabled:opacity-30"/>
+                <div className="font-mono font-semibold text-foreground">{b.ano}</div>
+                <select value={e.tipo} onChange={ev=>mudar(b.id,"tipo",ev.target.value as TipoBloco)}
+                  className="bg-input border border-border rounded-lg px-2 py-1 text-xs outline-none focus:border-primary">
+                  <option value="previsto">Orçado</option>
+                  <option value="realizado">Realizado</option>
+                </select>
+                <div className="text-muted-foreground truncate" title={`${b.rotuloTotal} · coluna ${b.colIni}`}>
+                  {b.rotuloTotal || b.rotuloTopo || "—"}
+                </div>
+                <div className={cn("text-right font-mono", vazio?"text-muted-foreground/50":"text-muted-foreground")}>{b.linhas}</div>
+                <div className={cn("text-right font-mono", vazio?"text-muted-foreground/50":"text-foreground")}>{fmt(b.total)}</div>
+              </div>
+            );
+          })}
+        </div>
+
+        {anosEmConflito.length>0 && (
+          <div className="flex items-start gap-2 p-3 mb-3 rounded-lg bg-red-500/10 border border-red-500/20 text-xs text-red-300">
+            <AlertTriangle size={13} className="mt-0.5 shrink-0"/>
+            <span>Você marcou duas versões <strong>orçadas</strong> de {anosEmConflito.join(", ")}. Escolha só uma — a outra sobrescreveria esta sem aviso.</span>
+          </div>
+        )}
+
+        {conflitos.length>0 && (
+          <div className="flex items-start gap-2 p-3 mb-3 rounded-lg bg-amber-500/10 border border-amber-500/25 text-xs text-amber-200">
+            <AlertTriangle size={13} className="mt-0.5 shrink-0"/>
+            <div>
+              <div className="font-medium mb-1">Estes anos já têm itens no sistema:</div>
+              <ul className="list-disc pl-4 space-y-0.5">
+                {conflitos.map(c=><li key={c.ano}>{c.ano} — {c.itens} {c.itens===1?"item":"itens"}</li>)}
+              </ul>
+              <div className="mt-1.5">Continuar <strong>apaga esses itens</strong> e grava os da planilha no lugar. Lançamentos de realizado feitos na tela se perdem.</div>
+            </div>
+          </div>
+        )}
+
+        <div className="flex items-center justify-between gap-3">
+          <div className="text-xs text-muted-foreground">
+            {marcados.length===0 ? "Marque os blocos que quer importar." : `${marcados.length} ${marcados.length===1?"bloco":"blocos"} · ${Array.from(new Set(marcados.map(e=>e.ano))).sort().join(", ")}`}
+          </div>
+          <div className="flex gap-2">
+            <button onClick={onCancelar} disabled={busy}
+              className="px-4 py-2 text-sm rounded-lg border border-border text-muted-foreground hover:bg-accent disabled:opacity-40">Cancelar</button>
+            <button onClick={()=>onConfirmar(conflitos.length>0)}
+              disabled={busy || !marcados.length || anosEmConflito.length>0}
+              className={cn("px-4 py-2 text-sm rounded-lg font-medium disabled:opacity-40 flex items-center gap-1.5",
+                conflitos.length>0 ? "bg-red-500 text-white hover:bg-red-600" : "bg-primary text-primary-foreground hover:bg-primary/90")}>
+              {busy && <Loader2 size={13} className="animate-spin"/>}
+              {busy ? "Importando..." : conflitos.length>0 ? "Substituir e importar" : "Importar"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 // ─── Comparação Orçamentária ──────────────────────────────────────────────────
@@ -1769,6 +1840,12 @@ export default function OrcamentoPage() {
   const [importing, setImporting] = useState(false);
   const [importMsg, setImportMsg] = useState("");
   const opexFileRef = useRef<HTMLInputElement>(null);
+  // A planilha crua fica guardada entre a leitura e a confirmação: o payload só
+  // é montado depois que o usuário disser quais blocos quer.
+  const [impMatriz, setImpMatriz] = useState<any[][]|null>(null);
+  const [impLeitura, setImpLeitura] = useState<LeituraOpex|null>(null);
+  const [impEscolhas, setImpEscolhas] = useState<EscolhaBloco[]>([]);
+  const [impConflitos, setImpConflitos] = useState<{ano:number;itens:number}[]>([]);
 
   async function loadConfig(selectId?: string) {
     setLoadError("");
@@ -1816,16 +1893,46 @@ export default function OrcamentoPage() {
     } finally { setCriandoCiclo(false); }
   }
 
+  // Ler a planilha NÃO grava nada: abre a tela de conferência.
   async function handleImportOpex(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (opexFileRef.current) opexFileRef.current.value = "";
     if (!file) return;
+    setImportMsg("");
+    try {
+      const XLSX: any = await import("xlsx");
+      const wb = XLSX.read(await file.arrayBuffer(), { type: "array", cellDates: true });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const matriz: any[][] = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null });
+      const leitura = lerPlanilhaOpex(matriz);
+      if (leitura.erros.length) { setImportMsg("⚠ " + leitura.erros.join(" ")); return; }
+      setImpMatriz(matriz);
+      setImpLeitura(leitura);
+      setImpConflitos([]);
+      // Nada vem marcado: importar é raro e destrutivo, então o padrão é não
+      // fazer nada. Quem importa escolhe bloco a bloco, de olho no total.
+      setImpEscolhas(leitura.blocos.map(b=>({ id:b.id, ano:b.ano, tipo:b.tipo, importar:false })));
+    } catch (err: any) {
+      setImportMsg("⚠ " + (err?.message || "Não consegui ler a planilha"));
+    }
+  }
+
+  function fecharImport() {
+    setImpMatriz(null); setImpLeitura(null); setImpEscolhas([]); setImpConflitos([]);
+  }
+
+  async function confirmarImport(substituir: boolean) {
+    if (!impMatriz || !impLeitura) return;
     setImporting(true); setImportMsg("");
     try {
-      const payload = await parseOpexXlsx(file);
-      const { data } = await api.post("/orcamento/importar-opex", payload);
+      const payload = montarPayloadOpex(impMatriz, impLeitura, impEscolhas);
+      const { data } = await api.post("/orcamento/importar-opex", { ...payload, substituir });
+      // O backend responde ok:false com os conflitos em vez de apagar por
+      // conta própria — a tela mostra e só grava se o usuário insistir.
+      if (data?.ok === false && data?.conflitos?.length) { setImpConflitos(data.conflitos); return; }
       const resumo = (data?.ciclos || []).map((c: any) => `${c.ano}: ${c.itens} itens`).join(" · ");
       setImportMsg(`✓ Importado com sucesso — ${resumo}`);
+      fecharImport();
       await loadConfig();
     } catch (err: any) {
       setImportMsg("⚠ " + (err?.response?.data?.message || "Falha na importação da planilha"));
@@ -1843,7 +1950,7 @@ export default function OrcamentoPage() {
   const topbarActions = (
     <>
       <input ref={opexFileRef} type="file" accept=".xlsx,.xls" onChange={handleImportOpex} className="hidden" />
-      <button onClick={()=>opexFileRef.current?.click()} disabled={importing} title="Importar planilha OPEX (cria ciclos, categorias, itens e meses)"
+      <button onClick={()=>opexFileRef.current?.click()} disabled={importing} title="Ler uma planilha OPEX — mostra o que foi encontrado antes de gravar"
         className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border text-xs text-muted-foreground hover:bg-accent transition-colors disabled:opacity-50">
         {importing ? <Loader2 size={13} className="animate-spin"/> : <Upload size={13}/>}
         {importing ? "Importando..." : "Importar OPEX"}
@@ -2026,6 +2133,18 @@ export default function OrcamentoPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {impLeitura && (
+        <ModalImportarOpex
+          leitura={impLeitura}
+          escolhas={impEscolhas}
+          setEscolhas={setImpEscolhas}
+          conflitos={impConflitos}
+          busy={importing}
+          onCancelar={fecharImport}
+          onConfirmar={confirmarImport}
+        />
       )}
 
       {/* Compartilhar: pessoal (dono) ou corporativo com escopo de centro de custo */}

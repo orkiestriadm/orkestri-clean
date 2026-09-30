@@ -181,6 +181,9 @@ function mapItem(item: any) {
 //    fechada de campos aceitos — antes qualquer JSON passava.
 class ImportarOpexOrcamentoDto {
   @IsOptional() @Allow() ciclos?: any;
+  /// Só apaga o que já existe quando o usuário confirmou na tela, de olho na
+  /// contagem. Sem isto a importação respondia "ok" depois de destruir.
+  @IsOptional() @IsBoolean() substituir?: boolean;
 }
 
 class EnviarOrcamentoEmailDto {
@@ -1058,17 +1061,39 @@ class OrcamentoController {
     const orgWhere = orgId ? { organizationId: orgId } : {};
     const resumo: any[] = [];
 
+    // O ciclo alvo é sempre o CORPORATIVO do ano. Sem `ownerId: null` a busca
+    // por ano podia casar com o orçamento PESSOAL de alguém e apagá-lo.
+    const acharCorporativo = (ano: number) =>
+      (this.prisma as any).orcamentoCiclo.findFirst({ where: { ano, ownerId: null, ...orgWhere } });
+
+    // Conflitos levantados ANTES de escrever qualquer coisa: uma importação que
+    // apaga metade e para no meio é pior que uma que não começa.
+    const conflitos: { ano: number; itens: number }[] = [];
+    for (const c of ciclos) {
+      const ano = Number(c.ano);
+      if (!ano) continue;
+      const existente = await acharCorporativo(ano);
+      if (!existente) continue;
+      const itens = await (this.prisma as any).itemOrcamento.count({ where: { cicloId: existente.id } });
+      if (itens > 0) conflitos.push({ ano, itens });
+    }
+    if (conflitos.length && !body.substituir) {
+      // Não é erro: é a tela precisando confirmar. Por isso 200 com ok:false,
+      // e não uma exceção que o front mostraria como falha.
+      return { ok: false, conflitos };
+    }
+
     for (const c of ciclos) {
       const ano = Number(c.ano);
       if (!ano) continue;
 
-      let ciclo = await (this.prisma as any).orcamentoCiclo.findFirst({ where: { ano, ...orgWhere } });
+      let ciclo = await acharCorporativo(ano);
       if (ciclo) {
         await (this.prisma as any).itemOrcamento.deleteMany({ where: { cicloId: ciclo.id } });
         if (c.descricao) await (this.prisma as any).orcamentoCiclo.update({ where: { id: ciclo.id }, data: { descricao: c.descricao } });
       } else {
         ciclo = await (this.prisma as any).orcamentoCiclo.create({
-          data: { id: uuid(), organizationId: orgId, ano, descricao: c.descricao || `OPEX ${ano}` },
+          data: { id: uuid(), organizationId: orgId, ano, descricao: c.descricao || `OPEX ${ano}`, ownerId: null },
         });
       }
 

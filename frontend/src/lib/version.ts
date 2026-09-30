@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "1.47.0";
+export const VERSAO = "1.48.0";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -26,7 +26,7 @@ export const VERSAO = "1.47.0";
 export const VERSAO_DATA = "2026-09-30";
 
 /** Nome da entrega, para dar contexto ao número. */
-export const VERSAO_NOME = "Filtros, exportação e impressão do Orçamento";
+export const VERSAO_NOME = "Importação de OPEX com conferência";
 
 /**
  * Histórico exibido na tela Sobre, do mais recente para o mais antigo.
@@ -35,6 +35,18 @@ export const VERSAO_NOME = "Filtros, exportação e impressão do Orçamento";
  * esta lista quer saber o que mudou para ele.
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
+  {
+    versao: "1.48.0",
+    data: "2026-09-30",
+    titulo: "Importação de OPEX com conferência",
+    itens: [
+      "Importar uma planilha OPEX agora abre uma tela de conferência antes de gravar: ela lista os blocos de meses encontrados, com o ano, se é orçado ou realizado, quantas linhas têm valor e o total de cada um — dá para bater com a planilha antes de confirmar",
+      "Nada vem marcado. Você escolhe bloco a bloco o que quer importar",
+      "O sistema descobre as colunas pelos cabeçalhos da própria planilha, em vez de contar posições fixas. Isso corrige um erro sério: quando a planilha de 2026 ganhou uma coluna de 2027, as posições andaram de lugar e o orçamento de 2027 teria entrado como realizado de 2026, sem nenhum aviso. Planilhas de anos futuros passam a funcionar sem mexer no sistema",
+      "Se o ano que você está importando já tiver itens, o sistema para e mostra quantos são, e só apaga depois que você confirmar. Antes ele apagava e avisava depois",
+      "A importação passa a mexer apenas no orçamento corporativo do ano — antes podia acertar o orçamento pessoal de alguém que tivesse o mesmo ano",
+    ],
+  },
   {
     versao: "1.47.0",
     data: "2026-09-30",
