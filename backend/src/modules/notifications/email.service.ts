@@ -2,6 +2,7 @@ import { Injectable, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { Resend } from "resend";
 import * as nodemailer from "nodemailer";
+import * as fs from "fs";
 import { MARCA } from "../../common/marca";
 
 /**
@@ -23,6 +24,14 @@ export class EmailService {
   private from: string;
   private appUrl: string;
 
+  // Tema do e-mail, por marca (via ambiente). Defaults = o visual atual da
+  // produção (Orkiestri), então onde ninguém seta nada NADA muda. O servidor
+  // white-label seta EMAIL_ACCENT/EMAIL_HEADER_BG/EMAIL_LOGO_PATH e ganha o
+  // layout com a marca do cliente — sem tocar no e-mail da produção.
+  private accent: string;
+  private headerBg: string;
+  private logoBuffer: Buffer | null = null; // logo embutido inline (CID) quando há EMAIL_LOGO_PATH
+
   /**
    * Dois provedores, e a escolha é do ambiente.
    *
@@ -38,10 +47,27 @@ export class EmailService {
   constructor(private config: ConfigService) {
     const apiKey = this.config.get<string>("RESEND_API_KEY", "");
     const smtpHost = this.config.get<string>("SMTP_HOST", "");
-    const fromName = this.config.get<string>("EMAIL_FROM_NAME", MARCA);
+    // Vazio (não só ausente) também cai na MARCA: o compose base define a chave
+    // como "" quando o ambiente não a seta, e "" não dispararia o default do
+    // ConfigService. Sem este `|| MARCA`, o remetente sairia sem nome.
+    const fromName = this.config.get<string>("EMAIL_FROM_NAME", "").trim() || MARCA;
     const fromAddr = this.config.get<string>("EMAIL_FROM", "onboarding@resend.dev");
     this.from = `${fromName} <${fromAddr}>`;
     this.appUrl = this.config.get<string>("APP_URL", "http://localhost");
+
+    // Tema por marca. Os defaults reproduzem o e-mail atual da produção.
+    this.accent = this.config.get<string>("EMAIL_ACCENT", "").trim() || "#f97316";
+    this.headerBg = this.config.get<string>("EMAIL_HEADER_BG", "").trim() || "#0f1116";
+    const logoPath = this.config.get<string>("EMAIL_LOGO_PATH", "").trim();
+    if (logoPath) {
+      try {
+        this.logoBuffer = fs.readFileSync(logoPath);
+        this.logger.log(`Logo do e-mail carregado de ${logoPath} (${this.logoBuffer.length} bytes) — layout com marca ativo.`);
+      } catch (e: any) {
+        // Sem derrubar nada: sem logo, o layout cai no cabeçalho de texto.
+        this.logger.error(`EMAIL_LOGO_PATH definido mas não li o arquivo (${logoPath}): ${e.message}. Seguindo sem logo.`);
+      }
+    }
 
     if (smtpHost) {
       const porta = Number(this.config.get<string>("SMTP_PORT", "587")) || 587;
@@ -60,11 +86,25 @@ export class EmailService {
         port: porta,
         secure,
         auth: usuario ? { user: usuario, pass: senha } : undefined,
-        // Sem teto, uma fila de avisos abre uma conexão por mensagem e o
-        // servidor corporativo corta por excesso.
-        pool: true,
-        maxConnections: 3,
-      });
+        // SEM pool: cada envio abre uma conexão nova. O pool guardava um socket
+        // entre envios, mas o M365 Direct Send derruba conexões ociosas — e no
+        // envio seguinte o nodemailer reusava o socket morto e ficava PENDURADO
+        // para sempre (a request nunca voltava). Uma conexão nova ao MX responde
+        // em ~1-2s (EHLO/STARTTLS/MAIL/RCPT, medido), então o custo é irrelevante
+        // no volume transacional deste ambiente e a entrega fica confiável na
+        // primeira tentativa.
+        pool: false,
+        // Força IPv4. O MX do M365 publica AAAA (IPv6), o container NÃO roteia
+        // IPv6 ("Network is unreachable"), e o Node v24 (DNS verbatim) às vezes
+        // tenta o IPv6 primeiro — dava "Connection timeout" intermitente (quando
+        // calhava IPv4, ia; IPv6, travava). Com family:4 sempre resolve por A.
+        family: 4,
+        // Tetos de segurança: mesmo assim, uma conexão que trava não pode
+        // pendurar a request para sempre.
+        connectionTimeout: 15000,
+        greetingTimeout: 10000,
+        socketTimeout: 20000,
+      } as any);
 
       this.logger.log(`E-mail por SMTP: ${smtpHost}:${porta} (secure=${secure}), remetente ${this.from}`);
 
@@ -87,11 +127,48 @@ export class EmailService {
         "Sem RESEND_API_KEY e sem SMTP_HOST — envio de e-mails desativado.",
       );
     }
+
+    // Trava de marca (white-label). Um ambiente que declara qual domínio o
+    // remetente PRECISA ter — `EMAIL_FROM_DOMINIO_ESPERADO` — se recusa a enviar
+    // quando o `EMAIL_FROM` não é daquele domínio, DESLIGANDO os provedores.
+    //
+    // É o que impede o servidor de um cliente de vazar a identidade de outra
+    // marca se o `.env` um dia perder o override e o remetente cair num default
+    // (o compose base ainda traz `onboarding@resend.dev`). Preferimos NÃO enviar
+    // a enviar como quem não somos — para o cliente, um e-mail com a marca errada
+    // é pior do que e-mail nenhum.
+    //
+    // Opt-in: quem não define a variável (ex.: produção) não muda em nada.
+    const domEsperado = this.config.get<string>("EMAIL_FROM_DOMINIO_ESPERADO", "").trim().toLowerCase();
+    if (domEsperado) {
+      const domDoFrom = (fromAddr.split("@")[1] || "").trim().toLowerCase();
+      if (domDoFrom !== domEsperado) {
+        this.logger.error(
+          `E-mail DESABILITADO: remetente "${fromAddr}" não é do domínio exigido ` +
+          `"${domEsperado}" (EMAIL_FROM_DOMINIO_ESPERADO). Recuso enviar para não ` +
+          `vazar a marca de outro. Ajuste EMAIL_FROM no ambiente.`,
+        );
+        this.resend = null;
+        this.smtp = null;
+      } else {
+        this.logger.log(`Trava de marca ativa: remetente confinado a @${domEsperado}.`);
+      }
+    }
   }
 
   /** Indica se há provedor de e-mail configurado (SMTP ou Resend). */
   isEnabled(): boolean {
     return this.smtp !== null || this.resend !== null;
+  }
+
+  // Anexo inline do logo (CID "brand-logo"). Só entra quando há logo carregado E
+  // o HTML realmente referencia o cid (o layout com marca) — assim um e-mail de
+  // conteúdo cru (worker) não carrega um anexo solto. Só o caminho SMTP: o
+  // ambiente com logo usa SMTP; produção (Resend) não tem logo.
+  private logoAnexo(html: string): Array<{ filename: string; content: Buffer; cid: string }> {
+    return this.logoBuffer && html.includes("cid:brand-logo")
+      ? [{ filename: "logo.png", content: this.logoBuffer, cid: "brand-logo" }]
+      : [];
   }
 
   private async send(to: string, subject: string, html: string): Promise<boolean> {
@@ -102,7 +179,7 @@ export class EmailService {
 
     if (this.smtp) {
       try {
-        await this.smtp.sendMail({ from: this.from, to, subject, html });
+        await this.smtp.sendMail({ from: this.from, to, subject, html, attachments: this.logoAnexo(html) });
         this.logger.log(`Email enviado por SMTP para ${to}: ${subject}`);
         return true;
       } catch (e: any) {
@@ -139,12 +216,38 @@ export class EmailService {
   }
 
   async sendWithAttachment(to: string, subject: string, html: string, filename: string, contentBase64: string): Promise<boolean> {
-    if (!to || !this.resend) {
+    if (!to || !this.isEnabled()) {
       this.logger.warn(`Email com anexo não enviado para ${to || "(vazio)"} — serviço de e-mail indisponível.`);
       return false;
     }
+
+    // Mesma precedência do `send`: SMTP quando definido (o servidor white-label
+    // usa Direct Send do M365, sem Resend), Resend caso contrário. Antes este
+    // método era Resend-only e devolvia false em qualquer ambiente SMTP — o
+    // anexo do resumo do Orçamento não saía onde o e-mail era por SMTP.
+    if (this.smtp) {
+      try {
+        const corpo = this.layout(html);
+        await this.smtp.sendMail({
+          from: this.from,
+          to,
+          subject,
+          html: corpo,
+          attachments: [
+            ...this.logoAnexo(corpo),
+            { filename, content: contentBase64, encoding: "base64" },
+          ],
+        });
+        this.logger.log(`Email com anexo ${filename} enviado por SMTP para ${to}: ${subject}`);
+        return true;
+      } catch (e: any) {
+        this.logger.error(`Erro ao enviar email com anexo por SMTP para ${to}: ${e.message}`);
+        return false;
+      }
+    }
+
     try {
-      const res: any = await this.resend.emails.send({
+      const res: any = await this.resend!.emails.send({
         from: this.from,
         to,
         subject,
@@ -183,6 +286,10 @@ export class EmailService {
    * chegaria sem cor nenhuma — que é o único elemento clicável da mensagem.
    */
   private layout(conteudo: string): string {
+    // Com logo de marca carregado (servidor white-label), usa o layout com a
+    // marca do cliente. Sem logo (ex.: produção), mantém o layout clássico
+    // ABAIXO, byte a byte como estava — produção não muda.
+    if (this.logoBuffer) return this.layoutMarca(conteudo);
     return `<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -216,6 +323,74 @@ export class EmailService {
   <div class="body">${conteudo}</div>
   <div class="footer">
     Você está recebendo este email pois possui uma conta no ${MARCA}.<br>
+    © ${new Date().getFullYear()} ${MARCA} — Todos os direitos reservados.
+  </div>
+</div>
+</body>
+</html>`;
+  }
+
+  /** Cor de acento do e-mail (por marca). Para quem monta botão inline no corpo. */
+  get accentColor(): string {
+    return this.accent;
+  }
+
+  /** URL base do app (para links dentro do corpo). */
+  get appBaseUrl(): string {
+    return this.appUrl;
+  }
+
+  /**
+   * Botão de ação já com o acento inline (não depende do `<style>`, que o
+   * Outlook desktop descarta). Para conteúdos que precisam de um CTA no corpo.
+   */
+  botaoHtml(url: string, label: string): string {
+    return `<div style="text-align:center;margin:24px 0 6px"><a href="${url}" class="btn" style="display:inline-block;background:${this.accent};color:#fff;text-decoration:none;padding:12px 28px;border-radius:9px;font-weight:700;font-size:14px">${label}</a></div>`;
+  }
+
+  /**
+   * Layout com a marca do cliente (white-label): cabeçalho grafite com o logo
+   * numa plaquinha branca e borda de acento, corpo claro, cards neutros e botão
+   * na cor de acento. O logo entra via `cid:brand-logo` (anexo inline). Todo o
+   * acento e o fundo do cabeçalho vêm do ambiente (EMAIL_ACCENT/EMAIL_HEADER_BG).
+   */
+  private layoutMarca(conteudo: string): string {
+    const a = this.accent;
+    const head = this.headerBg;
+    return `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<style>
+  body{margin:0;padding:0;background:#d9dce3;font-family:'Segoe UI',Arial,sans-serif;color:#12141a}
+  .wrap{max-width:600px;margin:28px auto;background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 3px 18px rgba(8,9,12,.12)}
+  .header{background:${head};padding:26px 34px;text-align:center;border-bottom:4px solid ${a}}
+  .plate{display:inline-block;background:#fff;border-radius:10px;padding:13px 22px;line-height:0}
+  .plate img{height:34px;display:block}
+  .body{padding:32px 34px}
+  .body p{margin:0 0 15px;font-size:14.5px;line-height:1.62;color:#374151}
+  .badge{display:inline-block;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:600;margin-bottom:16px}
+  .info-box{background:#fafbfc;border:1px solid #e6e8ee;border-radius:10px;padding:16px 18px;margin:18px 0}
+  .info-row{display:flex;gap:8px;margin-bottom:7px;font-size:13px}
+  .info-row:last-child{margin-bottom:0}
+  .info-label{color:#6b7280;min-width:110px;flex-shrink:0}
+  .info-value{color:#12141a;font-weight:600;word-break:break-all}
+  .btn{display:inline-block;background:${a};color:#fff;text-decoration:none;padding:12px 28px;border-radius:9px;font-weight:700;font-size:14px;margin:8px 0}
+  .footer{background:#fafafa;padding:18px 34px;text-align:center;font-size:11px;color:#9ca3af;border-top:1px solid #e6e8ee}
+  .divider{border:none;border-top:1px solid #e6e8ee;margin:24px 0}
+</style>
+</head>
+<body style="margin:0;padding:0;background:#d9dce3;">
+<div class="wrap">
+  <div class="header" style="background:${head};border-bottom:4px solid ${a};text-align:center;">
+    <span class="plate" style="display:inline-block;background:#fff;border-radius:10px;padding:13px 22px;line-height:0;">
+      <img src="cid:brand-logo" alt="${MARCA}" height="34" style="height:34px;display:block;">
+    </span>
+  </div>
+  <div class="body" style="padding:32px 34px;">${conteudo}</div>
+  <div class="footer">
+    Você está recebendo este email pois possui acesso ao ${MARCA}.<br>
     © ${new Date().getFullYear()} ${MARCA} — Todos os direitos reservados.
   </div>
 </div>
