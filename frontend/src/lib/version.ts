@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "1.48.0";
+export const VERSAO = "1.49.0";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -23,10 +23,10 @@ export const VERSAO = "1.48.0";
  * Não é gerada no build: `new Date()` no bundle muda a cada compilação, e duas
  * builds do mesmo código pareceriam versões diferentes.
  */
-export const VERSAO_DATA = "2026-09-30";
+export const VERSAO_DATA = "2026-10-02";
 
 /** Nome da entrega, para dar contexto ao número. */
-export const VERSAO_NOME = "Importação de OPEX com conferência";
+export const VERSAO_NOME = "Revisão feita e hodômetro de fonte única";
 
 /**
  * Histórico exibido na tela Sobre, do mais recente para o mais antigo.
@@ -35,6 +35,20 @@ export const VERSAO_NOME = "Importação de OPEX com conferência";
  * esta lista quer saber o que mudou para ele.
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
+  {
+    versao: "1.49.0",
+    data: "2026-10-02",
+    titulo: "Revisão feita e hodômetro de fonte única",
+    itens: [
+      "O card da Agenda de Revisões passou a mostrar a identificação do veículo embaixo da placa — o apelido com que ele é chamado no dia a dia (GL 4, TR04), não só a placa do documento",
+      "Botão novo no card: Revisão feita. Um clique registra a revisão como feita hoje, no KM atual, e tira o card da agenda. Ele não volta: aquele plano deixa de ser acompanhado para aquele veículo, e a próxima revisão dele para de ser cobrada, inclusive pelo aviso diário",
+      "Quem precisar continuar acompanhando usa o botão de sempre, Registrar revisão: ele abre o formulário e o ciclo segue normalmente, com a próxima revisão projetada",
+      "Para desfazer: na aba Registros, a revisão que deu baixa aparece marcada como Fora da agenda, com um botão que reativa o acompanhamento",
+      "O hodômetro deixou de ser digitado. Ele passa a vir só do Abastecimento — no cadastro do veículo o campo aparece travado, e o botão Atualizar KM agora só puxa a maior leitura lançada nos abastecimentos",
+      "Isso vale para o sistema inteiro, com uma exceção de propósito: na tela de Abastecimentos o KM continua editável, porque é de lá que ele vem. Para corrigir um hodômetro errado, corrija o abastecimento que o produziu",
+      "O horímetro, usado por máquina que conta hora em vez de quilômetro, continua sendo digitado normalmente",
+    ],
+  },
   {
     versao: "1.48.0",
     data: "2026-09-30",
