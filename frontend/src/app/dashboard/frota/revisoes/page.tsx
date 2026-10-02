@@ -7,7 +7,7 @@ import { useAuthStore } from "@/lib/store";
 import { api } from "@/lib/api";
 import { Badge, fmtDate, fmtMoney } from "../_components/crud";
 import { PageBody, BackLink, PageHeader, StatGrid, StatCard } from "../_components/ui";
-import { Plus, Pencil, Trash2, X, CheckCircle2, ChevronLeft, CalendarDays, RefreshCw, Search, Filter, AlertTriangle, CheckCheck, Archive, ArchiveRestore } from "lucide-react";
+import { Plus, Pencil, Trash2, X, CheckCircle2, ChevronLeft, CalendarDays, RefreshCw, Search, Filter, AlertTriangle, CheckCheck, Archive, ArchiveRestore, Lock } from "lucide-react";
 
 const TIPO_OPTS = [
   { value: "troca_oleo", label: "Troca de óleo" }, { value: "filtros", label: "Filtros" },
@@ -121,6 +121,9 @@ function RegistroModal({ registro, veiculos, onSaved, onClose }: { registro?: an
   const set = (k: string, v: any) => setD((p: any) => ({ ...p, [k]: v }));
   const isEdit = !!registro?.id;
 
+  // Hodômetro do veículo escolhido — fonte única, lida do cadastro.
+  const kmDoVeiculo = veiculos.find(v => v.id === d.veiculoId)?.kmAtual ?? null;
+
   const save = async () => {
     if (!d.veiculoId) { setErr("Selecione o veículo"); return; }
     setSaving(true); setErr("");
@@ -156,10 +159,25 @@ function RegistroModal({ registro, veiculos, onSaved, onClose }: { registro?: an
         <Secao titulo="Planejamento" />
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
           <FieldLabel label="DATA PREVISTA"><input className="input-o" type="date" value={d.dataPrevista ? String(d.dataPrevista).slice(0, 10) : ""} onChange={e => set("dataPrevista", e.target.value || null)} /></FieldLabel>
-          {/* Renomeado a pedido: é o hodômetro do veículo no momento do
-              registro, não uma previsão. A coluna no banco segue `kmPrevisto` —
-              renomear custaria migration sem ganho de função. */}
-          <FieldLabel label="KM ATUAL"><input className="input-o" type="number" value={d.kmPrevisto ?? ""} onChange={e => set("kmPrevisto", e.target.value === "" ? null : Number(e.target.value))} /></FieldLabel>
+          {/* Este campo já se chamou "KM ATUAL" e era `kmPrevisto` digitado à
+              mão: um número livre com o nome do hodômetro, que ninguém
+              conferia e que o relatório imprimia como se fosse a leitura do
+              veículo. Agora o rótulo diz a verdade — é o hodômetro DO VEÍCULO,
+              lido do cadastro (que vem do Abastecimento) e sem como editar. */}
+          <FieldLabel label="KM ATUAL DO VEÍCULO">
+            <div style={{
+              display: "flex", alignItems: "center", gap: 8,
+              padding: "9px 12px", borderRadius: 8, minHeight: 38,
+              background: "var(--bg-hover)", border: "1px dashed var(--border-subtle)",
+              color: "var(--text-secondary)", fontSize: 13,
+            }}>
+              <Lock size={12} style={{ flexShrink: 0, color: "var(--text-muted)" }} />
+              <span style={{ fontFamily: "var(--font-mono)" }}>{kmDoVeiculo != null ? `${num(kmDoVeiculo)} km` : "—"}</span>
+            </div>
+            <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 4 }}>
+              {d.veiculoId ? "Vem do Abastecimento — não é digitado" : "Selecione o veículo"}
+            </div>
+          </FieldLabel>
         </div>
 
         <Secao titulo="O que foi feito" />

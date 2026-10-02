@@ -8,6 +8,7 @@ import { AuthModule } from "../auth/auth.module";
 import { AuthService } from "../auth/auth.service";
 import { registrarIndicacao, montarMensagemAtivacao, codigoIndicacao } from "../referral/referral.helpers";
 import { createHash } from "crypto";
+import { MARCA, MARCA_ARQUIVO } from "../../common/marca";
 
 // Código de vínculo do WhatsApp (mostrado no Perfil). Determinístico por usuário
 // e não adivinhável sem o segredo — quem manda "VINCULAR <código>" prova ser o dono.
@@ -49,9 +50,9 @@ function primeiroNome(nome: string): string {
 // Mensagem de ajuda para quem AINDA NÃO vinculou o WhatsApp: o primeiro passo é
 // justamente se apresentar ao sistema.
 const AJUDA_VINCULAR =
-  "😊 *Oi! Eu sou o ajudante do Orkiestri aqui no WhatsApp.*\n\n" +
+  `😊 *Oi! Eu sou o ajudante do ${MARCA} aqui no WhatsApp.*\n\n` +
   "Antes de começar, eu preciso saber quem é você. É rapidinho, e você faz só uma vez:\n\n" +
-  "1️⃣ Abra o Orkiestri no computador ou no celular.\n" +
+  `1️⃣ Abra o ${MARCA} no computador ou no celular.\n` +
   "2️⃣ Toque no seu *Perfil*.\n" +
   "3️⃣ Procure *Criar evento pelo WhatsApp*. Vai aparecer um *código* (letras e números).\n" +
   "4️⃣ Copie esse código e me mande aqui assim:\n" +
@@ -70,7 +71,7 @@ const RODAPE_SIMPLES = "\n\n❓ Quer ver de novo? É só mandar *ajuda*. 😉";
 // Guia em PDF enviado logo após vincular. O arquivo é empacotado na imagem
 // (COPY assets no Dockerfile); em produção o WORKDIR é /app → /app/assets/…
 const GUIA_PDF_PATH = require("path").join(process.cwd(), "assets", "guia-whatsapp.pdf");
-const GUIA_PDF_NOME = "Guia-Orkiestri-WhatsApp.pdf";
+const GUIA_PDF_NOME = `Guia-${MARCA_ARQUIVO}-WhatsApp.pdf`;
 const GUIA_PDF_LEGENDA = "📖 Preparei um guia rápido pra você começar — é só seguir o passo a passo. Qualquer dúvida, mande *ajuda*. 🧡";
 
 // Saudação da Aurélia + menu de módulos.
@@ -78,7 +79,7 @@ function montarMenuAjuda(temAgenda: boolean, temGastos: boolean, nome: string): 
   const nm = primeiroNome(nome);
   let m =
     (nm ? `😊 *Oi, ${nm}!*` : "😊 *Oi!*") +
-    " Eu sou a *Aurélia*, sua ajudante do Orkiestri aqui no WhatsApp.\n" +
+    ` Eu sou a *Aurélia*, sua ajudante do ${MARCA} aqui no WhatsApp.\n` +
     "Com qual módulo você quer a minha ajuda? É só responder o número:\n\n";
   if (temGastos) m += "💸 Para *Financeiro*: responda *1*\n";
   if (temAgenda) m += "🗓️ Para *Agenda*: responda *2*\n";
@@ -129,7 +130,7 @@ function montarBoasVindas(temAgenda: boolean, temGastos: boolean, nome: string):
   const nm = primeiroNome(nome);
   let m = "🎉 *Tudo pronto!*\n\n" +
     (nm ? `😊 *Oi, ${nm}!* ` : "😊 ") +
-    "Eu sou a *Aurélia*, sua ajudante do Orkiestri aqui no WhatsApp.\n\n";
+    `Eu sou a *Aurélia*, sua ajudante do ${MARCA} aqui no WhatsApp.\n\n`;
   const partes: string[] = [];
   if (temAgenda) partes.push(ajudaAgenda());
   if (temGastos) partes.push(ajudaFinanceiro(temAgenda));
@@ -648,7 +649,7 @@ export class WhatsappInboundService {
     this.fecharMenu(remoteJid);
     const nm = primeiroNome(user.nome);
     const saud = (nm ? `😊 *Oi, ${nm}!* ` : "😊 ") +
-      "Eu sou a *Aurélia*, sua ajudante do Orkiestri aqui no WhatsApp.\n\n";
+      `Eu sou a *Aurélia*, sua ajudante do ${MARCA} aqui no WhatsApp.\n\n`;
     let corpo: string;
     if (ga) corpo = ajudaFinanceiro(ag) + RODAPE_SIMPLES;
     else if (ag) corpo = ajudaAgenda() + RODAPE_SIMPLES;

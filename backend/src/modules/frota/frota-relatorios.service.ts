@@ -310,7 +310,10 @@ export class FrotaRelatoriosService {
     const rows = await this.db.revisaoVeiculo.findMany({
       where,
       include: {
-        veiculo: { select: { placa: true, modelo: true } },
+        // `kmAtual` entra porque a coluna "KM Atual" do relatório lia
+        // `revisao.kmPrevisto` — um número digitado à mão, com o nome do
+        // hodômetro. O hodômetro é do VEÍCULO, e vem do Abastecimento.
+        veiculo: { select: { placa: true, modelo: true, kmAtual: true } },
       },
       orderBy: { dataPrevista: "asc" },
       take: MAX_LINHAS + 1,
@@ -866,7 +869,7 @@ export class FrotaRelatoriosService {
         { header: "Tipo", get: l => l.tipo || "" },
         { header: "Descrição", get: l => l.descricao || "" },
         { header: "Data Prevista", get: l => fmtData(l.dataPrevista) },
-        { header: "KM Atual", get: l => num(l.kmPrevisto) },
+        { header: "KM Atual", get: l => num(l.veiculo?.kmAtual) },
         { header: "Data Realizada", get: l => fmtData(l.dataRealizada) },
         { header: "KM Realizado", get: l => num(l.kmRealizado) },
         { header: "Status", get: l => l.status },

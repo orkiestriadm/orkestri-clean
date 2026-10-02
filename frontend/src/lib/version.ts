@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "1.49.0";
+export const VERSAO = "1.49.1";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -26,7 +26,7 @@ export const VERSAO = "1.49.0";
 export const VERSAO_DATA = "2026-10-02";
 
 /** Nome da entrega, para dar contexto ao número. */
-export const VERSAO_NOME = "Revisão feita e hodômetro de fonte única";
+export const VERSAO_NOME = "A marca certa no WhatsApp, e o KM que não se digita";
 
 /**
  * Histórico exibido na tela Sobre, do mais recente para o mais antigo.
@@ -35,6 +35,16 @@ export const VERSAO_NOME = "Revisão feita e hodômetro de fonte única";
  * esta lista quer saber o que mudou para ele.
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
+  {
+    versao: "1.49.1",
+    data: "2026-10-02",
+    titulo: "A marca certa no WhatsApp, e o KM que não se digita",
+    itens: [
+      "As mensagens que a assistente do WhatsApp envia passaram a usar o nome do sistema configurado neste servidor. Antes diziam o nome de outro produto — inclusive na apresentação dela, no passo a passo de vínculo, na mensagem de boas-vindas por indicação e até no nome do arquivo do guia em PDF que chega ao celular",
+      "No formulário de revisão, o campo KM ATUAL era um número digitado à mão com o nome do hodômetro: ninguém conferia, e o relatório o imprimia como se fosse a leitura do veículo. Agora ele mostra o hodômetro real do veículo escolhido, travado, com a origem escrita embaixo",
+      "No relatório de Revisões, a coluna KM Atual passou a trazer o hodômetro do veículo. Ela e a tela também deixaram de divergir: o mesmo relatório chamava a coluna de KM Previsto em um lugar e KM Atual no outro",
+    ],
+  },
   {
     versao: "1.49.0",
     data: "2026-10-02",

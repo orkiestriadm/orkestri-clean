@@ -298,7 +298,11 @@ const REPORT_COLUMNS: Record<ReportType, Col[]> = {
     { header: "Tipo", get: l => l.tipo || "", cell: l => <span className="capitalize">{l.tipo || "-"}</span> },
     { header: "Descrição", get: l => l.descricao || "", cell: l => <span className="text-[var(--text-muted)]">{l.descricao || "-"}</span> },
     { header: "Data Prevista", get: l => fmtData(l.dataPrevista), cell: l => <span className="font-mono">{fmtData(l.dataPrevista) || "-"}</span> },
-    { header: "KM Previsto", get: l => Number(l.kmPrevisto || 0), align: "right", cell: l => `${fmtNum(l.kmPrevisto)} km` },
+    // Era "KM Previsto" lendo `revisao.kmPrevisto`, enquanto o MESMO relatório
+    // no backend chamava esse campo de "KM Atual" — dois nomes para um número
+    // digitado à mão. Agora os dois lados mostram o hodômetro do veículo, que
+    // vem do Abastecimento.
+    { header: "KM Atual", get: l => Number(l.veiculo?.kmAtual || 0), align: "right", cell: l => l.veiculo?.kmAtual != null ? `${fmtNum(l.veiculo.kmAtual)} km` : "-" },
     { header: "Data Realizada", get: l => fmtData(l.dataRealizada), cell: l => <span className="font-mono">{fmtData(l.dataRealizada) || "-"}</span> },
     { header: "KM Realizado", get: l => Number(l.kmRealizado || 0), align: "right", cell: l => l.kmRealizado ? `${fmtNum(l.kmRealizado)} km` : "-" },
     {

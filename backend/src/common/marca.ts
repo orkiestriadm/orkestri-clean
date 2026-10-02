@@ -32,3 +32,19 @@ export const MARCA = process.env.MARCA?.trim() || "Orkiestri";
  * a marca de outro produto.
  */
 export const APP_DOMINIO = process.env.APP_DOMINIO?.trim() || "app.orkiestri.com";
+
+/**
+ * A marca em forma de NOME DE ARQUIVO: sem acento, sem espaço, sem símbolo.
+ *
+ * O guia em PDF chega ao celular com o nome do arquivo à vista, e era o último
+ * lugar onde a marca do produto aparecia para o cliente white-label mesmo com
+ * todo o texto já corrigido — `Guia-Orkiestri-WhatsApp.pdf` no WhatsApp de
+ * quem usa o Hub.
+ *
+ * Isto NÃO é identificador técnico: o arquivo no disco continua
+ * `assets/guia-whatsapp.pdf`. Aqui é só o nome que o destinatário lê.
+ */
+export const MARCA_ARQUIVO =
+  MARCA.normalize("NFD").replace(/[̀-ͯ]/g, "")
+    .replace(/[^A-Za-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "") || "Guia";

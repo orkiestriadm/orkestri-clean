@@ -1,4 +1,5 @@
 import { createHash } from "crypto";
+import { MARCA } from "../../common/marca";
 
 // Código de indicação do usuário — DERIVADO do id (não há tabela de códigos).
 // Salt próprio para não colidir com o código de vínculo do WhatsApp.
@@ -41,10 +42,10 @@ export async function registrarIndicacao(prisma: any, codigoRaw: string, indicad
 // convida a pessoa a indicar (o pitch de "ganhe R$5 por indicação").
 export function montarMensagemAtivacao(indicadorNome: string, meuCodigo: string): string {
   return (
-    "🎉 *Bem-vindo(a) ao Orkiestri!*\n\n" +
+    `🎉 *Bem-vindo(a) ao ${MARCA}!*\n\n` +
     `Você entrou pela indicação de *${indicadorNome}* — quando você efetivar sua assinatura, ele(a) ganha uma comissão. 🙌\n\n` +
     `E você também pode ganhar! O seu código de indicação é *${meuCodigo}*.\n\n` +
     "💰 A cada pessoa que assinar usando o seu código, você recebe *R$ 5,00*. Indicou 200? São *R$ 1.000*.\n\n" +
-    "Pegue o seu código no seu *Perfil* e compartilhe. Chame gente para o Orkiestri! 🚀"
+    `Pegue o seu código no seu *Perfil* e compartilhe. Chame gente para o ${MARCA}! 🚀`
   );
 }
