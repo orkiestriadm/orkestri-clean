@@ -6,7 +6,7 @@ import Topbar from "@/components/layout/Topbar";
 import { useAuthStore } from "@/lib/store";
 import { api } from "@/lib/api";
 import { 
-  History, Plus, Pencil, Trash2, X, Eye,
+  History, Plus, Pencil, Trash2, X, Eye, Lock,
   Search, Download, ChevronLeft,
   Truck, Users, Disc, CalendarDays, Wrench, FileText, Zap, Settings, HelpCircle
 } from "lucide-react";
@@ -39,6 +39,10 @@ export type Field = {
   secao?: string;
   /** Texto curto sob o campo, para o que o rótulo não cabe explicar. */
   ajuda?: string;
+  /** Campo que o formulário MOSTRA mas não deixa editar, porque o valor tem
+   *  outra origem (o hodômetro vem do Abastecimento). Some do corpo enviado:
+   *  deixar passar faria o PUT carregar um valor que o usuário não escolheu. */
+  somenteLeitura?: boolean;
 };
 export type Lookups = Record<SourceKey, Option[]>;
 export type Column = {
@@ -196,9 +200,11 @@ export function FormModal({ config, lookups, initial, onSaved, onClose }: {
       }
     }
     setSaving(true); setErr("");
+    const corpo = { ...d };
+    for (const f of config.fields) if (f.somenteLeitura) delete corpo[f.key];
     try {
-      if (isEdit) await api.put(`${config.endpoint}/${initial.id}`, d);
-      else        await api.post(config.endpoint, d);
+      if (isEdit) await api.put(`${config.endpoint}/${initial.id}`, corpo);
+      else        await api.post(config.endpoint, corpo);
       onSaved();
     } catch (e: any) {
       setErr(e?.response?.data?.message || "Erro ao salvar"); setSaving(false);
@@ -250,6 +256,25 @@ export function FormModal({ config, lookups, initial, onSaved, onClose }: {
                 )}
               </div>
             );
+            if (f.somenteLeitura) {
+              const v = d[f.key];
+              const txt = v === null || v === undefined || v === ""
+                ? "—"
+                : (type === "number" ? Number(v).toLocaleString("pt-BR")
+                  : type === "date" ? String(v).slice(0, 10).split("-").reverse().join("/")
+                  : String(v));
+              return wrap(
+                <div style={{
+                  display: "flex", alignItems: "center", gap: 8,
+                  padding: "9px 12px", borderRadius: 8,
+                  background: "var(--bg-hover)", border: "1px dashed var(--border-subtle)",
+                  color: "var(--text-secondary)", fontSize: 13, minHeight: 38,
+                }}>
+                  <Lock size={12} style={{ flexShrink: 0, color: "var(--text-muted)" }} />
+                  <span style={{ fontFamily: type === "number" ? "var(--font-mono)" : undefined }}>{txt}</span>
+                </div>
+              );
+            }
             if (type === "select") return wrap(
               <select className="input-o" value={d[f.key] ?? ""} onChange={e => set(f.key, e.target.value || null)}>
                 <option value="">—</option>

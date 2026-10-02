@@ -60,7 +60,11 @@ const config: CrudConfig = {
     { key: "status", label: "Situação", type: "select", options: STATUS_OPTS, secao: "Operação" },
     { key: "setorId", label: "Setor", type: "select", source: "setores", secao: "Operação" },
     { key: "centroCusto", label: "Centro de custo", secao: "Operação" },
-    { key: "kmAtual", label: "Hodômetro (km)", type: "number", secao: "Operação" },
+    // Travado de propósito: o hodômetro tem uma fonte só, o Abastecimento.
+    // Digitar aqui era o caminho mais curto para o número divergir do que o
+    // veículo marca — e quem lê a Revisão e o Pneu é justamente este campo.
+    { key: "kmAtual", label: "Hodômetro (km)", type: "number", secao: "Operação",
+      somenteLeitura: true, ajuda: "Vem do Abastecimento — não é digitado aqui" },
     { key: "horimetroAtual", label: "Horímetro (h)", type: "number", secao: "Operação",
       ajuda: "Para máquina que conta hora, não quilômetro" },
 

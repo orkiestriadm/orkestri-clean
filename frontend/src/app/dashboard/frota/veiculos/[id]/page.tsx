@@ -8,7 +8,7 @@ import { api } from "@/lib/api";
 import { Badge, fmtDate, fmtMoney } from "../../_components/crud";
 import PneuTree from "../../_components/PneuTree";
 import {
-  ArrowLeft, Clock, Package as DiscIcon, CalendarDays, Wrench, Users, DollarSign, Plus, X, RefreshCw,
+  ArrowLeft, Clock, Package as DiscIcon, CalendarDays, Wrench, Users, DollarSign, Plus, X, RefreshCw, Lock,
 } from "lucide-react";
 
 const STATUS: Record<string, { label: string; color: string }> = {
@@ -145,22 +145,25 @@ function CondutorModal({ veiculoId, kmAtual, onSaved, onClose }: { veiculoId: st
 }
 
 // ── Modal: Atualizar KM ──────────────────────────────────────────────────────────
+// Deixou de ter campo para digitar em 02/10/2026: o hodômetro vem do
+// Abastecimento e mais nada o escreve. O que sobrou é a reconciliação — ler o
+// maior KM lançado e aplicar. Quando o número está errado, o conserto é no
+// lançamento do abastecimento que o produziu, não aqui.
 function KmModal({ veiculoId, kmAtual, ultimoAbastKm, onSaved, onClose }: { veiculoId: string; kmAtual?: number | null; ultimoAbastKm?: number | null; onSaved: () => void; onClose: () => void }) {
-  const [km, setKm] = useState<number | "">(ultimoAbastKm ?? kmAtual ?? "");
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState("");
   const [msg, setMsg] = useState("");
   const fmt = (n?: number | null) => n != null ? n.toLocaleString("pt-BR") : "—";
 
-  const puxar = () => {
-    setErr(""); setMsg("");
-    if (ultimoAbastKm != null) { setKm(ultimoAbastKm); setMsg(`Puxado do abastecimento: ${fmt(ultimoAbastKm)} km`); }
-    else setErr("Nenhum abastecimento com KM registrado para este veiculo.");
-  };
+  const emDia = ultimoAbastKm != null && kmAtual != null && ultimoAbastKm <= kmAtual;
+
   const salvar = async () => {
-    if (km === "" || isNaN(Number(km))) { setErr("Informe um KM valido"); return; }
-    setSaving(true); setErr("");
-    try { await api.post(`/frota/veiculos/${veiculoId}/atualizar-km`, { km: Math.trunc(Number(km)) }); onSaved(); }
+    setSaving(true); setErr(""); setMsg("");
+    try {
+      const r = await api.post(`/frota/veiculos/${veiculoId}/atualizar-km`, {});
+      if (r.data?.aplicado) onSaved();
+      else { setMsg("O hodômetro já está igual ao maior KM lançado em abastecimento."); setSaving(false); }
+    }
     catch (e: any) { setErr(e?.response?.data?.message || "Erro ao atualizar"); setSaving(false); }
   };
 
@@ -185,14 +188,16 @@ function KmModal({ veiculoId, kmAtual, ultimoAbastKm, onSaved, onClose }: { veic
             </div>
           </div>
 
-          <div>
-            <label className="text-[11px] font-medium text-muted-o mb-1.5 block uppercase tracking-wider">Novo KM Atual</label>
-            <div className="flex gap-2">
-              <input className="flex-1 surface-sunken border border-subtle-o rounded-xl text-sm px-3 py-2.5 outline-none focus-accent focus-accent transition-all" type="number" value={km} onChange={e => setKm(e.target.value === "" ? "" : Number(e.target.value))} autoFocus />
-              <button className="px-4 py-2 accent-soft hover:accent-soft accent-text text-xs font-semibold rounded-xl transition-colors flex items-center gap-1.5" onClick={puxar}>
-                <RefreshCw size={12} /> Puxar
-              </button>
-            </div>
+          <div className="flex items-start gap-2.5 text-xs text-muted-o leading-relaxed">
+            <Lock size={13} className="shrink-0 mt-0.5" />
+            <span>
+              O hodômetro vem do <strong className="text-secondary-o">Abastecimento</strong> e não é digitado.
+              {emDia
+                ? " Já está igual ao maior KM lançado — nada a atualizar."
+                : " Atualizar aqui aplica o maior KM lançado nos abastecimentos deste veículo."}
+              <br />
+              Número errado? Corrija o lançamento de abastecimento na tela de Abastecimentos.
+            </span>
           </div>
           
           {msg && <div className="text-xs font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 p-3 rounded-xl">{msg}</div>}
@@ -201,7 +206,7 @@ function KmModal({ veiculoId, kmAtual, ultimoAbastKm, onSaved, onClose }: { veic
 
         <div className="px-6 py-4 border-t border-subtle-o surface-sunken flex justify-end gap-3 rounded-b-2xl">
           <button className="px-4 py-2 text-sm font-medium text-secondary-o hover:text-primary-o  dark:hover:text-primary-o transition-colors" onClick={onClose}>Cancelar</button>
-          <button className="px-5 py-2 text-sm font-semibold text-white accent-solid rounded-xl shadow-sm shadow-none dark:shadow-none transition-all disabled:opacity-70 disabled:cursor-not-allowed" onClick={salvar} disabled={saving}>{saving ? "Salvando..." : "Salvar KM"}</button>
+          <button className="px-5 py-2 text-sm font-semibold text-white accent-solid rounded-xl shadow-sm shadow-none dark:shadow-none transition-all disabled:opacity-70 disabled:cursor-not-allowed inline-flex items-center gap-1.5" onClick={salvar} disabled={saving || ultimoAbastKm == null}><RefreshCw size={13} /> {saving ? "Atualizando..." : "Atualizar pelo abastecimento"}</button>
         </div>
       </div>
     </div>
