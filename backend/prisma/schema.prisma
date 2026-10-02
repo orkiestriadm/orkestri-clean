@@ -2779,6 +2779,12 @@ model RevisaoVeiculo {
   kmRealizado     Int?         @map("km_realizado")
   horimetro       Int?
   status          String       @default("agendada")
+  // Plano que esta revisão fecha, quando ela nasceu da Agenda.
+  planoId         String?      @map("plano_id")
+  // Baixa dada pelo botão "Revisão feita": encerra a projeção daquele plano
+  // sobre aquele veículo. Fica no registro, e não numa tabela à parte, porque
+  // desfazer é limpar a marca de quem deu a baixa — não existe baixa órfã.
+  encerraAgenda   Boolean      @default(false) @map("encerra_agenda")
   custo           Float?
   oficina         String?
   observacoes     String?      @db.Text
@@ -2793,6 +2799,7 @@ model RevisaoVeiculo {
   @@index([organizationId, deletedAt])
   @@index([veiculoId])
   @@index([organizationId, status])
+  @@index([organizationId, encerraAgenda])
   @@map("revisoes_veiculo")
 }
 

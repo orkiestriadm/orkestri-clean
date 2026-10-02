@@ -7,7 +7,7 @@ import { useAuthStore } from "@/lib/store";
 import { api } from "@/lib/api";
 import { Badge, fmtDate, fmtMoney } from "../_components/crud";
 import { PageBody, BackLink, PageHeader, StatGrid, StatCard } from "../_components/ui";
-import { Plus, Pencil, Trash2, X, CheckCircle2, ChevronLeft, CalendarDays, RefreshCw, Search, Filter, AlertTriangle } from "lucide-react";
+import { Plus, Pencil, Trash2, X, CheckCircle2, ChevronLeft, CalendarDays, RefreshCw, Search, Filter, AlertTriangle, CheckCheck, Archive, ArchiveRestore } from "lucide-react";
 
 const TIPO_OPTS = [
   { value: "troca_oleo", label: "Troca de óleo" }, { value: "filtros", label: "Filtros" },
@@ -252,6 +252,46 @@ export default function RevisoesPage() {
       setRegEdit({ veiculoId: item.veiculoId, tipo: item.tipo, status: "realizada", dataRealizada: hoje, kmRealizado: kmHoje });
     }
   };
+  /**
+   * "Revisão feita": registra e ENCERRA o acompanhamento daquele plano.
+   *
+   * Confirma antes porque é uma porta de mão única — depois disso nenhum alerta
+   * cobra a próxima revisão desse veículo. O caminho de volta existe e está
+   * escrito no aviso: a aba Registros reativa.
+   */
+  const [baixando, setBaixando] = useState<string | null>(null);
+  const baixarDaAgenda = async (item: any) => {
+    const quem = [item.identificacao, item.placa].filter(Boolean).join(" · ") || "este veículo";
+    const marca = item.unidade === "h"
+      ? (item.atual != null ? `${num(item.atual)} h` : "sem horímetro")
+      : (item.kmAtual != null ? `${num(item.kmAtual)} km` : "sem hodômetro");
+    if (!confirm(
+      `Dar baixa na revisão de ${quem} (${tipoLabel(item.tipo)})?\n\n` +
+      `Fica registrada como feita hoje, em ${marca}.\n` +
+      `O card SAI da agenda e não volta: a próxima revisão deste veículo deixa de ser cobrada.\n\n` +
+      `Para voltar atrás, reative o registro na aba Registros.`
+    )) return;
+    setBaixando(`${item.veiculoId}::${item.planoId}`);
+    try {
+      await api.post("/frota/revisoes-agenda/baixa", { veiculoId: item.veiculoId, planoId: item.planoId });
+      loadAgenda(); loadReg();
+      showMsg("Revisão registrada e baixada da agenda.");
+    } catch (e: any) {
+      showMsg("Erro ao dar baixa: " + (e?.response?.data?.message || ""));
+    } finally { setBaixando(null); }
+  };
+
+  /** Desfaz a baixa: o plano volta a ser projetado e o registro fica no
+   *  histórico, agora como revisão comum. */
+  const reativarNaAgenda = async (r: any) => {
+    if (!confirm("Reativar o acompanhamento deste plano na agenda?\n\nO registro continua no histórico; a próxima revisão volta a ser projetada e cobrada.")) return;
+    try {
+      await api.put(`/frota/revisoes/${r.id}`, { encerraAgenda: false });
+      loadReg(); loadAgenda();
+      showMsg("Acompanhamento reativado na agenda.");
+    } catch (e: any) { showMsg("Erro ao reativar: " + (e?.response?.data?.message || "")); }
+  };
+
   const delPlano = async (p: any) => { if (!confirm("Excluir plano?")) return; try { await api.delete(`/frota/planos-revisao/${p.id}`); loadPlanos(); loadAgenda(); } catch {} };
   const delReg = async (r: any) => { if (!confirm("Excluir registro?")) return; try { await api.delete(`/frota/revisoes/${r.id}`); loadReg(); loadAgenda(); } catch {} };
 
@@ -297,6 +337,7 @@ export default function RevisoesPage() {
             registroId: r.id,
             veiculoId: r.veiculoId,
             placa: r.veiculo?.placa || "—",
+            identificacao: r.veiculo?.identificacao || null,
             modelo: r.veiculo?.modelo || "",
             tipo: r.tipo,
             baseTipo: "data",
@@ -322,7 +363,7 @@ export default function RevisoesPage() {
     if (fFarol && i.farol !== fFarol) return false;
     if (fAgendado && !i.agendamento) return false;
     if (fTipoAg && i.tipo !== fTipoAg) return false;
-    if (qAg && !`${i.placa} ${i.modelo || ""} ${tipoLabel(i.tipo)}`.toLowerCase().includes(qAg.toLowerCase())) return false;
+    if (qAg && !`${i.placa} ${i.identificacao || ""} ${i.modelo || ""} ${tipoLabel(i.tipo)}`.toLowerCase().includes(qAg.toLowerCase())) return false;
     return true;
   });
   const planosF = planos.filter((p: any) => {
@@ -430,7 +471,15 @@ export default function RevisoesPage() {
                       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 10 }}>
                         <div style={{ display: "flex", alignItems: "center", gap: 9, minWidth: 0 }}>
                           <span style={{ width: 10, height: 10, borderRadius: "50%", background: c, boxShadow: `0 0 12px ${c}`, flexShrink: 0 }} />
-                          <span style={{ fontFamily: "var(--font-mono)", fontWeight: 700, fontSize: 15, letterSpacing: "0.02em", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{i.placa}</span>
+                          {/* A placa identifica o documento; a identificação é
+                              como o veículo é chamado no pátio (GL1, TR04). Quem
+                              usa a tela procura pelo segundo nome. */}
+                          <div style={{ minWidth: 0 }}>
+                            <span style={{ display: "block", fontFamily: "var(--font-mono)", fontWeight: 700, fontSize: 15, letterSpacing: "0.02em", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{i.placa}</span>
+                            {i.identificacao && (
+                              <span style={{ display: "block", fontSize: 11, color: "var(--text-muted)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", marginTop: 1 }} title={i.identificacao}>{i.identificacao}</span>
+                            )}
+                          </div>
                         </div>
                         <span style={{ fontSize: 9, fontFamily: "var(--font-mono)", textTransform: "uppercase", letterSpacing: "0.08em", color: c, background: `${c}18`, border: `1px solid ${c}40`, borderRadius: 6, padding: "3px 8px", whiteSpace: "nowrap", flexShrink: 0 }}>{i.suspeita ? "Conferir" : FAROL[i.farol].label}</span>
                       </div>
@@ -458,7 +507,23 @@ export default function RevisoesPage() {
                         <span style={{ fontSize: 11, fontFamily: "var(--font-mono)", fontWeight: 700, color: c }}>{pct}%</span>
                       </div>
                       {canEdit && !i.semDado && (
-                        <button className="btn btn-ghost text-xs" onClick={() => registrarDaAgenda(i)} style={{ width: "100%", marginTop: 14, display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6 }}><CheckCircle2 size={13} /> Registrar revisão</button>
+                        <div style={{ display: "grid", gap: 7, marginTop: 14 }}>
+                          <button className="btn btn-ghost text-xs" onClick={() => registrarDaAgenda(i)} style={{ width: "100%", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6 }}><CheckCircle2 size={13} /> Registrar revisão</button>
+                          {/* Baixa: só faz sentido sobre a PROJEÇÃO de um plano.
+                              O item vindo de agendamento por data já sai da lista
+                              quando o registro é fechado — ali não há o que encerrar. */}
+                          {i.planoId && !i.agendamento && (
+                            <button
+                              className="btn btn-ghost text-xs"
+                              onClick={() => baixarDaAgenda(i)}
+                              disabled={baixando === `${i.veiculoId}::${i.planoId}`}
+                              title="Registra como feita hoje e tira o card da agenda"
+                              style={{ width: "100%", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6, color: FAROL.verde.color, borderColor: `${FAROL.verde.color}55` }}
+                            >
+                              <CheckCheck size={13} /> {baixando === `${i.veiculoId}::${i.planoId}` ? "Dando baixa..." : "Revisão feita"}
+                            </button>
+                          )}
+                        </div>
                       )}
                     </div>
                   );
@@ -539,14 +604,30 @@ export default function RevisoesPage() {
                     {registrosF.length === 0 && <tr><td colSpan={7} style={{ padding: 24, textAlign: "center", color: "var(--text-muted)" }}>{registros.length === 0 ? "Nenhum registro encontrado." : "Nenhum resultado para o filtro."}</td></tr>}
                     {registrosF.map((r: any) => (
                       <tr key={r.id} className="border-b border-[var(--border-subtle)] hover:bg-[var(--bg-hover)] transition-colors">
-                        <td style={{ padding: "12px 16px", fontFamily: "var(--font-mono)", fontWeight: 600, color: "var(--text-primary)", verticalAlign: "middle" }}>{r.veiculo?.placa || "—"}</td>
+                        <td style={{ padding: "12px 16px", fontFamily: "var(--font-mono)", fontWeight: 600, color: "var(--text-primary)", verticalAlign: "middle" }}>
+                          {r.veiculo?.placa || "—"}
+                          {r.veiculo?.identificacao && <div style={{ fontSize: 11, fontWeight: 400, color: "var(--text-muted)", marginTop: 1 }}>{r.veiculo.identificacao}</div>}
+                        </td>
                         <td style={{ padding: "12px 16px", color: "var(--text-primary)", verticalAlign: "middle" }}>{tipoLabel(r.tipo)}</td>
                         <td style={{ padding: "12px 16px", color: "var(--text-primary)", verticalAlign: "middle" }}>{fmtDate(r.dataPrevista)}</td>
                         <td style={{ padding: "12px 16px", color: "var(--text-primary)", verticalAlign: "middle" }}>{fmtDate(r.dataRealizada)}</td>
                         <td style={{ padding: "12px 16px", color: "var(--text-primary)", verticalAlign: "middle" }}>{fmtMoney(r.custo)}</td>
-                        <td style={{ padding: "12px 16px", verticalAlign: "middle" }}><Badge color={STATUS_COLOR[r.status]}>{STATUS_OPTS.find(s => s.value === r.status)?.label || r.status}</Badge></td>
+                        <td style={{ padding: "12px 16px", verticalAlign: "middle" }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                            <Badge color={STATUS_COLOR[r.status]}>{STATUS_OPTS.find(s => s.value === r.status)?.label || r.status}</Badge>
+                            {/* Sem esta marca, o registro da baixa é idêntico a
+                                qualquer outro — e ninguém descobriria por que o
+                                veículo sumiu da agenda. */}
+                            {r.encerraAgenda && (
+                              <span title="Este registro encerrou o acompanhamento na agenda" style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 9, fontFamily: "var(--font-mono)", textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-muted)", background: "var(--bg-hover)", border: "1px solid var(--border-subtle)", borderRadius: 5, padding: "2px 6px" }}>
+                                <Archive size={10} /> Fora da agenda
+                              </span>
+                            )}
+                          </div>
+                        </td>
                         <td style={{ padding: "8px 12px", whiteSpace: "nowrap", verticalAlign: "middle" }}>
                           <div style={{ display: "flex", gap: 4, justifyContent: "flex-end" }}>
+                            {canEdit && r.encerraAgenda && <button className="btn-icon" title="Reativar na agenda" onClick={() => reativarNaAgenda(r)}><ArchiveRestore size={14} /></button>}
                             {canEdit && <button className="btn-icon" title="Editar" onClick={() => setRegEdit(r)}><Pencil size={14} /></button>}
                             {canDelete && <button className="btn-icon" title="Excluir" onClick={() => delReg(r)} style={{ color: "var(--accent-red)" }}><Trash2 size={14} /></button>}
                           </div>

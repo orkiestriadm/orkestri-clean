@@ -111,6 +111,9 @@ export type ItemAgendaRevisao = {
   organizationId?: string;
   placa?: string | null;
   codigo?: string | null;
+  /** Apelido operacional (GL1, TR04). A placa identifica o documento; na
+   *  oficina e no pátio quem conhece o veículo o chama por este nome. */
+  identificacao?: string | null;
   modelo?: string | null;
   tipo: string;
   baseTipo: string;
@@ -160,12 +163,31 @@ export function resumoVazio(): Record<string, number> {
   return { vermelho: 0, laranja: 0, amarelo: 0, verde: 0, cinza: 0, suspeitos: 0 };
 }
 
+/**
+ * Baixa dada pelo botão "Revisão feita": aquele plano não é mais projetado
+ * sobre aquele veículo.
+ *
+ * É diferente de registrar a revisão. Registrar move a âncora e a projeção
+ * continua — é o ciclo normal. A baixa ENCERRA o acompanhamento: decisão do
+ * usuário em 02/10/2026, para o card sair da tela e ficar só como registro.
+ *
+ * O preço é explícito: a partir daqui ninguém cobra a próxima revisão daquele
+ * veículo. Desfazer é limpar `encerraAgenda` no registro, pela aba Registros.
+ */
+export type BaixaAgenda = { veiculoId: string; planoId?: string | null };
+
+export const chaveBaixa = (veiculoId: string, planoId: string) => `${veiculoId}::${planoId}`;
+
 export function projetarAgendaRevisao(
   veiculos: VeiculoAgenda[],
   planos: PlanoAgenda[],
   ultimas: UltimaRevisao[],
   agora: Date = new Date(),
+  baixas: BaixaAgenda[] = [],
 ): { itens: ItemAgendaRevisao[]; resumo: Record<string, number> } {
+  const baixados = new Set<string>();
+  for (const b of baixas) if (b.planoId) baixados.add(chaveBaixa(b.veiculoId, b.planoId));
+
   const lastByKey: Record<string, UltimaRevisao> = {};
   for (const r of ultimas) {
     const k = `${r.veiculoId}::${r.tipo}`;
@@ -175,11 +197,12 @@ export function projetarAgendaRevisao(
   const itens: ItemAgendaRevisao[] = [];
   for (const v of veiculos) {
     for (const p of planos.filter(pl => planoServeAoVeiculo(pl, v))) {
+      if (baixados.has(chaveBaixa(v.id, p.id))) continue;
       const last = lastByKey[`${v.id}::${p.tipo}`];
       const base = {
         veiculoId: v.id,
         organizationId: v.organizationId,
-        placa: v.placa, codigo: v.codigo, modelo: v.modelo,
+        placa: v.placa, codigo: v.codigo, identificacao: v.identificacao, modelo: v.modelo,
         tipo: p.tipo, baseTipo: p.base, planoId: p.id,
         kmAtual: v.kmAtual,
         ultimaData: last?.dataRealizada || null,
@@ -276,11 +299,18 @@ export async function carregarAgendaRevisao(
     if (km != null) v.kmAtual = km;
   }
 
-  const ultimas = await db.revisaoVeiculo.findMany({
-    where: { ...escopo, deletedAt: null, status: "realizada", veiculoId: { in: veiculos.map((v: any) => v.id) } },
-    select: { veiculoId: true, tipo: true, dataRealizada: true, kmRealizado: true, horimetro: true },
-    orderBy: { dataRealizada: "desc" },
-  });
+  const ids = veiculos.map((v: any) => v.id);
+  const [ultimas, baixas] = await Promise.all([
+    db.revisaoVeiculo.findMany({
+      where: { ...escopo, deletedAt: null, status: "realizada", veiculoId: { in: ids } },
+      select: { veiculoId: true, tipo: true, dataRealizada: true, kmRealizado: true, horimetro: true },
+      orderBy: { dataRealizada: "desc" },
+    }),
+    db.revisaoVeiculo.findMany({
+      where: { ...escopo, deletedAt: null, encerraAgenda: true, planoId: { not: null }, veiculoId: { in: ids } },
+      select: { veiculoId: true, planoId: true },
+    }),
+  ]);
 
-  return projetarAgendaRevisao(veiculos, planos, ultimas, agora);
+  return projetarAgendaRevisao(veiculos, planos, ultimas, agora, baixas);
 }

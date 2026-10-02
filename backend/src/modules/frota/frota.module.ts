@@ -276,7 +276,16 @@ class UpdateFrotaDto {
 //    afirmado só onde o código o torna inequívoco. O ganho é a lista
 //    fechada de campos aceitos — antes qualquer JSON passava.
 class AtualizarKmFrotaDto {
+  // Continua aceito pelo validador só para o handler poder RECUSAR com uma
+  // explicação. Removido do DTO, o corpo cairia num 400 genérico de
+  // propriedade não permitida, que não diz onde o KM se mexe agora.
   @IsOptional() @IsNumber() km?: any;
+}
+
+class BaixaAgendaRevisaoDto {
+  @IsString() veiculoId!: string;
+  @IsString() planoId!: string;
+  @IsOptional() @IsString() observacoes?: string;
 }
 
 class RenovarFrotaDto {
@@ -376,7 +385,12 @@ class VeiculosController extends BaseFrotaController {
     { k: "chassi", t: "string" }, { k: "marca", t: "string" }, { k: "modelo", t: "string" },
     { k: "anoFabricacao", t: "int" }, { k: "anoModelo", t: "int" }, { k: "cor", t: "string" },
     { k: "tipo", t: "string" }, { k: "combustivel", t: "string" }, { k: "categoriaId", t: "string" },
-    { k: "status", t: "string" }, { k: "kmAtual", t: "int" }, { k: "horimetroAtual", t: "int" }, { k: "capacidadeTanque", t: "float" },
+    // `kmAtual` NÃO entra aqui: o hodômetro tem uma fonte só, o Abastecimento
+    // (decisão do usuário em 02/10/2026). Listado, o PUT genérico do cadastro
+    // voltaria a aceitar qualquer número digitado e a trava da tela seria
+    // enfeite. `horimetroAtual` fica: abastecimento não traz horímetro, e
+    // trator e roçadeira não teriam por onde ser atualizados.
+    { k: "status", t: "string" }, { k: "horimetroAtual", t: "int" }, { k: "capacidadeTanque", t: "float" },
     { k: "motoristaId", t: "string" }, { k: "responsavelId", t: "string" }, { k: "centroCusto", t: "string" },
     { k: "unidade", t: "string" }, { k: "setorId", t: "string" }, { k: "ativoId", t: "string" },
     { k: "dataAquisicao", t: "date" }, { k: "valorAquisicao", t: "float" }, { k: "observacoes", t: "string" }, { k: "descricao", t: "string" },
@@ -396,9 +410,14 @@ class VeiculosController extends BaseFrotaController {
     if (typeof data.placa === "string") data.placa = data.placa.toUpperCase().replace(/\s+/g, "");
   }
 
-  // POST /frota/veiculos/:id/atualizar-km — atualiza o "KM atual" (hodômetro) do veículo.
-  // Sem { km } no corpo: PUXA o maior KM lançado nos abastecimentos (só sobe).
-  // Com { km }: define manualmente (permite correção). O kmAtual e lido pela Revisao e pelos Pneus.
+  // POST /frota/veiculos/:id/atualizar-km — reconcilia o hodômetro do veículo
+  // com o maior KM lançado nos abastecimentos (só sobe).
+  //
+  // O corpo `{ km }` existia para corrigir à mão e era o ÚNICO caminho que
+  // baixava o hodômetro. Foi fechado em 02/10/2026 a pedido do usuário: o KM
+  // passa a ter uma fonte só. Consequência assumida e registrada — leitura
+  // inflada que não veio de abastecimento nenhum não desce mais sozinha; o
+  // conserto é corrigir o abastecimento que a produziu.
   @Post(":id/atualizar-km")
   @Permissions("frota:editar")
   async atualizarKm(@Param("id") id: string, @Body() body: AtualizarKmFrotaDto, @Req() req: any) {
@@ -406,23 +425,18 @@ class VeiculosController extends BaseFrotaController {
     const v = await this.db.veiculo.findFirst({ where: { id, organizationId: orgId, deletedAt: null }, select: { id: true, kmAtual: true } });
     if (!v) throw new NotFoundException("Veículo não encontrado");
 
-    const manual = body?.km != null && body.km !== "";
-
-    // Ajuste manual é o único caminho que pode BAIXAR o hodômetro: alguém
-    // olhando o painel do veículo tem informação que o sistema não tem.
-    if (manual) {
-      const novoKm = Math.trunc(Number(body.km));
-      if (isNaN(novoKm)) throw new BadRequestException("KM inválido.");
-      await this.db.veiculo.update({ where: { id }, data: { kmAtual: novoKm } });
-      const pneus = await propagarKmAosPneus(this.db, id, novoKm);
-      return { aplicado: true, fonte: "manual", anterior: v.kmAtual ?? null, kmAtual: novoKm, pneusAtualizados: pneus, ultimoAbastecimento: null };
+    if (body?.km != null && body.km !== "") {
+      throw new BadRequestException(
+        "O hodômetro não é digitado: ele vem do Abastecimento. " +
+        "Para corrigir, ajuste o lançamento de abastecimento com o KM errado e atualize de novo.");
     }
 
     const ab = await this.db.abastecimento.findFirst({
       where: { veiculoId: id, organizationId: orgId, deletedAt: null, kmAtual: { not: null } },
       orderBy: { kmAtual: "desc" }, select: { kmAtual: true, data: true },
     });
-    if (ab?.kmAtual == null) throw new BadRequestException("Nenhum KM de abastecimento encontrado. Informe o KM manualmente.");
+    if (ab?.kmAtual == null) throw new BadRequestException(
+      "Nenhum KM de abastecimento encontrado para este veículo. O hodômetro só avança quando houver abastecimento com KM lançado.");
 
     const sync = await sincronizarKmPorAbastecimento(this.db, { orgId, veiculoIds: [id] });
     const recusado = sync.recusados[0];
@@ -430,7 +444,7 @@ class VeiculosController extends BaseFrotaController {
       throw new BadRequestException(
         `O maior KM lançado em abastecimento (${recusado.kmAbastecimento.toLocaleString("pt-BR")}) ` +
         `salta mais de ${KM_SALTO_MAX.toLocaleString("pt-BR")} km sobre o hodômetro atual ` +
-        `(${recusado.kmAtual.toLocaleString("pt-BR")}). Confira o lançamento ou informe o KM manualmente.`);
+        `(${recusado.kmAtual.toLocaleString("pt-BR")}). Confira o lançamento do abastecimento.`);
     }
     return {
       aplicado: sync.atualizados > 0, fonte: "abastecimento",
@@ -934,12 +948,15 @@ class RevisoesController extends BaseFrotaController {
   protected requiredFields = ["veiculoId"];
   protected filterKeys = ["status", "veiculoId", "tipo"];
   protected orderBy = { dataPrevista: "asc" } as any;
-  protected include = { veiculo: { select: { id: true, placa: true, codigo: true } } };
+  protected include = { veiculo: { select: { id: true, placa: true, codigo: true, identificacao: true } } };
   protected fields: FieldDef[] = [
     { k: "veiculoId", t: "string" }, { k: "tipo", t: "string" }, { k: "descricao", t: "string" },
     { k: "dataPrevista", t: "date" }, { k: "kmPrevisto", t: "int" }, { k: "dataRealizada", t: "date" },
     { k: "kmRealizado", t: "int" }, { k: "horimetro", t: "int" }, { k: "status", t: "string" }, { k: "custo", t: "float" },
     { k: "oficina", t: "string" }, { k: "observacoes", t: "string" },
+    // Graváveis para que a baixa da agenda seja REVERSÍVEL: desfazer é
+    // limpar `encerraAgenda` neste registro, pela aba Registros.
+    { k: "planoId", t: "string" }, { k: "encerraAgenda", t: "bool" },
   ];
 
   /** Revisão marcada como realizada precisa ter data de realização — era o
@@ -984,13 +1001,80 @@ class PlanosRevisaoController extends BaseFrotaController {
 @Controller("frota/revisoes-agenda")
 @UseGuards(AuthGuard("jwt"), PermissionsGuard)
 class RevisaoAgendaController {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService, private audit: AuditService) {}
   private get db() { return this.prisma as any; }
 
   @Get()
   @Permissions("frota:ver")
   async agenda(@Req() req: any) {
     return carregarAgendaRevisao(this.db, req.user?.organizationId);
+  }
+
+  /**
+   * POST /frota/revisoes-agenda/baixa — "Revisão feita", em um clique.
+   *
+   * Registra a revisão como realizada HOJE, no hodômetro que o veículo tem
+   * agora, e ENCERRA aquela projeção: o card sai da Agenda e sobra o registro.
+   *
+   * É deliberadamente diferente de "Registrar revisão", que abre o formulário,
+   * grava oficina/custo/data e deixa o ciclo seguir. Aqui o acompanhamento
+   * acaba — decisão do usuário em 02/10/2026, com o preço dito na hora: a
+   * próxima revisão daquele veículo deixa de ser cobrada por alguém.
+   */
+  @Post("baixa")
+  @Permissions("frota:editar")
+  async baixa(@Body() body: BaixaAgendaRevisaoDto, @Req() req: any) {
+    const orgId = req.user?.organizationId;
+    const [veiculo, plano] = await Promise.all([
+      this.db.veiculo.findFirst({
+        where: { id: body.veiculoId, organizationId: orgId, deletedAt: null },
+        select: { id: true, placa: true, identificacao: true, kmAtual: true, horimetroAtual: true },
+      }),
+      this.db.planoRevisao.findFirst({
+        where: { id: body.planoId, organizationId: orgId, deletedAt: null },
+        select: { id: true, tipo: true, base: true },
+      }),
+    ]);
+    if (!veiculo) throw new NotFoundException("Veículo não encontrado");
+    if (!plano) throw new NotFoundException("Plano de revisão não encontrado");
+
+    // A baixa não se repete: dar duas vezes criaria dois registros e um deles
+    // ficaria pendurado sem nada para encerrar.
+    const jaBaixado = await this.db.revisaoVeiculo.findFirst({
+      where: { organizationId: orgId, deletedAt: null, veiculoId: veiculo.id, planoId: plano.id, encerraAgenda: true },
+      select: { id: true },
+    });
+    if (jaBaixado) throw new BadRequestException("Esta revisão já recebeu baixa na agenda.");
+
+    const agora = new Date();
+    const registro = await this.db.revisaoVeiculo.create({
+      data: {
+        id: crypto.randomUUID(),
+        organizationId: orgId,
+        veiculoId: veiculo.id,
+        planoId: plano.id,
+        encerraAgenda: true,
+        tipo: plano.tipo,
+        status: "realizada",
+        dataRealizada: agora,
+        // A âncora é a mesma grandeza do plano: gravar km num plano por
+        // horímetro deixaria o registro mentindo sobre quando foi feita.
+        kmRealizado: plano.base === "horimetro" ? null : (veiculo.kmAtual ?? null),
+        horimetro: plano.base === "horimetro" ? (veiculo.horimetroAtual ?? null) : null,
+        descricao: "Baixa pela agenda (revisão feita)",
+        observacoes: body.observacoes || null,
+        criadoPorId: req.user?.id || null,
+      },
+    });
+
+    await this.audit.log({
+      organizationId: orgId, userId: req.user?.id, modulo: "frota", tabela: "revisoes_veiculo",
+      registroId: registro.id, acao: "criar",
+      descricao: `Baixa na agenda: ${veiculo.identificacao || veiculo.placa || veiculo.id} — ${plano.tipo}`,
+      ip: req.ip,
+    });
+
+    return { ok: true, registro };
   }
 }
 
