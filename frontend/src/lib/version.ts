@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "1.49.1";
+export const VERSAO = "1.49.2";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -26,7 +26,7 @@ export const VERSAO = "1.49.1";
 export const VERSAO_DATA = "2026-10-02";
 
 /** Nome da entrega, para dar contexto ao número. */
-export const VERSAO_NOME = "A marca certa no WhatsApp, e o KM que não se digita";
+export const VERSAO_NOME = "O código de indicação com a marca deste servidor";
 
 /**
  * Histórico exibido na tela Sobre, do mais recente para o mais antigo.
@@ -35,6 +35,15 @@ export const VERSAO_NOME = "A marca certa no WhatsApp, e o KM que não se digita
  * esta lista quer saber o que mudou para ele.
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
+  {
+    versao: "1.49.2",
+    data: "2026-10-03",
+    titulo: "O código de indicação com a marca deste servidor",
+    itens: [
+      "O código de indicação deixou de começar com ORK- e passou a usar as iniciais do nome do sistema configurado neste servidor",
+      "Nenhum código foi invalidado: os seis caracteres do código continuam exatamente os mesmos, e quem já compartilhou o seu com a forma antiga pode ficar tranquilo — o sistema continua aceitando as duas, aqui e no WhatsApp",
+    ],
+  },
   {
     versao: "1.49.1",
     data: "2026-10-02",

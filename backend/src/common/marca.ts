@@ -45,6 +45,6 @@ export const APP_DOMINIO = process.env.APP_DOMINIO?.trim() || "app.orkiestri.com
  * `assets/guia-whatsapp.pdf`. Aqui é só o nome que o destinatário lê.
  */
 export const MARCA_ARQUIVO =
-  MARCA.normalize("NFD").replace(/[̀-ͯ]/g, "")
+  MARCA.normalize("NFD").replace(/[\u0300-\u036f]/g, "")
     .replace(/[^A-Za-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "") || "Guia";

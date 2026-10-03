@@ -6,7 +6,7 @@ import { WhatsAppService } from "../notifications/whatsapp.service";
 import { NotificationsModule } from "../notifications/notifications.module";
 import { AuthModule } from "../auth/auth.module";
 import { AuthService } from "../auth/auth.service";
-import { registrarIndicacao, montarMensagemAtivacao, codigoIndicacao } from "../referral/referral.helpers";
+import { registrarIndicacao, montarMensagemAtivacao, codigoIndicacao, PREFIXO_INDICACAO, pareceCodigoIndicacao } from "../referral/referral.helpers";
 import { createHash } from "crypto";
 import { MARCA, MARCA_ARQUIVO } from "../../common/marca";
 
@@ -138,7 +138,7 @@ function montarBoasVindas(temAgenda: boolean, temGastos: boolean, nome: string):
     partes.push("Peça ao administrador para liberar a *Agenda* ou o *Financeiro* para você aproveitar tudo por aqui. 😉");
   }
   m += partes.join("\n\n────────\n\n") + RODAPE_SIMPLES +
-    "\n\n🎁 Veio por indicação de alguém? Envie o código dele assim: *INDICACAO ORK-XXXXXX*";
+    `\n\n🎁 Veio por indicação de alguém? Envie o código dele assim: *INDICACAO ${PREFIXO_INDICACAO}-XXXXXX*`;
   return m;
 }
 
@@ -617,7 +617,7 @@ export class WhatsappInboundService {
     const nome = await registrarIndicacao(this.prisma, codigo, user.id).catch(() => null);
     if (!nome) {
       await this.wa.sendToJid(remoteJid,
-        "🤖 Não consegui registrar essa indicação. Confira o código (ex.: *INDICACAO ORK-XXXXXX*) — pode ser inválido, o seu próprio código, ou você já registrou uma indicação antes.", inst).catch(() => {});
+        `🤖 Não consegui registrar essa indicação. Confira o código (ex.: *INDICACAO ${PREFIXO_INDICACAO}-XXXXXX*) — pode ser inválido, o seu próprio código, ou você já registrou uma indicação antes.`, inst).catch(() => {});
       return;
     }
     this.logger.log(`Indicação via WhatsApp: indicado=${user.id} por="${nome}"`);
@@ -958,11 +958,12 @@ export class WhatsappInboundService {
     const mVinc = texto.match(/^vincular\s+([a-z0-9]{4,10})$/i);
     if (mVinc) { await this.vincular(remoteJid, mVinc[1].toUpperCase(), inst); return; }
 
-    // ── Indicação? "INDICACAO ORK-XXXX" ou só "ORK-XXXX" (código sempre tem ORK-). ──
+    // ── Indicação? "INDICACAO <cód>" ou só o código solto. O prefixo vem da
+    //    marca e o antigo `ORK-` continua aceito — ver `referral.helpers`. ──
     let codInd: string | null = null;
     const mIndKey = texto.match(/^(?:indica[çc][aã]o|indicado(?: por)?|vim por)\s+(.+)$/i);
     if (mIndKey) codInd = mIndKey[1].trim();
-    else if (/^ORK-?[a-z0-9]{4,10}$/i.test(texto)) codInd = texto.trim();
+    else if (pareceCodigoIndicacao(texto)) codInd = texto.trim();
     if (codInd) { await this.registrarIndicacaoWhats(remoteJid, codInd, inst); return; }
 
     // ── Relatório? "Relatório: quanto gastei ..." ──
