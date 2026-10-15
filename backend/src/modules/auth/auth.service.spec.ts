@@ -62,6 +62,7 @@ function papelPadraoExiste(nome: string) {
 
 const mockJwt = {
   sign: jest.fn().mockReturnValue("mock-token"),
+  verify: jest.fn(),
 };
 
 const mockConfig = {
@@ -391,6 +392,82 @@ describe("AuthService", () => {
 
       expect(result.message).toBeDefined();
       expect(mockPrisma.notification.create).not.toHaveBeenCalled();
+    });
+  });
+  // ── Recuperação de senha: zera o primeiro acesso ───────────────────────────
+
+  /**
+   * Quem redefine a senha pelo "esqueci minha senha" sai do primeiro acesso.
+   *
+   * `resetPasswordWithToken` gravava `senhaHash`, `tentativasFalhas` e
+   * `bloqueado`, mas não `primeiroAcesso` — diferente de `changeFirstPassword`.
+   * A flag ficava presa em `true` para sempre e, a cada login, o frontend
+   * jogava o usuário em `/primeiro-acesso` mesmo já tendo senha própria.
+   * Em produção é o caso de um usuário que usou OTP em 10/09/2026
+   * (`password_reset_otps.used = true`) e segue com a flag ligada.
+   *
+   * Com o bloqueio no servidor (ver primeiro-acesso-bloqueia.spec.ts) a flag
+   * presa deixou de ser só um redirect chato: ela passaria a travar a API toda.
+   */
+  describe("resetPasswordWithToken", () => {
+    const SENHA_FORTE = "NovaSenha@2026";
+
+    /** Dados que o serviço passou para o `user.update`. */
+    const dadosGravados = () => mockPrisma.user.update.mock.calls[0][0].data;
+
+    it("zera primeiroAcesso no fluxo de OTP (WhatsApp)", async () => {
+      mockJwt.verify.mockReturnValue({ sub: "user-otp", type: "reset" });
+      mockPrisma.user.update.mockResolvedValue({});
+
+      const result = await service.resetPasswordWithToken("token-otp", SENHA_FORTE);
+
+      expect(result.message).toContain("sucesso");
+      expect(mockPrisma.user.update).toHaveBeenCalledTimes(1);
+      expect(mockPrisma.user.update.mock.calls[0][0].where).toEqual({ id: "user-otp" });
+      expect(dadosGravados().primeiroAcesso).toBe(false);
+    });
+
+    it("zera primeiroAcesso no fluxo de link por e-mail", async () => {
+      mockJwt.verify.mockReturnValue({ sub: "user-email", type: "email_reset", jti: "jti-1" });
+      // Token de e-mail é single-use: o JTI tem de estar válido no Redis.
+      mockCache.get.mockResolvedValue("1");
+      mockPrisma.user.update.mockResolvedValue({});
+
+      await service.resetPasswordWithToken("token-email", SENHA_FORTE);
+
+      expect(mockCache.del).toHaveBeenCalledWith("reset:token:jti-1");
+      expect(dadosGravados().primeiroAcesso).toBe(false);
+    });
+
+    it("continua gravando senha, tentativas e desbloqueio", async () => {
+      mockJwt.verify.mockReturnValue({ sub: "user-otp", type: "reset" });
+      mockPrisma.user.update.mockResolvedValue({});
+
+      await service.resetPasswordWithToken("token-otp", SENHA_FORTE);
+
+      const data = dadosGravados();
+      expect(data.tentativasFalhas).toBe(0);
+      expect(data.bloqueado).toBe(false);
+      // A senha é gravada como hash, nunca em claro.
+      expect(data.senhaHash).not.toBe(SENHA_FORTE);
+      await expect(bcrypt.compare(SENHA_FORTE, data.senhaHash)).resolves.toBe(true);
+    });
+
+    it("senha fraca não grava nada", async () => {
+      mockJwt.verify.mockReturnValue({ sub: "user-otp", type: "reset" });
+
+      await expect(service.resetPasswordWithToken("token-otp", "123")).rejects.toThrow();
+      expect(mockPrisma.user.update).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("changeFirstPassword", () => {
+    it("zera primeiroAcesso", async () => {
+      mockPrisma.user.update.mockResolvedValue({});
+
+      await service.changeFirstPassword("user-1", "NovaSenha@2026");
+
+      expect(mockPrisma.user.update.mock.calls[0][0].data.primeiroAcesso).toBe(false);
     });
   });
 });

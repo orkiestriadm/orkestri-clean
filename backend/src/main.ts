@@ -8,7 +8,7 @@ import * as path from "path";
 import * as fs from "fs";
 import { randomBytes } from "crypto";
 import { Request, Response, NextFunction, json, urlencoded } from "express";
-import { FirstAccessGuard } from "./modules/auth/first-access.guard";
+import { FirstAccessInterceptor } from "./modules/auth/first-access.interceptor";
 
 async function bootstrap() {
   const logger = new Logger("Bootstrap");
@@ -93,8 +93,15 @@ async function bootstrap() {
   // Validação global de DTOs
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true, forbidNonWhitelisted: true }));
 
-  // Guard global: bloqueia endpoints quando usuário ainda não trocou senha temporária
-  app.useGlobalGuards(new FirstAccessGuard(app.get(Reflector)));
+  // Bloqueia endpoints quando o usuário ainda não trocou a senha temporária.
+  //
+  // É INTERCEPTOR, não guard, e isso é essencial: guards globais rodam ANTES
+  // dos guards de rota, e quem popula `request.user` é o `AuthGuard("jwt")`,
+  // que é de rota. Como guard global isto lia `user === undefined` e liberava
+  // tudo. Interceptor global roda depois de qualquer guard. Ver o comentário
+  // em first-access.interceptor.ts e a prova em
+  // modules/auth/primeiro-acesso-bloqueia.spec.ts.
+  app.useGlobalInterceptors(new FirstAccessInterceptor(app.get(Reflector)));
 
   const port = process.env.PORT || 3000;
   await app.listen(port, "0.0.0.0");

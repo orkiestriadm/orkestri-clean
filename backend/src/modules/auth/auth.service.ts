@@ -1498,9 +1498,14 @@ export class AuthService implements OnModuleInit {
 
     this.validatePasswordStrength(novaSenha);
     const hash = await bcrypt.hash(novaSenha, 12);
+    // primeiroAcesso: false — quem redefine a senha pelo "esqueci minha senha"
+    // (e-mail ou OTP no WhatsApp) acabou de definir uma senha própria, então
+    // saiu do primeiro acesso. Sem isto a flag ficava presa em true para
+    // sempre e o frontend jogava o usuário em /primeiro-acesso a cada login,
+    // mesmo já tendo trocado a senha.
     await this.prisma.user.update({
       where: { id: payload.sub },
-      data: { senhaHash: hash, tentativasFalhas: 0, bloqueado: false } as any,
+      data: { senhaHash: hash, tentativasFalhas: 0, bloqueado: false, primeiroAcesso: false } as any,
     });
     return { message: "Senha redefinida com sucesso." };
   }
