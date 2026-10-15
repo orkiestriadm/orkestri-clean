@@ -2,6 +2,12 @@
 
 Cópia versionada do nginx que está rodando em cada servidor.
 
+> **Certificado TLS** (renovação, reload automático e como conferir o que está
+> REALMENTE no ar): [`CERTIFICADO-TLS.md`](CERTIFICADO-TLS.md). Leitura
+> obrigatória antes de mexer em certificado nos dois ambientes — renovar o
+> certificado e publicá-lo são duas coisas diferentes, e a distância entre elas
+> já derrubou produção por 16h.
+
 | arquivo | servidor | caminho lá |
 |---|---|---|
 | `homologacao.conf` | `planner@10.192.4.123` | `/home/planner/orkestri/nginx/nginx.conf` |

@@ -61,6 +61,17 @@ Rollback rápido usa o backup salvo no cutover (`nginx/nginx-ssl.conf.bak.<ts>`)
 
 ## PASSO 5 — Validação
 
+> Nenhuma validação de HTTPS aqui usa `-k`. Em 15/10/2026 produção serviu
+> certificado **vencido** por ~16h e o `curl -k` das verificações devolvia 200
+> o tempo todo, enquanto o navegador alertava e o Evolution descartava todo
+> webhook de WhatsApp em silêncio. Para conferir o certificado em si, ver
+> [`infra/nginx/CERTIFICADO-TLS.md`](../../infra/nginx/CERTIFICADO-TLS.md):
+>
+> ```bash
+> echo | openssl s_client -connect orkiestri.com:443 -servername orkiestri.com 2>/dev/null \
+>   | openssl x509 -noout -subject -dates
+> ```
+
 ```bash
 # SITE novo nas rotas públicas:
 curl -s  https://www.orkiestri.com/ | grep -o "organizes businesses"

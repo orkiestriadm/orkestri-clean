@@ -3,6 +3,7 @@
 #
 # O que muda:
 #   - nginx escuta 443 + 80, usa nginx-ssl.conf e bind-mounts do Let's Encrypt
+#   - nginx recarrega sozinho a cada 6h para reler o certificado renovado
 #   - certbot: container que renova o certificado automaticamente a cada 12h
 #   - Evolution ativo (sem override de replicas)
 #   - SA Panel usa /var/run/docker.sock do Linux
@@ -12,6 +13,34 @@ services:
     ports:
       - "80:80"
       - "443:443"
+    # O certbot renova o certificado NO DISCO, mas o nginx lê os .pem uma única
+    # vez, ao iniciar: sem um reload ele segue servindo da memória o certificado
+    # que carregou meses atrás. Não havia nada entre os dois containers que
+    # fizesse esse reload — e o certbot, que está em outro container, não
+    # alcança o nginx nem com `--deploy-hook`; só alcançaria com o socket do
+    # Docker exposto a ele, que não vale o risco.
+    #
+    # Em 15/10/2026 isso derrubou produção: certificado renovado em 15/09 no
+    # disco, container no ar desde agosto com o anterior em memória, que venceu
+    # às 03:56 GMT. Por ~16h o navegador deu "sua conexão não é particular" e —
+    # o que ninguém viu — o orkestri_evolution_v2 descartou TODA entrega de
+    # webhook com "Error: certificate has expired": cada mensagem recebida no
+    # WhatsApp sumiu em silêncio.
+    #
+    # O laço abaixo recarrega o nginx a cada 6h. `nginx -s reload` não derruba
+    # conexão (os workers antigos drenam), e 6h de atraso não importam porque o
+    # certbot renova 30 dias antes do vencimento. Vale também para certificado
+    # trocado à mão, não só para o do certbot.
+    command:
+      - /bin/sh
+      - -c
+      - |
+        while :; do
+          sleep 21600
+          echo "[cert-reload] $$(date -Is) recarregando nginx para reler o certificado"
+          nginx -s reload
+        done &
+        exec /docker-entrypoint.sh nginx -g 'daemon off;'
     volumes:
       - ./nginx/nginx-ssl.conf:/etc/nginx/nginx.conf:ro
       - ./ssl/letsencrypt:/etc/letsencrypt:ro
@@ -61,10 +90,16 @@ services:
     volumes:
       - ./ssl/letsencrypt:/etc/letsencrypt
       - ./ssl/www:/var/www/certbot
+    # O `--deploy-hook` aqui só GRAVA A DATA da renovação num arquivo do volume
+    # compartilhado. Ele não recarrega nada — quem recarrega é o laço de 6h do
+    # nginx lá em cima. Serve para responder "quando renovou?" sem ter que
+    # deduzir pelo número em archive/fullchainN.pem, que foi exatamente o que
+    # faltou no incidente de 15/10/2026. Lê-se no servidor com:
+    #   cat /opt/orkestri/ssl/letsencrypt/renovacoes.log
     entrypoint: >
       /bin/sh -c "trap exit TERM;
         while :; do
-          certbot renew --quiet --webroot -w /var/www/certbot;
+          certbot renew --quiet --webroot -w /var/www/certbot --deploy-hook 'date -Is >> /etc/letsencrypt/renovacoes.log';
           sleep 12h & wait $${!};
         done"
 
