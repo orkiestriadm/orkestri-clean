@@ -555,10 +555,16 @@ export default function ProjetosView({ modo }: { modo: ModoProjetos }) {
                   Era um bloco de quatro linhas com dois selos e um rodapé: com 17
                   projetos na fila, achar um custava rolagem. Os selos viraram
                   texto corrido e a porcentagem subiu para junto do título — a
-                  mesma informação, quase metade da altura. */}
+                  mesma informação, quase metade da altura.
+
+                  O `shrink-0` do cartão NÃO é decoração: a lista é uma coluna
+                  flex, e o `overflow-hidden` que arredonda a faixa zera o
+                  `min-height:auto` do item. Sem ele, os 17 projetos espremiam
+                  os cartões para caber na altura em vez de rolar — a segunda
+                  linha saía cortada ao meio e a barra de progresso sumia. */}
               {projects.map(p => (
                 <button key={p.id} type="button" onClick={()=>abrir(p.id)}
-                  className={`w-full text-left flex gap-2.5 pr-2.5 py-2 rounded-xl border overflow-hidden transition-all ${selected?.id===p.id ? "border-[var(--accent-violet)] bg-[var(--accent-violet-dim)]" : "border-[var(--border-subtle)] bg-[var(--bg-card)] hover:border-[var(--border-medium)] hover:shadow-premium-sm"}`}
+                  className={`w-full shrink-0 text-left flex gap-2.5 pr-2.5 py-2 rounded-xl border overflow-hidden transition-all ${selected?.id===p.id ? "border-[var(--accent-violet)] bg-[var(--accent-violet-dim)]" : "border-[var(--border-subtle)] bg-[var(--bg-card)] hover:border-[var(--border-medium)] hover:shadow-premium-sm"}`}
                 >
                   {/* A faixa acompanha a altura do conteúdo: é ela que deixa a
                       lista varrível pela cor, agora que o ponto saiu da frente

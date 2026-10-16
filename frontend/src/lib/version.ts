@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "1.49.3";
+export const VERSAO = "1.49.4";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -26,7 +26,7 @@ export const VERSAO = "1.49.3";
 export const VERSAO_DATA = "2026-10-16";
 
 /** Nome da entrega, para dar contexto ao número. */
-export const VERSAO_NOME = "Membros pela tela de editar, e a lista de projetos mais curta";
+export const VERSAO_NOME = "O card da lista de projetos sem corte";
 
 /**
  * Histórico exibido na tela Sobre, do mais recente para o mais antigo.
@@ -35,6 +35,14 @@ export const VERSAO_NOME = "Membros pela tela de editar, e a lista de projetos m
  * esta lista quer saber o que mudou para ele.
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
+  {
+    versao: "1.49.4",
+    data: "2026-10-16",
+    titulo: "O card da lista de projetos sem corte",
+    itens: [
+      "Com a fila cheia, o card da lista aparecia espremido: a linha de status e prioridade saía cortada ao meio e a barra de progresso não aparecia. Agora os cards mantêm a altura e a lista rola, como antes",
+    ],
+  },
   {
     versao: "1.49.3",
     data: "2026-10-16",
