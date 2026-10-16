@@ -798,8 +798,20 @@ class ProjectsController {
   @Post(":id/members")
   @Permissions("projetos:editar")
   async addMember(@Param("id") id: string, @Body() body: AddMemberProjectsDto, @Req() req: any) {
-    const project = await this.prisma.project.findUnique({ where: { id } });
-    if (!project) throw new NotFoundException();
+    // Pela organização do token, não por id solto: a tela de editar projeto
+    // agora inclui gente a qualquer momento, e sem isto um id de projeto de
+    // outro tenant entraria aqui com um `projetos:editar` qualquer.
+    const project = await this.exigirProjeto(id, req);
+
+    // E a pessoa tem que ser da MESMA organização: a picklist da tela só mostra
+    // colegas, mas a rota aceita qualquer id — sem esta linha dava para pôr
+    // alguém de fora dentro do projeto, e ela passaria a ver tudo dele.
+    const convidado = await this.prisma.user.findFirst({
+      where: { id: body.userId, organizationId: (project as any).organizationId },
+      select: { id: true },
+    });
+    if (!convidado) throw new NotFoundException("Usuário não encontrado nesta organização.");
+
     const member = await this.prisma.projectMember.upsert({
       where: { projectId_userId: { projectId: id, userId: body.userId } },
       update: { papel: body.papel || "membro" },
@@ -846,10 +858,37 @@ class ProjectsController {
     return member;
   }
 
+  /**
+   * Tira a pessoa do projeto — e da agenda dela.
+   *
+   * O evento de prazo criado quando ela entrou aponta para o projeto por
+   * STRING, sem FK: sem apagá-lo aqui, quem saiu continuaria com "Prazo: "
+   * marcado na agenda de um projeto que não vê mais. É o mesmo sintoma que o
+   * projeto excluído já teve.
+   */
   @Delete(":id/members/:userId")
   @Permissions("projetos:editar")
-  async removeMember(@Param("id") id: string, @Param("userId") userId: string) {
-    await this.prisma.projectMember.delete({ where: { projectId_userId: { projectId: id, userId } } });
+  async removeMember(@Param("id") id: string, @Param("userId") userId: string, @Req() req: any) {
+    const projeto = await this.exigirProjeto(id, req);
+
+    // O criador fica. Ele é o dono do registro e quem responde pelo projeto —
+    // removê-lo deixaria o projeto sem ninguém por trás, e a tela já não o
+    // oferece para remoção.
+    if (projeto.criadoPorId === userId) {
+      throw new BadRequestException("Quem criou o projeto não pode ser removido dele.");
+    }
+
+    // `deleteMany`, não `delete`: salvar o formulário duas vezes não deve virar
+    // erro de "registro não encontrado" na segunda vez.
+    await this.prisma.projectMember.deleteMany({ where: { projectId: id, userId } });
+
+    await this.prisma.event.deleteMany({
+      where: { origemTipo: "projeto", origemId: id, userId },
+    }).catch(() => {});
+    await this.prisma.notification.deleteMany({
+      where: { userId, referenciaTipo: { in: ["projeto", "project"] }, referenciaId: id },
+    }).catch(() => {});
+
     return { message: "Membro removido" };
   }
 

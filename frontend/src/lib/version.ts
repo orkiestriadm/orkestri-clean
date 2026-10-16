@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "1.49.2";
+export const VERSAO = "1.49.3";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -23,10 +23,10 @@ export const VERSAO = "1.49.2";
  * Não é gerada no build: `new Date()` no bundle muda a cada compilação, e duas
  * builds do mesmo código pareceriam versões diferentes.
  */
-export const VERSAO_DATA = "2026-10-02";
+export const VERSAO_DATA = "2026-10-16";
 
 /** Nome da entrega, para dar contexto ao número. */
-export const VERSAO_NOME = "O código de indicação com a marca deste servidor";
+export const VERSAO_NOME = "Membros pela tela de editar, e a lista de projetos mais curta";
 
 /**
  * Histórico exibido na tela Sobre, do mais recente para o mais antigo.
@@ -35,6 +35,17 @@ export const VERSAO_NOME = "O código de indicação com a marca deste servidor"
  * esta lista quer saber o que mudou para ele.
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
+  {
+    versao: "1.49.3",
+    data: "2026-10-16",
+    titulo: "Membros pela tela de editar, e a lista de projetos mais curta",
+    itens: [
+      "Editar um projeto agora permite incluir e tirar participantes, e não só na criação. Quem entra recebe o aviso, o prazo na agenda e passa a acompanhar o projeto pelas notificações",
+      "Quem sai do projeto deixa de carregar o prazo dele na agenda: antes o compromisso continuava marcado para um projeto que a pessoa não via mais",
+      "Quem criou o projeto não aparece mais como removível — ele responde pelo projeto e continua nele",
+      "O card da lista de projetos encolheu quase pela metade: a cor virou uma faixa na lateral, os selos viraram texto e a porcentagem subiu para junto do nome. Com a fila cheia, cabe muito mais projeto na tela sem rolar",
+    ],
+  },
   {
     versao: "1.49.2",
     data: "2026-10-03",
