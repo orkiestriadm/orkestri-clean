@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "1.49.4";
+export const VERSAO = "1.49.5";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -26,7 +26,7 @@ export const VERSAO = "1.49.4";
 export const VERSAO_DATA = "2026-10-16";
 
 /** Nome da entrega, para dar contexto ao número. */
-export const VERSAO_NOME = "O card da lista de projetos sem corte";
+export const VERSAO_NOME = "O prazo no dia certo";
 
 /**
  * Histórico exibido na tela Sobre, do mais recente para o mais antigo.
@@ -35,6 +35,16 @@ export const VERSAO_NOME = "O card da lista de projetos sem corte";
  * esta lista quer saber o que mudou para ele.
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
+  {
+    versao: "1.49.5",
+    data: "2026-10-16",
+    titulo: "O prazo no dia certo",
+    itens: [
+      "O prazo do projeto e o vencimento da tarefa apareciam um dia antes do informado — na tela, no compromisso criado na agenda e na mensagem do aviso. Quem marcava 30/11 via 29/11 em todo lugar, menos no formulário",
+      "O selo VENCIDA também vinha adiantado: a tarefa que vence hoje já aparecia vencida de manhã. Agora só vence depois que o dia passa",
+      "Os avisos de prazo das 07:00 contavam os dias pela data deslocada: o 'vence hoje' chegava na véspera e o 'venceu há 1 dia' no próprio dia do prazo",
+    ],
+  },
   {
     versao: "1.49.4",
     data: "2026-10-16",

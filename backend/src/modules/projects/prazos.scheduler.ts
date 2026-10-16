@@ -2,6 +2,7 @@ import { Injectable, Logger } from "@nestjs/common";
 import { Cron } from "@nestjs/schedule";
 import { PrismaService } from "../../prisma/prisma.service";
 import { NotificacaoDispatcher } from "../notifications/notificacao-dispatcher.service";
+import { dataBR, diasDeCalendario } from "../../common/datas";
 
 /**
  * Vigia dos prazos de projeto e de tarefa.
@@ -58,11 +59,14 @@ export class PrazosProjetoScheduler {
    * Zerar a hora nos dois lados é o que faz "vence amanhã" continuar sendo 1
    * quando a varredura roda às 07:00 e o prazo está gravado às 23:00 — a conta
    * por milissegundos devolveria 0 e o aviso sairia com o marco errado.
+   *
+   * Quem zera é o `diaLocal` de common/datas, e não um `setHours` daqui: o
+   * prazo é coluna DATE e chega em meia-noite UTC, então `setHours(0,...)` em
+   * UTC-3 o jogava no dia anterior. O efeito era o aviso inteiro adiantado um
+   * dia — "vence hoje" na véspera e "venceu há 1 dia" no próprio dia do prazo.
    */
   private diasAte(alvo: Date, hoje: Date): number {
-    const a = new Date(alvo); a.setHours(0, 0, 0, 0);
-    const b = new Date(hoje); b.setHours(0, 0, 0, 0);
-    return Math.round((a.getTime() - b.getTime()) / 86_400_000);
+    return diasDeCalendario(hoje, alvo);
   }
 
   /** O marco cruzado, ou null quando o dia não é de aviso. */
@@ -114,7 +118,7 @@ export class PrazosProjetoScheduler {
         modulo: "projects",
         tipo: "projeto_prazo",
         titulo: `Projeto ${p.titulo} ${marco.texto}`,
-        mensagem: `Prazo: ${p.dataFim!.toLocaleDateString("pt-BR")}.`,
+        mensagem: `Prazo: ${dataBR(p.dataFim)}.`,
         severidade: marco.grave ? "aviso" : "info",
         usuariosAlvo: alvos,
         referenciaTipo: "projeto",
@@ -161,7 +165,7 @@ export class PrazosProjetoScheduler {
         titulo: `Tarefa ${t.titulo} ${marco.texto}`,
         mensagem:
           `Projeto ${t.project.titulo}. ` +
-          `Prazo: ${t.dataVencimento!.toLocaleDateString("pt-BR")}.`,
+          `Prazo: ${dataBR(t.dataVencimento)}.`,
         severidade: marco.grave ? "aviso" : "info",
         usuariosAlvo: alvos,
         referenciaTipo: "projeto",

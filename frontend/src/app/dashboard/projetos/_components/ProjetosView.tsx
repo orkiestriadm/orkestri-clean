@@ -6,6 +6,7 @@ import Topbar from "@/components/layout/Topbar";
 import TaskDetailModal, { type AbaTarefa } from "@/components/ui/TaskDetailModal";
 import HistoricoProjeto from "@/components/ui/HistoricoProjeto";
 import MemberSelector from "@/components/ui/MemberSelector";
+import { formatarDataBR, venceu } from "@/lib/datas";
 import { useAuthStore } from "@/lib/store";
 import { useToastStore } from "@/lib/toast";
 import { api } from "@/lib/api";
@@ -51,7 +52,14 @@ const STATUS_COLORS: Record<string,string> = { PLANEJAMENTO:"var(--accent-violet
  */
 const LARGURA_LISTA_FIXA = 1536;
 
-const dataBR = (iso?: string | null) => iso ? new Date(iso).toLocaleDateString("pt-BR") : "";
+/**
+ * Prazo e vencimento são data-só: formatar e comparar passando por fuso recua um
+ * dia (meia-noite UTC = 21h do dia anterior aqui). O prazo gravado em 30/11
+ * aparecia 29/11 na tela, e a tarefa que vence hoje já nascia VENCIDA. As duas
+ * contas moram em lib/datas, do lado do `formatarDataBR` que resolveu isso no
+ * People meses atrás — esta tela é que não usava nenhum dos dois.
+ */
+const dataBR = (iso?: string | null) => formatarDataBR(iso) ?? "";
 
 function Avatar({ nome, size=28 }: { nome:string; size?:number }) {
   const i = nome.split(" ").map((n:string)=>n[0]).slice(0,2).join("").toUpperCase();
@@ -313,7 +321,7 @@ function KanbanBoard({ project, podeMover, podeEditar, onMoveTask, onNewTask, on
 
               <div className="flex flex-col gap-2 min-h-[72px]">
                 {tasks.map(task => {
-                  const vencida = task.dataVencimento && new Date(task.dataVencimento) < new Date() && task.status !== "CONCLUIDA";
+                  const vencida = venceu(task.dataVencimento) && task.status !== "CONCLUIDA";
                   const qtdKeep = task._count?.registros ?? 0;
                   return (
                     <div key={task.id}
@@ -655,7 +663,7 @@ export default function ProjetosView({ modo }: { modo: ModoProjetos }) {
                         {selected.dataFim && (
                           <>
                             <span className="text-[var(--border-medium)]">•</span>
-                            <span className={!selected.concluido && new Date(selected.dataFim) < new Date() ? "text-[var(--accent-red)]" : ""}>Prazo: {dataBR(selected.dataFim)}</span>
+                            <span className={!selected.concluido && venceu(selected.dataFim) ? "text-[var(--accent-red)]" : ""}>Prazo: {dataBR(selected.dataFim)}</span>
                           </>
                         )}
                         {selected.concluido && (

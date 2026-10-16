@@ -1,5 +1,6 @@
 "use client";
 import { useRef, useState } from "react";
+import { formatarDataBR } from "@/lib/datas";
 import TaskComments from "./TaskComments";
 import TaskKeep from "./TaskKeep";
 import HistoricoProjeto from "./HistoricoProjeto";
@@ -50,7 +51,7 @@ export default function TaskDetailModal({ projectId, task, abaInicial = "detalhe
               <span className="badge badge-violet" style={{ fontSize:10 }}>{STATUS_LABELS[task.status]||task.status}</span>
               {task.dataVencimento && (
                 <span className="badge" style={{ fontSize:10, color:"var(--text-muted)", background:"var(--bg-hover)", border:"1px solid var(--border-subtle)" }}>
-                  {new Date(task.dataVencimento).toLocaleDateString("pt-BR")}
+                  {formatarDataBR(task.dataVencimento)}
                 </span>
               )}
             </div>

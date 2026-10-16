@@ -9,6 +9,7 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { Permissions } from "../auth/permissions.decorator";
 import { PermissionsGuard } from "../auth/permissions.guard";
 import { acharNaOrganizacao } from "../../common/escopo-organizacao";
+import { dataBR, diaLocal } from "../../common/datas";
 import { WebhookService, WebhooksModule } from "../automacoes/webhooks.module";
 import { AutomacaoService, AutomacoesModule } from "../automacoes/automacoes.module";
 import { AuditModule, AuditService } from "../audit/audit.module";
@@ -107,7 +108,11 @@ async function createDeadlineEvent(prisma: PrismaService, project: any, userIds:
   if (!project.dataFim) return;
   // Multi-tenant: Event exige organizationId. Pega do proprio projeto.
   const orgId = project.organizationId;
-  const deadline = new Date(project.dataFim);
+  // `diaLocal`, e não `new Date(...)`: o prazo é coluna DATE e chega em
+  // meia-noite UTC. `setHours` sobre esse valor, num processo em UTC-3, cai no
+  // dia anterior — o prazo de 30/11 virava compromisso de 29/11 na agenda de
+  // todo mundo, e o aviso dizia a data errada junto.
+  const deadline = diaLocal(project.dataFim);
   deadline.setHours(9, 0, 0, 0);
   for (const uid of userIds) {
     await prisma.event.create({
@@ -440,7 +445,9 @@ class ProjectsController {
 
     // Se task tem data de vencimento e responsavel, cria evento na agenda dele
     if (dto.dataVencimento && dto.assigneeId) {
-      const venc = new Date(dto.dataVencimento);
+      // Mesmo motivo do prazo do projeto: data-só vira o dia anterior se passar
+      // por `setHours` direto. Ver `diaLocal` em common/datas.
+      const venc = diaLocal(dto.dataVencimento);
       venc.setHours(9, 0, 0, 0);
       await this.prisma.event.create({
         data: {
@@ -966,9 +973,7 @@ class ProjectsController {
       select: { id: true, nome: true, profile: { select: { whatsapp: true, whatsappVerificado: true } } },
     });
 
-    const prazo = project.dataFim
-      ? ` Prazo: ${new Date(project.dataFim).toLocaleDateString("pt-BR")}.`
-      : "";
+    const prazo = project.dataFim ? ` Prazo: ${dataBR(project.dataFim)}.` : "";
 
     const semWhatsapp: { id: string; nome: string }[] = [];
     for (const m of membros) {
@@ -1134,7 +1139,7 @@ class ProjectsController {
     await this.prisma.event.deleteMany({ where: { origemTipo: "task", origemId: task.id } }).catch(() => {});
     if (!deveExistirAgora) return;
 
-    const venc = new Date(task.dataVencimento!);
+    const venc = diaLocal(task.dataVencimento!);
     venc.setHours(9, 0, 0, 0);
     await this.prisma.event.create({
       data: {
