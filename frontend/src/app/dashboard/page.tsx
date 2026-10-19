@@ -8,13 +8,11 @@ import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { AreaChart, Area, ResponsiveContainer, Tooltip, XAxis } from "recharts";
 import {
-  Headphones, FolderKanban, CheckSquare, Package, FileText,
-  AlertTriangle, AlertCircle, ShieldAlert, Zap, Clock,
-  TrendingUp, TrendingDown, Minus, ArrowRight, ArrowUpRight, ArrowDownRight,
-  CheckCircle2, XCircle, Check, Plus, Loader2, ChevronRight,
-  BarChart3, Users, Receipt, StickyNote, Calendar,
-  Brain, Activity, CircleCheckBig, SmilePlus, Settings2, RefreshCw,
-  LayoutDashboard, Building2, PiggyBank, Eye, EyeOff, LayoutGrid, X, Search,
+  FolderKanban, CheckSquare, Clock,
+  ArrowRight, CheckCircle2, Check, Plus, Loader2, ChevronRight,
+  StickyNote, Calendar, PiggyBank, Wallet, Receipt,
+  Brain, Activity, CircleCheckBig, Settings2, RefreshCw,
+  LayoutDashboard, Eye, EyeOff, LayoutGrid, X, Search, GanttChart,
 } from "lucide-react";
 import { NAV, canAccessModule, canAccessGroup, canAccessItemLevel, homeRoute } from "@/lib/modules";
 import { useRouter } from "next/navigation";
@@ -24,25 +22,18 @@ import { useRouter } from "next/navigation";
 ═══════════════════════════════════════════════ */
 type DashStats = {
   usuarios: { total: number; ativos: number; ultimos: { id: string; nome: string; email: string; criadoEm: string }[] };
-  projetos: { total: number; ativos: number };
-  tasks: { total: number; concluidas: number; hoje: number; progresso: number };
+  projetos: { total: number; ativos: number; concluidosMes: number };
+  tasks: { total: number; concluidas: number; atrasadas: number; hoje: number; progresso: number };
   eventos: { total: number; hoje: number };
   notas: { total: number };
-  chamados?: { abertos: number; urgentes: number; slaRisco: number };
-  contratos?: { vencendo30: number };
-  csat?: { media: number };
-  chamadosPorDia?: { data: string; total: number }[];
-  ativRecentes?: { id: string; numero: number; titulo: string; status: string; prioridade: string; atualizadoEm: string; cliente?: { nome: string; empresa?: string } }[];
+  financeiro: { contasVencendo30: number; contasVencidas: number };
+  orcamento: { itensEstourados: number };
+  tarefasPorDia?: { data: string; total: number }[];
+  tarefasRecentes?: {
+    id: string; titulo: string; status: string; prioridade: string;
+    atualizadoEm: string; projectId: string; project?: { titulo: string };
+  }[];
 };
-type ExecStats = {
-  chamados: { abertos: number; urgentes: number; hoje: number; emAtendimento: number; resolvidosMes: number; slaViolados: number; slaCompliancePct: number; csatMedia: number; csatTotal: number };
-  projetos: { ativos: number; concluidosMes: number };
-  ativos: { total: number; emManutencao: number; garantiaRisco: number; garantiaVencida: number };
-  contratos: { total: number; vigentes: number; vencendo: number; vencidos: number; valorTotal: number };
-  horas: { totalMinutos: number; totalRegistros: number };
-  conhecimento: { artigos: number; visualizacoes: number };
-};
-type AprovStats = { minhasPendentes: number; aguardandoMinhaAprovacao: number; aprovadas: number; rejeitadas: number };
 type DailyTask = { id: string; titulo: string; concluido: boolean; tipo: string };
 
 /* ═══════════════════════════════════════════════
@@ -51,24 +42,37 @@ type DailyTask = { id: string; titulo: string; concluido: boolean; tipo: string 
 type AlertSeverity = "critical" | "high" | "medium" | "low" | "ok";
 type Alert = { severity: AlertSeverity; label: string; href: string | null; icon: any };
 
-function computeAlerts(exec: ExecStats | null, dash: DashStats | null, aprov: AprovStats | null): Alert[] {
+/**
+ * Alertas da Visão Geral, a partir do que o sistema ainda tem.
+ *
+ * Até 18/10/2026 isto lia SLA violado, chamado urgente, aprovação pendente,
+ * garantia de ativo e contrato vencendo — tudo de módulos que saíram. Hoje
+ * olha o que sobrou: tarefa atrasada (Projects), conta vencida ou a vencer
+ * (Finance) e item de orçamento estourado (Budget, dentro do Finance).
+ */
+function computeAlerts(dash: DashStats | null): Alert[] {
   const alerts: Alert[] = [];
-  if (exec?.chamados?.slaViolados > 0)
-    alerts.push({ severity: "critical", label: `${exec.chamados.slaViolados} chamado${exec.chamados.slaViolados > 1 ? "s" : ""} com SLA violado`, href: "/dashboard/chamados", icon: ShieldAlert });
-  if (exec?.chamados?.urgentes > 0)
-    alerts.push({ severity: "high", label: `${exec.chamados.urgentes} chamado${exec.chamados.urgentes > 1 ? "s" : ""} urgente${exec.chamados.urgentes > 1 ? "s" : ""} em aberto`, href: "/dashboard/chamados", icon: Zap });
-  if (aprov && aprov.aguardandoMinhaAprovacao > 0)
-    alerts.push({ severity: "high", label: `${aprov.aguardandoMinhaAprovacao} item${aprov.aguardandoMinhaAprovacao > 1 ? "s" : ""} aguardando sua aprovação`, href: "/dashboard/aprovacoes", icon: Clock });
-  if (exec?.ativos?.garantiaVencida > 0)
-    alerts.push({ severity: "medium", label: `${exec.ativos.garantiaVencida} ativo${exec.ativos.garantiaVencida > 1 ? "s" : ""} com garantia vencida`, href: "/dashboard/ativos", icon: AlertCircle });
-  if (exec?.contratos?.vencendo > 0)
-    alerts.push({ severity: "medium", label: `${exec.contratos.vencendo} contrato${exec.contratos.vencendo > 1 ? "s" : ""} vencendo em 30 dias`, href: "/dashboard/contratos", icon: FileText });
-  if (exec?.ativos?.garantiaRisco > 0)
-    alerts.push({ severity: "low", label: `${exec.ativos.garantiaRisco} garantia${exec.ativos.garantiaRisco > 1 ? "s" : ""} vencendo em 30 dias`, href: "/dashboard/ativos", icon: Package });
-  if (dash?.contratos?.vencendo30 && dash.contratos.vencendo30 > (exec?.contratos?.vencendo ?? 0))
-    alerts.push({ severity: "low", label: `Contratos próximos do vencimento detectados`, href: "/dashboard/contratos", icon: FileText });
+  if ((dash?.financeiro?.contasVencidas ?? 0) > 0) {
+    const n = dash!.financeiro.contasVencidas;
+    alerts.push({ severity: "critical", label: `${n} conta${n > 1 ? "s" : ""} a pagar vencida${n > 1 ? "s" : ""}`, href: "/dashboard/financeiro/contas-a-pagar", icon: Wallet });
+  }
+  if ((dash?.tasks?.atrasadas ?? 0) > 0) {
+    const n = dash!.tasks.atrasadas;
+    alerts.push({ severity: "high", label: `${n} tarefa${n > 1 ? "s" : ""} com prazo estourado`, href: "/dashboard/projetos", icon: Clock });
+  }
+  if ((dash?.orcamento?.itensEstourados ?? 0) > 0) {
+    const n = dash!.orcamento.itensEstourados;
+    alerts.push({ severity: "high", label: `${n} item${n > 1 ? "ns" : ""} de orçamento acima do previsto no mês`, href: "/dashboard/orcamento", icon: PiggyBank });
+  }
+  if ((dash?.financeiro?.contasVencendo30 ?? 0) > 0) {
+    const n = dash!.financeiro.contasVencendo30;
+    alerts.push({ severity: "medium", label: `${n} conta${n > 1 ? "s" : ""} a pagar vencendo em 30 dias`, href: "/dashboard/financeiro/contas-a-pagar", icon: Receipt });
+  }
+  if (dash && dash.eventos.hoje > 0) {
+    alerts.push({ severity: "low", label: `${dash.eventos.hoje} compromisso${dash.eventos.hoje > 1 ? "s" : ""} na sua agenda hoje`, href: "/dashboard/agenda", icon: Calendar });
+  }
   if (alerts.length === 0)
-    alerts.push({ severity: "ok", label: "Todos os indicadores operacionais estão normais", href: null, icon: CheckCircle2 });
+    alerts.push({ severity: "ok", label: "Nenhuma pendência de prazo ou de caixa", href: null, icon: CheckCircle2 });
   return alerts;
 }
 
@@ -82,9 +86,9 @@ function systemStatus(alerts: Alert[]) {
 /* ═══════════════════════════════════════════════
    HELPERS
 ═══════════════════════════════════════════════ */
-const STATUS_LABEL: Record<string, string> = { aberto: "Aberto", em_atendimento: "Em atendimento", aguardando: "Aguardando", resolvido: "Resolvido", fechado: "Fechado", cancelado: "Cancelado" };
-const STATUS_COLOR: Record<string, string> = { aberto: "text-[var(--accent-cyan)]", em_atendimento: "text-[var(--accent-amber)]", aguardando: "text-[var(--accent-violet)]", resolvido: "text-[var(--accent-green)]", fechado: "text-[var(--text-muted)]", cancelado: "text-[var(--accent-red)]" };
-const PRIO_DOT: Record<string, string> = { baixa: "bg-[var(--border-strong)]", media: "bg-[var(--accent-cyan)]", alta: "bg-[var(--accent-amber)]", urgente: "bg-[var(--accent-red)]" };
+const STATUS_LABEL: Record<string, string> = { A_FAZER: "A fazer", EM_ANDAMENTO: "Em andamento", EM_REVISAO: "Em revisão", CONCLUIDA: "Concluída", CANCELADA: "Cancelada" };
+const STATUS_COLOR: Record<string, string> = { A_FAZER: "text-[var(--accent-cyan)]", EM_ANDAMENTO: "text-[var(--accent-amber)]", EM_REVISAO: "text-[var(--accent-violet)]", CONCLUIDA: "text-[var(--accent-green)]", CANCELADA: "text-[var(--text-muted)]" };
+const PRIO_DOT: Record<string, string> = { BAIXA: "bg-[var(--border-strong)]", MEDIA: "bg-[var(--accent-cyan)]", ALTA: "bg-[var(--accent-amber)]", URGENTE: "bg-[var(--accent-red)]" };
 const TIPO_COLORS: Record<string, string> = { TAREFA: "text-[var(--accent-violet)] bg-[var(--accent-violet-dim)] border-[var(--accent-violet)]/10", COMPROMISSO: "text-[var(--accent-amber)] bg-[var(--accent-amber)]/[0.04] border-[var(--accent-amber)]/10", HABITO: "text-[var(--accent-green)] bg-[var(--accent-green)]/[0.04] border-[var(--accent-green)]/10" };
 const SEV_COLORS: Record<AlertSeverity, { dot: string; text: string; bg: string; border: string }> = {
   critical: { dot: "bg-[var(--accent-red)]",    text: "text-[var(--accent-red)]",    bg: "bg-[var(--accent-red)]/[0.04]",    border: "border-[var(--accent-red)]/10" },
@@ -94,11 +98,6 @@ const SEV_COLORS: Record<AlertSeverity, { dot: string; text: string; bg: string;
   ok:       { dot: "bg-[var(--accent-green)]",  text: "text-[var(--accent-green)]",  bg: "bg-[var(--accent-green)]/[0.04]",  border: "border-[var(--accent-green)]/10" },
 };
 
-function fmtMinutes(m: number) {
-  if (!m) return "0h";
-  const h = Math.floor(m / 60), min = m % 60;
-  return min > 0 ? `${h}h ${min}m` : `${h}h`;
-}
 function Sk({ w = "100%", h = 16 }: { w?: string | number; h?: number }) {
   return <div className="skeleton rounded-md" style={{ width: w, height: h }} />;
 }
@@ -240,7 +239,7 @@ function ChartTooltip({ active, payload, label }: any) {
   return (
     <div className="px-3 py-2 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-glass)] backdrop-blur-md text-[12px] shadow-premium-md">
       <div className="text-[var(--text-muted)] font-mono mb-1">{label}</div>
-      <div className="text-[var(--text-primary)] font-semibold">{payload[0].value} chamados</div>
+      <div className="text-[var(--text-primary)] font-semibold">{payload[0].value} tarefa{payload[0].value === 1 ? "" : "s"}</div>
     </div>
   );
 }
@@ -261,8 +260,8 @@ export default function CommandCenter() {
     }
   }, [user, router]);
 
-  // Sem `dashboard:ver` esta tela só produziria 403: ela consulta relatórios,
-  // aprovações e execução orçamentária. Em vez de recusar tudo, manda a pessoa
+  // Sem `dashboard:ver` esta tela só produziria 403: ela consulta projetos,
+  // agenda e execução orçamentária. Em vez de recusar tudo, manda a pessoa
   // para o primeiro módulo que ela realmente tem.
   const podeVerDashboard = canAccessModule(user, "dashboard:ver");
   const primeiroDisponivel = useMemo(() => {
@@ -295,18 +294,12 @@ export default function CommandCenter() {
       }
     }
     const TODOS = [
-                { href: "/dashboard/executivo",  label: "Executivo",    icon: TrendingUp,  accent: "#10b981" },
-                { href: "/dashboard/relatorios", label: "Relatórios",   icon: BarChart3,   accent: "#3b82f6" },
+                { href: "/dashboard/projetos",   label: "Projetos",     icon: FolderKanban, accent: "#a78bfa" },
                 { href: "/dashboard/agenda",     label: "Agenda",       icon: Calendar,    accent: "#f59e0b" },
-                { href: "/dashboard/orcamento",  label: "Orçamento",    icon: PiggyBank,   accent: "#a78bfa" },
-                { href: "/dashboard/clientes",   label: "Clientes",     icon: Building2,   accent: "#06b6d4" },
-                { href: "/dashboard/workforce",  label: "Workforce",    icon: Users,       accent: "#ec4899" },
-                { href: "/dashboard/contratos",  label: "Contratos",    icon: FileText,    accent: "#0ea5e9" },
-                { href: "/dashboard/faturas",    label: "Faturas",      icon: Receipt,     accent: "#34d399" },
-                { href: "/dashboard/gantt",      label: "Linha do Tempo", icon: Activity,  accent: "#f97316" },
                 { href: "/dashboard/keep",       label: "Keep",         icon: StickyNote,  accent: "#8b5cf6" },
-                { href: "/dashboard/conhecimento",label:"Conhecimento", icon: CheckCircle2,accent: "#22d3ee" },
-                { href: "/dashboard/ativos",     label: "Ativos",       icon: Package,     accent: "#64748b" },
+                { href: "/dashboard/gantt",      label: "Linha do Tempo", icon: GanttChart, accent: "#f97316" },
+                { href: "/dashboard/financeiro", label: "Financeiro",   icon: Wallet,      accent: "#34d399" },
+                { href: "/dashboard/orcamento",  label: "Orçamento",    icon: PiggyBank,   accent: "#06b6d4" },
     ];
     return TODOS.filter(m => {
       const g = grupoPorHref.get(m.href);
@@ -318,8 +311,6 @@ export default function CommandCenter() {
   }, [user]);
 
   const [dash, setDash]   = useState<DashStats | null>(null);
-  const [exec, setExec]   = useState<ExecStats | null>(null);
-  const [aprov, setAprov] = useState<AprovStats | null>(null);
   const [daily, setDaily] = useState<DailyTask[]>([]);
   const [loading, setLoading]   = useState(true);
   const [loadingD, setLoadingD] = useState(true);
@@ -351,14 +342,8 @@ export default function CommandCenter() {
   const loadAll = useCallback(async () => {
     setLoading(true);
     try {
-      const [r1, r2, r3] = await Promise.allSettled([
-        api.get("/stats/dashboard"),
-        api.get("/stats/executivo"),
-        api.get("/workflows/requests/stats"),
-      ]);
-      if (r1.status === "fulfilled") setDash(r1.value.data);
-      if (r2.status === "fulfilled") setExec(r2.value.data);
-      if (r3.status === "fulfilled") setAprov(r3.value.data);
+      const r = await api.get("/stats/dashboard");
+      setDash(r.data);
       setLastUpdated(new Date());
     } catch {}
     finally { setLoading(false); }
@@ -398,27 +383,22 @@ export default function CommandCenter() {
   };
 
   const concluidas = daily.filter(t => t.concluido).length;
-  const pendentes  = daily.filter(t => !t.concluido).length;
   const progresso  = daily.length > 0 ? Math.round((concluidas / daily.length) * 100) : 0;
 
-  const chartData = dash?.chamadosPorDia?.map(d => ({
+  const chartData = dash?.tarefasPorDia?.map(d => ({
     name: d.data.slice(5).replace("-", "/"), value: d.total,
   })) ?? [];
 
-  const alerts = computeAlerts(exec, dash, aprov);
+  const alerts = computeAlerts(dash);
   const sysStatus = loading ? "operational" : systemStatus(alerts);
-
-  // SLA compliance color
-  const slaColor = !exec ? "" : exec.chamados.slaCompliancePct >= 90 ? "text-emerald-500" : exec.chamados.slaCompliancePct >= 70 ? "text-amber-500" : "text-red-500";
 
   /* ── Widget config ── */
   const WIDGETS = [
-    { id: "chamados",   label: "Setor: Chamados" },
     { id: "projetos",   label: "Setor: Projetos" },
-    { id: "aprovacoes", label: "Setor: Aprovações" },
-    { id: "ativos",     label: "Setor: Ativos" },
+    { id: "space",      label: "Setor: Space" },
+    { id: "finance",    label: "Setor: Finance" },
     { id: "insights",   label: "IA Insights" },
-    { id: "chart",      label: "Gráfico de Chamados" },
+    { id: "chart",      label: "Gráfico de Tarefas" },
     { id: "atividade",  label: "Atividade Recente" },
     { id: "tasks",      label: "Tasks de Hoje" },
   ];
@@ -557,81 +537,55 @@ export default function CommandCenter() {
           {/* ── Status Bar ── */}
           <StatusBar status={sysStatus} alerts={alerts} lastUpdated={lastUpdated} onRefresh={loadAll} loading={loading} />
 
-          {/* ── 4 Sector Widgets ── */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-
-            {!hidden.chamados && (
-              <SectorWidget
-                title="Chamados" icon={Headphones} accent="#3b82f6" href="/dashboard/chamados"
-                loading={loading}
-                metrics={[
-                  { label: "Abertos",        value: exec?.chamados.abertos       ?? dash?.chamados?.abertos     ?? 0, color: (exec?.chamados.abertos ?? 0) > 0 ? "text-blue-400" : "text-emerald-500" },
-                  { label: "Em Atendimento", value: exec?.chamados.emAtendimento  ?? "—", color: "text-amber-400" },
-                  { label: "Urgentes",       value: exec?.chamados.urgentes       ?? dash?.chamados?.urgentes    ?? 0, color: (exec?.chamados.urgentes ?? 0) > 0 ? "text-orange-400" : "text-emerald-500", badge: (exec?.chamados.urgentes ?? 0) > 0 ? "!" : undefined },
-                  { label: "SLA Violados",   value: exec?.chamados.slaViolados    ?? "—", color: (exec?.chamados.slaViolados ?? 0) > 0 ? "text-red-400" : "text-emerald-500" },
-                  { label: "Resolvidos/mês", value: exec?.chamados.resolvidosMes  ?? "—", color: "text-emerald-400" },
-                  { label: "SLA Compliance", value: exec ? `${exec.chamados.slaCompliancePct}%` : "—", color: slaColor },
-                ]}
-                footer={exec && (
-                  <div className="flex items-center gap-2">
-                    <span className="text-[11px] text-[var(--text-muted)]">CSAT médio:</span>
-                    <span className="text-[13px] font-bold text-amber-400">{exec.chamados.csatMedia > 0 ? `${exec.chamados.csatMedia}★` : "—"}</span>
-                    {exec.chamados.csatTotal > 0 && <span className="text-[10px] text-[var(--text-muted)]">({exec.chamados.csatTotal} aval.)</span>}
-                  </div>
-                )}
-              />
-            )}
+          {/* ── Sector Widgets ── */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
 
             {!hidden.projetos && (
               <SectorWidget
                 title="Projetos" icon={FolderKanban} accent="#a78bfa" href="/dashboard/projetos"
                 loading={loading}
                 metrics={[
-                  { label: "Projetos Ativos",  value: exec?.projetos.ativos       ?? dash?.projetos.ativos       ?? 0, color: "text-violet-400" },
-                  { label: "Concl./mês",       value: exec?.projetos.concluidosMes ?? "—", color: "text-emerald-400" },
+                  { label: "Projetos Ativos",  value: dash?.projetos.ativos        ?? 0, color: "text-violet-400" },
+                  { label: "Concl./mês",       value: dash?.projetos.concluidosMes ?? "—", color: "text-emerald-400" },
                   { label: "Tasks — Total",    value: dash?.tasks.total            ?? "—", color: "text-[var(--text-primary)]" },
                   { label: "Tasks — Concl.",   value: dash?.tasks.concluidas       ?? "—", color: "text-emerald-400" },
+                  { label: "Prazo estourado",  value: dash?.tasks.atrasadas        ?? "—", color: (dash?.tasks.atrasadas ?? 0) > 0 ? "text-red-400" : "text-emerald-500", badge: (dash?.tasks.atrasadas ?? 0) > 0 ? "!" : undefined },
                   { label: "Progresso Geral",  value: dash ? `${dash.tasks.progresso}%` : "—", color: dash && dash.tasks.progresso >= 70 ? "text-emerald-400" : "text-amber-400" },
-                  { label: "Eventos Hoje",     value: dash?.eventos.hoje           ?? "—", color: "text-blue-400" },
                 ]}
               />
             )}
 
-            {!hidden.aprovacoes && (
+            {!hidden.space && (
               <SectorWidget
-                title="Aprovações" icon={CheckSquare} accent="#10b981" href="/dashboard/aprovacoes"
+                title="Space" icon={Calendar} accent="#f59e0b" href="/dashboard/agenda"
                 loading={loading}
                 metrics={[
-                  { label: "Aguard. minha apr.", value: aprov?.aguardandoMinhaAprovacao ?? "—", color: (aprov?.aguardandoMinhaAprovacao ?? 0) > 0 ? "text-orange-400" : "text-emerald-500", badge: (aprov?.aguardandoMinhaAprovacao ?? 0) > 0 ? "AGIR" : undefined },
-                  { label: "Minhas pendentes",   value: aprov?.minhasPendentes           ?? "—", color: "text-amber-400" },
-                  { label: "Aprovadas",           value: aprov?.aprovadas                ?? "—", color: "text-emerald-400" },
-                  { label: "Rejeitadas",          value: aprov?.rejeitadas               ?? "—", color: (aprov?.rejeitadas ?? 0) > 0 ? "text-red-400" : "text-[var(--text-muted)]" },
-                  { label: "Conhecimento",        value: exec?.conhecimento.artigos       ?? "—", color: "text-blue-400" },
-                  { label: "Views / artigos",     value: exec ? `${(exec.conhecimento.visualizacoes || 0).toLocaleString("pt-BR")}` : "—", color: "text-[var(--text-muted)]" },
+                  { label: "Compromissos hoje", value: dash?.eventos.hoje  ?? "—", color: (dash?.eventos.hoje ?? 0) > 0 ? "text-amber-400" : "text-[var(--text-muted)]" },
+                  { label: "Eventos — Total",   value: dash?.eventos.total ?? "—", color: "text-[var(--text-primary)]" },
+                  { label: "Notas no Keep",     value: dash?.notas.total   ?? "—", color: "text-violet-400", href: "/dashboard/keep" },
+                  { label: "Tasks de hoje",     value: dash?.tasks.hoje    ?? "—", color: "text-blue-400", href: "/dashboard/keep" },
+                  { label: "Usuários ativos",   value: dash?.usuarios.ativos ?? "—", color: "text-[var(--text-primary)]" },
+                  { label: "Usuários — Total",  value: dash?.usuarios.total  ?? "—", color: "text-[var(--text-muted)]" },
                 ]}
               />
             )}
 
-            {!hidden.ativos && (
+            {!hidden.finance && (
               <SectorWidget
-                title="Ativos" icon={Package} accent="#06b6d4" href="/dashboard/ativos"
+                title="Finance" icon={Wallet} accent="#34d399" href="/dashboard/financeiro"
                 loading={loading}
                 metrics={[
-                  { label: "Total de Ativos",    value: exec?.ativos.total          ?? "—", color: "text-cyan-400" },
-                  { label: "Em Manutenção",      value: exec?.ativos.emManutencao    ?? "—", color: (exec?.ativos.emManutencao ?? 0) > 0 ? "text-amber-400" : "text-emerald-500" },
-                  { label: "Garantia Vencida",   value: exec?.ativos.garantiaVencida ?? "—", color: (exec?.ativos.garantiaVencida ?? 0) > 0 ? "text-red-400" : "text-emerald-500" },
-                  { label: "Garantia a Vencer",  value: exec?.ativos.garantiaRisco   ?? "—", color: (exec?.ativos.garantiaRisco ?? 0) > 0 ? "text-amber-400" : "text-emerald-500" },
-                  { label: "Contratos Ativos",   value: exec?.contratos.total        ?? "—", color: "text-[var(--text-primary)]" },
-                  { label: "Contratos Vencendo", value: exec?.contratos.vencendo     ?? dash?.contratos?.vencendo30 ?? "—", color: (exec?.contratos.vencendo ?? 0) > 0 ? "text-amber-400" : "text-emerald-500" },
+                  { label: "Contas vencidas",    value: dash?.financeiro.contasVencidas   ?? "—", color: (dash?.financeiro.contasVencidas ?? 0) > 0 ? "text-red-400" : "text-emerald-500", badge: (dash?.financeiro.contasVencidas ?? 0) > 0 ? "AGIR" : undefined, href: "/dashboard/financeiro/contas-a-pagar" },
+                  { label: "Vencendo em 30d",    value: dash?.financeiro.contasVencendo30 ?? "—", color: (dash?.financeiro.contasVencendo30 ?? 0) > 0 ? "text-amber-400" : "text-emerald-500", href: "/dashboard/financeiro/contas-a-pagar" },
+                  { label: "Orçamento estourado", value: dash?.orcamento.itensEstourados  ?? "—", color: (dash?.orcamento.itensEstourados ?? 0) > 0 ? "text-orange-400" : "text-emerald-500", href: "/dashboard/orcamento" },
                 ]}
-                footer={exec && exec.contratos.valorTotal > 0 && (
-                  <div className="flex items-center gap-2">
-                    <span className="text-[11px] text-[var(--text-muted)]">Valor contratos:</span>
-                    <span className="text-[12px] font-bold text-cyan-400">
-                      {exec.contratos.valorTotal.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 })}
-                    </span>
-                  </div>
-                )}
+                footer={
+                  <Link href="/dashboard/financeiro/gastos" className="flex items-center gap-2 no-underline">
+                    <Receipt size={12} className="text-[var(--text-muted)]" />
+                    <span className="text-[11px] text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors">Meus Gastos</span>
+                    <ArrowRight size={11} className="text-[var(--text-muted)] ml-auto" />
+                  </Link>
+                }
               />
             )}
           </div>
@@ -650,14 +604,14 @@ export default function CommandCenter() {
                 <div className="card-premium p-6 h-full">
                   <div className="flex items-center justify-between mb-6">
                     <div>
-                      <h3 className="text-[14px] font-bold text-[var(--text-primary)]">Volume de Chamados</h3>
-                      <p className="text-[12px] text-[var(--text-muted)] mt-0.5 font-mono">Novos chamados — últimos 14 dias</p>
+                      <h3 className="text-[14px] font-bold text-[var(--text-primary)]">Tarefas Concluídas</h3>
+                      <p className="text-[12px] text-[var(--text-muted)] mt-0.5 font-mono">Nos seus projetos — últimos 14 dias</p>
                     </div>
-                    <Link href="/dashboard/chamados" className="flex items-center gap-1 text-[12px] font-medium text-[var(--accent-violet)] hover:opacity-80 transition-opacity">
-                      Ver todos <ChevronRight size={13} />
+                    <Link href="/dashboard/projetos" className="flex items-center gap-1 text-[12px] font-medium text-[var(--accent-violet)] hover:opacity-80 transition-opacity">
+                      Ver projetos <ChevronRight size={13} />
                     </Link>
                   </div>
-                  {loading ? <Sk h={200} /> : chartData.length > 0 ? (
+                  {loading ? <Sk h={200} /> : chartData.some(d => d.value > 0) ? (
                     <div className="h-[200px]">
                       <ResponsiveContainer width="100%" height="100%">
                         <AreaChart data={chartData} margin={{ top: 10, right: 0, left: 0, bottom: 0 }}>
@@ -678,23 +632,23 @@ export default function CommandCenter() {
                     </div>
                   ) : (
                     <div className="h-[200px] flex items-center justify-center text-[13px] text-[var(--text-muted)] border border-dashed border-[var(--border-medium)] rounded-xl">
-                      Sem dados suficientes para gerar o gráfico
+                      Nenhuma tarefa concluída nos últimos 14 dias
                     </div>
                   )}
 
-                  {/* Horas summary */}
-                  {exec && (
+                  {/* Resumo da linha do tempo */}
+                  {dash && (
                     <div className="mt-4 pt-4 border-t border-[var(--border-subtle)] flex items-center gap-6">
                       <div>
-                        <div className="text-[10px] text-[var(--text-muted)] uppercase font-mono tracking-wide">Horas apontadas/mês</div>
-                        <div className="text-[15px] font-bold text-[var(--text-primary)]">{fmtMinutes(exec.horas.totalMinutos)}</div>
+                        <div className="text-[10px] text-[var(--text-muted)] uppercase font-mono tracking-wide">Concluídas no período</div>
+                        <div className="text-[15px] font-bold text-[var(--text-primary)]">{chartData.reduce((s, d) => s + d.value, 0)}</div>
                       </div>
                       <div>
-                        <div className="text-[10px] text-[var(--text-muted)] uppercase font-mono tracking-wide">Registros</div>
-                        <div className="text-[15px] font-bold text-[var(--text-primary)]">{exec.horas.totalRegistros}</div>
+                        <div className="text-[10px] text-[var(--text-muted)] uppercase font-mono tracking-wide">Projetos ativos</div>
+                        <div className="text-[15px] font-bold text-[var(--text-primary)]">{dash.projetos.ativos}</div>
                       </div>
-                      <Link href="/dashboard/apontamentos" className="ml-auto text-[12px] text-[var(--accent-violet)] hover:opacity-80 transition-opacity flex items-center gap-1">
-                        Ver horas <ArrowRight size={12} />
+                      <Link href="/dashboard/gantt" className="ml-auto text-[12px] text-[var(--accent-violet)] hover:opacity-80 transition-opacity flex items-center gap-1">
+                        Linha do tempo <ArrowRight size={12} />
                       </Link>
                     </div>
                   )}
@@ -714,34 +668,34 @@ export default function CommandCenter() {
                     <Activity size={14} className="text-[var(--text-muted)]" />
                     <h3 className="text-[13px] font-bold text-[var(--text-primary)]">Atividade Recente</h3>
                   </div>
-                  <Link href="/dashboard/chamados" className="text-[12px] font-medium text-[var(--accent-violet)] hover:opacity-80 transition-opacity">
+                  <Link href="/dashboard/projetos" className="text-[12px] font-medium text-[var(--accent-violet)] hover:opacity-80 transition-opacity">
                     Ver todos
                   </Link>
                 </div>
                 {loading ? (
                   <div className="p-5 space-y-3">{Array(5).fill(0).map((_, i) => <Sk key={i} h={36} />)}</div>
-                ) : !dash?.ativRecentes?.length ? (
+                ) : !dash?.tarefasRecentes?.length ? (
                   <div className="flex-1 flex items-center justify-center text-[13px] text-[var(--text-muted)] p-8 text-center">
                     Nenhuma atividade recente.
                   </div>
                 ) : (
                   <div className="divide-y divide-[var(--border-subtle)]">
-                    {dash.ativRecentes.map(c => (
-                      <Link key={c.id} href={`/dashboard/chamados/${c.id}`}
+                    {dash.tarefasRecentes.map(t => (
+                      <Link key={t.id} href={`/dashboard/projetos/${t.projectId}`}
                         className="group flex items-start gap-4 p-4 hover:bg-[var(--bg-hover)] transition-colors block no-underline">
-                        <div className={cn("w-2 h-2 rounded-full mt-1.5 shrink-0", PRIO_DOT[c.prioridade] ?? "bg-[var(--border-strong)]")} />
+                        <div className={cn("w-2 h-2 rounded-full mt-1.5 shrink-0", PRIO_DOT[t.prioridade] ?? "bg-[var(--border-strong)]")} />
                         <div className="flex-1 min-w-0">
                           <div className="text-[13px] font-medium text-[var(--text-primary)] truncate group-hover:text-[var(--accent-violet)] transition-colors">
-                            #{c.numero} {c.titulo}
+                            {t.titulo}
                           </div>
                           <div className="text-[11px] text-[var(--text-muted)] mt-0.5 truncate">
-                            {c.cliente?.empresa || c.cliente?.nome || "Sem empresa"}
+                            {t.project?.titulo || "Sem projeto"}
                           </div>
                         </div>
                         <div className="text-right shrink-0">
-                          <div className={cn("text-[10px] font-bold uppercase tracking-wider", STATUS_COLOR[c.status])}>{STATUS_LABEL[c.status]}</div>
+                          <div className={cn("text-[10px] font-bold uppercase tracking-wider", STATUS_COLOR[t.status])}>{STATUS_LABEL[t.status] ?? t.status}</div>
                           <div className="text-[10px] text-[var(--text-faint)] font-mono mt-1">
-                            {new Date(c.atualizadoEm).toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })}
+                            {new Date(t.atualizadoEm).toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })}
                           </div>
                         </div>
                       </Link>

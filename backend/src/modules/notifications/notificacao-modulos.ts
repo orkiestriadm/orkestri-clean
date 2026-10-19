@@ -10,20 +10,18 @@
 
 /** Módulos que podem originar notificação. Os ids são os mesmos do `NAV` do
  *  frontend (`frontend/src/lib/modules.tsx`), para que a tela de configuração
- *  fale a mesma língua do menu que o usuário já conhece. */
+ *  fale a mesma língua do menu que o usuário já conhece.
+ *
+ *  A redução de escopo de 18/10/2026 tirou daqui fleet, people, service,
+ *  assets, quality, approvals, supply e relations. `budget` continua separado
+ *  de `finance` embora o Orçamento agora viva dentro do Finance no menu: são
+ *  avisos de natureza diferente (estouro de orçamento x título a pagar), e
+ *  quem já desligou um não desligou o outro. */
 export const MODULOS_NOTIFICAVEIS = [
-  { id: "fleet", label: "Fleet — Frotas" },
-  { id: "people", label: "People — Pessoas" },
-  { id: "service", label: "Service — Chamados" },
   { id: "projects", label: "Projects — Projetos" },
   { id: "budget", label: "Budget — Orçamento" },
   { id: "finance", label: "Finance — Financeiro" },
-  { id: "assets", label: "Assets — Ativos" },
-  { id: "quality", label: "Quality — Procedimentos" },
-  { id: "approvals", label: "Approvals — Aprovações" },
   { id: "space", label: "Space — Agenda" },
-  { id: "supply", label: "Supply — Suprimentos" },
-  { id: "relations", label: "Relations — Clientes" },
   { id: "core", label: "Core — Administração" },
 ] as const;
 
@@ -36,15 +34,18 @@ export function moduloValido(m: string): boolean {
 }
 
 /**
- * `UserProfile.modulos` guarda slugs LEGADOS em português ("frota", "projetos")
- * enquanto o menu e as preferências usam os ids de produto em inglês
- * ("fleet", "projects").
+ * `UserProfile.modulos` guarda slugs LEGADOS em português ("projetos") enquanto
+ * o menu e as preferências usam os ids de produto em inglês ("projects").
  *
  * Sem este mapa a comparação falharia em silêncio — e falhar em silêncio numa
  * regra de permissão é o pior desfecho possível: ninguém vê o erro, a pessoa
- * simplesmente para de receber (ou passa a receber o que não devia). Medido em
- * homologação: a única pessoa com módulo restrito tem `["frota"]`, que não bate
- * com nenhum id de produto.
+ * simplesmente para de receber (ou passa a receber o que não devia).
+ *
+ * Os slugs dos módulos removidos SEGUEM no mapa de propósito: contas antigas
+ * ainda têm `["frota"]` ou `["chamados"]` gravado em `UserProfile.modulos`, e
+ * `normalizarModulo` precisa continuar traduzindo-os para que `modulosVisiveis`
+ * devolva um id reconhecível em vez do slug cru. Eles simplesmente não casam
+ * com nenhum módulo vivo — o que é o resultado correto.
  */
 const SLUG_LEGADO_PARA_MODULO: Record<string, string> = {
   frota: "fleet",

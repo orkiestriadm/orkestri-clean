@@ -14,20 +14,27 @@ describe("notificacao-modulos", () => {
     // as preferências usam ids de produto em inglês. Sem esta ponte a
     // comparação falharia calada.
     it("converte slug legado para id de produto", () => {
-      expect(normalizarModulo("frota")).toBe("fleet");
-      expect(normalizarModulo("frotas")).toBe("fleet");
       expect(normalizarModulo("projetos")).toBe("projects");
-      expect(normalizarModulo("chamados")).toBe("service");
       expect(normalizarModulo("orcamento")).toBe("budget");
+      expect(normalizarModulo("financeiro")).toBe("finance");
+      expect(normalizarModulo("agenda")).toBe("space");
     });
 
     it("mantém id que já é de produto", () => {
-      expect(normalizarModulo("fleet")).toBe("fleet");
-      expect(normalizarModulo("service")).toBe("service");
+      expect(normalizarModulo("projects")).toBe("projects");
+      expect(normalizarModulo("finance")).toBe("finance");
+    });
+
+    // Os slugs dos módulos removidos em 18/10/2026 seguem no mapa: contas
+    // antigas ainda os têm gravados, e traduzi-los devolve um id reconhecível
+    // em vez do slug cru. Eles simplesmente não casam com módulo vivo.
+    it("ainda traduz slug de módulo removido, que deixa de ser válido", () => {
+      expect(normalizarModulo("frota")).toBe("fleet");
+      expect(moduloValido("fleet")).toBe(false);
     });
 
     it("é indiferente a caixa e espaços", () => {
-      expect(normalizarModulo("  FROTA  ")).toBe("fleet");
+      expect(normalizarModulo("  PROJETOS  ")).toBe("projects");
     });
 
     it("devolve vazio para entrada vazia", () => {
@@ -51,8 +58,8 @@ describe("notificacao-modulos", () => {
     });
 
     it("restringe e normaliza ao mesmo tempo", () => {
-      expect(modulosVisiveis('["frota"]')).toEqual(["fleet"]);
-      expect(modulosVisiveis('["frota","projetos"]')).toEqual(["fleet", "projects"]);
+      expect(modulosVisiveis('["projetos"]')).toEqual(["projects"]);
+      expect(modulosVisiveis('["projetos","financeiro"]')).toEqual(["projects", "finance"]);
     });
   });
 
@@ -76,7 +83,7 @@ describe("notificacao-modulos", () => {
 
   describe("moduloValido", () => {
     it("aceita id conhecido e recusa inventado", () => {
-      expect(moduloValido("fleet")).toBe(true);
+      expect(moduloValido("projects")).toBe(true);
       expect(moduloValido("inventado")).toBe(false);
     });
   });

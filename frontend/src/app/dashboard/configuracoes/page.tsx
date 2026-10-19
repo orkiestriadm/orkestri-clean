@@ -12,7 +12,6 @@ import { sounds } from "@/lib/soundEngine";
 type AlertCfg = { id: string; minutos: number; ativo: boolean; emoji: string; titulo: string; mensagem: string; };
 type PwdReq    = { id: string; titulo: string; mensagem: string; lida: boolean; criadoEm: string; };
 type NotifHist = { id: string; tipo: string; titulo: string; mensagem?: string; lida: boolean; criadoEm: string; };
-type SlaRegra  = { id: string; nome: string; prioridade: string; categoria: string | null; prazoRespostaH: number; prazoResolucaoH: number; ativo: boolean; };
 
 const SOUND_ITEMS = [
   { key:"reminder60", label:"60 minutos antes", desc:"1 bip suave" },
@@ -26,7 +25,6 @@ const TABS = [
   { key:"sons",          label:"Sons" },
   { key:"solicitacoes",  label:"Solicitacoes de Senha" },
   { key:"historico",     label:"Historico" },
-  { key:"sla",           label:"SLA" },
   { key:"integracoes",   label:"Integrações" },
   { key:"sistema",       label:"Sistema" },
   { key:"seguranca",     label:"Seguranca" },
@@ -49,14 +47,6 @@ export default function ConfiguracoesPage() {
   const [saving, setSaving]   = useState(false);
   const [novoAlerta, setNovoAlerta] = useState<Partial<AlertCfg>|null>(null);
 
-  // SLA state
-  const [slaRegras, setSlaRegras]   = useState<SlaRegra[]>([]);
-  const [slaEditId, setSlaEditId]   = useState<string|null>(null);
-  const [slaEditD,  setSlaEditD]    = useState<Partial<SlaRegra>>({});
-  const [slaNew,    setSlaNew]      = useState(false);
-  const [slaNewD,   setSlaNewD]     = useState<Partial<SlaRegra>>({ prioridade:"media", prazoRespostaH:4, prazoResolucaoH:24 });
-  const [slaMsg,    setSlaMsg]      = useState("");
-
   const showMsg = (m: string, ms = 3000) => { setMsg(m); setTimeout(() => setMsg(""), ms); };
 
   useEffect(() => {
@@ -64,7 +54,6 @@ export default function ConfiguracoesPage() {
     api.get("/alert-configs").then(r => setConfigs(r.data)).catch(() => {});
     api.get("/notifications/password-requests").then(r => setReqs(r.data)).catch(() => {});
     api.get("/notifications/history").then(r => setHist(r.data)).catch(() => {});
-    api.get("/sla/regras").then(r => setSlaRegras(r.data)).catch(() => {});
   }, [user]);
 
   const saveCfg = async (id: string, data: Partial<AlertCfg>) => {
@@ -106,47 +95,6 @@ export default function ConfiguracoesPage() {
     await api.post("/notifications/test-alert");
     sounds.notification(volume);
     showMsg("Alerta de teste criado e som tocado!");
-  };
-
-  const slaShowMsg = (m: string) => { setSlaMsg(m); setTimeout(() => setSlaMsg(""), 3500); };
-
-  const slaCreate = async () => {
-    if (!slaNewD.nome?.trim() || !slaNewD.prioridade) return slaShowMsg("Preencha nome e prioridade");
-    try {
-      const { data } = await api.post("/sla/regras", {
-        nome: slaNewD.nome.trim(), prioridade: slaNewD.prioridade,
-        categoria: slaNewD.categoria || null,
-        prazoRespostaH: Number(slaNewD.prazoRespostaH) || 4,
-        prazoResolucaoH: Number(slaNewD.prazoResolucaoH) || 24,
-      });
-      setSlaRegras(p => [...p, data]); setSlaNew(false);
-      setSlaNewD({ prioridade:"media", prazoRespostaH:4, prazoResolucaoH:24 });
-      slaShowMsg("Regra criada!");
-    } catch (e: any) { slaShowMsg(e?.response?.data?.message || "Erro ao criar"); }
-  };
-
-  const slaSave = async (id: string) => {
-    try {
-      const { data } = await api.put("/sla/regras/" + id, slaEditD);
-      setSlaRegras(p => p.map(r => r.id === id ? { ...r, ...data } : r));
-      setSlaEditId(null); slaShowMsg("Salvo!");
-    } catch (e: any) { slaShowMsg(e?.response?.data?.message || "Erro ao salvar"); }
-  };
-
-  const slaDelete = async (id: string) => {
-    if (!confirm("Remover esta regra?")) return;
-    try {
-      await api.delete("/sla/regras/" + id);
-      setSlaRegras(p => p.filter(r => r.id !== id)); slaShowMsg("Regra removida");
-    } catch { slaShowMsg("Erro ao remover"); }
-  };
-
-  const slaRecalcular = async () => {
-    if (!confirm("Recalcular SLA de todos os chamados abertos com base nas regras atuais?")) return;
-    try {
-      const { data } = await api.post("/sla/recalcular");
-      slaShowMsg(data.message);
-    } catch { slaShowMsg("Erro ao recalcular"); }
   };
 
   if (!user?.isMaster) return (
@@ -330,125 +278,6 @@ export default function ConfiguracoesPage() {
             )}
           </div>
         )}
-
-        {/* SLA */}
-        {tab === "sla" && (() => {
-          const priColor: Record<string,string> = { baixa:"var(--accent-green)", media:"var(--accent-cyan)", alta:"var(--accent-amber)", critica:"var(--accent-red)" };
-          const priLabel: Record<string,string> = { baixa:"Baixa", media:"Media", alta:"Alta", critica:"Critica" };
-          return (
-            <div style={{ maxWidth:720 }}>
-              <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:20 }}>
-                <div>
-                  <h3 style={{ fontFamily:"var(--font-display)", fontSize:15, fontWeight:700, margin:0 }}>Regras de SLA</h3>
-                  <p style={{ fontSize:12, color:"var(--text-muted)", marginTop:3 }}>Prazos de resposta e resolucao por prioridade. Aplicados automaticamente em novos chamados.</p>
-                </div>
-                <div style={{ display:"flex", gap:8, alignItems:"center" }}>
-                  {slaMsg && <span style={{ fontSize:12, color: slaMsg.includes("Erro")||slaMsg.includes("Falha") ? "var(--accent-red)" : "var(--accent-green)" }}>{slaMsg}</span>}
-                  <button className="btn btn-ghost" style={{ fontSize:11 }} onClick={slaRecalcular}>Recalcular SLA</button>
-                  <button className="btn btn-violet" style={{ fontSize:11 }} onClick={() => { setSlaNew(true); setSlaEditId(null); }}>Nova regra</button>
-                </div>
-              </div>
-
-              {/* New rule form */}
-              {slaNew && (
-                <div className="card" style={{ padding:"16px 18px", marginBottom:14, borderLeft:"3px solid var(--accent-violet)" }}>
-                  <div style={{ fontSize:12, fontWeight:600, color:"var(--accent-violet)", marginBottom:12, fontFamily:"var(--font-mono)" }}>NOVA REGRA</div>
-                  <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr 80px 80px", gap:10, marginBottom:12 }}>
-                    <div>
-                      <label style={{ fontSize:10, color:"var(--text-muted)", fontFamily:"var(--font-mono)", display:"block", marginBottom:4 }}>NOME</label>
-                      <input className="input-o" placeholder="Ex: SLA Alta" value={slaNewD.nome||""} onChange={e=>setSlaNewD(p=>({...p,nome:e.target.value}))} />
-                    </div>
-                    <div>
-                      <label style={{ fontSize:10, color:"var(--text-muted)", fontFamily:"var(--font-mono)", display:"block", marginBottom:4 }}>PRIORIDADE</label>
-                      <select className="input-o" value={slaNewD.prioridade||"media"} onChange={e=>setSlaNewD(p=>({...p,prioridade:e.target.value}))}>
-                        {["baixa","media","alta","critica"].map(p=><option key={p} value={p}>{priLabel[p]}</option>)}
-                      </select>
-                    </div>
-                    <div>
-                      <label style={{ fontSize:10, color:"var(--text-muted)", fontFamily:"var(--font-mono)", display:"block", marginBottom:4 }}>CATEGORIA (opcional)</label>
-                      <input className="input-o" placeholder="Vazio = todas" value={slaNewD.categoria||""} onChange={e=>setSlaNewD(p=>({...p,categoria:e.target.value||null}))} />
-                    </div>
-                    <div>
-                      <label style={{ fontSize:10, color:"var(--text-muted)", fontFamily:"var(--font-mono)", display:"block", marginBottom:4 }}>RESPOSTA h</label>
-                      <input className="input-o" type="number" min={1} value={slaNewD.prazoRespostaH||4} onChange={e=>setSlaNewD(p=>({...p,prazoRespostaH:Number(e.target.value)}))} />
-                    </div>
-                    <div>
-                      <label style={{ fontSize:10, color:"var(--text-muted)", fontFamily:"var(--font-mono)", display:"block", marginBottom:4 }}>RESOLUCAO h</label>
-                      <input className="input-o" type="number" min={1} value={slaNewD.prazoResolucaoH||24} onChange={e=>setSlaNewD(p=>({...p,prazoResolucaoH:Number(e.target.value)}))} />
-                    </div>
-                  </div>
-                  <div style={{ display:"flex", justifyContent:"flex-end", gap:8 }}>
-                    <button className="btn btn-ghost" style={{ fontSize:11 }} onClick={() => setSlaNew(false)}>Cancelar</button>
-                    <button className="btn btn-violet" style={{ fontSize:11 }} onClick={slaCreate}>Criar</button>
-                  </div>
-                </div>
-              )}
-
-              {/* Rules table */}
-              {slaRegras.length === 0 ? (
-                <div className="empty-state"><p style={{ color:"var(--text-muted)" }}>Nenhuma regra configurada</p></div>
-              ) : (
-                <div className="card" style={{ overflow:"hidden" }}>
-                  {/* Header */}
-                  <div style={{ display:"grid", gridTemplateColumns:"1fr 100px 100px 80px 80px 80px 80px", gap:8, padding:"10px 16px", borderBottom:"1px solid var(--border-subtle)", background:"var(--bg-hover)" }}>
-                    {["NOME","PRIORIDADE","CATEGORIA","RESPOSTA","RESOLUCAO","STATUS","AÇÕES"].map(h=>(
-                      <div key={h} style={{ fontSize:10, color:"var(--text-muted)", fontFamily:"var(--font-mono)", fontWeight:600 }}>{h}</div>
-                    ))}
-                  </div>
-                  {slaRegras.map((r, i) => {
-                    const isEdit = slaEditId === r.id;
-                    const loc = isEdit ? { ...r, ...slaEditD } : r;
-                    const col = priColor[r.prioridade] || "var(--text-muted)";
-                    return (
-                      <div key={r.id} style={{ borderBottom: i < slaRegras.length-1 ? "1px solid var(--border-subtle)" : "none" }}>
-                        <div style={{ display:"grid", gridTemplateColumns:"1fr 100px 100px 80px 80px 80px 80px", gap:8, padding:"12px 16px", alignItems:"center", opacity:r.ativo?1:0.5 }}>
-                          {isEdit ? (
-                            <input className="input-o" style={{ fontSize:12, padding:"4px 8px" }} value={loc.nome} onChange={e=>setSlaEditD(p=>({...p,nome:e.target.value}))} />
-                          ) : (
-                            <span style={{ fontSize:13, color:"var(--text-primary)", fontWeight:500 }}>{r.nome}</span>
-                          )}
-                          <span className="badge" style={{ fontSize:10, background:col+"15", color:col, border:`1px solid ${col}30`, width:"fit-content" }}>{priLabel[r.prioridade]||r.prioridade}</span>
-                          <span style={{ fontSize:12, color:"var(--text-muted)" }}>{r.categoria || "—"}</span>
-                          {isEdit ? (
-                            <input className="input-o" type="number" min={1} style={{ fontSize:12, padding:"4px 8px" }} value={loc.prazoRespostaH} onChange={e=>setSlaEditD(p=>({...p,prazoRespostaH:Number(e.target.value)}))} />
-                          ) : (
-                            <span style={{ fontSize:13, fontFamily:"var(--font-mono)", color:"var(--accent-cyan)" }}>{r.prazoRespostaH}h</span>
-                          )}
-                          {isEdit ? (
-                            <input className="input-o" type="number" min={1} style={{ fontSize:12, padding:"4px 8px" }} value={loc.prazoResolucaoH} onChange={e=>setSlaEditD(p=>({...p,prazoResolucaoH:Number(e.target.value)}))} />
-                          ) : (
-                            <span style={{ fontSize:13, fontFamily:"var(--font-mono)", color:"var(--accent-violet)" }}>{r.prazoResolucaoH}h</span>
-                          )}
-                          <button className={`btn ${r.ativo?"btn-ghost":"btn-violet"}`} style={{ fontSize:10, padding:"3px 8px" }} onClick={() => slaSave(r.id) /* will toggle via edit */||slaSave /* dummy */}>
-                            {/* toggle via direct update */}
-                            <span style={{ fontSize:10 }} onClick={async e => { e.stopPropagation(); try { const {data} = await api.put("/sla/regras/"+r.id,{ativo:!r.ativo}); setSlaRegras(p=>p.map(x=>x.id===r.id?{...x,...data}:x)); } catch{} }}>{r.ativo?"Ativo":"Inativo"}</span>
-                          </button>
-                          <div style={{ display:"flex", gap:4 }}>
-                            {isEdit ? (
-                              <>
-                                <button className="btn btn-ghost" style={{ fontSize:10, padding:"3px 8px" }} onClick={()=>{setSlaEditId(null);setSlaEditD({});}}>✕</button>
-                                <button className="btn btn-violet" style={{ fontSize:10, padding:"3px 8px" }} onClick={()=>slaSave(r.id)}>✓</button>
-                              </>
-                            ) : (
-                              <>
-                                <button className="btn btn-ghost" style={{ fontSize:10, padding:"3px 8px" }} onClick={()=>{setSlaEditId(r.id);setSlaEditD({});setSlaNew(false);}}>Editar</button>
-                                <button className="btn btn-ghost" style={{ fontSize:10, padding:"3px 8px", color:"var(--accent-red)" }} onClick={()=>slaDelete(r.id)}>Del</button>
-                              </>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-
-              <div style={{ marginTop:16, padding:"12px 16px", background:"var(--bg-hover)", borderRadius:8, fontSize:12, color:"var(--text-muted)" }}>
-                <strong style={{ color:"var(--text-secondary)" }}>Como funciona:</strong> ao abrir um chamado, o sistema busca a regra com prioridade + categoria correspondentes. Se nao houver regra especifica de categoria, usa a regra generica da prioridade. Os campos <em>sla_resposta_at</em> e <em>sla_resolucao_at</em> sao definidos automaticamente.
-              </div>
-            </div>
-          );
-        })()}
 
         {/* HISTORICO */}
         {tab === "seguranca" && <SegurancaConfig />}

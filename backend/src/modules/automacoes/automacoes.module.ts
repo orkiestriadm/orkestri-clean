@@ -3,10 +3,8 @@ import { Allow, IsArray, IsBoolean, IsOptional, IsString } from "class-validator
 import {
   Module, Controller, Get, Post, Put, Patch, Delete,
   Body, Param, Query, UseGuards, Req, Logger,
-  Injectable, NotFoundException, BadRequestException, ForbiddenException,
-  OnModuleInit,
+  Injectable, BadRequestException, ForbiddenException,
 } from "@nestjs/common";
-import { ScheduleModule, Cron, CronExpression } from "@nestjs/schedule";
 import { AuthGuard } from "@nestjs/passport";
 import { PrismaService } from "../../prisma/prisma.service";
 import { Permissions } from "../auth/permissions.decorator";
@@ -25,18 +23,26 @@ interface CondicaoGrupo { itens: CondicaoItem[]; }
 interface CondicoesConfig { grupos: CondicaoGrupo[]; }
 interface Acao { tipo: string; [key: string]: any; }
 
+/**
+ * Gatilhos e ações sobreviventes à redução de escopo de 18/10/2026.
+ *
+ * O motor de automação continua sendo infraestrutura do Core: é ele que o
+ * Projects chama em `projeto_criado`, `tarefa_criada`, `tarefa_atribuida` e
+ * `tarefa_concluida`, e o Users em `usuario_criado`. O que saiu foram os
+ * gatilhos e as ações dos módulos removidos — chamado_*, contrato_*,
+ * workflow_*, ativo_* e as ações que escreviam em chamado (atribuir
+ * atendente, mudar status/prioridade, escalar, tags, comentário, criar
+ * chamado), além do cron diário que varria contratos e garantias.
+ *
+ * Automações já gravadas no banco com um gatilho ou ação que saiu continuam
+ * lá, mas nunca mais casam: `executar()` só busca pelo gatilho recebido, e
+ * uma ação desconhecida cai no `{ ignorado: true }` do fim do switch. Não
+ * quebram nada — ficam inertes.
+ */
 const TRIGGERS_VALIDOS = [
-  // Chamados
-  "chamado_criado", "chamado_atualizado", "chamado_resolvido", "chamado_fechado", "chamado_sla_risco",
-  // Contratos
-  "contrato_criado", "contrato_atualizado", "contrato_vencendo", "contrato_vencido", "contrato_renovado",
   // Projetos & Tarefas
   "projeto_criado", "projeto_concluido", "projeto_cancelado",
   "tarefa_criada", "tarefa_concluida", "tarefa_atribuida",
-  // Workflows / Aprovações
-  "workflow_pendente", "workflow_aprovado", "workflow_rejeitado",
-  // Ativos
-  "ativo_garantia_vencendo", "ativo_offline", "ativo_online",
   // Usuários
   "usuario_criado",
 ];
@@ -46,10 +52,8 @@ const PRIORIDADE_TO_ENUM: Record<string, string> = {
 };
 
 const ACOES_VALIDAS = new Set([
-  "atribuir_atendente", "mudar_status", "mudar_prioridade", "escalar_chamado",
-  "adicionar_tag", "remover_tag", "adicionar_comentario", "criar_notificacao",
-  "enviar_whatsapp", "enviar_email", "criar_tarefa", "criar_chamado",
-  "criar_evento_agenda", "alterar_status_projeto",
+  "criar_notificacao", "enviar_whatsapp", "enviar_email",
+  "criar_tarefa", "criar_evento_agenda", "alterar_status_projeto",
 ]);
 
 const MAX_AUTOMACAO_DEPTH = 3;
@@ -60,22 +64,6 @@ function validateAcoes(acoes: any[]): void {
     if (!a || typeof a !== "object") throw new BadRequestException(`Ação #${i + 1} inválida`);
     if (!ACOES_VALIDAS.has(a.tipo)) throw new BadRequestException(`Ação #${i + 1}: tipo "${a.tipo}" desconhecido`);
     switch (a.tipo) {
-      case "atribuir_atendente":
-        if (!a.atendenteId) throw new BadRequestException(`Ação #${i + 1}: atendenteId obrigatório`);
-        break;
-      case "mudar_status":
-        if (!a.status) throw new BadRequestException(`Ação #${i + 1}: status obrigatório`);
-        break;
-      case "mudar_prioridade":
-        if (!a.prioridade) throw new BadRequestException(`Ação #${i + 1}: prioridade obrigatória`);
-        break;
-      case "adicionar_tag":
-      case "remover_tag":
-        if (!a.tag) throw new BadRequestException(`Ação #${i + 1}: tag obrigatória`);
-        break;
-      case "adicionar_comentario":
-        if (!a.texto?.trim()) throw new BadRequestException(`Ação #${i + 1}: texto obrigatório`);
-        break;
       case "criar_notificacao":
         if (!a.titulo?.trim()) throw new BadRequestException(`Ação #${i + 1}: titulo obrigatório`);
         if (a.para === "usuario" && !a.usuarioId) throw new BadRequestException(`Ação #${i + 1}: usuarioId obrigatório`);
@@ -93,9 +81,6 @@ function validateAcoes(acoes: any[]): void {
         if (!a.projectId) throw new BadRequestException(`Ação #${i + 1}: projectId obrigatório`);
         if (!a.titulo?.trim()) throw new BadRequestException(`Ação #${i + 1}: titulo obrigatório`);
         break;
-      case "criar_chamado":
-        if (!a.titulo_chamado?.trim()) throw new BadRequestException(`Ação #${i + 1}: titulo_chamado obrigatório`);
-        break;
       case "criar_evento_agenda":
         if (!a.titulo_evento?.trim()) throw new BadRequestException(`Ação #${i + 1}: titulo_evento obrigatório`);
         break;
@@ -107,7 +92,7 @@ function validateAcoes(acoes: any[]): void {
   });
 }
 
-// ── AutomacaoService (exported for use in ChamadosModule and others) ──────────
+// ── AutomacaoService (exportado para Projects e Users) ───────────────────────
 @Injectable()
 export class AutomacaoService {
   private readonly logger = new Logger(AutomacaoService.name);
@@ -119,7 +104,7 @@ export class AutomacaoService {
   ) {}
   private get db() { return this.prisma as any; }
 
-  /** Called by ChamadosModule/ContratosModule after relevant events */
+  /** Chamado por ProjectsModule e UsersModule depois dos eventos relevantes */
   async executar(trigger: string, context: Record<string, any>): Promise<void> {
     // Loop guard — automation actions can re-trigger automations indirectly
     const depth = Number(context.__depth || 0);
@@ -227,107 +212,9 @@ export class AutomacaoService {
   }
 
   private async executarAcao(acao: Acao, ctx: Record<string, any>, tplCache: Record<string, string>): Promise<any> {
-    const chamadoId = ctx.id;
+    const contextoId = ctx.id;
 
     switch (acao.tipo) {
-      case "atribuir_atendente":
-        if (chamadoId && acao.atendenteId) {
-          await this.db.chamado.update({
-            where: { id: chamadoId },
-            data: { atendenteId: acao.atendenteId, status: "em_atendimento" },
-          });
-          return { acao: "atribuir_atendente", atendenteId: acao.atendenteId };
-        }
-        break;
-
-      case "mudar_status":
-        if (chamadoId && acao.status) {
-          const data: any = { status: acao.status };
-          if (acao.status === "resolvido") data.resolvidoEm = new Date();
-          if (acao.status === "fechado")   data.fechadoEm   = new Date();
-          await this.db.chamado.update({ where: { id: chamadoId }, data });
-          return { acao: "mudar_status", status: acao.status };
-        }
-        break;
-
-      case "mudar_prioridade":
-        if (chamadoId && acao.prioridade) {
-          await this.db.chamado.update({ where: { id: chamadoId }, data: { prioridade: acao.prioridade } });
-          return { acao: "mudar_prioridade", prioridade: acao.prioridade };
-        }
-        break;
-
-      case "escalar_chamado": {
-        const novaPrioridade = acao.prioridade || "critica";
-        if (chamadoId) {
-          await this.db.chamado.update({ where: { id: chamadoId }, data: { prioridade: novaPrioridade } });
-          if (acao.notificar !== false) {
-            const titulo   = await this.interpolate(`Chamado escalado: {{titulo}} (#{{numero}})`, ctx, tplCache);
-            const mensagem = await this.interpolate(`Prioridade alterada para ${novaPrioridade}`, ctx, tplCache);
-            // Scope masters to this organization
-            const masters = await this.db.userRole.findMany({
-              where: {
-                role: { isMaster: true },
-                ...(ctx.organizationId ? { user: { organizationId: ctx.organizationId } } : {}),
-              },
-              select: { userId: true },
-            });
-            for (const m of masters) {
-              await this.db.notification.create({
-                data: { id: crypto.randomUUID(), userId: m.userId, tipo: "automacao", titulo, mensagem, referenciaTipo: "chamado", referenciaId: chamadoId },
-              }).catch(() => {});
-            }
-          }
-          return { acao: "escalar_chamado", prioridade: novaPrioridade };
-        }
-        break;
-      }
-
-      case "adicionar_tag":
-        if (chamadoId && acao.tag) {
-          const c = await this.db.chamado.findUnique({ where: { id: chamadoId }, select: { tags: true } });
-          if (c) {
-            const existing = (c.tags || "").split(",").map((t: string) => t.trim()).filter(Boolean);
-            if (!existing.includes(acao.tag)) {
-              await this.db.chamado.update({ where: { id: chamadoId }, data: { tags: [...existing, acao.tag].join(",") } });
-            }
-          }
-          return { acao: "adicionar_tag", tag: acao.tag };
-        }
-        break;
-
-      case "remover_tag":
-        if (chamadoId && acao.tag) {
-          const c = await this.db.chamado.findUnique({ where: { id: chamadoId }, select: { tags: true } });
-          if (c) {
-            const updated = (c.tags || "").split(",").map((t: string) => t.trim()).filter((t: string) => t && t !== acao.tag);
-            await this.db.chamado.update({ where: { id: chamadoId }, data: { tags: updated.join(",") || null } });
-          }
-          return { acao: "remover_tag", tag: acao.tag };
-        }
-        break;
-
-      case "adicionar_comentario": {
-        const texto = await this.interpolate(acao.texto || "", ctx, tplCache);
-        if (chamadoId && texto) {
-          let userId = ctx.solicitanteId;
-          if (!userId && ctx.organizationId) {
-            const role = await this.db.userRole.findFirst({
-              where: { role: { isMaster: true }, user: { organizationId: ctx.organizationId } },
-              select: { userId: true },
-            });
-            userId = role?.userId;
-          }
-          if (userId) {
-            await this.db.chamadoComentario.create({
-              data: { id: crypto.randomUUID(), chamadoId, userId, texto, interno: acao.interno !== false },
-            });
-          }
-          return { acao: "adicionar_comentario", interno: acao.interno !== false };
-        }
-        break;
-      }
-
       case "criar_notificacao": {
         const titulo   = await this.interpolate(acao.titulo   || "Automação executada", ctx, tplCache);
         const mensagem = await this.interpolate(acao.mensagem || "", ctx, tplCache);
@@ -336,7 +223,7 @@ export class AutomacaoService {
           await this.db.notification.create({
             data: {
               id: crypto.randomUUID(), userId, tipo: "automacao",
-              titulo, mensagem, referenciaTipo: "chamado", referenciaId: chamadoId,
+              titulo, mensagem, referenciaTipo: ctx.referenciaTipo || "projeto", referenciaId: contextoId,
             },
           }).catch(() => {});
         }
@@ -380,7 +267,7 @@ export class AutomacaoService {
 
       case "criar_tarefa": {
         if (!acao.projectId || !acao.titulo) break;
-        const criadoPorId = ctx.atendenteId || ctx.solicitanteId;
+        const criadoPorId = ctx.criadoPorId || ctx.solicitanteId || ctx.userId;
         if (!criadoPorId) break;
         const titulo    = await this.interpolate(acao.titulo, ctx, tplCache);
         const descricao = acao.descricao ? await this.interpolate(acao.descricao, ctx, tplCache) : null;
@@ -389,12 +276,16 @@ export class AutomacaoService {
           data: {
             id:          crypto.randomUUID(),
             projectId:   acao.projectId,
-            assigneeId:  acao.assigneeId || ctx.atendenteId || null,
+            assigneeId:  acao.assigneeId || null,
             criadoPorId,
             titulo,
             descricao,
             status:      "A_FAZER",
-            priority:    acao.prioridade ? (PRIORIDADE_TO_ENUM[acao.prioridade] || "MEDIA") : prioMap,
+            // `prioridade`, não `priority`: o campo em `Task` sempre se chamou
+            // assim. Escrito errado, o Prisma recusava o create e a ação
+            // `criar_tarefa` falhava inteira — em silêncio, porque o
+            // `executar()` engole a exceção no log da execução.
+            prioridade:  acao.prioridade ? (PRIORIDADE_TO_ENUM[acao.prioridade] || "MEDIA") : prioMap,
           },
         });
         return { acao: "criar_tarefa", taskId: task.id, titulo };
@@ -419,37 +310,6 @@ export class AutomacaoService {
           if (ok) enviados++;
         }
         return { acao: "enviar_email", enviados };
-      }
-
-      // ── Criar chamado a partir de outra automação ────────────────────────────
-      case "criar_chamado": {
-        if (!acao.titulo_chamado || !ctx.organizationId) break;
-        const titulo    = await this.interpolate(acao.titulo_chamado, ctx, tplCache);
-        const descricao = acao.descricao
-          ? await this.interpolate(acao.descricao, ctx, tplCache)
-          : "Chamado criado automaticamente pela automação.";
-        const criadoPorId = ctx.solicitanteId || ctx.atendenteId;
-        if (!criadoPorId) break;
-        const count  = await this.db.chamado.count({ where: { organizationId: ctx.organizationId } });
-        const numero = count + 1;
-        const prio = (acao.prioridade || ctx.prioridade || "media") as string;
-        const slaMap: Record<string, number> = { baixa: 72, media: 24, alta: 8, critica: 2 };
-        const novoChamado = await this.db.chamado.create({
-          data: {
-            id:              crypto.randomUUID(),
-            numero,
-            titulo,
-            descricao,
-            prioridade:      prio,
-            status:          "aberto",
-            slaHoras:        slaMap[prio] ?? 24,
-            solicitanteId:   criadoPorId,
-            atendenteId:     acao.atendenteId || null,
-            categoriaId:     acao.categoriaId || null,
-            organizationId:  ctx.organizationId,
-          },
-        });
-        return { acao: "criar_chamado", chamadoId: novoChamado.id, numero };
       }
 
       // ── Criar evento na agenda dos targets ───────────────────────────────────
@@ -499,8 +359,8 @@ export class AutomacaoService {
   private async resolveTargets(acao: Acao, ctx: Record<string, any>): Promise<string[]> {
     const targets: string[] = [];
     if (acao.para === "solicitante" && ctx.solicitanteId) targets.push(ctx.solicitanteId);
-    if (acao.para === "atendente"   && ctx.atendenteId)   targets.push(ctx.atendenteId);
-    if (acao.para === "usuario"     && acao.usuarioId)    targets.push(acao.usuarioId);
+    if (acao.para === "responsavel"  && ctx.assigneeId)   targets.push(ctx.assigneeId);
+    if (acao.para === "usuario"      && acao.usuarioId)   targets.push(acao.usuarioId);
     if (acao.para === "masters") {
       const masters = await this.db.userRole.findMany({
         where: {
@@ -514,130 +374,23 @@ export class AutomacaoService {
     return [...new Set(targets)] as string[];
   }
 
+  /**
+   * Interpola as variáveis do contexto no texto.
+   *
+   * O `cache` ficou na assinatura porque `dryRunAcao` e `executarAcao` o
+   * compartilham por execução. Hoje nenhuma variável exige ida ao banco — as
+   * que exigiam (`{{cliente}}`, `{{atendente}}`, `{{solicitante}}`, que liam
+   * o chamado) saíram com o módulo de Chamados.
+   */
   private async interpolate(text: string, ctx: Record<string, any>, cache: Record<string, string>): Promise<string> {
-    let result = text
+    return text
       .replace(/\{\{titulo\}\}/g,     ctx.titulo     || "")
       .replace(/\{\{numero\}\}/g,     String(ctx.numero || ""))
       .replace(/\{\{prioridade\}\}/g, ctx.prioridade  || "")
       .replace(/\{\{status\}\}/g,     ctx.status      || "")
-      .replace(/\{\{categoria\}\}/g,  ctx.categoria   || "")
+      .replace(/\{\{projeto\}\}/g,    ctx.projetoNome || ctx.projeto || "")
       .replace(/\{\{data\}\}/g,       new Date().toLocaleDateString("pt-BR"))
       .replace(/\{\{hora\}\}/g,       new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }));
-
-    if (ctx.id && (result.includes("{{cliente}}") || result.includes("{{atendente}}") || result.includes("{{solicitante}}"))) {
-      if (cache.cliente === undefined) {
-        const chamado = await this.db.chamado.findUnique({
-          where: { id: ctx.id },
-          select: {
-            cliente:    { select: { nome: true } },
-            atendente:  { select: { nome: true } },
-            solicitante:{ select: { nome: true } },
-          },
-        }).catch(() => null);
-        cache.cliente     = chamado?.cliente?.nome     || "";
-        cache.atendente   = chamado?.atendente?.nome   || "";
-        cache.solicitante = chamado?.solicitante?.nome || "";
-      }
-      result = result
-        .replace(/\{\{cliente\}\}/g,     cache.cliente)
-        .replace(/\{\{atendente\}\}/g,   cache.atendente)
-        .replace(/\{\{solicitante\}\}/g, cache.solicitante);
-    }
-    return result;
-  }
-}
-
-// ── Cron job: contratos / garantias ───────────────────────────────────────────
-@Injectable()
-export class AutomacaoCronService {
-  private readonly logger = new Logger(AutomacaoCronService.name);
-  constructor(
-    private prisma: PrismaService,
-    private automacao: AutomacaoService,
-    private webhook: WebhookService,
-  ) {}
-  private get db() { return this.prisma as any; }
-
-  // Daily at 08:00 server time — checks expiring/expired contracts and warranties
-  @Cron(CronExpression.EVERY_DAY_AT_8AM)
-  async dispararTriggersDiarios() {
-    this.logger.log("Disparando triggers diários (contratos / garantias)…");
-    await Promise.all([
-      this.handleContratosVencendo(),
-      this.handleContratosVencidos(),
-      this.handleAtivosGarantiaVencendo(),
-    ]);
-  }
-
-  private async handleContratosVencendo() {
-    const now      = new Date();
-    const in30Days = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
-    const contratos = await this.db.contrato.findMany({
-      where: {
-        ativo: true,
-        vigenciaFim: { gte: now, lte: in30Days },
-        status: { notIn: ["rescindido", "suspenso"] },
-      },
-      include: { cliente: { select: { nome: true } } },
-    });
-    for (const c of contratos) {
-      const diasRestantes = Math.ceil((c.vigenciaFim.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-      const payload = {
-        id: c.id, numero: c.numero, titulo: c.titulo,
-        clienteId: c.clienteId, clienteNome: c.cliente?.nome || "",
-        status: c.status, vigenciaFim: c.vigenciaFim,
-        diasRestantes,
-        organizationId: c.organizationId,
-      };
-      await this.automacao.executar("contrato_vencendo", payload).catch(() => {});
-      this.webhook.fire("contrato.vencendo", payload, c.organizationId).catch(() => {});
-    }
-    this.logger.log(`contrato_vencendo: ${contratos.length} contratos`);
-  }
-
-  private async handleContratosVencidos() {
-    const now = new Date();
-    const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-    // Vencidos no último dia (evita reenviar diariamente para todos os antigos)
-    const contratos = await this.db.contrato.findMany({
-      where: {
-        ativo: true,
-        vigenciaFim: { gte: yesterday, lt: now },
-        status: { notIn: ["rescindido", "suspenso"] },
-      },
-      include: { cliente: { select: { nome: true } } },
-    });
-    for (const c of contratos) {
-      const payload = {
-        id: c.id, numero: c.numero, titulo: c.titulo,
-        clienteId: c.clienteId, clienteNome: c.cliente?.nome || "",
-        status: c.status, vigenciaFim: c.vigenciaFim,
-        organizationId: c.organizationId,
-      };
-      await this.automacao.executar("contrato_vencido", payload).catch(() => {});
-      this.webhook.fire("contrato.vencido", payload, c.organizationId).catch(() => {});
-    }
-    this.logger.log(`contrato_vencido: ${contratos.length} contratos`);
-  }
-
-  private async handleAtivosGarantiaVencendo() {
-    const now      = new Date();
-    const in30Days = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
-    const ativos = await this.db.ativo.findMany({
-      where: { dataGarantiaFim: { gte: now, lte: in30Days } },
-      select: { id: true, codigo: true, nome: true, dataGarantiaFim: true, organizationId: true },
-    });
-    for (const a of ativos) {
-      const diasRestantes = Math.ceil((a.dataGarantiaFim.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-      const payload = {
-        id: a.id, codigo: a.codigo, nome: a.nome,
-        dataGarantiaFim: a.dataGarantiaFim, diasRestantes,
-        organizationId: a.organizationId,
-      };
-      await this.automacao.executar("ativo_garantia_vencendo", payload).catch(() => {});
-      this.webhook.fire("ativo.garantia_vencendo", payload, a.organizationId).catch(() => {});
-    }
-    this.logger.log(`ativo_garantia_vencendo: ${ativos.length} ativos`);
   }
 }
 
@@ -777,8 +530,8 @@ class AutomacoesController {
   async testar(@Param("id") id: string, @Body() body: TestarAutomacoesDto, @Req() req: any) {
     const auto = await acharNaOrganizacao(this.db.automacao, id, req, "Automacao nao encontrada");
     const ctx = body.contexto || {
-      prioridade: "alta", status: "aberto", categoria: "teste",
-      titulo: "Chamado de teste", numero: 99, tags: "",
+      prioridade: "alta", status: "EM_ANDAMENTO",
+      titulo: "Projeto de teste", numero: 99,
     };
     const match = this.automacaoService.avaliarCondicoes(auto.condicoes, ctx);
     const grupos = this.normalizeGrupos(auto.condicoes);
@@ -824,11 +577,11 @@ class AutomacoesController {
 
 // ── Module ────────────────────────────────────────────────────────────────────
 @Module({
-  imports:     [NotificationsModule, WebhooksModule, ScheduleModule.forRoot()],
+  imports:     [NotificationsModule, WebhooksModule],
   controllers: [AutomacoesController],
-  providers:   [AutomacaoService, AutomacaoCronService],
+  providers:   [AutomacaoService],
   // Re-export NotificationsModule so consumers of AutomacaoService (Projects,
-  // Users, Chamados, etc.) inherit WhatsAppService/EmailService transparently.
+  // Users) inherit WhatsAppService/EmailService transparently.
   exports:     [AutomacaoService, NotificationsModule],
 })
 export class AutomacoesModule {}

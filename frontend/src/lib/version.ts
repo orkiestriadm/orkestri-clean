@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "1.35.0";
+export const VERSAO = "2.0.0";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -23,10 +23,10 @@ export const VERSAO = "1.35.0";
  * Não é gerada no build: `new Date()` no bundle muda a cada compilação, e duas
  * builds do mesmo código pareceriam versões diferentes.
  */
-export const VERSAO_DATA = "2026-09-13";
+export const VERSAO_DATA = "2026-10-18";
 
 /** Nome da entrega, para dar contexto ao número. */
-export const VERSAO_NOME = "Renovação do teste pelo WhatsApp";
+export const VERSAO_NOME = "Orkiestri enxuto: Space, Projects e Finance";
 
 /**
  * Histórico exibido na tela Sobre, do mais recente para o mais antigo.
@@ -35,6 +35,20 @@ export const VERSAO_NOME = "Renovação do teste pelo WhatsApp";
  * esta lista quer saber o que mudou para ele.
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
+  {
+    versao: "2.0.0",
+    data: "2026-10-18",
+    titulo: "Orkiestri enxuto: Space, Projects e Finance",
+    itens: [
+      "O sistema passou a ter três produtos: Space (Agenda e Keep), Projects (Projetos, Concluídos e Linha do Tempo) e Finance (Financeiro, Meus Gastos, Contas a Pagar e Orçamento). O Orçamento, que era um produto separado no menu, passou a viver dentro do Finance",
+      "Saíram do sistema: People (Pessoas e Meu RH), Fleet (Frotas e Reserva de Carros), Compliance (Obrigações), Strategy (Gestão Estratégica), Service (Chamados, Catálogo, Horas, CSAT), Assets (Ativos, CMDB, Monitoramento), Relations (Clientes, Contratos, Faturas), Supply (Fornecedores), Quality (Conhecimento, Processos, Capacidade), Approvals (Aprovações) e o portal do cliente",
+      "Saíram também os painéis Executivo, IA Operacional, Relatórios e Workforce: eles mostravam números de chamados, ativos, contratos e aprovações, e sem esses módulos ficariam vazios",
+      "A Visão Geral foi refeita sobre o que o sistema tem agora: projetos ativos e tarefas com prazo estourado, compromissos e notas do dia, contas a pagar vencidas ou a vencer e itens de orçamento acima do previsto. O gráfico passou a mostrar tarefas concluídas nos últimos 14 dias",
+      "A busca global (Ctrl+K) agora procura projetos, tarefas e pessoas",
+      "As Automações continuam, agora em Administração: elas disparam quando um projeto é criado, uma tarefa é criada, atribuída ou concluída e quando um usuário é criado",
+      "WhatsApp, e-mail e a integração de calendário com o Microsoft 365 continuam como estavam",
+    ],
+  },
   {
     versao: "1.35.0",
     data: "2026-09-13",

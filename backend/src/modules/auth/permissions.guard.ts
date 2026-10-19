@@ -1,7 +1,6 @@
 import { Injectable, CanActivate, ExecutionContext } from "@nestjs/common";
 import { Reflector } from "@nestjs/core";
 import { PERMISSIONS_KEY } from "./permissions.decorator";
-import { expandLegacyPermissions } from "../../common/permission-aliases";
 
 @Injectable()
 export class PermissionsGuard implements CanActivate {
@@ -21,11 +20,14 @@ export class PermissionsGuard implements CanActivate {
     if (user.isMaster) return true;
     if (Array.isArray(user.permissions) && user.permissions.includes("*")) return true;
 
-    // Expande as permissões legadas (`recurso:acao`) para o formato novo
-    // (`module.entity.action`) antes de comparar. Sem isso, quem tem
-    // `colaboradores:ver` perderia acesso às rotas do People, que declaram
-    // `people.employee.view`. Ver common/permission-aliases.ts.
-    const userPerms = expandLegacyPermissions(user.permissions || []);
+    // Comparação por string exata, no formato `recurso:acao`.
+    //
+    // Até 18/10/2026 havia aqui uma tradução de permissões legadas
+    // (`colaboradores:*` → `people.*`), necessária porque papéis customizados
+    // de cada cliente não recebem a semente de `ROLE_DEFAULTS`. Ela existia só
+    // para o módulo People; com ele fora, todo o catálogo voltou a ser
+    // `recurso:acao` e a tradução deixou de ter o que traduzir.
+    const userPerms = new Set<string>(user.permissions || []);
     return required.every(p => userPerms.has(p));
   }
 }

@@ -49,14 +49,14 @@ const usuarioPadrao = (over: any = {}) => ({
 });
 
 const prefPadrao = (over: any = {}) => ({
-  userId: USER, modulo: "fleet",
+  userId: USER, modulo: "finance",
   sistema: true, whatsapp: true, email: false,
   severidadeMin: "info",
   ...over,
 });
 
 const pedido = (over: any = {}) => ({
-  organizationId: ORG, modulo: "fleet", tipo: "teste",
+  organizationId: ORG, modulo: "finance", tipo: "teste",
   titulo: "T", mensagem: "M", ...over,
 });
 
@@ -130,7 +130,7 @@ describe("NotificacaoDispatcher", () => {
     const { db, criadas } = montarPrisma({ prefs: [prefPadrao()], users: [usuarioPadrao()] });
     const d = new NotificacaoDispatcher(db);
     await d.despachar(pedido());
-    expect(criadas[0]).toEqual(expect.objectContaining({ modulo: "fleet" }));
+    expect(criadas[0]).toEqual(expect.objectContaining({ modulo: "finance" }));
   });
 
   it("chave de de-dup inclui canal e usuário", async () => {
@@ -185,13 +185,13 @@ describe("NotificacaoDispatcher", () => {
     });
   });
 
-  describe("enfileirarDireto — usado por Chamados, Automações e Workflows", () => {
+  describe("enfileirarDireto — usado pelas Automações", () => {
     it("enfileira sem consultar preferência", async () => {
       const { db, enfileiradas } = montarPrisma();
       const d = new NotificacaoDispatcher(db);
       const ok = await d.enfileirarDireto({
         organizationId: ORG, canal: "whatsapp", destino: "5511988887777",
-        modulo: "service", tipo: "chamado_aberto", titulo: "Chamado", mensagem: "*texto*",
+        modulo: "projects", tipo: "projeto_criado", titulo: "Projeto", mensagem: "*texto*",
       });
       expect(ok).toBe(true);
       expect(db.notificacaoPreferencia.findMany).not.toHaveBeenCalled();
@@ -203,7 +203,7 @@ describe("NotificacaoDispatcher", () => {
       const d = new NotificacaoDispatcher(db);
       expect(await d.enfileirarDireto({
         organizationId: ORG, canal: "whatsapp", destino: "",
-        modulo: "service", tipo: "x", titulo: "t", mensagem: "m",
+        modulo: "projects", tipo: "x", titulo: "t", mensagem: "m",
       })).toBe(false);
     });
   });

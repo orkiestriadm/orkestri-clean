@@ -9,14 +9,6 @@ import { LEMBRETE_ANTECEDENCIA_MS, precisaLembrete, montarLembrete, codigoRenova
 import { WhatsAppService } from "../notifications/whatsapp.service";
 import { EmailService } from "../notifications/email.service";
 import { AutomacaoService } from "../automacoes/automacoes.module";
-import {
-  PEOPLE_PERMISSION_CATALOG, PEOPLE_PERMISSOES_LEITURA, PEOPLE_PERMISSOES_AUDITOR,
-} from "../people/people.permissions";
-import {
-  COMPLIANCE_PERMISSION_CATALOG, COMPLIANCE_PERMISSOES_LEITURA,
-  COMPLIANCE_PERMISSOES_OPERACAO, COMPLIANCE_PERMISSOES_AUDITOR,
-} from "../compliance/compliance.permissions";
-import { ESTRATEGICO_PERMISSION_CATALOG, ESTRATEGICO_PREFIXO } from "../estrategico/estrategico.permissions";
 import * as bcrypt from "bcryptjs";
 
 // Todas as permissões do sistema no formato "recurso:acao"
@@ -32,24 +24,11 @@ const ALL_PERMISSIONS: { recurso: string; acao: string; descricao: string }[] = 
   { recurso: "projetos",      acao: "editar",      descricao: "Editar projetos" },
   { recurso: "projetos",      acao: "deletar",     descricao: "Deletar projetos" },
   { recurso: "projetos",      acao: "gerenciar",   descricao: "Gerenciar membros e configurações do projeto" },
-  { recurso: "crm",           acao: "ver",         descricao: "Ver CRM / clientes" },
-  { recurso: "crm",           acao: "criar",       descricao: "Criar negócios/leads" },
-  { recurso: "crm",           acao: "editar",      descricao: "Editar negócios/leads" },
-  { recurso: "crm",           acao: "deletar",     descricao: "Deletar negócios/leads" },
   { recurso: "keep",          acao: "ver",         descricao: "Ver notas" },
   { recurso: "keep",          acao: "criar",       descricao: "Criar notas" },
   { recurso: "keep",          acao: "editar",      descricao: "Editar notas" },
   { recurso: "keep",          acao: "deletar",     descricao: "Deletar notas" },
   { recurso: "gantt",         acao: "ver",         descricao: "Ver linha do tempo" },
-  { recurso: "relatorios",    acao: "ver",         descricao: "Ver relatórios" },
-  { recurso: "chamados",      acao: "ver",         descricao: "Ver chamados" },
-  { recurso: "chamados",      acao: "criar",       descricao: "Abrir chamados" },
-  { recurso: "chamados",      acao: "editar",      descricao: "Editar chamados" },
-  { recurso: "chamados",      acao: "fechar",      descricao: "Fechar/resolver chamados" },
-  { recurso: "chamados",      acao: "atribuir",    descricao: "Atribuir chamados a atendentes" },
-  // Exigida por chamados.module.ts e ausente do catalogo: sem ela a rota de
-  // exclusao so funcionava para master.
-  { recurso: "chamados",      acao: "excluir",     descricao: "Excluir chamados" },
   { recurso: "whatsapp",      acao: "ver",         descricao: "Ver configurações WhatsApp" },
   { recurso: "whatsapp",      acao: "configurar",  descricao: "Configurar integração WhatsApp" },
   { recurso: "usuarios",      acao: "ver",         descricao: "Ver usuários" },
@@ -62,88 +41,30 @@ const ALL_PERMISSIONS: { recurso: string; acao: string; descricao: string }[] = 
   { recurso: "configuracoes", acao: "editar",      descricao: "Editar configurações do sistema" },
   { recurso: "historico",     acao: "ver",         descricao: "Ver histórico de auditoria" },
   { recurso: "setores",       acao: "gerenciar",   descricao: "Gerenciar setores" },
-  { recurso: "clientes",      acao: "ver",         descricao: "Ver clientes" },
-  { recurso: "clientes",      acao: "criar",       descricao: "Criar clientes" },
-  { recurso: "clientes",      acao: "editar",      descricao: "Editar clientes" },
-  { recurso: "clientes",      acao: "deletar",     descricao: "Deletar clientes" },
   { recurso: "orcamento",     acao: "ver",         descricao: "Ver orçamentos" },
   { recurso: "orcamento",     acao: "planejar",    descricao: "Planejar orçamentos (CAPEX/OPEX)" },
   { recurso: "orcamento",     acao: "lancar",      descricao: "Lançar valores realizados" },
   { recurso: "orcamento",     acao: "aprovar",     descricao: "Aprovar orçamentos" },
   { recurso: "orcamento",     acao: "admin",       descricao: "Administrar ciclos e configurações" },
-  { recurso: "fornecedores",  acao: "ver",         descricao: "Ver cadastro de fornecedores" },
-  { recurso: "fornecedores",  acao: "criar",       descricao: "Cadastrar novos fornecedores" },
-  { recurso: "fornecedores",  acao: "editar",      descricao: "Editar fornecedores" },
-  { recurso: "fornecedores",  acao: "excluir",     descricao: "Excluir fornecedores" },
-  // Relatórios extras
-  { recurso: "relatorios",    acao: "exportar",    descricao: "Exportar relatórios em PDF/Excel" },
-  { recurso: "relatorios",    acao: "criar",       descricao: "Criar relatórios personalizados" },
-  // Ativos corporativos
-  { recurso: "ativos",        acao: "ver",         descricao: "Ver ativos corporativos" },
-  { recurso: "ativos",        acao: "criar",       descricao: "Cadastrar novos ativos" },
-  { recurso: "ativos",        acao: "editar",      descricao: "Editar ativos" },
-  { recurso: "ativos",        acao: "excluir",     descricao: "Excluir ativos" },
-  { recurso: "ativos",        acao: "mover",       descricao: "Realocar ativos entre setores" },
   // Solicitações corporativas
   { recurso: "solicitacoes",  acao: "ver",         descricao: "Ver solicitações corporativas" },
   { recurso: "solicitacoes",  acao: "criar",       descricao: "Abrir solicitações" },
   { recurso: "solicitacoes",  acao: "editar",      descricao: "Editar solicitações" },
   { recurso: "solicitacoes",  acao: "aprovar",     descricao: "Aprovar/rejeitar solicitações" },
-  // Colaboradores (Workforce)
-  { recurso: "colaboradores", acao: "ver",         descricao: "Ver colaboradores da organização" },
-  { recurso: "colaboradores", acao: "criar",       descricao: "Criar colaboradores" },
-  { recurso: "colaboradores", acao: "editar",      descricao: "Editar colaboradores" },
-  { recurso: "colaboradores", acao: "excluir",     descricao: "Remover colaboradores" },
-  // Base de conhecimento
-  { recurso: "conhecimento",  acao: "ver",         descricao: "Ver base de conhecimento" },
-  { recurso: "conhecimento",  acao: "criar",       descricao: "Criar artigos" },
-  { recurso: "conhecimento",  acao: "editar",      descricao: "Editar artigos" },
-  { recurso: "conhecimento",  acao: "excluir",     descricao: "Excluir artigos" },
-  { recurso: "conhecimento",  acao: "publicar",    descricao: "Publicar artigos na base" },
-  // Portal do cliente
-  { recurso: "portal",        acao: "acessar",     descricao: "Acessar portal do cliente" },
-  // SLA
-  { recurso: "sla",           acao: "ver",         descricao: "Ver configurações SLA" },
-  { recurso: "sla",           acao: "gerenciar",   descricao: "Gerenciar regras e acordos SLA" },
   // Automações
   { recurso: "automacoes",    acao: "ver",         descricao: "Ver automações configuradas" },
   { recurso: "automacoes",    acao: "criar",       descricao: "Criar automações" },
   { recurso: "automacoes",    acao: "editar",      descricao: "Editar automações" },
   { recurso: "automacoes",    acao: "excluir",     descricao: "Excluir automações" },
-  // Monitoramento operacional
-  { recurso: "monitoramento", acao: "ver",         descricao: "Ver monitoramento de serviços e hardware" },
-  { recurso: "monitoramento", acao: "gerenciar",   descricao: "Configurar monitoramento e OSA" },
   // A tela inicial checa dashboard:ver; sem a permissao no catalogo ela nunca
   // poderia ser concedida.
   { recurso: "dashboard",     acao: "ver",         descricao: "Ver a tela inicial" },
-  { recurso: "meurh",         acao: "ver",         descricao: "Ver o próprio RH (Meu RH)" },
   // Financeiro
   { recurso: "financeiro",    acao: "ver",         descricao: "Ver módulo financeiro (contas a pagar, dashboard)" },
   { recurso: "financeiro",    acao: "gerenciar",   descricao: "Criar, editar e excluir títulos financeiros" },
   // Gastos pessoais (por usuário — cada um só vê o seu)
   { recurso: "gastos",        acao: "ver",         descricao: "Ver os próprios gastos" },
   { recurso: "gastos",        acao: "registrar",   descricao: "Anotar, editar e excluir os próprios gastos" },
-  // Gestão de Frotas
-  { recurso: "frota",         acao: "ver",         descricao: "Ver gestão de frotas" },
-  { recurso: "frota",         acao: "criar",       descricao: "Cadastrar veículos e registros de frota" },
-  { recurso: "frota",         acao: "editar",      descricao: "Editar registros de frota" },
-  { recurso: "frota",         acao: "excluir",     descricao: "Excluir (lógico) registros de frota" },
-  { recurso: "frota",         acao: "configurar",  descricao: "Configurar categorias e parâmetros da frota" },
-  { recurso: "frota",         acao: "relatorios",  descricao: "Acessar relatórios da frota" },
-  // Reserva de Veículos
-  { recurso: "reservas",      acao: "ver",         descricao: "Ver reservas de carros" },
-  { recurso: "reservas",      acao: "criar",       descricao: "Criar reservas de carros" },
-  { recurso: "reservas",      acao: "editar",      descricao: "Editar reservas de carros" },
-  { recurso: "reservas",      acao: "cancelar",    descricao: "Cancelar reservas de carros" },
-  { recurso: "reservas",      acao: "admin",       descricao: "Gerenciar todas as reservas e aprovações" },
-  // Orkiestri People — catálogo mantido no próprio módulo, para que o dono da
-  // regra e o dono da lista sejam o mesmo arquivo.
-  ...PEOPLE_PERMISSION_CATALOG,
-  // Orkiestri Compliance — mesma razão: o dono da regra é o dono da lista.
-  ...COMPLIANCE_PERMISSION_CATALOG,
-  // Orkiestri Strategy — confidencial: fica FORA do "todo :ver" automático do
-  // visualizador e do auditor (ver o filtro nos papéis abaixo).
-  ...ESTRATEGICO_PERMISSION_CATALOG,
 ];
 
 // Permissões base — todo usuário recebe automaticamente, independente do papel.
@@ -275,159 +196,98 @@ const ROLE_DEFAULTS: Record<string, { nivel: number; descricao: string; permisso
   },
   gestor: {
     nivel: 60,
-    descricao: "Gestão de projetos, equipes, relatórios e chamados",
+    descricao: "Gestão de projetos, orçamento e financeiro",
     permissoes: [
-      "dashboard:ver", "meurh:ver",
+      "dashboard:ver",
       "agenda:ver","agenda:criar","agenda:editar","agenda:deletar",
       "projetos:ver","projetos:criar","projetos:editar","projetos:deletar","projetos:gerenciar",
-      "crm:ver","crm:criar","crm:editar","crm:deletar",
       "keep:ver","keep:criar","keep:editar",
       "gantt:ver",
-      "relatorios:ver",
-      "chamados:ver","chamados:criar","chamados:editar","chamados:fechar","chamados:atribuir",
       "whatsapp:ver",
       "usuarios:ver",
-      "clientes:ver","clientes:criar","clientes:editar",
       "setores:gerenciar",
       "orcamento:ver","orcamento:planejar","orcamento:lancar","orcamento:aprovar","orcamento:admin",
-      "fornecedores:ver","fornecedores:criar","fornecedores:editar","fornecedores:excluir",
-      "relatorios:exportar","relatorios:criar",
-      "ativos:ver","ativos:criar","ativos:editar","ativos:mover",
       "solicitacoes:ver","solicitacoes:criar","solicitacoes:editar","solicitacoes:aprovar",
-      "colaboradores:ver","colaboradores:criar","colaboradores:editar","colaboradores:excluir",
-      // People: gestor enxerga a própria equipe — sem `ver_todos` de propósito.
-      ...PEOPLE_PERMISSOES_LEITURA,
-      "conhecimento:ver","conhecimento:criar","conhecimento:editar","conhecimento:publicar",
-      "sla:ver","sla:gerenciar",
       "automacoes:ver","automacoes:criar","automacoes:editar","automacoes:excluir",
-      "monitoramento:ver",
       "financeiro:ver","financeiro:gerenciar",
-      "frota:ver","frota:criar","frota:editar","frota:excluir","frota:configurar","frota:relatorios",
-      "reservas:ver","reservas:criar","reservas:editar","reservas:cancelar","reservas:admin",
-      // Compliance: o gestor OPERA a carteira — cadastra, edita e renova. Quem
-      // responde pela licença precisa poder registrar o protocolo sem pedir
-      // acesso ao administrador. Configurar a régua de avisos continua fora.
-      ...COMPLIANCE_PERMISSOES_OPERACAO,
-      "compliance.aprovacao:aprovar",
+      "gastos:ver","gastos:registrar",
     ],
   },
   analista: {
     nivel: 30,
     descricao: "Perfil operacional padrão — agenda, KEEP, projetos e tarefas",
     permissoes: [
-      "dashboard:ver", "meurh:ver",
+      "dashboard:ver",
       "agenda:ver","agenda:criar","agenda:editar","agenda:deletar",
       "projetos:ver","projetos:criar","projetos:editar",
       "keep:ver","keep:criar","keep:editar","keep:deletar",
       "gantt:ver",
-      "chamados:ver","chamados:criar",
       "whatsapp:ver",
-      "clientes:ver",
       "solicitacoes:ver","solicitacoes:criar",
-      "conhecimento:ver","conhecimento:criar",
-      "ativos:ver",
-      "monitoramento:ver",
       "financeiro:ver",
-      "frota:ver","frota:editar",
-      "reservas:ver","reservas:criar","reservas:editar","reservas:cancelar",
+      "gastos:ver","gastos:registrar",
     ],
   },
   tecnico: {
     nivel: 20,
-    descricao: "Foco em chamados e execução operacional",
+    descricao: "Execução operacional — agenda e tarefas atribuídas",
     permissoes: [
-      "dashboard:ver", "meurh:ver",
+      "dashboard:ver",
       "agenda:ver","agenda:criar","agenda:editar","agenda:deletar",
-      "chamados:ver","chamados:criar","chamados:editar","chamados:fechar",
+      "projetos:ver",
+      "keep:ver","keep:criar",
       "whatsapp:ver",
-      "clientes:ver",
       "solicitacoes:ver","solicitacoes:criar",
-      "conhecimento:ver",
-      "ativos:ver",
-      "frota:ver","frota:editar",
-      "reservas:ver","reservas:criar","reservas:editar","reservas:cancelar",
+      "gastos:ver","gastos:registrar",
     ],
   },
   visualizador: {
     nivel: 10,
     descricao: "Somente leitura em todos os módulos",
     permissoes: [
-      "dashboard:ver", "meurh:ver",
-      ...ALL_PERMISSIONS.filter(p => p.acao === "ver" && !p.recurso.startsWith(ESTRATEGICO_PREFIXO)).map(p => `${p.recurso}:${p.acao}`),
+      "dashboard:ver",
+      ...ALL_PERMISSIONS.filter(p => p.acao === "ver").map(p => `${p.recurso}:${p.acao}`),
       "whatsapp:ver",
     ],
   },
   supervisor: {
     nivel: 50,
-    descricao: "Supervisiona equipes e monitora operações — visão ampla com edição limitada",
+    descricao: "Supervisiona equipes e operações — visão ampla com edição limitada",
     permissoes: [
-      "dashboard:ver", "meurh:ver",
+      "dashboard:ver",
       "agenda:ver","agenda:criar","agenda:editar","agenda:deletar",
       "projetos:ver","projetos:criar","projetos:editar",
-      "crm:ver","crm:criar","crm:editar",
       "keep:ver","keep:criar","keep:editar","keep:deletar",
       "gantt:ver",
-      "relatorios:ver","relatorios:exportar",
-      "chamados:ver","chamados:criar","chamados:editar","chamados:fechar","chamados:atribuir",
       "whatsapp:ver",
       "usuarios:ver",
-      "clientes:ver","clientes:criar","clientes:editar",
       "orcamento:ver",
-      "fornecedores:ver",
       "solicitacoes:ver","solicitacoes:criar","solicitacoes:editar","solicitacoes:aprovar",
-      "colaboradores:ver","colaboradores:criar","colaboradores:editar",
-      ...PEOPLE_PERMISSOES_LEITURA,
-      "conhecimento:ver","conhecimento:criar","conhecimento:editar",
-      "sla:ver",
-      "ativos:ver","ativos:criar","ativos:editar",
-      "frota:ver","frota:criar","frota:editar","frota:relatorios",
-      "reservas:ver","reservas:criar","reservas:editar","reservas:cancelar","reservas:admin",
-      // Compliance: supervisor lê a carteira inteira, mas não renova nem
-      // registra protocolo — esses são atos de quem responde pela licença.
-      ...COMPLIANCE_PERMISSOES_LEITURA,
+      "automacoes:ver",
+      "financeiro:ver",
+      "gastos:ver","gastos:registrar",
     ],
   },
   operador: {
     nivel: 15,
-    descricao: "Perfil operacional básico — executa tarefas atribuídas em chamados e projetos",
+    descricao: "Perfil operacional básico — executa tarefas atribuídas em projetos",
     permissoes: [
-      "dashboard:ver", "meurh:ver",
+      "dashboard:ver",
       "agenda:ver","agenda:criar","agenda:editar",
       "projetos:ver",
       "keep:ver","keep:criar",
-      "chamados:ver","chamados:criar","chamados:editar",
       "whatsapp:ver",
-      "clientes:ver",
       "solicitacoes:ver","solicitacoes:criar",
-      "conhecimento:ver",
-      "ativos:ver",
-      "frota:ver",
-      "reservas:ver","reservas:criar","reservas:cancelar",
+      "gastos:ver","gastos:registrar",
     ],
   },
   auditor: {
     nivel: 40,
     descricao: "Acesso somente-leitura a todos os módulos incluindo trilha de auditoria",
     permissoes: [
-      "dashboard:ver", "meurh:ver",
-      ...ALL_PERMISSIONS.filter(p => p.acao === "ver" && !p.recurso.startsWith(ESTRATEGICO_PREFIXO)).map(p => `${p.recurso}:${p.acao}`),
-      "relatorios:exportar",
-      // Conformidade exige enxergar a organização inteira, não só a própria equipe.
-      ...PEOPLE_PERMISSOES_AUDITOR,
-      // Compliance é o módulo que o auditor mais usa: além da leitura, precisa
-      // ver PARA QUEM cada aviso foi mandado e exportar a carteira.
-      ...COMPLIANCE_PERMISSOES_AUDITOR,
-    ],
-  },
-  cliente_portal: {
-    nivel: 5,
-    descricao: "Acesso ao portal do cliente — abertura e acompanhamento de chamados próprios",
-    permissoes: [
-      "dashboard:ver", "meurh:ver",
-      "portal:acessar",
-      "chamados:ver","chamados:criar",
-      "conhecimento:ver",
-      "whatsapp:ver",
+      "dashboard:ver",
+      ...ALL_PERMISSIONS.filter(p => p.acao === "ver").map(p => `${p.recurso}:${p.acao}`),
+      "historico:ver",
     ],
   },
 };

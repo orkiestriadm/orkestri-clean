@@ -31,8 +31,8 @@ const ROTULOS_DO_MENU: Record<string, string> = Object.fromEntries(
 /**
  * Título da rota, do mais específico para o mais genérico.
  *
- * O prefixo mais longo cobre as telas de detalhe: `/dashboard/chamados/42` não
- * está em lugar nenhum, e sem isso mostraria a marca em vez de "Chamados".
+ * O prefixo mais longo cobre as telas de detalhe: `/dashboard/projetos/42` não
+ * está em lugar nenhum, e sem isso mostraria a marca em vez de "Projetos".
  */
 function tituloDaRota(path: string): { label: string; desc: string } {
   if (TITLES[path]) return TITLES[path];
@@ -49,45 +49,21 @@ function tituloDaRota(path: string): { label: string; desc: string } {
 
 const TITLES: Record<string, { label: string; desc: string }> = {
   "/dashboard":                        { label: "Visão Geral",    desc: "Resumo operacional" },
-  "/dashboard/executivo":              { label: "Executivo",      desc: "KPIs consolidados" },
   "/dashboard/agenda":                 { label: "Agenda",         desc: "Eventos e compromissos" },
   "/dashboard/projetos":               { label: "Projetos",       desc: "Planner e Kanban" },
   "/dashboard/projetos/concluidos":    { label: "Projetos Concluídos", desc: "Projetos que chegaram a 100%" },
   "/dashboard/keep":                   { label: "Keep",           desc: "Tasks e notas diárias" },
-  "/dashboard/relatorios":             { label: "Relatórios",     desc: "Analytics e métricas" },
   "/dashboard/gantt":                  { label: "Linha do Tempo", desc: "Visualização de projetos" },
-  "/dashboard/chamados":               { label: "Chamados",       desc: "Service Desk" },
-  "/dashboard/apontamentos":           { label: "Horas",          desc: "Apontamento de horas" },
-  "/dashboard/csat":                   { label: "CSAT",           desc: "Pesquisa de satisfação" },
-  "/dashboard/conhecimento":           { label: "Conhecimento",   desc: "Base de artigos" },
-  "/dashboard/ativos":                 { label: "Ativos",         desc: "Gestão de equipamentos" },
-  "/dashboard/frota":                  { label: "Frota",          desc: "Visão geral da gestão de frotas" },
-  "/dashboard/frota/veiculos":         { label: "Veículos",       desc: "Cadastro de veículos da frota" },
-  "/dashboard/frota/motoristas":       { label: "Motoristas",     desc: "Cadastro e CNH dos motoristas" },
-  "/dashboard/frota/pneus":            { label: "Pneus",          desc: "Controle de pneus" },
-  "/dashboard/frota/revisoes":         { label: "Revisões",       desc: "Revisões programadas" },
-  "/dashboard/frota/manutencoes":      { label: "Manutenções",    desc: "Manutenções preventivas e corretivas" },
-  "/dashboard/frota/documentacoes":    { label: "Documentações",  desc: "CRLV, seguro, IPVA e licenciamentos" },
-  "/dashboard/frota/abastecimentos":   { label: "Abastecimentos", desc: "Abastecimentos e consumo" },
-  "/dashboard/frota/relatorios":       { label: "Relatórios da Frota", desc: "Custos por veículo e período" },
-  "/dashboard/frota/configuracoes":    { label: "Configurações da Frota", desc: "Categorias e parâmetros" },
-  "/dashboard/clientes":               { label: "Clientes",       desc: "CRM" },
-  "/dashboard/contratos":              { label: "Contratos",      desc: "Gestão comercial" },
-  "/dashboard/faturas":                { label: "Faturas",        desc: "Cobranças e pagamentos" },
+  "/dashboard/financeiro":             { label: "Financeiro",     desc: "Contas a pagar e visão do caixa" },
+  "/dashboard/financeiro/gastos":      { label: "Meus Gastos",    desc: "Gastos pessoais do mês" },
+  "/dashboard/financeiro/contas-a-pagar": { label: "Contas a Pagar", desc: "Títulos e vencimentos" },
   "/dashboard/orcamento":              { label: "Orçamento",      desc: "CAPEX / OPEX" },
-  "/dashboard/workforce":              { label: "Workforce",      desc: "Visão consolidada da gestão operacional de pessoas" },
-  "/dashboard/capacity":               { label: "Capacidade",     desc: "Consumo operacional vs capacidade nominal" },
-  "/dashboard/aprovacoes":             { label: "Aprovações",     desc: "Workflows de aprovação hierárquica" },
   "/dashboard/automacoes":             { label: "Automações",     desc: "Regras e integrações" },
-  "/dashboard/cadastros":              { label: "Cadastros",      desc: "Usuários, clientes e organizações" },
-  "/dashboard/cadastros/fornecedores": { label: "Fornecedores",   desc: "Gestão de fornecedores" },
+  "/dashboard/alertas":                { label: "Regras de Alertas", desc: "Quem é avisado, por qual canal" },
+  "/dashboard/cadastros":              { label: "Cadastros",      desc: "Usuários, setores e papéis" },
   "/dashboard/configuracoes":          { label: "Configurações",  desc: "Preferências do sistema" },
   "/dashboard/configuracoes/integracoes": { label: "Integrações", desc: "Microsoft 365 / Outlook e outros serviços" },
   "/dashboard/whatsapp-config":        { label: "WhatsApp",       desc: "Notificações via WhatsApp" },
-  "/dashboard/catalogo":               { label: "Catálogo",       desc: "Portal de serviços corporativos" },
-  "/dashboard/processos":              { label: "Processos",      desc: "Construtor visual de fluxos" },
-  "/dashboard/cmdb":                   { label: "CMDB",           desc: "Mapa de dependências e ativos" },
-  "/dashboard/ia":                     { label: "IA Operacional", desc: "Análises preditivas e insights" },
   "/dashboard/historico":              { label: "Histórico",      desc: "Auditoria de atividades" },
   "/dashboard/perfil":                 { label: "Meu Perfil",     desc: "Configurações pessoais" },
 };

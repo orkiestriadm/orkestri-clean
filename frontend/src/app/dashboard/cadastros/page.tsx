@@ -20,37 +20,6 @@ type OrgItem = {
   observacoes?: string | null;
   usuarios: number; criadoEm: string;
 };
-type Skill = { id: string; nome: string; categoria?: string | null; descricao?: string | null; cor?: string | null; ativo: boolean; _count?: { collaborators: number }; };
-type SquadMember = {
-  id: string; collaboratorId: string; alocacaoPercent: number; papel: string;
-  collaborator: { id: string; user: { id: string; nome: string }; setor?: { nome: string; cor?: string|null } | null; jornadaHorasDia?: number };
-};
-type Squad = {
-  id: string; nome: string; descricao?: string|null; cor?: string|null; ativo: boolean;
-  liderId?: string|null; lider?: { id: string; user: { nome: string } } | null;
-  members: SquadMember[]; capacidadeHorasMes: number; totalMembros: number;
-};
-type Ausencia = {
-  id: string; collaboratorId: string; tipo: string; dataInicio: string; dataFim: string;
-  diaInteiro: boolean; horasDia?: number | null; descricao?: string | null;
-  status: "PENDENTE"|"APROVADA"|"REJEITADA"|"CANCELADA";
-  motivoRejeicao?: string | null;
-  collaborator: { id: string; user: { id: string; nome: string }; setor?: { nome: string; cor?: string | null } | null };
-  solicitadaPor?: { id: string; nome: string } | null;
-  aprovadaPor?: { id: string; nome: string } | null;
-  criadoEm: string;
-};
-type Collaborator = {
-  id: string; organizationId: string; userId: string;
-  matricula?: string | null; fotoUrl?: string | null; emailCorporativo?: string | null; telefone?: string | null;
-  cargo?: string | null; departamento?: string | null; setorId?: string | null; squad?: string | null;
-  especialidade?: string | null; senioridade?: string | null; gestorId?: string | null;
-  jornadaHorasDia?: number | null; jornadaHorasMes?: number | null; turno?: string | null; escala?: string | null; tipoVinculo?: string | null;
-  ativo: boolean; criadoEm: string;
-  user?:   { id: string; nome: string; email: string; avatar?: string | null; ativo?: boolean };
-  setor?:  { id: string; nome: string; cor?: string | null } | null;
-  gestor?: { id: string; user?: { id: string; nome: string } } | null;
-};
 
 // ── Constantes ────────────────────────────────────────────────────────────────
 const CORES_SETOR  = ["#a78bfa","#22d3ee","#34d399","#fbbf24","#f87171","#60a5fa","#f472b6","#94a3b8"];
@@ -919,184 +888,6 @@ function RoleModal({ role, allPerms, onClose, onSave }: { role?: Role; allPerms:
   );
 }
 
-const SENIORIDADES   = ["Júnior","Pleno","Sênior","Especialista","Líder"];
-const TIPOS_VINCULO  = ["CLT","PJ","Estagiário","Terceirizado","Sócio","Voluntário"];
-const TURNOS         = ["Manhã","Tarde","Noite","Integral","Flexível"];
-const ESCALAS        = ["5x2","6x1","12x36","Home Office","Híbrida"];
-
-function CollabForm({ collab, users, setores, roles, collabs, onClose, onSave }: {
-  collab?: Collaborator;
-  users: User[]; setores: Setor[]; roles: Role[]; collabs: Collaborator[];
-  onClose:()=>void; onSave:()=>void;
-}) {
-  const isEdit = !!collab;
-  const [step,    setStep]    = useState(1);
-  const [f, setF] = useState({
-    userId:           collab?.userId || "",
-    matricula:        collab?.matricula || "",
-    emailCorporativo: collab?.emailCorporativo || "",
-    telefone:         collab?.telefone || "",
-    cargo:            collab?.cargo || "",
-    departamento:     collab?.departamento || "",
-    setorId:          collab?.setorId || "",
-    squad:            collab?.squad || "",
-    especialidade:    collab?.especialidade || "",
-    senioridade:      collab?.senioridade || "",
-    gestorId:         collab?.gestorId || "",
-    jornadaHorasDia:  collab?.jornadaHorasDia ?? 8,
-    turno:            collab?.turno || "",
-    escala:           collab?.escala || "",
-    tipoVinculo:      collab?.tipoVinculo || "",
-    ativo:            collab?.ativo ?? true,
-  });
-  const [loading, setLoading] = useState(false);
-  const [err, setErr] = useState("");
-
-  // Novo colaborador: gera matrícula automática (iniciais da org + sequencial)
-  useEffect(() => {
-    if (collab) return;
-    api.get("/collaborators/next-matricula")
-      .then(r => setF(p => (p.matricula ? p : { ...p, matricula: r.data?.matricula || "" })))
-      .catch(() => {});
-  }, [collab]);
-
-  const setField = (k: keyof typeof f, v: any) => setF(p => ({ ...p, [k]: v }));
-
-  const goNext = () => {
-    if (step === 1) {
-      if (!f.userId) { setErr("Selecione o usuário vinculado"); return; }
-    }
-    setErr(""); setStep(step + 1);
-  };
-
-  const save = async () => {
-    if (!f.userId) { setErr("Usuário obrigatório"); setStep(1); return; }
-    setLoading(true); setErr("");
-    const payload: any = {
-      ...f,
-      jornadaHorasMes: f.jornadaHorasDia ? f.jornadaHorasDia * 22 : undefined,
-      setorId: f.setorId || null,
-      gestorId: f.gestorId || null,
-    };
-    // remove campos vazios opcionais
-    Object.keys(payload).forEach(k => { if (payload[k] === "") payload[k] = undefined; });
-    try {
-      if (isEdit) {
-        delete payload.userId;
-        await api.put("/collaborators/"+collab!.id, payload);
-      } else {
-        await api.post("/collaborators", payload);
-      }
-      onSave(); onClose();
-    } catch(e:any) { setErr(e?.response?.data?.message||"Erro ao salvar"); }
-    finally { setLoading(false); }
-  };
-
-  const gestorOpts = collabs.filter(c => c.id !== collab?.id);
-
-  return (
-    <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
-      {/* Progress */}
-      <div style={{ display:"flex", gap:6, marginBottom:4 }}>
-        {[1,2,3].map(s=>(
-          <div key={s} style={{ flex:1, height:3, borderRadius:2, background:step>=s?"var(--accent-violet)":"var(--border-subtle)", transition:"background 0.2s" }} />
-        ))}
-      </div>
-      <div style={{ fontSize:10, color:"var(--text-muted)", fontFamily:"var(--font-mono)", letterSpacing:"0.1em", marginBottom:6 }}>
-        {step===1 ? "PASSO 1 DE 3 — IDENTIFICAÇÃO" : step===2 ? "PASSO 2 DE 3 — ESTRUTURA ORGANIZACIONAL" : "PASSO 3 DE 3 — DADOS OPERACIONAIS"}
-      </div>
-
-      {step===1 && (
-        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
-          <div style={{ gridColumn:"1/-1" }}>
-            <Field label="USUÁRIO VINCULADO *">
-              <select className="input-o" value={f.userId} onChange={e=>setField("userId", e.target.value)} disabled={isEdit}>
-                <option value="">{isEdit?collab!.user?.nome:"— selecione um usuário —"}</option>
-                {users.map(u=><option key={u.id} value={u.id}>{u.nome} ({u.email})</option>)}
-              </select>
-            </Field>
-          </div>
-          <Field label="MATRÍCULA"><input className="input-o" value={f.matricula} onChange={e=>setField("matricula",e.target.value)} placeholder="Ex: 00123" /></Field>
-          <Field label="EMAIL CORPORATIVO"><input className="input-o" type="email" value={f.emailCorporativo} onChange={e=>setField("emailCorporativo",e.target.value)} /></Field>
-          <Field label="TELEFONE"><input className="input-o" value={f.telefone} onChange={e=>setField("telefone",e.target.value)} placeholder="(11) 99999-9999" /></Field>
-          <Field label="SITUAÇÃO">
-            <select className="input-o" value={f.ativo?"ativo":"inativo"} onChange={e=>setField("ativo", e.target.value==="ativo")}>
-              <option value="ativo">Ativo</option>
-              <option value="inativo">Inativo</option>
-            </select>
-          </Field>
-        </div>
-      )}
-
-      {step===2 && (
-        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
-          <Field label="CARGO"><input className="input-o" value={f.cargo} onChange={e=>setField("cargo",e.target.value)} placeholder="Ex: Analista de Sistemas" /></Field>
-          <Field label="DEPARTAMENTO"><input className="input-o" value={f.departamento} onChange={e=>setField("departamento",e.target.value)} placeholder="Ex: Tecnologia" /></Field>
-          <Field label="SETOR">
-            <select className="input-o" value={f.setorId} onChange={e=>setField("setorId",e.target.value)}>
-              <option value="">— Sem setor —</option>
-              {setores.map(s=><option key={s.id} value={s.id}>{s.nome}</option>)}
-            </select>
-          </Field>
-          <Field label="SQUAD / EQUIPE"><input className="input-o" value={f.squad} onChange={e=>setField("squad",e.target.value)} placeholder="Ex: Squad Atlas" /></Field>
-          <Field label="ESPECIALIDADE"><input className="input-o" value={f.especialidade} onChange={e=>setField("especialidade",e.target.value)} placeholder="Ex: Backend Node" /></Field>
-          <Field label="SENIORIDADE">
-            <select className="input-o" value={f.senioridade} onChange={e=>setField("senioridade",e.target.value)}>
-              <option value="">—</option>
-              {SENIORIDADES.map(s=><option key={s} value={s}>{s}</option>)}
-            </select>
-          </Field>
-          <div style={{ gridColumn:"1/-1" }}>
-            <Field label="GESTOR DIRETO">
-              <select className="input-o" value={f.gestorId} onChange={e=>setField("gestorId",e.target.value)}>
-                <option value="">— Sem gestor —</option>
-                {gestorOpts.map(c=><option key={c.id} value={c.id}>{c.user?.nome} {c.cargo?`(${c.cargo})`:""}</option>)}
-              </select>
-            </Field>
-          </div>
-        </div>
-      )}
-
-      {step===3 && (
-        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
-          <Field label="JORNADA (HORAS/DIA)"><input className="input-o" type="number" step="0.5" min="0" max="24" value={f.jornadaHorasDia} onChange={e=>setField("jornadaHorasDia",parseFloat(e.target.value)||0)} /></Field>
-          <Field label="JORNADA (HORAS/MÊS)"><input className="input-o" type="number" value={f.jornadaHorasDia ? f.jornadaHorasDia*22 : 0} disabled /></Field>
-          <Field label="TURNO">
-            <select className="input-o" value={f.turno} onChange={e=>setField("turno",e.target.value)}>
-              <option value="">—</option>
-              {TURNOS.map(t=><option key={t} value={t}>{t}</option>)}
-            </select>
-          </Field>
-          <Field label="ESCALA">
-            <select className="input-o" value={f.escala} onChange={e=>setField("escala",e.target.value)}>
-              <option value="">—</option>
-              {ESCALAS.map(s=><option key={s} value={s}>{s}</option>)}
-            </select>
-          </Field>
-          <div style={{ gridColumn:"1/-1" }}>
-            <Field label="TIPO DE VÍNCULO">
-              <select className="input-o" value={f.tipoVinculo} onChange={e=>setField("tipoVinculo",e.target.value)}>
-                <option value="">—</option>
-                {TIPOS_VINCULO.map(t=><option key={t} value={t}>{t}</option>)}
-              </select>
-            </Field>
-          </div>
-        </div>
-      )}
-
-      {err && <div style={{ background:"rgba(220,38,38,0.08)", border:"1px solid rgba(220,38,38,0.2)", borderRadius:8, padding:"10px 14px", color:"var(--accent-red)", fontSize:12 }}>{err}</div>}
-      <div style={{ display:"flex", gap:10, marginTop:4 }}>
-        {step>1 && <button className="btn btn-ghost" style={{ flex:1 }} onClick={()=>setStep(step-1)}>← Voltar</button>}
-        {step===1 && <button className="btn btn-ghost" style={{ flex:1 }} onClick={onClose}>Cancelar</button>}
-        {step<3
-          ? <button className="btn btn-violet" style={{ flex:2 }} onClick={goNext}>Próximo →</button>
-          : <button className="btn btn-violet" style={{ flex:2 }} onClick={save} disabled={loading}>{loading?<Spin/>:isEdit?"Salvar alterações":"Criar colaborador"}</button>
-        }
-      </div>
-    </div>
-  );
-}
-
 const ESTADOS_BR = ["AC","AL","AP","AM","BA","CE","DF","ES","GO","MA","MT","MS","MG","PA","PB","PR","PE","PI","RJ","RN","RS","RO","RR","SC","SP","SE","TO"];
 
 function OrgSection({ titulo }: { titulo: string }) {
@@ -1228,390 +1019,9 @@ function OrgForm({ org, onClose, onSave }: { org?: OrgItem; onClose:()=>void; on
   );
 }
 
-const SKILL_COLORS = ["#a78bfa","#22d3ee","#34d399","#fbbf24","#f87171","#60a5fa","#f472b6","#94a3b8"];
-const SKILL_CATEGORIAS_SUGGESTIONS = ["Tecnologia","Soft Skill","Certificação","Idioma","Ferramenta","Metodologia","Domínio de Negócio"];
-
-const SQUAD_PAPEIS = ["membro","lider","product_owner","tech_lead","scrum_master"];
-const SQUAD_PAPEL_LABEL: Record<string,string> = { membro:"Membro", lider:"Líder", product_owner:"Product Owner", tech_lead:"Tech Lead", scrum_master:"Scrum Master" };
-
-function SquadForm({ squad, collabs, onClose, onSave }: { squad?: Squad; collabs: Collaborator[]; onClose:()=>void; onSave:()=>void }) {
-  const [f, setF] = useState({
-    nome: squad?.nome || "", descricao: squad?.descricao || "",
-    cor: squad?.cor || SKILL_COLORS[0], liderId: squad?.liderId || "",
-    ativo: squad?.ativo ?? true,
-  });
-  const [loading, setLoading] = useState(false);
-  const [err, setErr] = useState("");
-  const save = async () => {
-    if (!f.nome.trim()) { setErr("Nome obrigatório"); return; }
-    setLoading(true); setErr("");
-    try {
-      const payload = { nome:f.nome, descricao:f.descricao||null, cor:f.cor, liderId:f.liderId||null, ...(squad?{ativo:f.ativo}:{}) };
-      if (squad) await api.put("/squads/"+squad.id, payload);
-      else       await api.post("/squads", payload);
-      onSave(); onClose();
-    } catch(e:any) { setErr(e?.response?.data?.message||"Erro ao salvar"); }
-    finally { setLoading(false); }
-  };
-  return (
-    <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
-      <Field label="NOME DO SQUAD *"><input className="input-o" value={f.nome} autoFocus onChange={e=>setF(p=>({...p,nome:e.target.value}))} placeholder="Ex: Squad Alpha, Time Produto..." /></Field>
-      <Field label="DESCRIÇÃO"><textarea className="input-o" rows={2} value={f.descricao} onChange={e=>setF(p=>({...p,descricao:e.target.value}))} style={{ resize:"vertical" }} /></Field>
-      <Field label="LÍDER">
-        <select className="input-o" value={f.liderId} onChange={e=>setF(p=>({...p,liderId:e.target.value}))}>
-          <option value="">— Sem líder definido —</option>
-          {collabs.map(c=><option key={c.id} value={c.id}>{c.user?.nome}</option>)}
-        </select>
-      </Field>
-      <Field label="COR">
-        <div style={{ display:"flex", gap:6 }}>
-          {SKILL_COLORS.map(c=>(
-            <button key={c} type="button" onClick={()=>setF(p=>({...p,cor:c}))}
-              style={{ width:30, height:30, borderRadius:8, background:c, border:f.cor===c?"3px solid var(--text-primary)":"1px solid var(--border-subtle)", cursor:"pointer" }} />
-          ))}
-        </div>
-      </Field>
-      {squad && (
-        <Field label="SITUAÇÃO">
-          <select className="input-o" value={f.ativo?"ativo":"inativo"} onChange={e=>setF(p=>({...p,ativo:e.target.value==="ativo"}))}>
-            <option value="ativo">Ativo</option><option value="inativo">Inativo</option>
-          </select>
-        </Field>
-      )}
-      {err && <div style={{ background:"rgba(220,38,38,0.08)", border:"1px solid rgba(220,38,38,0.2)", borderRadius:8, padding:"10px 14px", color:"var(--accent-red)", fontSize:12 }}>{err}</div>}
-      <div style={{ display:"flex", gap:10, marginTop:4 }}>
-        <button className="btn btn-ghost" style={{ flex:1 }} onClick={onClose}>Cancelar</button>
-        <button className="btn btn-violet" style={{ flex:2 }} onClick={save} disabled={loading}>{loading?<Spin/>:squad?"Salvar":"Criar squad"}</button>
-      </div>
-    </div>
-  );
-}
-
-function SquadMembersManager({ squad, allCollabs, onClose, onSave }: { squad: Squad; allCollabs: Collaborator[]; onClose:()=>void; onSave:()=>void }) {
-  const [members, setMembers] = useState<SquadMember[]>(squad.members || []);
-  const [adding, setAdding] = useState(false);
-  const [newCollabId, setNewCollabId] = useState("");
-  const [newAloc, setNewAloc] = useState(100);
-  const [newPapel, setNewPapel] = useState("membro");
-  const [err, setErr] = useState("");
-  const [saving, setSaving] = useState(false);
-
-  const reload = async () => {
-    try { const r = await api.get("/squads/"+squad.id); setMembers(r.data.members); onSave(); } catch {}
-  };
-  const available = allCollabs.filter(c => !members.find(m => m.collaboratorId === c.id));
-
-  const add = async () => {
-    if (!newCollabId) { setErr("Selecione um colaborador"); return; }
-    setSaving(true); setErr("");
-    try {
-      await api.post(`/squads/${squad.id}/members`, { collaboratorId:newCollabId, alocacaoPercent:newAloc, papel:newPapel });
-      setNewCollabId(""); setNewAloc(100); setNewPapel("membro"); setAdding(false);
-      await reload();
-    } catch(e:any) { setErr(e?.response?.data?.message||"Erro"); }
-    finally { setSaving(false); }
-  };
-  const updateAloc = async (memberId: string, alocacaoPercent: number) => {
-    try { await api.put(`/squads/${squad.id}/members/${memberId}`, { alocacaoPercent }); await reload(); } catch {}
-  };
-  const remove = async (memberId: string) => {
-    try { await api.delete(`/squads/${squad.id}/members/${memberId}`); await reload(); } catch {}
-  };
-
-  const capacidadeTotal = members.reduce((acc,m)=>acc+((m.collaborator.jornadaHorasDia||8)*22*(m.alocacaoPercent/100)),0);
-
-  return (
-    <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
-      <div style={{ display:"flex", gap:16, padding:"10px 14px", borderRadius:8, background:"var(--bg-secondary)", border:"1px solid var(--border-subtle)" }}>
-        <div><div style={{ fontSize:18, fontWeight:700, color:"var(--accent-violet)" }}>{members.length}</div><div style={{ fontSize:9, fontFamily:"var(--font-mono)", color:"var(--text-muted)" }}>MEMBROS</div></div>
-        <div><div style={{ fontSize:18, fontWeight:700, color:"var(--accent-green)" }}>{capacidadeTotal.toFixed(0)}h</div><div style={{ fontSize:9, fontFamily:"var(--font-mono)", color:"var(--text-muted)" }}>CAPACIDADE/MÊS</div></div>
-      </div>
-      {members.length === 0 ? (
-        <div style={{ textAlign:"center", padding:24, color:"var(--text-muted)", fontSize:13 }}>Nenhum membro no squad</div>
-      ) : (
-        <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
-          {members.map(m=>(
-            <div key={m.id} style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 12px", borderRadius:8, border:"1px solid var(--border-subtle)", background:"var(--bg-secondary)" }}>
-              <Avatar nome={m.collaborator.user.nome} size={30} />
-              <div style={{ flex:1, minWidth:0 }}>
-                <div style={{ fontSize:13, fontWeight:500 }}>{m.collaborator.user.nome}</div>
-                <div style={{ fontSize:10, color:"var(--text-muted)" }}>{SQUAD_PAPEL_LABEL[m.papel]||m.papel}{m.collaborator.setor?` • ${m.collaborator.setor.nome}`:""}</div>
-              </div>
-              <div style={{ display:"flex", alignItems:"center", gap:6 }}>
-                <input className="input-o" type="number" min="0" max="100" value={m.alocacaoPercent}
-                  onChange={e=>{ const v=parseInt(e.target.value)||0; setMembers(ms=>ms.map(x=>x.id===m.id?{...x,alocacaoPercent:v}:x)); }}
-                  onBlur={e=>updateAloc(m.id, parseInt(e.target.value)||0)}
-                  style={{ width:64, fontSize:12, padding:"5px 8px", textAlign:"center" }} />
-                <span style={{ fontSize:12, color:"var(--text-muted)" }}>%</span>
-              </div>
-              <button className="btn-icon" title="Remover" style={{ color:"var(--accent-red)" }} onClick={()=>remove(m.id)}>
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
-      {!adding ? (
-        <button className="btn btn-ghost" onClick={()=>setAdding(true)} disabled={available.length===0}>
-          {available.length===0?"Todos os colaboradores já no squad":"+ Adicionar membro"}
-        </button>
-      ) : (
-        <div style={{ display:"flex", flexDirection:"column", gap:10, padding:14, borderRadius:10, background:"var(--accent-violet-dim)", border:"1px solid rgba(124,58,237,0.2)" }}>
-          <select className="input-o" value={newCollabId} onChange={e=>setNewCollabId(e.target.value)}>
-            <option value="">— Colaborador —</option>
-            {available.map(c=><option key={c.id} value={c.id}>{c.user?.nome}</option>)}
-          </select>
-          <div style={{ display:"flex", gap:8 }}>
-            <select className="input-o" value={newPapel} onChange={e=>setNewPapel(e.target.value)} style={{ flex:1 }}>
-              {SQUAD_PAPEIS.map(p=><option key={p} value={p}>{SQUAD_PAPEL_LABEL[p]}</option>)}
-            </select>
-            <div style={{ display:"flex", alignItems:"center", gap:4 }}>
-              <input className="input-o" type="number" min="0" max="100" value={newAloc} onChange={e=>setNewAloc(parseInt(e.target.value)||0)} style={{ width:70 }} />
-              <span style={{ fontSize:12, color:"var(--text-muted)" }}>%</span>
-            </div>
-          </div>
-          {err && <div style={{ color:"var(--accent-red)", fontSize:12 }}>{err}</div>}
-          <div style={{ display:"flex", gap:8 }}>
-            <button className="btn btn-ghost" style={{ flex:1 }} onClick={()=>{ setAdding(false); setErr(""); }}>Cancelar</button>
-            <button className="btn btn-violet" style={{ flex:2 }} onClick={add} disabled={saving||!newCollabId}>{saving?<Spin/>:"Adicionar"}</button>
-          </div>
-        </div>
-      )}
-      <button className="btn btn-ghost" onClick={onClose}>Fechar</button>
-    </div>
-  );
-}
-
-function AusenciaCreateForm({ collabs, onClose, onSave }: { collabs: Collaborator[]; onClose:()=>void; onSave:()=>void }) {
-  const [f, setF] = useState({
-    collaboratorId: "", tipo: "ferias",
-    dataInicio: "", dataFim: "",
-    diaInteiro: true, horasDia: 4,
-    descricao: "",
-  });
-  const [loading, setLoading] = useState(false);
-  const [err, setErr] = useState("");
-  const save = async () => {
-    if (!f.collaboratorId) { setErr("Selecione o colaborador"); return; }
-    if (!f.dataInicio || !f.dataFim) { setErr("Datas obrigatórias"); return; }
-    if (new Date(f.dataFim) < new Date(f.dataInicio)) { setErr("Data fim deve ser após início"); return; }
-    setLoading(true); setErr("");
-    try {
-      await api.post("/ausencias", {
-        collaboratorId: f.collaboratorId,
-        tipo: f.tipo,
-        dataInicio: f.dataInicio,
-        dataFim: f.dataFim,
-        diaInteiro: f.diaInteiro,
-        horasDia: f.diaInteiro ? undefined : f.horasDia,
-        descricao: f.descricao || undefined,
-      });
-      onSave(); onClose();
-    } catch(e:any) { setErr(e?.response?.data?.message||"Erro ao registrar"); }
-    finally { setLoading(false); }
-  };
-  return (
-    <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
-      <Field label="COLABORADOR *">
-        <select className="input-o" value={f.collaboratorId} onChange={e=>setF(p=>({...p,collaboratorId:e.target.value}))}>
-          <option value="">— Selecione —</option>
-          {collabs.map(c=><option key={c.id} value={c.id}>{c.user?.nome}{c.cargo?` — ${c.cargo}`:""}</option>)}
-        </select>
-      </Field>
-      <Field label="TIPO *">
-        <select className="input-o" value={f.tipo} onChange={e=>setF(p=>({...p,tipo:e.target.value}))}>
-          <option value="ferias">Férias</option>
-          <option value="atestado">Atestado médico</option>
-          <option value="folga">Folga</option>
-          <option value="licenca">Licença</option>
-          <option value="banco_horas">Banco de horas</option>
-          <option value="outro">Outro</option>
-        </select>
-      </Field>
-      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
-        <Field label="DATA INÍCIO *"><input className="input-o" type="date" value={f.dataInicio} onChange={e=>setF(p=>({...p,dataInicio:e.target.value}))} /></Field>
-        <Field label="DATA FIM *"><input className="input-o" type="date" value={f.dataFim} onChange={e=>setF(p=>({...p,dataFim:e.target.value}))} /></Field>
-      </div>
-      <Field label="FORMATO">
-        <div style={{ display:"flex", gap:8 }}>
-          <button type="button" onClick={()=>setF(p=>({...p,diaInteiro:true}))} className={`btn ${f.diaInteiro?"btn-violet":"btn-ghost"}`} style={{ flex:1, fontSize:12 }}>Dia inteiro</button>
-          <button type="button" onClick={()=>setF(p=>({...p,diaInteiro:false}))} className={`btn ${!f.diaInteiro?"btn-violet":"btn-ghost"}`} style={{ flex:1, fontSize:12 }}>Parcial</button>
-        </div>
-      </Field>
-      {!f.diaInteiro && (
-        <Field label="HORAS POR DIA"><input className="input-o" type="number" step="0.5" min="0.5" max="24" value={f.horasDia} onChange={e=>setF(p=>({...p,horasDia:parseFloat(e.target.value)||0}))} /></Field>
-      )}
-      <Field label="DESCRIÇÃO / MOTIVO"><textarea className="input-o" rows={2} value={f.descricao} onChange={e=>setF(p=>({...p,descricao:e.target.value}))} style={{ resize:"vertical" }} placeholder="Ex: Férias programadas, consulta médica..." /></Field>
-      {err && <div style={{ background:"rgba(220,38,38,0.08)", border:"1px solid rgba(220,38,38,0.2)", borderRadius:8, padding:"10px 14px", color:"var(--accent-red)", fontSize:12 }}>{err}</div>}
-      <div style={{ background:"rgba(34,211,238,0.06)", border:"1px solid rgba(34,211,238,0.2)", borderRadius:8, padding:"10px 14px", fontSize:11, color:"var(--text-secondary)" }}>
-        A ausência ficará <strong>pendente</strong> até aprovação do gestor direto. Quando aprovada, será automaticamente descontada da capacidade nominal do colaborador.
-      </div>
-      <div style={{ display:"flex", gap:10, marginTop:4 }}>
-        <button className="btn btn-ghost" style={{ flex:1 }} onClick={onClose}>Cancelar</button>
-        <button className="btn btn-violet" style={{ flex:2 }} onClick={save} disabled={loading}>{loading?<Spin/>:"Registrar ausência"}</button>
-      </div>
-    </div>
-  );
-}
-
-const NIVEL_OPTS = ["junior","pleno","senior","especialista"];
-const NIVEL_COLORS: Record<string,string> = { junior:"#94a3b8", pleno:"#60a5fa", senior:"#a78bfa", especialista:"#fbbf24" };
-
-function CollabSkillsManager({ collab, allSkills, onClose }: { collab: Collaborator; allSkills: Skill[]; onClose:()=>void }) {
-  const [assignments, setAssignments] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [adding, setAdding] = useState(false);
-  const [newSkillId, setNewSkillId] = useState("");
-  const [newNivel, setNewNivel] = useState("pleno");
-  const [err, setErr] = useState("");
-  const [saving, setSaving] = useState(false);
-
-  const reload = async () => {
-    setLoading(true);
-    try { const r = await api.get(`/collaborators/${collab.id}/skills`); setAssignments(r.data); }
-    catch {} finally { setLoading(false); }
-  };
-  useEffect(() => { reload(); }, [collab.id]);
-
-  const availableSkills = allSkills.filter(s => !assignments.find(a => a.skillId === s.id));
-
-  const add = async () => {
-    if (!newSkillId) { setErr("Selecione uma skill"); return; }
-    setSaving(true); setErr("");
-    try {
-      await api.post(`/collaborators/${collab.id}/skills`, { skillId: newSkillId, nivel: newNivel });
-      setNewSkillId(""); setNewNivel("pleno"); setAdding(false);
-      await reload();
-    } catch(e:any) { setErr(e?.response?.data?.message||"Erro ao atribuir"); }
-    finally { setSaving(false); }
-  };
-
-  const updateNivel = async (assignmentId: string, nivel: string) => {
-    try { await api.put(`/collaborators/${collab.id}/skills/${assignmentId}`, { nivel }); await reload(); } catch {}
-  };
-
-  const remove = async (assignmentId: string) => {
-    try { await api.delete(`/collaborators/${collab.id}/skills/${assignmentId}`); await reload(); } catch {}
-  };
-
-  return (
-    <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
-      {/* Lista atual */}
-      {loading ? (
-        <div style={{ display:"flex", justifyContent:"center", padding:30 }}><Spin/></div>
-      ) : assignments.length === 0 ? (
-        <div style={{ textAlign:"center", padding:30, color:"var(--text-muted)", fontSize:13 }}>Nenhuma skill atribuída ainda</div>
-      ) : (
-        <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
-          {assignments.map(a => (
-            <div key={a.id} style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 12px", borderRadius:8, border:"1px solid var(--border-subtle)", background:"var(--bg-secondary)" }}>
-              <div style={{ width:28, height:28, borderRadius:7, background:(a.skill.cor||"#a78bfa")+"20", border:`1px solid ${(a.skill.cor||"#a78bfa")}40`, display:"flex", alignItems:"center", justifyContent:"center" }}>
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={a.skill.cor||"#a78bfa"} strokeWidth="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
-              </div>
-              <div style={{ flex:1, minWidth:0 }}>
-                <div style={{ fontSize:13, fontWeight:500 }}>{a.skill.nome}</div>
-                {a.skill.categoria && <div style={{ fontSize:10, color:"var(--text-muted)" }}>{a.skill.categoria}</div>}
-              </div>
-              <select className="input-o" value={a.nivel} onChange={e=>updateNivel(a.id, e.target.value)} style={{ width:140, fontSize:12, padding:"5px 8px" }}>
-                {NIVEL_OPTS.map(n=><option key={n} value={n}>{n.charAt(0).toUpperCase()+n.slice(1)}</option>)}
-              </select>
-              <span style={{ width:8, height:8, borderRadius:"50%", background:NIVEL_COLORS[a.nivel] }} />
-              <button className="btn-icon" title="Remover" style={{ color:"var(--accent-red)" }} onClick={()=>remove(a.id)}>
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Adicionar nova */}
-      {!adding ? (
-        <button className="btn btn-ghost" onClick={()=>setAdding(true)} disabled={availableSkills.length === 0}>
-          {availableSkills.length === 0 ? "Todas as skills do catálogo já atribuídas" : "+ Atribuir nova skill"}
-        </button>
-      ) : (
-        <div style={{ display:"flex", flexDirection:"column", gap:10, padding:14, borderRadius:10, background:"var(--accent-violet-dim)", border:"1px solid rgba(124,58,237,0.2)" }}>
-          <div style={{ fontSize:11, fontFamily:"var(--font-mono)", letterSpacing:"0.08em", color:"var(--accent-violet)" }}>NOVA ATRIBUIÇÃO</div>
-          <div style={{ display:"flex", gap:8 }}>
-            <select className="input-o" value={newSkillId} onChange={e=>setNewSkillId(e.target.value)} style={{ flex:1 }}>
-              <option value="">— Selecionar skill —</option>
-              {availableSkills.map(s=><option key={s.id} value={s.id}>{s.nome}{s.categoria?` (${s.categoria})`:""}</option>)}
-            </select>
-            <select className="input-o" value={newNivel} onChange={e=>setNewNivel(e.target.value)} style={{ width:140 }}>
-              {NIVEL_OPTS.map(n=><option key={n} value={n}>{n.charAt(0).toUpperCase()+n.slice(1)}</option>)}
-            </select>
-          </div>
-          {err && <div style={{ color:"var(--accent-red)", fontSize:12 }}>{err}</div>}
-          <div style={{ display:"flex", gap:8 }}>
-            <button className="btn btn-ghost" style={{ flex:1 }} onClick={()=>{ setAdding(false); setErr(""); setNewSkillId(""); }}>Cancelar</button>
-            <button className="btn btn-violet" style={{ flex:2 }} onClick={add} disabled={saving || !newSkillId}>{saving?<Spin/>:"Atribuir"}</button>
-          </div>
-        </div>
-      )}
-
-      <div style={{ display:"flex", gap:10, marginTop:4 }}>
-        <button className="btn btn-ghost" style={{ flex:1 }} onClick={onClose}>Fechar</button>
-      </div>
-    </div>
-  );
-}
-
-function SkillForm({ skill, onClose, onSave }: { skill?: Skill; onClose:()=>void; onSave:()=>void }) {
-  const [f, setF] = useState({
-    nome: skill?.nome || "",
-    categoria: skill?.categoria || "",
-    descricao: skill?.descricao || "",
-    cor: skill?.cor || SKILL_COLORS[0],
-    ativo: skill?.ativo ?? true,
-  });
-  const [loading, setLoading] = useState(false);
-  const [err, setErr] = useState("");
-  const save = async () => {
-    if (!f.nome.trim()) { setErr("Nome obrigatório"); return; }
-    setLoading(true); setErr("");
-    try {
-      if (skill) await api.put("/skills/"+skill.id, { nome:f.nome, categoria:f.categoria||null, descricao:f.descricao||null, cor:f.cor, ativo:f.ativo });
-      else       await api.post("/skills",            { nome:f.nome, categoria:f.categoria||undefined, descricao:f.descricao||undefined, cor:f.cor });
-      onSave(); onClose();
-    } catch(e:any) { setErr(e?.response?.data?.message||"Erro ao salvar"); }
-    finally { setLoading(false); }
-  };
-  return (
-    <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
-      <Field label="NOME *"><input className="input-o" value={f.nome} autoFocus onChange={e=>setF(p=>({...p,nome:e.target.value}))} placeholder="Ex: React, AWS, Inglês, Scrum Master..." /></Field>
-      <Field label="CATEGORIA">
-        <input className="input-o" value={f.categoria} list="skill-cats" onChange={e=>setF(p=>({...p,categoria:e.target.value}))} placeholder="Ex: Tecnologia, Soft Skill, Certificação..." />
-        <datalist id="skill-cats">{SKILL_CATEGORIAS_SUGGESTIONS.map(c=><option key={c} value={c} />)}</datalist>
-      </Field>
-      <Field label="DESCRIÇÃO"><textarea className="input-o" rows={2} value={f.descricao} onChange={e=>setF(p=>({...p,descricao:e.target.value}))} placeholder="Quando esta skill se aplica..." style={{ resize:"vertical" }} /></Field>
-      <Field label="COR">
-        <div style={{ display:"flex", gap:6 }}>
-          {SKILL_COLORS.map(c=>(
-            <button key={c} onClick={()=>setF(p=>({...p,cor:c}))} type="button"
-              style={{ width:30, height:30, borderRadius:8, background:c, border:f.cor===c?"3px solid var(--text-primary)":"1px solid var(--border-subtle)", cursor:"pointer" }} />
-          ))}
-        </div>
-      </Field>
-      {skill && (
-        <Field label="SITUAÇÃO">
-          <select className="input-o" value={f.ativo?"ativo":"inativo"} onChange={e=>setF(p=>({...p,ativo:e.target.value==="ativo"}))}>
-            <option value="ativo">Ativa</option>
-            <option value="inativo">Inativa</option>
-          </select>
-        </Field>
-      )}
-      {err && <div style={{ background:"rgba(220,38,38,0.08)", border:"1px solid rgba(220,38,38,0.2)", borderRadius:8, padding:"10px 14px", color:"var(--accent-red)", fontSize:12 }}>{err}</div>}
-      <div style={{ display:"flex", gap:10, marginTop:4 }}>
-        <button className="btn btn-ghost" style={{ flex:1 }} onClick={onClose}>Cancelar</button>
-        <button className="btn btn-violet" style={{ flex:2 }} onClick={save} disabled={loading}>{loading?<Spin/>:skill?"Salvar":"Criar skill"}</button>
-      </div>
-    </div>
-  );
-}
-
 export default function CadastrosPage() {
   const { user: me } = useAuthStore();
-  const [tab,           setTab]          = useState<"usuarios"|"setores"|"papeis"|"solicitacoes"|"testes"|"matriz"|"organograma"|"organizacoes"|"colaboradores"|"skills"|"ausencias"|"squads">("usuarios");
+  const [tab,           setTab]          = useState<"usuarios"|"setores"|"papeis"|"solicitacoes"|"testes"|"matriz"|"organograma"|"organizacoes">("usuarios");
   const [roles,         setRoles]        = useState<Role[]>([]);
   const [allPerms,      setAllPerms]     = useState<Permission[]>([]);
   const [modalRole,     setModalRole]    = useState<Role|"novo"|null>(null);
@@ -1624,9 +1034,9 @@ export default function CadastrosPage() {
   const [modalAprovar,  setModalAprovar] = useState<Solicitacao|null>(null);
   const [aprovarForm,   setAprovarForm]  = useState<{
     nome:string;email:string;whatsapp:string;cargo:string;departamento:string;empresa:string;
-    setorId:string;gestorId:string;perfilRoleId:string;squad:string;matricula:string;
+    setorId:string;perfilRoleId:string;squad:string;matricula:string;
     jornadaHorasDia:number;tipoVinculo:string;senioridade:string;
-  }>({nome:"",email:"",whatsapp:"",cargo:"",departamento:"",empresa:"",setorId:"",gestorId:"",perfilRoleId:"",squad:"",matricula:"",jornadaHorasDia:8,tipoVinculo:"",senioridade:""});
+  }>({nome:"",email:"",whatsapp:"",cargo:"",departamento:"",empresa:"",setorId:"",perfilRoleId:"",squad:"",matricula:"",jornadaHorasDia:8,tipoVinculo:"",senioridade:""});
   const [aprovarStep,   setAprovarStep]  = useState<1|2|3>(1);
   const [aprovarErr,    setAprovarErr]   = useState("");
   const [aprovarLoading,setAprovarLoading]=useState(false);
@@ -1653,30 +1063,6 @@ export default function CadastrosPage() {
   const [modalEditOrg,     setModalEditOrg]     = useState<OrgItem|null>(null);
   const [modalDelOrg,      setModalDelOrg]      = useState<OrgItem|null>(null);
   const [filterOrg,        setFilterOrg]        = useState<"todos"|"ativos"|"inativos">("ativos");
-  // colaboradores
-  const [collabs,          setCollabs]          = useState<Collaborator[]>([]);
-  const [modalNewCollab,   setModalNewCollab]   = useState(false);
-  const [modalEditCollab,  setModalEditCollab]  = useState<Collaborator|null>(null);
-  const [modalDelCollab,   setModalDelCollab]   = useState<Collaborator|null>(null);
-  const [filterCollab,     setFilterCollab]     = useState<"todos"|"ativos"|"inativos">("ativos");
-  // skills
-  const [skills,           setSkills]           = useState<Skill[]>([]);
-  const [modalNewSkill,    setModalNewSkill]    = useState(false);
-  const [modalEditSkill,   setModalEditSkill]   = useState<Skill|null>(null);
-  const [modalDelSkill,    setModalDelSkill]    = useState<Skill|null>(null);
-  const [modalSkillsCollab,setModalSkillsCollab]= useState<Collaborator|null>(null);
-  // ausências
-  const [ausencias,        setAusencias]        = useState<Ausencia[]>([]);
-  const [modalNewAusencia, setModalNewAusencia] = useState(false);
-  const [modalRejAusencia, setModalRejAusencia] = useState<Ausencia|null>(null);
-  const [motivoRejAus,     setMotivoRejAus]     = useState("");
-  const [filterAusenciaStatus, setFilterAusenciaStatus] = useState<"todos"|"PENDENTE"|"APROVADA"|"REJEITADA"|"CANCELADA">("PENDENTE");
-  // squads
-  const [squads,           setSquads]            = useState<Squad[]>([]);
-  const [modalNewSquad,    setModalNewSquad]     = useState(false);
-  const [modalEditSquad,   setModalEditSquad]    = useState<Squad|null>(null);
-  const [modalDelSquad,    setModalDelSquad]     = useState<Squad|null>(null);
-  const [modalMembersSquad,setModalMembersSquad] = useState<Squad|null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -1696,10 +1082,6 @@ export default function CadastrosPage() {
         try { const sRes2 = await api.get("/auth/solicitacoes"); setSolicitacoes(sRes2.data); } catch {}
         try { const tRes = await api.get("/auth/trials"); setTrials(tRes.data); } catch {}
       }
-      try { const coRes = await api.get("/collaborators"); setCollabs(coRes.data); } catch {}
-      try { const skRes = await api.get("/skills"); setSkills(skRes.data); } catch {}
-      try { const auRes = await api.get("/ausencias"); setAusencias(auRes.data); } catch {}
-      try { const sqRes = await api.get("/squads"); setSquads(sqRes.data); } catch {}
       if (me?.isSuperAdmin) {
         try { const oRes = await api.get("/superadmin/organizations"); setOrgs(oRes.data); } catch {}
       }
@@ -1719,13 +1101,12 @@ export default function CadastrosPage() {
     if (delErr && delErr?.response?.status !== 404) throw delErr;
   };
 
-  // Ao abrir aprovação de solicitação, gera matrícula automática (iniciais da org + sequencial)
+  // A matrícula era sugerida automaticamente por `/collaborators/next-matricula`
+  // (iniciais da organização + sequencial). O módulo que servia essa rota saiu
+  // em 18/10/2026, então o campo passou a ser digitado por quem aprova.
   useEffect(() => {
     if (!modalAprovar) return;
     setAprovarErr("");
-    api.get("/collaborators/next-matricula")
-      .then(r => setAprovarForm(f => ({ ...f, matricula: r.data?.matricula || "" })))
-      .catch(() => {});
   }, [modalAprovar]);
 
   const filteredUsers = users.filter(u => {
@@ -1747,30 +1128,16 @@ export default function CadastrosPage() {
     </div>
   );
 
-  const btnLabel = tab==="usuarios" ? "Novo usuario" : tab==="setores" ? "Novo setor" : tab==="papeis" ? "Novo papel" : tab==="organizacoes" ? "Nova organização" : tab==="colaboradores" ? "Novo colaborador" : tab==="skills" ? "Nova skill" : tab==="ausencias" ? "Nova ausência" : tab==="squads" ? "Novo squad" : null;
+  const btnLabel = tab==="usuarios" ? "Novo usuario" : tab==="setores" ? "Novo setor" : tab==="papeis" ? "Novo papel" : tab==="organizacoes" ? "Nova organização" : null;
   const btnAction = () => {
     if (tab==="usuarios")       setModalNewUser(true);
     if (tab==="setores")        setModalSetor("novo");
     if (tab==="papeis")         setModalRole("novo");
     if (tab==="organizacoes")   setModalNewOrg(true);
-    if (tab==="colaboradores")  setModalNewCollab(true);
-    if (tab==="skills")         setModalNewSkill(true);
-    if (tab==="ausencias")      setModalNewAusencia(true);
-    if (tab==="squads")         setModalNewSquad(true);
   };
   const filteredOrgs = orgs.filter(o => {
     const ms = !search || o.nome.toLowerCase().includes(search.toLowerCase()) || o.slug.toLowerCase().includes(search.toLowerCase());
     const mf = filterOrg==="todos" ? true : filterOrg==="ativos" ? o.ativo : !o.ativo;
-    return ms && mf;
-  });
-  const filteredCollabs = collabs.filter(c => {
-    const ms = !search ||
-      (c.user?.nome||"").toLowerCase().includes(search.toLowerCase()) ||
-      (c.user?.email||"").toLowerCase().includes(search.toLowerCase()) ||
-      (c.matricula||"").toLowerCase().includes(search.toLowerCase()) ||
-      (c.cargo||"").toLowerCase().includes(search.toLowerCase()) ||
-      (c.departamento||"").toLowerCase().includes(search.toLowerCase());
-    const mf = filterCollab==="todos" ? true : filterCollab==="ativos" ? c.ativo : !c.ativo;
     return ms && mf;
   });
 
@@ -1796,10 +1163,6 @@ export default function CadastrosPage() {
           { key:"matriz",         label:"Matriz",        count:0 },
           ...((me?.isMaster || me?.permissions?.includes("*") || me?.permissions?.includes("usuarios:criar")) ? [{ key:"solicitacoes", label:"Solicitacoes", count:solicitacoes.filter(s=>s.status==="PENDENTE").length }] : []),
           ...((me?.isMaster || me?.permissions?.includes("*") || me?.permissions?.includes("usuarios:criar")) ? [{ key:"testes", label:"Testes", count:trials.length }] : []),
-          { key:"colaboradores", label:"Colaboradores", count:collabs.length },
-          { key:"skills",        label:"Skills",        count:skills.length },
-          { key:"ausencias",     label:"Ausencias",     count:ausencias.filter(a=>a.status==="PENDENTE").length },
-          { key:"squads",        label:"Squads",        count:squads.length },
           ...(me?.isSuperAdmin ? [{ key:"organizacoes", label:"Organizacoes", count:orgs.length }] : []),
         ].map(t=>(
           <button key={t.key} onClick={()=>{ setTab(t.key as any); setSearch(""); }}
@@ -1836,8 +1199,6 @@ export default function CadastrosPage() {
               <input className="input-unstyled" placeholder={
                 tab==="usuarios"?"Buscar por nome ou e-mail...":
                 tab==="organizacoes"?"Buscar por nome ou slug...":
-                tab==="colaboradores"?"Buscar por nome, matrícula, cargo ou departamento...":
-                tab==="skills"?"Buscar skill...":
                 "Buscar setor..."}
                 value={search} onChange={e=>setSearch(e.target.value)} style={{ flex:1, border:"none", background:"transparent", padding:"10px 0", outline:"none", color:"var(--text-primary)", fontSize:14 }} />
             </div>
@@ -1845,15 +1206,6 @@ export default function CadastrosPage() {
               <div style={{ display:"flex", gap:6, background:"var(--bg-body)", padding:4, borderRadius:12, border:"1px solid var(--border-subtle)" }}>
                 {(["todos","ativos","inativos"] as const).map(f=>(
                   <button key={f} onClick={()=>setFilterOrg(f)} style={{ padding:"6px 16px", fontSize:12, borderRadius:8, border:"none", cursor:"pointer", transition:"all 0.2s", background:filterOrg===f?"var(--card)":"transparent", color:filterOrg===f?"var(--text-primary)":"var(--text-muted)", fontWeight:filterOrg===f?600:500, boxShadow:filterOrg===f?"0 2px 8px rgba(0,0,0,0.04)":"none" }}>
-                    {f.charAt(0).toUpperCase()+f.slice(1)}
-                  </button>
-                ))}
-              </div>
-            )}
-            {tab==="colaboradores" && (
-              <div style={{ display:"flex", gap:6, background:"var(--bg-body)", padding:4, borderRadius:12, border:"1px solid var(--border-subtle)" }}>
-                {(["todos","ativos","inativos"] as const).map(f=>(
-                  <button key={f} onClick={()=>setFilterCollab(f)} style={{ padding:"6px 16px", fontSize:12, borderRadius:8, border:"none", cursor:"pointer", transition:"all 0.2s", background:filterCollab===f?"var(--card)":"transparent", color:filterCollab===f?"var(--text-primary)":"var(--text-muted)", fontWeight:filterCollab===f?600:500, boxShadow:filterCollab===f?"0 2px 8px rgba(0,0,0,0.04)":"none" }}>
                     {f.charAt(0).toUpperCase()+f.slice(1)}
                   </button>
                 ))}
@@ -2139,85 +1491,6 @@ export default function CadastrosPage() {
 
         {/* ── ABA CLIENTES ── */}
 
-        {/* ── ABA COLABORADORES ── */}
-        {tab==="colaboradores" && (
-          <div className="animate-fade-in">
-            <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:16, marginBottom:24 }}>
-              {[
-                { label:"TOTAL",        value:collabs.length,                                 color:"var(--accent-violet)" },
-                { label:"ATIVOS",       value:collabs.filter(c=>c.ativo).length,              color:"var(--accent-green)"  },
-                { label:"DEPARTAMENTOS",value:new Set(collabs.map(c=>c.departamento).filter(Boolean)).size, color:"var(--accent-cyan)" },
-              ].map(s=>(
-                <div key={s.label} className="card" style={{ padding:"20px", display:"flex", alignItems:"center", gap:16, borderRadius:16, border:"1px solid var(--border-subtle)", boxShadow:"0 4px 24px rgba(0,0,0,0.02)" }}>
-                  <div className="metric" style={{ fontSize:32, color:s.color }}>{s.value}</div>
-                  <div style={{ fontSize:12, fontFamily:"var(--font-mono)", fontWeight:600, letterSpacing:"0.08em", color:"var(--text-secondary)" }}>{s.label}</div>
-                </div>
-              ))}
-            </div>
-            <div className="card" style={{ padding:0, overflow:"hidden", border:"1px solid var(--border-subtle)", borderRadius:16, boxShadow:"0 4px 24px rgba(0,0,0,0.02)" }}>
-              <div style={{ display:"grid", gridTemplateColumns:"1.5fr 1.5fr auto auto", gap:16, padding:"16px 24px", background:"var(--bg-hover)", borderBottom:"1px solid var(--border-subtle)", alignItems:"center" }}>
-                {["COLABORADOR","ESTRUTURA","OPERACIONAL","AÇÕES"].map(h=><span key={h} style={{ fontSize:11, fontFamily:"var(--font-mono)", fontWeight:600, letterSpacing:"0.08em", color:"var(--text-muted)" }}>{h}</span>)}
-              </div>
-              {loading ? (
-                <div style={{ display:"flex", alignItems:"center", justifyContent:"center", padding:60, gap:12 }}><Spin/><span style={{ color:"var(--text-muted)", fontSize:14 }}>Carregando...</span></div>
-              ) : filteredCollabs.length===0 ? (
-                <div className="empty-state" style={{ padding:60 }}><p style={{ color:"var(--text-secondary)", fontSize:15, fontWeight:500 }}>{search?"Nenhum colaborador encontrado":"Nenhum colaborador cadastrado"}</p></div>
-              ) : filteredCollabs.map((c,i)=>(
-                <div key={c.id} style={{ display:"grid", gridTemplateColumns:"1.5fr 1.5fr auto auto", gap:16, padding:"16px 24px", borderBottom:i<filteredCollabs.length-1?"1px solid var(--border-subtle)":"none", alignItems:"center", opacity:c.ativo?1:0.6, transition:"all 0.2s", background:"transparent" }}
-                  onMouseEnter={e=>(e.currentTarget.style.background="var(--bg-hover)")}
-                  onMouseLeave={e=>(e.currentTarget.style.background="transparent")}
-                >
-                  <div style={{ display:"flex", alignItems:"center", gap:16, minWidth:0 }}>
-                    <Avatar nome={c.user?.nome||"?"} size={42} />
-                    <div style={{ minWidth:0, display:"flex", flexDirection:"column", gap:2 }}>
-                      <div style={{ fontSize:15, fontWeight:600, color:"var(--text-primary)", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{c.user?.nome||"—"}</div>
-                      <div style={{ fontSize:12, color:"var(--text-muted)", display:"flex", alignItems:"center", gap:6 }}>
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
-                        {c.user?.email}{c.matricula?` · #${c.matricula}`:""}
-                      </div>
-                    </div>
-                  </div>
-                  <div style={{ minWidth:0, display:"flex", flexDirection:"column", gap:6 }}>
-                    {c.cargo && <div style={{ fontSize:13, fontWeight:500, color:"var(--text-secondary)", display:"flex", alignItems:"center", gap:6 }}>
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
-                      {c.cargo}{c.senioridade?` · ${c.senioridade}`:""}
-                    </div>}
-                    <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
-                      {c.setor && <span style={{ fontSize:10, fontFamily:"var(--font-mono)", background:(c.setor.cor||"#a78bfa")+"15", color:c.setor.cor||"#a78bfa", border:`1px solid ${(c.setor.cor||"#a78bfa")}30`, padding:"2px 8px", borderRadius:6 }}>{c.setor.nome}</span>}
-                      {c.departamento && !c.setor && <span style={{ fontSize:11, color:"var(--text-muted)", background:"var(--bg-body)", padding:"2px 8px", borderRadius:6, border:"1px solid var(--border-subtle)" }}>{c.departamento}</span>}
-                      {c.gestor?.user && <div style={{ fontSize:11, color:"var(--text-muted)", display:"flex", alignItems:"center", gap:4 }}>
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-                        ↑ {c.gestor.user.nome}
-                      </div>}
-                    </div>
-                  </div>
-                  <div style={{ display:"flex", flexDirection:"column", gap:6, alignItems:"flex-end" }}>
-                    <div style={{ display:"flex", gap:6 }}>
-                      {c.jornadaHorasDia && <span style={{ fontSize:11, background:"var(--bg-body)", border:"1px solid var(--border-subtle)", borderRadius:6, padding:"2px 6px", color:"var(--text-secondary)", fontFamily:"var(--font-mono)" }}>{c.jornadaHorasDia}h/dia</span>}
-                      {c.tipoVinculo && <span style={{ fontSize:11, background:"var(--bg-body)", border:"1px solid var(--border-subtle)", borderRadius:6, padding:"2px 6px", color:"var(--text-muted)", fontFamily:"var(--font-mono)" }}>{c.tipoVinculo}</span>}
-                    </div>
-                    <span style={{ fontSize:11, fontWeight:600, fontFamily:"var(--font-mono)", padding:"2px 8px", borderRadius:20, background:c.ativo?"rgba(34,197,94,0.1)":"rgba(239,68,68,0.1)", color:c.ativo?"var(--accent-green)":"var(--accent-red)" }}>{c.ativo?"ATIVO":"INATIVO"}</span>
-                  </div>
-                  <div style={{ display:"flex", gap:6 }}>
-                    <button style={{ width:32, height:32, borderRadius:8, background:"transparent", border:"1px solid transparent", color:"var(--text-secondary)", cursor:"pointer", transition:"all 0.2s", display:"flex", alignItems:"center", justifyContent:"center" }} title="Gerenciar skills" onClick={()=>setModalSkillsCollab(c)} onMouseEnter={e=>{e.currentTarget.style.background="var(--bg-hover)"; e.currentTarget.style.borderColor="var(--border-subtle)"; e.currentTarget.style.color="var(--accent-violet)";}} onMouseLeave={e=>{e.currentTarget.style.background="transparent"; e.currentTarget.style.borderColor="transparent"; e.currentTarget.style.color="var(--text-secondary)";}}>
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
-                    </button>
-                    <button style={{ width:32, height:32, borderRadius:8, background:"transparent", border:"1px solid transparent", color:"var(--text-secondary)", cursor:"pointer", transition:"all 0.2s", display:"flex", alignItems:"center", justifyContent:"center" }} title="Editar" onClick={()=>setModalEditCollab(c)} onMouseEnter={e=>{e.currentTarget.style.background="var(--bg-hover)"; e.currentTarget.style.borderColor="var(--border-subtle)"; e.currentTarget.style.color="var(--accent-violet)";}} onMouseLeave={e=>{e.currentTarget.style.background="transparent"; e.currentTarget.style.borderColor="transparent"; e.currentTarget.style.color="var(--text-secondary)";}}>
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4z"/></svg>
-                    </button>
-                    <button style={{ width:32, height:32, borderRadius:8, background:"transparent", border:"1px solid transparent", color:"var(--text-secondary)", cursor:"pointer", transition:"all 0.2s", display:"flex", alignItems:"center", justifyContent:"center" }} title={c.ativo?"Desativar":"Ativar"} onClick={async()=>{ await api.patch("/collaborators/"+c.id+"/toggle"); load(); }} onMouseEnter={e=>{e.currentTarget.style.background="var(--bg-hover)"; e.currentTarget.style.borderColor="var(--border-subtle)"; e.currentTarget.style.color="var(--accent-cyan)";}} onMouseLeave={e=>{e.currentTarget.style.background="transparent"; e.currentTarget.style.borderColor="transparent"; e.currentTarget.style.color="var(--text-secondary)";}}>
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18.36 6.64a9 9 0 11-12.73 0M12 2v10" strokeLinecap="round"/></svg>
-                    </button>
-                    <button style={{ width:32, height:32, borderRadius:8, background:"transparent", border:"1px solid transparent", color:"var(--accent-red)", cursor:"pointer", transition:"all 0.2s", display:"flex", alignItems:"center", justifyContent:"center", opacity:0.7 }} title="Remover" onClick={()=>setModalDelCollab(c)} onMouseEnter={e=>{e.currentTarget.style.background="rgba(220,38,38,0.1)"; e.currentTarget.style.borderColor="rgba(220,38,38,0.2)"; e.currentTarget.style.opacity="1";}} onMouseLeave={e=>{e.currentTarget.style.background="transparent"; e.currentTarget.style.borderColor="transparent"; e.currentTarget.style.opacity="0.7";}}>
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/></svg>
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
         {/* ── ABA ORGANIZAÇÕES ── */}
         {tab==="organizacoes" && (
           <div className="animate-fade-in">
@@ -2289,246 +1562,8 @@ export default function CadastrosPage() {
           </div>
         )}
 
-        {/* ── ABA SKILLS ── */}
-        {tab==="skills" && (() => {
-          const filteredSkills = skills.filter(s => !search || s.nome.toLowerCase().includes(search.toLowerCase()) || (s.categoria||"").toLowerCase().includes(search.toLowerCase()));
-          const categorias = Array.from(new Set(skills.map(s=>s.categoria).filter(Boolean))).sort();
-          return (
-            <div className="animate-fade-in">
-              <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:16, marginBottom:24 }}>
-                {[
-                  { label:"TOTAL",      value:skills.length,                              color:"var(--accent-violet)" },
-                  { label:"CATEGORIAS", value:categorias.length,                           color:"var(--accent-cyan)" },
-                  { label:"ATRIBUIÇÕES",value:skills.reduce((acc,s)=>acc+(s._count?.collaborators||0),0), color:"var(--accent-green)" },
-                ].map(s=>(
-                  <div key={s.label} className="card" style={{ padding:"20px", display:"flex", alignItems:"center", gap:16, borderRadius:16, border:"1px solid var(--border-subtle)", boxShadow:"0 4px 24px rgba(0,0,0,0.02)" }}>
-                    <div className="metric" style={{ fontSize:32, color:s.color }}>{s.value}</div>
-                    <div style={{ fontSize:12, fontFamily:"var(--font-mono)", fontWeight:600, letterSpacing:"0.08em", color:"var(--text-secondary)" }}>{s.label}</div>
-                  </div>
-                ))}
-              </div>
-              <div className="card" style={{ padding:0, overflow:"hidden", border:"1px solid var(--border-subtle)", borderRadius:16, boxShadow:"0 4px 24px rgba(0,0,0,0.02)" }}>
-                <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr auto auto auto", gap:16, padding:"16px 24px", background:"var(--bg-hover)", borderBottom:"1px solid var(--border-subtle)", alignItems:"center" }}>
-                  {["SKILL","CATEGORIA","COLABORADORES","STATUS","AÇÕES"].map(h=><span key={h} style={{ fontSize:11, fontFamily:"var(--font-mono)", fontWeight:600, letterSpacing:"0.08em", color:"var(--text-muted)" }}>{h}</span>)}
-                </div>
-                {loading ? (
-                  <div style={{ display:"flex", alignItems:"center", justifyContent:"center", padding:60, gap:12 }}><Spin/><span style={{ color:"var(--text-muted)", fontSize:14 }}>Carregando...</span></div>
-                ) : filteredSkills.length===0 ? (
-                  <div className="empty-state" style={{ padding:60 }}><p style={{ color:"var(--text-secondary)", fontSize:15, fontWeight:500 }}>{search?"Nenhuma skill encontrada":"Nenhuma skill cadastrada — cadastre habilidades técnicas, certificações ou competências"}</p></div>
-                ) : filteredSkills.map((s,i)=>{
-                  const color = s.cor || "#a78bfa";
-                  return (
-                    <div key={s.id} style={{ display:"grid", gridTemplateColumns:"1fr 1fr auto auto auto", gap:16, padding:"16px 24px", borderBottom:i<filteredSkills.length-1?"1px solid var(--border-subtle)":"none", alignItems:"center", opacity:s.ativo?1:0.6, transition:"all 0.2s", background:"transparent" }}
-                      onMouseEnter={e=>(e.currentTarget.style.background="var(--bg-hover)")}
-                      onMouseLeave={e=>(e.currentTarget.style.background="transparent")}
-                    >
-                      <div style={{ display:"flex", alignItems:"center", gap:16, minWidth:0 }}>
-                        <div style={{ width:42, height:42, borderRadius:12, background:color+"15", border:`1px solid ${color}30`, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
-                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
-                        </div>
-                        <div style={{ minWidth:0, display:"flex", flexDirection:"column", gap:2 }}>
-                          <div style={{ fontSize:15, fontWeight:600, color:"var(--text-primary)" }}>{s.nome}</div>
-                          {s.descricao && <div style={{ fontSize:12, color:"var(--text-muted)", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", maxWidth:300 }}>{s.descricao}</div>}
-                        </div>
-                      </div>
-                      <div>
-                        {s.categoria ? <span style={{ fontSize:11, fontFamily:"var(--font-mono)", padding:"4px 10px", borderRadius:6, background:"var(--bg-body)", color:"var(--text-secondary)", border:"1px solid var(--border-subtle)", fontWeight:600 }}>{s.categoria}</span> : <span style={{ fontSize:12, color:"var(--text-muted)" }}>—</span>}
-                      </div>
-                      <div style={{ fontSize:14, fontWeight:600, color:"var(--text-secondary)", fontFamily:"var(--font-mono)", textAlign:"center", minWidth:80 }}>
-                        {s._count?.collaborators ?? 0}
-                      </div>
-                      <span style={{ fontSize:11, fontWeight:600, fontFamily:"var(--font-mono)", padding:"2px 8px", borderRadius:20, background:s.ativo?"rgba(34,197,94,0.1)":"rgba(239,68,68,0.1)", color:s.ativo?"var(--accent-green)":"var(--accent-red)" }}>{s.ativo?"ATIVA":"INATIVA"}</span>
-                      <div style={{ display:"flex", gap:6 }}>
-                        <button style={{ width:32, height:32, borderRadius:8, background:"transparent", border:"1px solid transparent", color:"var(--text-secondary)", cursor:"pointer", transition:"all 0.2s", display:"flex", alignItems:"center", justifyContent:"center" }} title="Editar" onClick={()=>setModalEditSkill(s)} onMouseEnter={e=>{e.currentTarget.style.background="var(--bg-hover)"; e.currentTarget.style.borderColor="var(--border-subtle)"; e.currentTarget.style.color="var(--accent-violet)";}} onMouseLeave={e=>{e.currentTarget.style.background="transparent"; e.currentTarget.style.borderColor="transparent"; e.currentTarget.style.color="var(--text-secondary)";}}>
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4z"/></svg>
-                        </button>
-                        <button style={{ width:32, height:32, borderRadius:8, background:"transparent", border:"1px solid transparent", color:"var(--accent-red)", cursor:"pointer", transition:"all 0.2s", display:"flex", alignItems:"center", justifyContent:"center", opacity:0.7 }} title="Remover" onClick={()=>setModalDelSkill(s)} onMouseEnter={e=>{e.currentTarget.style.background="rgba(220,38,38,0.1)"; e.currentTarget.style.borderColor="rgba(220,38,38,0.2)"; e.currentTarget.style.opacity="1";}} onMouseLeave={e=>{e.currentTarget.style.background="transparent"; e.currentTarget.style.borderColor="transparent"; e.currentTarget.style.opacity="0.7";}}>
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/></svg>
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          );
-        })()}
 
-        {/* ── ABA AUSÊNCIAS ── */}
-        {tab==="ausencias" && (() => {
-          const filteredAus = ausencias.filter(a => filterAusenciaStatus==="todos" ? true : a.status===filterAusenciaStatus);
-          const tipoLabels: Record<string, string> = { ferias:"Férias", atestado:"Atestado", folga:"Folga", licenca:"Licença", banco_horas:"Banco de horas", outro:"Outro" };
-          const tipoColors: Record<string, string> = { ferias:"#22d3ee", atestado:"#f87171", folga:"#a78bfa", licenca:"#fbbf24", banco_horas:"#34d399", outro:"#94a3b8" };
-          const statusColors: Record<string, string> = { PENDENTE:"#fbbf24", APROVADA:"#34d399", REJEITADA:"#f87171", CANCELADA:"#94a3b8" };
-          const aprovar = async (a: Ausencia) => { try { await api.patch(`/ausencias/${a.id}/aprovar`); load(); } catch {} };
-          const cancelar = async (a: Ausencia) => { if (!confirm(`Cancelar ausência de ${a.collaborator.user.nome}?`)) return; try { await api.patch(`/ausencias/${a.id}/cancelar`); load(); } catch {} };
-          const remover = async (a: Ausencia) => { if (!confirm("Remover esta solicitação?")) return; try { await api.delete(`/ausencias/${a.id}`); load(); } catch {} };
-          return (
-            <div className="animate-fade-in">
-              <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:16, marginBottom:24 }}>
-                {[
-                  { label:"PENDENTES",  value:ausencias.filter(a=>a.status==="PENDENTE").length,  color:"#fbbf24" },
-                  { label:"APROVADAS",  value:ausencias.filter(a=>a.status==="APROVADA").length,  color:"var(--accent-green)" },
-                  { label:"REJEITADAS", value:ausencias.filter(a=>a.status==="REJEITADA").length, color:"var(--accent-red)" },
-                  { label:"TOTAL",      value:ausencias.length,                                   color:"var(--accent-violet)" },
-                ].map(s=>(
-                  <div key={s.label} className="card" style={{ padding:"20px", display:"flex", alignItems:"center", gap:16, borderRadius:16, border:"1px solid var(--border-subtle)", boxShadow:"0 4px 24px rgba(0,0,0,0.02)" }}>
-                    <div className="metric" style={{ fontSize:32, color:s.color }}>{s.value}</div>
-                    <div style={{ fontSize:12, fontFamily:"var(--font-mono)", fontWeight:600, letterSpacing:"0.08em", color:"var(--text-secondary)" }}>{s.label}</div>
-                  </div>
-                ))}
-              </div>
-              <div style={{ display:"flex", gap:8, marginBottom:24 }}>
-                {(["todos","PENDENTE","APROVADA","REJEITADA","CANCELADA"] as const).map(f=>(
-                  <button key={f} onClick={()=>setFilterAusenciaStatus(f)} className={`btn ${filterAusenciaStatus===f?"btn-violet":"btn-ghost"}`} style={{ padding:"8px 16px", fontSize:13, borderRadius:8, fontWeight:500 }}>
-                    {f==="todos"?"Todos":f.charAt(0)+f.slice(1).toLowerCase()}
-                  </button>
-                ))}
-              </div>
-              <div className="card" style={{ padding:0, overflow:"hidden", border:"1px solid var(--border-subtle)", borderRadius:16, boxShadow:"0 4px 24px rgba(0,0,0,0.02)" }}>
-                <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr auto auto", gap:16, padding:"16px 24px", background:"var(--bg-hover)", borderBottom:"1px solid var(--border-subtle)", alignItems:"center" }}>
-                  {["COLABORADOR","TIPO","PERÍODO","STATUS","AÇÕES"].map(h=><span key={h} style={{ fontSize:11, fontFamily:"var(--font-mono)", fontWeight:600, letterSpacing:"0.08em", color:"var(--text-muted)" }}>{h}</span>)}
-                </div>
-                {loading ? (
-                  <div style={{ display:"flex", alignItems:"center", justifyContent:"center", padding:60, gap:12 }}><Spin/><span style={{ color:"var(--text-muted)", fontSize:14 }}>Carregando...</span></div>
-                ) : filteredAus.length===0 ? (
-                  <div className="empty-state" style={{ padding:60 }}><p style={{ color:"var(--text-secondary)", fontSize:15, fontWeight:500 }}>Nenhuma ausência {filterAusenciaStatus==="todos"?"cadastrada":filterAusenciaStatus.toLowerCase()}</p></div>
-                ) : filteredAus.map((a,i)=>{
-                  const dStart = new Date(a.dataInicio); const dEnd = new Date(a.dataFim);
-                  const dias = Math.ceil((+dEnd - +dStart) / 86400000) + 1;
-                  return (
-                    <div key={a.id} style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr auto auto", gap:16, padding:"16px 24px", borderBottom:i<filteredAus.length-1?"1px solid var(--border-subtle)":"none", alignItems:"center", transition:"all 0.2s", background:"transparent" }}
-                      onMouseEnter={e=>(e.currentTarget.style.background="var(--bg-hover)")}
-                      onMouseLeave={e=>(e.currentTarget.style.background="transparent")}
-                    >
-                      <div style={{ display:"flex", alignItems:"center", gap:16, minWidth:0 }}>
-                        <Avatar nome={a.collaborator.user.nome} size={42} />
-                        <div style={{ minWidth:0, display:"flex", flexDirection:"column", gap:2 }}>
-                          <div style={{ fontSize:15, fontWeight:600, color:"var(--text-primary)", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{a.collaborator.user.nome}</div>
-                          {a.collaborator.setor && <div style={{ fontSize:12, color:"var(--text-muted)" }}>{a.collaborator.setor.nome}</div>}
-                        </div>
-                      </div>
-                      <div style={{ display:"flex", flexDirection:"column", gap:6, alignItems:"flex-start" }}>
-                        <span style={{ fontSize:11, fontFamily:"var(--font-mono)", padding:"4px 10px", borderRadius:6, background:tipoColors[a.tipo]+"15", color:tipoColors[a.tipo], border:`1px solid ${tipoColors[a.tipo]}30`, fontWeight:600 }}>
-                          {tipoLabels[a.tipo] || a.tipo}
-                        </span>
-                        {!a.diaInteiro && <div style={{ fontSize:11, color:"var(--text-secondary)", display:"flex", alignItems:"center", gap:4 }}>
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                          {a.horasDia}h/dia
-                        </div>}
-                      </div>
-                      <div style={{ display:"flex", flexDirection:"column", gap:4 }}>
-                        <div style={{ fontSize:13, fontWeight:500, fontFamily:"var(--font-mono)", color:"var(--text-secondary)" }}>
-                          {dStart.toLocaleDateString("pt-BR")} → {dEnd.toLocaleDateString("pt-BR")}
-                        </div>
-                        <div style={{ fontSize:12, color:"var(--text-muted)", display:"flex", alignItems:"center", gap:4 }}>
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                          {dias} dia{dias>1?"s":""}
-                        </div>
-                      </div>
-                      <span style={{ fontSize:11, fontFamily:"var(--font-mono)", padding:"4px 10px", borderRadius:20, background:statusColors[a.status]+"15", color:statusColors[a.status], border:`1px solid ${statusColors[a.status]}30`, fontWeight:600 }}>
-                        {a.status}
-                      </span>
-                      <div style={{ display:"flex", gap:6 }}>
-                        {a.status==="PENDENTE" && (
-                          <>
-                            <button style={{ width:32, height:32, borderRadius:8, background:"transparent", border:"1px solid transparent", color:"var(--accent-green)", cursor:"pointer", transition:"all 0.2s", display:"flex", alignItems:"center", justifyContent:"center" }} title="Aprovar" onClick={()=>aprovar(a)} onMouseEnter={e=>{e.currentTarget.style.background="rgba(34,197,94,0.1)"; e.currentTarget.style.borderColor="rgba(34,197,94,0.2)";}} onMouseLeave={e=>{e.currentTarget.style.background="transparent"; e.currentTarget.style.borderColor="transparent";}}>
-                              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M20 6L9 17l-5-5" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                            </button>
-                            <button style={{ width:32, height:32, borderRadius:8, background:"transparent", border:"1px solid transparent", color:"var(--accent-red)", cursor:"pointer", transition:"all 0.2s", display:"flex", alignItems:"center", justifyContent:"center" }} title="Rejeitar" onClick={()=>{ setModalRejAusencia(a); setMotivoRejAus(""); }} onMouseEnter={e=>{e.currentTarget.style.background="rgba(239,68,68,0.1)"; e.currentTarget.style.borderColor="rgba(239,68,68,0.2)";}} onMouseLeave={e=>{e.currentTarget.style.background="transparent"; e.currentTarget.style.borderColor="transparent";}}>
-                              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M18 6L6 18M6 6l12 12" strokeLinecap="round"/></svg>
-                            </button>
-                          </>
-                        )}
-                        {a.status==="APROVADA" && (
-                          <button style={{ width:32, height:32, borderRadius:8, background:"transparent", border:"1px solid transparent", color:"var(--text-secondary)", cursor:"pointer", transition:"all 0.2s", display:"flex", alignItems:"center", justifyContent:"center" }} title="Cancelar ausência" onClick={()=>cancelar(a)} onMouseEnter={e=>{e.currentTarget.style.background="var(--bg-hover)"; e.currentTarget.style.borderColor="var(--border-subtle)"; e.currentTarget.style.color="var(--accent-red)";}} onMouseLeave={e=>{e.currentTarget.style.background="transparent"; e.currentTarget.style.borderColor="transparent"; e.currentTarget.style.color="var(--text-secondary)";}}>
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
-                          </button>
-                        )}
-                        {(a.status==="PENDENTE" || a.status==="REJEITADA" || a.status==="CANCELADA") && (
-                          <button style={{ width:32, height:32, borderRadius:8, background:"transparent", border:"1px solid transparent", color:"var(--accent-red)", cursor:"pointer", transition:"all 0.2s", display:"flex", alignItems:"center", justifyContent:"center", opacity:0.7 }} title="Remover" onClick={()=>remover(a)} onMouseEnter={e=>{e.currentTarget.style.background="rgba(220,38,38,0.1)"; e.currentTarget.style.borderColor="rgba(220,38,38,0.2)"; e.currentTarget.style.opacity="1";}} onMouseLeave={e=>{e.currentTarget.style.background="transparent"; e.currentTarget.style.borderColor="transparent"; e.currentTarget.style.opacity="0.7";}}>
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/></svg>
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          );
-        })()}
 
-        {/* ── ABA SQUADS ── */}
-        {tab==="squads" && (() => {
-          const filteredSquads = squads.filter(s => !search || s.nome.toLowerCase().includes(search.toLowerCase()));
-          return (
-            <div className="animate-fade-in">
-              <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:16, marginBottom:24 }}>
-                {[
-                  { label:"SQUADS",            value:squads.length,                                              color:"var(--accent-violet)" },
-                  { label:"MEMBROS TOTAIS",    value:squads.reduce((a,s)=>a+s.totalMembros,0),                   color:"var(--accent-cyan)" },
-                  { label:"CAPACIDADE TOTAL",  value:squads.reduce((a,s)=>a+s.capacidadeHorasMes,0).toFixed(0)+"h", color:"var(--accent-green)" },
-                ].map(s=>(
-                  <div key={s.label} className="card" style={{ padding:"20px", display:"flex", alignItems:"center", gap:16, borderRadius:16, border:"1px solid var(--border-subtle)", boxShadow:"0 4px 24px rgba(0,0,0,0.02)" }}>
-                    <div className="metric" style={{ fontSize:32, color:s.color }}>{s.value}</div>
-                    <div style={{ fontSize:12, fontFamily:"var(--font-mono)", fontWeight:600, letterSpacing:"0.08em", color:"var(--text-secondary)" }}>{s.label}</div>
-                  </div>
-                ))}
-              </div>
-              {loading ? (
-                <div style={{ display:"flex", alignItems:"center", justifyContent:"center", padding:60, gap:12 }}><Spin/><span style={{ color:"var(--text-muted)", fontSize:14 }}>Carregando...</span></div>
-              ) : filteredSquads.length===0 ? (
-                <div className="empty-state card" style={{ padding:60 }}><p style={{ color:"var(--text-secondary)", fontSize:15, fontWeight:500 }}>{search?"Nenhum squad encontrado":"Nenhum squad criado — agrupe colaboradores em equipes com alocação % por projeto"}</p></div>
-              ) : (
-                <div className="animate-fade-in" style={{ display:"grid", gridTemplateColumns:"repeat(2,1fr)", gap:16 }}>
-                  {filteredSquads.map(sq=>{
-                    const cor = sq.cor || "#a78bfa";
-                    return (
-                      <div key={sq.id} className="card" style={{ padding:0, overflow:"hidden", opacity:sq.ativo?1:0.6, borderRadius:16, border:"1px solid var(--border-subtle)", boxShadow:"0 4px 24px rgba(0,0,0,0.02)", transition:"transform 0.2s, box-shadow 0.2s" }} onMouseEnter={e=>{e.currentTarget.style.transform="translateY(-2px)"; e.currentTarget.style.boxShadow="0 8px 32px rgba(0,0,0,0.06)";}} onMouseLeave={e=>{e.currentTarget.style.transform="translateY(0)"; e.currentTarget.style.boxShadow="0 4px 24px rgba(0,0,0,0.02)";}}>
-                        <div style={{ padding:"20px", borderBottom:"1px solid var(--border-subtle)", display:"flex", alignItems:"center", gap:16, background:"var(--bg-hover)" }}>
-                          <div style={{ width:42, height:42, borderRadius:12, background:cor+"15", border:`1px solid ${cor}30`, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={cor} strokeWidth="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
-                          </div>
-                          <div style={{ flex:1, minWidth:0, display:"flex", flexDirection:"column", gap:2 }}>
-                            <div style={{ fontSize:15, fontWeight:600, color:"var(--text-primary)" }}>{sq.nome}</div>
-                            {sq.descricao && <div style={{ fontSize:12, color:"var(--text-muted)", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{sq.descricao}</div>}
-                          </div>
-                          <div style={{ display:"flex", gap:6 }}>
-                            <button style={{ width:32, height:32, borderRadius:8, background:"transparent", border:"1px solid transparent", color:"var(--text-secondary)", cursor:"pointer", transition:"all 0.2s", display:"flex", alignItems:"center", justifyContent:"center" }} title="Membros" onClick={()=>setModalMembersSquad(sq)} onMouseEnter={e=>{e.currentTarget.style.background="var(--bg-body)"; e.currentTarget.style.borderColor="var(--border-subtle)"; e.currentTarget.style.color="var(--accent-cyan)";}} onMouseLeave={e=>{e.currentTarget.style.background="transparent"; e.currentTarget.style.borderColor="transparent"; e.currentTarget.style.color="var(--text-secondary)";}}>
-                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
-                            </button>
-                            <button style={{ width:32, height:32, borderRadius:8, background:"transparent", border:"1px solid transparent", color:"var(--text-secondary)", cursor:"pointer", transition:"all 0.2s", display:"flex", alignItems:"center", justifyContent:"center" }} title="Editar" onClick={()=>setModalEditSquad(sq)} onMouseEnter={e=>{e.currentTarget.style.background="var(--bg-body)"; e.currentTarget.style.borderColor="var(--border-subtle)"; e.currentTarget.style.color="var(--accent-violet)";}} onMouseLeave={e=>{e.currentTarget.style.background="transparent"; e.currentTarget.style.borderColor="transparent"; e.currentTarget.style.color="var(--text-secondary)";}}>
-                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4z"/></svg>
-                            </button>
-                            <button style={{ width:32, height:32, borderRadius:8, background:"transparent", border:"1px solid transparent", color:"var(--accent-red)", cursor:"pointer", transition:"all 0.2s", display:"flex", alignItems:"center", justifyContent:"center", opacity:0.7 }} title="Remover" onClick={()=>setModalDelSquad(sq)} onMouseEnter={e=>{e.currentTarget.style.background="rgba(220,38,38,0.1)"; e.currentTarget.style.borderColor="rgba(220,38,38,0.2)"; e.currentTarget.style.opacity="1";}} onMouseLeave={e=>{e.currentTarget.style.background="transparent"; e.currentTarget.style.borderColor="transparent"; e.currentTarget.style.opacity="0.7";}}>
-                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/></svg>
-                            </button>
-                          </div>
-                        </div>
-                        <div style={{ padding:"20px", display:"flex", gap:32 }}>
-                          <div><div style={{ fontSize:20, fontWeight:700, color:"var(--accent-violet)" }}>{sq.totalMembros}</div><div style={{ fontSize:10, fontFamily:"var(--font-mono)", fontWeight:600, letterSpacing:"0.08em", color:"var(--text-muted)", marginTop:4 }}>MEMBROS</div></div>
-                          <div><div style={{ fontSize:20, fontWeight:700, color:"var(--accent-green)" }}>{sq.capacidadeHorasMes}h</div><div style={{ fontSize:10, fontFamily:"var(--font-mono)", fontWeight:600, letterSpacing:"0.08em", color:"var(--text-muted)", marginTop:4 }}>CAPACIDADE/MÊS</div></div>
-                          {sq.lider && <div><div style={{ fontSize:14, fontWeight:600, color:"var(--text-primary)", marginTop:2 }}>{sq.lider.user.nome}</div><div style={{ fontSize:10, fontFamily:"var(--font-mono)", fontWeight:600, letterSpacing:"0.08em", color:"var(--text-muted)", marginTop:4 }}>LÍDER</div></div>}
-                        </div>
-                        {sq.members.length > 0 && (
-                          <div style={{ padding:"0 20px 20px", display:"flex", flexWrap:"wrap", gap:8 }}>
-                            {sq.members.slice(0,6).map(m=>(
-                              <span key={m.id} style={{ fontSize:12, padding:"4px 10px", borderRadius:20, background:"var(--bg-body)", border:"1px solid var(--border-subtle)", color:"var(--text-secondary)", fontWeight:500 }}>
-                                {m.collaborator.user.nome.split(" ")[0]} <span style={{ color:cor, fontFamily:"var(--font-mono)", fontWeight:600 }}>{m.alocacaoPercent}%</span>
-                              </span>
-                            ))}
-                            {sq.members.length > 6 && <span style={{ fontSize:12, color:"var(--text-muted)", alignSelf:"center", fontWeight:500 }}>+{sq.members.length-6}</span>}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          );
-        })()}
 
         {/* ── ABA SOLICITACOES ── */}
         {tab==="testes" && (
@@ -2622,7 +1657,7 @@ export default function CadastrosPage() {
                     </div>
                     {s.status==="PENDENTE" && (
                       <div style={{ display:"flex", flexDirection:"column", gap:8, flexShrink:0 }}>
-                        <button className="btn btn-violet" style={{ fontSize:13, padding:"8px 16px", borderRadius:8, fontWeight:500 }} onClick={()=>{ setModalAprovar(s); setAprovarStep(1); setAprovarForm({ nome:s.nome, email:s.email, whatsapp:s.whatsapp||"", cargo:s.cargo||"", departamento:s.departamento||"", empresa:s.empresa||"", setorId:"", gestorId:"", perfilRoleId:"", squad:"", matricula:"", jornadaHorasDia:8, tipoVinculo:"", senioridade:"" }); }}>Aprovar Acesso</button>
+                        <button className="btn btn-violet" style={{ fontSize:13, padding:"8px 16px", borderRadius:8, fontWeight:500 }} onClick={()=>{ setModalAprovar(s); setAprovarStep(1); setAprovarForm({ nome:s.nome, email:s.email, whatsapp:s.whatsapp||"", cargo:s.cargo||"", departamento:s.departamento||"", empresa:s.empresa||"", setorId:"", perfilRoleId:"", squad:"", matricula:"", jornadaHorasDia:8, tipoVinculo:"", senioridade:"" }); }}>Aprovar Acesso</button>
                         <button className="btn btn-ghost" style={{ fontSize:13, padding:"8px 16px", borderRadius:8, fontWeight:500, color:"var(--accent-red)" }} onClick={()=>{ setModalRejeitar(s); setMotivoRejeitar(""); }}>Rejeitar</button>
                       </div>
                     )}
@@ -2633,93 +1668,6 @@ export default function CadastrosPage() {
           </div>
         )}
       </div>
-
-      {/* Modais Skills */}
-      {modalNewSkill && (
-        <Modal title="Nova skill" onClose={()=>setModalNewSkill(false)} maxWidth={460}>
-          <SkillForm onClose={()=>setModalNewSkill(false)} onSave={load} />
-        </Modal>
-      )}
-      {modalEditSkill && (
-        <Modal title="Editar skill" onClose={()=>setModalEditSkill(null)} maxWidth={460}>
-          <SkillForm skill={modalEditSkill} onClose={()=>setModalEditSkill(null)} onSave={load} />
-        </Modal>
-      )}
-      {modalDelSkill && (
-        <ConfirmModal title="Remover skill" message={`Remover "${modalDelSkill.nome}"? Todas as atribuições a colaboradores serão também removidas.`} confirmLabel="Remover" danger
-          onConfirm={()=>confirmarDelete("/skills/"+modalDelSkill.id)} onClose={()=>setModalDelSkill(null)} />
-      )}
-      {modalSkillsCollab && (
-        <Modal title={`Skills de ${modalSkillsCollab.user?.nome || ""}`} onClose={()=>setModalSkillsCollab(null)} maxWidth={560}>
-          <CollabSkillsManager collab={modalSkillsCollab} allSkills={skills.filter(s=>s.ativo)} onClose={()=>setModalSkillsCollab(null)} />
-        </Modal>
-      )}
-
-      {/* Modais Squad */}
-      {modalNewSquad && (
-        <Modal title="Novo squad" onClose={()=>setModalNewSquad(false)} maxWidth={460}>
-          <SquadForm collabs={collabs.filter(c=>c.ativo)} onClose={()=>setModalNewSquad(false)} onSave={load} />
-        </Modal>
-      )}
-      {modalEditSquad && (
-        <Modal title="Editar squad" onClose={()=>setModalEditSquad(null)} maxWidth={460}>
-          <SquadForm squad={modalEditSquad} collabs={collabs.filter(c=>c.ativo)} onClose={()=>setModalEditSquad(null)} onSave={load} />
-        </Modal>
-      )}
-      {modalDelSquad && (
-        <ConfirmModal title="Remover squad" message={`Remover "${modalDelSquad.nome}"? Os membros não serão excluídos, apenas a equipe.`} confirmLabel="Remover" danger
-          onConfirm={()=>confirmarDelete("/squads/"+modalDelSquad.id)} onClose={()=>setModalDelSquad(null)} />
-      )}
-      {modalMembersSquad && (
-        <Modal title={`Membros — ${modalMembersSquad.nome}`} onClose={()=>setModalMembersSquad(null)} maxWidth={560}>
-          <SquadMembersManager squad={modalMembersSquad} allCollabs={collabs.filter(c=>c.ativo)} onClose={()=>setModalMembersSquad(null)} onSave={load} />
-        </Modal>
-      )}
-
-      {/* Modal nova ausência */}
-      {modalNewAusencia && (
-        <Modal title="Nova ausência" onClose={()=>setModalNewAusencia(false)} maxWidth={500}>
-          <AusenciaCreateForm collabs={collabs.filter(c=>c.ativo)} onClose={()=>setModalNewAusencia(false)} onSave={load} />
-        </Modal>
-      )}
-      {modalRejAusencia && (
-        <Modal title="Rejeitar ausência" onClose={()=>setModalRejAusencia(null)} maxWidth={420}>
-          <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
-            <p style={{ fontSize:13, color:"var(--text-secondary)" }}>
-              Rejeitar ausência de <strong>{modalRejAusencia.collaborator.user.nome}</strong>?
-            </p>
-            <Field label="MOTIVO DA REJEIÇÃO">
-              <textarea className="input-o" rows={3} value={motivoRejAus} onChange={e=>setMotivoRejAus(e.target.value)} placeholder="Ex: Período conflita com entrega de projeto..." style={{ resize:"vertical" }} />
-            </Field>
-            <div style={{ display:"flex", gap:10 }}>
-              <button className="btn btn-ghost" style={{ flex:1 }} onClick={()=>setModalRejAusencia(null)}>Cancelar</button>
-              <button className="btn btn-danger" style={{ flex:2 }} onClick={async()=>{
-                try {
-                  await api.patch(`/ausencias/${modalRejAusencia.id}/rejeitar`, { motivo: motivoRejAus });
-                  setModalRejAusencia(null);
-                  load();
-                } catch {}
-              }}>Confirmar rejeição</button>
-            </div>
-          </div>
-        </Modal>
-      )}
-
-      {/* Modais colaborador */}
-      {modalNewCollab && (
-        <Modal title="Novo colaborador" onClose={()=>setModalNewCollab(false)} maxWidth={620}>
-          <CollabForm users={users.filter(u=>!collabs.some(c=>c.userId===u.id))} setores={setores} roles={roles} collabs={collabs} onClose={()=>setModalNewCollab(false)} onSave={load} />
-        </Modal>
-      )}
-      {modalEditCollab && (
-        <Modal title="Editar colaborador" onClose={()=>setModalEditCollab(null)} maxWidth={620}>
-          <CollabForm collab={modalEditCollab} users={users} setores={setores} roles={roles} collabs={collabs} onClose={()=>setModalEditCollab(null)} onSave={load} />
-        </Modal>
-      )}
-      {modalDelCollab && (
-        <ConfirmModal title="Remover colaborador" message={`Remover ${modalDelCollab.user?.nome||"colaborador"} do quadro? O usuário continuará existindo mas perderá o vínculo operacional.`} confirmLabel="Remover" danger
-          onConfirm={()=>confirmarDelete("/collaborators/"+modalDelCollab.id)} onClose={()=>setModalDelCollab(null)} />
-      )}
 
       {/* Modais organização */}
       {modalNewOrg && (
@@ -2809,12 +1757,6 @@ export default function CadastrosPage() {
                     {setores.map(s=><option key={s.id} value={s.id}>{s.nome}</option>)}
                   </select>
                 </Field>
-                <Field label="GESTOR DIRETO">
-                  <select className="input-o" value={aprovarForm.gestorId} onChange={e=>setAprovarForm(f=>({...f,gestorId:e.target.value}))}>
-                    <option value="">— Sem gestor —</option>
-                    {collabs.filter(c=>c.ativo).map(c=><option key={c.id} value={c.id}>{c.user?.nome||"(sem nome)"}{c.cargo?` — ${c.cargo}`:""}</option>)}
-                  </select>
-                </Field>
                 <Field label="PERFIL DE ACESSO (PAPEL)">
                   <select className="input-o" value={aprovarForm.perfilRoleId} onChange={e=>setAprovarForm(f=>({...f,perfilRoleId:e.target.value}))}>
                     <option value="">— Padrão (técnico/analista) —</option>
@@ -2901,7 +1843,6 @@ export default function CadastrosPage() {
                     departamento: aprovarForm.departamento||undefined,
                     empresa: aprovarForm.empresa||undefined,
                     setorId: aprovarForm.setorId||undefined,
-                    gestorId: aprovarForm.gestorId||undefined,
                     perfilRoleId: aprovarForm.perfilRoleId||undefined,
                     squad: aprovarForm.squad||undefined,
                     matricula: aprovarForm.matricula||undefined,
