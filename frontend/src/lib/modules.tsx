@@ -99,16 +99,15 @@ export const NAV: NavGroup[] = [
     ],
   },
   {
+    // O Orçamento era um produto à parte no menu (grupo "budget"), o que
+    // dividia o assunto dinheiro em duas portas para quem administra uma só.
+    // Desde 19/10/2026 é item do Finance. A ROTA não mudou: continua
+    // /dashboard/orcamento, para não quebrar link salvo nem favorito.
     id: "finance", produto: "Finance", descritor: "Financeiro", icon: Wallet,
     items: [
       { href: "/dashboard/financeiro",                  label: "Dashboard",      icon: Wallet,          permission: "financeiro:ver" },
       { href: "/dashboard/financeiro/gastos",           label: "Meus Gastos",    icon: Receipt,          permission: "gastos:ver" },
       { href: "/dashboard/financeiro/contas-a-pagar",   label: "Contas a Pagar", icon: FileSpreadsheet,  permission: "financeiro:ver" },
-    ],
-  },
-  {
-    id: "budget", produto: "Budget", descritor: "Orçamento", icon: PiggyBank,
-    items: [
       { href: "/dashboard/orcamento",                   label: "Orçamento",      icon: PiggyBank,        permission: "orcamento:ver" },
     ],
   },

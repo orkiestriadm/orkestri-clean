@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "2.1.0";
+export const VERSAO = "2.1.1";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -26,7 +26,7 @@ export const VERSAO = "2.1.0";
 export const VERSAO_DATA = "2026-10-19";
 
 /** Nome da entrega, para dar contexto ao número. */
-export const VERSAO_NOME = "Menu sem Executivo e Relatórios";
+export const VERSAO_NOME = "Orçamento dentro do Finance";
 
 /**
  * Histórico exibido na tela Sobre, do mais recente para o mais antigo.
@@ -35,6 +35,15 @@ export const VERSAO_NOME = "Menu sem Executivo e Relatórios";
  * esta lista quer saber o que mudou para ele.
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
+  {
+    versao: "2.1.1",
+    data: "2026-10-19",
+    titulo: "Orçamento dentro do Finance",
+    itens: [
+      "O Orçamento deixou de ser um produto separado no menu e virou item do Finance, junto com Dashboard, Meus Gastos e Contas a Pagar. O grupo Budget saiu da barra lateral",
+      "O endereço da tela não mudou: quem tem /dashboard/orcamento salvo nos favoritos ou em link continua chegando lá",
+    ],
+  },
   {
     versao: "2.1.0",
     data: "2026-10-19",
