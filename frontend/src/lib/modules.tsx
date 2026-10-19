@@ -3,9 +3,9 @@
 // Manter aqui evita que as duas telas saiam de sincronia.
 import {
   LayoutDashboard, CalendarDays, Layers, StickyNote, MessageCircle,
-  Building2, GanttChart, BarChart2, Users, History, Settings,
+  Building2, GanttChart, Users, History, Settings,
   Headphones, PiggyBank, BookOpen, Zap, Clock,
-  SmilePlus, TrendingUp, Receipt, CreditCard,
+  SmilePlus, Receipt, CreditCard,
   ShoppingBag, Wallet, FileSpreadsheet,
   ClipboardCheck, FolderKanban, ShieldCheck, HeartPulse, Bell, Info, CheckCircle2,
 } from "lucide-react";
@@ -58,8 +58,6 @@ export const NAV: NavGroup[] = [
     id: "pinned", produto: null, descritor: null, icon: LayoutDashboard,
     items: [
       { href: "/dashboard",            label: "Visão Geral", icon: LayoutDashboard, permission: "dashboard:ver" }, // dashboard is available to all
-      { href: "/dashboard/executivo",  label: "Executivo",   icon: TrendingUp,      permission: "relatorios:ver" },
-      { href: "/dashboard/relatorios", label: "Relatórios",  icon: BarChart2,       permission: "relatorios:ver" },
       // Restrito ao master/SA por decisão do produto.
       //
       // Era aberto a todos com um motivo: quem relata um problema precisa saber

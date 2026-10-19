@@ -282,8 +282,6 @@ export default function CommandCenter() {
       }
     }
     const TODOS = [
-                { href: "/dashboard/executivo",  label: "Executivo",    icon: TrendingUp,  accent: "#10b981" },
-                { href: "/dashboard/relatorios", label: "Relatórios",   icon: BarChart3,   accent: "#3b82f6" },
                 { href: "/dashboard/agenda",     label: "Agenda",       icon: Calendar,    accent: "#f59e0b" },
                 { href: "/dashboard/orcamento",  label: "Orçamento",    icon: PiggyBank,   accent: "#a78bfa" },
                 { href: "/dashboard/gantt",      label: "Linha do Tempo", icon: Activity,  accent: "#f97316" },

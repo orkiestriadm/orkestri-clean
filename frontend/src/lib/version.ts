@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "2.0.0";
+export const VERSAO = "2.1.0";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -26,7 +26,7 @@ export const VERSAO = "2.0.0";
 export const VERSAO_DATA = "2026-10-19";
 
 /** Nome da entrega, para dar contexto ao número. */
-export const VERSAO_NOME = "Escopo enxuto: fora o que não tinha uso";
+export const VERSAO_NOME = "Menu sem Executivo e Relatórios";
 
 /**
  * Histórico exibido na tela Sobre, do mais recente para o mais antigo.
@@ -35,6 +35,15 @@ export const VERSAO_NOME = "Escopo enxuto: fora o que não tinha uso";
  * esta lista quer saber o que mudou para ele.
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
+  {
+    versao: "2.1.0",
+    data: "2026-10-19",
+    titulo: "Menu sem Executivo e Relatórios",
+    itens: [
+      "As telas Executivo e Relatórios saíram do menu e do sistema. A Visão Geral e o Sobre continuam no mesmo lugar",
+      "Os números de chamados, SLA e CSAT que o Executivo mostrava continuam na Visão Geral, nos cartões de Chamados e no resumo de horas",
+    ],
+  },
   {
     versao: "2.0.0",
     data: "2026-10-19",

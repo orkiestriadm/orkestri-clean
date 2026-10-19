@@ -200,57 +200,6 @@ class SlaController {
     };
   }
 
-  // ── SLA por atendente (últimos 30 dias) ─────────────────────────────────────
-
-  @Get("atendentes")
-  @Permissions("sla:ver")
-  async atendentes(@Req() req: any) {
-    const since30d = new Date(Date.now() - 30 * 24 * 3600000);
-    const now = new Date();
-    const orgId = req.user?.organizationId;
-    const orgWhere = orgId ? { organizationId: orgId } as any : {};
-
-    const chamados = await this.db.chamado.findMany({
-      where: { criadoEm: { gte: since30d }, atendenteId: { not: null }, ...orgWhere },
-      select: {
-        id: true, status: true, prioridade: true,
-        criadoEm: true, resolvidoEm: true, primeiraRespostaEm: true,
-        slaRespostaAt: true, slaResolucaoAt: true, atendenteId: true,
-        atendente: { select: { id: true, nome: true } },
-      },
-    });
-
-    const by: Record<string, any> = {};
-    for (const c of chamados) {
-      if (!c.atendenteId || !(c as any).atendente) continue;
-      const id = c.atendenteId;
-      if (!by[id]) by[id] = { id, nome: (c as any).atendente.nome, total: 0, resolvidos: 0, resolucaoOk: 0, resolucaoViolada: 0, respostaOk: 0, respostaViolada: 0, violacoesAbertas: 0, msResolucao: [] };
-      const a = by[id];
-      a.total++;
-      const closed = ["resolvido","fechado"].includes(c.status);
-      if (closed) a.resolvidos++;
-      if (closed && c.resolvidoEm && c.slaResolucaoAt) {
-        const ok = new Date(c.resolvidoEm) <= new Date(c.slaResolucaoAt);
-        ok ? a.resolucaoOk++ : a.resolucaoViolada++;
-        a.msResolucao.push(new Date(c.resolvidoEm).getTime() - new Date(c.criadoEm).getTime());
-      }
-      if (c.primeiraRespostaEm && c.slaRespostaAt) {
-        const ok = new Date(c.primeiraRespostaEm) <= new Date(c.slaRespostaAt);
-        ok ? a.respostaOk++ : a.respostaViolada++;
-      }
-      if (!closed && c.slaResolucaoAt && now > new Date(c.slaResolucaoAt)) a.violacoesAbertas++;
-    }
-
-    const avg = (arr: number[]) => arr.length > 0 ? Math.round(arr.reduce((a, b) => a + b, 0) / arr.length / 60000) : null;
-    return Object.values(by).map((a: any) => ({
-      id: a.id, nome: a.nome, total: a.total, resolvidos: a.resolvidos,
-      resolucaoPct: a.resolvidos > 0 ? Math.round((a.resolucaoOk / a.resolvidos) * 100) : null,
-      respostaPct:  (a.respostaOk + a.respostaViolada) > 0 ? Math.round((a.respostaOk / (a.respostaOk + a.respostaViolada)) * 100) : null,
-      violacoesAbertas: a.violacoesAbertas,
-      tempoMedioResolucaoMin: avg(a.msResolucao),
-    })).sort((a: any, b: any) => b.total - a.total);
-  }
-
   // ── Recalcular SLA para chamados abertos ────────────────────────────────────
 
   @Post("recalcular")

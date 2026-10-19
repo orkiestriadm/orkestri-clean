@@ -29,7 +29,6 @@ const ALL_PERMISSIONS: { recurso: string; acao: string; descricao: string }[] = 
   { recurso: "keep",          acao: "editar",      descricao: "Editar notas" },
   { recurso: "keep",          acao: "deletar",     descricao: "Deletar notas" },
   { recurso: "gantt",         acao: "ver",         descricao: "Ver linha do tempo" },
-  { recurso: "relatorios",    acao: "ver",         descricao: "Ver relatórios" },
   { recurso: "chamados",      acao: "ver",         descricao: "Ver chamados" },
   { recurso: "chamados",      acao: "criar",       descricao: "Abrir chamados" },
   { recurso: "chamados",      acao: "editar",      descricao: "Editar chamados" },
@@ -55,9 +54,6 @@ const ALL_PERMISSIONS: { recurso: string; acao: string; descricao: string }[] = 
   { recurso: "orcamento",     acao: "lancar",      descricao: "Lançar valores realizados" },
   { recurso: "orcamento",     acao: "aprovar",     descricao: "Aprovar orçamentos" },
   { recurso: "orcamento",     acao: "admin",       descricao: "Administrar ciclos e configurações" },
-  // Relatórios extras
-  { recurso: "relatorios",    acao: "exportar",    descricao: "Exportar relatórios em PDF/Excel" },
-  { recurso: "relatorios",    acao: "criar",       descricao: "Criar relatórios personalizados" },
   // Solicitações corporativas
   { recurso: "solicitacoes",  acao: "ver",         descricao: "Ver solicitações corporativas" },
   { recurso: "solicitacoes",  acao: "criar",       descricao: "Abrir solicitações" },
@@ -223,18 +219,16 @@ const ROLE_DEFAULTS: Record<string, { nivel: number; descricao: string; permisso
       "projetos:ver","projetos:criar","projetos:editar","projetos:deletar","projetos:gerenciar",
       "keep:ver","keep:criar","keep:editar",
       "gantt:ver",
-      "relatorios:ver",
       "chamados:ver","chamados:criar","chamados:editar","chamados:fechar","chamados:atribuir",
       "whatsapp:ver",
       "usuarios:ver",
       "setores:gerenciar",
       "orcamento:ver","orcamento:planejar","orcamento:lancar","orcamento:aprovar","orcamento:admin",
-      "relatorios:exportar","relatorios:criar",
       "solicitacoes:ver","solicitacoes:criar","solicitacoes:editar","solicitacoes:aprovar",
       "conhecimento:ver","conhecimento:criar","conhecimento:editar","conhecimento:publicar",
       "sla:ver","sla:gerenciar",
       "automacoes:ver","automacoes:criar","automacoes:editar","automacoes:excluir",
-      "financeiro:ver","financeiro:gerenciar",
+      "financeiro:ver","financeiro:gerenciar",
     ],
   },
   analista: {
@@ -279,7 +273,6 @@ const ROLE_DEFAULTS: Record<string, { nivel: number; descricao: string; permisso
       "projetos:ver","projetos:criar","projetos:editar",
       "keep:ver","keep:criar","keep:editar","keep:deletar",
       "gantt:ver",
-      "relatorios:ver","relatorios:exportar",
       "chamados:ver","chamados:criar","chamados:editar","chamados:fechar","chamados:atribuir",
       "whatsapp:ver",
       "usuarios:ver",
@@ -307,7 +300,6 @@ const ROLE_DEFAULTS: Record<string, { nivel: number; descricao: string; permisso
     descricao: "Acesso somente-leitura a todos os módulos incluindo trilha de auditoria",
     permissoes: [
       "dashboard:ver", ...ALL_PERMISSIONS.filter(p => p.acao === "ver").map(p => `${p.recurso}:${p.acao}`),
-      "relatorios:exportar",
     ],
   },
 };

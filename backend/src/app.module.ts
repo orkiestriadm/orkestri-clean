@@ -13,7 +13,6 @@ import { SetoresModule } from "./modules/setores/setores.module";
 import { AuditModule } from "./modules/audit/audit.module";
 import { StatusModule } from "./modules/users/status.module";
 import { CommentsModule } from "./modules/projects/comments.module";
-import { RelatoriosModule } from "./modules/stats/relatorios.module";
 import { SistemaModule } from "./modules/sistema/sistema.module";
 import { TwoFAModule } from "./modules/auth/twofa.module";
 import { UserWhatsAppModule } from "./modules/users/whatsapp.module";
@@ -68,7 +67,7 @@ import { JwtModule } from '@nestjs/jwt';
     StatsModule, AgendaModule, NotificationsModule, WhatsappInboundModule, ReferralModule,
     ProjectsModule, KeepModule, SetoresModule,
     AuditModule, StatusModule, CommentsModule,
-    RelatoriosModule, SistemaModule, TwoFAModule,
+    SistemaModule, TwoFAModule,
     UserWhatsAppModule, ChamadosModule, RbacModule,
     OrcamentoModule,
     AlertasModule,

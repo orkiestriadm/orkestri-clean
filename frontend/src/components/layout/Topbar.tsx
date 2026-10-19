@@ -49,12 +49,10 @@ function tituloDaRota(path: string): { label: string; desc: string } {
 
 const TITLES: Record<string, { label: string; desc: string }> = {
   "/dashboard":                        { label: "Visão Geral",    desc: "Resumo operacional" },
-  "/dashboard/executivo":              { label: "Executivo",      desc: "KPIs consolidados" },
   "/dashboard/agenda":                 { label: "Agenda",         desc: "Eventos e compromissos" },
   "/dashboard/projetos":               { label: "Projetos",       desc: "Planner e Kanban" },
   "/dashboard/projetos/concluidos":    { label: "Projetos Concluídos", desc: "Projetos que chegaram a 100%" },
   "/dashboard/keep":                   { label: "Keep",           desc: "Tasks e notas diárias" },
-  "/dashboard/relatorios":             { label: "Relatórios",     desc: "Analytics e métricas" },
   "/dashboard/gantt":                  { label: "Linha do Tempo", desc: "Visualização de projetos" },
   "/dashboard/chamados":               { label: "Chamados",       desc: "Service Desk" },
   "/dashboard/apontamentos":           { label: "Horas",          desc: "Apontamento de horas" },
