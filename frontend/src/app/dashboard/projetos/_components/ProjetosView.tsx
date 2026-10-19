@@ -6,6 +6,7 @@ import Topbar from "@/components/layout/Topbar";
 import TaskDetailModal, { type AbaTarefa } from "@/components/ui/TaskDetailModal";
 import HistoricoProjeto from "@/components/ui/HistoricoProjeto";
 import MemberSelector from "@/components/ui/MemberSelector";
+import { formatarDataBR, venceu } from "@/lib/datas";
 import { useAuthStore } from "@/lib/store";
 import { useToastStore } from "@/lib/toast";
 import { api } from "@/lib/api";
@@ -37,6 +38,8 @@ const COLUNAS = [
 ];
 const PRIORIDADES = ["BAIXA","MEDIA","ALTA","URGENTE"];
 const PRIO_COLORS: Record<string,string> = { BAIXA:"var(--accent-green)", MEDIA:"var(--accent-cyan)", ALTA:"var(--accent-amber)", URGENTE:"var(--accent-red)" };
+/** Na lista a prioridade é texto corrido, não selo: caixa alta ali vira grito. */
+const PRIO_LABELS: Record<string,string> = { BAIXA:"Baixa", MEDIA:"Média", ALTA:"Alta", URGENTE:"Urgente" };
 const CORES_PROJ = ["#a78bfa","#22d3ee","#34d399","#fbbf24","#f87171","#60a5fa","#f472b6"];
 const STATUS_LABELS: Record<string,string> = { PLANEJAMENTO:"Planejamento", EM_ANDAMENTO:"Em andamento", PAUSADO:"Pausado", CONCLUIDO:"Concluído", CANCELADO:"Cancelado" };
 const STATUS_COLORS: Record<string,string> = { PLANEJAMENTO:"var(--accent-violet)", EM_ANDAMENTO:"var(--accent-cyan)", PAUSADO:"var(--accent-amber)", CONCLUIDO:"var(--accent-green)", CANCELADO:"var(--accent-red)" };
@@ -49,7 +52,14 @@ const STATUS_COLORS: Record<string,string> = { PLANEJAMENTO:"var(--accent-violet
  */
 const LARGURA_LISTA_FIXA = 1536;
 
-const dataBR = (iso?: string | null) => iso ? new Date(iso).toLocaleDateString("pt-BR") : "";
+/**
+ * Prazo e vencimento são data-só: formatar e comparar passando por fuso recua um
+ * dia (meia-noite UTC = 21h do dia anterior aqui). O prazo gravado em 30/11
+ * aparecia 29/11 na tela, e a tarefa que vence hoje já nascia VENCIDA. As duas
+ * contas moram em lib/datas, do lado do `formatarDataBR` que resolveu isso no
+ * People meses atrás — esta tela é que não usava nenhum dos dois.
+ */
+const dataBR = (iso?: string | null) => formatarDataBR(iso) ?? "";
 
 function Avatar({ nome, size=28 }: { nome:string; size?:number }) {
   const i = nome.split(" ").map((n:string)=>n[0]).slice(0,2).join("").toUpperCase();
@@ -79,7 +89,7 @@ function ProjectModal({ project, users, onClose, onSave }: { project?:Project; u
   const [cor,       setCor]       = useState(project?.cor||"#a78bfa");
   const [prioridade,setPrio]      = useState(project?.prioridade||"MEDIA");
   const [dataFim,   setDataFim]   = useState(project?.dataFim?.slice(0,10)||"");
-  const [membros,   setMembros]   = useState<string[]>(project?.members?.map(m=>m.user.id).filter(id=>id!==me?.id)||[]);
+  const [membros,   setMembros]   = useState<string[]>(project?.members?.map(m=>m.user.id).filter(id=>id!==me?.id && id!==project?.criadoPorId)||[]);
   const [loading,   setLoading]   = useState(false);
   const [error,     setError]     = useState("");
   // Membros que não receberão o WhatsApp por não terem número verificado. Vem na
@@ -88,7 +98,18 @@ function ProjectModal({ project, users, onClose, onSave }: { project?:Project; u
   const [semWa,     setSemWa]     = useState<{id:string;nome:string}[]|null>(null);
   const isEdit = !!project;
 
-  const otherUsers = users.filter((u:any) => u.id !== me?.id);
+  // Quem criou o projeto participa sempre: fica de fora da lista escolhível para
+  // não sair por um clique distraído. O servidor recusa a remoção de qualquer forma.
+  const otherUsers = users.filter((u:any) => u.id !== me?.id && (!isEdit || u.id !== project!.criadoPorId));
+  const nomeDono = isEdit
+    ? (project!.criadoPorId === me?.id ? "Você" : project!.members?.find(m => m.user.id === project!.criadoPorId)?.user.nome ?? null)
+    : null;
+  // Quem estava no projeto quando o modal abriu — é com esta lista que o salvar
+  // compara para saber quem entrou e quem saiu.
+  const membrosOriginais = isEdit
+    ? (project!.members?.map(m => m.user.id).filter(id => id !== me?.id && id !== project!.criadoPorId) ?? [])
+    : [];
+  const nomeDe = (id: string) => users.find((u:any) => u.id === id)?.nome ?? "membro";
 
   const save = async () => {
     if (!titulo.trim()) { setError("Titulo obrigatorio"); return; }
@@ -96,7 +117,29 @@ function ProjectModal({ project, users, onClose, onSave }: { project?:Project; u
     try {
       if (isEdit) {
         await api.put("/projects/"+project.id, { titulo, descricao, cor, prioridade, dataFim:dataFim||undefined });
-        onSave(); onClose();
+
+        // Membro não entra no corpo do PUT: cada entrada e cada saída tem rota
+        // própria no servidor, e é ela que cria o evento na agenda, avisa a
+        // pessoa e liga as notificações do projeto para ela. Uma a uma, e a
+        // falha de uma não cancela as outras — o resto do formulário já salvou.
+        const entraram = membros.filter(id => !membrosOriginais.includes(id));
+        const sairam   = membrosOriginais.filter(id => !membros.includes(id));
+        const falhas: string[] = [];
+        for (const userId of entraram) {
+          try { await api.post(`/projects/${project.id}/members`, { userId }); }
+          catch { falhas.push(nomeDe(userId)); }
+        }
+        for (const userId of sairam) {
+          try { await api.delete(`/projects/${project.id}/members/${userId}`); }
+          catch { falhas.push(nomeDe(userId)); }
+        }
+
+        onSave();
+        if (falhas.length) {
+          setError(`Projeto salvo, mas não consegui atualizar: ${falhas.join(", ")}.`);
+          return;
+        }
+        onClose();
       } else {
         const { data } = await api.post("/projects", { titulo, descricao, cor, prioridade, dataFim:dataFim||undefined, membros });
         onSave(); // atualiza a lista atrás do modal
@@ -150,17 +193,23 @@ function ProjectModal({ project, users, onClose, onSave }: { project?:Project; u
             Um evento de prazo será criado na agenda de todos os membros
           </div>
         )}
-        {!isEdit && (
-          otherUsers.length > 0 ? (
-            <MemberSelector users={otherUsers} selected={membros} onChange={setMembros} label="MEMBROS DO PROJETO" />
-          ) : (
-            <div>
-              <label className="text-[11px] text-[var(--text-muted)] font-mono block mb-1.5 uppercase tracking-wider">Membros do projeto</label>
-              <div className="text-[12px] text-[var(--text-muted)] italic bg-[var(--bg-hover)] border border-dashed border-[var(--border-subtle)] rounded-lg px-3 py-2.5">
-                Nenhum outro colaborador disponivel na sua organizacao. Voce sera o unico membro inicial — adicione outros depois pela tela do projeto.
-              </div>
+        {otherUsers.length > 0 ? (
+          <MemberSelector users={otherUsers} selected={membros} onChange={setMembros} label="MEMBROS DO PROJETO" />
+        ) : (
+          <div>
+            <label className="text-[11px] text-[var(--text-muted)] font-mono block mb-1.5 uppercase tracking-wider">Membros do projeto</label>
+            <div className="text-[12px] text-[var(--text-muted)] italic bg-[var(--bg-hover)] border border-dashed border-[var(--border-subtle)] rounded-lg px-3 py-2.5">
+              {isEdit
+                ? "Nenhum outro colaborador disponível para incluir nesta organização."
+                : "Nenhum outro colaborador disponivel na sua organizacao. Voce sera o unico membro inicial — adicione outros depois pela tela do projeto."}
             </div>
-          )
+          </div>
+        )}
+        {isEdit && (
+          <p className="text-[11px] text-[var(--text-muted)] leading-relaxed">
+            {nomeDono && <>{nomeDono} criou o projeto e participa sempre. </>}
+            Quem entrar recebe o aviso e o prazo na agenda; quem sair deixa de ver o projeto. Vale ao salvar.
+          </p>
         )}
         {error && <p className="text-xs text-[var(--accent-red)]">{error}</p>}
         <div className="flex gap-3 mt-2">
@@ -272,7 +321,7 @@ function KanbanBoard({ project, podeMover, podeEditar, onMoveTask, onNewTask, on
 
               <div className="flex flex-col gap-2 min-h-[72px]">
                 {tasks.map(task => {
-                  const vencida = task.dataVencimento && new Date(task.dataVencimento) < new Date() && task.status !== "CONCLUIDA";
+                  const vencida = venceu(task.dataVencimento) && task.status !== "CONCLUIDA";
                   const qtdKeep = task._count?.registros ?? 0;
                   return (
                     <div key={task.id}
@@ -381,12 +430,12 @@ export default function ProjetosView({ modo }: { modo: ModoProjetos }) {
       const { data } = await api.get("/projects", { params: { situacao: modo } });
       setProjects(Array.isArray(data) ? data : []);
     } catch { setProjects([]); }
-    if (modo === "ativos") {
-      try {
-        const { data } = await api.get("/users/picklist");
-        setUsers(Array.isArray(data) ? data : []);
-      } catch { setUsers([]); }
-    }
+    // Nos dois modos: em Concluídos também se edita o projeto, e sem a picklist
+    // o seletor de membros abriria vazio ("nenhum colaborador disponível").
+    try {
+      const { data } = await api.get("/users/picklist");
+      setUsers(Array.isArray(data) ? data : []);
+    } catch { setUsers([]); }
     setLoading(false);
   }, [modo]);
 
@@ -510,31 +559,49 @@ export default function ProjetosView({ modo }: { modo: ModoProjetos }) {
                   {modo === "concluidos" && <p className="text-[var(--text-muted)] text-[11px] text-center leading-relaxed">O projeto chega aqui quando todas as tarefas estão em Concluída.</p>}
                 </div>
               )}
+              {/* Card em três linhas, com a cor do projeto como faixa lateral.
+                  Era um bloco de quatro linhas com dois selos e um rodapé: com 17
+                  projetos na fila, achar um custava rolagem. Os selos viraram
+                  texto corrido e a porcentagem subiu para junto do título — a
+                  mesma informação, quase metade da altura.
+
+                  O `shrink-0` do cartão NÃO é decoração: a lista é uma coluna
+                  flex, e o `overflow-hidden` que arredonda a faixa zera o
+                  `min-height:auto` do item. Sem ele, os 17 projetos espremiam
+                  os cartões para caber na altura em vez de rolar — a segunda
+                  linha saía cortada ao meio e a barra de progresso sumia. */}
               {projects.map(p => (
                 <button key={p.id} type="button" onClick={()=>abrir(p.id)}
-                  className={`w-full text-left p-3 rounded-xl border transition-all ${selected?.id===p.id ? "border-[var(--accent-violet)] bg-[var(--accent-violet-dim)] shadow-[0_0_15px_rgba(124,58,237,0.1)]" : "border-[var(--border-subtle)] bg-[var(--bg-card)] hover:border-[var(--border-medium)] hover:shadow-premium-sm"}`}
+                  className={`w-full shrink-0 text-left flex gap-2.5 pr-2.5 py-2 rounded-xl border overflow-hidden transition-all ${selected?.id===p.id ? "border-[var(--accent-violet)] bg-[var(--accent-violet-dim)]" : "border-[var(--border-subtle)] bg-[var(--bg-card)] hover:border-[var(--border-medium)] hover:shadow-premium-sm"}`}
                 >
-                  <div className="flex items-center gap-2 mb-2 min-w-0">
-                    <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background:p.cor }} />
-                    <span className="text-[13px] font-semibold text-[var(--text-primary)] truncate flex-1" title={p.titulo}>{p.titulo}</span>
-                  </div>
-                  {modo === "ativos" ? (
-                    <div className="flex flex-wrap items-center justify-between gap-1 mb-2.5">
-                      <span className="badge" style={{ fontSize:10, background:STATUS_COLORS[p.status]+"15", color:STATUS_COLORS[p.status], border:`1px solid ${STATUS_COLORS[p.status]}30` }}>{STATUS_LABELS[p.status]||p.status}</span>
-                      <span className="badge" style={{ fontSize:10, background:PRIO_COLORS[p.prioridade]+"15", color:PRIO_COLORS[p.prioridade], border:`1px solid ${PRIO_COLORS[p.prioridade]}30` }}>{p.prioridade}</span>
+                  {/* A faixa acompanha a altura do conteúdo: é ela que deixa a
+                      lista varrível pela cor, agora que o ponto saiu da frente
+                      do título e devolveu o começo da linha ao nome do projeto. */}
+                  <span className="w-1 shrink-0 self-stretch rounded-r-full" style={{ background:p.cor }} />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-baseline gap-2 min-w-0">
+                      <span className="text-[13px] font-semibold text-[var(--text-primary)] truncate flex-1" title={p.titulo}>{p.titulo}</span>
+                      <span className="text-[10.5px] font-mono text-[var(--text-secondary)] shrink-0">{p.progressoPct}%</span>
                     </div>
-                  ) : (
-                    <div className="flex items-center gap-1 mb-2.5 text-[11px] font-medium text-[var(--accent-green)]">
-                      <CheckCircle2 size={12} className="shrink-0" />
-                      <span className="truncate">Concluído {p.concluidoEm ? `em ${dataBR(p.concluidoEm)}` : ""}</span>
+                    <div className="flex items-center gap-1.5 mt-1 text-[10.5px] text-[var(--text-muted)] whitespace-nowrap overflow-hidden">
+                      {modo === "ativos" ? (
+                        <>
+                          <span style={{ color:STATUS_COLORS[p.status] }}>{STATUS_LABELS[p.status]||p.status}</span>
+                          <span className="text-[var(--border-strong)]">·</span>
+                          <span style={{ color:PRIO_COLORS[p.prioridade] }}>{PRIO_LABELS[p.prioridade]||p.prioridade}</span>
+                        </>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 text-[var(--accent-green)]">
+                          <CheckCircle2 size={11} className="shrink-0" />
+                          {p.concluidoEm ? dataBR(p.concluidoEm) : "Concluído"}
+                        </span>
+                      )}
+                      <span className="text-[var(--border-strong)]">·</span>
+                      <span className="truncate">{p.tasksConcluidas||0}/{p.totalTasks||0} tarefas</span>
                     </div>
-                  )}
-                  <div className="h-1 bg-[var(--border-subtle)] rounded-full overflow-hidden">
-                    <div className="h-full rounded-full transition-all duration-500" style={{ background:p.cor, width:p.progressoPct+"%" }} />
-                  </div>
-                  <div className="flex justify-between mt-1.5">
-                    <span className="text-[10px] text-[var(--text-muted)]">{p.tasksConcluidas||0}/{p.totalTasks||0} tarefas</span>
-                    <span className="text-[10px] font-mono text-[var(--text-muted)]">{p.progressoPct}%</span>
+                    <div className="h-[3px] mt-1.5 bg-[var(--border-subtle)] rounded-full overflow-hidden">
+                      <div className="h-full rounded-full transition-all duration-500" style={{ background:p.cor, width:p.progressoPct+"%" }} />
+                    </div>
                   </div>
                 </button>
               ))}
@@ -596,7 +663,7 @@ export default function ProjetosView({ modo }: { modo: ModoProjetos }) {
                         {selected.dataFim && (
                           <>
                             <span className="text-[var(--border-medium)]">•</span>
-                            <span className={!selected.concluido && new Date(selected.dataFim) < new Date() ? "text-[var(--accent-red)]" : ""}>Prazo: {dataBR(selected.dataFim)}</span>
+                            <span className={!selected.concluido && venceu(selected.dataFim) ? "text-[var(--accent-red)]" : ""}>Prazo: {dataBR(selected.dataFim)}</span>
                           </>
                         )}
                         {selected.concluido && (
@@ -671,7 +738,7 @@ export default function ProjetosView({ modo }: { modo: ModoProjetos }) {
       {modalNew && <ProjectModal users={users} onClose={()=>setModalNew(false)} onSave={load} />}
       {modalEdit && (
         <ProjectModal project={modalEdit} users={users} onClose={()=>setModalEdit(null)}
-          onSave={()=>{ load(); if (selected) abrir(selected.id); setModalEdit(null); }} />
+          onSave={()=>{ load(); if (selected) abrir(selected.id); }} />
       )}
       {taskModal && selected && (
         <TaskModal projectId={selected.id} task={taskModal.task} members={selected.members||[]} onClose={()=>setTaskModal(null)}

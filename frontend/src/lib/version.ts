@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "2.1.1";
+export const VERSAO = "2.2.0";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -26,7 +26,7 @@ export const VERSAO = "2.1.1";
 export const VERSAO_DATA = "2026-10-19";
 
 /** Nome da entrega, para dar contexto ao número. */
-export const VERSAO_NOME = "Orçamento dentro do Finance";
+export const VERSAO_NOME = "Prazo no dia certo e membros pela edição";
 
 /**
  * Histórico exibido na tela Sobre, do mais recente para o mais antigo.
@@ -35,6 +35,15 @@ export const VERSAO_NOME = "Orçamento dentro do Finance";
  * esta lista quer saber o que mudou para ele.
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
+  {
+    versao: "2.2.0",
+    data: "2026-10-19",
+    titulo: "Prazo no dia certo e membros pela edição",
+    itens: [
+      "O prazo do projeto e o vencimento da tarefa passam a valer no dia que foi informado. Antes caíam um dia para trás: um prazo de 30/11 virava compromisso de 29/11 na agenda de todo mundo, o aviso trazia a data errada, e o alerta dizia \"vence hoje\" na véspera e \"venceu há 1 dia\" no próprio dia do prazo",
+      "Os membros do projeto passam a ser escolhidos pela tela de editar, e o card da lista ficou mais curto e com altura constante",
+    ],
+  },
   {
     versao: "2.1.1",
     data: "2026-10-19",

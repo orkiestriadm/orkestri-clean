@@ -43,3 +43,38 @@ export function formatarDataBR(valor: string | Date | null | undefined): string 
 export function dataOuTraco(valor: string | Date | null | undefined): string {
   return formatarDataBR(valor) ?? "—";
 }
+
+/**
+ * O mesmo dia do calendário, à meia-noite LOCAL — base de toda COMPARAÇÃO de prazo.
+ *
+ * O `formatarDataBR` acima resolveu a exibição; a comparação continuava errada,
+ * e pelo mesmo motivo. `new Date("2026-10-16") < new Date()` é verdadeiro no dia
+ * 16 em Brasília, porque o valor sem hora é meia-noite UTC — 21h do dia 15 aqui.
+ * O selo VENCIDA aparecia no próprio dia do prazo, um dia antes da hora.
+ *
+ * A distinção é pelo horário, igual à do backend (`common/datas.ts`): meia-noite
+ * UTC exata veio de uma coluna DATE e tem o dia certo nos componentes UTC;
+ * qualquer outro horário é um instante de verdade, e aí o dia certo é o local.
+ */
+export function diaLocal(valor: string | Date): Date {
+  const d = valor instanceof Date ? valor : new Date(valor);
+  if (Number.isNaN(d.getTime())) return d;
+
+  const veioDeColunaDate =
+    d.getUTCHours() === 0 && d.getUTCMinutes() === 0 &&
+    d.getUTCSeconds() === 0 && d.getUTCMilliseconds() === 0;
+
+  return veioDeColunaDate
+    ? new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate())
+    : new Date(d.getFullYear(), d.getMonth(), d.getDate());
+}
+
+/** `true` só quando o DIA do prazo já ficou para trás. Hoje ainda não venceu. */
+export function venceu(valor: string | Date | null | undefined): boolean {
+  if (!valor) return false;
+  const dia = diaLocal(valor);
+  if (Number.isNaN(dia.getTime())) return false;
+  const hoje = new Date();
+  hoje.setHours(0, 0, 0, 0);
+  return dia.getTime() < hoje.getTime();
+}
