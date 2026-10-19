@@ -37,12 +37,9 @@ type DashStats = {
 type ExecStats = {
   chamados: { abertos: number; urgentes: number; hoje: number; emAtendimento: number; resolvidosMes: number; slaViolados: number; slaCompliancePct: number; csatMedia: number; csatTotal: number };
   projetos: { ativos: number; concluidosMes: number };
-  ativos: { total: number; emManutencao: number; garantiaRisco: number; garantiaVencida: number };
-  contratos: { total: number; vigentes: number; vencendo: number; vencidos: number; valorTotal: number };
   horas: { totalMinutos: number; totalRegistros: number };
   conhecimento: { artigos: number; visualizacoes: number };
 };
-type AprovStats = { minhasPendentes: number; aguardandoMinhaAprovacao: number; aprovadas: number; rejeitadas: number };
 type DailyTask = { id: string; titulo: string; concluido: boolean; tipo: string };
 
 /* ═══════════════════════════════════════════════
@@ -51,22 +48,12 @@ type DailyTask = { id: string; titulo: string; concluido: boolean; tipo: string 
 type AlertSeverity = "critical" | "high" | "medium" | "low" | "ok";
 type Alert = { severity: AlertSeverity; label: string; href: string | null; icon: any };
 
-function computeAlerts(exec: ExecStats | null, dash: DashStats | null, aprov: AprovStats | null): Alert[] {
+function computeAlerts(exec: ExecStats | null, dash: DashStats | null): Alert[] {
   const alerts: Alert[] = [];
   if (exec?.chamados?.slaViolados > 0)
     alerts.push({ severity: "critical", label: `${exec.chamados.slaViolados} chamado${exec.chamados.slaViolados > 1 ? "s" : ""} com SLA violado`, href: "/dashboard/chamados", icon: ShieldAlert });
   if (exec?.chamados?.urgentes > 0)
     alerts.push({ severity: "high", label: `${exec.chamados.urgentes} chamado${exec.chamados.urgentes > 1 ? "s" : ""} urgente${exec.chamados.urgentes > 1 ? "s" : ""} em aberto`, href: "/dashboard/chamados", icon: Zap });
-  if (aprov && aprov.aguardandoMinhaAprovacao > 0)
-    alerts.push({ severity: "high", label: `${aprov.aguardandoMinhaAprovacao} item${aprov.aguardandoMinhaAprovacao > 1 ? "s" : ""} aguardando sua aprovação`, href: "/dashboard/aprovacoes", icon: Clock });
-  if (exec?.ativos?.garantiaVencida > 0)
-    alerts.push({ severity: "medium", label: `${exec.ativos.garantiaVencida} ativo${exec.ativos.garantiaVencida > 1 ? "s" : ""} com garantia vencida`, href: "/dashboard/ativos", icon: AlertCircle });
-  if (exec?.contratos?.vencendo > 0)
-    alerts.push({ severity: "medium", label: `${exec.contratos.vencendo} contrato${exec.contratos.vencendo > 1 ? "s" : ""} vencendo em 30 dias`, href: "/dashboard/contratos", icon: FileText });
-  if (exec?.ativos?.garantiaRisco > 0)
-    alerts.push({ severity: "low", label: `${exec.ativos.garantiaRisco} garantia${exec.ativos.garantiaRisco > 1 ? "s" : ""} vencendo em 30 dias`, href: "/dashboard/ativos", icon: Package });
-  if (dash?.contratos?.vencendo30 && dash.contratos.vencendo30 > (exec?.contratos?.vencendo ?? 0))
-    alerts.push({ severity: "low", label: `Contratos próximos do vencimento detectados`, href: "/dashboard/contratos", icon: FileText });
   if (alerts.length === 0)
     alerts.push({ severity: "ok", label: "Todos os indicadores operacionais estão normais", href: null, icon: CheckCircle2 });
   return alerts;
@@ -262,7 +249,7 @@ export default function CommandCenter() {
   }, [user, router]);
 
   // Sem `dashboard:ver` esta tela só produziria 403: ela consulta relatórios,
-  // aprovações e execução orçamentária. Em vez de recusar tudo, manda a pessoa
+  // chamados e execução orçamentária. Em vez de recusar tudo, manda a pessoa
   // para o primeiro módulo que ela realmente tem.
   const podeVerDashboard = canAccessModule(user, "dashboard:ver");
   const primeiroDisponivel = useMemo(() => {
@@ -299,14 +286,9 @@ export default function CommandCenter() {
                 { href: "/dashboard/relatorios", label: "Relatórios",   icon: BarChart3,   accent: "#3b82f6" },
                 { href: "/dashboard/agenda",     label: "Agenda",       icon: Calendar,    accent: "#f59e0b" },
                 { href: "/dashboard/orcamento",  label: "Orçamento",    icon: PiggyBank,   accent: "#a78bfa" },
-                { href: "/dashboard/clientes",   label: "Clientes",     icon: Building2,   accent: "#06b6d4" },
-                { href: "/dashboard/workforce",  label: "Workforce",    icon: Users,       accent: "#ec4899" },
-                { href: "/dashboard/contratos",  label: "Contratos",    icon: FileText,    accent: "#0ea5e9" },
-                { href: "/dashboard/faturas",    label: "Faturas",      icon: Receipt,     accent: "#34d399" },
                 { href: "/dashboard/gantt",      label: "Linha do Tempo", icon: Activity,  accent: "#f97316" },
                 { href: "/dashboard/keep",       label: "Keep",         icon: StickyNote,  accent: "#8b5cf6" },
                 { href: "/dashboard/conhecimento",label:"Conhecimento", icon: CheckCircle2,accent: "#22d3ee" },
-                { href: "/dashboard/ativos",     label: "Ativos",       icon: Package,     accent: "#64748b" },
     ];
     return TODOS.filter(m => {
       const g = grupoPorHref.get(m.href);
@@ -319,7 +301,6 @@ export default function CommandCenter() {
 
   const [dash, setDash]   = useState<DashStats | null>(null);
   const [exec, setExec]   = useState<ExecStats | null>(null);
-  const [aprov, setAprov] = useState<AprovStats | null>(null);
   const [daily, setDaily] = useState<DailyTask[]>([]);
   const [loading, setLoading]   = useState(true);
   const [loadingD, setLoadingD] = useState(true);
@@ -351,14 +332,12 @@ export default function CommandCenter() {
   const loadAll = useCallback(async () => {
     setLoading(true);
     try {
-      const [r1, r2, r3] = await Promise.allSettled([
+      const [r1, r2] = await Promise.allSettled([
         api.get("/stats/dashboard"),
         api.get("/stats/executivo"),
-        api.get("/workflows/requests/stats"),
       ]);
       if (r1.status === "fulfilled") setDash(r1.value.data);
       if (r2.status === "fulfilled") setExec(r2.value.data);
-      if (r3.status === "fulfilled") setAprov(r3.value.data);
       setLastUpdated(new Date());
     } catch {}
     finally { setLoading(false); }
@@ -405,7 +384,7 @@ export default function CommandCenter() {
     name: d.data.slice(5).replace("-", "/"), value: d.total,
   })) ?? [];
 
-  const alerts = computeAlerts(exec, dash, aprov);
+  const alerts = computeAlerts(exec, dash);
   const sysStatus = loading ? "operational" : systemStatus(alerts);
 
   // SLA compliance color
@@ -415,8 +394,6 @@ export default function CommandCenter() {
   const WIDGETS = [
     { id: "chamados",   label: "Setor: Chamados" },
     { id: "projetos",   label: "Setor: Projetos" },
-    { id: "aprovacoes", label: "Setor: Aprovações" },
-    { id: "ativos",     label: "Setor: Ativos" },
     { id: "insights",   label: "IA Insights" },
     { id: "chart",      label: "Gráfico de Chamados" },
     { id: "atividade",  label: "Atividade Recente" },
@@ -557,8 +534,8 @@ export default function CommandCenter() {
           {/* ── Status Bar ── */}
           <StatusBar status={sysStatus} alerts={alerts} lastUpdated={lastUpdated} onRefresh={loadAll} loading={loading} />
 
-          {/* ── 4 Sector Widgets ── */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+          {/* ── Sector Widgets ── */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
 
             {!hidden.chamados && (
               <SectorWidget
@@ -597,43 +574,6 @@ export default function CommandCenter() {
               />
             )}
 
-            {!hidden.aprovacoes && (
-              <SectorWidget
-                title="Aprovações" icon={CheckSquare} accent="#10b981" href="/dashboard/aprovacoes"
-                loading={loading}
-                metrics={[
-                  { label: "Aguard. minha apr.", value: aprov?.aguardandoMinhaAprovacao ?? "—", color: (aprov?.aguardandoMinhaAprovacao ?? 0) > 0 ? "text-orange-400" : "text-emerald-500", badge: (aprov?.aguardandoMinhaAprovacao ?? 0) > 0 ? "AGIR" : undefined },
-                  { label: "Minhas pendentes",   value: aprov?.minhasPendentes           ?? "—", color: "text-amber-400" },
-                  { label: "Aprovadas",           value: aprov?.aprovadas                ?? "—", color: "text-emerald-400" },
-                  { label: "Rejeitadas",          value: aprov?.rejeitadas               ?? "—", color: (aprov?.rejeitadas ?? 0) > 0 ? "text-red-400" : "text-[var(--text-muted)]" },
-                  { label: "Conhecimento",        value: exec?.conhecimento.artigos       ?? "—", color: "text-blue-400" },
-                  { label: "Views / artigos",     value: exec ? `${(exec.conhecimento.visualizacoes || 0).toLocaleString("pt-BR")}` : "—", color: "text-[var(--text-muted)]" },
-                ]}
-              />
-            )}
-
-            {!hidden.ativos && (
-              <SectorWidget
-                title="Ativos" icon={Package} accent="#06b6d4" href="/dashboard/ativos"
-                loading={loading}
-                metrics={[
-                  { label: "Total de Ativos",    value: exec?.ativos.total          ?? "—", color: "text-cyan-400" },
-                  { label: "Em Manutenção",      value: exec?.ativos.emManutencao    ?? "—", color: (exec?.ativos.emManutencao ?? 0) > 0 ? "text-amber-400" : "text-emerald-500" },
-                  { label: "Garantia Vencida",   value: exec?.ativos.garantiaVencida ?? "—", color: (exec?.ativos.garantiaVencida ?? 0) > 0 ? "text-red-400" : "text-emerald-500" },
-                  { label: "Garantia a Vencer",  value: exec?.ativos.garantiaRisco   ?? "—", color: (exec?.ativos.garantiaRisco ?? 0) > 0 ? "text-amber-400" : "text-emerald-500" },
-                  { label: "Contratos Ativos",   value: exec?.contratos.total        ?? "—", color: "text-[var(--text-primary)]" },
-                  { label: "Contratos Vencendo", value: exec?.contratos.vencendo     ?? dash?.contratos?.vencendo30 ?? "—", color: (exec?.contratos.vencendo ?? 0) > 0 ? "text-amber-400" : "text-emerald-500" },
-                ]}
-                footer={exec && exec.contratos.valorTotal > 0 && (
-                  <div className="flex items-center gap-2">
-                    <span className="text-[11px] text-[var(--text-muted)]">Valor contratos:</span>
-                    <span className="text-[12px] font-bold text-cyan-400">
-                      {exec.contratos.valorTotal.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 })}
-                    </span>
-                  </div>
-                )}
-              />
-            )}
           </div>
 
           {/* ── Middle row: AI Insights + Chart ── */}

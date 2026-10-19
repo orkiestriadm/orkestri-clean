@@ -76,8 +76,16 @@ describe("notificacao-modulos", () => {
 
   describe("moduloValido", () => {
     it("aceita id conhecido e recusa inventado", () => {
-      expect(moduloValido("fleet")).toBe(true);
+      expect(moduloValido("service")).toBe(true);
       expect(moduloValido("inventado")).toBe(false);
+    });
+
+    // `fleet` saiu do catálogo em 19/10/2026 com o módulo de Frotas. O slug
+    // legado "frota" SEGUE traduzindo — contas antigas ainda o têm gravado em
+    // `UserProfile.modulos` — mas o id resultante não casa com módulo vivo.
+    it("id de módulo removido deixa de ser válido, mas ainda traduz", () => {
+      expect(normalizarModulo("frota")).toBe("fleet");
+      expect(moduloValido("fleet")).toBe(false);
     });
   });
 

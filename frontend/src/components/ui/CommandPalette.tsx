@@ -4,19 +4,29 @@ import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import {
-  Search, Headphones, Building2, FileText, Receipt, BookOpen, X, ArrowRight,
+  Search, Headphones, BookOpen, FolderKanban, Users, X, ArrowRight,
 } from "lucide-react";
 
+/**
+ * Busca global.
+ *
+ * Até 19/10/2026 procurava em chamados, clientes, contratos, faturas e artigos.
+ * Clientes, contratos e faturas saíram com o módulo Relations, que não tinha
+ * dado em produção. Chamados e artigos ficaram — é onde está o dado vivo — e
+ * entraram projetos e pessoas, que o `/stats/search` já devolvia e esta tela
+ * simplesmente não mostrava.
+ */
 type SearchResult = {
   chamados: { id: string; numero: number; titulo: string; status: string; prioridade: string }[];
-  clientes: { id: string; nome: string; empresa?: string }[];
-  contratos: { id: string; numero?: number; titulo: string; status: string; cliente: { nome: string } }[];
-  faturas: { id: string; numero: number; descricao?: string; valor: number; status: string; cliente: { nome: string } }[];
   artigos: { id: string; titulo: string; slug: string; resumo?: string }[];
+  projetos: { id: string; titulo: string; status: string; prioridade: string }[];
+  usuarios: { id: string; nome: string; email: string }[];
 };
 
-const PRIO_DOT: Record<string, string> = { baixa: "bg-slate-400", media: "bg-blue-400", alta: "bg-amber-400", urgente: "bg-red-500" };
-const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
+const PRIO_DOT: Record<string, string> = {
+  baixa: "bg-slate-400", media: "bg-blue-400", alta: "bg-amber-400", urgente: "bg-red-500",
+  BAIXA: "bg-slate-400", MEDIA: "bg-blue-400", ALTA: "bg-amber-400", URGENTE: "bg-red-500",
+};
 
 export default function CommandPalette({ onClose }: { onClose: () => void }) {
   const router = useRouter();
@@ -45,16 +55,14 @@ export default function CommandPalette({ onClose }: { onClose: () => void }) {
   // Build flat list for keyboard nav
   const items: { label: string; sub?: string; href: string; icon: any; dot?: string }[] = [];
   if (results) {
-    for (const c of results.chamados)
+    for (const c of results.chamados ?? [])
       items.push({ label: `#${c.numero} ${c.titulo}`, sub: c.status, href: `/dashboard/chamados/${c.id}`, icon: Headphones, dot: PRIO_DOT[c.prioridade] });
-    for (const c of results.clientes)
-      items.push({ label: c.empresa || c.nome, sub: c.empresa ? c.nome : undefined, href: `/dashboard/clientes`, icon: Building2 });
-    for (const c of results.contratos)
-      items.push({ label: c.titulo, sub: `${c.cliente.nome} · ${c.status}`, href: `/dashboard/contratos`, icon: FileText });
-    for (const f of results.faturas)
-      items.push({ label: `Fatura #${f.numero}${f.descricao ? ` — ${f.descricao}` : ""}`, sub: `${f.cliente.nome} · ${fmt(f.valor)}`, href: `/dashboard/faturas`, icon: Receipt });
-    for (const a of results.artigos)
+    for (const a of results.artigos ?? [])
       items.push({ label: a.titulo, sub: a.resumo?.slice(0, 60), href: `/dashboard/conhecimento`, icon: BookOpen });
+    for (const p of results.projetos ?? [])
+      items.push({ label: p.titulo, sub: p.status, href: `/dashboard/projetos/${p.id}`, icon: FolderKanban, dot: PRIO_DOT[p.prioridade] });
+    for (const u of results.usuarios ?? [])
+      items.push({ label: u.nome, sub: u.email, href: `/dashboard/cadastros`, icon: Users });
   }
 
   const navigate = (href: string) => { router.push(href); onClose(); };
@@ -72,17 +80,16 @@ export default function CommandPalette({ onClose }: { onClose: () => void }) {
   }, [handleKey]);
 
   const SECTION_LABELS: Record<string, string> = {
-    chamados: "Chamados", clientes: "Clientes", contratos: "Contratos", faturas: "Faturas", artigos: "Artigos KB",
+    chamados: "Chamados", artigos: "Artigos KB", projetos: "Projetos", usuarios: "Pessoas",
   };
   const SECTION_ICONS: Record<string, any> = {
-    chamados: Headphones, clientes: Building2, contratos: FileText, faturas: Receipt, artigos: BookOpen,
+    chamados: Headphones, artigos: BookOpen, projetos: FolderKanban, usuarios: Users,
   };
   const SECTION_HREFS: Record<string, (item: any) => string> = {
     chamados: (i) => `/dashboard/chamados/${i.id}`,
-    clientes: () => `/dashboard/clientes`,
-    contratos: () => `/dashboard/contratos`,
-    faturas: () => `/dashboard/faturas`,
-    artigos: () => `/dashboard/conhecimento`,
+    artigos:  () => `/dashboard/conhecimento`,
+    projetos: (i) => `/dashboard/projetos/${i.id}`,
+    usuarios: () => `/dashboard/cadastros`,
   };
 
   let flatIdx = 0;
@@ -100,7 +107,7 @@ export default function CommandPalette({ onClose }: { onClose: () => void }) {
           <input
             ref={inputRef}
             className="flex-1 bg-transparent text-[14px] text-foreground placeholder:text-muted-foreground focus:outline-none"
-            placeholder="Buscar chamados, clientes, contratos, faturas, artigos..."
+            placeholder="Buscar chamados, artigos, projetos, pessoas..."
             value={q}
             onChange={e => setQ(e.target.value)}
           />
@@ -134,9 +141,10 @@ export default function CommandPalette({ onClose }: { onClose: () => void }) {
             <div className="py-1">
               {(Object.keys(results) as (keyof SearchResult)[]).map(section => {
                 const list = results[section];
-                if (!list.length) return null;
+                if (!list?.length) return null;
                 const Icon = SECTION_ICONS[section];
                 const hrefFn = SECTION_HREFS[section];
+                if (!Icon || !hrefFn) return null;
                 return (
                   <div key={section}>
                     <div className="flex items-center gap-1.5 px-4 py-2 text-[10px] font-mono text-muted-foreground uppercase tracking-[0.1em] bg-muted/20">
@@ -147,14 +155,11 @@ export default function CommandPalette({ onClose }: { onClose: () => void }) {
                       const idx = flatIdx++;
                       const active = idx === sel;
                       const label = section === "chamados" ? `#${item.numero} ${item.titulo}`
-                        : section === "clientes"  ? (item.empresa || item.nome)
-                        : section === "contratos" ? item.titulo
-                        : section === "faturas"   ? `Fatura #${item.numero}${item.descricao ? ` — ${item.descricao}` : ""}`
+                        : section === "usuarios" ? item.nome
                         : item.titulo;
                       const sub = section === "chamados" ? item.status
-                        : section === "clientes"  ? (item.empresa ? item.nome : undefined)
-                        : section === "contratos" ? `${item.cliente.nome} · ${item.status}`
-                        : section === "faturas"   ? `${item.cliente.nome} · ${fmt(item.valor)}`
+                        : section === "usuarios" ? item.email
+                        : section === "projetos" ? item.status
                         : item.resumo?.slice(0, 60);
                       return (
                         <button
@@ -166,7 +171,7 @@ export default function CommandPalette({ onClose }: { onClose: () => void }) {
                             active ? "bg-primary/10" : "hover:bg-accent/50"
                           )}
                         >
-                          {section === "chamados" && item.prioridade && (
+                          {item.prioridade && (
                             <span className={cn("w-2 h-2 rounded-full shrink-0", PRIO_DOT[item.prioridade])} />
                           )}
                           <div className="flex-1 min-w-0">

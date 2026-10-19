@@ -74,3 +74,6 @@ saas/*.log
 
 # Artefato de build
 frontend_build.zip
+
+# Gravado pelo deploy: de qual ref os arquivos do servidor vieram.
+.deploy-ref

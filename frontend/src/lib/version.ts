@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "1.35.0";
+export const VERSAO = "2.0.0";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -23,10 +23,10 @@ export const VERSAO = "1.35.0";
  * Não é gerada no build: `new Date()` no bundle muda a cada compilação, e duas
  * builds do mesmo código pareceriam versões diferentes.
  */
-export const VERSAO_DATA = "2026-09-13";
+export const VERSAO_DATA = "2026-10-19";
 
 /** Nome da entrega, para dar contexto ao número. */
-export const VERSAO_NOME = "Renovação do teste pelo WhatsApp";
+export const VERSAO_NOME = "Escopo enxuto: fora o que não tinha uso";
 
 /**
  * Histórico exibido na tela Sobre, do mais recente para o mais antigo.
@@ -35,6 +35,20 @@ export const VERSAO_NOME = "Renovação do teste pelo WhatsApp";
  * esta lista quer saber o que mudou para ele.
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
+  {
+    versao: "2.0.0",
+    data: "2026-10-19",
+    titulo: "Escopo enxuto: fora o que não tinha uso",
+    itens: [
+      "Oito produtos saíram do sistema por não ter nenhum uso real: Pessoas (e Meu RH), Frotas (e Reserva de Carros), Compliance, Gestão Estratégica, Ativos (com CMDB e Monitoramento), Clientes/Contratos/Faturas, Fornecedores e Aprovações. Antes de remover, cada tabela foi contada: todas estavam vazias ou só com catálogo de exemplo",
+      "Chamados e a Base de Conhecimento FICARAM, com tudo dentro: catálogo, horas, CSAT, SLA e os relatórios. É onde está o trabalho de verdade — 236 chamados e 61 artigos",
+      "Saíram também quatro telas que só mostravam número dos módulos removidos: IA Operacional, Workforce, Processos e Capacidade. A tela Executivo continua, sem as abas de Ativos e Contratos",
+      "A busca do Ctrl+K agora procura em chamados, artigos, projetos e pessoas",
+      "A categoria \"Frotas\" saiu do formulário de chamado: ela exigia escolher um veículo, e sem o módulo de Frotas o chamado ficaria impossível de abrir. Chamados antigos que têm veículo continuam mostrando a placa",
+      "Em Cadastros saíram as abas Colaboradores, Skills, Ausências e Squads. Usuários, Setores, Organograma, Papéis, Matriz e Solicitações continuam",
+      "Nada foi apagado do banco: as tabelas dos módulos removidos seguem lá, paradas",
+    ],
+  },
   {
     versao: "1.35.0",
     data: "2026-09-13",

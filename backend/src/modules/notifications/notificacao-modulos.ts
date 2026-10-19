@@ -11,19 +11,21 @@
 /** Módulos que podem originar notificação. Os ids são os mesmos do `NAV` do
  *  frontend (`frontend/src/lib/modules.tsx`), para que a tela de configuração
  *  fale a mesma língua do menu que o usuário já conhece. */
+/**
+ * A redução de 19/10/2026 tirou daqui fleet, people, assets, approvals,
+ * supply e relations — os módulos removidos por não terem dado em produção.
+ * Os slugs legados deles SEGUEM no mapa de tradução abaixo, de propósito:
+ * contas antigas ainda têm `["frota"]` gravado em `UserProfile.modulos`, e
+ * traduzir continua devolvendo um id reconhecível em vez do slug cru. Ele
+ * apenas não casa com nenhum módulo vivo, que é o resultado correto.
+ */
 export const MODULOS_NOTIFICAVEIS = [
-  { id: "fleet", label: "Fleet — Frotas" },
-  { id: "people", label: "People — Pessoas" },
   { id: "service", label: "Service — Chamados" },
   { id: "projects", label: "Projects — Projetos" },
   { id: "budget", label: "Budget — Orçamento" },
   { id: "finance", label: "Finance — Financeiro" },
-  { id: "assets", label: "Assets — Ativos" },
   { id: "quality", label: "Quality — Procedimentos" },
-  { id: "approvals", label: "Approvals — Aprovações" },
   { id: "space", label: "Space — Agenda" },
-  { id: "supply", label: "Supply — Suprimentos" },
-  { id: "relations", label: "Relations — Clientes" },
   { id: "core", label: "Core — Administração" },
 ] as const;
 

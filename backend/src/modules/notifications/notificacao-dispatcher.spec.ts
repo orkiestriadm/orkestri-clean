@@ -49,14 +49,14 @@ const usuarioPadrao = (over: any = {}) => ({
 });
 
 const prefPadrao = (over: any = {}) => ({
-  userId: USER, modulo: "fleet",
+  userId: USER, modulo: "service",
   sistema: true, whatsapp: true, email: false,
   severidadeMin: "info",
   ...over,
 });
 
 const pedido = (over: any = {}) => ({
-  organizationId: ORG, modulo: "fleet", tipo: "teste",
+  organizationId: ORG, modulo: "service", tipo: "teste",
   titulo: "T", mensagem: "M", ...over,
 });
 
@@ -130,7 +130,7 @@ describe("NotificacaoDispatcher", () => {
     const { db, criadas } = montarPrisma({ prefs: [prefPadrao()], users: [usuarioPadrao()] });
     const d = new NotificacaoDispatcher(db);
     await d.despachar(pedido());
-    expect(criadas[0]).toEqual(expect.objectContaining({ modulo: "fleet" }));
+    expect(criadas[0]).toEqual(expect.objectContaining({ modulo: "service" }));
   });
 
   it("chave de de-dup inclui canal e usuário", async () => {

@@ -3,8 +3,7 @@
 import { useRef } from 'react'
 import { motion, useInView } from 'framer-motion'
 import {
-  Users, Calculator, Truck, BarChart3,
-  FolderKanban, Package, FileText, CheckSquare,
+  Users, Calculator, BarChart3, FolderKanban, FileText,
 } from 'lucide-react'
 
 const MODULES = [
@@ -25,14 +24,6 @@ const MODULES = [
     border: 'rgba(52,211,153,0.2)',
   },
   {
-    icon: Truck,
-    name: 'Fornecedores',
-    description: 'Homologação, avaliação, performance e gestão de suprimentos.',
-    color: '#fbbf24',
-    gradient: 'from-amber-500/20 to-amber-600/5',
-    border: 'rgba(251,191,36,0.2)',
-  },
-  {
     icon: BarChart3,
     name: 'Financeiro',
     description: 'Orçamento(Capex/Opex), contratos, receitas, despesas e relatórios financeiros.',
@@ -49,28 +40,12 @@ const MODULES = [
     border: 'rgba(167,139,250,0.2)',
   },
   {
-    icon: Package,
-    name: 'Inventário',
-    description: 'Ativos, transferências, categorias e controle de estoque.',
-    color: '#f87171',
-    gradient: 'from-red-500/20 to-red-600/5',
-    border: 'rgba(248,113,113,0.2)',
-  },
-  {
     icon: FileText,
     name: 'Relatórios',
     description: 'Dashboards dinâmicos, exportação e análises operacionais completas.',
     color: '#34d399',
     gradient: 'from-emerald-500/20 to-emerald-600/5',
     border: 'rgba(52,211,153,0.2)',
-  },
-  {
-    icon: CheckSquare,
-    name: 'Aprovações',
-    description: 'Fluxos de aprovação multinível com rastreabilidade e auditoria.',
-    color: '#22d3ee',
-    gradient: 'from-cyan-500/20 to-cyan-600/5',
-    border: 'rgba(34,211,238,0.2)',
   },
 ]
 

@@ -87,7 +87,51 @@ git merge-base --is-ancestor HEAD "$REF" 2>/dev/null || \
 
 VERSAO_REF="$(git show "$REF:frontend/src/lib/version.ts" | sed -n 's/^export const VERSAO = "\(.*\)";/\1/p')"
 COMMIT="$(git rev-parse --short "$REF")"
+COMMIT_CHEIO="$(git rev-parse "$REF")"
 echo "    ref $REF ($COMMIT), versão $VERSAO_REF"
+
+# ── Remoções ────────────────────────────────────────────────────────────────
+#
+# `git checkout <ref> -- caminho` NÃO apaga arquivo que foi removido no git: ele
+# escreve o que existe no ref e ignora o resto. Até 19/10/2026 isso era ressalva
+# conhecida e o verificador de paridade apenas ACUSAVA, na linha "NO SERVIDOR,
+# FALTA NO GIT". Enquanto todo release só adicionava e alterava, passou. No dia
+# em que um release removeu 20 módulos, a conta chegou: os arquivos ficariam no
+# servidor, e o Next, que monta rota por arquivo em disco, continuaria servindo
+# as telas removidas — chamando uma API que não existe mais.
+#
+# A correção NÃO é `git clean` no servidor. Aquele comando apaga tudo que não
+# está no git, e no servidor isso inclui o que legitimamente mora só lá: .env,
+# certificado, upload de cliente, build. Teria sido trocar um problema visível
+# por um irreversível.
+#
+# O que se apaga aqui é só o que o GIT afirma que saiu entre o ref que está
+# publicado e o que vai entrar — lista fechada, calculada deste lado, onde o
+# repositório está inteiro. Arquivo não rastreado nunca entra nela.
+#
+# Para saber de onde o servidor veio, o deploy grava o ref publicado em
+# .deploy-ref ao terminar. Na primeira vez esse arquivo não existe, e aí o ref
+# anterior tem de ser dito à mão (REF_ANTERIOR=<ref>) em vez de adivinhado:
+# errar o ponto de partida apagaria arquivo que devia ficar.
+echo "==> apurando o que saiu do git"
+ANTES="$(ssh -o BatchMode=yes -o ConnectTimeout=20 "$SSH_ALVO" \
+  "$SUDO cat $DIR/.deploy-ref 2>/dev/null" 2>/dev/null | tr -d '[:space:]')"
+[ -z "$ANTES" ] && ANTES="${REF_ANTERIOR:-}"
+[ -z "$ANTES" ] && falhar "não sei de qual ref $AMBIENTE veio: $DIR/.deploy-ref não existe ainda.
+  Descubra a versão no ar com 'curl -s $URL_SAUDE' e rode uma vez com o ref correspondente:
+  REF_ANTERIOR=<ref> bash scripts/deploy.sh $AMBIENTE $REF"
+git rev-parse --verify "$ANTES" >/dev/null 2>&1 || falhar "o ref anterior '$ANTES' não existe aqui. Rodou 'git fetch'?"
+
+REMOVER="$(git diff --name-only --diff-filter=D "$ANTES" "$REF" -- $ESCOPO)"
+QTD_REMOVER="$(printf '%s' "$REMOVER" | grep -c . || true)"
+echo "    veio de $(git rev-parse --short "$ANTES") — $QTD_REMOVER arquivo(s) a remover"
+if [ "$QTD_REMOVER" -gt 0 ]; then
+  printf '%s\n' "$REMOVER" | sed 's/^/      - /' | head -15
+  [ "$QTD_REMOVER" -gt 15 ] && echo "      … e $((QTD_REMOVER - 15)) outro(s)"
+  # Caminho com espaço quebraria o laço remoto, que lê linha a linha. Nenhum
+  # arquivo do projeto tem, e é melhor travar do que apagar o alvo errado.
+  printf '%s\n' "$REMOVER" | grep -q ' ' && falhar "há caminho com espaço na lista de remoção; trate antes de publicar."
+fi
 
 if [ "$AMBIENTE" = "producao" ] && [ "${CONFIRMA:-}" != "sim" ]; then
   echo
@@ -119,12 +163,41 @@ ESPERA_MAX=${ESPERA_MAX:-3600}   # 1h: o build de produção passa de 20 min
 
 echo "==> publicando em $AMBIENTE ($SSH_ALVO:$DIR)"
 
+# A lista de remoção vai por stdin de um ssh próprio, e não embutida no script
+# remoto: assim nenhum nome de arquivo passa por expansão de shell.
+if [ "$QTD_REMOVER" -gt 0 ]; then
+  printf '%s\n' "$REMOVER" | ssh -o BatchMode=yes "$SSH_ALVO" "cat > /tmp/orkestri-remover-$AMBIENTE.txt" \
+    || falhar "não consegui enviar a lista de remoção."
+else
+  ssh -o BatchMode=yes "$SSH_ALVO" ": > /tmp/orkestri-remover-$AMBIENTE.txt" >/dev/null 2>&1 || true
+fi
+
 ssh -o BatchMode=yes "$SSH_ALVO" "
 set -e
 cd $DIR
 $SUDO git fetch origin --quiet
 $SUDO git checkout $REF -- $ESCOPO
 echo '    arquivos atualizados a partir de $REF'
+
+# Remove o que saiu do git. A lista veio calculada do outro lado; aqui só se
+# apaga o que está nela, e dentro do escopo — nada de clean nem de glob.
+REMOVIDOS=0
+while read -r f; do
+  [ -z \"\$f\" ] && continue
+  case \"\$f\" in backend/*|frontend/*) ;; *) echo \"    IGNORADO (fora do escopo): \$f\"; continue ;; esac
+  if [ -e \"\$f\" ]; then $SUDO rm -f \"\$f\"; REMOVIDOS=\$((REMOVIDOS+1)); fi
+done < /tmp/orkestri-remover-$AMBIENTE.txt
+if [ \"\$REMOVIDOS\" -gt 0 ]; then
+  echo \"    \$REMOVIDOS arquivo(s) removido(s)\"
+  # Diretório que ficou vazio depois da remoção também sai: no Next, uma pasta
+  # de rota vazia não serve nada, mas suja o diagnóstico de paridade.
+  for d in $ESCOPO; do $SUDO find \$d -type d -empty -delete 2>/dev/null || true; done
+fi
+
+# Grava DE QUAL REF a árvore veio, para o próximo deploy saber o que remover.
+# Vai aqui, logo depois do checkout, e não no fim: isto descreve os ARQUIVOS em
+# disco, que já estão no ref novo mesmo se o build falhar adiante.
+echo $COMMIT_CHEIO | $SUDO tee $DIR/.deploy-ref > /dev/null
 
 # Os arquivos de compose saem do container que está rodando, e não de um valor
 # fixo aqui: produção e homologação já divergiram nisso, e subir com o conjunto
@@ -210,9 +283,9 @@ else
   echo "ATENÇÃO: publicou, mas a verificação apontou problema. Não considere feito."
 fi
 
-# Ressalva conhecida, e deliberada: `git checkout <ref> -- caminho` NÃO apaga
-# arquivo que foi removido no git. Quem pega isso é o verificador de paridade,
-# na linha "NO SERVIDOR, FALTA NO GIT". A remoção ficou de fora porque um
-# `git clean` no servidor é justamente o tipo de comando que leva junto o que
-# não devia.
+# A remoção de arquivo que saiu do git é feita na seção "Remoções", a partir do
+# ref gravado em .deploy-ref — e não por `git clean`, que no servidor levaria
+# junto .env, certificado e upload. Se .deploy-ref não existir (servidor que
+# nunca passou por esta versão do script), o deploy TRAVA pedindo REF_ANTERIOR,
+# em vez de adivinhar o ponto de partida e apagar o que devia ficar.
 exit "$PROBLEMA"

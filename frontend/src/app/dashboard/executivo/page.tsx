@@ -16,8 +16,6 @@ interface ExecStats {
     csatMedia: number; csatTotal: number;
   };
   projetos: { ativos: number; concluidosMes: number };
-  ativos: { total: number; emManutencao: number; garantiaRisco: number; garantiaVencida: number };
-  contratos: { total: number; vigentes: number; vencendo: number; vencidos: number; valorTotal: number };
   horas: { totalMinutos: number; totalRegistros: number };
   conhecimento: { artigos: number; visualizacoes: number };
 }
@@ -92,7 +90,7 @@ function AlertBadge({ count, label, color }: { count: number; label: string; col
   );
 }
 
-const TABS = ["Visão Geral", "Service Desk", "Projetos", "Ativos", "Contratos", "RH & Produtividade"];
+const TABS = ["Visão Geral", "Service Desk", "Projetos", "RH & Produtividade"];
 
 export default function ExecutivoPage() {
   const [stats, setStats] = useState<ExecStats | null>(null);
@@ -205,10 +203,8 @@ export default function ExecutivoPage() {
     </div>
   );
 
-  const { chamados, projetos, ativos, contratos, horas, conhecimento } = stats;
-  const hasAlerts = chamados.urgentes > 0 || chamados.slaViolados > 0
-    || contratos.vencendo > 0 || contratos.vencidos > 0
-    || ativos.garantiaRisco > 0 || ativos.garantiaVencida > 0;
+  const { chamados, projetos, horas, conhecimento } = stats;
+  const hasAlerts = chamados.urgentes > 0 || chamados.slaViolados > 0;
 
   return (
     <div className="flex flex-col h-full bg-[var(--bg-primary)]">
@@ -242,10 +238,6 @@ export default function ExecutivoPage() {
             <div className="flex flex-wrap gap-2">
               <AlertBadge count={chamados.urgentes}      label="chamados urgentes"  color="border-[var(--accent-red)]/30 bg-[var(--accent-red)]/10 text-[var(--accent-red)]" />
               <AlertBadge count={chamados.slaViolados}   label="SLAs violados"      color="border-[var(--accent-red)]/30 bg-[var(--accent-red)]/10 text-[var(--accent-red)]" />
-              <AlertBadge count={contratos.vencendo}     label="contratos vencendo" color="border-[var(--accent-amber)]/30 bg-[var(--accent-amber)]/10 text-[var(--accent-amber)]" />
-              <AlertBadge count={contratos.vencidos}     label="contratos vencidos" color="border-[var(--accent-red)]/30 bg-[var(--accent-red)]/10 text-[var(--accent-red)]" />
-              <AlertBadge count={ativos.garantiaRisco}   label="garantias a vencer" color="border-[var(--accent-amber)]/30 bg-[var(--accent-amber)]/10 text-[var(--accent-amber)]" />
-              <AlertBadge count={ativos.garantiaVencida} label="garantias vencidas" color="border-[var(--accent-red)]/30 bg-[var(--accent-red)]/10 text-[var(--accent-red)]" />
             </div>
           </div>
         )}
@@ -257,7 +249,6 @@ export default function ExecutivoPage() {
               <KpiCard icon={Headphones}   label="Service Desk: Em andamento" value={fmt(chamados.emAtendimento)} sub={`${fmt(chamados.abertos)} abertos total`} color="blue" />
               <KpiCard icon={TrendingUp}   label="SLA Compliance"             value={`${chamados.slaCompliancePct}%`} sub={chamados.slaCompliancePct >= 90 ? "Dentro da meta" : "Abaixo da meta"} color={chamados.slaCompliancePct >= 90 ? "green" : chamados.slaCompliancePct >= 70 ? "yellow" : "red"} />
               <KpiCard icon={Layers}       label="Projetos em Andamento"      value={fmt(projetos.ativos)} sub={`${fmt(projetos.concluidosMes)} concluídos no mês`} color="purple" />
-              <KpiCard icon={FileText}     label="Valor em Contratos"         value={fmtBrl(contratos.valorTotal)} sub={`${fmt(contratos.vigentes)} contratos vigentes`} color="cyan" />
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -372,32 +363,6 @@ export default function ExecutivoPage() {
           </div>
         )}
 
-        {/* --- ABA ATIVOS --- */}
-        {activeTab === "Ativos" && (
-          <div className="space-y-6 animate-in slide-in-from-left-4 fade-in duration-300">
-            <SectionHeader icon={Package} title="Gestão de Ativos" />
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <KpiCard icon={Package}      label="Total de Ativos" value={fmt(ativos.total)}           sub="cadastrados no sistema" color="cyan" />
-              <KpiCard icon={Timer}        label="Em Manutenção"   value={fmt(ativos.emManutencao)}     sub="reparo ou revisão" color="yellow" />
-              <KpiCard icon={AlertTriangle} label="Garantia a vencer" value={fmt(ativos.garantiaRisco)} sub="vence em 30 dias" color="yellow" alert={ativos.garantiaRisco > 0} />
-              <KpiCard icon={XCircle}      label="Garantia vencida" value={fmt(ativos.garantiaVencida)} sub="requer atenção" color="red"    alert={ativos.garantiaVencida > 0} />
-            </div>
-          </div>
-        )}
-
-        {/* --- ABA CONTRATOS --- */}
-        {activeTab === "Contratos" && (
-          <div className="space-y-6 animate-in slide-in-from-left-4 fade-in duration-300">
-            <SectionHeader icon={FileText} title="Gestão de Contratos" />
-            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
-              <KpiCard icon={FileText}     label="Total"          value={fmt(contratos.total)}           color="blue" />
-              <KpiCard icon={CheckCircle}  label="Vigentes"       value={fmt(contratos.vigentes)}        color="green" />
-              <KpiCard icon={Timer}        label="Vencendo"       value={fmt(contratos.vencendo)}        sub="em até 30 dias" color="yellow" alert={contratos.vencendo > 0} />
-              <KpiCard icon={XCircle}      label="Vencidos"       value={fmt(contratos.vencidos)}        sub="fora da vigência" color="red"    alert={contratos.vencidos > 0} />
-              <KpiCard icon={TrendingUp}   label="Valor Total"    value={fmtBrl(contratos.valorTotal)}   sub="dos contratos vigentes" color="purple" />
-            </div>
-          </div>
-        )}
 
         {/* --- ABA RH & PRODUTIVIDADE --- */}
         {activeTab === "RH & Produtividade" && (

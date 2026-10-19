@@ -24,10 +24,6 @@ class StatsController {
       chamResolvidosMes, chamSlaViolados, chamCsat,
       // projetos
       projAtivos, projConclMes,
-      // ativos
-      ativoTotal, ativoManut,
-      // contratos
-      contratoRows,
       // horas
       horasMes,
       // conhecimento
@@ -42,24 +38,10 @@ class StatsController {
       this.db.chamado.aggregate({ _avg: { avaliacao: true }, _count: { avaliacao: true }, where: { avaliacao: { not: null }, atualizadoEm: { gte: mesInicio }, ...ow } }),
       this.prisma.project.count({ where: { status: { in: ["PLANEJAMENTO","EM_ANDAMENTO"] }, ...ow } }),
       this.prisma.project.count({ where: { status: "CONCLUIDO", atualizadoEm: { gte: mesInicio }, ...ow } }),
-      this.db.ativo.count({ where: { status: "ativo", ...ow } }),
-      this.db.ativo.count({ where: { status: "em_manutencao", ...ow } }),
-      this.db.contrato.findMany({ where: { ativo: true, ...ow }, select: { status: true, vigenciaFim: true, valor: true } }),
       this.db.apontamentoHoras.aggregate({ _sum: { minutos: true }, _count: { id: true }, where: { data: { gte: mesInicio }, ...ow } }),
       this.db.artigoConhecimento.count({ where: { status: "publicado", ...ow } }),
       this.db.artigoConhecimento.aggregate({ _sum: { visualizacoes: true }, where: { ...ow } }),
     ]);
-
-    // contratos computed
-    const cVigentes   = contratoRows.filter((c: any) => { const d = c.vigenciaFim ? new Date(c.vigenciaFim) : null; return !d || d > em30dias; }).length;
-    const cVencendo   = contratoRows.filter((c: any) => { const d = c.vigenciaFim ? new Date(c.vigenciaFim) : null; return d && d > now && d <= em30dias; }).length;
-    const cVencidos   = contratoRows.filter((c: any) => { const d = c.vigenciaFim ? new Date(c.vigenciaFim) : null; return d && d <= now; }).length;
-    const cValorTotal = contratoRows.reduce((s: number, c: any) => s + (c.valor || 0), 0);
-
-    // ativos garantia
-    const ativosGarantia = await this.db.ativo.findMany({ where: { dataGarantiaFim: { not: null }, status: { not: "descartado" }, ...ow }, select: { dataGarantiaFim: true } });
-    const gaRisco   = ativosGarantia.filter((a: any) => { const d = new Date(a.dataGarantiaFim); return d > now && d <= em30dias; }).length;
-    const gaVencida = ativosGarantia.filter((a: any) => new Date(a.dataGarantiaFim) <= now).length;
 
     // SLA compliance
     const chamFechados = await this.prisma.chamado.count({ where: { status: { in: ["resolvido","fechado"] }, criadoEm: { gte: mesInicio }, ...ow } });
@@ -76,8 +58,6 @@ class StatsController {
         csatTotal:  chamCsat._count.avaliacao,
       },
       projetos:     { ativos: projAtivos, concluidosMes: projConclMes },
-      ativos:       { total: ativoTotal, emManutencao: ativoManut, garantiaRisco: gaRisco, garantiaVencida: gaVencida },
-      contratos:    { total: contratoRows.length, vigentes: cVigentes, vencendo: cVencendo, vencidos: cVencidos, valorTotal: cValorTotal },
       horas:        { totalMinutos: horasMes._sum.minutos || 0, totalRegistros: horasMes._count.id },
       conhecimento: { artigos: artigoTotal, visualizacoes: artigoViews._sum.visualizacoes || 0 },
     };
@@ -112,7 +92,6 @@ class StatsController {
       chamAbertos,
       chamUrgentes,
       chamSlaRisco,
-      contratosVencendo,
       csatMedia,
       chamRecentes14d,
       ativRecentes,
@@ -136,7 +115,6 @@ class StatsController {
       this.db.chamado.count({ where: { status: { in: ["aberto","em_atendimento","aguardando"] }, ...ow } }),
       this.db.chamado.count({ where: { prioridade: "urgente", status: { in: ["aberto","em_atendimento"] }, ...ow } }),
       this.db.chamado.count({ where: { slaResolucaoAt: { not: null, lt: em2h }, status: { notIn: ["resolvido","fechado","cancelado"] }, ...ow } }),
-      this.db.contrato.count({ where: { ativo: true, vigenciaFim: { gte: new Date(), lte: em30 }, ...ow } }),
       this.db.chamado.aggregate({ _avg: { avaliacao: true }, where: { avaliacao: { not: null }, criadoEm: { gte: mesInicio }, ...ow } }),
       this.db.chamado.findMany({ where: { criadoEm: { gte: ha14 }, ...ow }, select: { criadoEm: true } }),
       this.db.chamado.findMany({
@@ -169,7 +147,6 @@ class StatsController {
       eventos: { total: totalEventos, hoje: eventosHoje },
       notas: { total: totalNotas },
       chamados: { abertos: chamAbertos, urgentes: chamUrgentes, slaRisco: chamSlaRisco },
-      contratos: { vencendo30: contratosVencendo },
       csat: { media: Math.round(((csatMedia._avg.avaliacao || 0)) * 10) / 10 },
       chamadosPorDia,
       ativRecentes,
@@ -179,26 +156,14 @@ class StatsController {
   // GET /stats/search?q=...
   @Get("search")
   async search(@Req() req: any, @Query("q") q: string) {
-    if (!q || q.trim().length < 2) return { chamados: [], clientes: [], contratos: [], faturas: [], artigos: [], projetos: [], ativos: [], usuarios: [] };
+    if (!q || q.trim().length < 2) return { chamados: [], artigos: [], projetos: [], usuarios: [] };
     const s = q.trim();
     const orgId = req.user?.organizationId;
     const ow = orgId ? { organizationId: orgId } as any : {};
-    const [chamados, clientes, contratos, faturas, artigos, projetos, ativos, usuarios] = await Promise.all([
+    const [chamados, artigos, projetos, usuarios] = await Promise.all([
       this.db.chamado.findMany({
         where: { OR: [{ titulo: { contains: s, mode: "insensitive" } }, { descricao: { contains: s, mode: "insensitive" } }], ...ow },
         take: 5, select: { id: true, numero: true, titulo: true, status: true, prioridade: true },
-      }),
-      this.db.cliente.findMany({
-        where: { ativo: true, OR: [{ nome: { contains: s, mode: "insensitive" } }, { empresa: { contains: s, mode: "insensitive" } }], ...ow },
-        take: 5, select: { id: true, nome: true, empresa: true },
-      }),
-      this.db.contrato.findMany({
-        where: { ativo: true, OR: [{ titulo: { contains: s, mode: "insensitive" } }, { plano: { contains: s, mode: "insensitive" } }], ...ow },
-        take: 5, select: { id: true, numero: true, titulo: true, status: true, cliente: { select: { nome: true } } },
-      }),
-      this.db.fatura.findMany({
-        where: { OR: [{ descricao: { contains: s, mode: "insensitive" } }, { observacoes: { contains: s, mode: "insensitive" } }], ...ow },
-        take: 5, select: { id: true, numero: true, descricao: true, valor: true, status: true, cliente: { select: { nome: true } } },
       }),
       this.db.artigoConhecimento.findMany({
         where: { status: "publicado", OR: [{ titulo: { contains: s, mode: "insensitive" } }, { resumo: { contains: s, mode: "insensitive" } }], ...ow },
@@ -208,16 +173,12 @@ class StatsController {
         where: { OR: [{ nome: { contains: s, mode: "insensitive" } }, { descricao: { contains: s, mode: "insensitive" } }], ...ow },
         take: 5, select: { id: true, nome: true, status: true, prioridade: true },
       }),
-      this.db.ativo.findMany({
-        where: { OR: [{ nome: { contains: s, mode: "insensitive" } }, { codigo: { contains: s, mode: "insensitive" } }], ...ow },
-        take: 5, select: { id: true, nome: true, codigo: true, status: true, tipo: true },
-      }),
       this.db.user.findMany({
         where: { ativo: true, OR: [{ nome: { contains: s, mode: "insensitive" } }, { email: { contains: s, mode: "insensitive" } }], ...ow },
         take: 5, select: { id: true, nome: true, email: true },
       }),
     ]);
-    return { chamados, clientes, contratos, faturas, artigos, projetos, ativos, usuarios };
+    return { chamados, artigos, projetos, usuarios };
   }
 }
 

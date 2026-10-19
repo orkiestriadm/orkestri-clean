@@ -156,7 +156,11 @@ function textoSugereParado(...partes: string[]): string | null {
   const t = partes.join(" ").toLowerCase();
   return TEXTO_DE_PARADO.find(p => t.includes(p)) || null;
 }
-const CATEGORIAS = ["Suporte Técnico","Financeiro","Comercial","RH","TI","Infraestrutura",CATEGORIA_FROTAS,"Dúvida","Solicitação","Reclamação","Outro"];
+// "Frotas" saiu da lista em 19/10/2026, junto com o módulo de Frotas: o campo
+// de veículo era OBRIGATÓRIO nessa categoria e a lista vinha de /frota/veiculos,
+// então manter a opção deixaria um chamado impossível de criar. Chamados
+// antigos com veículo continuam exibindo a placa — a relação segue no schema.
+const CATEGORIAS = ["Suporte Técnico","Financeiro","Comercial","RH","TI","Infraestrutura","Dúvida","Solicitação","Reclamação","Outro"];
 
 /** Rótulos das OS do módulo de Frotas. */
 const OS_STATUS: Record<string, { label: string; cor: string }> = {
@@ -1017,14 +1021,6 @@ function NovoChamadoModal({ onClose, onCreated }: { onClose: () => void; onCreat
     return () => clearTimeout(t);
   }, [form.titulo]);
 
-  // A lista da frota só é buscada quando o chamado é de frota — não faz
-  // sentido pagar essa consulta em todo chamado de TI.
-  useEffect(() => {
-    if (form.categoria !== CATEGORIA_FROTAS || veiculos.length) return;
-    api.get("/frota/veiculos", { params: { limit: 500 }, silent: true })
-      .then(r => setVeiculos(r.data?.items ?? r.data ?? []))
-      .catch(() => setVeiculos([]));
-  }, [form.categoria, veiculos.length]);
 
   // Lista carregada só quando o campo é aberto — a maioria dos chamados nasce
   // sem dono e não precisa dessa consulta.
@@ -1731,15 +1727,6 @@ function ChamadoDrawer({ chamado, isMaster, userId, canEditar, onClose, onUpdate
                       <option value="">Não atribuído</option>
                       {users.map(u => <option key={u.id} value={u.id}>{u.nome}</option>)}
                     </select>
-                    <button
-                      onClick={loadSuggestions}
-                      className="btn btn-ghost text-xs py-1.5 px-3"
-                      title="Sugerir atendente com base em skill + carga + senioridade"
-                      style={{ whiteSpace:"nowrap" }}
-                    >
-                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ display:"inline-block", verticalAlign:"middle", marginRight:4 }}><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
-                      Sugerir
-                    </button>
                   </div>
                 ) : (
                   <div className="flex items-center gap-2">
