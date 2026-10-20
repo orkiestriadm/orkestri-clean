@@ -21,7 +21,12 @@ function arquivosDeModulo(): string[] {
   return execSync('git ls-files "backend/src/**/*.ts"', { cwd: path.join(RAIZ, ".."), encoding: "utf8" })
     .split("\n")
     .filter(f => f && !f.includes(".spec."))
-    .map(f => path.join(RAIZ, "..", f));
+    .map(f => path.join(RAIZ, "..", f))
+    // `git ls-files` lê o ÍNDICE, não o disco: um arquivo apagado na árvore de
+    // trabalho e ainda não commitado continua listado. Sem este filtro o teste
+    // morria com ENOENT ao remover um módulo — falha que não diz nada sobre o
+    // que ele mede. Aconteceu ao apagar setores.module.ts em 20/10/2026.
+    .filter(f => fs.existsSync(f));
 }
 
 /** Rotas cujo corpo continua `any`, com o motivo de cada exceção. */

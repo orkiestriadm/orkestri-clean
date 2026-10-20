@@ -48,7 +48,6 @@ const ALL_PERMISSIONS: { recurso: string; acao: string; descricao: string }[] = 
   { recurso: "configuracoes", acao: "ver",         descricao: "Ver configurações do sistema" },
   { recurso: "configuracoes", acao: "editar",      descricao: "Editar configurações do sistema" },
   { recurso: "historico",     acao: "ver",         descricao: "Ver histórico de auditoria" },
-  { recurso: "setores",       acao: "gerenciar",   descricao: "Gerenciar setores" },
   { recurso: "orcamento",     acao: "ver",         descricao: "Ver orçamentos" },
   { recurso: "orcamento",     acao: "planejar",    descricao: "Planejar orçamentos (CAPEX/OPEX)" },
   { recurso: "orcamento",     acao: "lancar",      descricao: "Lançar valores realizados" },
@@ -205,6 +204,27 @@ export async function semearPermissoes(prisma: any): Promise<Record<string, stri
 // Permissões por papel padrão (master ignora — tem acesso total via isMaster)
 // As BASE_PERMISSIONS são adicionadas automaticamente no resolvePermissions()
 // e NÃO precisam ser repetidas aqui, mas estão inclusas para clareza na UI
+
+/**
+ * Permissoes que o usuario comum NAO recebe.
+ *
+ * Sao as do grupo Core (Administracao) do menu: Cadastros, Historico,
+ * Configuracoes, Assinatura e WhatsApp. Decisao do usuario em 20/10/2026 ao
+ * simplificar o Core: "somente o usuario administrador fica com acesso master,
+ * o resto dos usuarios sao usuarios comuns e nao terao acesso ao modulo core".
+ *
+ * Esconder o grupo no menu nao bastaria -- menu nao e autorizacao. O grupo Core
+ * ja tem `access: "adminOrg"` em lib/modules.tsx, que o oculta de quem nao e
+ * master nem administrador; esta lista e o que faz o BACKEND recusar.
+ */
+const PERMISSOES_DE_ADMINISTRACAO = new Set<string>([
+  "usuarios:ver", "usuarios:criar", "usuarios:editar",
+  "usuarios:desativar", "usuarios:permissoes", "usuarios:excluir",
+  "configuracoes:ver", "configuracoes:editar",
+  "historico:ver",
+  "whatsapp:ver", "whatsapp:configurar",
+]);
+
 const ROLE_DEFAULTS: Record<string, { nivel: number; descricao: string; permissoes: string[] }> = {
   administrador: {
     nivel: 90,
@@ -222,7 +242,6 @@ const ROLE_DEFAULTS: Record<string, { nivel: number; descricao: string; permisso
       "chamados:ver","chamados:criar","chamados:editar","chamados:fechar","chamados:atribuir",
       "whatsapp:ver",
       "usuarios:ver",
-      "setores:gerenciar",
       "orcamento:ver","orcamento:planejar","orcamento:lancar","orcamento:aprovar","orcamento:admin",
       "solicitacoes:ver","solicitacoes:criar","solicitacoes:editar","solicitacoes:aprovar",
       "conhecimento:ver","conhecimento:criar","conhecimento:editar","conhecimento:publicar",
@@ -301,6 +320,27 @@ const ROLE_DEFAULTS: Record<string, { nivel: number; descricao: string; permisso
     permissoes: [
       "dashboard:ver", ...ALL_PERMISSIONS.filter(p => p.acao === "ver").map(p => `${p.recurso}:${p.acao}`),
     ],
+  },
+  /**
+   * O papel de todo mundo.
+   *
+   * Desde 20/10/2026 o cadastro do Core e um so e nao escolhe perfil: quem e
+   * criado nasce com este papel e enxerga TODOS os produtos da versao reduzida
+   * -- Space (Agenda, Keep), Projects (Projetos, Concluidos, Linha do Tempo),
+   * Finance (Financeiro, Meus Gastos, Contas a Pagar, Orcamento) e as
+   * integracoes -- menos o grupo Core.
+   *
+   * Os papeis acima (gestor, analista, tecnico, supervisor, operador, auditor,
+   * visualizador) FICAM no catalogo de proposito: o Hub Transbrasiliana roda do
+   * mesmo repositorio e usa esses perfis de verdade. O Orkiestri parou de
+   * atribui-los; apagar a semente os tiraria do Hub junto.
+   */
+  usuario: {
+    nivel: 25,
+    descricao: "Acesso a todos os produtos do Orkiestri, menos a administracao",
+    permissoes: ALL_PERMISSIONS
+      .map(p => `${p.recurso}:${p.acao}`)
+      .filter(p => !PERMISSOES_DE_ADMINISTRACAO.has(p)),
   },
 };
 
@@ -816,8 +856,16 @@ export class AuthService implements OnModuleInit {
   async approveUserRequest(id: string, dto: {
     nome?: string; email?: string; whatsapp?: string;
     cargo?: string; departamento?: string; empresa?: string;
-    // Workforce: provisionamento estrutural do colaborador
-    setorId?: string | null;
+    // Workforce: provisionamento estrutural do colaborador.
+    //
+    // `setorId` saiu em 20/10/2026, junto com a tabela `setores`. Era gravado
+    // em user_profiles e em collaborators, e as duas colunas foram derrubadas.
+    // Preferi TIRAR o campo a mantê-lo aceito e ignorado: campo que o cliente
+    // manda e o servidor joga fora é pior do que campo que não existe — ele
+    // some sem erro e ninguém descobre por que o setor "não salvou".
+    //
+    // A coluna `user_requests.setor_id` continua no banco (é TEXT solta, sem
+    // FK) porque o Workforce do Hub a escreve pelo caminho dele.
     gestorId?: string | null;
     jornadaHorasDia?: number;
     squad?: string;
@@ -849,18 +897,6 @@ export class AuthService implements OnModuleInit {
     }
     const senhaHash = await bcrypt.hash(tempPassword, 12);
 
-    // Role a aplicar: o que o admin escolheu, ou fallback para técnico/analista
-    let chosenRole: any = null;
-    if (dto.perfilRoleId) {
-      chosenRole = await this.prisma.role.findUnique({ where: { id: dto.perfilRoleId } });
-    }
-    if (!chosenRole) {
-      chosenRole = await this.prisma.role.findFirst({
-        where: { nome: { in: ["tecnico", "analista"] }, isMaster: false },
-        orderBy: { nivel: "asc" },
-      });
-    }
-
     // Usa dados editados pelo admin (fallback para os dados originais)
     const nome = dto.nome?.trim() || req.nome;
     const email = dto.email?.trim() || req.email;
@@ -870,6 +906,26 @@ export class AuthService implements OnModuleInit {
     const empresa = dto.empresa?.trim() || req.empresa || null;
 
     const organizationId = req.organizationId || requestUser.organizationId || "00000000-0000-0000-0000-000000000001";
+
+    // Papel a aplicar: o que o admin escolheu ou, por padrao, `usuario` -- o
+    // papel unico do Orkiestri desde 20/10/2026, que abre todos os produtos e
+    // fecha a administracao. Antes caia em tecnico/analista, perfis que o
+    // Orkiestri parou de atribuir (o Hub ainda os usa de verdade).
+    //
+    // Resolvido DEPOIS de `organizationId` e filtrado por ele de proposito:
+    // papel e dado de cliente, nao catalogo global, e um findFirst sem escopo
+    // pegava o papel do primeiro tenant que tivesse o nome.
+    let chosenRole: any = null;
+    if (dto.perfilRoleId) {
+      chosenRole = await this.prisma.role.findFirst({
+        where: { id: dto.perfilRoleId, organizationId } as any,
+      });
+    }
+    if (!chosenRole) {
+      chosenRole = await this.prisma.role.findFirst({
+        where: { nome: "usuario", isMaster: false, organizationId } as any,
+      });
+    }
     const userId = require("crypto").randomUUID();
     await this.prisma.user.create({
       data: {
@@ -890,7 +946,6 @@ export class AuthService implements OnModuleInit {
         userId,
         whatsapp,
         cargo,
-        setorId: dto.setorId || null,
       } as any,
     });
     if (chosenRole) {
@@ -908,9 +963,7 @@ export class AuthService implements OnModuleInit {
           emailCorporativo: email,
           telefone:         whatsapp,
           cargo,
-          departamento,
-          setorId:          dto.setorId || null,
-          squad:            dto.squad || null,
+          departamento,          squad:            dto.squad || null,
           senioridade:      dto.senioridade || req.senioridade || null,
           gestorId:         dto.gestorId || null,
           jornadaHorasDia:  dto.jornadaHorasDia ?? req.jornadaHorasDia ?? 8,

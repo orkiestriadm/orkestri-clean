@@ -9,7 +9,9 @@ import { AgendaModule } from "./modules/agenda/agenda.module";
 import { NotificationsModule } from "./modules/notifications/notifications.module";
 import { ProjectsModule } from "./modules/projects/projects.module";
 import { KeepModule } from "./modules/keep/keep.module";
-import { SetoresModule } from "./modules/setores/setores.module";
+// SetoresModule saiu em 20/10/2026 junto com a tabela `setores`. Servia
+// /setores, /setores/tree e /organizacao/diretorio — este último alimentava só
+// a aba Organograma do Core, removida na mesma mudança.
 import { AuditModule } from "./modules/audit/audit.module";
 import { StatusModule } from "./modules/users/status.module";
 import { CommentsModule } from "./modules/projects/comments.module";
@@ -56,6 +58,12 @@ import { JwtModule } from '@nestjs/jwt';
  * As tabelas dos módulos removidos seguem no banco, paradas: a remoção foi de
  * código, sem migration destrutiva.
  *
+ * EXCEÇÃO, de 20/10/2026: `setores` e `aprovadores_setor` foram DERRUBADAS ao
+ * simplificar o cadastro do Core. A migration que as derruba abre com um gate
+ * que levanta exceção se achar linha dependente em collaborators, ativos,
+ * veiculos ou aprovadores_setor — ou seja, ela se RECUSA a rodar no banco do
+ * Hub, onde esses módulos estão vivos.
+ *
  * O Hub Transbrasiliana roda do MESMO repositório, em branch `hub/*`, e USA
  * Fleet, Compliance, People e Strategy — esta linha nunca pode ser mesclada lá.
  */
@@ -65,7 +73,7 @@ import { JwtModule } from '@nestjs/jwt';
     CacheModule,
     PrismaModule, HealthModule, AuthModule, UsersModule,
     StatsModule, AgendaModule, NotificationsModule, WhatsappInboundModule, ReferralModule,
-    ProjectsModule, KeepModule, SetoresModule,
+    ProjectsModule, KeepModule,
     AuditModule, StatusModule, CommentsModule,
     SistemaModule, TwoFAModule,
     UserWhatsAppModule, ChamadosModule, RbacModule,

@@ -1973,7 +1973,7 @@ function ChamadoDrawer({ chamado, isMaster, userId, canEditar, onClose, onUpdate
                             <div className="flex items-center justify-between gap-2">
                               <div>
                                 <div className="text-[13px] font-semibold text-[var(--text-primary)]">{s.collaborator.nome}</div>
-                                <div className="text-[11px] text-[var(--text-muted)]">{s.collaborator.cargo || "—"} {s.collaborator.setor?.nome ? `• ${s.collaborator.setor.nome}` : ""}</div>
+                                <div className="text-[11px] text-[var(--text-muted)]">{s.collaborator.cargo || "—"}</div>
                               </div>
                               <div className="text-right">
                                 <div className="text-[10px] font-mono text-[var(--text-muted)] tracking-wider">SCORE</div>
@@ -2091,12 +2091,12 @@ export default function ChamadosPage() {
   const [previewId, setPreviewId] = useState<string | null>(null);
   // Carga do time. Só carrega quando a aba abre — é agregação e não faz
   // sentido pagá-la em toda visita à tela.
-  const [cargaEscopo, setCargaEscopo] = useState<"equipe" | "todos">("equipe");
+  const [cargaEscopo, setCargaEscopo] = useState<"todos">("todos");
   const [carga, setCarga] = useState<any>(null);
   const [cargaLoading, setCargaLoading] = useState(false);
   // Histórico: recorte, período e resultado. Carrega só quando a aba abre —
   // é consulta ampla e não faz sentido pagá-la em toda visita à tela.
-  const [histEscopo, setHistEscopo] = useState<"meus" | "equipe" | "todos">("meus");
+  const [histEscopo, setHistEscopo] = useState<"meus" | "todos">("meus");
   const [histDesde, setHistDesde] = useState("");
   const [histAte, setHistAte] = useState("");
   const [histBusca, setHistBusca] = useState("");
@@ -2390,7 +2390,10 @@ export default function ChamadosPage() {
         <div className="flex-1 flex flex-col overflow-hidden">
           <div className="px-6 py-3 border-b border-[var(--border-subtle)] flex-shrink-0 flex items-center gap-3 bg-[var(--bg-primary)]">
             <div className="flex gap-1">
-              {([["equipe","Minha equipe"],["todos","Toda a organização"]] as const)
+              {/* "Minha equipe" saiu em 20/10/2026: o recorte vinha do setor do
+                  usuário, e a tabela `setores` foi derrubada. Sobrou o único
+                  que o backend ainda sabe calcular. */}
+              {([["todos","Toda a organização"]] as const)
                 .filter(([k]) => k !== "todos" || podeVerTudo)
                 .map(([k, rotulo]) => (
                 <button key={k} onClick={() => setCargaEscopo(k)}
@@ -2415,7 +2418,7 @@ export default function ChamadosPage() {
             <div>
               <label className="text-[10px] text-[var(--text-muted)] font-mono block mb-1 uppercase tracking-wider">Recorte</label>
               <div className="flex gap-1">
-                {([["meus","Meus"],["equipe","Minha equipe"],["todos","Todos"]] as const)
+                {([["meus","Meus"],["todos","Todos"]] as const)
                   .filter(([k]) => k !== "todos" || podeVerTudo)
                   .map(([k, rotulo]) => (
                   <button key={k} onClick={() => setHistEscopo(k)}

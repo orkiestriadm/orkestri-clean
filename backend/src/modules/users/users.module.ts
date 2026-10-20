@@ -15,35 +15,89 @@ const CACHE_USER       = (id: string) => `cache:user:${id}`;
 const TTL_LIST         = 60;   // 1 min
 const TTL_USER         = 120;  // 2 min
 
-// Modulos "gerenciaveis" (visibilidade no menu). Devem casar com o catalogo do
-// front (cadastros/page.tsx MODULOS_CATALOG) e com o gating do Sidebar.tsx.
-// Regra: lista vazia => usuario ve TODOS os modulos (retrocompat, ninguem perde acesso).
+// Modulos da versao reduzida do Orkiestri (escopo de 19/10/2026): Space,
+// Projects, Finance, Service e Quality. Sairam ativos, monitoramento, crm,
+// frota e relatorios -- produtos removidos em 2.0.0.
+//
+// Regra: lista vazia => usuario ve TODOS os modulos (retrocompat, ninguem
+// perde acesso). Hoje o menu NAO le isto: Sidebar.tsx decide por permissao
+// (canAccessModule). A lista sobrevive porque as notificacoes por modulo a
+// usam -- ver PermissoesMensagemModal.
 const ALL_MODULOS = [
-  "chamados", "conhecimento", "projetos", "gantt", "agenda", "ativos",
-  "monitoramento", "keep", "crm", "financeiro", "orcamento", "frota", "relatorios",
-  "whatsapp",
+  "agenda", "keep", "projetos", "gantt",
+  "financeiro", "gastos", "orcamento",
+  "chamados", "conhecimento", "whatsapp",
 ];
+
+/** Deixa so os digitos: o cadastro aceita 000.000.000-00 ou 00000000000. */
+function soDigitos(v?: string | null): string {
+  return (v || "").replace(/\D/g, "");
+}
+
+/**
+ * Valida CPF pelos dois digitos verificadores.
+ *
+ * Checagem de formato nao basta: "111.111.111-11" tem 11 digitos e e invalido.
+ * Como o CPF e a identidade do cadastro geral, errar um digito criaria uma
+ * pessoa que nunca mais e encontrada pela busca.
+ */
+function cpfValido(bruto?: string | null): boolean {
+  const cpf = soDigitos(bruto);
+  if (cpf.length !== 11) return false;
+  if (/^(\d)\1{10}$/.test(cpf)) return false; // todos iguais
+  for (const corte of [9, 10]) {
+    let soma = 0;
+    for (let i = 0; i < corte; i++) soma += Number(cpf[i]) * (corte + 1 - i);
+    const resto = (soma * 10) % 11;
+    const digito = resto === 10 ? 0 : resto;
+    if (digito !== Number(cpf[corte])) return false;
+  }
+  return true;
+}
+
+/**
+ * Senha provisoria do cadastro novo.
+ *
+ * Sem ambiguidade visual (nem 0/O, nem 1/l/I): ela e ditada por telefone ou
+ * colada de um WhatsApp, e um zero lido como letra gera um "nao consigo
+ * entrar" que ninguem consegue depurar. Garante maiuscula, numero e simbolo
+ * para passar em qualquer politica de senha que venha depois.
+ */
+function gerarSenhaProvisoria(): string {
+  const alfabeto = "abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789";
+  const corpo = Array.from(
+    { length: 10 },
+    () => alfabeto[Math.floor(Math.random() * alfabeto.length)],
+  ).join("");
+  return corpo + "A9!";
+}
 
 function parseModulos(raw?: string | null): string[] {
   try { return JSON.parse(raw || "[]"); } catch { return [...ALL_MODULOS]; }
 }
 
+/**
+ * O cadastro geral de usuario -- cinco campos, nada mais.
+ *
+ * Decisao do usuario em 20/10/2026: nome completo, CPF, e-mail, telefone e
+ * WhatsApp. Sairam `senha` (gerada aqui, ver create()), `cargo`, `setorId`
+ * (a tabela `setores` foi derrubada) e `modulos` (todo usuario recebe o
+ * papel `usuario`, que abre todos os produtos).
+ */
 class CreateUserDto {
   @IsString() nome: string;
+  @IsString() cpf: string;
   @IsEmail() email: string;
-  @IsString() @MinLength(6) senha: string;
-  @IsOptional() @IsString() cargo?: string;
   @IsOptional() @IsString() telefone?: string;
-  @IsOptional() @IsString() setorId?: string;
-  @IsOptional() @IsArray() modulos?: string[];
+  @IsOptional() @IsString() whatsapp?: string;
 }
 class UpdateUserDto {
   @IsOptional() @IsString() nome?: string;
+  @IsOptional() @IsString() cpf?: string;
   @IsOptional() @IsEmail() email?: string;
   @IsOptional() @IsBoolean() ativo?: boolean;
-  @IsOptional() @IsString() cargo?: string;
   @IsOptional() @IsString() telefone?: string;
-  @IsOptional() @IsString() setorId?: string;
+  @IsOptional() @IsString() whatsapp?: string;
 }
 class ChangePasswordDto { @IsString() @MinLength(6) novaSenha: string; }
 class UpdateModulosDto { @IsArray() modulos: string[]; }
@@ -52,9 +106,9 @@ function mapUser(u: any) {
   return {
     id: u.id, nome: u.nome, email: u.email, ativo: u.ativo,
     avatar: u.avatar, ultimoLogin: u.ultimoLogin, criadoEm: u.criadoEm,
-    cargo: u.profile?.cargo,
-    telefone: u.profile?.telefone,
-    setor: u.profile?.setor ? { id: u.profile.setor.id, nome: u.profile.setor.nome, cor: u.profile.setor.cor } : null,
+    cpf: u.cpf ?? null,
+    telefone: u.profile?.telefone ?? null,
+    whatsapp: u.profile?.whatsapp ?? null,
     roles: u.userRoles.map((ur: any) => ur.role.nome),
     isMaster: u.userRoles.some((ur: any) => ur.role.isMaster),
     modulos: parseModulos(u.profile?.modulos),
@@ -104,7 +158,7 @@ class UsersController {
       orderBy: { criadoEm: "asc" },
       include: {
         userRoles: { include: { role: true } },
-        profile: { include: { setor: true } },
+        profile: true,
       },
     });
     const result = users
@@ -114,9 +168,9 @@ class UsersController {
     return result;
   }
 
-  @Get("roles/list")
-  @Permissions("usuarios:ver")
-  async getRoles() { return this.prisma.role.findMany({ orderBy: { nome: "asc" } }); }
+  // GET /users/roles/list saiu em 20/10/2026. Alimentava o seletor de papel do
+  // cadastro, que deixou de existir (o cadastro nao escolhe perfil), e listava
+  // os papeis de TODOS os tenants -- sem filtro por organizationId.
 
   // Lista leve para seletores (participantes de eventos, membros de tarefas, etc).
   // Não exige usuarios:ver — qualquer usuário autenticado pode escolher colegas.
@@ -137,7 +191,7 @@ class UsersController {
     const id = req.user.id;
     const u = await this.prisma.user.findUnique({
       where: { id },
-      include: { userRoles: { include: { role: true } }, profile: { include: { setor: true } } },
+      include: { userRoles: { include: { role: true } }, profile: true },
     });
     if (!u) throw new NotFoundException("Usuario nao encontrado");
     return {
@@ -192,7 +246,7 @@ class UsersController {
     // O escopo vem ANTES do cache: servir do cache sem conferir a organizacao
     // devolveria usuario de outro tenant para quem tivesse o id.
     const u = await acharNaOrganizacao(this.prisma.user, id, req, "Usuario nao encontrado", {
-      include: { userRoles: { include: { role: true } }, profile: { include: { setor: true } } },
+      include: { userRoles: { include: { role: true } }, profile: true },
     });
 
     const cached = await this.cache.get(CACHE_USER(id));
@@ -209,6 +263,15 @@ class UsersController {
     const orgId = req.user?.organizationId;
     const exists = await this.prisma.user.findFirst({ where: { email: dto.email, ...(orgId ? { organizationId: orgId } : {}) } as any });
     if (exists) throw new ConflictException("E-mail ja cadastrado");
+
+    if (!cpfValido(dto.cpf)) throw new BadRequestException("CPF invalido");
+    const cpf = soDigitos(dto.cpf);
+    // Unicidade POR ORGANIZACAO, verificada aqui e nao por UNIQUE no banco:
+    // um UNIQUE global impediria a mesma pessoa de existir em dois tenants.
+    const cpfEmUso = await this.prisma.user.findFirst({
+      where: { cpf, ...(orgId ? { organizationId: orgId } : {}) } as any,
+    });
+    if (cpfEmUso) throw new ConflictException("CPF ja cadastrado");
 
     // Verificar limite de usuários do plano
     if (orgId) {
@@ -237,27 +300,63 @@ class UsersController {
       }
     }
 
-    const hash = await bcrypt.hash(dto.senha, 12);
-    const modulosJson = JSON.stringify(dto.modulos ?? ALL_MODULOS);
+    // A senha nao e mais pedida no formulario (o cadastro tem cinco campos), e
+    // sim sorteada aqui e devolvida UMA vez no corpo da resposta, para quem
+    // cadastrou repassar. `primeiroAcesso` obriga a troca no primeiro login.
+    const senhaProvisoria = gerarSenhaProvisoria();
+    const hash = await bcrypt.hash(senhaProvisoria, 12);
 
     const user = await this.prisma.user.create({
       data: {
-        nome: dto.nome, email: dto.email, senhaHash: hash,
+        nome: dto.nome, email: dto.email, senhaHash: hash, cpf,
+        primeiroAcesso: true,
         ...(orgId ? { organizationId: orgId } : {}),
-        profile: { create: { cargo: dto.cargo, telefone: dto.telefone, setorId: dto.setorId || null, modulos: modulosJson } },
+        profile: {
+          create: {
+            telefone: dto.telefone || null,
+            whatsapp: dto.whatsapp || null,
+            // Todos os modulos da versao reduzida: nao ha mais perfil a
+            // escolher. O menu nem le isto (decide por permissao), mas as
+            // notificacoes por modulo leem.
+            modulos: JSON.stringify(ALL_MODULOS),
+          },
+        },
       } as any,
-      include: { userRoles: { include: { role: true } }, profile: { include: { setor: true } } },
+      include: { userRoles: { include: { role: true } }, profile: true },
     });
+
+    // Papel `usuario`: abre todos os produtos do Orkiestri e fecha o Core.
+    // Antes desta versao o POST /users nao atribuia papel NENHUM -- quem era
+    // criado pela aba ficava so com as BASE_PERMISSIONS (agenda, keep, gastos)
+    // ate alguem lhe dar um papel a mao na aba Papeis, que nao existe mais.
+    const papel = await this.prisma.role.findFirst({
+      where: { nome: "usuario", isMaster: false, ...(orgId ? { organizationId: orgId } : {}) } as any,
+    });
+    if (!papel) {
+      // Sem papel o usuario nasce sem ver nada alem do Space. Isso e defeito de
+      // semeadura da organizacao, nao escolha -- falha alto em vez de entregar
+      // uma conta muda.
+      throw new BadRequestException(
+        "O papel 'usuario' nao existe nesta organizacao. Reinicie a API para semear os papeis e tente de novo."
+      );
+    }
+    await this.prisma.userRole.create({
+      data: { userId: user.id, roleId: papel.id, atribuidoPorId: req.user?.id },
+    });
+
     await this.cache.delPattern(`${CACHE_USERS_LIST}:*`);
     this.webhook.fire("usuario.criado", {
-      id: user.id, nome: user.nome, email: user.email,
-      cargo: dto.cargo || null, criadoEm: user.criadoEm,
+      id: user.id, nome: user.nome, email: user.email, criadoEm: user.criadoEm,
     }, orgId).catch(() => {});
     this.automacao.executar("usuario_criado", {
-      id: user.id, nome: user.nome, email: user.email,
-      cargo: dto.cargo || null, organizationId: orgId,
+      id: user.id, nome: user.nome, email: user.email, organizationId: orgId,
     }).catch(() => {});
-    return mapUser(user);
+
+    const criado = await this.prisma.user.findUnique({
+      where: { id: user.id },
+      include: { userRoles: { include: { role: true } }, profile: true },
+    });
+    return { ...mapUser(criado), senhaProvisoria };
   }
 
   @Put(":id")
@@ -270,18 +369,36 @@ class UsersController {
       const t = await this.prisma.user.findFirst({ where: { email: dto.email, ...(orgId ? { organizationId: orgId } : {}) } as any });
       if (t) throw new ConflictException("E-mail ja em uso");
     }
+    let cpf: string | undefined;
+    if (dto.cpf !== undefined) {
+      if (!cpfValido(dto.cpf)) throw new BadRequestException("CPF invalido");
+      cpf = soDigitos(dto.cpf);
+      if (cpf !== (exists as any).cpf) {
+        const t = await this.prisma.user.findFirst({
+          where: { cpf, ...(orgId ? { organizationId: orgId } : {}) } as any,
+        });
+        if (t) throw new ConflictException("CPF ja em uso");
+      }
+    }
     await this.prisma.user.update({
       where: { id },
       data: {
         ...(dto.nome && { nome: dto.nome }),
         ...(dto.email && { email: dto.email }),
+        ...(cpf !== undefined && { cpf }),
         ...(dto.ativo !== undefined && { ativo: dto.ativo }),
-      },
+      } as any,
     });
+    // Campos omitidos ficam como estao: antes um PUT sem `cargo` gravava
+    // `undefined` e o Prisma ignorava, mas com `telefone`/`whatsapp` a mesma
+    // forma apagaria o que o proprio usuario tinha posto no perfil dele.
     await this.prisma.userProfile.upsert({
       where: { userId: id },
-      update: { cargo: dto.cargo, telefone: dto.telefone, ...(dto.setorId !== undefined && { setorId: dto.setorId || null }) },
-      create: { userId: id, cargo: dto.cargo, telefone: dto.telefone, setorId: dto.setorId || null },
+      update: {
+        ...(dto.telefone !== undefined && { telefone: dto.telefone || null }),
+        ...(dto.whatsapp !== undefined && { whatsapp: dto.whatsapp || null }),
+      },
+      create: { userId: id, telefone: dto.telefone || null, whatsapp: dto.whatsapp || null },
     });
     await this.cache.del(CACHE_USER(id));
     // A lista é cacheada por `${CACHE_USERS_LIST}:${orgId}:${incluirMaster}` — o
@@ -412,8 +529,18 @@ class UsersCsvController {
     if (nomeIdx === -1 || emailIdx === -1) throw new BadRequestException("CSV deve conter colunas 'nome' e 'email'");
 
     const orgId = req.user.organizationId;
-    const masterRole = await (this.prisma as any).role.findUnique({ where: { nome: "master" } });
-    const tecnicoRole = await (this.prisma as any).role.findFirst({ where: { nome: { in: ["tecnico", "analista"] } } });
+    // Papel `usuario`, escopado pela organizacao. Antes pegava tecnico/analista
+    // de QUALQUER tenant (findFirst sem organizationId) e tambem buscava um
+    // `masterRole` que nunca era usado -- por `nome` sozinho, que deixou de ser
+    // unico quando papel virou dado por organizacao.
+    const papelUsuario = await (this.prisma as any).role.findFirst({
+      where: { nome: "usuario", isMaster: false, organizationId: orgId },
+    });
+    if (!papelUsuario) {
+      throw new BadRequestException(
+        "O papel 'usuario' nao existe nesta organizacao. Reinicie a API para semear os papeis e tente de novo."
+      );
+    }
 
     const results = { criados: 0, ignorados: 0, erros: [] as string[] };
 
@@ -431,7 +558,7 @@ class UsersCsvController {
       const { v4: uuid } = await import("uuid");
       try {
         const user = await (this.prisma as any).user.create({ data: { id: uuid(), organizationId: orgId, nome, email, senhaHash, ativo: true, primeiroAcesso: true } as any });
-        if (tecnicoRole) await (this.prisma as any).userRole.create({ data: { userId: user.id, roleId: tecnicoRole.id } });
+        await (this.prisma as any).userRole.create({ data: { userId: user.id, roleId: papelUsuario.id } });
         results.criados++;
       } catch (e: any) {
         results.erros.push(`Linha ${i + 1}: ${e.message?.slice(0, 60)}`);

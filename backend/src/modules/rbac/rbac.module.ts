@@ -349,7 +349,12 @@ class MatrixController {
     NotificationsModule,
     AuthModule, // herda AuthService + AutomacoesModule (re-exportado)
   ],
-  controllers: [RolesController, PermissionsController, UserPermissionsController, MatrixController],
+  // MatrixController saiu em 20/10/2026: GET /rbac/matrix existia so para a
+  // aba Matriz do Core, removida junto com Papeis. Os outros controllers
+  // FICAM -- o motor de papel/permissao e o que `resolvePermissions` le, e
+  // /rbac/users/:id/roles e o unico caminho para promover alguem a
+  // administrador agora que nao ha tela de papel.
+  controllers: [RolesController, PermissionsController, UserPermissionsController],
   providers: [CacheService],
 })
 export class RbacModule {}
