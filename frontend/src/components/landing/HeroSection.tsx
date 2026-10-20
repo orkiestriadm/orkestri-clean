@@ -672,26 +672,13 @@ export default function HeroSection() {
                 Teste por 7 dias grátis <ArrowRight size={15} />
               </Link>
 
-              {/* Cadastro pelo WhatsApp (20/10/2026). Abre a conversa DIRETO,
-                  com o texto pronto — a Aurélia reconhece a intenção e conduz
-                  o cadastro inteiro por lá.
-
-                  O número é o mesmo do botão flutuante de atendimento, e é o
-                  mesmo a que a instância do Evolution está conectada em
-                  produção. Tem de ser: se apontar para outro, a Aurélia nunca
-                  vê a mensagem e ninguém recebe resposta.
-
-                  Entra AO LADO do teste de 7 dias, não no lugar dele: aquele
-                  funil está em produção e validado desde 24/08, e trocá-lo é
-                  decisão de produto. */}
-              <a
-                href={`https://wa.me/5514991661688?text=${encodeURIComponent("Quero fazer meu cadastro no Orkiestri")}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-xl border border-[#22c55e]/40 bg-[#22c55e]/10 text-[#4ade80] hover:bg-[#22c55e]/15 hover:border-[#22c55e]/60 transition-all font-semibold text-sm"
-              >
-                Clique aqui para fazer o cadastro <ArrowRight size={15} />
-              </a>
+              {/* O botão de cadastro pelo WhatsApp NÃO mora aqui.
+                  Esta landing é a do app Next.js, e o nginx não a publica: o
+                  `/` do domínio vai para o container do site (`website/`), que
+                  é o que o público vê em orkiestri.com. Pôr o botão aqui foi
+                  um erro de 20/10/2026 — ele existia no código e não aparecia
+                  para ninguém. O lugar certo é `website/src/components/
+                  sections/hero.tsx`. */}
 
               <Link
                 href="/login"
