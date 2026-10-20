@@ -1,8 +1,4 @@
-import {
-  Module, Controller, Post, Body, Req, Injectable, Logger,
-  BadRequestException, ConflictException, HttpCode, HttpStatus,
-} from "@nestjs/common";
-import { IsString } from "class-validator";
+import { Module, Injectable, Logger } from "@nestjs/common";
 import * as bcrypt from "bcryptjs";
 import { randomInt, randomUUID } from "crypto";
 import { PrismaService } from "../../prisma/prisma.service";
@@ -11,10 +7,21 @@ import { NotificationsModule } from "../notifications/notifications.module";
 import { semearPermissoes, semearPapeisDaOrganizacao } from "../auth/auth.service";
 
 /**
- * Cadastro que começa no site e termina no WhatsApp.
+ * Cadastro feito INTEIRO pelo WhatsApp.
  *
- * O site pede o mínimo para abrir a conversa — nome, CPF e WhatsApp — e a
- * Aurélia pergunta o resto, uma coisa por vez. Só no fim a conta existe.
+ * A pessoa clica no site, o WhatsApp abre já na conversa com a Aurélia, e ela
+ * pergunta nome, CPF, e-mail e empresa — uma coisa por vez. O número de
+ * WhatsApp não é perguntado: é aquele de onde a mensagem veio.
+ *
+ * QUEM INICIA É A PESSOA
+ *
+ * Nunca sai mensagem para quem não escreveu primeiro. Isso não é só educação:
+ * disparo não solicitado em massa é o que faz o WhatsApp banir um número, e o
+ * número aqui é o da empresa. A versão anterior deste fluxo começava num
+ * formulário do site e o sistema escrevia para a pessoa — mais barreiras antes
+ * (CPF validado antes de gastar mensagem, limite por IP), mas o risco de
+ * banimento era real. Aqui a troca é consciente: perdemos a barreira prévia e
+ * ganhamos a garantia de só responder.
  *
  * ONDE A CONTA NASCE, E POR QUÊ
  *
@@ -28,19 +35,24 @@ import { semearPermissoes, semearPapeisDaOrganizacao } from "../auth/auth.servic
  * um número de WhatsApp leria os projetos, chamados e o financeiro reais.
  */
 
-// ── Limites ───────────────────────────────────────────────────────────────────
+// ── Limites, agora POR NÚMERO ────────────────────────────────────────────────
 //
-// Não são "boas práticas" genéricas: este é um endpoint PÚBLICO que dispara
-// mensagem de WhatsApp a partir do número da empresa. Sem teto, ele é um canhão
-// de spam apontado para o nosso próprio número — e quem apanha é a conta do
-// WhatsApp, que é banida por envio em massa, não o servidor.
-const VALIDADE_MIN       = 30;  // a conversa expira em 30 min
-const MAX_POR_IP_HORA    = 3;   // cadastros que um mesmo IP abre por hora
-const MAX_TENTATIVAS     = 5;   // respostas inválidas seguidas antes de encerrar
+// O limite por IP morreu com o formulário: não há mais requisição HTTP de onde
+// tirar origem. O que resta, e é o que de fato identifica quem insiste, é o
+// número de WhatsApp — que o remetente não escolhe à toa, porque precisa de um
+// chip para cada um.
+const VALIDADE_MIN        = 30; // a conversa expira em 30 min
+const MAX_TENTATIVAS      = 5;  // respostas inválidas seguidas antes de encerrar
+const MAX_ABANDONOS_DIA   = 3;  // conversas canceladas/expiradas por número por dia
 
 const STATUS_ABERTO = ["AGUARDANDO", "EM_CONVERSA"];
 
-/** Deixa só os dígitos. */
+/** A pessoa quer se cadastrar? Aceita o texto do link e variações digitadas. */
+export function pareceInteresseEmCadastro(texto: string): boolean {
+  const t = (texto || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+  return /\b(cadastr|criar (minha )?conta|quero (uma )?conta|abrir conta|me inscrever)/.test(t);
+}
+
 function soDigitos(v?: string | null): string {
   return (v || "").replace(/\D/g, "");
 }
@@ -48,9 +60,8 @@ function soDigitos(v?: string | null): string {
 /**
  * Valida CPF pelos dois dígitos verificadores.
  *
- * Mesma regra do cadastro do Core. Checar só o formato não serve:
- * "111.111.111-11" tem 11 dígitos e é inválido, e aqui o CPF é o que distingue
- * uma pessoa de um cadastro de brincadeira.
+ * Checar só o formato não serve: "111.111.111-11" tem 11 dígitos e é inválido.
+ * Aqui o CPF é o que distingue uma pessoa de um cadastro de brincadeira.
  */
 function cpfValido(bruto?: string | null): boolean {
   const cpf = soDigitos(bruto);
@@ -70,7 +81,7 @@ function emailValido(v: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test((v || "").trim());
 }
 
-/** Normaliza o número para o formato que o Evolution usa: dígitos com DDI 55. */
+/** Normaliza para o formato que o Evolution usa: dígitos com DDI 55. */
 function normalizarWhatsapp(v: string): string {
   const d = soDigitos(v);
   if (!d) return "";
@@ -87,10 +98,8 @@ function primeiroNome(nome: string): string {
   return (nome || "").trim().split(/\s+/)[0] || "";
 }
 
-class IniciarCadastroDto {
-  @IsString() nome: string;
-  @IsString() cpf: string;
-  @IsString() whatsapp: string;
+function formatarCpf(cpf: string): string {
+  return cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4");
 }
 
 @Injectable()
@@ -102,83 +111,45 @@ export class CadastroWhatsappService {
     private wa: WhatsAppService,
   ) {}
 
-  // ── Início, a partir do site ────────────────────────────────────────────────
+  // ── Início, a partir da própria conversa ────────────────────────────────────
 
-  async iniciar(dto: IniciarCadastroDto, ip?: string) {
-    const nome = (dto.nome || "").trim();
-    if (nome.length < 3) throw new BadRequestException("Informe seu nome completo.");
-    if (!cpfValido(dto.cpf)) throw new BadRequestException("CPF inválido.");
+  /**
+   * Abre o formulário para um número que escreveu querendo se cadastrar.
+   *
+   * Devolve `true` quando assumiu a conversa. Só é chamado para número que
+   * NÃO tem conta — quem já é usuário cai nos comandos normais.
+   */
+  async iniciarPeloChat(whatsapp: string, inst?: string): Promise<boolean> {
+    const num = normalizarWhatsapp(whatsapp);
+    if (!num) return false;
 
-    const cpf = soDigitos(dto.cpf);
-    const whatsapp = normalizarWhatsapp(dto.whatsapp);
-    // 55 + DDD(2) + número(8 ou 9) = 12 ou 13 dígitos.
-    if (whatsapp.length < 12 || whatsapp.length > 13) {
-      throw new BadRequestException("WhatsApp inválido. Use DDD + número.");
-    }
+    // Já existe conta com este número? Então não é cadastro, é alguém pedindo
+    // ajuda — deixa seguir para os comandos.
+    const perfil = await (this.prisma as any).userProfile.findFirst({ where: { whatsapp: num } });
+    if (perfil) return false;
 
-    // Já existe conta com este CPF? A resposta é deliberadamente a MESMA do
-    // caminho feliz (ver o retorno lá embaixo): dizer "este CPF já tem conta"
-    // transforma o endpoint público num verificador de quem é cliente.
-    const jaTemConta = await (this.prisma as any).user.findFirst({ where: { cpf } });
-
-    // Conversa já aberta para este número: devolve a mesma, sem abrir outra e
-    // sem mandar mensagem de novo. Reenviar a cada clique é como um número é
-    // marcado como spam.
-    const aberta = await (this.prisma as any).cadastroWhatsapp.findFirst({
-      where: { whatsapp, status: { in: STATUS_ABERTO }, expiraEm: { gt: new Date() } },
+    // Muitas conversas abandonadas no mesmo dia: a pessoa (ou o robô) fica sem
+    // resposta em vez de reabrir o formulário indefinidamente.
+    const umDiaAtras = new Date(Date.now() - 24 * 3600_000);
+    const abandonos = await (this.prisma as any).cadastroWhatsapp.count({
+      where: { whatsapp: num, status: { in: ["CANCELADO", "EXPIRADO"] }, criadoEm: { gt: umDiaAtras } },
     });
-    if (aberta) {
-      return { ok: true, mensagem: "Já te mandamos uma mensagem no WhatsApp. Responda por lá para continuar." };
+    if (abandonos >= MAX_ABANDONOS_DIA) {
+      this.logger.warn(`cadastro ignorado — ${abandonos} abandonos em 24h (numero ...${num.slice(-4)})`);
+      return true; // consome a mensagem, sem responder: não alimenta quem insiste
     }
 
-    if (ip) {
-      const umaHoraAtras = new Date(Date.now() - 3600_000);
-      const doIp = await (this.prisma as any).cadastroWhatsapp.count({
-        where: { ipOrigem: ip, criadoEm: { gt: umaHoraAtras } },
-      });
-      if (doIp >= MAX_POR_IP_HORA) {
-        throw new BadRequestException("Muitas tentativas. Tente de novo daqui a pouco.");
-      }
-    }
-
-    if (jaTemConta) {
-      // Mesma resposta do caminho feliz, mas sem criar nada nem enviar nada.
-      this.logger.log(`iniciar: CPF ja possui conta — ignorado em silencio (ip=${ip || "?"})`);
-      return { ok: true, mensagem: "Te mandamos uma mensagem no WhatsApp. Responda por lá para continuar." };
-    }
-
-    const cadastro = await (this.prisma as any).cadastroWhatsapp.create({
+    await (this.prisma as any).cadastroWhatsapp.create({
       data: {
-        id: randomUUID(), nome, cpf, whatsapp,
-        status: "AGUARDANDO", etapa: "EMAIL",
-        ipOrigem: ip || null,
+        id: randomUUID(), whatsapp: num,
+        status: "EM_CONVERSA", etapa: "NOME",
         expiraEm: new Date(Date.now() + VALIDADE_MIN * 60_000),
       },
     });
 
-    const enviou = await this.wa
-      .sendMessage(whatsapp, this.msgAbertura(nome))
-      .catch(() => false);
-
-    if (!enviou) {
-      // Falhou o envio: a linha fica, mas marcada. Sem isto o número ficaria
-      // com uma conversa "aberta" que nunca começou, e o próximo clique seria
-      // engolido pelo bloco de `aberta` ali em cima.
-      await (this.prisma as any).cadastroWhatsapp.update({
-        where: { id: cadastro.id },
-        data: { status: "CANCELADO" },
-      });
-      throw new BadRequestException(
-        "Não consegui enviar a mensagem para este WhatsApp. Confira o número e tente de novo."
-      );
-    }
-
-    await (this.prisma as any).cadastroWhatsapp.update({
-      where: { id: cadastro.id },
-      data: { status: "EM_CONVERSA" },
-    });
-
-    return { ok: true, mensagem: "Te mandamos uma mensagem no WhatsApp. Responda por lá para continuar." };
+    await this.wa.sendMessage(num, this.msgAbertura(), inst as any).catch(() => false);
+    this.logger.log(`cadastro iniciado pelo chat (numero ...${num.slice(-4)})`);
+    return true;
   }
 
   // ── Conversa ────────────────────────────────────────────────────────────────
@@ -205,29 +176,61 @@ export class CadastroWhatsappService {
 
     if (new Date(cadastro.expiraEm).getTime() < Date.now()) {
       await this.encerrar(cadastro.id, "EXPIRADO");
-      await this.responder(cadastro, "⌛ Esse cadastro expirou. Comece de novo pelo site quando quiser.", inst);
+      await this.responder(cadastro, "⌛ Esse cadastro expirou. É só me mandar *cadastro* de novo quando quiser.", inst);
       return true;
     }
 
     if (/^(cancelar|sair|parar)$/i.test(resposta)) {
       await this.encerrar(cadastro.id, "CANCELADO");
-      await this.responder(cadastro, "👋 Cadastro cancelado. Se mudar de ideia, é só começar de novo pelo site.", inst);
+      await this.responder(cadastro, "👋 Cadastro cancelado. Se mudar de ideia, me mande *cadastro*.", inst);
       return true;
     }
 
     const respostas = this.lerRespostas(cadastro);
 
+    if (cadastro.etapa === "NOME") {
+      if (resposta.length < 3 || !resposta.includes(" ")) {
+        return this.invalida(cadastro, "👤 Me manda seu *nome completo*, com sobrenome.", inst);
+      }
+      await this.avancar(cadastro.id, "CPF", respostas, { nome: resposta });
+      await this.responder(cadastro, "🪪 Agora o seu *CPF* (só os números).", inst);
+      return true;
+    }
+
+    if (cadastro.etapa === "CPF") {
+      if (!cpfValido(resposta)) {
+        return this.invalida(cadastro, "🪪 Esse CPF não confere. Confira os números e me manda de novo.", inst);
+      }
+      const cpf = soDigitos(resposta);
+      const existe = await (this.prisma as any).user.findFirst({ where: { cpf } });
+      if (existe) {
+        // Aqui dizer "já existe" é seguro, ao contrário do endpoint público que
+        // existia antes: quem está falando É o dono do número, não um
+        // desconhecido sondando a base.
+        await this.encerrar(cadastro.id, "CANCELADO");
+        await this.responder(cadastro, "✅ Esse CPF já tem conta no Orkiestri. Entre em *orkiestri.com* — se esqueceu a senha, use *Esqueci a senha*.", inst);
+        return true;
+      }
+      await this.avancar(cadastro.id, "EMAIL", respostas, { cpf });
+      await this.responder(cadastro, "📧 Qual o seu *e-mail*? É com ele que você vai entrar no sistema.", inst);
+      return true;
+    }
+
     if (cadastro.etapa === "EMAIL") {
-      if (!emailValido(resposta)) return this.invalida(cadastro, "📧 Preciso de um e-mail válido, assim: *nome@empresa.com*", inst);
+      if (!emailValido(resposta)) {
+        return this.invalida(cadastro, "📧 Preciso de um e-mail válido, assim: *nome@empresa.com*", inst);
+      }
       const email = resposta.toLowerCase();
       // Um e-mail = uma conta. Como cada cadastro cria uma organização nova, o
       // e-mail repetido deixaria a pessoa com duas contas e nenhuma pista de
       // qual usar para entrar.
       const existe = await (this.prisma as any).user.findFirst({ where: { email } });
-      if (existe) return this.invalida(cadastro, "📧 Esse e-mail já tem conta. Me manda outro, ou entre pelo site com ele.", inst);
+      if (existe) {
+        return this.invalida(cadastro, "📧 Esse e-mail já tem conta. Me manda outro, ou entre em *orkiestri.com* com ele.", inst);
+      }
       respostas.email = email;
       await this.avancar(cadastro.id, "EMPRESA", respostas);
-      await this.responder(cadastro, "🏢 Qual o *nome da sua empresa*?", inst);
+      await this.responder(cadastro, "🏢 E o *nome da sua empresa*?", inst);
       return true;
     }
 
@@ -235,18 +238,20 @@ export class CadastroWhatsappService {
       if (resposta.length < 2) return this.invalida(cadastro, "🏢 Me diga o nome da sua empresa.", inst);
       respostas.empresa = resposta;
       await this.avancar(cadastro.id, "CONFIRMACAO", respostas);
-      await this.responder(cadastro, this.msgConfirmacao(cadastro.nome, cadastro.cpf, respostas), inst);
+      const atual = await (this.prisma as any).cadastroWhatsapp.findUnique({ where: { id: cadastro.id } });
+      await this.responder(cadastro, this.msgConfirmacao(atual.nome, atual.cpf, respostas), inst);
       return true;
     }
 
     if (cadastro.etapa === "CONFIRMACAO") {
       if (/^(1|sim|s|confirmar|ok)$/i.test(resposta)) {
-        await this.concluir(cadastro, respostas, inst);
+        const atual = await (this.prisma as any).cadastroWhatsapp.findUnique({ where: { id: cadastro.id } });
+        await this.concluir(atual, respostas, inst);
         return true;
       }
       if (/^(2|nao|não|n|corrigir)$/i.test(resposta)) {
-        await this.avancar(cadastro.id, "EMAIL", {});
-        await this.responder(cadastro, "🔁 Sem problema, vamos de novo.\n\n📧 Qual o seu *e-mail*?", inst);
+        await this.avancar(cadastro.id, "NOME", {}, { nome: null, cpf: null });
+        await this.responder(cadastro, "🔁 Sem problema, vamos de novo.\n\n👤 Qual o seu *nome completo*?", inst);
         return true;
       }
       return this.invalida(cadastro, "Responda *1* para confirmar ou *2* para corrigir.", inst);
@@ -342,10 +347,11 @@ export class CadastroWhatsappService {
     try { return JSON.parse(cadastro.respostas || "{}"); } catch { return {}; }
   }
 
-  private async avancar(id: string, etapa: string, respostas: any) {
+  /** Avança a etapa. `colunas` grava nome/cpf, que têm coluna própria. */
+  private async avancar(id: string, etapa: string, respostas: any, colunas: any = {}) {
     await (this.prisma as any).cadastroWhatsapp.update({
       where: { id },
-      data: { etapa, respostas: JSON.stringify(respostas), tentativas: 0 },
+      data: { etapa, respostas: JSON.stringify(respostas), tentativas: 0, ...colunas },
     });
   }
 
@@ -358,7 +364,7 @@ export class CadastroWhatsappService {
     const tentativas = (cadastro.tentativas || 0) + 1;
     if (tentativas >= MAX_TENTATIVAS) {
       await this.encerrar(cadastro.id, "CANCELADO");
-      await this.responder(cadastro, "😕 Não consegui entender. Encerrei por aqui — comece de novo pelo site quando quiser.", inst);
+      await this.responder(cadastro, "😕 Não consegui entender. Encerrei por aqui — me mande *cadastro* quando quiser tentar de novo.", inst);
       return true;
     }
     await (this.prisma as any).cadastroWhatsapp.update({
@@ -374,22 +380,20 @@ export class CadastroWhatsappService {
 
   // ── Textos ──────────────────────────────────────────────────────────────────
 
-  private msgAbertura(nome: string): string {
-    const nm = primeiroNome(nome);
+  private msgAbertura(): string {
     return (
-      `😊 *Oi${nm ? ", " + nm : ""}!* Eu sou a *Aurélia*.\n` +
-      "Recebi seu cadastro e vou te ajudar a terminar por aqui mesmo — são duas perguntinhas.\n\n" +
-      "📧 Para começar: qual o seu *e-mail*?\n\n" +
-      "_(É com ele que você vai entrar no sistema. Se quiser parar, responda *cancelar*.)_"
+      "😊 *Oi! Eu sou a Aurélia*, do Orkiestri.\n" +
+      "Vou criar sua conta aqui mesmo, por mensagem — são quatro perguntinhas rápidas.\n\n" +
+      "👤 Para começar: qual o seu *nome completo*?\n\n" +
+      "_(Se quiser parar a qualquer momento, responda *cancelar*.)_"
     );
   }
 
   private msgConfirmacao(nome: string, cpf: string, r: any): string {
-    const cpfFmt = cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4");
     return (
       "✅ *Confere pra mim se está tudo certo:*\n\n" +
       `👤 Nome: *${nome}*\n` +
-      `🪪 CPF: *${cpfFmt}*\n` +
+      `🪪 CPF: *${formatarCpf(cpf)}*\n` +
       `📧 E-mail: *${r.email}*\n` +
       `🏢 Empresa: *${r.empresa}*\n\n` +
       "Responda *1* para confirmar ou *2* para corrigir."
@@ -409,28 +413,8 @@ export class CadastroWhatsappService {
   }
 }
 
-@Controller("cadastro-whatsapp")
-class CadastroWhatsappController {
-  constructor(private service: CadastroWhatsappService) {}
-
-  /**
-   * Rota PÚBLICA, sem autenticação — é a porta de entrada de quem ainda não
-   * tem conta. Os tetos estão no serviço, não aqui, para valerem também quando
-   * alguém chamar o serviço de outro ponto.
-   */
-  @Post("iniciar")
-  @HttpCode(HttpStatus.OK)
-  async iniciar(@Body() dto: IniciarCadastroDto, @Req() req: any) {
-    const ip =
-      (req.headers?.["x-forwarded-for"] || "").toString().split(",")[0].trim() ||
-      req.ip || req.connection?.remoteAddress || undefined;
-    return this.service.iniciar(dto, ip);
-  }
-}
-
 @Module({
   imports: [NotificationsModule],
-  controllers: [CadastroWhatsappController],
   providers: [CadastroWhatsappService],
   exports: [CadastroWhatsappService],
 })

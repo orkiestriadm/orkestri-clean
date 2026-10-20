@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "3.1.0";
+export const VERSAO = "3.2.0";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -35,12 +35,17 @@ export const VERSAO_NOME = "Cadastro pelo WhatsApp";
  * esta lista quer saber o que mudou para ele.
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
+  // A 3.1.0 não aparece nesta lista de propósito. Ela existiu no git por
+  // algumas horas, com o cadastro começando num formulário do site, e foi
+  // substituída pela 3.2.0 antes de chegar a produção. Esta lista é o que
+  // mudou para quem USA o sistema, e uma versão que ninguém recebeu não mudou
+  // nada para ninguém — anunciá-la só faria procurarem uma tela que não existe.
   {
-    versao: "3.1.0",
+    versao: "3.2.0",
     data: "2026-10-20",
     titulo: "Cadastro pelo WhatsApp",
     itens: [
-      "Quem quiser criar uma conta agora preenche só três campos no site — nome, CPF e WhatsApp — e termina o cadastro conversando com a Aurélia no WhatsApp, que pergunta o e-mail e o nome da empresa",
+      "Para criar uma conta agora é só clicar no site e falar com a Aurélia no WhatsApp: ela pergunta nome, CPF, e-mail e empresa, uma coisa por vez, e cria a conta no fim da conversa. Não há mais formulário no navegador",
       "Cada cadastro cria uma empresa própria, e quem se cadastrou é o administrador dela: enxerga os produtos todos, mas só com os dados da própria empresa",
       "A senha provisória chega na mesma conversa do WhatsApp, e é trocada no primeiro acesso",
     ],

@@ -5329,12 +5329,17 @@ model EstrategicoAlertaEnvio {
   @@map("estrategico_alerta_envios")
 }
 
-/// Cadastro iniciado no site e concluído pelo WhatsApp.
+/// Cadastro feito INTEIRO pelo WhatsApp.
 ///
-/// O site coleta o mínimo para abrir a conversa (nome, CPF e WhatsApp) e o
-/// resto é perguntado pela Aurélia, uma pergunta por vez. Enquanto esta linha
-/// existe com status AGUARDANDO ou EM_CONVERSA, as mensagens daquele número
-/// são tratadas como respostas do formulário, e não como comando.
+/// A pessoa clica no site, o WhatsApp abre já na conversa com a Aurélia, e ela
+/// pergunta tudo — nome, CPF, e-mail e empresa — uma coisa por vez. Enquanto
+/// esta linha existe com status AGUARDANDO ou EM_CONVERSA, as mensagens
+/// daquele número são tratadas como respostas do formulário, e não como
+/// comando.
+///
+/// Quem inicia a conversa é a PESSOA, não o sistema. É o que mantém o número
+/// da empresa fora do risco de banimento: nunca sai mensagem para quem não
+/// escreveu primeiro.
 ///
 /// NÃO é um `User`: ninguém entra no sistema por existir aqui. A conta só
 /// nasce em `concluir()`, e nasce numa ORGANIZAÇÃO PRÓPRIA — decisão de
@@ -5342,20 +5347,24 @@ model EstrategicoAlertaEnvio {
 /// veria projetos, chamados e financeiro reais de quem já está dentro.
 model CadastroWhatsapp {
   id             String    @id @default(uuid())
-  nome           String
-  /// Só dígitos. A unicidade é checada contra `users.cpf` na conclusão, não aqui.
-  cpf            String
-  /// Só dígitos, com DDI. É a chave que liga a conversa a esta linha.
+  /// Perguntados no chat, então nulos até a pessoa responder.
+  nome           String?
+  /// Só dígitos. A unicidade é checada contra `users.cpf` na conclusão.
+  cpf            String?
+  /// Só dígitos, com DDI. NÃO é perguntado: é o número de onde a mensagem
+  /// veio, que é a chave que liga a conversa a esta linha.
   whatsapp       String
   status         String    @default("AGUARDANDO")
-  /// Pergunta em aberto: EMAIL | EMPRESA | CONFIRMACAO.
-  etapa          String    @default("EMAIL")
+  /// Pergunta em aberto: NOME | CPF | EMAIL | EMPRESA | CONFIRMACAO.
+  etapa          String    @default("NOME")
   /// Respostas já dadas, em JSON. Texto porque o formulário ainda vai mudar.
   respostas      String    @default("{}")
   /// Respostas inválidas seguidas. Passou do teto, a conversa é encerrada —
   /// sem isso um número hostil mantém o fluxo aberto indefinidamente.
   tentativas     Int       @default(0)
-  /// IP de quem preencheu no site, para o limite por origem.
+  /// Sobra da versão em que o cadastro começava num formulário do site. Fica
+  /// nulo agora: não há mais requisição HTTP de onde tirar IP, e o limite
+  /// passou a ser por NÚMERO, que é o que de fato identifica quem insiste.
   ipOrigem       String?   @map("ip_origem")
   /// Preenchidos só na conclusão.
   organizationId String?   @map("organization_id")

@@ -15,7 +15,7 @@ import {
   RESPOSTA_JA_RENOVADO, RESPOSTA_PRAZO_ENCERRADO, RESPOSTA_CODIGO_INVALIDO, RESPOSTA_NAO_IDENTIFICADO,
 } from "../auth/trial-renovacao";
 import { createHash } from "crypto";
-import { CadastroWhatsappModule, CadastroWhatsappService } from "../cadastro-whatsapp/cadastro-whatsapp.module";
+import { CadastroWhatsappModule, CadastroWhatsappService, pareceInteresseEmCadastro } from "../cadastro-whatsapp/cadastro-whatsapp.module";
 
 // Código de vínculo do WhatsApp (mostrado no Perfil). Determinístico por usuário
 // e não adivinhável sem o segredo — quem manda "VINCULAR <código>" prova ser o dono.
@@ -1103,7 +1103,15 @@ export class WhatsappInboundService {
       try {
         const numero = remoteJid.split("@")[0];
         const cadastro = await this.cadastroWhats.conversaAberta(numero);
-        if (cadastro && await this.cadastroWhats.tratarResposta(cadastro, texto, inst)) return;
+        if (cadastro) {
+          if (await this.cadastroWhats.tratarResposta(cadastro, texto, inst)) return;
+        } else if (pareceInteresseEmCadastro(texto)) {
+          // Chegou querendo se cadastrar e nao tem conversa aberta. O servico
+          // decide se abre: devolve false quando o numero JA tem conta, e ai a
+          // mensagem segue para os comandos normais — quem ja e cliente
+          // escrevendo "quero criar uma conta" quase sempre quer outra coisa.
+          if (await this.cadastroWhats.iniciarPeloChat(numero, inst)) return;
+        }
       } catch (e: any) {
         // Falha aqui não pode engolir a mensagem de quem JÁ é usuário: segue
         // para os comandos normais em vez de deixar a pessoa sem resposta.
