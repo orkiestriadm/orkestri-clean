@@ -15,6 +15,7 @@ import {
   RESPOSTA_JA_RENOVADO, RESPOSTA_PRAZO_ENCERRADO, RESPOSTA_CODIGO_INVALIDO, RESPOSTA_NAO_IDENTIFICADO,
 } from "../auth/trial-renovacao";
 import { createHash } from "crypto";
+import { CadastroWhatsappModule, CadastroWhatsappService } from "../cadastro-whatsapp/cadastro-whatsapp.module";
 
 // Código de vínculo do WhatsApp (mostrado no Perfil). Determinístico por usuário
 // e não adivinhável sem o segredo — quem manda "VINCULAR <código>" prova ser o dono.
@@ -548,6 +549,7 @@ export class WhatsappInboundService {
   constructor(
     private prisma: PrismaService, private wa: WhatsAppService, private auth: AuthService,
     private referral: ReferralService,
+    private cadastroWhats: CadastroWhatsappService,
   ) {}
 
   private fmtData(d: Date): string {
@@ -1086,6 +1088,29 @@ export class WhatsappInboundService {
     this.logger.log(`inbound jid=${remoteJid} fromMe=${key?.fromMe} texto="${texto.slice(0, 50)}"`);
     if (!texto) return;
 
+    // ── Cadastro em andamento? ANTES de tudo. ─────────────────────────────────
+    //
+    // Quem está preenchendo o formulário ainda NÃO é usuário: `identificar()`
+    // devolveria null e a pessoa receberia "você não está vinculado" no meio do
+    // próprio cadastro. Pior, o e-mail que ela mandou cairia nos parsers de
+    // evento e de gasto, que responderiam "não entendi".
+    //
+    // Por isso este bloco vem primeiro, e não depois dos comandos: enquanto a
+    // conversa de cadastro está aberta, TODA mensagem daquele número é resposta
+    // de formulário. Só mensagem que CHEGOU — um texto enviado pelo próprio
+    // número do bot (fromMe) não responde formulário de ninguém.
+    if (!key?.fromMe) {
+      try {
+        const numero = remoteJid.split("@")[0];
+        const cadastro = await this.cadastroWhats.conversaAberta(numero);
+        if (cadastro && await this.cadastroWhats.tratarResposta(cadastro, texto, inst)) return;
+      } catch (e: any) {
+        // Falha aqui não pode engolir a mensagem de quem JÁ é usuário: segue
+        // para os comandos normais em vez de deixar a pessoa sem resposta.
+        this.logger.warn(`cadastro-whatsapp: ${e?.message || e}`);
+      }
+    }
+
     // ── Ajuda? "ajuda"/"menu"/"voltar (ao menu)" — a Aurélia abre o menu de módulos.
     //    "voltar"/"menu" funcionam mesmo depois do estado expirar. ──
     if (/^\/?(ajuda|help|menu(?: principal)?|voltar(?: ao menu(?: principal)?)?)\s*[?!.]*$/i.test(texto)) {
@@ -1243,7 +1268,7 @@ export class WhatsappInboundController {
 }
 
 @Module({
-  imports: [NotificationsModule, AuthModule, ReferralModule],
+  imports: [NotificationsModule, AuthModule, ReferralModule, CadastroWhatsappModule],
   controllers: [WhatsappInboundController],
   providers: [WhatsappInboundService],
 })

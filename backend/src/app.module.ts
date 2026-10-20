@@ -38,6 +38,7 @@ import { GastosModule } from './modules/gastos/gastos.module';
 import { IntegracoesModule } from './modules/integracoes/integracoes.module';
 import { WhatsappInboundModule } from './modules/agenda/whatsapp-inbound.module';
 import { ReferralModule } from './modules/referral/referral.module';
+import { CadastroWhatsappModule } from './modules/cadastro-whatsapp/cadastro-whatsapp.module';
 import { JwtModule } from '@nestjs/jwt';
 
 /**
@@ -88,6 +89,9 @@ import { JwtModule } from '@nestjs/jwt';
     WebhooksModule,
     OrganizationsModule,
     CadastroRequestModule,
+    // Cadastro que começa no site e termina no WhatsApp. Cria uma ORGANIZAÇÃO
+    // por cadastro — ver o cabeçalho do módulo para o porquê.
+    CadastroWhatsappModule,
     BillingModule,
     JwtModule.register({ secret: process.env.JWT_SECRET, signOptions: { expiresIn: "1h" } }),
     FinanceiroModule,

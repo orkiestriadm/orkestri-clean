@@ -5328,3 +5328,45 @@ model EstrategicoAlertaEnvio {
   @@index([organizationId, criadoEm])
   @@map("estrategico_alerta_envios")
 }
+
+/// Cadastro iniciado no site e concluído pelo WhatsApp.
+///
+/// O site coleta o mínimo para abrir a conversa (nome, CPF e WhatsApp) e o
+/// resto é perguntado pela Aurélia, uma pergunta por vez. Enquanto esta linha
+/// existe com status AGUARDANDO ou EM_CONVERSA, as mensagens daquele número
+/// são tratadas como respostas do formulário, e não como comando.
+///
+/// NÃO é um `User`: ninguém entra no sistema por existir aqui. A conta só
+/// nasce em `concluir()`, e nasce numa ORGANIZAÇÃO PRÓPRIA — decisão de
+/// 20/10/2026. Quem se cadastra pela rua não pode cair no tenant da empresa:
+/// veria projetos, chamados e financeiro reais de quem já está dentro.
+model CadastroWhatsapp {
+  id             String    @id @default(uuid())
+  nome           String
+  /// Só dígitos. A unicidade é checada contra `users.cpf` na conclusão, não aqui.
+  cpf            String
+  /// Só dígitos, com DDI. É a chave que liga a conversa a esta linha.
+  whatsapp       String
+  status         String    @default("AGUARDANDO")
+  /// Pergunta em aberto: EMAIL | EMPRESA | CONFIRMACAO.
+  etapa          String    @default("EMAIL")
+  /// Respostas já dadas, em JSON. Texto porque o formulário ainda vai mudar.
+  respostas      String    @default("{}")
+  /// Respostas inválidas seguidas. Passou do teto, a conversa é encerrada —
+  /// sem isso um número hostil mantém o fluxo aberto indefinidamente.
+  tentativas     Int       @default(0)
+  /// IP de quem preencheu no site, para o limite por origem.
+  ipOrigem       String?   @map("ip_origem")
+  /// Preenchidos só na conclusão.
+  organizationId String?   @map("organization_id")
+  userId         String?   @map("user_id")
+  expiraEm       DateTime  @map("expira_em")
+  concluidoEm    DateTime? @map("concluido_em")
+  criadoEm       DateTime  @default(now()) @map("criado_em")
+  atualizadoEm   DateTime  @updatedAt @map("atualizado_em")
+
+  @@index([whatsapp, status])
+  @@index([status, expiraEm])
+  @@index([ipOrigem, criadoEm])
+  @@map("cadastros_whatsapp")
+}

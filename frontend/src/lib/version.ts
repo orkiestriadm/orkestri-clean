@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "3.0.0";
+export const VERSAO = "3.1.0";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -26,7 +26,7 @@ export const VERSAO = "3.0.0";
 export const VERSAO_DATA = "2026-10-20";
 
 /** Nome da entrega, para dar contexto ao número. */
-export const VERSAO_NOME = "Cadastro simples e acesso igual para todos";
+export const VERSAO_NOME = "Cadastro pelo WhatsApp";
 
 /**
  * Histórico exibido na tela Sobre, do mais recente para o mais antigo.
@@ -35,6 +35,16 @@ export const VERSAO_NOME = "Cadastro simples e acesso igual para todos";
  * esta lista quer saber o que mudou para ele.
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
+  {
+    versao: "3.1.0",
+    data: "2026-10-20",
+    titulo: "Cadastro pelo WhatsApp",
+    itens: [
+      "Quem quiser criar uma conta agora preenche só três campos no site — nome, CPF e WhatsApp — e termina o cadastro conversando com a Aurélia no WhatsApp, que pergunta o e-mail e o nome da empresa",
+      "Cada cadastro cria uma empresa própria, e quem se cadastrou é o administrador dela: enxerga os produtos todos, mas só com os dados da própria empresa",
+      "A senha provisória chega na mesma conversa do WhatsApp, e é trocada no primeiro acesso",
+    ],
+  },
   {
     versao: "3.0.0",
     data: "2026-10-20",

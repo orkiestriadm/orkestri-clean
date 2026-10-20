@@ -672,6 +672,16 @@ export default function HeroSection() {
                 Teste por 7 dias grátis <ArrowRight size={15} />
               </Link>
 
+              {/* Cadastro pelo WhatsApp (20/10/2026). Entra AO LADO do teste de
+                  7 dias, não no lugar dele: aquele funil está em produção e
+                  validado desde 24/08, e trocá-lo é decisão de produto. */}
+              <Link
+                href="/cadastro"
+                className="inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-xl border border-[#22c55e]/40 bg-[#22c55e]/10 text-[#4ade80] hover:bg-[#22c55e]/15 hover:border-[#22c55e]/60 transition-all font-semibold text-sm"
+              >
+                Clique aqui para fazer o cadastro <ArrowRight size={15} />
+              </Link>
+
               <Link
                 href="/login"
                 className="inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-xl border border-[var(--border-strong)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-all font-medium text-sm"

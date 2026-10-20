@@ -37,7 +37,11 @@ function montar(user: any) {
   const wa: any = { sendMessageForOrg: jest.fn(async () => true), sendMessage: jest.fn(async () => true), sendToJid: jest.fn(async () => true) };
   const auth: any = { notificarEquipeTrial: jest.fn(async () => {}), resolvePermissions: jest.fn(async () => []) };
   const referral: any = { efetivar: jest.fn(async () => ({ ok: true })) };
-  const svc = new WhatsappInboundService(prisma, wa, auth, referral);
+  // `cadastroWhats` é consultado a cada mensagem recebida, antes dos comandos.
+  // Aqui o teste é de RENOVAÇÃO: o dublê responde "não há cadastro aberto para
+  // este número", que é o caminho de quem já tem conta.
+  const cadastroWhats: any = { conversaAberta: async () => null, tratarResposta: async () => false };
+  const svc = new WhatsappInboundService(prisma, wa, auth, referral, cadastroWhats);
   const processar = (key: any, texto: string) =>
     svc.processar({ instance: "orkestri-default", data: { key, message: { conversation: texto } } });
   const msg = (texto: string, jid = `${TEL}@s.whatsapp.net`) => processar({ remoteJid: jid, fromMe: false }, texto);
