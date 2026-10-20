@@ -34,7 +34,7 @@ class AprovarDto {
   @IsOptional() @IsString() departamento?: string;
   @IsOptional() @IsString() empresa?: string;
   // ── Workforce: provisionamento estrutural do colaborador ──
-  @IsOptional() @IsString() setorId?: string;
+  // `setorId` saiu em 20/10/2026 com a tabela `setores` — ver approveUserRequest.
   @IsOptional() @IsString() gestorId?: string;
   @IsOptional() @IsString() perfilRoleId?: string;
   @IsOptional() @IsString() squad?: string;

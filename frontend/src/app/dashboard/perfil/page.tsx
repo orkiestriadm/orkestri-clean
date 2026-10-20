@@ -11,7 +11,7 @@ interface Perfil {
   cargo?: string; telefone?: string;
   whatsapp?: string; whatsappAlertas?: boolean;
   statusOnline?: string;
-  setor?: { id: string; nome: string; cor?: string } | null;
+  // `setor` saiu em 20/10/2026 com a tabela `setores`.
   roles: string[]; isMaster: boolean;
   criadoEm: string; ultimoLogin?: string;
 }
@@ -145,9 +145,6 @@ export default function PerfilPage() {
                 {perfil?.roles.map(r => (
                   <span key={r} className="text-[11px] bg-muted text-muted-foreground border border-border px-2 py-0.5 rounded-full">{r}</span>
                 ))}
-                {perfil?.setor && (
-                  <span className="text-[11px] text-muted-foreground">📍 {perfil.setor.nome}</span>
-                )}
               </div>
             </div>
             <div className="text-right text-xs text-muted-foreground space-y-1 flex-shrink-0 hidden sm:block">

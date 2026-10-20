@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "2.2.0";
+export const VERSAO = "3.0.0";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -23,10 +23,10 @@ export const VERSAO = "2.2.0";
  * Não é gerada no build: `new Date()` no bundle muda a cada compilação, e duas
  * builds do mesmo código pareceriam versões diferentes.
  */
-export const VERSAO_DATA = "2026-10-19";
+export const VERSAO_DATA = "2026-10-20";
 
 /** Nome da entrega, para dar contexto ao número. */
-export const VERSAO_NOME = "Prazo no dia certo e membros pela edição";
+export const VERSAO_NOME = "Cadastro simples e acesso igual para todos";
 
 /**
  * Histórico exibido na tela Sobre, do mais recente para o mais antigo.
@@ -35,6 +35,17 @@ export const VERSAO_NOME = "Prazo no dia certo e membros pela edição";
  * esta lista quer saber o que mudou para ele.
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
+  {
+    versao: "3.0.0",
+    data: "2026-10-20",
+    titulo: "Cadastro simples e acesso igual para todos",
+    itens: [
+      "O cadastro de usuário passa a ter cinco campos e nada mais: nome completo, CPF, e-mail, telefone e WhatsApp. Não se escolhe mais perfil nem senha — o sistema sorteia uma senha provisória e a mostra uma única vez, na hora de criar, para quem cadastrou repassar",
+      "Acabaram os perfis diferenciados. Quem é cadastrado passa a enxergar todos os produtos — Agenda, Keep, Projetos, Concluídos, Linha do Tempo, Financeiro, Meus Gastos, Contas a Pagar, Orçamento, Chamados e Conhecimento. A administração (Cadastros, Histórico, Configurações, Alertas, WhatsApp e Assinatura) continua só para quem tem o papel de administrador",
+      "Saíram as abas Setores, Organogramas, Papéis e Matriz do módulo Core, e com elas a estrutura de setores do sistema",
+      "A aba Chamados perdeu o recorte \"Minha equipe\", na Carga e no Histórico: ele era calculado pelo setor de cada pessoa, e sem setor não há de onde tirar equipe",
+    ],
+  },
   {
     versao: "2.2.0",
     data: "2026-10-19",

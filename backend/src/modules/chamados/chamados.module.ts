@@ -270,19 +270,15 @@ class ChamadosController {
     return !!req.user?.isMaster || perms.includes("*") || perms.includes("chamados:atribuir");
   }
 
-  /** Ids de quem divide o setor com o usuário. Vazio se ele não tem setor —
-   *  e aí "minha equipe" não tem o que mostrar, em vez de mostrar tudo. */
-  private async idsDaMinhaEquipe(userId: string, orgId?: string): Promise<string[]> {
-    const meu = await (this.prisma as any).userProfile.findUnique({
-      where: { userId }, select: { setorId: true },
-    });
-    if (!meu?.setorId) return [];
-    const colegas = await (this.prisma as any).userProfile.findMany({
-      where: { setorId: meu.setorId, ...(orgId ? { user: { is: { organizationId: orgId } } } : {}) },
-      select: { userId: true },
-    });
-    return colegas.map((c: any) => c.userId);
-  }
+  /* "Minha equipe" saiu em 20/10/2026.
+   *
+   * O recorte vinha de `UserProfile.setorId`: equipe era quem dividia o setor.
+   * Com a tabela `setores` derrubada não sobrou de que derivar equipe — nem
+   * cargo, nem gestor, nem projeto responderiam a mesma pergunta. Em vez de
+   * mapear "equipe" para outro recorte parecido e devolver uma lista que
+   * responde outra coisa, o escopo deixou de existir: `buildWhere` não conhece
+   * mais "equipe" e cai no padrão (meus + fila), e a Carga passou a ser da
+   * organização para quem distribui trabalho. */
 
   private async buildWhere(req: any, scope: string | undefined): Promise<any> {
     const userId   = req.user.id;
@@ -295,12 +291,6 @@ class ChamadosController {
 
     if (scope === "fila") return { ...base, ...filaCond };
     if (scope === "meus") return { ...base, ...meusCond };
-    if (scope === "equipe") {
-      const ids = await this.idsDaMinhaEquipe(userId, orgId);
-      // Sem setor não há equipe: devolve o próprio escopo em vez de vazar tudo.
-      if (!ids.length) return { ...base, ...meusCond };
-      return { ...base, OR: [{ solicitanteId: { in: ids } }, { atendenteId: { in: ids } }] };
-    }
     if (scope === "todos" && this.podeVerTudo(req)) return base;
     // default: o que o usuário pode ver = seus + fila pública
     if (isMaster) return base;
@@ -318,7 +308,11 @@ class ChamadosController {
   @Permissions("chamados:ver")
   async cargaEquipe(@Req() req: any, @Query("escopo") escopo?: string) {
     const orgId = req.user?.organizationId;
-    const alcance = escopo === "todos" && this.podeVerTudo(req) ? "todos" : "equipe";
+    // Sem "equipe", a Carga é da organização para quem distribui trabalho e o
+    // quadro próprio para os demais — em vez de um recorte de setor que não
+    // existe mais. O parâmetro `escopo` segue aceito e ignorado, para não
+    // quebrar link salvo da tela.
+    const alcance = this.podeVerTudo(req) ? "todos" : "meus";
     const where = await this.buildWhere(req, alcance);
 
     const ativos = await this.prisma.chamado.findMany({
