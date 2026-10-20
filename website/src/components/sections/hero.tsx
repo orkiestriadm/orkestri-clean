@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { motion, useReducedMotion } from "framer-motion";
-import { ArrowRight, Check } from "lucide-react";
+import { ArrowRight, Check, MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { TrialButton } from "@/components/trial/trial-button";
 import { Container } from "@/components/ui/container";
@@ -98,6 +98,34 @@ export function Hero() {
                 </Link>
               </Button>
               <TrialButton variant="secondary" size="lg">Solicitar demonstração</TrialButton>
+              {/* Cadastro pelo WhatsApp (20/10/2026).
+                  Abre a conversa DIRETO, com o texto pronto: a Aurélia
+                  reconhece a intenção e conduz o cadastro inteiro por lá. Não
+                  há formulário no navegador, por decisão do produto.
+
+                  O número é o mesmo a que a instância do Evolution está
+                  conectada em produção. Tem de ser: apontando para outro, a
+                  Aurélia nunca vê a mensagem e ninguém recebe resposta. */}
+              {/* Verde do WhatsApp, e não o `secondary` do design system.
+                  Com `secondary` ele ficava visualmente IDÊNTICO ao
+                  "Solicitar demonstração" logo acima — dois botões iguais
+                  empilhados, e o de cadastro era o menos visível dos três.
+                  A cor aqui não é enfeite: diz que o clique sai do site e
+                  abre uma conversa, que é o que de fato acontece. */}
+              <Button
+                asChild
+                size="lg"
+                className="bg-[#25D366] text-white shadow-soft hover:bg-[#1DA851] hover:scale-[1.02] motion-reduce:hover:scale-100"
+              >
+                <a
+                  href={`https://wa.me/5514991661688?text=${encodeURIComponent("Quero fazer meu cadastro no Orkiestri")}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <MessageCircle className="h-5 w-5" aria-hidden />
+                  Criar minha conta no WhatsApp
+                </a>
+              </Button>
             </motion.div>
 
             <motion.ul

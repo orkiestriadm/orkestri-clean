@@ -134,6 +134,16 @@ services:
       TENANT_NOME: ${TENANT_NOME:-Orkestri}
       EVOLUTION_API_URL: http://orkestri_evolution_v2:8080
       EVOLUTION_API_KEY: ${EVOLUTION_API_KEY}
+      # Instância usada quando a organização não tem a sua própria.
+      #
+      # Precisa ser DIFERENTE em cada ambiente. Enquanto o nome estava cravado
+      # no código, homologação e produção caíam no mesmo e um falava pelo
+      # número do outro — é a razão da regra "em produção, WhatsApp só leitura".
+      # Sem valor definido, a API sobe avisando no log.
+      EVOLUTION_INSTANCE: ${EVOLUTION_INSTANCE:-}
+      # Segredo do webhook de entrada. Sem ele o inbound fica DESLIGADO, para
+      # ninguém conseguir forjar mensagem de um número que não é seu.
+      WHATSAPP_INBOUND_SECRET: ${WHATSAPP_INBOUND_SECRET:-}
       APP_URL: ${APP_URL:-http://localhost}
       RESEND_API_KEY: ${RESEND_API_KEY}
       EMAIL_FROM: ${EMAIL_FROM:-onboarding@resend.dev}

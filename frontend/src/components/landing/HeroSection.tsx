@@ -672,6 +672,14 @@ export default function HeroSection() {
                 Teste por 7 dias grátis <ArrowRight size={15} />
               </Link>
 
+              {/* O botão de cadastro pelo WhatsApp NÃO mora aqui.
+                  Esta landing é a do app Next.js, e o nginx não a publica: o
+                  `/` do domínio vai para o container do site (`website/`), que
+                  é o que o público vê em orkiestri.com. Pôr o botão aqui foi
+                  um erro de 20/10/2026 — ele existia no código e não aparecia
+                  para ninguém. O lugar certo é `website/src/components/
+                  sections/hero.tsx`. */}
+
               <Link
                 href="/login"
                 className="inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-xl border border-[var(--border-strong)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-all font-medium text-sm"

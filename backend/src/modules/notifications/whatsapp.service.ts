@@ -18,14 +18,40 @@ import { MARCA } from "../../common/marca";
 @Injectable()
 export class WhatsAppService {
   private readonly logger = new Logger(WhatsAppService.name);
-  private readonly defaultInstance = "orkestri";
+  /**
+   * Instância usada quando a organização não tem a sua (`resolveInstance`).
+   *
+   * Vem do ambiente, e NÃO é mais a constante "orkestri" escrita no código.
+   * Enquanto era fixa, homologação e produção caíam no MESMO nome por omissão
+   * — e homologação passava a falar pelo número real da empresa. É a razão de
+   * a regra ser "em produção, WhatsApp só leitura": o risco não vinha do que o
+   * código fazia de propósito, vinha do fallback.
+   *
+   * Cada ambiente declara `EVOLUTION_INSTANCE` no seu .env. O valor abaixo
+   * existe só para não quebrar quem ainda não declarou, e é anotado no log na
+   * partida para aparecer antes de virar incidente.
+   */
+  private readonly defaultInstance: string;
   private apiUrl: string;
   private apiKey: string;
 
   constructor(private config: ConfigService, private prisma?: PrismaService) {
     this.apiUrl = config.get("EVOLUTION_API_URL", "http://evolution:8080");
     this.apiKey = config.get("EVOLUTION_API_KEY", "orkestri_evolution_key");
+    this.defaultInstance = config.get("EVOLUTION_INSTANCE", "orkestri");
     this.logger.log("Evolution URL: " + this.apiUrl);
+    // Dito alto na partida: é por este nome que mensagem sai quando a
+    // organização não tem instância própria. Dois ambientes com o mesmo nome
+    // aqui significa um falando pelo número do outro.
+    if (!config.get("EVOLUTION_INSTANCE")) {
+      this.logger.warn(
+        'EVOLUTION_INSTANCE nao definida — usando "orkestri" por omissao. ' +
+        "Defina-a no .env de CADA ambiente: o mesmo nome em dois ambientes faz " +
+        "um enviar pelo numero do outro."
+      );
+    } else {
+      this.logger.log("Evolution instancia padrao: " + this.defaultInstance);
+    }
   }
 
   private get headers() {
