@@ -13,7 +13,7 @@ const STEPS = [
     border: 'rgba(167,139,250,0.25)',
     glow: 'rgba(167,139,250,0.18)',
     title: 'Centralize operações',
-    desc: 'Controle sua operação, agendamentos, projetos, fornecedores e financeiro em um único ambiente integrado e auditável. Elimine planilhas e sistemas fragmentados de uma vez.',
+    desc: 'Controle projetos, agenda, lembretes e financeiro em um único ambiente integrado e auditável. Elimine planilhas e sistemas fragmentados de uma vez.',
     tag: 'Setup em < 24h',
   },
   {
@@ -24,7 +24,7 @@ const STEPS = [
     border: 'rgba(34,211,238,0.25)',
     glow: 'rgba(34,211,238,0.18)',
     title: 'Automatize processos',
-    desc: 'Configure regras de aprovação, alertas automáticos e fluxos de trabalho sem código. Notificações via WhatsApp, escalas de atendimento e gatilhos operacionais.',
+    desc: 'Configure alertas automáticos e fluxos de trabalho sem código. Notificações via WhatsApp, lembretes de agenda e gatilhos operacionais.',
     tag: 'Zero código',
   },
   {
@@ -35,7 +35,7 @@ const STEPS = [
     border: 'rgba(52,211,153,0.25)',
     glow: 'rgba(52,211,153,0.18)',
     title: 'Escale a gestão',
-    desc: 'Dashboards executivos, KPIs em tempo real e analytics avançado com CSAT, SLA e CAPEX/OPEX para decisões baseadas em dados em qualquer escala.',
+    desc: 'Linha do tempo dos projetos, histórico do que foi concluído e acompanhamento de previsto × realizado em CAPEX/OPEX para decisões baseadas em dados.',
     tag: 'Insights em tempo real',
   },
 ]

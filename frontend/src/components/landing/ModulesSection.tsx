@@ -3,74 +3,41 @@
 import { useRef } from 'react'
 import { motion, useInView } from 'framer-motion'
 import {
-  Users, Calculator, Truck, BarChart3,
-  FolderKanban, Package, FileText, CheckSquare,
+  Calculator, Wallet, FolderKanban, CalendarDays,
 } from 'lucide-react'
 
 const MODULES = [
   {
-    icon: Users,
-    name: 'Chamados',
-    description: 'Organize demandas, controle desenvolvimento do time, tudo com histórico e comunicação centralizada.',
+    icon: FolderKanban,
+    name: 'Projetos',
+    description: 'Kanban por projeto, prazos, responsáveis, linha do tempo e histórico do que já foi concluído.',
     color: '#a78bfa',
     gradient: 'from-violet-500/20 to-violet-600/5',
     border: 'rgba(167,139,250,0.2)',
+  },
+  {
+    icon: CalendarDays,
+    name: 'Agenda',
+    description: 'Calendário da equipe, lembretes e anotações rápidas no Keep — com sincronização Outlook / Microsoft 365.',
+    color: '#22d3ee',
+    gradient: 'from-cyan-500/20 to-cyan-600/5',
+    border: 'rgba(34,211,238,0.2)',
+  },
+  {
+    icon: Wallet,
+    name: 'Financeiro',
+    description: 'Receitas, despesas, contas a pagar e gastos pessoais lançados pelo WhatsApp.',
+    color: '#34d399',
+    gradient: 'from-emerald-500/20 to-emerald-600/5',
+    border: 'rgba(52,211,153,0.2)',
   },
   {
     icon: Calculator,
     name: 'Orçamentos',
-    description: 'CAPEX/OPEX, ciclos, centros de custo e aprovações de orçamento.',
-    color: '#34d399',
-    gradient: 'from-emerald-500/20 to-emerald-600/5',
-    border: 'rgba(52,211,153,0.2)',
-  },
-  {
-    icon: Truck,
-    name: 'Fornecedores',
-    description: 'Homologação, avaliação, performance e gestão de suprimentos.',
+    description: 'CAPEX/OPEX, ciclos anuais, centros de custo e acompanhamento de previsto × realizado.',
     color: '#fbbf24',
     gradient: 'from-amber-500/20 to-amber-600/5',
     border: 'rgba(251,191,36,0.2)',
-  },
-  {
-    icon: BarChart3,
-    name: 'Financeiro',
-    description: 'Orçamento(Capex/Opex), contratos, receitas, despesas e relatórios financeiros.',
-    color: '#22d3ee',
-    gradient: 'from-cyan-500/20 to-cyan-600/5',
-    border: 'rgba(34,211,238,0.2)',
-  },
-  {
-    icon: FolderKanban,
-    name: 'Projetos',
-    description: 'Kanban, milestones, apontamentos de horas e gestão de equipes.',
-    color: '#a78bfa',
-    gradient: 'from-violet-500/20 to-violet-600/5',
-    border: 'rgba(167,139,250,0.2)',
-  },
-  {
-    icon: Package,
-    name: 'Inventário',
-    description: 'Ativos, transferências, categorias e controle de estoque.',
-    color: '#f87171',
-    gradient: 'from-red-500/20 to-red-600/5',
-    border: 'rgba(248,113,113,0.2)',
-  },
-  {
-    icon: FileText,
-    name: 'Relatórios',
-    description: 'Dashboards dinâmicos, exportação e análises operacionais completas.',
-    color: '#34d399',
-    gradient: 'from-emerald-500/20 to-emerald-600/5',
-    border: 'rgba(52,211,153,0.2)',
-  },
-  {
-    icon: CheckSquare,
-    name: 'Aprovações',
-    description: 'Fluxos de aprovação multinível com rastreabilidade e auditoria.',
-    color: '#22d3ee',
-    gradient: 'from-cyan-500/20 to-cyan-600/5',
-    border: 'rgba(34,211,238,0.2)',
   },
 ]
 
@@ -110,10 +77,10 @@ export default function ModulesSection() {
             Módulos do sistema
           </span>
           <h2 className="font-display text-3xl sm:text-4xl lg:text-5xl font-bold text-[var(--text-primary)] mb-4">
-            HUB Operacional Corporativo,<br className="hidden sm:block" /> em um único ecossistema!
+            Quatro módulos,<br className="hidden sm:block" /> um só ecossistema.
           </h2>
           <p className="text-[var(--text-secondary)] text-lg max-w-2xl mx-auto">
-            Cada módulo é profundo, completo e integrado nativamente com os demais — sem plug-ins, sem fricção.
+            Poucos módulos, feitos a fundo e integrados nativamente entre si — sem plug-ins, sem fricção.
           </p>
         </motion.div>
 

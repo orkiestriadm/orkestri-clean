@@ -241,8 +241,8 @@ export default function UnderstandOrkiestriPage() {
                       <span className="text-xs bg-white/5 text-slate-400 px-2.5 py-1 rounded-md font-mono">Jira</span>
                     </div>
                     <div className="flex items-center justify-between border-b border-white/5 pb-3">
-                      <span className="text-slate-300 text-sm">Atendimento / Chamados</span>
-                      <span className="text-xs bg-white/5 text-slate-400 px-2.5 py-1 rounded-md font-mono">Movidesk</span>
+                      <span className="text-slate-300 text-sm">Controle Orçamentário</span>
+                      <span className="text-xs bg-white/5 text-slate-400 px-2.5 py-1 rounded-md font-mono">Excel</span>
                     </div>
                     <div className="flex items-center justify-between border-b border-white/5 pb-3">
                       <span className="text-slate-300 text-sm">Organização de Tarefas</span>
@@ -325,8 +325,8 @@ export default function UnderstandOrkiestriPage() {
                   <div className="w-10 h-10 rounded-lg bg-cyan-500/10 flex items-center justify-center mb-4">
                     <MessageSquare className="text-cyan-400" size={20} />
                   </div>
-                  <h4 className="font-bold text-base text-slate-200 mb-1.5">Service Desk</h4>
-                  <p className="text-xs text-slate-400">Atendimento a chamados com controle integrado de fila e SLAs.</p>
+                  <h4 className="font-bold text-base text-slate-200 mb-1.5">WhatsApp Integrado</h4>
+                  <p className="text-xs text-slate-400">Avisos operacionais, lembretes e lançamento de gastos pela conversa.</p>
                 </div>
 
                 <div className="bg-white/[0.02] border border-white/5 rounded-xl p-5 hover:border-emerald-500/40 transition-all duration-300">
@@ -358,7 +358,7 @@ export default function UnderstandOrkiestriPage() {
                     <ShieldCheck className="text-amber-400" size={20} />
                   </div>
                   <h4 className="font-bold text-base text-slate-200 mb-1.5">Governança</h4>
-                  <p className="text-xs text-slate-400">Níveis granulares de acesso, auditoria detalhada de logs e compliance.</p>
+                  <p className="text-xs text-slate-400">Níveis granulares de acesso e auditoria detalhada de logs.</p>
                 </div>
               </div>
             </motion.div>
@@ -392,7 +392,7 @@ export default function UnderstandOrkiestriPage() {
                 <div className="md:col-span-7 space-y-4">
                   <div className="bg-white/[0.02] border border-white/5 rounded-xl p-5 flex items-center gap-4 hover:border-cyan-500/25 transition-all">
                     <div className="w-8 h-8 rounded-full bg-cyan-500/10 text-cyan-400 flex items-center justify-center text-xs font-bold font-mono">1</div>
-                    <p className="text-sm text-slate-300"><strong>Chamado é aberto:</strong> Suporte registra a demanda do cliente no Service Desk.</p>
+                    <p className="text-sm text-slate-300"><strong>A demanda entra:</strong> a tarefa é registrada no quadro do projeto, com responsável e prazo.</p>
                   </div>
                   
                   <div className="flex justify-center my-0.5">
@@ -401,7 +401,7 @@ export default function UnderstandOrkiestriPage() {
                   
                   <div className="bg-white/[0.02] border border-white/5 rounded-xl p-5 flex items-center gap-4 hover:border-violet-500/25 transition-all">
                     <div className="w-8 h-8 rounded-full bg-violet-500/10 text-violet-400 flex items-center justify-center text-xs font-bold font-mono">2</div>
-                    <p className="text-sm text-slate-300"><strong>Gera tarefa de desenvolvimento:</strong> A tarefa é vinculada instantaneamente a um projeto ativo.</p>
+                    <p className="text-sm text-slate-300"><strong>Entra na agenda:</strong> o prazo aparece no calendário da equipe e sincroniza com o Outlook.</p>
                   </div>
                   
                   <div className="flex justify-center my-0.5">
@@ -410,7 +410,7 @@ export default function UnderstandOrkiestriPage() {
                   
                   <div className="bg-white/[0.02] border border-white/5 rounded-xl p-5 flex items-center gap-4 hover:border-emerald-500/25 transition-all">
                     <div className="w-8 h-8 rounded-full bg-emerald-500/10 text-emerald-400 flex items-center justify-center text-xs font-bold font-mono">3</div>
-                    <p className="text-sm text-slate-300"><strong>Dashboards atualizam:</strong> O tempo gasto e o impacto de custo são consolidados em tempo real.</p>
+                    <p className="text-sm text-slate-300"><strong>O custo é consolidado:</strong> a despesa cai no orçamento e no previsto × realizado do ciclo.</p>
                   </div>
                 </div>
 
@@ -558,13 +558,13 @@ export default function UnderstandOrkiestriPage() {
                     <span className="text-cyan-400 font-bold text-xs tracking-widest uppercase">Fase 01</span>
                     <h4 className="text-lg font-bold text-white mt-1.5 mb-2">Core Operacional</h4>
                     <p className="text-xs text-slate-400 leading-relaxed mb-4">
-                      Centralize o dia a dia da sua operação eliminando a fragmentação de ferramentas (Jira + Planner + Movidesk).
+                      Centralize o dia a dia da sua operação eliminando a fragmentação de ferramentas (Jira + Planner + planilhas).
                     </p>
                   </div>
                   <div className="grid grid-cols-2 gap-2 border-t border-white/5 pt-4 mt-auto">
                     <span className="flex items-center gap-1.5 text-xs text-slate-300">
                       <span className="w-1.5 h-1.5 rounded-full bg-cyan-400" />
-                      Chamados
+                      Projetos
                     </span>
                     <span className="flex items-center gap-1.5 text-xs text-slate-300">
                       <span className="w-1.5 h-1.5 rounded-full bg-cyan-400" />
@@ -572,11 +572,11 @@ export default function UnderstandOrkiestriPage() {
                     </span>
                     <span className="flex items-center gap-1.5 text-xs text-slate-300">
                       <span className="w-1.5 h-1.5 rounded-full bg-cyan-400" />
-                      Projetos
+                      Agenda
                     </span>
                     <span className="flex items-center gap-1.5 text-xs text-slate-300">
                       <span className="w-1.5 h-1.5 rounded-full bg-cyan-400" />
-                      Dashboard
+                      Keep
                     </span>
                   </div>
                 </div>
@@ -680,15 +680,12 @@ export default function UnderstandOrkiestriPage() {
                   <div className="absolute top-0 right-0 w-32 h-32 bg-red-500/5 blur-3xl rounded-full" />
                   <h3 className="text-base font-bold text-red-400 mb-5 flex items-center gap-2">
                     <XCircle size={18} />
-                    Stack Legada — 5 agentes/mês
+                    Stack Legada — 5 usuários/mês
                   </h3>
                   <div className="space-y-3 mb-5">
                     {[
                       { tool: 'Jira Software Cloud Standard', uso: 'Gestão de Projetos', valor: 'R$ 1.300' },
-                      { tool: 'Movidesk', uso: 'Atendimento / Chamados', valor: 'R$ 700' },
                       { tool: 'Microsoft 365 Business Premium', uso: 'Agenda, Tarefas, E-mail', valor: 'R$ 850' },
-                      { tool: 'Power BI Pro', uso: 'Indicadores e Métricas', valor: 'R$ 350' },
-                      { tool: 'GLPI', uso: 'Inventário e Service Desk', valor: 'R$ 700' },
                     ].map((item) => (
                       <div key={item.tool} className="flex items-center justify-between border-b border-white/5 pb-3">
                         <div>
@@ -701,9 +698,9 @@ export default function UnderstandOrkiestriPage() {
                   </div>
                   <div className="flex items-center justify-between bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-3">
                     <span className="text-slate-300 text-sm font-semibold">Total mensal</span>
-                    <span className="text-red-300 font-extrabold text-lg font-mono">R$ 3.900<span className="text-slate-400 font-normal text-xs">/mês</span></span>
+                    <span className="text-red-300 font-extrabold text-lg font-mono">R$ 2.150<span className="text-slate-400 font-normal text-xs">/mês</span></span>
                   </div>
-                  <p className="text-right text-slate-500 text-xs mt-2 font-mono">= R$ 46.800 por ano</p>
+                  <p className="text-right text-slate-500 text-xs mt-2 font-mono">= R$ 25.800 por ano</p>
                 </div>
 
                 {/* Card Orkiestri */}
@@ -719,11 +716,11 @@ export default function UnderstandOrkiestriPage() {
                   </div>
                   <div className="space-y-2.5 mb-5">
                     {[
-                      'Service Desk com controle de SLA',
-                      'Gestão de Projetos e Sprints',
-                      'Agenda Corporativa Integrada',
-                      'CRM e Gestão de Clientes',
-                      'Dashboards e Relatórios em tempo real',
+                      'Gestão de Projetos e Kanban',
+                      'Linha do Tempo e Projetos Concluídos',
+                      'Agenda Corporativa e Keep',
+                      'Financeiro e Contas a Pagar',
+                      'Orçamento CAPEX/OPEX por ciclo',
                     ].map((f) => (
                       <div key={f} className="flex items-center gap-2 text-xs text-slate-300">
                         <Check size={13} className="text-emerald-400 shrink-0" />
@@ -748,12 +745,12 @@ export default function UnderstandOrkiestriPage() {
                   </div>
                   <div>
                     <p className="text-slate-300 text-sm font-semibold">Economia anual estimada com Orkiestri</p>
-                    <p className="text-slate-500 text-xs">Baseado em equipe de 5 agentes com stack legada equivalente</p>
+                    <p className="text-slate-500 text-xs">Baseado em equipe de 5 usuários com stack legada equivalente</p>
                   </div>
                 </div>
                 <div className="text-center md:text-right relative z-10 shrink-0">
-                  <p className="text-4xl font-extrabold text-emerald-400 font-mono">R$ 45.601</p>
-                  <p className="text-emerald-300 text-sm font-bold">~97% de redução de custos ao ano</p>
+                  <p className="text-4xl font-extrabold text-emerald-400 font-mono">R$ 24.601</p>
+                  <p className="text-emerald-300 text-sm font-bold">~95% de redução de custos ao ano</p>
                 </div>
               </div>
             </motion.div>

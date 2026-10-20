@@ -2,15 +2,15 @@ import type { Metadata } from 'next'
 import LandingClient from './LandingClient'
 
 export const metadata: Metadata = {
-  title: 'Orkiestri — Plataforma Corporativa de Gestão Operacional',
+  title: 'Orkiestri — Projetos, Agenda e Financeiro em uma plataforma',
   description:
-    'Centralize CRM, projetos, fornecedores, financeiro e operações em uma plataforma enterprise moderna. Profundidade corporativa com experiência moderna.',
+    'Centralize projetos, agenda e financeiro em uma plataforma enterprise moderna. Kanban, linha do tempo, contas a pagar e orçamento CAPEX/OPEX, com WhatsApp e Outlook integrados.',
   keywords:
-    'sistema corporativo, ERP moderno, CRM, gestão de projetos, fornecedores, CAPEX OPEX, SaaS enterprise, gestão operacional',
+    'gestão de projetos, kanban, agenda corporativa, contas a pagar, orçamento CAPEX OPEX, SaaS enterprise, integração WhatsApp, Outlook Microsoft 365',
   openGraph: {
-    title: 'Orkiestri — Plataforma Corporativa de Gestão Operacional',
+    title: 'Orkiestri — Projetos, Agenda e Financeiro em uma plataforma',
     description:
-      'Centralize CRM, projetos, fornecedores, financeiro e operações em uma plataforma enterprise moderna.',
+      'Centralize projetos, agenda e financeiro em uma plataforma enterprise moderna.',
     url: 'https://www.orkiestri.com',
     siteName: 'Orkiestri',
     locale: 'pt_BR',
@@ -18,9 +18,9 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Orkiestri — Plataforma Corporativa de Gestão Operacional',
+    title: 'Orkiestri — Projetos, Agenda e Financeiro em uma plataforma',
     description:
-      'Centralize CRM, projetos, fornecedores, financeiro e operações em uma plataforma enterprise moderna.',
+      'Centralize projetos, agenda e financeiro em uma plataforma enterprise moderna.',
   },
   robots: { index: true, follow: true },
   alternates: { canonical: 'https://www.orkiestri.com' },

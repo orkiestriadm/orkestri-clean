@@ -47,7 +47,7 @@ export default function UnderstandSection() {
 
             {/* Description */}
             <p className="text-[var(--text-secondary)] text-lg leading-relaxed mb-8 max-w-2xl mx-auto lg:mx-0">
-              Substitua o caos de dezenas de ferramentas desconectadas. Conheça detalhadamente nossa proposta de valor, arquitetura SaaS, roadmap de desenvolvimento e como unificamos sua operação em um único ecossistema inteligente.
+              Substitua o caos de ferramentas desconectadas. Conheça detalhadamente nossa proposta de valor, arquitetura SaaS, roadmap de desenvolvimento e como unificamos projetos, agenda e financeiro em um único ecossistema.
             </p>
 
             {/* Premium stand-out CTA Button */}
@@ -98,7 +98,7 @@ export default function UnderstandSection() {
                   </div>
                   <div>
                     <h4 className="text-sm font-semibold text-[var(--text-primary)]">Cenário Legado vs Orkiestri</h4>
-                    <p className="text-xs text-[var(--text-secondary)] mt-0.5">Como resolvemos a descentralização de Jira, Movidesk, Excel e Planner.</p>
+                    <p className="text-xs text-[var(--text-secondary)] mt-0.5">Como resolvemos a descentralização de Jira, Excel, Planner e agendas soltas.</p>
                   </div>
                 </div>
 
@@ -109,7 +109,7 @@ export default function UnderstandSection() {
                   </div>
                   <div>
                     <h4 className="text-sm font-semibold text-[var(--text-primary)]">Fluxo Operacional Inteligente</h4>
-                    <p className="text-xs text-[var(--text-secondary)] mt-0.5">A integração em tempo real entre chamados, projetos e indicadores.</p>
+                    <p className="text-xs text-[var(--text-secondary)] mt-0.5">A integração em tempo real entre projetos, agenda e orçamento.</p>
                   </div>
                 </div>
 

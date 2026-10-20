@@ -20,7 +20,7 @@ const FAQS = [
   },
   {
     q: 'Posso integrar o Orkiestri com outros sistemas?',
-    a: 'Sim. O Orkiestri oferece API REST documentada e suporte a webhooks para integração com ERPs, CRMs, ferramentas de BI e plataformas de comunicação. Integrações com WhatsApp já estão disponíveis nativamente, com notificações automáticas para chamados, aprovações e eventos operacionais.',
+    a: 'Sim. O Orkiestri oferece API REST documentada e suporte a webhooks para integração com ERPs, CRMs, ferramentas de BI e plataformas de comunicação. WhatsApp e Outlook / Microsoft 365 já estão integrados nativamente — notificações e lançamentos de gastos pelo WhatsApp, e sincronização de eventos da agenda com o calendário da Microsoft.',
   },
   {
     q: 'Como funciona o suporte ao cliente?',

@@ -7,18 +7,18 @@ import { Check, Sparkles, TrendingDown, XCircle, CheckCircle2 } from 'lucide-rea
 const STATS = [
   { value: '< 1 dia', label: 'de curva de aprendizado', color: '#a78bfa' },
   { value: '99,9%', label: 'de disponibilidade SLA', color: '#34d399' },
-  { value: '8x', label: 'mais rápido que ERPs legados', color: '#22d3ee' },
-  { value: '100%', label: 'white-label e customizável', color: '#fbbf24' },
+  { value: '3', label: 'produtos num só login', color: '#22d3ee' },
+  { value: '7 dias', label: 'de teste, sem cartão', color: '#fbbf24' },
 ]
 
 const FEATURES = [
   'UX moderna, intuitiva e responsiva em qualquer dispositivo',
   'Multi-tenant nativo — isolamento total por organização',
   'Permissões granulares com controle por perfil e módulo',
-  'Integração com WhatsApp para notificações operacionais',
+  'Integração com WhatsApp para notificações e lançamentos',
+  'Sincronização de agenda com Outlook / Microsoft 365',
   'Auditoria completa com trilha de todas as ações do sistema',
   'API aberta para integração com ferramentas externas',
-  'Suporte a múltiplos idiomas e fusos horários',
   'Implantação guiada com onboarding dedicado',
 ]
 
@@ -82,7 +82,7 @@ export default function DifferentialsSection() {
             </h2>
 
             <p className="text-[var(--text-secondary)] text-lg leading-relaxed mb-8">
-              O Orkiestri foi construído do zero para empresas que exigem profundidade operacional mas não abrem mão de uma experiência premium — sem a complexidade desnecessária dos ERPs tradicionais.
+              O Orkiestri foi construído do zero para equipes que querem profundidade onde importa — projetos, agenda e dinheiro — sem a complexidade desnecessária dos ERPs tradicionais.
             </p>
 
             {/* Compare table */}
@@ -94,7 +94,7 @@ export default function DifferentialsSection() {
               </div>
               {[
                 ['UX moderna','✓','✗'],
-                ['Mobile nativo','✓','✗'],
+                ['Responsivo no celular','✓','✗'],
                 ['Implantação rápida','✓','✗'],
                 ['Custo acessível','✓','✗'],
                 ['Multi-tenant','✓','Parcial'],
@@ -151,7 +151,7 @@ export default function DifferentialsSection() {
               Quanto você gasta hoje com sistemas separados?
             </h3>
             <p className="text-[var(--text-secondary)] text-base max-w-2xl mx-auto">
-              Uma equipe de 5 pessoas utilizando as ferramentas tradicionais de mercado paga, em média, isso por mês:
+              Uma equipe de 5 pessoas que mantém um sistema de projetos e uma suite de produtividade separados paga, em média, isso por mês:
             </p>
           </div>
 
@@ -163,15 +163,12 @@ export default function DifferentialsSection() {
               <div className="absolute top-0 right-0 w-40 h-40 bg-red-500/5 blur-3xl rounded-full pointer-events-none" />
               <h4 className="text-sm font-bold text-red-400 mb-5 flex items-center gap-2">
                 <XCircle size={16} />
-                Custo da Stack Fragmentada — 5 agentes
+                Custo da Stack Fragmentada — 5 usuários
               </h4>
               <div className="space-y-3 mb-5">
                 {[
                   { nome: 'Sistema de Gestão de Projetos', valor: 'R$ 1.300' },
-                  { nome: 'Sistema de Gestão de Chamados', valor: 'R$ 700' },
                   { nome: 'Suite de Produtividade (E-mail, Agenda, Tarefas)', valor: 'R$ 850' },
-                  { nome: 'Plataforma de Analytics e BI', valor: 'R$ 350' },
-                  { nome: 'Sistema de Gestão de Inventário', valor: 'R$ 700' },
                 ].map((item) => (
                   <div key={item.nome} className="flex items-center justify-between border-b border-[rgba(255,255,255,0.05)] pb-3">
                     <span className="text-[var(--text-secondary)] text-xs pr-4">{item.nome}</span>
@@ -181,9 +178,9 @@ export default function DifferentialsSection() {
               </div>
               <div className="flex items-center justify-between bg-[rgba(239,68,68,0.08)] border border-[rgba(239,68,68,0.15)] rounded-xl px-4 py-3">
                 <span className="text-[var(--text-primary)] text-sm font-semibold">Total mensal</span>
-                <span className="text-red-400 font-extrabold text-xl font-mono">R$ 3.900<span className="text-[var(--text-muted)] font-normal text-xs">/mês</span></span>
+                <span className="text-red-400 font-extrabold text-xl font-mono">R$ 2.150<span className="text-[var(--text-muted)] font-normal text-xs">/mês</span></span>
               </div>
-              <p className="text-right text-[var(--text-muted)] text-xs mt-2 font-mono">= R$ 46.800 por ano</p>
+              <p className="text-right text-[var(--text-muted)] text-xs mt-2 font-mono">= R$ 25.800 por ano</p>
             </div>
 
             {/* Orkiestri */}
@@ -201,11 +198,11 @@ export default function DifferentialsSection() {
               </div>
               <div className="grid grid-cols-2 gap-2 mb-5">
                 {[
-                  'Service Desk com SLA',
-                  'Gestão de Projetos',
-                  'Agenda Corporativa',
-                  'CRM integrado',
-                  'Dashboards em tempo real',
+                  'Quadro de Projetos (Kanban)',
+                  'Linha do Tempo e Concluídos',
+                  'Agenda e Keep',
+                  'Financeiro e Contas a Pagar',
+                  'Orçamento CAPEX/OPEX',
                   'WhatsApp integrado',
                 ].map((f) => (
                   <div key={f} className="flex items-center gap-1.5 text-xs text-[var(--text-secondary)]">
@@ -230,12 +227,12 @@ export default function DifferentialsSection() {
               </div>
               <div>
                 <p className="text-[var(--text-primary)] font-semibold text-base">Economia anual estimada contratando o Orkiestri</p>
-                <p className="text-[var(--text-muted)] text-xs mt-0.5">Comparado à manutenção de 5 sistemas separados para uma equipe de 5 agentes</p>
+                <p className="text-[var(--text-muted)] text-xs mt-0.5">Comparado à manutenção de dois sistemas separados para uma equipe de 5 usuários</p>
               </div>
             </div>
             <div className="text-center sm:text-right shrink-0">
-              <p className="font-display text-4xl font-extrabold text-[#34d399]">R$ 45.601</p>
-              <p className="text-[#34d399] text-sm font-semibold opacity-80">~97% de redução de custos ao ano</p>
+              <p className="font-display text-4xl font-extrabold text-[#34d399]">R$ 24.601</p>
+              <p className="text-[#34d399] text-sm font-semibold opacity-80">~95% de redução de custos ao ano</p>
             </div>
           </div>
         </motion.div>

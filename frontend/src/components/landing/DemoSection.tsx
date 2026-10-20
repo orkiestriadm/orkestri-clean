@@ -2,296 +2,13 @@
 
 import { useState, useRef } from 'react'
 import { motion, useInView, AnimatePresence } from 'framer-motion'
-import { TrendingUp, BarChart3, Headphones, FolderKanban, AlertTriangle, CalendarDays, PiggyBank, Package } from 'lucide-react'
+import { FolderKanban, CalendarDays, PiggyBank } from 'lucide-react'
 
 const TABS = [
-  { id: 'executivo',  label: 'Executivo',   icon: TrendingUp   },
-  { id: 'relatorios', label: 'Relatórios',  icon: BarChart3    },
-  { id: 'chamados',   label: 'Chamados',    icon: Headphones   },
   { id: 'projetos',   label: 'Projetos',    icon: FolderKanban },
   { id: 'agenda',     label: 'Agenda',      icon: CalendarDays },
   { id: 'orcamento',  label: 'Orçamento',   icon: PiggyBank    },
-  { id: 'ativos',     label: 'Ativos',      icon: Package      },
 ]
-
-/* ══════════════════════════════════════════════════════════════
-   EXECUTIVO — fiel ao screenshot real
-══════════════════════════════════════════════════════════════ */
-function ExecutivoScreen() {
-  return (
-    <div className="h-full bg-[#f8f9fb] overflow-y-auto text-gray-800">
-      {/* Alert banner */}
-      <div className="mx-3 mt-2.5 mb-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-1.5 flex items-center gap-2 flex-wrap">
-        <AlertTriangle size={11} className="text-amber-500 shrink-0" />
-        <span className="text-[9px] font-semibold text-amber-700">Atenção necessária</span>
-        {['4 chamados urgentes', '1 SLAs violados', '2 garantias vencidas'].map(t => (
-          <span key={t} className="inline-flex items-center gap-0.5 rounded-full border border-amber-300 bg-white px-1.5 py-0.5 text-[8px] text-amber-700">
-            <AlertTriangle size={7} /> {t}
-          </span>
-        ))}
-      </div>
-
-      {/* Chamados */}
-      <div className="mx-3 mb-2">
-        <div className="flex items-center gap-1 mb-1.5">
-          <Headphones size={10} className="text-violet-500" />
-          <span className="text-[9px] font-bold text-gray-700">Chamados</span>
-        </div>
-        <div className="grid grid-cols-5 gap-1.5 mb-1.5">
-          {[
-            { l: 'ABERTOS',        v: '17', s: 'em atendimento ou aguardando', c: 'text-gray-800' },
-            { l: 'URGENTES',       v: '4',  s: 'prioridade urgente',           c: 'text-orange-600' },
-            { l: 'RESOLVIDOS/MÊS', v: '8',  s: 'mês atual',                    c: 'text-green-600' },
-            { l: 'SLA VIOLADOS',   v: '1',  s: 'fora do prazo',                c: 'text-red-500' },
-            { l: 'SLA COMPLIANCE', v: '88%',s: 'dentro do SLA',                c: 'text-yellow-600' },
-          ].map(c => (
-            <div key={c.l} className="rounded-lg border border-gray-100 bg-white shadow-sm p-2">
-              <div className="text-[7px] text-gray-400 uppercase tracking-wide leading-tight mb-0.5">{c.l}</div>
-              <div className={`text-base font-bold leading-none ${c.c}`}>{c.v}</div>
-              <div className="text-[6px] text-gray-400 mt-0.5 leading-tight">{c.s}</div>
-            </div>
-          ))}
-        </div>
-        {/* CSAT */}
-        <div className="rounded-lg border border-gray-100 bg-white shadow-sm px-3 py-1.5 flex items-center gap-3">
-          <span className="text-yellow-400 text-sm">☆</span>
-          <span className="text-[8px] text-gray-500 font-medium uppercase tracking-wide">CSAT Médio</span>
-          <span className="text-sm font-bold text-gray-800">5</span>
-          <span className="text-[8px] text-gray-400">/ 5</span>
-          <span className="text-[7px] text-gray-400">(2 aval.)</span>
-          <div className="flex gap-0.5 ml-auto">{Array(5).fill(0).map((_, i) => <span key={i} className="text-yellow-400 text-[8px]">★</span>)}</div>
-        </div>
-      </div>
-
-      {/* Projetos / Ativos / Horas */}
-      <div className="mx-3 grid grid-cols-3 gap-2">
-        {/* Projetos */}
-        <div className="rounded-lg border border-gray-100 bg-white shadow-sm p-2">
-          <div className="text-[7px] text-violet-500 font-bold mb-1.5 flex items-center gap-0.5">
-            <FolderKanban size={8} /> Projetos
-          </div>
-          <div className="grid grid-cols-2 gap-1">
-            {[{ l:'ATIVOS',v:'7'},{l:'CONCL./MÊS',v:'1'}].map(x=>(
-              <div key={x.l}><div className="text-[6px] text-gray-400 uppercase">{x.l}</div><div className="text-sm font-bold text-gray-800">{x.v}</div></div>
-            ))}
-          </div>
-        </div>
-        {/* Ativos */}
-        <div className="rounded-lg border border-gray-100 bg-white shadow-sm p-2">
-          <div className="text-[7px] text-cyan-500 font-bold mb-1.5">🖥️ Ativos</div>
-          <div className="grid grid-cols-2 gap-1">
-            {[{l:'TOTAL',v:'23'},{l:'MANUTENÇÃO',v:'1'}].map(x=>(
-              <div key={x.l}><div className="text-[6px] text-gray-400 uppercase">{x.l}</div><div className="text-sm font-bold text-gray-800">{x.v}</div></div>
-            ))}
-          </div>
-          <div className="grid grid-cols-2 gap-1 mt-1">
-            {[{l:'GAR. A VENCER',v:'0',c:'text-yellow-600'},{l:'GAR. VENCIDA',v:'2',c:'text-red-500'}].map(x=>(
-              <div key={x.l}><div className="text-[6px] text-gray-400 uppercase">{x.l}</div><div className={`text-sm font-bold ${x.c}`}>{x.v}</div></div>
-            ))}
-          </div>
-        </div>
-        {/* Horas */}
-        <div className="rounded-lg border border-gray-100 bg-white shadow-sm p-2">
-          <div className="text-[7px] text-emerald-500 font-bold mb-1.5">⏱️ Horas (mês)</div>
-          <div className="grid grid-cols-2 gap-1">
-            {[{l:'TOTAL HORAS',v:'1h 30m'},{l:'APONTAMENTOS',v:'3'}].map(x=>(
-              <div key={x.l}><div className="text-[6px] text-gray-400 uppercase">{x.l}</div><div className="text-xs font-bold text-gray-800">{x.v}</div></div>
-            ))}
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-/* ══════════════════════════════════════════════════════════════
-   RELATÓRIOS — aba Projetos ativa
-══════════════════════════════════════════════════════════════ */
-function RelatoriosScreen() {
-  const BARS = [
-    { nome: 'Administrator',       val: 17, color: '#ef4444' },
-    { nome: 'Diego Pereira',       val: 14, color: '#3b82f6' },
-    { nome: 'Guilherme Rodrigues', val: 11, color: '#22c55e' },
-    { nome: 'Carlos Souza',        val: 5,  color: '#f59e0b' },
-    { nome: 'Ana Costa',           val: 5,  color: '#f59e0b' },
-    { nome: 'Fernanda Alves',      val: 4,  color: '#06b6d4' },
-    { nome: 'Beatriz Lima',        val: 4,  color: '#ec4899' },
-  ]
-  return (
-    <div className="h-full bg-white overflow-y-auto text-gray-800 flex flex-col">
-      {/* Tabs */}
-      <div className="flex gap-0 border-b border-gray-200 mx-3 mt-2 shrink-0">
-        {['Chamados','SLA & CSAT','Horas','Projetos','Atendentes','Comparativo'].map(t => (
-          <div key={t} className={`px-2 py-1.5 text-[8px] font-medium cursor-pointer border-b-2 -mb-px ${t==='Projetos'?'border-violet-500 text-violet-600':'border-transparent text-gray-400'}`}>{t}</div>
-        ))}
-      </div>
-
-      {/* KPI strip */}
-      <div className="mx-3 mt-2 grid grid-cols-4 gap-1.5 mb-2 shrink-0">
-        {[
-          { l:'TOTAL TASKS',      v:'63', s:'14% concluídas',  c:'text-gray-800' },
-          { l:'CONCLUÍDAS',       v:'9',  s:'',                c:'text-green-600' },
-          { l:'VENCIDAS',         v:'2',  s:'',                c:'text-red-500' },
-          { l:'PROJETOS ATIVOS',  v:'2',  s:'de 8 total',      c:'text-violet-600' },
-        ].map(c => (
-          <div key={c.l} className="rounded-lg border border-gray-100 bg-gray-50 p-2">
-            <div className="text-[6px] text-gray-400 uppercase tracking-wide mb-0.5">{c.l}</div>
-            <div className={`text-sm font-bold ${c.c}`}>{c.v}</div>
-            {c.s && <div className="text-[6px] text-gray-400">{c.s}</div>}
-          </div>
-        ))}
-      </div>
-
-      {/* Charts row */}
-      <div className="mx-3 flex gap-2 mb-2 shrink-0">
-        {/* Bar chart — tasks por dia */}
-        <div className="rounded-lg border border-gray-100 bg-gray-50 p-2 flex-1">
-          <div className="text-[8px] font-semibold text-gray-600 mb-1">Tasks concluídas por dia</div>
-          <div className="text-[7px] text-gray-400 mb-1.5">Últimos 14 dias</div>
-          <div className="flex items-end gap-1" style={{ height: 42 }}>
-            {[0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,8,0,0,0,0,0,0,0,0,9,0].map((v,i) => (
-              <div key={i} className="flex-1 rounded-sm" style={{ height: v===0?'2px':`${(v/9)*100}%`, background: v>0?'#22c55e':'#e5e7eb', minHeight: '2px' }} />
-            ))}
-          </div>
-        </div>
-        {/* Donut */}
-        <div className="rounded-lg border border-gray-100 bg-gray-50 p-2 flex-1">
-          <div className="text-[8px] font-semibold text-gray-600 mb-1.5">Tasks por status</div>
-          <div className="flex items-center gap-2">
-            <svg width="44" height="44" viewBox="0 0 44 44" className="shrink-0">
-              <circle cx="22" cy="22" r="16" fill="none" stroke="#e5e7eb" strokeWidth="7" />
-              <circle cx="22" cy="22" r="16" fill="none" stroke="#9ca3af" strokeWidth="7" strokeDasharray="45 56" strokeDashoffset="14" />
-              <circle cx="22" cy="22" r="16" fill="none" stroke="#3b82f6" strokeWidth="7" strokeDasharray="27 74" strokeDashoffset="-31" />
-              <circle cx="22" cy="22" r="16" fill="none" stroke="#f59e0b" strokeWidth="7" strokeDasharray="14 87" strokeDashoffset="-58" />
-              <circle cx="22" cy="22" r="16" fill="none" stroke="#22c55e" strokeWidth="7" strokeDasharray="14 87" strokeDashoffset="-72" />
-              <text x="22" y="25" textAnchor="middle" fill="#374151" fontSize="9" fontWeight="bold">63</text>
-            </svg>
-            <div className="flex flex-col gap-0.5 flex-1">
-              {[{l:'EM_REVISAO',v:9,c:'#3b82f6'},{l:'Concluída',v:9,c:'#22c55e'},{l:'A Fazer',v:28,c:'#9ca3af'},{l:'Em Andamento',v:17,c:'#f59e0b'}].map(d=>(
-                <div key={d.l} className="flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{background:d.c}} />
-                  <span className="text-[7px] text-gray-500 flex-1">{d.l}</span>
-                  <span className="text-[7px] font-semibold text-gray-700">{d.v}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Tasks por membro */}
-      <div className="mx-3 rounded-lg border border-gray-100 bg-gray-50 p-2 flex-1">
-        <div className="text-[8px] font-semibold text-gray-600 mb-1.5">Tasks por membro</div>
-        <div className="flex flex-col gap-1">
-          {BARS.map(b => (
-            <div key={b.nome} className="flex items-center gap-1">
-              <div className="text-[6px] text-gray-500 w-20 truncate shrink-0">{b.nome.split(' ')[0]}</div>
-              <div className="flex-1 h-1.5 rounded-full bg-gray-200 overflow-hidden">
-                <div className="h-full rounded-full" style={{width:`${(b.val/17)*100}%`,background:b.color}} />
-              </div>
-              <div className="text-[6px] font-semibold text-gray-600 w-3 text-right">{b.val}</div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  )
-}
-
-/* ══════════════════════════════════════════════════════════════
-   CHAMADOS — Kanban fiel ao screenshot
-══════════════════════════════════════════════════════════════ */
-function ChamadosScreen() {
-  const COLS = [
-    {
-      label:'ABERTO', dot:'#6b7280', count:1,
-      cards:[{num:'#15',prio:'MÉD',titulo:'Tela de login retornando erro 500 intermitente',cat:'Sistema',sla:'SLA Violado 10d',users:['A'],fila:true}],
-    },
-    {
-      label:'EM ATENDIMENTO', dot:'#3b82f6', count:2,
-      cards:[
-        {num:'#21',prio:'BAI',titulo:'Configurar assinatura de e-mail padrão',cat:'Comunicação',sla:'SLA Violado 15d',users:['FA','A'],fila:false},
-        {num:'#3', prio:'MÉD',titulo:'Criação de Usuário',cat:'Suporte Técnico',sla:'SLA Violado 2d',users:['A'],fila:false},
-      ],
-    },
-    { label:'AGUARDANDO', dot:'#f59e0b', count:0, cards:[] },
-    {
-      label:'RESOLVIDO', dot:'#22c55e', count:3,
-      cards:[
-        {num:'#6', prio:'CRT',titulo:'Teste',cat:'TI',sla:'2d',users:['A'],fila:false},
-        {num:'#4', prio:'MÉD',titulo:'Desbloquear Usuário',cat:'Suporte Técnico',sla:'2d',users:['A','GR'],fila:false},
-        {num:'#22',prio:'MÉD',titulo:'Sistema de ponto eletrônico offline',cat:'Hardware',sla:'8d',users:['A','GR'],fila:false},
-      ],
-    },
-    {
-      label:'FECHADO', dot:'#7c3aed', count:2,
-      cards:[
-        {num:'#1',prio:'CRT',titulo:'Criar Plano Orçamentário 2027',cat:'Financeiro',sla:'8d',users:['A'],fila:false},
-        {num:'#5',prio:'MÉD',titulo:'Testar Ferramenta Orkiestri',cat:'Suporte Técnico',sla:'2d',users:['A','GR'],fila:false},
-      ],
-    },
-  ]
-  const pc: Record<string,string> = {MÉD:'#fef3c7',BAI:'#f3f4f6',CRT:'#fee2e2'}
-  const tc: Record<string,string> = {MÉD:'#d97706',BAI:'#6b7280',CRT:'#dc2626'}
-  return (
-    <div className="flex flex-col h-full bg-[#f8f9fb]">
-      {/* Counter strip */}
-      <div className="flex gap-1.5 mx-3 mt-2 mb-2 flex-wrap shrink-0">
-        {[{l:'TOTAL',v:'8',c:'text-gray-700'},{l:'ABERTOS',v:'1',c:'text-gray-500'},{l:'EM ATEND.',v:'2',c:'text-blue-600'},{l:'AGUARDANDO',v:'0',c:'text-yellow-500'},{l:'RESOLVIDOS',v:'3',c:'text-green-600'},{l:'FECHADOS',v:'2',c:'text-violet-600'},{l:'SLA VIOLADO',v:'3',c:'text-red-500'},{l:'SLA EM RISCO',v:'0',c:'text-gray-400'}].map(x=>(
-          <div key={x.l} className="rounded-lg border border-gray-200 bg-white shadow-sm px-2 py-1 text-center">
-            <div className="text-[6px] text-gray-400 uppercase tracking-wide">{x.l}</div>
-            <div className={`text-sm font-bold leading-tight ${x.c}`}>{x.v}</div>
-          </div>
-        ))}
-      </div>
-      {/* Tabs */}
-      <div className="flex gap-0 border-b border-gray-200 mx-3 mb-2 shrink-0">
-        {[{l:'Meus Chamados',n:8,active:true},{l:'Fila Pública',n:9,active:false},{l:'Todos',n:8,active:false}].map(t=>(
-          <div key={t.l} className={`flex items-center gap-1 px-3 py-1.5 text-[8px] font-medium border-b-2 -mb-px cursor-pointer ${t.active?'border-violet-500 text-violet-600':'border-transparent text-gray-400'}`}>
-            {t.l} <span className={`text-[7px] rounded-full px-1 ${t.active?'bg-violet-100 text-violet-600':'bg-gray-100 text-gray-400'}`}>{t.n}</span>
-          </div>
-        ))}
-      </div>
-      {/* Kanban */}
-      <div className="mx-3 flex gap-1.5 flex-1 overflow-hidden">
-        {COLS.map(col=>(
-          <div key={col.label} className="flex flex-col flex-1 min-w-0">
-            <div className="flex items-center gap-1 mb-1">
-              <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{background:col.dot}} />
-              <span className="text-[6px] font-semibold text-gray-600 truncate">{col.label}</span>
-              <span className="text-[6px] text-gray-400 ml-auto shrink-0 border border-gray-200 rounded-full px-1">{col.count}</span>
-            </div>
-            <div className="flex flex-col gap-1 flex-1">
-              {col.cards.slice(0,2).map(card=>(
-                <div key={card.num} className="rounded-lg border border-gray-200 bg-white p-1.5 shadow-sm">
-                  <div className="flex items-center justify-between mb-0.5">
-                    <span className="text-[6px] text-gray-400">{card.num}</span>
-                    <span className="text-[5px] font-bold px-1 py-0.5 rounded" style={{background:pc[card.prio],color:tc[card.prio]}}>{card.prio}</span>
-                  </div>
-                  <div className="text-[7px] font-medium text-gray-700 leading-tight mb-1 line-clamp-2">{card.titulo}</div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-[6px] px-1 py-0.5 rounded bg-gray-100 text-gray-500">{card.cat}</span>
-                    <span className="text-[6px] text-red-400">{card.sla.startsWith('SLA')&&<span className="text-red-400">●</span>} {card.sla}</span>
-                  </div>
-                  <div className="flex items-center gap-0.5 mt-1">
-                    {card.users.map(u=>(
-                      <span key={u} className="w-3.5 h-3.5 rounded-full bg-violet-200 flex items-center justify-center text-[6px] font-bold text-violet-700">{u[0]}</span>
-                    ))}
-                  </div>
-                </div>
-              ))}
-              {col.cards.length===0 && (
-                <div className="rounded-lg border border-dashed border-gray-200 p-2 text-center flex-1">
-                  <span className="text-[6px] text-gray-300">Nenhum chamado</span>
-                </div>
-              )}
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  )
-}
 
 /* ══════════════════════════════════════════════════════════════
    PROJETOS — sidebar + kanban
@@ -482,7 +199,7 @@ function OrcamentoScreen() {
     <div className="h-full bg-white flex flex-col overflow-hidden">
       {/* Tabs */}
       <div className="flex gap-0 border-b border-gray-200 px-3 mt-1.5 shrink-0">
-        {['Dashboard','OPEX','CAPEX','Aprovações','Configurações'].map(t=>(
+        {['Dashboard','OPEX','CAPEX','Configurações'].map(t=>(
           <div key={t} className={`px-2.5 py-1.5 text-[8px] font-medium cursor-pointer border-b-2 -mb-px ${t==='Dashboard'?'border-violet-500 text-violet-600':'border-transparent text-gray-400'}`}>{t}</div>
         ))}
       </div>
@@ -555,104 +272,22 @@ function OrcamentoScreen() {
 }
 
 /* ══════════════════════════════════════════════════════════════
-   ATIVOS — inventário com cards
-══════════════════════════════════════════════════════════════ */
-function AtivosScreen() {
-  const CATS = [
-    {nome:'Todos',25:25,n:25,active:false},
-    {nome:'Computadores',n:8,active:false},
-    {nome:'Dispositivos Móveis',n:4,active:false},
-    {nome:'Hardware',n:13,active:true},
-    {nome:'Mobiliário e Instalações',n:8,active:false},
-    {nome:'Móveis',n:8,active:false},
-    {nome:'Periféricos',n:0,active:false},
-    {nome:'Rede e Telecom',n:6,active:false},
-    {nome:'Software e Licenças',n:2,active:false},
-  ]
-  const ATIVOS = [
-    {cod:'PR-002',nome:'Impressora HP Color LaserJet Pro M4...',status:'Ativo',  user:'Fernanda Alves'},
-    {cod:'PN-004',nome:'Monitor Ultrawide LG 49"',             status:'Ativo',  user:'Diego Pereira'},
-    {cod:'MN-003',nome:'Monitor Samsung 32" 4K',               status:'Ativo',  user:'Beatriz Lima'},
-    {cod:'SV-002',nome:'NAS Synology DS920+',                  status:'Ativo',  user:'Carlos Souza'},
-    {cod:'SV-001',nome:'Servidor Dell PowerEdge R750',         status:'Ativo',  user:'Ana Costa'},
-    {cod:'NB-005',nome:'Notebook Dell XPS 15',                 status:'Ativo',  user:'Guilherme Rodrigues'},
-    {cod:'NB-004',nome:'Notebook MacBook Pro 14" M3',          status:'Ativo',  user:'Administrator'},
-    {cod:'PR-001',nome:'Impressora HP LaserJet Pro M404n',     status:'Inativo',user:'Diego Pereira'},
-    {cod:'MN-002',nome:'Monitor Dell P2722H 27"',              status:'Ativo',  user:'Diego Pereira'},
-    {cod:'MN-001',nome:'Monitor LG UltraWide 34"',             status:'Ativo',  user:'Diego Pereira'},
-    {cod:'NB-003',nome:'Notebook HP EliteBook 840',            status:'Manutenção',user:'Diego Pereira'},
-    {cod:'NB-002',nome:'Notebook Lenovo ThinkPad X1',          status:'Ativo',  user:'Diego Pereira'},
-    {cod:'NB-001',nome:'Notebook Dell Latitude 5540',          status:'Ativo',  user:'Diego Pereira'},
-  ]
-  const SC: Record<string,string> = {Ativo:'text-emerald-600',Inativo:'text-red-500',Manutenção:'text-amber-600'}
-  const SB: Record<string,string> = {Ativo:'bg-emerald-50 border-emerald-100',Inativo:'bg-red-50 border-red-100',Manutenção:'bg-amber-50 border-amber-100'}
-  return (
-    <div className="flex h-full bg-[#f8f9fb]">
-      {/* Sidebar */}
-      <div className="w-28 shrink-0 border-r border-gray-200 bg-white pt-2">
-        <div className="text-[7px] font-semibold text-gray-400 uppercase tracking-wide px-2 mb-1">Categorias</div>
-        {CATS.map(c=>(
-          <div key={c.nome} className={`flex items-center justify-between px-2 py-1 cursor-pointer ${c.active?'bg-violet-50 border-r-2 border-violet-500':''}`}>
-            <span className={`text-[7px] ${c.active?'text-violet-700 font-semibold':'text-gray-600'}`}>{c.nome}</span>
-            <span className={`text-[7px] ${c.active?'text-violet-500':'text-gray-400'}`}>{c.n}</span>
-          </div>
-        ))}
-      </div>
-      {/* Main */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Counter strip */}
-        <div className="flex gap-0 shrink-0 border-b border-gray-200 bg-white">
-          {[{l:'Total',v:25,border:'border-l-4 border-violet-500'},{l:'Ativo',v:23,border:'border-l-4 border-emerald-500'},{l:'Manutenção',v:1,border:'border-l-4 border-amber-500'},{l:'Inativo',v:1,border:'border-l-4 border-gray-300'}].map(x=>(
-            <div key={x.l} className={`px-4 py-2 ${x.border}`}>
-              <div className={`text-base font-bold ${x.l==='Ativo'?'text-emerald-600':x.l==='Manutenção'?'text-amber-600':x.l==='Inativo'?'text-gray-500':'text-gray-800'}`}>{x.v}</div>
-              <div className="text-[7px] text-gray-400">{x.l}</div>
-            </div>
-          ))}
-        </div>
-        {/* Cards grid */}
-        <div className="flex-1 overflow-y-auto p-2">
-          <div className="text-[7px] text-gray-400 mb-1.5">13 ativos</div>
-          <div className="grid grid-cols-5 gap-1.5">
-            {ATIVOS.map(a=>(
-              <div key={a.cod} className={`rounded-lg border bg-white p-2 shadow-sm ${SB[a.status]||'border-gray-200'}`}>
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-[6px] text-gray-400 font-mono">{a.cod}</span>
-                  <span className={`text-[6px] font-semibold ${SC[a.status]}`}>{a.status}</span>
-                </div>
-                <div className="text-[7px] font-medium text-gray-800 leading-tight mb-1 line-clamp-2">{a.nome}</div>
-                <div className="text-[6px] text-gray-400 truncate">{a.user}</div>
-                <div className="text-[6px] text-gray-300">Administrativo</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-/* ══════════════════════════════════════════════════════════════
    DEMO SECTION
 ══════════════════════════════════════════════════════════════ */
 const SCREENS: Record<string, React.ReactNode> = {
-  executivo:  <ExecutivoScreen  />,
-  relatorios: <RelatoriosScreen />,
-  chamados:   <ChamadosScreen   />,
   projetos:   <ProjetosScreen   />,
   agenda:     <AgendaScreen     />,
   orcamento:  <OrcamentoScreen  />,
-  ativos:     <AtivosScreen     />,
 }
 
 const ROUTES: Record<string, string> = {
-  executivo:  'dashboard/executivo',
-  relatorios: 'dashboard/relatorios',
-  chamados:   'dashboard/chamados',
   projetos:   'dashboard/projetos',
+  agenda:     'dashboard/agenda',
+  orcamento:  'dashboard/orcamento',
 }
 
 export default function DemoSection() {
-  const [active, setActive] = useState('executivo')
+  const [active, setActive] = useState('projetos')
   const ref = useRef<HTMLElement>(null)
   const inView = useInView(ref, { once: true, margin: '-8%' })
 
@@ -678,11 +313,11 @@ export default function DemoSection() {
             Plataforma integrada
           </span>
           <h2 className="font-display text-3xl sm:text-4xl lg:text-5xl font-bold text-[var(--text-primary)] mb-4">
-            Escale a gestão operacional
-            <br className="hidden sm:block" /> da sua empresa
+            Três produtos,
+            <br className="hidden sm:block" /> uma só plataforma
           </h2>
           <p className="text-[var(--text-secondary)] text-lg max-w-2xl mx-auto">
-            Transforme tarefas, chamados, projetos e indicadores em uma única operação inteligente.
+            Projetos, Agenda e Financeiro compartilham as mesmas pessoas, as mesmas permissões e o mesmo histórico.
           </p>
         </motion.div>
 
