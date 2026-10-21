@@ -104,6 +104,7 @@ function montarMenuAjuda(acessos: AcessosWhats, nome: string): string {
   if (acessos.projetos)     m += "📁 Para *Projetos*: responda *4*\n";
   if (acessos.chamados)     m += "🎧 Para *Chamados*: responda *5*\n";
   if (acessos.conhecimento) m += "📚 Para *Conhecimento*: responda *6*\n";
+  m += "📖 Para ver *TUDO de uma vez*: responda *7*\n";
   m += "👋 Para encerrar nossa conversa: responda *0*";
   return m;
 }
@@ -121,92 +122,124 @@ function acessosDe(perms: string[]): AcessosWhats {
   };
 }
 
-// Passo a passo do FINANCEIRO (anotar gastos).
+// Passo a passo do FINANCEIRO (gastos pessoais + contas a pagar).
 function ajudaFinanceiro(temAgenda: boolean): string {
   let m =
-    "💸 *FINANCEIRO — ANOTAR UM GASTO*\n" +
-    "Diga o que você gastou e quanto — e, se quiser, como pagou.\n" +
-    "Copie a linha abaixo e me mande:\n" +
-    "👉 *Gasto: Mercado 150 no crédito*\n\n" +
-    "Comprou parcelado? *Gasto: TV 2400 crédito 12x*\n" +
-    "Errou? Mande *apagar* (tira o último) ou *corrige o último pra 150*. ✅\n\n" +
-    "📊 *PARA VER QUANTO GASTOU*\n" +
-    "Mande: *Relatório: quanto gastei esse mês*\n" +
-    "(dá para pedir por *crédito*, *débito* ou *no total*)\n\n";
+    "💸 *FINANCEIRO*\n\n" +
+    "*ANOTAR UM GASTO SEU*\n" +
+    "👉 *Gasto: Mercado 150 no crédito*\n" +
+    "Parcelado? *Gasto: TV 2400 crédito 12x*\n" +
+    "Errou? *apagar* (tira o último) ou *corrige o último pra 150*\n\n" +
+    "*VER QUANTO GASTOU*\n" +
+    "👉 *Relatório: quanto gastei esse mês*\n" +
+    "(dá para pedir por *crédito*, *débito* ou *no total*)\n\n" +
+    "*CONTAS A PAGAR DA EMPRESA*\n" +
+    "👉 *Conta: Energia 350 vence 10/11* — lança\n" +
+    "👉 *contas a pagar* — lista as em aberto\n" +
+    "👉 *relatório de contas* — total, vencido e o que vence em 30 dias\n\n";
   if (!temAgenda) {
     m += "✨ *Mais fácil ainda:* pode mandar só *Mercado 150 crédito* que eu já entendo.\n\n";
   }
   m +=
-    "📌 *DICAS FÁCEIS*\n" +
+    "📌 *DICAS*\n" +
     "• Pode escrever *hoje*, *ontem* ou *amanhã*.\n" +
     "• O dia pode ser *10/09*.";
   return m;
 }
 
-// Passo a passo da AGENDA (marcar compromissos).
+// Passo a passo da AGENDA (criar, listar e excluir).
 function ajudaAgenda(): string {
   return (
-    "🗓️ *AGENDA — MARCAR UM COMPROMISSO*\n" +
-    "Escreva a palavra *Evento* e depois diga o quê, o dia e a hora.\n" +
-    "Copie a linha abaixo e me mande:\n" +
-    "👉 *Evento: Médico amanhã 14h*\n\n" +
-    "Quer que se repita? *Evento: Reunião toda semana 9h*\n" +
-    "Assim que eu marcar, te confirmo aqui na hora. ✅\n\n" +
-    "📌 *DICAS FÁCEIS*\n" +
+    "🗓️ *AGENDA*\n\n" +
+    "*MARCAR UM COMPROMISSO*\n" +
+    "👉 *Evento: Médico amanhã 14h*\n" +
+    "Que se repete? *Evento: Reunião toda semana 9h*\n\n" +
+    "*VER E DESMARCAR*\n" +
+    "👉 *meus compromissos* — lista numerada\n" +
+    "👉 *excluir compromisso 2* — apaga o número 2 da lista\n\n" +
+    "📌 *DICAS*\n" +
     "• Pode escrever *hoje*, *ontem* ou *amanhã*.\n" +
     "• O dia pode ser *10/09*; a hora, *9h* ou *14:30*."
   );
 }
 
-// Passo a passo do KEEP (anotar lembretes).
+// Passo a passo do KEEP (anotar, listar e excluir).
 function ajudaKeep(): string {
   return (
-    "📝 *KEEP — ANOTAR UM LEMBRETE*\n" +
-    "Escreva a palavra *Nota* e depois o que você quer guardar.\n" +
-    "Copie a linha abaixo e me mande:\n" +
+    "📝 *KEEP*\n\n" +
+    "*ANOTAR*\n" +
     "👉 *Nota: comprar pilha para o controle*\n\n" +
-    "A anotação aparece no seu Keep na hora, e fica só para você. ✅\n\n" +
+    "*VER E APAGAR*\n" +
+    "👉 *minhas notas* — lista numerada\n" +
+    "👉 *excluir nota 1* — manda para a lixeira (dá para recuperar)\n\n" +
     "📌 *DICA*\n" +
-    "• Para ver as últimas, mande *minhas notas*."
+    "• A anotação fica só para você."
   );
 }
 
-// Passo a passo de PROJETOS (consulta — criar projeto é tela, não chat).
+// Passo a passo de PROJETOS (criar, listar, tarefas).
 function ajudaProjetos(): string {
   return (
-    "📁 *PROJETOS — VER COMO ESTÃO*\n" +
-    "Mande *projetos* e eu te mostro os que estão em andamento, com o quanto\n" +
-    "já avançou cada um.\n\n" +
-    "Quer ver o que está na sua mão? Mande *minhas tarefas* — eu listo as que\n" +
-    "estão com você e ainda não foram concluídas. ✅\n\n" +
+    "📁 *PROJETOS*\n\n" +
+    "*CRIAR*\n" +
+    "👉 *Projeto: Reforma da loja*\n\n" +
+    "*ACOMPANHAR*\n" +
+    "👉 *projetos* — os em andamento, com o quanto já avançou\n" +
+    "👉 *minhas tarefas* — as que estão com você, em aberto\n\n" +
     "📌 *DICA*\n" +
-    "• Criar projeto continua sendo pela tela: aqui é para acompanhar."
+    "• Prazo, responsável e etapas continuam na tela; aqui é o essencial."
   );
 }
 
 // Passo a passo de CHAMADOS (abrir e acompanhar).
 function ajudaChamados(): string {
   return (
-    "🎧 *CHAMADOS — PEDIR AJUDA*\n" +
-    "Escreva a palavra *Chamado* e depois conte o que está acontecendo.\n" +
-    "Copie a linha abaixo e me mande:\n" +
-    "👉 *Chamado: a impressora da recepção não liga*\n\n" +
-    "Eu abro na hora e te mando o número para acompanhar. ✅\n\n" +
+    "🎧 *CHAMADOS*\n\n" +
+    "*PEDIR AJUDA*\n" +
+    "👉 *Chamado: a impressora da recepção não liga*\n" +
+    "Eu abro na hora e te mando o número.\n\n" +
+    "*ACOMPANHAR*\n" +
+    "👉 *meus chamados* — os seus, em aberto\n\n" +
     "📌 *DICA*\n" +
-    "• Para ver os seus, mande *meus chamados*."
+    "• Quanto mais detalhe, mais rápido alguém resolve."
   );
 }
 
 // Passo a passo de CONHECIMENTO (buscar artigo).
 function ajudaConhecimento(): string {
   return (
-    "📚 *CONHECIMENTO — PROCURAR UMA RESPOSTA*\n" +
-    "Escreva a palavra *Buscar* e depois o assunto.\n" +
-    "Copie a linha abaixo e me mande:\n" +
-    "👉 *Buscar: como configurar a VPN*\n\n" +
-    "Eu procuro nos artigos publicados e te mando o que achar. ✅\n\n" +
+    "📚 *CONHECIMENTO*\n\n" +
+    "*PROCURAR UMA RESPOSTA*\n" +
+    "👉 *Buscar: como configurar a VPN*\n" +
+    "Eu procuro nos artigos publicados e te mando o que achar.\n\n" +
     "📌 *DICA*\n" +
-    "• Menos palavras costuma achar mais: tente *VPN* em vez da frase toda."
+    "• Menos palavras acha mais: tente *VPN* em vez da frase toda."
+  );
+}
+
+/**
+ * TUDO numa mensagem só, para quem responde *7* no menu.
+ *
+ * Existe porque o menu entrega um módulo por vez, e quem está aprendendo quer
+ * ver o conjunto — ou guardar uma mensagem só para consultar depois. Mostra
+ * apenas o que a pessoa pode usar: um comando que ela não tem acesso não
+ * aparece, para a lista não ensinar o que vai ser recusado.
+ */
+function ajudaCompleta(a: AcessosWhats, nome: string): string {
+  const nm = primeiroNome(nome);
+  const partes: string[] = [];
+  if (a.agenda) partes.push(ajudaAgenda());
+  if (a.gastos) partes.push(ajudaFinanceiro(a.agenda));
+  if (a.keep) partes.push(ajudaKeep());
+  if (a.projetos) partes.push(ajudaProjetos());
+  if (a.chamados) partes.push(ajudaChamados());
+  if (a.conhecimento) partes.push(ajudaConhecimento());
+  if (!partes.length) {
+    return "Peça ao administrador para liberar os módulos para você aproveitar tudo por aqui. 😉";
+  }
+  return (
+    (nm ? `📖 *${nm}, aqui está tudo o que dá para fazer por mensagem:*` : "📖 *Tudo o que dá para fazer por mensagem:*") +
+    "\n\n" + partes.join("\n\n────────\n\n")
   );
 }
 
@@ -936,6 +969,9 @@ export class WhatsappInboundService {
       "4": { pode: a.projetos,     texto: () => ajudaProjetos() },
       "5": { pode: a.chamados,     texto: () => ajudaChamados() },
       "6": { pode: a.conhecimento, texto: () => ajudaConhecimento() },
+      // 7 = tudo numa mensagem so. Sempre disponivel: mesmo quem tem um
+      // modulo so pode querer guardar a referencia inteira.
+      "7": { pode: true,            texto: () => ajudaCompleta(a, user.nome) },
     };
     const escolha = porOpcao[opcao];
     if (escolha?.pode) {
@@ -953,13 +989,244 @@ export class WhatsappInboundService {
     if (a.projetos)     disponiveis.push("*4* Projetos");
     if (a.chamados)     disponiveis.push("*5* Chamados");
     if (a.conhecimento) disponiveis.push("*6* Conhecimento");
+    disponiveis.push("*7* ver tudo");
     await diz(
       "🤖 Não entendi. Responda " +
       (disponiveis.length ? disponiveis.join(", ") + " ou *0* para encerrar." : "*0* para encerrar.")
     );
   }
 
+  // ── Data solta "10/11" ou "10/11/2026" para os comandos que pedem prazo ──
+  //
+  // Sem ano, assume o próximo: "vence 10/01" em dezembro é janeiro que vem,
+  // não janeiro que passou.
+  private parseDataCurta(txt: string): Date | null {
+    const m = (txt || "").match(/(\d{1,2})[\/\-](\d{1,2})(?:[\/\-](\d{2,4}))?/);
+    if (!m) return null;
+    const dia = Number(m[1]), mes = Number(m[2]);
+    if (dia < 1 || dia > 31 || mes < 1 || mes > 12) return null;
+    const agora = new Date();
+    const ano = m[3] ? Number(m[3].length === 2 ? "20" + m[3] : m[3]) : agora.getFullYear();
+    const d = new Date(ano, mes - 1, dia, 12, 0, 0);
+    if (!m[3] && d.getTime() < agora.getTime() - 86400000) d.setFullYear(ano + 1);
+    return d;
+  }
+
+  // ── Agenda: listar e excluir ────────────────────────────────────────────
+
+  /**
+   * Próximos compromissos, numerados.
+   *
+   * O número é a posição NESTA lista, e é o que "excluir compromisso 2" usa.
+   * A ordenação é sempre a mesma (início crescente), então o número 2 de agora
+   * é o número 2 do comando seguinte — desde que nada entre no meio. Por isso
+   * a exclusão confirma o título do que apagou: se a lista mudou, a pessoa vê
+   * que apagou outra coisa.
+   */
+  private async listarCompromissos(remoteJid: string, inst: string) {
+    const user = await this.identificar(remoteJid);
+    if (!user) { await this.wa.sendToJid(remoteJid, NAO_VINCULADO, inst).catch(() => {}); return; }
+    const eventos = await this.proximosEventos(user.id);
+    if (!eventos.length) {
+      await this.responder(remoteJid, user.telefone, user.organizationId, inst,
+        "🗓️ Você não tem compromissos marcados. Para criar, mande *Evento: Médico amanhã 14h*.");
+      return;
+    }
+    const linhas = eventos.map((e: any, i: number) => `${i + 1}. *${e.titulo}* — ${this.fmtData(e.inicio)}`);
+    await this.responder(remoteJid, user.telefone, user.organizationId, inst,
+      "🗓️ *Seus próximos compromissos:*\n\n" + linhas.join("\n") +
+      "\n\n_Para apagar um, mande *excluir compromisso 1* (o número da lista)._");
+  }
+
+  private async proximosEventos(userId: string) {
+    return (this.prisma as any).event.findMany({
+      where: { userId, inicio: { gte: new Date(Date.now() - 3600_000) } },
+      orderBy: { inicio: "asc" }, take: 10,
+      select: { id: true, titulo: true, inicio: true },
+    });
+  }
+
+  private async excluirCompromisso(remoteJid: string, posicao: number, inst: string) {
+    const user = await this.identificar(remoteJid);
+    if (!user) { await this.wa.sendToJid(remoteJid, NAO_VINCULADO, inst).catch(() => {}); return; }
+    const eventos = await this.proximosEventos(user.id);
+    const alvo = eventos[posicao - 1];
+    if (!alvo) {
+      await this.responder(remoteJid, user.telefone, user.organizationId, inst,
+        `🗓️ Não achei o compromisso ${posicao}. Mande *meus compromissos* para ver a lista numerada.`);
+      return;
+    }
+    await (this.prisma as any).event.delete({ where: { id: alvo.id } });
+    await this.responder(remoteJid, user.telefone, user.organizationId, inst,
+      `🗑️ Apaguei *${alvo.titulo}* (${this.fmtData(alvo.inicio)}). ✅`);
+  }
+
+  // ── Keep: excluir ───────────────────────────────────────────────────────
+
+  private async excluirNota(remoteJid: string, posicao: number, inst: string) {
+    const user = await this.identificar(remoteJid);
+    if (!user) { await this.wa.sendToJid(remoteJid, NAO_VINCULADO, inst).catch(() => {}); return; }
+    const notas = await (this.prisma as any).note.findMany({
+      where: { userId: user.id, arquivado: false, lixeira: false },
+      orderBy: { criadoEm: "desc" }, take: 10,
+      select: { id: true, titulo: true },
+    });
+    const alvo = notas[posicao - 1];
+    if (!alvo) {
+      await this.responder(remoteJid, user.telefone, user.organizationId, inst,
+        `📝 Não achei a anotação ${posicao}. Mande *minhas notas* para ver a lista numerada.`);
+      return;
+    }
+    // Vai para a lixeira, não some: anotação apagada pelo número errado ainda
+    // dá para recuperar na tela.
+    await (this.prisma as any).note.update({ where: { id: alvo.id }, data: { lixeira: true } });
+    await this.responder(remoteJid, user.telefone, user.organizationId, inst,
+      `🗑️ Mandei *${alvo.titulo}* para a lixeira. Dá para recuperar no Keep. ✅`);
+  }
+
+  // ── Projetos: criar ─────────────────────────────────────────────────────
+
+  private async criarProjeto(remoteJid: string, texto: string, inst: string) {
+    const user = await this.identificar(remoteJid);
+    if (!user) { await this.wa.sendToJid(remoteJid, NAO_VINCULADO, inst).catch(() => {}); return; }
+    const perms = await this.auth.resolvePermissions(user.id).catch(() => [] as string[]);
+    if (!(perms.includes("*") || perms.includes("projetos:criar"))) {
+      await this.responder(remoteJid, user.telefone, user.organizationId, inst,
+        "📁 Você não tem acesso para criar projeto. Fale com quem administra o sistema.");
+      return;
+    }
+    const titulo = texto.trim();
+    if (titulo.length < 3) {
+      await this.responder(remoteJid, user.telefone, user.organizationId, inst,
+        "📁 Me diga o nome do projeto, assim: *Projeto: Reforma da loja*");
+      return;
+    }
+    const proj = await (this.prisma as any).project.create({
+      data: {
+        id: require("crypto").randomUUID(),
+        organizationId: user.organizationId, criadoPorId: user.id,
+        titulo, status: "PLANEJAMENTO",
+      },
+      select: { titulo: true },
+    });
+    await this.responder(remoteJid, user.telefone, user.organizationId, inst,
+      `📁 Criei o projeto *${proj.titulo}*, em planejamento.\n\nPara ver todos, mande *projetos*. ✅`);
+  }
+
+  // ── Finance: contas a pagar ─────────────────────────────────────────────
+
+  private async criarConta(remoteJid: string, texto: string, inst: string) {
+    const user = await this.identificar(remoteJid);
+    if (!user) { await this.wa.sendToJid(remoteJid, NAO_VINCULADO, inst).catch(() => {}); return; }
+    const perms = await this.auth.resolvePermissions(user.id).catch(() => [] as string[]);
+    if (!(perms.includes("*") || perms.includes("financeiro:gerenciar"))) {
+      await this.responder(remoteJid, user.telefone, user.organizationId, inst,
+        "💰 Você não tem acesso para lançar contas. Fale com quem administra o sistema.");
+      return;
+    }
+    const bruto = texto.trim();
+
+    // A DATA sai PRIMEIRO, e só depois o valor.
+    //
+    // Invertido, "Conta: Energia 350 vence 10/11" virava uma conta de R$ 11:
+    // o extrator de valor BR encontrava o "11" de "10/11" antes de chegar ao
+    // 350, e o "350" sobrava no nome do fornecedor. Tirar a data da frase
+    // antes de procurar dinheiro resolve na raiz.
+    const mVence = bruto.match(/\b(?:vence|venc|vencimento|para)\s+(\S+)/i);
+    const vencimento = mVence ? this.parseDataCurta(mVence[1]) : null;
+    const semData = bruto.replace(/\b(?:vence|venc|vencimento|para)\s+\S+/i, " ").trim();
+
+    const valorInfo = extrairValorBR(semData);
+    if (!valorInfo) {
+      await this.responder(remoteJid, user.telefone, user.organizationId, inst,
+        "💰 Faltou o valor. Mande assim: *Conta: Energia 350 vence 10/11*");
+      return;
+    }
+    // O que sobra depois de tirar a data e o valor é o nome de quem recebe.
+    const fornecedor = (semData.slice(0, valorInfo.index) + " " + semData.slice(valorInfo.index + valorInfo.matchStr.length))
+      .replace(/\s+/g, " ").trim();
+    if (!fornecedor) {
+      await this.responder(remoteJid, user.telefone, user.organizationId, inst,
+        "💰 Faltou dizer de quem é a conta. Mande assim: *Conta: Energia 350 vence 10/11*");
+      return;
+    }
+    await (this.prisma as any).contaPagar.create({
+      data: {
+        id: require("crypto").randomUUID(),
+        organizationId: user.organizationId,
+        fornecedorNome: fornecedor,
+        // `numero` e `tipo` são obrigatórios no modelo, que nasceu para
+        // importação de ERP. Lançamento pelo WhatsApp não tem nota fiscal: o
+        // número é gerado e o tipo marca a origem, para dar para separar
+        // depois o que veio da importação do que foi lançado à mão.
+        numero: "WA-" + Date.now().toString(36).toUpperCase(),
+        tipo: "MANUAL",
+        valorOriginal: valorInfo.valor,
+        dataVencto: vencimento, dataVenctoReal: vencimento,
+        dataEmissao: new Date(),
+      },
+    });
+    const quando = vencimento ? ` com vencimento em ${this.fmtData(vencimento)}` : " sem data de vencimento";
+    await this.responder(remoteJid, user.telefone, user.organizationId, inst,
+      `💰 Lancei *${fornecedor}* de R$ ${this.fmtValor(valorInfo.valor)}${quando}.\n\nPara ver todas, mande *contas a pagar*. ✅`);
+  }
+
+  private async listarContas(remoteJid: string, inst: string) {
+    const user = await this.identificar(remoteJid);
+    if (!user) { await this.wa.sendToJid(remoteJid, NAO_VINCULADO, inst).catch(() => {}); return; }
+    const contas = await (this.prisma as any).contaPagar.findMany({
+      where: { organizationId: user.organizationId, dataPagamento: null },
+      orderBy: { dataVenctoReal: "asc" }, take: 10,
+      select: { fornecedorNome: true, valorOriginal: true, dataVenctoReal: true },
+    });
+    if (!contas.length) {
+      await this.responder(remoteJid, user.telefone, user.organizationId, inst,
+        "💰 Não há contas em aberto. 🎉");
+      return;
+    }
+    const hoje = new Date();
+    const linhas = contas.map((c: any, i: number) => {
+      const v = Number(c.valorOriginal || 0);
+      const venc = c.dataVenctoReal ? new Date(c.dataVenctoReal) : null;
+      const atrasada = venc && venc < hoje ? " ⚠️" : "";
+      const quando = venc ? ` — ${this.fmtData(venc)}` : "";
+      return `${i + 1}. *${c.fornecedorNome}* R$ ${this.fmtValor(v)}${quando}${atrasada}`;
+    });
+    await this.responder(remoteJid, user.telefone, user.organizationId, inst,
+      "💰 *Contas em aberto:*\n\n" + linhas.join("\n") + "\n\n_⚠️ = já venceu._");
+  }
+
+  private async relatorioContas(remoteJid: string, inst: string) {
+    const user = await this.identificar(remoteJid);
+    if (!user) { await this.wa.sendToJid(remoteJid, NAO_VINCULADO, inst).catch(() => {}); return; }
+    const abertas = await (this.prisma as any).contaPagar.findMany({
+      where: { organizationId: user.organizationId, dataPagamento: null },
+      select: { valorOriginal: true, dataVenctoReal: true },
+    });
+    if (!abertas.length) {
+      await this.responder(remoteJid, user.telefone, user.organizationId, inst,
+        "📊 Não há contas em aberto para somar. 🎉");
+      return;
+    }
+    const hoje = new Date();
+    const em30 = new Date(Date.now() + 30 * 86400000);
+    let total = 0, vencido = 0, proximo = 0, nVencido = 0, nProximo = 0;
+    for (const c of abertas) {
+      const v = Number(c.valorOriginal || 0);
+      total += v;
+      const d = c.dataVenctoReal ? new Date(c.dataVenctoReal) : null;
+      if (d && d < hoje) { vencido += v; nVencido++; }
+      else if (d && d <= em30) { proximo += v; nProximo++; }
+    }
+    await this.responder(remoteJid, user.telefone, user.organizationId, inst,
+      "📊 *Contas a pagar*\n\n" +
+      `Em aberto: *R$ ${this.fmtValor(total)}* (${abertas.length} conta(s))\n` +
+      `Já venceu: *R$ ${this.fmtValor(vencido)}* (${nVencido})\n` +
+      `Vence em 30 dias: *R$ ${this.fmtValor(proximo)}* (${nProximo})`);
+  }
+
   // ── Keep ────────────────────────────────────────────────────────────────
+
 
   private async criarNota(remoteJid: string, texto: string, inst: string) {
     const user = await this.identificar(remoteJid);
@@ -1452,9 +1719,29 @@ export class WhatsappInboundService {
     if (mNota) { await this.criarNota(remoteJid, mNota[1], inst); return; }
     if (/^\/?(?:minhas\s+)?notas?\b[.!?]*$/i.test(texto)) { await this.listarNotas(remoteJid, inst); return; }
 
+    // Agenda: listar e excluir (criar é o parseComandoEvento, mais abaixo)
+    if (/^\/?(?:meus\s+)?compromissos?\b[.!?]*$/i.test(texto) || /^\/?(?:minha\s+)?agenda\b[.!?]*$/i.test(texto)) {
+      await this.listarCompromissos(remoteJid, inst); return;
+    }
+    const mDelEvento = texto.match(/^\/?(?:excluir|apagar|cancelar|remover)\s+(?:o\s+)?(?:compromisso|evento)\s+(\d{1,2})\b/i);
+    if (mDelEvento) { await this.excluirCompromisso(remoteJid, Number(mDelEvento[1]), inst); return; }
+
+    // Keep: excluir
+    const mDelNota = texto.match(/^\/?(?:excluir|apagar|remover)\s+(?:a\s+)?(?:nota|anota[çc][ãa]o)\s+(\d{1,2})\b/i);
+    if (mDelNota) { await this.excluirNota(remoteJid, Number(mDelNota[1]), inst); return; }
+
     // Projetos
+    const mProj = texto.match(/^\/?(?:projeto|novo projeto|criar projeto)\s*[:\-]\s*([\s\S]+)$/i);
+    if (mProj) { await this.criarProjeto(remoteJid, mProj[1], inst); return; }
     if (/^\/?(?:meus\s+)?projetos?\b[.!?]*$/i.test(texto)) { await this.listarProjetos(remoteJid, inst); return; }
     if (/^\/?(?:minhas\s+)?tarefas?\b[.!?]*$/i.test(texto)) { await this.listarMinhasTarefas(remoteJid, inst); return; }
+
+    // Finance: contas a pagar. O relatório vem ANTES da criação, senão
+    // "relatório de contas" cairia no parser de criar conta.
+    if (/^\/?(?:relat[óo]rio|resumo)\s+(?:de\s+)?contas?\b[.!?]*$/i.test(texto)) { await this.relatorioContas(remoteJid, inst); return; }
+    if (/^\/?contas?(?:\s+a\s+pagar)?\b[.!?]*$/i.test(texto)) { await this.listarContas(remoteJid, inst); return; }
+    const mConta = texto.match(/^\/?(?:conta|nova conta|lan[çc]ar conta)\s*[:\-]\s*([\s\S]+)$/i);
+    if (mConta) { await this.criarConta(remoteJid, mConta[1], inst); return; }
 
     // Chamados
     const mCham = texto.match(/^\/?(?:chamado|abrir chamado|suporte|ticket)\s*[:\-]?\s*([\s\S]+)$/i);

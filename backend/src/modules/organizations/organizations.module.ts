@@ -157,8 +157,22 @@ class SuperAdminOrgsController {
     return org;
   }
 
-  @Put(":id")
+  /**
+   * PUT e PATCH precisam de métodos SEPARADOS.
+   *
+   * Empilhar `@Put(":id")` e `@Patch(":id")` no mesmo handler parece registrar
+   * os dois e registra só UM: cada decorator grava `method` no mesmo metadata,
+   * e o de cima sobrescreve o de baixo. O resultado era PATCH devolvendo 404 —
+   * e com ele o botão de ativar/desativar organização, que usa PATCH, falhava
+   * em silêncio: a tela recarregava e mostrava o estado antigo, como se nada
+   * tivesse sido pedido.
+   */
   @Patch(":id")
+  async patch(@Req() req: any, @Param("id") id: string, @Body() dto: UpdateOrgDto) {
+    return this.update(req, id, dto);
+  }
+
+  @Put(":id")
   async update(@Req() req: any, @Param("id") id: string, @Body() dto: UpdateOrgDto) {
     this.guard(req);
     const org = await (this.prisma as any).organization.findUnique({ where: { id } });
