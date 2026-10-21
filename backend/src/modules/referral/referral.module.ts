@@ -8,6 +8,18 @@ import { WhatsAppService } from "../notifications/whatsapp.service";
 import { NotificationsModule } from "../notifications/notifications.module";
 import { registrarIndicacao, codigoIndicacao, montarMensagemAtivacao } from "./referral.helpers";
 import { proximaValidade } from "../auth/trial-renovacao";
+import { IsOptional, IsString } from "class-validator";
+
+// Tipo inline (`@Body() body: DefinirIndicadorDto`) PARECE validação, mas não
+// é: o tipo do TypeScript some na compilação e o ValidationPipe fica sem
+// metadata — qualquer JSON passava. Classe é o que o pipe consegue ler.
+class DefinirIndicadorDto {
+  @IsString() codigo: string;
+}
+
+class ComissaoPagaDto {
+  @IsOptional() @IsString() notas?: string;
+}
 
 // Valores fixos do MVP (centavos). Configuráveis depois.
 const VALOR_ASSINATURA = 2700; // R$ 27,00
@@ -211,13 +223,13 @@ export class ReferralAdminController {
 
   @Post(":userId/indicador")
   @HttpCode(HttpStatus.OK)
-  async indicador(@Req() req: any, @Param("userId") userId: string, @Body() body: { codigo: string }) {
+  async indicador(@Req() req: any, @Param("userId") userId: string, @Body() body: DefinirIndicadorDto) {
     requireSuperAdmin(req); return this.svc.definirIndicador(userId, body?.codigo || "");
   }
 
   @Post("comissao/:referralId/paga")
   @HttpCode(HttpStatus.OK)
-  async pagar(@Req() req: any, @Param("referralId") referralId: string, @Body() body: { notas?: string }) {
+  async pagar(@Req() req: any, @Param("referralId") referralId: string, @Body() body: ComissaoPagaDto) {
     requireSuperAdmin(req); return this.svc.comissaoPaga(referralId, body?.notas);
   }
 }

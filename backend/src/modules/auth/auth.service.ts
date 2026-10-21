@@ -337,7 +337,7 @@ const ROLE_DEFAULTS: Record<string, { nivel: number; descricao: string; permisso
    */
   usuario: {
     nivel: 25,
-    descricao: "Acesso a todos os produtos do Orkiestri, menos a administracao",
+    descricao: `Acesso a todos os produtos do ${MARCA}, menos a administracao`,
     permissoes: ALL_PERMISSIONS
       .map(p => `${p.recurso}:${p.acao}`)
       .filter(p => !PERMISSOES_DE_ADMINISTRACAO.has(p)),
@@ -568,6 +568,30 @@ export class AuthService implements OnModuleInit {
         ? "Sua mensalidade venceu. Responda 1 no aviso que enviamos no WhatsApp para renovar, ou fale com a nossa equipe."
         : "Seu teste de 7 dias expirou. Responda 1 no aviso que enviamos no WhatsApp para continuar, ou fale com a nossa equipe.");
     }
+    // ── Primeiro acesso: a senha provisória NÃO abre sessão ────────────────
+    //
+    // A senha está certa, mas ela foi gerada pelo sistema e trafegou por
+    // WhatsApp ou e-mail. Até ser trocada, ela vale como prova de que a pessoa
+    // recebeu a mensagem — não como credencial de uso.
+    //
+    // Antes a sessão era criada e o frontend REDIRECIONAVA para trocar a senha.
+    // Quem ignorasse o redirecionamento (ou chamasse a API direto) já estava
+    // dentro com a senha provisória. Agora nenhum token é emitido: mandamos um
+    // código para o e-mail CADASTRADO e só devolvemos sessão em
+    // `confirmarPrimeiroAcesso`, depois de código conferido e senha trocada.
+    //
+    // O código vai para o e-mail de propósito: a senha provisória chegou pelo
+    // WhatsApp, então exigir o e-mail confirma um segundo canal, e de quebra
+    // prova que o e-mail digitado no cadastro existe e é da pessoa.
+    if ((user as any).primeiroAcesso) {
+      await this.enviarCodigoPrimeiroAcesso(user as any);
+      return {
+        precisaTrocarSenha: true,
+        email: user.email,
+        mensagem: "Enviamos um código para o seu e-mail. Use-o para criar a sua senha.",
+      } as any;
+    }
+
     await this.prisma.user.update({
       where: { id: user.id },
       data: { ultimoLogin: new Date(), tentativasFalhas: 0 } as any,
@@ -602,6 +626,141 @@ export class AuthService implements OnModuleInit {
       accessToken, refreshToken, primeiroAcesso,
       user: { id: user.id, nome: user.nome, email: user.email, avatar: user.avatar, organizationId, roles, isMaster, isSuperAdmin, permissions, primeiroAcesso },
     };
+  }
+
+  // ── Primeiro acesso: código por e-mail, antes de haver sessão ─────────────
+
+  /**
+   * Manda para o e-mail cadastrado o código de 6 dígitos do primeiro acesso.
+   *
+   * Reaproveita `password_reset_otps`, que já existia para a recuperação por
+   * WhatsApp: é a mesma coisa — um código curto, de uso único e com validade.
+   * Criar uma segunda tabela só mudaria o nome do problema.
+   *
+   * Invalida os códigos anteriores da pessoa antes de gravar o novo, senão
+   * pedir de novo deixaria dois códigos válidos ao mesmo tempo.
+   */
+  private async enviarCodigoPrimeiroAcesso(user: { id: string; nome: string; email: string }) {
+    const codigo = String(require("crypto").randomInt(0, 1_000_000)).padStart(6, "0");
+    await (this.prisma as any).passwordResetOtp.updateMany({
+      where: { userId: user.id, used: false },
+      data: { used: true },
+    });
+    await (this.prisma as any).passwordResetOtp.create({
+      data: {
+        id: require("crypto").randomUUID(),
+        userId: user.id,
+        otpCode: codigo,
+        // 15 minutos: tempo de abrir o e-mail sem deixar o código vivo à toa.
+        otpExpiresAt: new Date(Date.now() + 15 * 60_000),
+      },
+    });
+    await this.email
+      .enviarNotificacao(
+        user.email,
+        "Seu código para criar a senha",
+        this.htmlCodigoPrimeiroAcesso(user.nome, codigo),
+      )
+      .catch((e: any) => this.logger.warn(`codigo de primeiro acesso nao enviado: ${e?.message || e}`));
+    this.logger.log(`Codigo de primeiro acesso enviado para ${user.email}`);
+  }
+
+  /**
+   * Confere o código, troca a senha e SÓ ENTÃO devolve a sessão.
+   *
+   * Pede a senha provisória de novo junto com o código. São duas provas de
+   * coisas diferentes: a senha prova que a pessoa recebeu a mensagem do
+   * WhatsApp, o código prova que ela tem o e-mail. Uma só não basta — foi por
+   * isso que o fluxo saiu de dentro da sessão.
+   */
+  async confirmarPrimeiroAcesso(email: string, senhaProvisoria: string, codigo: string, novaSenha: string) {
+    if (!novaSenha || novaSenha.length < 8) {
+      throw new BadRequestException("A nova senha precisa de pelo menos 8 caracteres.");
+    }
+    const user = await (this.prisma.user.findFirst as any)({
+      where: { email: (email || "").trim().toLowerCase() },
+      include: { userRoles: { include: { role: true } } },
+    });
+    // Mensagem única para usuário inexistente, senha errada ou código errado:
+    // quem está tentando adivinhar não descobre em qual dos três errou.
+    const generico = "Código ou senha inválidos.";
+    if (!user) throw new UnauthorizedException(generico);
+    if (!(await bcrypt.compare(senhaProvisoria, user.senhaHash))) throw new UnauthorizedException(generico);
+
+    const otp = await (this.prisma as any).passwordResetOtp.findFirst({
+      where: { userId: user.id, used: false, otpExpiresAt: { gt: new Date() } },
+      orderBy: { criadoEm: "desc" },
+    });
+    if (!otp) throw new UnauthorizedException("Código expirado. Entre de novo para receber outro.");
+
+    if (otp.otpCode !== (codigo || "").trim()) {
+      const tentativas = (otp.otpAttempts || 0) + 1;
+      // Queima o código no quinto erro: sem isso, seis dígitos caem em pouco
+      // tempo para quem tentar em sequência.
+      await (this.prisma as any).passwordResetOtp.update({
+        where: { id: otp.id },
+        data: { otpAttempts: tentativas, ...(tentativas >= 5 ? { used: true } : {}) },
+      });
+      throw new UnauthorizedException(
+        tentativas >= 5 ? "Código inválido demais vezes. Entre de novo para receber outro." : generico,
+      );
+    }
+
+    await (this.prisma as any).passwordResetOtp.update({ where: { id: otp.id }, data: { used: true } });
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        senhaHash: await bcrypt.hash(novaSenha, 12),
+        primeiroAcesso: false,
+        tentativasFalhas: 0,
+        ultimoLogin: new Date(),
+      } as any,
+    });
+    this.logAudit(user.id, "auth", "users", user.id, "UPDATE", `Senha criada no primeiro acesso: ${user.email}`, user.organizationId).catch(() => {});
+
+    // A sessão nasce aqui, com a senha JÁ trocada.
+    const roles = user.userRoles.map((ur: any) => ur.role.nome);
+    const isMaster = user.userRoles.some((ur: any) => ur.role.isMaster);
+    const isSuperAdmin = await this.checkGlobalSuperAdmin(user.id, user.email);
+    const permissions = await this.resolvePermissions(user.id);
+    const organizationId = user.organizationId;
+    const payload = { sub: user.id, email: user.email, organizationId, roles, isMaster, isSuperAdmin };
+    return {
+      accessToken: this.jwt.sign(payload, { secret: this.config.get("JWT_SECRET"), expiresIn: "8h" }),
+      refreshToken: this.jwt.sign({ sub: user.id }, { secret: this.config.get("JWT_REFRESH_SECRET"), expiresIn: "7d" }),
+      primeiroAcesso: false,
+      user: { id: user.id, nome: user.nome, email: user.email, avatar: user.avatar, organizationId, roles, isMaster, isSuperAdmin, permissions, primeiroAcesso: false },
+    };
+  }
+
+  /** Reenvia o código, exigindo a senha provisória para não virar disparador. */
+  async reenviarCodigoPrimeiroAcesso(email: string, senhaProvisoria: string) {
+    const user = await (this.prisma.user.findFirst as any)({
+      where: { email: (email || "").trim().toLowerCase() },
+    });
+    // Resposta igual com ou sem conta, para a rota não dizer quem existe.
+    const resposta = { ok: true, mensagem: "Se os dados estiverem certos, enviamos um código novo." };
+    if (!user || !(user as any).primeiroAcesso) return resposta;
+    if (!(await bcrypt.compare(senhaProvisoria, user.senhaHash))) return resposta;
+    await this.enviarCodigoPrimeiroAcesso(user as any);
+    return resposta;
+  }
+
+  private htmlCodigoPrimeiroAcesso(nome: string, codigo: string): string {
+    const nm = (nome || "").trim().split(/\s+/)[0] || "";
+    return `
+      <div style="font-family:system-ui,-apple-system,Segoe UI,sans-serif;max-width:520px;margin:0 auto;color:#111">
+        <h2 style="font-size:20px;margin:0 0 12px">Olá${nm ? ", " + nm : ""}!</h2>
+        <p style="font-size:15px;line-height:1.6;color:#444;margin:0 0 20px">
+          Use o código abaixo para criar a sua senha e entrar no ${MARCA}.
+        </p>
+        <div style="font-size:34px;font-weight:700;letter-spacing:10px;text-align:center;
+                    padding:18px;background:#f5f5f5;border-radius:12px;margin:0 0 20px">${codigo}</div>
+        <p style="font-size:13px;line-height:1.6;color:#777;margin:0">
+          O código vale por 15 minutos. Se não foi você que pediu, ignore este e-mail —
+          sua conta continua protegida, porque sem a senha provisória o código não serve.
+        </p>
+      </div>`;
   }
 
   /**

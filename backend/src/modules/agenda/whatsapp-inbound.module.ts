@@ -1,3 +1,4 @@
+import { MARCA } from "../../common/marca";
 import {
   Module, Controller, Post, Body, Query, Headers, HttpCode, HttpStatus, Logger, Injectable,
 } from "@nestjs/common";
@@ -57,9 +58,9 @@ function primeiroNome(nome: string): string {
 // Mensagem de ajuda para quem AINDA NÃO vinculou o WhatsApp: o primeiro passo é
 // justamente se apresentar ao sistema.
 const AJUDA_VINCULAR =
-  "😊 *Oi! Eu sou o ajudante do Orkiestri aqui no WhatsApp.*\n\n" +
+  `😊 *Oi! Eu sou o ajudante do ${MARCA} aqui no WhatsApp.*\n\n` +
   "Antes de começar, eu preciso saber quem é você. É rapidinho, e você faz só uma vez:\n\n" +
-  "1️⃣ Abra o Orkiestri no computador ou no celular.\n" +
+  `1️⃣ Abra o ${MARCA} no computador ou no celular.\n` +
   "2️⃣ Toque no seu *Perfil*.\n" +
   "3️⃣ Procure *Criar evento pelo WhatsApp*. Vai aparecer um *código* (letras e números).\n" +
   "4️⃣ Copie esse código e me mande aqui assim:\n" +
@@ -78,20 +79,46 @@ const RODAPE_SIMPLES = "\n\n❓ Quer ver de novo? É só mandar *ajuda*. 😉";
 // Guia em PDF enviado logo após vincular. O arquivo é empacotado na imagem
 // (COPY assets no Dockerfile); em produção o WORKDIR é /app → /app/assets/…
 const GUIA_PDF_PATH = require("path").join(process.cwd(), "assets", "guia-whatsapp.pdf");
-const GUIA_PDF_NOME = "Guia-Orkiestri-WhatsApp.pdf";
+const GUIA_PDF_NOME = `Guia-${MARCA}-WhatsApp.pdf`;
 const GUIA_PDF_LEGENDA = "📖 Preparei um guia rápido pra você começar — é só seguir o passo a passo. Qualquer dúvida, mande *ajuda*. 🧡";
 
 // Saudação da Aurélia + menu de módulos.
-function montarMenuAjuda(temAgenda: boolean, temGastos: boolean, nome: string): string {
+/**
+ * Menu da Aurélia.
+ *
+ * Mostra SÓ o que a pessoa pode usar: um número que ela não tem acesso não
+ * aparece, para a lista não prometer o que não entrega. Os números são fixos
+ * por módulo (1 = Financeiro, 2 = Agenda, …) e não se renumeram conforme o
+ * que aparece — assim quem decorou "3 é Keep" continua certo mesmo que o
+ * Financeiro suma da lista dele.
+ */
+function montarMenuAjuda(acessos: AcessosWhats, nome: string): string {
   const nm = primeiroNome(nome);
   let m =
     (nm ? `😊 *Oi, ${nm}!*` : "😊 *Oi!*") +
-    " Eu sou a *Aurélia*, sua ajudante do Orkiestri aqui no WhatsApp.\n" +
+    ` Eu sou a *Aurélia*, sua ajudante do ${MARCA} aqui no WhatsApp.\n` +
     "Com qual módulo você quer a minha ajuda? É só responder o número:\n\n";
-  if (temGastos) m += "💸 Para *Financeiro*: responda *1*\n";
-  if (temAgenda) m += "🗓️ Para *Agenda*: responda *2*\n";
+  if (acessos.gastos)       m += "💸 Para *Financeiro*: responda *1*\n";
+  if (acessos.agenda)       m += "🗓️ Para *Agenda*: responda *2*\n";
+  if (acessos.keep)         m += "📝 Para *Keep*: responda *3*\n";
+  if (acessos.projetos)     m += "📁 Para *Projetos*: responda *4*\n";
+  if (acessos.chamados)     m += "🎧 Para *Chamados*: responda *5*\n";
+  if (acessos.conhecimento) m += "📚 Para *Conhecimento*: responda *6*\n";
   m += "👋 Para encerrar nossa conversa: responda *0*";
   return m;
+}
+
+/** O que a pessoa pode usar pelo WhatsApp, resolvido uma vez por mensagem. */
+type AcessosWhats = {
+  agenda: boolean; gastos: boolean; keep: boolean;
+  projetos: boolean; chamados: boolean; conhecimento: boolean;
+};
+
+function acessosDe(perms: string[]): AcessosWhats {
+  return {
+    agenda: podeAgenda(perms), gastos: podeGastos(perms), keep: podeKeep(perms),
+    projetos: podeProjetos(perms), chamados: podeChamados(perms), conhecimento: podeConhecimento(perms),
+  };
 }
 
 // Passo a passo do FINANCEIRO (anotar gastos).
@@ -131,18 +158,74 @@ function ajudaAgenda(): string {
   );
 }
 
+// Passo a passo do KEEP (anotar lembretes).
+function ajudaKeep(): string {
+  return (
+    "📝 *KEEP — ANOTAR UM LEMBRETE*\n" +
+    "Escreva a palavra *Nota* e depois o que você quer guardar.\n" +
+    "Copie a linha abaixo e me mande:\n" +
+    "👉 *Nota: comprar pilha para o controle*\n\n" +
+    "A anotação aparece no seu Keep na hora, e fica só para você. ✅\n\n" +
+    "📌 *DICA*\n" +
+    "• Para ver as últimas, mande *minhas notas*."
+  );
+}
+
+// Passo a passo de PROJETOS (consulta — criar projeto é tela, não chat).
+function ajudaProjetos(): string {
+  return (
+    "📁 *PROJETOS — VER COMO ESTÃO*\n" +
+    "Mande *projetos* e eu te mostro os que estão em andamento, com o quanto\n" +
+    "já avançou cada um.\n\n" +
+    "Quer ver o que está na sua mão? Mande *minhas tarefas* — eu listo as que\n" +
+    "estão com você e ainda não foram concluídas. ✅\n\n" +
+    "📌 *DICA*\n" +
+    "• Criar projeto continua sendo pela tela: aqui é para acompanhar."
+  );
+}
+
+// Passo a passo de CHAMADOS (abrir e acompanhar).
+function ajudaChamados(): string {
+  return (
+    "🎧 *CHAMADOS — PEDIR AJUDA*\n" +
+    "Escreva a palavra *Chamado* e depois conte o que está acontecendo.\n" +
+    "Copie a linha abaixo e me mande:\n" +
+    "👉 *Chamado: a impressora da recepção não liga*\n\n" +
+    "Eu abro na hora e te mando o número para acompanhar. ✅\n\n" +
+    "📌 *DICA*\n" +
+    "• Para ver os seus, mande *meus chamados*."
+  );
+}
+
+// Passo a passo de CONHECIMENTO (buscar artigo).
+function ajudaConhecimento(): string {
+  return (
+    "📚 *CONHECIMENTO — PROCURAR UMA RESPOSTA*\n" +
+    "Escreva a palavra *Buscar* e depois o assunto.\n" +
+    "Copie a linha abaixo e me mande:\n" +
+    "👉 *Buscar: como configurar a VPN*\n\n" +
+    "Eu procuro nos artigos publicados e te mando o que achar. ✅\n\n" +
+    "📌 *DICA*\n" +
+    "• Menos palavras costuma achar mais: tente *VPN* em vez da frase toda."
+  );
+}
+
 // Boas-vindas logo após vincular: a Aurélia se apresenta e já mostra o passo a
 // passo de tudo que a pessoa pode fazer (sem menu — é o primeiro contato).
-function montarBoasVindas(temAgenda: boolean, temGastos: boolean, nome: string): string {
+function montarBoasVindas(acessos: AcessosWhats, nome: string): string {
   const nm = primeiroNome(nome);
   let m = "🎉 *Tudo pronto!*\n\n" +
     (nm ? `😊 *Oi, ${nm}!* ` : "😊 ") +
-    "Eu sou a *Aurélia*, sua ajudante do Orkiestri aqui no WhatsApp.\n\n";
+    `Eu sou a *Aurélia*, sua ajudante do ${MARCA} aqui no WhatsApp.\n\n`;
   const partes: string[] = [];
-  if (temAgenda) partes.push(ajudaAgenda());
-  if (temGastos) partes.push(ajudaFinanceiro(temAgenda));
+  if (acessos.agenda)       partes.push(ajudaAgenda());
+  if (acessos.gastos)       partes.push(ajudaFinanceiro(acessos.agenda));
+  if (acessos.keep)         partes.push(ajudaKeep());
+  if (acessos.projetos)     partes.push(ajudaProjetos());
+  if (acessos.chamados)     partes.push(ajudaChamados());
+  if (acessos.conhecimento) partes.push(ajudaConhecimento());
   if (!partes.length) {
-    partes.push("Peça ao administrador para liberar a *Agenda* ou o *Financeiro* para você aproveitar tudo por aqui. 😉");
+    partes.push("Peça ao administrador para liberar os módulos para você aproveitar tudo por aqui. 😉");
   }
   m += partes.join("\n\n────────\n\n") + RODAPE_SIMPLES +
     "\n\n🎁 Veio por indicação de alguém? Envie o código dele assim: *INDICACAO ORK-XXXXXX*";
@@ -155,6 +238,11 @@ function podeAgenda(perms: string[]): boolean { return perms.includes("*") || pe
 function podeGastos(perms: string[]): boolean {
   return perms.includes("*") || perms.includes("gastos:registrar") || perms.includes("financeiro:gerenciar");
 }
+
+function podeKeep(perms: string[]): boolean { return perms.includes("*") || perms.includes("keep:criar"); }
+function podeProjetos(perms: string[]): boolean { return perms.includes("*") || perms.includes("projetos:ver"); }
+function podeChamados(perms: string[]): boolean { return perms.includes("*") || perms.includes("chamados:criar"); }
+function podeConhecimento(perms: string[]): boolean { return perms.includes("*") || perms.includes("conhecimento:ver"); }
 
 export function parseComandoEvento(texto: string, agora: Date): Parsed | "sem_data_hora" | null {
   const t = (texto || "").trim();
@@ -752,7 +840,7 @@ export class WhatsappInboundService {
     // Tutorial logo em seguida (2º envio), mostrando SÓ o que a conta pode fazer.
     const perms = await this.auth.resolvePermissions(alvo.id).catch(() => [] as string[]);
     await this.responder(remoteJid, tel, alvo.organizationId, inst,
-      montarBoasVindas(podeAgenda(perms), podeGastos(perms), alvo.nome));
+      montarBoasVindas(acessosDe(perms), alvo.nome));
     // 3º envio: o guia em PDF. Best-effort — se falhar, não atrapalha o vínculo.
     // Vai para o telefone quando houver; senão tenta o jid cru (pode falhar no LID).
     await this.wa.sendDocumentFile(tel || remoteJid, GUIA_PDF_PATH, GUIA_PDF_NOME, GUIA_PDF_LEGENDA, inst).catch(() => {});
@@ -789,28 +877,35 @@ export class WhatsappInboundService {
       return;
     }
     const perms = await this.auth.resolvePermissions(user.id).catch(() => [] as string[]);
-    const ag = podeAgenda(perms), ga = podeGastos(perms);
+    const a = acessosDe(perms);
+    const quantos = Object.values(a).filter(Boolean).length;
 
-    if (ag && ga) {
-      this.abrirMenu(remoteJid); // aguarda 1/2/0
+    if (quantos > 1) {
+      this.abrirMenu(remoteJid);
       await this.responder(remoteJid, user.telefone, user.organizationId, inst,
-        montarMenuAjuda(ag, ga, user.nome));
+        montarMenuAjuda(a, user.nome));
       return;
     }
 
-    // Um módulo só (ou nenhum): sem menu — a Aurélia já entrega o tutorial.
+    // Um módulo só (ou nenhum): sem menu — a Aurélia já entrega o tutorial,
+    // porque um menu de uma opção é uma pergunta sem escolha.
     this.fecharMenu(remoteJid);
     const nm = primeiroNome(user.nome);
     const saud = (nm ? `😊 *Oi, ${nm}!* ` : "😊 ") +
-      "Eu sou a *Aurélia*, sua ajudante do Orkiestri aqui no WhatsApp.\n\n";
+      `Eu sou a *Aurélia*, sua ajudante do ${MARCA} aqui no WhatsApp.\n\n`;
     let corpo: string;
-    if (ga) corpo = ajudaFinanceiro(ag) + RODAPE_SIMPLES;
-    else if (ag) corpo = ajudaAgenda() + RODAPE_SIMPLES;
-    else corpo = "Peça ao administrador para liberar a *Agenda* ou o *Financeiro* para você aproveitar tudo por aqui. 😉";
+    if (a.gastos)            corpo = ajudaFinanceiro(a.agenda) + RODAPE_SIMPLES;
+    else if (a.agenda)       corpo = ajudaAgenda() + RODAPE_SIMPLES;
+    else if (a.keep)         corpo = ajudaKeep() + RODAPE_SIMPLES;
+    else if (a.projetos)     corpo = ajudaProjetos() + RODAPE_SIMPLES;
+    else if (a.chamados)     corpo = ajudaChamados() + RODAPE_SIMPLES;
+    else if (a.conhecimento) corpo = ajudaConhecimento() + RODAPE_SIMPLES;
+    else corpo = "Peça ao administrador para liberar os módulos para você aproveitar tudo por aqui. 😉";
     await this.responder(remoteJid, user.telefone, user.organizationId, inst, saud + corpo);
   }
 
-  // Resposta ao menu da Aurélia: 1 = Financeiro, 2 = Agenda, 0 = encerrar.
+  // Resposta ao menu: 1 Financeiro, 2 Agenda, 3 Keep, 4 Projetos, 5 Chamados,
+  // 6 Conhecimento, 9 voltar, 0 encerrar.
   private async responderMenu(remoteJid: string, opcao: string, inst: string) {
     const user = await this.identificar(remoteJid);
     if (!user) {
@@ -819,39 +914,226 @@ export class WhatsappInboundService {
       return;
     }
     const perms = await this.auth.resolvePermissions(user.id).catch(() => [] as string[]);
-    const ag = podeAgenda(perms), ga = podeGastos(perms);
+    const a = acessosDe(perms);
+    const diz = (m: string) => this.responder(remoteJid, user.telefone, user.organizationId, inst, m);
 
     if (opcao === "0") {
       this.fecharMenu(remoteJid);
-      await this.responder(remoteJid, user.telefone, user.organizationId, inst,
-        "👋 Combinado! Encerrei nossa conversa. Quando precisar, é só mandar *ajuda*. 😊");
+      await diz("👋 Combinado! Encerrei nossa conversa. Quando precisar, é só mandar *ajuda*. 😊");
       return;
     }
     if (opcao === "9") {
-      // Voltar ao menu principal — mantém o menu aberto.
       this.abrirMenu(remoteJid);
-      await this.responder(remoteJid, user.telefone, user.organizationId, inst,
-        montarMenuAjuda(ag, ga, user.nome));
+      await diz(montarMenuAjuda(a, user.nome));
       return;
     }
-    if (opcao === "1" && ga) {
-      this.abrirMenu(remoteJid); // menu segue aberto para o "9" (voltar)
-      await this.responder(remoteJid, user.telefone, user.organizationId, inst,
-        ajudaFinanceiro(ag) + RODAPE_MENU);
+
+    // Número → módulo. O menu segue aberto para o "9" (voltar).
+    const porOpcao: Record<string, { pode: boolean; texto: () => string }> = {
+      "1": { pode: a.gastos,       texto: () => ajudaFinanceiro(a.agenda) },
+      "2": { pode: a.agenda,       texto: () => ajudaAgenda() },
+      "3": { pode: a.keep,         texto: () => ajudaKeep() },
+      "4": { pode: a.projetos,     texto: () => ajudaProjetos() },
+      "5": { pode: a.chamados,     texto: () => ajudaChamados() },
+      "6": { pode: a.conhecimento, texto: () => ajudaConhecimento() },
+    };
+    const escolha = porOpcao[opcao];
+    if (escolha?.pode) {
+      this.abrirMenu(remoteJid);
+      await diz(escolha.texto() + RODAPE_MENU);
       return;
     }
-    if (opcao === "2" && ag) {
-      this.abrirMenu(remoteJid); // menu segue aberto para o "9" (voltar)
-      await this.responder(remoteJid, user.telefone, user.organizationId, inst,
-        ajudaAgenda() + RODAPE_MENU);
-      return;
-    }
-    // Número que ela não pode usar / inválido — mantém o menu aberto e reexplica.
-    await this.responder(remoteJid, user.telefone, user.organizationId, inst,
-      "🤖 Não entendi. Responda *1* para Financeiro, *2* para Agenda ou *0* para encerrar.");
+
+    // Número inválido ou de módulo que ela não tem: reexplica com as opções
+    // QUE ELA TEM, em vez de repetir uma lista fixa que pode não bater.
+    const disponiveis: string[] = [];
+    if (a.gastos)       disponiveis.push("*1* Financeiro");
+    if (a.agenda)       disponiveis.push("*2* Agenda");
+    if (a.keep)         disponiveis.push("*3* Keep");
+    if (a.projetos)     disponiveis.push("*4* Projetos");
+    if (a.chamados)     disponiveis.push("*5* Chamados");
+    if (a.conhecimento) disponiveis.push("*6* Conhecimento");
+    await diz(
+      "🤖 Não entendi. Responda " +
+      (disponiveis.length ? disponiveis.join(", ") + " ou *0* para encerrar." : "*0* para encerrar.")
+    );
   }
 
-  // Valor em R$ formatado (1250.5 → "1.250,50").
+  // ── Keep ────────────────────────────────────────────────────────────────
+
+  private async criarNota(remoteJid: string, texto: string, inst: string) {
+    const user = await this.identificar(remoteJid);
+    if (!user) { await this.wa.sendToJid(remoteJid, NAO_VINCULADO, inst).catch(() => {}); return; }
+    const conteudo = texto.trim();
+    if (!conteudo) {
+      await this.responder(remoteJid, user.telefone, user.organizationId, inst,
+        "📝 Me diga o que anotar, assim: *Nota: comprar pilha*");
+      return;
+    }
+    // Título = primeira linha curta; o resto vira conteúdo. Quem manda uma
+    // frase só fica com ela no título, que é como a nota aparece na tela.
+    const primeiraLinha = conteudo.split(/\n/)[0];
+    const titulo = primeiraLinha.length <= 60 ? primeiraLinha : primeiraLinha.slice(0, 57) + "...";
+    await (this.prisma as any).note.create({
+      data: {
+        id: require("crypto").randomUUID(),
+        organizationId: user.organizationId, userId: user.id,
+        titulo, conteudo,
+      },
+    });
+    await this.responder(remoteJid, user.telefone, user.organizationId, inst,
+      `📝 Anotei: *${titulo}*\n\nEstá no seu Keep. ✅`);
+  }
+
+  private async listarNotas(remoteJid: string, inst: string) {
+    const user = await this.identificar(remoteJid);
+    if (!user) { await this.wa.sendToJid(remoteJid, NAO_VINCULADO, inst).catch(() => {}); return; }
+    const notas = await (this.prisma as any).note.findMany({
+      where: { userId: user.id, arquivado: false, lixeira: false },
+      orderBy: { criadoEm: "desc" }, take: 5,
+      select: { titulo: true, criadoEm: true },
+    });
+    if (!notas.length) {
+      await this.responder(remoteJid, user.telefone, user.organizationId, inst,
+        "📝 Você ainda não tem anotações. Mande *Nota: alguma coisa* para criar a primeira.");
+      return;
+    }
+    const linhas = notas.map((x: any) => `• ${x.titulo || "(sem título)"} — ${this.fmtData(x.criadoEm)}`);
+    await this.responder(remoteJid, user.telefone, user.organizationId, inst,
+      "📝 *Suas últimas anotações:*\n\n" + linhas.join("\n"));
+  }
+
+  // ── Projetos ────────────────────────────────────────────────────────────
+
+  private async listarProjetos(remoteJid: string, inst: string) {
+    const user = await this.identificar(remoteJid);
+    if (!user) { await this.wa.sendToJid(remoteJid, NAO_VINCULADO, inst).catch(() => {}); return; }
+    const projetos = await (this.prisma as any).project.findMany({
+      where: { organizationId: user.organizationId, concluidoEm: null },
+      orderBy: { atualizadoEm: "desc" }, take: 8,
+      select: { titulo: true, status: true, progressoPct: true, dataFim: true },
+    });
+    if (!projetos.length) {
+      await this.responder(remoteJid, user.telefone, user.organizationId, inst,
+        "📁 Não há projetos em andamento por aqui.");
+      return;
+    }
+    const linhas = projetos.map((x: any) => {
+      const prazo = x.dataFim ? ` — entrega ${this.fmtData(x.dataFim)}` : "";
+      return `• *${x.titulo}* — ${x.progressoPct || 0}%${prazo}`;
+    });
+    await this.responder(remoteJid, user.telefone, user.organizationId, inst,
+      "📁 *Projetos em andamento:*\n\n" + linhas.join("\n"));
+  }
+
+  private async listarMinhasTarefas(remoteJid: string, inst: string) {
+    const user = await this.identificar(remoteJid);
+    if (!user) { await this.wa.sendToJid(remoteJid, NAO_VINCULADO, inst).catch(() => {}); return; }
+    const tarefas = await (this.prisma as any).task.findMany({
+      where: { assigneeId: user.id, status: { not: "CONCLUIDA" } },
+      orderBy: [{ dataVencimento: "asc" }, { criadoEm: "desc" }], take: 8,
+      select: { titulo: true, dataVencimento: true, project: { select: { titulo: true } } },
+    });
+    if (!tarefas.length) {
+      await this.responder(remoteJid, user.telefone, user.organizationId, inst,
+        "✅ Você não tem tarefas em aberto. Aproveite! 😄");
+      return;
+    }
+    const linhas = tarefas.map((x: any) => {
+      const quando = x.dataVencimento ? ` — vence ${this.fmtData(x.dataVencimento)}` : "";
+      const proj = x.project?.titulo ? ` (${x.project.titulo})` : "";
+      return `• ${x.titulo}${proj}${quando}`;
+    });
+    await this.responder(remoteJid, user.telefone, user.organizationId, inst,
+      "📋 *Suas tarefas em aberto:*\n\n" + linhas.join("\n"));
+  }
+
+  // ── Chamados ────────────────────────────────────────────────────────────
+
+  private async abrirChamado(remoteJid: string, texto: string, inst: string) {
+    const user = await this.identificar(remoteJid);
+    if (!user) { await this.wa.sendToJid(remoteJid, NAO_VINCULADO, inst).catch(() => {}); return; }
+    const descricao = texto.trim();
+    if (descricao.length < 5) {
+      await this.responder(remoteJid, user.telefone, user.organizationId, inst,
+        "🎧 Me conte o que está acontecendo, assim: *Chamado: a impressora não liga*");
+      return;
+    }
+    const primeiraLinha = descricao.split(/\n/)[0];
+    const titulo = primeiraLinha.length <= 80 ? primeiraLinha : primeiraLinha.slice(0, 77) + "...";
+    const ch = await (this.prisma as any).chamado.create({
+      data: {
+        id: require("crypto").randomUUID(),
+        organizationId: user.organizationId,
+        titulo, descricao, solicitanteId: user.id,
+        status: "aberto", prioridade: "media",
+      },
+      select: { numero: true, titulo: true },
+    });
+    await this.responder(remoteJid, user.telefone, user.organizationId, inst,
+      `🎧 Abri o chamado *#${ch.numero}*\n*${ch.titulo}*\n\nJá está na fila. Para acompanhar, mande *meus chamados*. ✅`);
+  }
+
+  private async listarMeusChamados(remoteJid: string, inst: string) {
+    const user = await this.identificar(remoteJid);
+    if (!user) { await this.wa.sendToJid(remoteJid, NAO_VINCULADO, inst).catch(() => {}); return; }
+    const lista = await (this.prisma as any).chamado.findMany({
+      where: { solicitanteId: user.id, status: { notIn: ["resolvido", "fechado"] } },
+      orderBy: { criadoEm: "desc" }, take: 8,
+      select: { numero: true, titulo: true, status: true },
+    });
+    if (!lista.length) {
+      await this.responder(remoteJid, user.telefone, user.organizationId, inst,
+        "🎧 Você não tem chamados em aberto. Para abrir um, mande *Chamado: o que está acontecendo*.");
+      return;
+    }
+    const rotulo: Record<string, string> = {
+      aberto: "na fila", em_atendimento: "em atendimento", aguardando: "aguardando você",
+    };
+    const linhas = lista.map((x: any) => `• *#${x.numero}* ${x.titulo} — ${rotulo[x.status] || x.status}`);
+    await this.responder(remoteJid, user.telefone, user.organizationId, inst,
+      "🎧 *Seus chamados em aberto:*\n\n" + linhas.join("\n"));
+  }
+
+  // ── Conhecimento ────────────────────────────────────────────────────────
+
+  private async buscarConhecimento(remoteJid: string, termo: string, inst: string) {
+    const user = await this.identificar(remoteJid);
+    if (!user) { await this.wa.sendToJid(remoteJid, NAO_VINCULADO, inst).catch(() => {}); return; }
+    const q = termo.trim();
+    if (q.length < 2) {
+      await this.responder(remoteJid, user.telefone, user.organizationId, inst,
+        "📚 Me diga o que procurar, assim: *Buscar: VPN*");
+      return;
+    }
+    // Só artigos PUBLICADOS: rascunho é trabalho em andamento de alguém, não
+    // resposta para quem perguntou.
+    const artigos = await (this.prisma as any).artigoConhecimento.findMany({
+      where: {
+        organizationId: user.organizationId, status: "publicado",
+        OR: [
+          { titulo: { contains: q, mode: "insensitive" } },
+          { resumo: { contains: q, mode: "insensitive" } },
+          { conteudo: { contains: q, mode: "insensitive" } },
+        ],
+      },
+      orderBy: { visualizacoes: "desc" }, take: 5,
+      select: { titulo: true, resumo: true },
+    });
+    if (!artigos.length) {
+      await this.responder(remoteJid, user.telefone, user.organizationId, inst,
+        `📚 Não achei nada sobre *${q}*.\n\nTente menos palavras — *VPN* costuma achar mais que a frase inteira.`);
+      return;
+    }
+    const linhas = artigos.map((x: any) => {
+      const r = x.resumo ? `\n  _${String(x.resumo).slice(0, 90)}_` : "";
+      return `• *${x.titulo}*${r}`;
+    });
+    await this.responder(remoteJid, user.telefone, user.organizationId, inst,
+      `📚 *Sobre "${q}" eu achei:*\n\n` + linhas.join("\n\n") +
+      "\n\nOs artigos completos estão em *Conhecimento*, no sistema.");
+  }
+
   private fmtValor(v: number): string {
     return v.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }
@@ -1129,7 +1411,7 @@ export class WhatsappInboundService {
     // ── Resposta ao menu da Aurélia (1/2/9/0)? Só interpretamos como escolha quando
     //    o menu está aberto para esta conversa — senão um "1" solto seria roubado.
     //    9 = voltar ao menu principal; 0 = encerrar. ──
-    if (this.noMenu(remoteJid) && /^\/?[0129]\s*[?!.]*$/.test(texto)) {
+    if (this.noMenu(remoteJid) && /^\/?[0-9]\s*[?!.]*$/.test(texto)) {
       await this.responderMenu(remoteJid, texto.replace(/\D/g, ""), inst);
       return;
     }
@@ -1157,6 +1439,31 @@ export class WhatsappInboundService {
     if (mIndKey) codInd = mIndKey[1].trim();
     else if (/^ORK-?[a-z0-9]{4,10}$/i.test(texto)) codInd = texto.trim();
     if (codInd) { await this.registrarIndicacaoWhats(remoteJid, codInd, inst); return; }
+
+    // ── Comandos dos módulos que entraram em 20/10/2026 ──────────────────
+    //
+    // Ficam ANTES do relatório e dos parsers de gasto/evento porque todos
+    // exigem uma palavra-chave explícita no começo ("Nota:", "Chamado:",
+    // "Buscar:"), enquanto aqueles tentam adivinhar pelo formato do texto.
+    // Invertida a ordem, "Nota: gastei 50 no mercado" viraria despesa.
+
+    // Keep
+    const mNota = texto.match(/^\/?(?:nota|anota(?:r|ção|cao)?|lembrete)\s*[:\-]?\s*([\s\S]+)$/i);
+    if (mNota) { await this.criarNota(remoteJid, mNota[1], inst); return; }
+    if (/^\/?(?:minhas\s+)?notas?\b[.!?]*$/i.test(texto)) { await this.listarNotas(remoteJid, inst); return; }
+
+    // Projetos
+    if (/^\/?(?:meus\s+)?projetos?\b[.!?]*$/i.test(texto)) { await this.listarProjetos(remoteJid, inst); return; }
+    if (/^\/?(?:minhas\s+)?tarefas?\b[.!?]*$/i.test(texto)) { await this.listarMinhasTarefas(remoteJid, inst); return; }
+
+    // Chamados
+    const mCham = texto.match(/^\/?(?:chamado|abrir chamado|suporte|ticket)\s*[:\-]?\s*([\s\S]+)$/i);
+    if (mCham) { await this.abrirChamado(remoteJid, mCham[1], inst); return; }
+    if (/^\/?(?:meus\s+)?chamados?\b[.!?]*$/i.test(texto)) { await this.listarMeusChamados(remoteJid, inst); return; }
+
+    // Conhecimento
+    const mBusca = texto.match(/^\/?(?:buscar|procurar|pesquisar|busca)\s*[:\-]?\s*([\s\S]+)$/i);
+    if (mBusca) { await this.buscarConhecimento(remoteJid, mBusca[1], inst); return; }
 
     // ── Relatório? "Relatório: quanto gastei ..." ──
     const rel = parseComandoRelatorio(texto, new Date());

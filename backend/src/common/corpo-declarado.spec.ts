@@ -36,6 +36,12 @@ const EXCECOES_CONHECIDAS: Record<string, string> = {
   "reservas.controller.ts": "repassa o corpo a ReservasService",
   "osa.module.ts": "repassa o corpo inteiro adiante",
   "notificacao-prefs.controller.ts": "salvarConfig/enviarCodigo/confirmarCodigo repassam adiante",
+  "whatsapp-inbound.module.ts":
+    "webhook do Evolution: o corpo é payload de terceiro (messages.upsert), com " +
+    "formato que muda entre versões da API e traz campos que não controlamos. " +
+    "Um DTO aqui só daria falsa segurança — ele teria de aceitar tudo para não " +
+    "derrubar mensagem legítima. A leitura é defensiva em `processar`, campo a " +
+    "campo com `?.`, e a autenticidade vem do cabeçalho x-webhook-secret",
 };
 
 describe("achado 7 — corpo de requisição declarado", () => {
