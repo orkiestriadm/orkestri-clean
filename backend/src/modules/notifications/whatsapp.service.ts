@@ -269,6 +269,20 @@ export class WhatsAppService {
     }
   }
 
+  /**
+   * Por qual instância a mensagem desta organização sai.
+   *
+   * Organização SEM configuração própria usa a instância do Orkiestri
+   * (`EVOLUTION_INSTANCE`), e isso é o padrão desejado, não uma lacuna:
+   * decisão do usuário em 20/10/2026 — "não necessariamente toda organização
+   * precisará de uma instância de WhatsApp". Quem se cadastra recebe mensagem
+   * pelo número da casa, e só quem pedir um número próprio ganha uma linha em
+   * `org_whatsapp_configs`.
+   *
+   * Ou seja: NÃO criar instância por organização ao provisionar. Uma instância
+   * é um celular conectado — criar uma por cliente que nunca a usará só
+   * multiplica QR Code para ninguém ler.
+   */
   async resolveInstance(orgId?: string): Promise<string> {
     if (this.prisma && orgId) {
       try {

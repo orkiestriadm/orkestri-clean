@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "3.3.0";
+export const VERSAO = "3.4.0";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -26,7 +26,7 @@ export const VERSAO = "3.3.0";
 export const VERSAO_DATA = "2026-10-20";
 
 /** Nome da entrega, para dar contexto ao número. */
-export const VERSAO_NOME = "Senha no primeiro acesso e o WhatsApp completo";
+export const VERSAO_NOME = "O Orkiestri inteiro pelo WhatsApp";
 
 /**
  * Histórico exibido na tela Sobre, do mais recente para o mais antigo.
@@ -40,6 +40,17 @@ export const HISTORICO: { versao: string; data: string; titulo: string; itens: s
   // substituída pela 3.2.0 antes de chegar a produção. Esta lista é o que
   // mudou para quem USA o sistema, e uma versão que ninguém recebeu não mudou
   // nada para ninguém — anunciá-la só faria procurarem uma tela que não existe.
+  {
+    versao: "3.4.0",
+    data: "2026-10-21",
+    titulo: "O Orkiestri inteiro pelo WhatsApp",
+    itens: [
+      "Agora dá para usar o sistema quase todo por mensagem. Na Agenda: marcar, ver a lista e desmarcar. No Keep: anotar, listar e apagar. Em Projetos: criar e acompanhar, além de ver as suas tarefas. Em Chamados: abrir e acompanhar. Em Conhecimento: buscar artigo",
+      "No Financeiro, além dos seus gastos, dá para lançar conta a pagar (*Conta: Energia 350 vence 10/11*), listar as em aberto e pedir o resumo com total, vencido e o que vence em 30 dias",
+      "O *ajuda* ganhou a opção *7*, que manda TODOS os comandos de TODOS os módulos numa mensagem só — para guardar e consultar quando precisar",
+      "Corrigido: o botão de ativar e desativar empresa não fazia nada. A tela recarregava mostrando o estado antigo, como se o clique não tivesse acontecido",
+    ],
+  },
   {
     versao: "3.3.0",
     data: "2026-10-20",
