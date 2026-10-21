@@ -145,7 +145,28 @@ export const authApi = {
   login: async (email: string, senha: string) => {
     // Backend sets HttpOnly cookie — no manual cookie management needed
     const { data } = await api.post("/auth/login", { email, senha });
-    return { accessToken: data.accessToken, user: data.user, primeiroAcesso: data.primeiroAcesso };
+    // No primeiro acesso o servidor NÃO devolve sessão: devolve
+    // `precisaTrocarSenha` e manda um código para o e-mail cadastrado. Quem
+    // chama precisa olhar esse campo antes de usar `user`/`accessToken`, que
+    // vêm indefinidos nesse caso.
+    return {
+      accessToken: data.accessToken,
+      user: data.user,
+      primeiroAcesso: data.primeiroAcesso,
+      precisaTrocarSenha: data.precisaTrocarSenha === true,
+      mensagem: data.mensagem as string | undefined,
+    };
+  },
+
+  /** Primeiro acesso: confere o código do e-mail, troca a senha e abre sessão. */
+  confirmarPrimeiroAcesso: async (email: string, senhaProvisoria: string, codigo: string, novaSenha: string) => {
+    const { data } = await api.post("/auth/primeiro-acesso/confirmar", { email, senhaProvisoria, codigo, novaSenha });
+    return { accessToken: data.accessToken, user: data.user };
+  },
+
+  reenviarCodigoPrimeiroAcesso: async (email: string, senhaProvisoria: string) => {
+    const { data } = await api.post("/auth/primeiro-acesso/reenviar", { email, senhaProvisoria });
+    return data as { ok: boolean; mensagem: string };
   },
 
   me: async () => {

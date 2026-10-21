@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "3.2.1";
+export const VERSAO = "3.3.0";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -26,7 +26,7 @@ export const VERSAO = "3.2.1";
 export const VERSAO_DATA = "2026-10-20";
 
 /** Nome da entrega, para dar contexto ao número. */
-export const VERSAO_NOME = "Cadastro pelo WhatsApp";
+export const VERSAO_NOME = "Senha no primeiro acesso e o WhatsApp completo";
 
 /**
  * Histórico exibido na tela Sobre, do mais recente para o mais antigo.
@@ -40,6 +40,16 @@ export const HISTORICO: { versao: string; data: string; titulo: string; itens: s
   // substituída pela 3.2.0 antes de chegar a produção. Esta lista é o que
   // mudou para quem USA o sistema, e uma versão que ninguém recebeu não mudou
   // nada para ninguém — anunciá-la só faria procurarem uma tela que não existe.
+  {
+    versao: "3.3.0",
+    data: "2026-10-20",
+    titulo: "Senha no primeiro acesso e o WhatsApp completo",
+    itens: [
+      "Na primeira entrada, a senha provisória não abre mais o sistema: a troca acontece na própria tela de login, com um código de 6 dígitos enviado para o e-mail cadastrado. Antes a pessoa entrava com a senha provisória e só depois era levada a trocá-la",
+      "A Aurélia passou a atender os seis módulos no WhatsApp — Financeiro, Agenda, Keep, Projetos, Chamados e Conhecimento —, e o menu mostra só os que você pode usar",
+      "Pelo WhatsApp agora dá para anotar no Keep (*Nota: comprar pilha*), abrir chamado (*Chamado: a impressora não liga*), buscar na base de conhecimento (*Buscar: VPN*) e consultar seus projetos, suas tarefas e seus chamados em aberto",
+    ],
+  },
   {
     versao: "3.2.0",
     data: "2026-10-20",

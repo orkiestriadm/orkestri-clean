@@ -55,6 +55,10 @@ async function bootstrap() {
     "/api/auth/trial/iniciar", "/api/auth/trial/confirmar",
     "/api/auth/enviar-otp", "/api/auth/verificar-otp", "/api/auth/redefinir-senha",
     "/api/auth/tenant-info", "/api/auth/organizations", "/api/billing/webhook/mp",
+    // Primeiro acesso: a troca de senha acontece ANTES de existir sessao, e
+    // portanto antes de haver cookie CSRF util. Quem protege e a senha
+    // provisoria + o codigo do e-mail, com teto de tentativas no controller.
+    "/api/auth/primeiro-acesso/confirmar", "/api/auth/primeiro-acesso/reenviar",
     "/api/billing/public/signup", "/health",
     // Webhook do Microsoft Graph: chamado pela Microsoft, sem cookie CSRF. A
     // autenticidade vem do clientState verificado no controller.

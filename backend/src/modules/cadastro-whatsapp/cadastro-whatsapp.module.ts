@@ -1,3 +1,4 @@
+import { MARCA } from "../../common/marca";
 import { Module, Injectable, Logger } from "@nestjs/common";
 import * as bcrypt from "bcryptjs";
 import { randomInt, randomUUID } from "crypto";
@@ -208,7 +209,7 @@ export class CadastroWhatsappService {
         // existia antes: quem está falando É o dono do número, não um
         // desconhecido sondando a base.
         await this.encerrar(cadastro.id, "CANCELADO");
-        await this.responder(cadastro, "✅ Esse CPF já tem conta no Orkiestri. Entre em *orkiestri.com* — se esqueceu a senha, use *Esqueci a senha*.", inst);
+        await this.responder(cadastro, `✅ Esse CPF já tem conta no ${MARCA}. Entre no site — se esqueceu a senha, use *Esqueci a senha*.`, inst);
         return true;
       }
       await this.avancar(cadastro.id, "EMAIL", respostas, { cpf });
@@ -382,7 +383,7 @@ export class CadastroWhatsappService {
 
   private msgAbertura(): string {
     return (
-      "😊 *Oi! Eu sou a Aurélia*, do Orkiestri.\n" +
+      `😊 *Oi! Eu sou a Aurélia*, do ${MARCA}.\n` +
       "Vou criar sua conta aqui mesmo, por mensagem — são quatro perguntinhas rápidas.\n\n" +
       "👤 Para começar: qual o seu *nome completo*?\n\n" +
       "_(Se quiser parar a qualquer momento, responda *cancelar*.)_"
@@ -406,7 +407,7 @@ export class CadastroWhatsappService {
       `🎉 *Pronto${nm ? ", " + nm : ""}!* Sua conta está criada.\n\n` +
       `📧 E-mail: *${email}*\n` +
       `🔑 Senha provisória: *${senha}*\n\n` +
-      "Entre em *orkiestri.com* e troque a senha no primeiro acesso.\n\n" +
+      "Entre no site e troque a senha no primeiro acesso.\n\n" +
       "Você já tem acesso a tudo: Agenda e Keep, Projetos, Financeiro, Chamados e Conhecimento.\n\n" +
       "_Guarde esta mensagem: a senha aparece só aqui._ 🧡"
     );

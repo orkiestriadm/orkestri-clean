@@ -100,6 +100,23 @@ class PrimeiroAcessoDto {
   @IsString() @MinLength(8) novaSenha: string;
 }
 
+/**
+ * Primeiro acesso SEM sessão: a pessoa prova quem é com a senha provisória
+ * (que chegou pelo WhatsApp) mais o código de 6 dígitos (que chegou no
+ * e-mail). Dois canais, nenhum token.
+ */
+class ConfirmarPrimeiroAcessoDto {
+  @IsEmail() email: string;
+  @IsString() senhaProvisoria: string;
+  @IsString() codigo: string;
+  @IsString() @MinLength(8) novaSenha: string;
+}
+
+class ReenviarCodigoDto {
+  @IsEmail() email: string;
+  @IsString() senhaProvisoria: string;
+}
+
 // ─── Controller ───────────────────────────────────────────────────────────────
 
 // ── DTOs gerados: sem classe, o ValidationPipe global nao tem metadata e a
@@ -147,6 +164,11 @@ export class AuthController {
     }
     const result = await this.auth.login(dto.email, dto.senha);
     await this.cache.del(rlKey);
+
+    // Primeiro acesso: a senha está certa, mas `login` não abre sessão — ele
+    // manda um código para o e-mail e devolve só o pedido de troca. Não há
+    // `user` nem cookie a emitir, e o resto deste método depende dos dois.
+    if ((result as any).precisaTrocarSenha) return result;
 
     // Alerta de novo IP — detecta login de IP desconhecido
     const ipKey = `known:ip:${result.user.id}:${ip}`;
@@ -298,7 +320,43 @@ export class AuthController {
     return this.auth.resetPasswordWithToken(dto.resetToken, dto.novaSenha);
   }
 
-  // ── Primeiro acesso ───────────────────────────────────────────────────────
+  // ── Primeiro acesso: troca a senha ANTES de existir sessão ────────────────
+  //
+  // Rotas PÚBLICAS de propósito: no primeiro acesso ainda não há token, porque
+  // `login` deixou de emitir um enquanto a senha provisória não for trocada.
+  // Quem protege não é o JWT, é a combinação senha provisória + código do
+  // e-mail, e os tetos de tentativa abaixo.
+
+  @Post("primeiro-acesso/confirmar")
+  @HttpCode(200)
+  async confirmarPrimeiroAcesso(
+    @Body() dto: ConfirmarPrimeiroAcessoDto,
+    @Req() req: any,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    await this.enforceRate(req, "primeiro-acesso-confirmar", 10, 900);
+    const result = await this.auth.confirmarPrimeiroAcesso(dto.email, dto.senhaProvisoria, dto.codigo, dto.novaSenha);
+
+    // É aqui que a sessão nasce, então é aqui que o cookie sai — o `login` não
+    // emitiu nenhum. Sem isto a pessoa trocaria a senha e continuaria de fora,
+    // porque o middleware procura a sessão no cookie, não no corpo.
+    res.cookie("orkestri_token", result.accessToken, {
+      httpOnly: true,
+      sameSite: "strict",
+      secure: req.headers["x-forwarded-proto"] === "https",
+      maxAge: 8 * 60 * 60 * 1000,
+      path: "/",
+    });
+    return result;
+  }
+
+  @Post("primeiro-acesso/reenviar")
+  @HttpCode(200)
+  async reenviarCodigoPrimeiroAcesso(@Body() dto: ReenviarCodigoDto, @Req() req: any) {
+    // Teto mais apertado: cada chamada manda um e-mail de verdade.
+    await this.enforceRate(req, "primeiro-acesso-reenviar", 3, 900);
+    return this.auth.reenviarCodigoPrimeiroAcesso(dto.email, dto.senhaProvisoria);
+  }
 
   @Patch("primeiro-acesso")
   @UseGuards(AuthGuard("jwt"))
