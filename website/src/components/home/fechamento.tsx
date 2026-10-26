@@ -26,9 +26,9 @@ export function Fechamento() {
             A sua conta começa com uma mensagem.
           </h2>
           <p className="mt-5 max-w-[46ch] text-[1.0625rem] leading-[1.65] text-chalk-dim">
-            Você manda, a Aurélia faz as perguntas do cadastro e devolve a
-            empresa criada com os módulos ligados. Sem formulário, sem esperar
-            aprovação.
+            Você manda, a Aurélia faz as perguntas e devolve a conta pronta, com
+            os módulos ligados. Daí em diante é ela quem te lembra do que
+            você ia esquecer.
           </p>
 
           <WhatsAppButton className="mt-10" />

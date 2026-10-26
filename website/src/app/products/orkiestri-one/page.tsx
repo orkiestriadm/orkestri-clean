@@ -22,9 +22,9 @@ import { CTA } from "@/components/sections/cta";
 import { buildMetadata, softwareApplicationSchema } from "@/lib/seo";
 
 export const metadata = buildMetadata({
-  title: "Orkiestri One — Business Operating System",
+  title: "Orkiestri One",
   description:
-    "O Orkiestri One é um Business Operating System: uma plataforma empresarial modular que conecta pessoas, processos, informações e tecnologia em um único ambiente.",
+    "Agenda, contas, projetos, pedidos e procedimentos sob o mesmo login — e todos avisando no seu WhatsApp na hora em que ainda dá tempo.",
   path: "/products/orkiestri-one",
 });
 
@@ -61,8 +61,8 @@ export default function OrkiestriOnePage() {
 
       <PageHero
         eyebrow="Orkiestri One"
-        title="O sistema operacional da sua empresa."
-        description="Uma plataforma empresarial modular que reúne gestão, automação, inteligência artificial e integrações em uma única experiência. Uma empresa. Uma plataforma. Um login. Uma experiência."
+        title="Tudo o que você precisa lembrar, num lugar só."
+        description="Seis aplicações que dividem o mesmo login e o mesmo banco de dados. Você liga as que usa; cada uma sabe te achar no WhatsApp quando chega a hora."
         breadcrumb={[
           { label: "Produtos", href: "/products" },
           { label: "Orkiestri One", href: "/products/orkiestri-one" },
@@ -89,14 +89,14 @@ export default function OrkiestriOnePage() {
             O conceito
           </span>
           <h2 className="mt-4 text-[2rem] font-bold text-chalk md:text-[2.75rem]">
-            Não é um ERP. Não é um CRM. É um Business Operating System.
+            Não é um ERP. É o lugar onde a sua semana cabe.
           </h2>
           <p className="mt-5 text-lg leading-relaxed text-chalk-dim">
-            Assim como um sistema operacional conecta hardware e aplicativos, o
-            Orkiestri One conecta todos os processos da empresa. Ele funciona
-            como uma camada central que organiza toda a operação corporativa —
-            substituindo dezenas de ferramentas isoladas por uma única
-            experiência integrada.
+            ERP existe para a empresa fechar o mês. Este existe para você não
+            perder a reunião das duas, não esquecer a conta que vence dia 10 e
+            não ser cobrado de novo por um procedimento que já escreveu. As
+            telas são as mesmas para uma pessoa e para um time — muda só quem
+            recebe o aviso.
           </p>
         </div>
       </Section>
@@ -105,8 +105,8 @@ export default function OrkiestriOnePage() {
       <Section muted>
         <SectionHeader
           eyebrow="Arquitetura"
-          title="Uma base tecnológica compartilhada."
-          description="Cada aplicação compartilha a mesma fundação — segurança, IA, automação e analytics — garantindo consistência e escala."
+          title="Uma base só, para não repetir cadastro."
+          description="Login, permissões, avisos e histórico são os mesmos em todas as aplicações. Você cadastra uma pessoa uma vez e ela existe no sistema inteiro."
         />
         <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {layers.map((l, i) => {
@@ -130,8 +130,8 @@ export default function OrkiestriOnePage() {
       <Section id="aplicacoes">
         <SectionHeader
           eyebrow="Aplicações"
-          title="Ative apenas o que sua empresa precisa."
-          description="Cada aplicação pode ser adquirida individualmente ou como parte da plataforma completa. A plataforma cresce conforme a empresa evolui."
+          title="Ligue só o que você usa."
+          description="Dá para começar só com a agenda e os gastos. O que você não liga não aparece na sua tela, e dá para ligar depois sem recomeçar nada."
         />
         <div className="mt-12">
           <ProductsGrid />
@@ -140,7 +140,7 @@ export default function OrkiestriOnePage() {
 
       {/* Benefits */}
       <Section muted>
-        <SectionHeader eyebrow="Benefícios" title="O que muda na sua operação." />
+        <SectionHeader eyebrow="Benefícios" title="O que muda no seu dia." />
         <div className="mx-auto mt-12 grid max-w-4xl grid-cols-1 gap-3 sm:grid-cols-2">
           {benefits.map((b, i) => (
             <Reveal key={b} delay={(i % 2) * 0.05}>
@@ -156,8 +156,8 @@ export default function OrkiestriOnePage() {
       </Section>
 
       <CTA
-        title="Uma nova forma de operar sua empresa."
-        text="One Platform. Infinite Business. Vamos mostrar como o Orkiestri One conecta toda a sua operação."
+        title="Comece pela agenda. O resto vem quando precisar."
+        text="A conta nasce numa conversa de WhatsApp, com os módulos já ligados."
       />
     </>
   );

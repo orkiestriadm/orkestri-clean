@@ -8,7 +8,7 @@ import { buildMetadata } from "@/lib/seo";
 export const metadata = buildMetadata({
   title: "Soluções",
   description:
-    "Da estratégia ao desenvolvimento. Atuamos em todas as etapas da transformação digital, desde a concepção até a evolução contínua da solução.",
+    "Da estratégia ao desenvolvimento. Atuamos em todas as etapas da evolução do seu software, desde a concepção até a evolução contínua da solução.",
   path: "/services",
 });
 
@@ -18,7 +18,7 @@ export default function ServicesPage() {
       <PageHero
         eyebrow="Soluções"
         title="Da estratégia ao desenvolvimento."
-        description="Nossa equipe atua em todas as etapas da transformação digital, desde a concepção até a evolução contínua da solução."
+        description="Nossa equipe atua em todas as etapas da evolução do seu software, desde a concepção até a evolução contínua da solução."
         breadcrumb={[{ label: "Soluções", href: "/services" }]}
       />
       <Section>

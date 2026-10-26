@@ -18,7 +18,7 @@ export function buildMetadata({
   const url = `${siteConfig.url}${path}`;
   const fullTitle = title
     ? `${title} · ${siteConfig.name}`
-    : `${siteConfig.name} — Enterprise Software Company`;
+    : `${siteConfig.name} — a sua vida organizada, com aviso no WhatsApp`;
 
   return {
     title: fullTitle,
@@ -59,7 +59,7 @@ export function softwareApplicationSchema() {
     "@context": "https://schema.org",
     "@type": "SoftwareApplication",
     name: "Orkiestri One",
-    applicationCategory: "BusinessApplication",
+    applicationCategory: "ProductivityApplication",
     operatingSystem: "Web",
     offers: { "@type": "Offer", category: "SaaS" },
     publisher: { "@type": "Organization", name: siteConfig.name },

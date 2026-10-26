@@ -20,7 +20,7 @@ import { buildMetadata } from "@/lib/seo";
 export const metadata = buildMetadata({
   title: "Empresa",
   description:
-    "A Orkiestri é uma Enterprise Software Company. Acreditamos que grandes empresas precisam de plataformas sólidas, escaláveis e preparadas para evoluir continuamente.",
+    "A Orkiestri constrói software. O Orkiestri nasceu de um problema nosso: lembrar das coisas sem depender de lembrar das coisas.",
   path: "/company",
 });
 
@@ -40,7 +40,7 @@ export default function CompanyPage() {
     <>
       <PageHero
         eyebrow="Empresa"
-        title="Tecnologia construída para durar."
+        title="A gente constrói software. Este aqui era para uso próprio."
         description="Acreditamos que grandes empresas precisam de plataformas sólidas, escaláveis e preparadas para evoluir continuamente. Nossa missão é desenvolver soluções capazes de acompanhar esse crescimento."
         breadcrumb={[{ label: "Empresa", href: "/company" }]}
       />
@@ -54,9 +54,9 @@ export default function CompanyPage() {
                 Missão
               </span>
               <p className="mt-4 text-xl font-medium leading-relaxed text-chalk">
-                Transformar processos empresariais em operações inteligentes
-                através da tecnologia — aumentando produtividade, reduzindo
-                desperdícios e criando novas oportunidades de crescimento.
+                Tirar da sua cabeça o que uma máquina lembra melhor — e devolver
+                isso em forma de aviso, na hora certa, no lugar onde você já
+                está.
               </p>
             </div>
           </Reveal>
@@ -66,9 +66,8 @@ export default function CompanyPage() {
                 Visão
               </span>
               <p className="mt-4 text-xl font-medium leading-relaxed text-chalk">
-                Ser reconhecida como uma das principais empresas brasileiras de
-                software corporativo — referência em inovação, experiência do
-                usuário e inteligência aplicada aos negócios.
+                Que ninguém precise de disciplina para dar conta do próprio dia. O
+                sistema lembra; você decide.
               </p>
             </div>
           </Reveal>

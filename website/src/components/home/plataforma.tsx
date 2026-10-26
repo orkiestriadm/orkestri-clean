@@ -1,63 +1,66 @@
 import Link from "next/link";
-import { BrainCircuit, Zap, Plug, BarChart3, ShieldCheck } from "lucide-react";
+import { BellRing, MessageSquareText, Lock, Smartphone } from "lucide-react";
 import { Faixa, Cabecalho, LinkTexto } from "./ui";
 import { products } from "@/config/products";
 import { cn } from "@/lib/utils";
 
 /**
- * Orkiestri One — a plataforma, as aplicações e o que elas compartilham.
+ * O que o Orkiestri organiza.
  *
- * Esta seção substitui três que existiam separadas (Plataforma, Produtos e
- * Diferenciais) e diziam a mesma coisa de três maneiras. Juntas em uma só, o
- * argumento fica inteiro: uma base, as aplicações, quatro capacidades que
- * valem para todas.
+ * Substitui três seções que diziam a mesma coisa de três jeitos (Plataforma,
+ * Produtos e Diferenciais). As aplicações entram como LISTA, não como seis
+ * cartões iguais: cartão igual não cria hierarquia, tudo pesa o mesmo e nada
+ * pesa.
  *
- * As aplicações entram como LISTA, não como cartões iguais. Cartões iguais
- * com a mesma borda e a mesma sombra não criam hierarquia nenhuma — tudo pesa
- * igual, então nada pesa. A lista deixa o nome do módulo carregar o peso.
+ * ⚠️ As quatro afirmações de baixo são verificáveis:
+ * - os horários dos lembretes estão em `alert.scheduler.ts`;
+ * - os comandos, em `whatsapp-inbound.module.ts`;
+ * - "cada um só vê o seu" vale para `gastos` (gasto pessoal é por usuário);
+ * - o cadastro pelo WhatsApp é o `cadastro-whatsapp.module.ts`.
  */
 
-const capacidades = [
+const comoFunciona = [
   {
-    icone: BrainCircuit,
-    titulo: "IA nativa",
+    icone: BellRing,
+    titulo: "Avisa antes",
     texto:
-      "Copilotos, OCR e busca semântica durante o uso, não como módulo à parte.",
+      "Uma hora antes do compromisso, de novo aos quinze minutos e na hora que começa.",
   },
   {
-    icone: Zap,
-    titulo: "Automação",
-    texto: "Fluxos, aprovações e eventos no lugar do trabalho repetitivo.",
+    icone: MessageSquareText,
+    titulo: "Entende o que você escreve",
+    texto:
+      "“Gasto: mercado 182 no crédito” basta. Sem formulário, sem campo obrigatório.",
   },
   {
-    icone: Plug,
-    titulo: "API aberta",
-    texto: "REST, webhooks e integração com Microsoft 365, SAP e TOTVS.",
+    icone: Lock,
+    titulo: "O que é seu é só seu",
+    texto:
+      "Gasto pessoal fica no seu usuário. Nem o administrador da conta vê o seu lançamento.",
   },
   {
-    icone: BarChart3,
-    titulo: "Indicadores",
-    texto: "Todos os módulos alimentam a mesma camada de análise.",
+    icone: Smartphone,
+    titulo: "Começa numa conversa",
+    texto:
+      "A conta nasce pelo WhatsApp, com os módulos já ligados. Depois você entra pelo navegador se quiser.",
   },
 ];
 
 export function Plataforma() {
   return (
-    <Faixa id="plataforma" tom="raise">
+    <Faixa id="organiza" tom="raise">
       <Cabecalho
-        titulo="Uma base. Seis aplicações."
-        texto="Em vez de sistemas desconectados que não se falam, um ambiente só: o mesmo login, as mesmas permissões, os mesmos dados. Você ativa o que a operação usa, e a plataforma cresce junto."
+        titulo="Seis coisas que você não devia ter que lembrar sozinho."
+        texto="Agenda, contas, projetos, pedidos, procedimentos e acessos. Tudo no mesmo lugar, com o mesmo login — e cada um deles sabe te achar no WhatsApp."
         acao={
           <LinkTexto href="/products/orkiestri-one">
-            Conhecer a plataforma
+            Ver como se encaixam
           </LinkTexto>
         }
       />
 
-      {/* ── As aplicações ───────────────────────────────────────────
-          Grade de fios: cada célula se separa das vizinhas por uma linha de
-          1px, como uma tabela. É um desenho de engenharia, não de catálogo —
-          e combina com o que o produto é. */}
+      {/* Grade de fios: cada célula se separa das vizinhas por uma linha de
+          1px, como uma tabela. Desenho de engenharia, não de catálogo. */}
       <ul className="mt-14 grid gap-px overflow-hidden rounded-(--radius-card) bg-white/[0.07] sm:grid-cols-2 lg:grid-cols-3">
         {products.map((p) => {
           const Icone = p.icon;
@@ -74,13 +77,8 @@ export function Plataforma() {
                   <Icone className="h-[18px] w-[18px]" aria-hidden />
                 </span>
                 <span className="min-w-0">
-                  <span className="flex flex-wrap items-center gap-2">
-                    <span className="font-semibold text-chalk">{p.name}</span>
-                    {p.comingSoon && (
-                      <span className="rounded-full bg-white/[0.06] px-2 py-0.5 text-[0.6875rem] font-medium text-chalk-faint">
-                        Em breve
-                      </span>
-                    )}
+                  <span className="block font-semibold text-chalk">
+                    {p.name}
                   </span>
                   <span className="mt-1 block text-[0.9375rem] leading-relaxed text-chalk-dim">
                     {p.tagline}
@@ -92,12 +90,10 @@ export function Plataforma() {
         })}
       </ul>
 
-      {/* ── O que vale para todas ────────────────────────────────────────
-          Sem cartão: um fio em cima de cada bloco já diz que são quatro
-          itens de um mesmo conjunto. A borda completa só acrescentaria
-          desenho. */}
+      {/* Sem cartão: um fio em cima de cada bloco já diz que são quatro itens
+          de um mesmo conjunto. A borda completa só acrescentaria desenho. */}
       <div className="mt-16 grid gap-x-10 gap-y-10 sm:grid-cols-2 lg:grid-cols-4">
-        {capacidades.map((c) => {
+        {comoFunciona.map((c) => {
           const Icone = c.icone;
           return (
             <div key={c.titulo} className="border-t border-white/[0.09] pt-5">
@@ -110,18 +106,6 @@ export function Plataforma() {
           );
         })}
       </div>
-
-      <p className="mt-12 flex items-start gap-3 text-[0.9375rem] leading-relaxed text-chalk-dim">
-        <ShieldCheck
-          className="mt-0.5 h-5 w-5 shrink-0 text-chalk-faint"
-          aria-hidden
-        />
-        <span>
-          Autenticação multifator, criptografia, permissões granulares, trilha
-          de auditoria e conformidade com a LGPD — em todos os módulos, não
-          como item de plano superior.
-        </span>
-      </p>
     </Faixa>
   );
 }

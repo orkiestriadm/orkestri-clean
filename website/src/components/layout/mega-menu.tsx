@@ -41,7 +41,7 @@ export function ProductsMenu({ onNavigate }: { onNavigate?: () => void }) {
               Orkiestri One
             </span>
             <span className="text-sm text-chalk-faint">
-              O Business Operating System da sua empresa.
+              Tudo o que ele organiza, num lugar só.
             </span>
           </span>
           <ArrowRight className="h-5 w-5 shrink-0 text-flame-soft" aria-hidden />

@@ -32,41 +32,39 @@ export const softwareFactoryProcess: ProcessStep[] = [
 
 /** Home / plataforma FAQ (doc 07 — FAQ accordion). */
 export const homeFaq: FaqItem[] = [
-  /* Primeira pergunta de propósito: o site passou a ter um único caminho de
-     cadastro (26/10/2026) e quem chega estranha não achar formulário. */
   {
-    question: "Por que o cadastro é pelo WhatsApp?",
+    question: 'Preciso instalar alguma coisa?',
     answer:
-      "Porque é onde a conversa já acontece. Você manda uma mensagem, responde as perguntas do cadastro ali mesmo e recebe a empresa criada com os módulos ligados — sem formulário no navegador e sem esperar aprovação. Depois disso, o mesmo canal serve para abrir chamado, marcar compromisso, criar projeto ou lançar uma despesa. Se preferir falar com uma pessoa antes, use a página de contato.",
+      'Não. O cadastro acontece numa conversa de WhatsApp, no número que você já usa, e os avisos chegam por lá. Existe um site onde você entra para ver tudo com calma — agenda, gastos, projetos —, mas o dia a dia funciona só por mensagem.',
   },
   {
-    question: "O que é o Orkiestri One?",
+    question: 'Por que o cadastro é pelo WhatsApp?',
     answer:
-      "O Orkiestri One é um Business Operating System: uma plataforma empresarial modular que reúne gestão, automação, inteligência artificial e integrações em uma única experiência. Em vez de dezenas de sistemas desconectados, sua empresa opera em um ambiente único.",
+      'Porque é onde a conversa já acontece. Você manda uma mensagem, responde as perguntas do cadastro ali mesmo e recebe a conta pronta, com os módulos ligados — sem formulário e sem esperar aprovação. Se preferir falar com uma pessoa antes, use a página de contato.',
   },
   {
-    question: "Preciso contratar todos os módulos?",
+    question: 'Que avisos eu recebo, e quando?',
     answer:
-      "Não. Cada aplicação pode ser adquirida individualmente, por departamento, em pacotes ou como parte da plataforma completa. Você ativa apenas os módulos necessários e a plataforma cresce conforme a empresa evolui.",
+      "Compromisso: uma hora antes, de novo aos quinze minutos, aos cinco e na hora que começa. Gastos: um resumo da semana todo domingo às 20h, só se você tiver lançado algo — e você desliga respondendo “parar resumo”. Chamados: quando o prazo entra em risco, estoura ou é escalado. Em Acessos você escolhe, módulo por módulo, o que quer receber.",
   },
   {
-    question: "A Orkiestri também desenvolve software sob medida?",
+    question: 'Dá para usar só a agenda, ou só os gastos?',
     answer:
-      "Sim. Nossa Software Factory desenvolve aplicações web, mobile, portais, dashboards e integrações personalizadas, além de modernização de sistemas legados — tudo com o mesmo padrão de engenharia da plataforma.",
+      'Dá. Você liga o que usa e o resto não aparece na sua tela. Nada obriga você a preencher um módulo para outro funcionar.',
   },
   {
-    question: "Como funciona a Inteligência Artificial na plataforma?",
+    question: 'Meus gastos ficam visíveis para outras pessoas?',
     answer:
-      "A IA é uma capacidade compartilhada, não um módulo isolado. Ela aparece naturalmente durante o uso — resumos automáticos, classificação, busca semântica, copilotos e automações inteligentes distribuídos por toda a plataforma.",
+      'Não. Gasto pessoal fica no seu usuário: cada pessoa só vê os próprios lançamentos, inclusive quem administra a conta. Contas a pagar e orçamento são outra coisa — esses são da empresa e seguem as permissões que o administrador definir.',
   },
   {
-    question: "A plataforma se integra com meus sistemas atuais?",
+    question: 'Serve para uma pessoa só ou para um time?',
     answer:
-      "Sim. O Orkiestri One foi concebido para ser aberto, com API REST, webhooks e integrações com Microsoft 365, Google Workspace, SAP, TOTVS, Oracle, Active Directory e provedores de nuvem.",
+      'Os dois. Sozinho, ele é a sua agenda, as suas anotações e o seu controle de gastos. Com um time, as mesmas telas passam a ter responsável, prazo e histórico — e cada um continua recebendo no WhatsApp só o que é dele.',
   },
   {
-    question: "A Orkiestri atende empresas de qual porte?",
+    question: 'E se eu quiser algo que o Orkiestri não faz?',
     answer:
-      "Atendemos empresas de médio e grande porte, tipicamente entre 50 e 5.000 colaboradores, com operações complexas e necessidade de integração, automação e governança.",
+      'A gente também constrói software sob medida — foi assim que o próprio Orkiestri nasceu. Se o que você precisa não existe aqui, dá para conversar sobre construir.',
   },
 ];

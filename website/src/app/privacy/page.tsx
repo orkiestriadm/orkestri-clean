@@ -26,7 +26,7 @@ export default function PrivacyPage() {
 
           <h2>1. Quem somos</h2>
           <p>
-            A {siteConfig.legalName} é uma Enterprise Software Company responsável
+            A {siteConfig.legalName} é a empresa responsável
             pelo tratamento dos dados pessoais coletados através deste website.
           </p>
 

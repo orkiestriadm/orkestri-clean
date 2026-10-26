@@ -7,7 +7,7 @@ import { buildMetadata } from "@/lib/seo";
 export const metadata = buildMetadata({
   title: "Blog",
   description:
-    "Conteúdos sobre tecnologia, gestão, inteligência artificial, cloud e transformação digital.",
+    "Conteúdos sobre tecnologia, gestão, inteligência artificial, cloud e tecnologia do dia a dia.",
   path: "/blog",
 });
 
@@ -19,7 +19,7 @@ export default function BlogPage() {
       <PageHero
         eyebrow="Blog"
         title="Ideias sobre tecnologia e crescimento."
-        description="Conteúdos sobre tecnologia, gestão, inteligência artificial, cloud e transformação digital. Estamos preparando nossos primeiros artigos."
+        description="Conteúdos sobre tecnologia, gestão, inteligência artificial, cloud e tecnologia do dia a dia. Estamos preparando nossos primeiros artigos."
         breadcrumb={[{ label: "Blog", href: "/blog" }]}
       />
 

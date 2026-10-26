@@ -29,8 +29,8 @@ export function Footer() {
           <div className="flex flex-col gap-4">
             <Logo tone="light" />
             <p className="max-w-xs text-sm leading-relaxed text-chalk-dim">
-              Construindo plataformas inteligentes para empresas que desejam
-              crescer através da tecnologia.
+              A sua agenda, as suas contas e os seus projetos num lugar só —
+              com aviso no WhatsApp na hora em que ainda dá tempo.
             </p>
             <div className="mt-2 flex gap-2">
               {socials.map((s) => {
