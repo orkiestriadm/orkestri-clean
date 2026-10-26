@@ -13,14 +13,22 @@ const socials = [
   { label: "YouTube", href: siteConfig.social.youtube, icon: Youtube },
 ];
 
+/**
+ * Rodapé — escuro em TODAS as páginas, inclusive nas claras.
+ *
+ * A home passou a ser escura (26/10/2026) e um rodapé branco embaixo dela
+ * cortava a página ao meio. Escurecer só na home resolveria a emenda e
+ * criaria outra: dois rodapés diferentes no mesmo site. Rodapé escuro sob
+ * conteúdo claro é leitura corrente e fecha a página nos dois casos.
+ */
 export function Footer() {
   return (
-    <footer className="border-t border-gray-200 bg-white">
+    <footer className="border-t border-white/[0.08] bg-ink">
       <Container className="py-16">
         <div className="grid gap-12 lg:grid-cols-[1.4fr_repeat(4,1fr)]">
           <div className="flex flex-col gap-4">
-            <Logo />
-            <p className="max-w-xs text-sm leading-relaxed text-gray-500">
+            <Logo tone="light" />
+            <p className="max-w-xs text-sm leading-relaxed text-chalk-dim">
               Construindo plataformas inteligentes para empresas que desejam
               crescer através da tecnologia.
             </p>
@@ -34,7 +42,7 @@ export function Footer() {
                     aria-label={s.label}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-gray-200 text-gray-500 transition-colors hover:border-primary hover:text-primary"
+                    className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/[0.1] text-chalk-dim transition-colors hover:border-flame/40 hover:text-flame-soft"
                   >
                     <Icon className="h-[18px] w-[18px]" aria-hidden />
                   </a>
@@ -45,18 +53,16 @@ export function Footer() {
 
           {footerNav.map((col) => (
             <div key={col.title} className="flex flex-col gap-3">
-              <span className="text-sm font-semibold uppercase tracking-wider text-dark">
+              {/* Sem caixa alta espaçada: o título de coluna de rodapé em
+                  versal tracked é o mesmo adereço de template que saiu das
+                  seções da home. Aqui basta ser menor e mais apagado. */}
+              <span className="text-[0.8125rem] font-medium text-chalk-faint">
                 {col.title}
               </span>
               <ul className="flex flex-col gap-2.5">
                 {col.items.map((item) => (
                   <li key={item.href}>
-                    <Link
-                      href={item.href}
-                      className="text-sm text-gray-500 transition-colors hover:text-primary"
-                    >
-                      {item.label}
-                    </Link>
+                    <LinkDoRodape href={item.href}>{item.label}</LinkDoRodape>
                   </li>
                 ))}
               </ul>
@@ -64,7 +70,7 @@ export function Footer() {
           ))}
         </div>
 
-        <div className="mt-14 flex flex-col items-center justify-between gap-4 border-t border-gray-100 pt-8 text-sm text-gray-400 sm:flex-row">
+        <div className="mt-14 flex flex-col items-center justify-between gap-4 border-t border-white/[0.07] pt-8 text-sm text-chalk-faint sm:flex-row">
           <p>
             © {new Date().getFullYear()} {siteConfig.legalName}. Todos os
             direitos reservados.
@@ -73,12 +79,49 @@ export function Footer() {
             Engineering Business Growth.
             {/* Versão discreta: serve de referência ao relatar problema, sem
                 disputar atenção com o conteúdo do rodapé. */}
-            <span className="text-gray-300" title={"Site " + VERSAO_SITE + " · " + VERSAO_SITE_DATA}>
+            <span
+              className="text-white/25"
+              title={"Site " + VERSAO_SITE + " · " + VERSAO_SITE_DATA}
+            >
               v{VERSAO_SITE}
             </span>
           </p>
         </div>
       </Container>
     </footer>
+  );
+}
+
+/**
+ * O rodapé passou a ter um destino externo (o WhatsApp do cadastro), e o
+ * `Link` do Next para fora do site não abre em nova aba nem leva o `rel`
+ * de segurança. Quem decide é o protocolo do href.
+ */
+function LinkDoRodape({
+  href,
+  children,
+}: {
+  href: string;
+  children: React.ReactNode;
+}) {
+  const classe =
+    "text-sm text-chalk-dim transition-colors hover:text-flame-soft";
+
+  if (href.startsWith("http")) {
+    return (
+      <a
+        href={href}
+        target="_blank"
+        rel="noopener noreferrer"
+        className={classe}
+      >
+        {children}
+      </a>
+    );
+  }
+  return (
+    <Link href={href} className={classe}>
+      {children}
+    </Link>
   );
 }
