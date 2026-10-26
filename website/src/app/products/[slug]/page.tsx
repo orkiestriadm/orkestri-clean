@@ -76,7 +76,7 @@ export default async function ProductPage({
       >
         {product.comingSoon ? (
           <div className="flex flex-col items-start gap-4">
-            <p className="rounded-(--radius-card) border border-gray-200 bg-gray-50 px-5 py-4 text-[0.9375rem] text-gray-600">
+            <p className="rounded-(--radius-card) border border-white/[0.08] bg-ink-raise px-5 py-4 text-[0.9375rem] text-chalk-dim">
               Este módulo está em desenvolvimento. Fale com nosso time para
               acompanhar o lançamento ou avaliar uma solução sob medida enquanto
               isso.
@@ -119,11 +119,11 @@ export default async function ProductPage({
         <div className="mt-10 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {product.features.map((f, i) => (
             <Reveal key={f} delay={(i % 3) * 0.04}>
-              <div className="flex items-center gap-3 rounded-2xl border border-gray-200 bg-white px-5 py-4">
-                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary-soft text-primary-hover">
+              <div className="flex items-center gap-3 rounded-2xl border border-white/[0.08] bg-panel px-5 py-4">
+                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-flame/10 text-flame">
                   <Check className="h-4 w-4" aria-hidden />
                 </span>
-                <span className="font-medium text-dark">{f}</span>
+                <span className="font-medium text-chalk">{f}</span>
               </div>
             </Reveal>
           ))}
@@ -133,12 +133,12 @@ export default async function ProductPage({
       {/* AI + Integrations */}
       <Section muted>
         <div className="grid gap-8 lg:grid-cols-2">
-          <div className="rounded-(--radius-card) border border-gray-200 bg-white p-8">
+          <div className="rounded-(--radius-card) border border-white/[0.08] bg-panel p-8">
             <IconTile icon={Sparkles} />
-            <h3 className="mt-5 text-xl font-semibold text-dark">
+            <h3 className="mt-5 text-xl font-semibold text-chalk">
               Inteligência Artificial
             </h3>
-            <p className="mt-2 text-gray-500">
+            <p className="mt-2 text-chalk-dim">
               Capacidades de IA nativas, presentes durante o uso.
             </p>
             <ul className="mt-5 flex flex-wrap gap-2">
@@ -151,12 +151,12 @@ export default async function ProductPage({
           </div>
 
           {product.integrations && product.integrations.length > 0 && (
-            <div className="rounded-(--radius-card) border border-gray-200 bg-white p-8">
+            <div className="rounded-(--radius-card) border border-white/[0.08] bg-panel p-8">
               <IconTile icon={Plug} tone="dark" />
-              <h3 className="mt-5 text-xl font-semibold text-dark">
+              <h3 className="mt-5 text-xl font-semibold text-chalk">
                 Integrações
               </h3>
-              <p className="mt-2 text-gray-500">
+              <p className="mt-2 text-chalk-dim">
                 Conecte com as ferramentas que você já usa.
               </p>
               <ul className="mt-5 flex flex-wrap gap-2">

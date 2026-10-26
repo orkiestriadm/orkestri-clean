@@ -28,16 +28,16 @@ export default function BlogPage() {
           {categories.map((c) => (
             <span
               key={c}
-              className="rounded-full border border-gray-200 bg-white px-5 py-2.5 text-sm font-medium text-gray-600"
+              className="rounded-full border border-white/[0.08] bg-panel px-5 py-2.5 text-sm font-medium text-chalk-dim"
             >
               {c}
             </span>
           ))}
         </div>
 
-        <div className="mx-auto mt-16 max-w-xl rounded-(--radius-card) border border-gray-200 bg-gray-50 p-10 text-center">
-          <h2 className="text-2xl font-semibold text-dark">Em breve</h2>
-          <p className="mt-3 text-gray-600">
+        <div className="mx-auto mt-16 max-w-xl rounded-(--radius-card) border border-white/[0.08] bg-ink-raise p-10 text-center">
+          <h2 className="text-2xl font-semibold text-chalk">Em breve</h2>
+          <p className="mt-3 text-chalk-dim">
             Estamos construindo um espaço de conteúdo técnico e de negócios. Quer
             ser avisado quando publicarmos? Fale com a gente.
           </p>

@@ -13,7 +13,6 @@ import { PageHero } from "@/components/sections/page-hero";
 import { IconTile } from "@/components/ui/icon-tile";
 import { Section, SectionHeader } from "@/components/ui/section";
 import { Button } from "@/components/ui/button";
-import { Stats } from "@/components/sections/stats";
 import { Reveal } from "@/components/animations/reveal";
 import { CTA } from "@/components/sections/cta";
 import { buildMetadata } from "@/lib/seo";
@@ -50,11 +49,11 @@ export default function CompanyPage() {
       <Section>
         <div className="grid gap-6 lg:grid-cols-2">
           <Reveal>
-            <div className="h-full rounded-(--radius-card) border border-gray-200 bg-white p-8">
-              <span className="text-sm font-semibold uppercase tracking-wider text-primary">
+            <div className="h-full rounded-(--radius-card) border border-white/[0.08] bg-panel p-8">
+              <span className="text-[0.8125rem] font-medium text-flame-soft">
                 Missão
               </span>
-              <p className="mt-4 text-xl font-medium leading-relaxed text-dark">
+              <p className="mt-4 text-xl font-medium leading-relaxed text-chalk">
                 Transformar processos empresariais em operações inteligentes
                 através da tecnologia — aumentando produtividade, reduzindo
                 desperdícios e criando novas oportunidades de crescimento.
@@ -62,11 +61,11 @@ export default function CompanyPage() {
             </div>
           </Reveal>
           <Reveal delay={0.1}>
-            <div className="h-full rounded-(--radius-card) border border-gray-200 bg-white p-8">
-              <span className="text-sm font-semibold uppercase tracking-wider text-primary">
+            <div className="h-full rounded-(--radius-card) border border-white/[0.08] bg-panel p-8">
+              <span className="text-[0.8125rem] font-medium text-flame-soft">
                 Visão
               </span>
-              <p className="mt-4 text-xl font-medium leading-relaxed text-dark">
+              <p className="mt-4 text-xl font-medium leading-relaxed text-chalk">
                 Ser reconhecida como uma das principais empresas brasileiras de
                 software corporativo — referência em inovação, experiência do
                 usuário e inteligência aplicada aos negócios.
@@ -76,7 +75,6 @@ export default function CompanyPage() {
         </div>
       </Section>
 
-      <Stats />
 
       {/* Values */}
       <Section muted>
@@ -89,12 +87,12 @@ export default function CompanyPage() {
             const Icon = v.icon;
             return (
               <Reveal key={v.title} delay={(i % 4) * 0.05}>
-                <div className="h-full rounded-(--radius-card) border border-gray-200 bg-white p-6">
+                <div className="h-full rounded-(--radius-card) border border-white/[0.08] bg-panel p-6">
                   <IconTile icon={Icon} />
-                  <h3 className="mt-5 text-lg font-semibold text-dark">
+                  <h3 className="mt-5 text-lg font-semibold text-chalk">
                     {v.title}
                   </h3>
-                  <p className="mt-2 text-[0.9375rem] text-gray-500">{v.text}</p>
+                  <p className="mt-2 text-[0.9375rem] text-chalk-dim">{v.text}</p>
                 </div>
               </Reveal>
             );
@@ -105,10 +103,10 @@ export default function CompanyPage() {
       {/* Manifesto */}
       <Section>
         <Reveal className="mx-auto max-w-3xl text-center">
-          <span className="text-sm font-semibold uppercase tracking-wider text-primary">
+          <span className="text-[0.8125rem] font-medium text-flame-soft">
             Manifesto
           </span>
-          <p className="mt-6 text-[1.75rem] font-semibold leading-snug text-dark md:text-[2.25rem]">
+          <p className="mt-6 text-[1.75rem] font-semibold leading-snug text-chalk md:text-[2.25rem]">
             Empresas deveriam investir seu tempo crescendo. Não apagando
             incêndios, conciliando planilhas ou movimentando informações entre
             sistemas. Tecnologia deve trabalhar para as pessoas — não o

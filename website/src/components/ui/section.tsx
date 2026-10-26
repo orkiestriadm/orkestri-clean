@@ -25,7 +25,7 @@ export function Section({
       id={id}
       className={cn(
         "py-20 md:py-28",
-        muted && "bg-gray-50",
+        muted && "bg-ink-raise",
         className
       )}
     >
@@ -34,39 +34,65 @@ export function Section({
   );
 }
 
-/** Section eyebrow + title + description block (reused across pages). */
+/**
+ * Cabeçalho de seção.
+ *
+ * O rótulo em caixa alta acima do título SAIU (26/10/2026). O site tinha um
+ * em cada seção de cada página — `PRODUTOS`, `PLATAFORMA`, `APLICAÇÕES`,
+ * `VALORES`, `SOLUÇÕES`… — sempre dizendo o que o título logo abaixo já
+ * dizia. É o adereço que mais faz uma página parecer montada em template.
+ * A prop continua aceita porque quinze páginas a passam; ela simplesmente
+ * não desenha mais nada.
+ *
+ * O alinhamento padrão virou à ESQUERDA, em duas colunas quando há texto de
+ * apoio: título e descrição centrados num bloco estreito dão à página um ar
+ * de slide de apresentação.
+ */
 export function SectionHeader({
-  eyebrow,
   title,
   description,
-  align = "center",
+  align = "left",
   className,
 }: {
+  /** Aceito e ignorado — ver o comentário acima. */
   eyebrow?: string;
   title: string;
   description?: string;
   align?: "center" | "left";
   className?: string;
 }) {
+  const tituloEl = (
+    <h2 className="font-display text-[1.875rem] font-bold leading-[1.1] tracking-[-0.03em] text-chalk [font-stretch:108%] md:text-[2.5rem]">
+      {title}
+    </h2>
+  );
+
+  if (align === "center") {
+    return (
+      <div className={cn("mx-auto flex max-w-2xl flex-col items-center gap-5 text-center", className)}>
+        {tituloEl}
+        {description && (
+          <p className="text-[1.0625rem] leading-[1.65] text-chalk-dim">
+            {description}
+          </p>
+        )}
+      </div>
+    );
+  }
+
+  if (!description) return <div className={className}>{tituloEl}</div>;
+
   return (
     <div
       className={cn(
-        "flex flex-col gap-4",
-        align === "center" && "mx-auto max-w-2xl text-center items-center",
-        className
+        "grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.85fr)] lg:gap-16",
+        className,
       )}
     >
-      {eyebrow && (
-        <span className="text-sm font-semibold uppercase tracking-wider text-primary">
-          {eyebrow}
-        </span>
-      )}
-      <h2 className="text-[2rem] md:text-[2.75rem] font-bold text-dark">
-        {title}
-      </h2>
-      {description && (
-        <p className="text-lg text-gray-600 leading-relaxed">{description}</p>
-      )}
+      {tituloEl}
+      <p className="text-[1.0625rem] leading-[1.65] text-chalk-dim lg:pt-1.5">
+        {description}
+      </p>
     </div>
   );
 }

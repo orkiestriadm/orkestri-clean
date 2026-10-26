@@ -5,14 +5,14 @@ import { products } from "@/config/products";
 import { cn } from "@/lib/utils";
 
 /**
- * Orkiestri One — a plataforma, as doze aplicações e o que elas compartilham.
+ * Orkiestri One — a plataforma, as aplicações e o que elas compartilham.
  *
  * Esta seção substitui três que existiam separadas (Plataforma, Produtos e
  * Diferenciais) e diziam a mesma coisa de três maneiras. Juntas em uma só, o
- * argumento fica inteiro: uma base, doze aplicações, quatro capacidades que
+ * argumento fica inteiro: uma base, as aplicações, quatro capacidades que
  * valem para todas.
  *
- * As aplicações entram como LISTA, não como doze cartões iguais. Doze cartões
+ * As aplicações entram como LISTA, não como cartões iguais. Cartões iguais
  * com a mesma borda e a mesma sombra não criam hierarquia nenhuma — tudo pesa
  * igual, então nada pesa. A lista deixa o nome do módulo carregar o peso.
  */
@@ -45,7 +45,7 @@ export function Plataforma() {
   return (
     <Faixa id="plataforma" tom="raise">
       <Cabecalho
-        titulo="Uma base. Doze aplicações."
+        titulo="Uma base. Seis aplicações."
         texto="Em vez de sistemas desconectados que não se falam, um ambiente só: o mesmo login, as mesmas permissões, os mesmos dados. Você ativa o que a operação usa, e a plataforma cresce junto."
         acao={
           <LinkTexto href="/products/orkiestri-one">
@@ -54,7 +54,7 @@ export function Plataforma() {
         }
       />
 
-      {/* ── As doze aplicações ───────────────────────────────────────────
+      {/* ── As aplicações ───────────────────────────────────────────
           Grade de fios: cada célula se separa das vizinhas por uma linha de
           1px, como uma tabela. É um desenho de engenharia, não de catálogo —
           e combina com o que o produto é. */}

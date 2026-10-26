@@ -32,10 +32,10 @@ export default function DemoPage() {
           <ul className="flex flex-col gap-4">
             {benefits.map((b) => (
               <li key={b} className="flex items-start gap-3">
-                <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary-soft text-primary-hover">
+                <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-flame/10 text-flame">
                   <Check className="h-4 w-4" aria-hidden />
                 </span>
-                <span className="text-gray-600">{b}</span>
+                <span className="text-chalk-dim">{b}</span>
               </li>
             ))}
           </ul>

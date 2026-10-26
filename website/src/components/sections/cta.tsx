@@ -16,12 +16,12 @@ export function CTA({
   return (
     <section className="py-20 md:py-28">
       <Container>
-        <Reveal className="relative overflow-hidden rounded-(--radius-image) bg-dark px-8 py-16 text-center md:px-16 md:py-20">
+        <Reveal className="relative overflow-hidden rounded-(--radius-image) bg-ink px-8 py-16 text-center md:px-16 md:py-20">
           <VideoBackdrop src="/media/light-streaks.mp4" opacity={0.22} />
           {/* Véu sobre o vídeo: mantém o contraste do texto em AA */}
           <div
             aria-hidden
-            className="pointer-events-none absolute inset-0 bg-dark/55"
+            className="pointer-events-none absolute inset-0 bg-ink/55"
           />
           <div
             aria-hidden
@@ -31,7 +31,7 @@ export function CTA({
             <h2 className="text-[2rem] font-bold text-white md:text-[2.75rem]">
               {title}
             </h2>
-            <p className="mt-4 text-lg text-gray-300">{text}</p>
+            <p className="mt-4 text-lg text-chalk-faint">{text}</p>
             <div className="mt-8 flex flex-wrap justify-center gap-3">
               <WhatsAppButton />
               <Button

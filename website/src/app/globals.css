@@ -7,10 +7,14 @@
 */
 
 @theme {
-  /* ---------- Colors: Primary ---------- */
-  --color-primary: #f97316;
-  --color-primary-hover: #ea580c;
-  --color-primary-soft: #ffedd5;
+  /* ---------- Colors: Primary ----------
+     #f97316 era o laranja da marca sobre branco. Com o site inteiro escuro
+     (26/10/2026) ele perde brilho e lê como ocre; o tom da marca no escuro é
+     o `flame` de baixo, e `--color-primary` passou a apontar para ele para
+     que `bg-primary`, o anel de foco e a seleção acompanhem. */
+  --color-primary: #ff6a1a;
+  --color-primary-hover: #ff8a3d;
+  --color-primary-soft: #2a1408;
 
   /* ---------- Colors: Dark ---------- */
   --color-dark: #0f172a;
@@ -34,10 +38,12 @@
   --color-error: #ef4444;
   --color-info: #3b82f6;
 
-  /* ---------- Surfaces ---------- */
-  --color-background: #ffffff;
-  --color-surface: #ffffff;
-  --color-surface-muted: #f9fafb;
+  /* ---------- Surfaces ----------
+     O site inteiro é escuro. Estes três apontam para a escala `ink` abaixo;
+     ficam aqui porque o resto do CSS os consome por nome. */
+  --color-background: #07080b;
+  --color-surface: #15181f;
+  --color-surface-muted: #0e1016;
 
   /* ---------- Escala escura da landing ----------
      A home passou a ser escura (decisão do cliente, 26/10/2026). O resto do
@@ -112,8 +118,10 @@
     --font-inter: "Inter";
   }
 
+  /* Cor de borda padrão de quem usa `border` sem cor. No escuro, cinza sólido
+     desenha a silhueta da caixa; o fio branco a 8% só marca a aresta. */
   * {
-    border-color: var(--color-gray-200);
+    border-color: rgba(255, 255, 255, 0.08);
   }
 
   html {
@@ -124,7 +132,7 @@
 
   body {
     background-color: var(--color-background);
-    color: var(--color-dark);
+    color: var(--color-chalk);
     font-family: var(--font-sans);
     font-size: var(--text-body);
     line-height: 1.4; /* 140% per doc 06 */
@@ -138,7 +146,7 @@
   h4 {
     letter-spacing: -0.02em;
     line-height: 1.1;
-    color: var(--color-dark);
+    color: var(--color-chalk);
     text-wrap: balance;
   }
 
@@ -205,17 +213,20 @@
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
   }
 
-  /* Subtle premium border used across cards (doc 06 — no heavy shadows) */
+  /* Elevação no escuro.
+     Sombra escura sobre fundo escuro não aparece — é preciso somar uma
+     ARESTA DE LUZ por dentro do topo, que é o que dá volume à superfície. A
+     sombra continua, mas só para descolar o card do fundo. */
   .shadow-soft {
     box-shadow:
-      0 1px 2px rgba(15, 23, 42, 0.04),
-      0 4px 16px rgba(15, 23, 42, 0.04);
+      inset 0 1px 0 rgba(255, 255, 255, 0.05),
+      0 2px 8px rgba(0, 0, 0, 0.4);
   }
 
   .shadow-soft-lg {
     box-shadow:
-      0 2px 4px rgba(15, 23, 42, 0.04),
-      0 12px 40px rgba(15, 23, 42, 0.08);
+      inset 0 1px 0 rgba(255, 255, 255, 0.07),
+      0 24px 60px -24px rgba(0, 0, 0, 0.8);
   }
 
   .text-gradient-primary {

@@ -77,11 +77,11 @@ export default async function ServicePage({
         <div className="mt-10 grid gap-3 sm:grid-cols-2">
           {service.highlights.map((h, i) => (
             <Reveal key={h} delay={(i % 2) * 0.05}>
-              <div className="flex items-center gap-3 rounded-2xl border border-gray-200 bg-white px-5 py-4">
-                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary-soft text-primary-hover">
+              <div className="flex items-center gap-3 rounded-2xl border border-white/[0.08] bg-panel px-5 py-4">
+                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-flame/10 text-flame">
                   <Check className="h-4 w-4" aria-hidden />
                 </span>
-                <span className="font-medium text-dark">{h}</span>
+                <span className="font-medium text-chalk">{h}</span>
               </div>
             </Reveal>
           ))}

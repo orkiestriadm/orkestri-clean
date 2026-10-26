@@ -17,13 +17,13 @@ export default function Error({
 
   return (
     <Container className="flex min-h-[70vh] flex-col items-center justify-center py-32 text-center">
-      <span className="text-sm font-semibold uppercase tracking-wider text-primary">
+      <span className="text-[0.8125rem] font-medium text-flame-soft">
         Erro 500
       </span>
-      <h1 className="mt-4 text-[2.5rem] font-bold text-dark md:text-[3.5rem]">
+      <h1 className="mt-4 text-[2.5rem] font-bold text-chalk md:text-[3.5rem]">
         Algo deu errado
       </h1>
-      <p className="mt-4 max-w-md text-lg text-gray-600">
+      <p className="mt-4 max-w-md text-lg text-chalk-dim">
         Encontramos um problema inesperado. Tente novamente em alguns instantes.
       </p>
       <div className="mt-8">

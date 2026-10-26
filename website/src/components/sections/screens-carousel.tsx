@@ -84,8 +84,8 @@ export function ScreensCarousel() {
   if (telas.length === 0) return null;
 
   const seta =
-    "inline-flex h-12 w-12 items-center justify-center rounded-full border border-gray-300 " +
-    "text-dark transition-colors hover:border-dark hover:bg-gray-50 " +
+    "inline-flex h-12 w-12 items-center justify-center rounded-full border border-white/[0.14] " +
+    "text-chalk transition-colors hover:border-dark hover:bg-white/[0.05] " +
     "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary";
 
   return (
@@ -112,18 +112,18 @@ export function ScreensCarousel() {
             aria-label={`${i + 1} de ${telas.length}: ${p.name}`}
           >
             {/* Fio de borda, sem sombra: o card é calmo, não flutua. */}
-            <article className="h-full rounded-3xl border border-gray-200 bg-white p-6 md:p-8 lg:p-10">
+            <article className="h-full rounded-3xl border border-white/[0.08] bg-panel p-6 md:p-8 lg:p-10">
               <div className="grid items-stretch gap-8 lg:grid-cols-2 lg:gap-12">
                 {/* Texto. O botão vai para a base via `mt-auto`, de modo que
                     o CTA caia na mesma altura em todos os cards. */}
                 <div className="flex flex-col lg:py-4">
-                  <span className="text-xs font-semibold uppercase tracking-wider text-primary">
+                  <span className="text-[0.75rem] font-medium text-flame-soft">
                     {p.category}
                   </span>
-                  <h3 className="mt-3 text-[1.75rem] font-semibold tracking-[-0.02em] text-dark lg:text-[2rem]">
+                  <h3 className="mt-3 text-[1.75rem] font-semibold tracking-[-0.02em] text-chalk lg:text-[2rem]">
                     {p.name}
                   </h3>
-                  <p className="mt-4 max-w-md text-[1.0625rem] leading-relaxed text-gray-600">
+                  <p className="mt-4 max-w-md text-[1.0625rem] leading-relaxed text-chalk-dim">
                     {p.tagline}
                   </p>
                   <div className="mt-8 lg:mt-auto lg:pt-10">
@@ -134,7 +134,7 @@ export function ScreensCarousel() {
                 </div>
 
                 {/* Imagem, inserida com respiro — não sangra até a borda. */}
-                <div className="overflow-hidden rounded-2xl bg-gray-50">
+                <div className="overflow-hidden rounded-2xl bg-ink-raise">
                   <div className="relative aspect-[16/10] w-full">
                     <Image
                       src={p.screenshot!.src}
@@ -172,7 +172,7 @@ export function ScreensCarousel() {
         >
           <ChevronRight className="h-5 w-5" aria-hidden />
         </button>
-        <span className="ml-2 text-sm tabular-nums text-gray-400">
+        <span className="ml-2 text-sm tabular-nums text-chalk-faint">
           {atual + 1} / {telas.length}
         </span>
       </div>

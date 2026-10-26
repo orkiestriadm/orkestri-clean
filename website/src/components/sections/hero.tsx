@@ -72,15 +72,18 @@ export function Hero() {
               {...entrada(0)}
               className="font-display text-[2.5rem] font-bold leading-[1.02] tracking-[-0.035em] text-chalk [font-stretch:112%] sm:text-[3.25rem] lg:text-[3.5rem] xl:text-[3.9rem]"
             >
-              Doze aplicações, um login, uma operação só.
+              Seis aplicações, um login, uma operação só.
             </motion.h1>
 
             <motion.p
               {...entrada(1)}
               className="mt-7 max-w-[52ch] text-[1.0625rem] leading-[1.65] text-chalk-dim"
             >
-              Chamados, projetos, agenda, frota, ativos, finanças e orçamento no
-              mesmo sistema — com inteligência artificial e automação onde o
+              {/* Esta lista tem de bater com `config/products.ts`, que por sua
+                  vez espelha o `NAV` do sistema. Até 26/10/2026 ela citava
+                  "frota" e "ativos", removidos da produção em 19/10. */}
+              Chamados, conhecimento, projetos, agenda, financeiro e orçamento
+              no mesmo sistema — com inteligência artificial e automação onde o
               trabalho acontece. Você ativa só os módulos que a sua operação
               usa.
             </motion.p>
@@ -222,7 +225,7 @@ function Trilha({
                   : "text-chalk-faint hover:text-chalk-dim",
               )}
             >
-              {/* O nome da marca é longo e repetido doze vezes; na trilha só
+              {/* O nome da marca se repete em todos os módulos; na trilha só
                   o que distingue um módulo do outro ajuda a escolher. */}
               {p.name.replace("Orkiestri ", "")}
               {selecionado && (

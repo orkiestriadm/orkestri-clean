@@ -5,13 +5,13 @@ import { Container } from "@/components/ui/container";
 export default function NotFound() {
   return (
     <Container className="flex min-h-[70vh] flex-col items-center justify-center py-32 text-center">
-      <span className="text-sm font-semibold uppercase tracking-wider text-primary">
+      <span className="text-[0.8125rem] font-medium text-flame-soft">
         Erro 404
       </span>
-      <h1 className="mt-4 text-[3rem] font-bold text-dark md:text-[4rem]">
+      <h1 className="mt-4 text-[3rem] font-bold text-chalk md:text-[4rem]">
         Página não encontrada
       </h1>
-      <p className="mt-4 max-w-md text-lg text-gray-600">
+      <p className="mt-4 max-w-md text-lg text-chalk-dim">
         A página que você procura não existe ou foi movida. Vamos te levar de
         volta ao caminho certo.
       </p>

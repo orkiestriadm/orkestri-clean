@@ -14,7 +14,7 @@ export function Technologies() {
         {technologies.map((t) => (
           <span
             key={t}
-            className="rounded-full border border-gray-200 bg-white px-5 py-2.5 text-sm font-medium text-gray-600"
+            className="rounded-full border border-white/[0.08] bg-panel px-5 py-2.5 text-sm font-medium text-chalk-dim"
           >
             {t}
           </span>

@@ -85,13 +85,13 @@ export default function OrkiestriOnePage() {
       {/* Concept */}
       <Section>
         <div className="mx-auto max-w-3xl text-center">
-          <span className="text-sm font-semibold uppercase tracking-wider text-primary">
+          <span className="text-[0.8125rem] font-medium text-flame-soft">
             O conceito
           </span>
-          <h2 className="mt-4 text-[2rem] font-bold text-dark md:text-[2.75rem]">
+          <h2 className="mt-4 text-[2rem] font-bold text-chalk md:text-[2.75rem]">
             Não é um ERP. Não é um CRM. É um Business Operating System.
           </h2>
-          <p className="mt-5 text-lg leading-relaxed text-gray-600">
+          <p className="mt-5 text-lg leading-relaxed text-chalk-dim">
             Assim como um sistema operacional conecta hardware e aplicativos, o
             Orkiestri One conecta todos os processos da empresa. Ele funciona
             como uma camada central que organiza toda a operação corporativa —
@@ -113,12 +113,12 @@ export default function OrkiestriOnePage() {
             const Icon = l.icon;
             return (
               <Reveal key={l.title} delay={(i % 3) * 0.05}>
-                <div className="h-full rounded-(--radius-card) border border-gray-200 bg-white p-6">
+                <div className="h-full rounded-(--radius-card) border border-white/[0.08] bg-panel p-6">
                   <IconTile icon={Icon} />
-                  <h3 className="mt-5 text-lg font-semibold text-dark">
+                  <h3 className="mt-5 text-lg font-semibold text-chalk">
                     {l.title}
                   </h3>
-                  <p className="mt-2 text-[0.9375rem] text-gray-500">{l.text}</p>
+                  <p className="mt-2 text-[0.9375rem] text-chalk-dim">{l.text}</p>
                 </div>
               </Reveal>
             );
@@ -144,11 +144,11 @@ export default function OrkiestriOnePage() {
         <div className="mx-auto mt-12 grid max-w-4xl grid-cols-1 gap-3 sm:grid-cols-2">
           {benefits.map((b, i) => (
             <Reveal key={b} delay={(i % 2) * 0.05}>
-              <div className="flex items-center gap-3 rounded-2xl border border-gray-200 bg-white px-5 py-4">
-                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary-soft text-primary-hover">
+              <div className="flex items-center gap-3 rounded-2xl border border-white/[0.08] bg-panel px-5 py-4">
+                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-flame/10 text-flame">
                   <Check className="h-4 w-4" aria-hidden />
                 </span>
-                <span className="font-medium text-dark">{b}</span>
+                <span className="font-medium text-chalk">{b}</span>
               </div>
             </Reveal>
           ))}

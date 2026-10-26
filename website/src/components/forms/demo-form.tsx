@@ -77,12 +77,12 @@ export function DemoForm() {
 
   if (status === "success") {
     return (
-      <div className="flex flex-col items-center gap-4 rounded-(--radius-card) border border-gray-200 bg-white p-10 text-center">
+      <div className="flex flex-col items-center gap-4 rounded-(--radius-card) border border-white/[0.08] bg-panel p-10 text-center">
         <CheckCircle2 className="h-12 w-12 text-success" aria-hidden />
-        <h3 className="text-xl font-semibold text-dark">
+        <h3 className="text-xl font-semibold text-chalk">
           Recebemos sua solicitação
         </h3>
-        <p className="text-gray-600">
+        <p className="text-chalk-dim">
           Nossa equipe vai avaliar seu pedido de acesso e, assim que aprovado,
           você receberá as credenciais no e-mail informado.
         </p>
@@ -97,7 +97,7 @@ export function DemoForm() {
     <form
       onSubmit={handleSubmit(onSubmit)}
       noValidate
-      className="flex flex-col gap-5 rounded-(--radius-card) border border-gray-200 bg-white p-6 md:p-8"
+      className="flex flex-col gap-5 rounded-(--radius-card) border border-white/[0.08] bg-panel p-6 md:p-8"
     >
       <div className="grid gap-5 sm:grid-cols-2">
         <Field id="name" label="Nome" error={errors.name?.message} required>
@@ -150,9 +150,9 @@ export function DemoForm() {
       </div>
 
       <fieldset className="flex flex-col gap-3">
-        <legend className="text-sm font-medium text-dark">
+        <legend className="text-sm font-medium text-chalk">
           Quais produtos do Orkiestri One você quer testar?
-          <span className="ml-0.5 text-primary">*</span>
+          <span className="ml-0.5 text-flame-soft">*</span>
         </legend>
         <div className="grid gap-2.5 sm:grid-cols-2">
           {TESTABLE.map((p) => {
@@ -166,8 +166,8 @@ export function DemoForm() {
                 className={cn(
                   "flex items-start gap-3 rounded-(--radius-input) border p-3 text-left transition-colors",
                   isOn
-                    ? "border-primary bg-primary-soft"
-                    : "border-gray-200 bg-white hover:border-gray-300"
+                    ? "border-primary bg-flame/10"
+                    : "border-white/[0.08] bg-panel hover:border-white/20"
                 )}
               >
                 <span
@@ -175,14 +175,14 @@ export function DemoForm() {
                     "mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md border transition-colors",
                     isOn
                       ? "border-primary bg-primary text-white"
-                      : "border-gray-300 bg-white text-transparent"
+                      : "border-white/[0.14] bg-panel text-transparent"
                   )}
                 >
                   <Check className="h-3.5 w-3.5" aria-hidden />
                 </span>
                 <span className="flex flex-col">
-                  <span className="text-sm font-medium text-dark">{p.name}</span>
-                  <span className="text-xs text-gray-500">{p.category}</span>
+                  <span className="text-sm font-medium text-chalk">{p.name}</span>
+                  <span className="text-xs text-chalk-dim">{p.category}</span>
                 </span>
               </button>
             );

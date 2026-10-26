@@ -20,9 +20,10 @@ export const footerNav: { title: string; items: NavItem[] }[] = [
     title: "Produtos",
     items: [
       { label: "Orkiestri One", href: "/products/orkiestri-one" },
-      { label: "Orkiestri Desk", href: "/products/one-desk" },
+      { label: "Orkiestri Service", href: "/products/one-desk" },
       { label: "Orkiestri Projects", href: "/products/one-projects" },
-      { label: "Orkiestri Fleet", href: "/products/one-fleet" },
+      /* Era "Orkiestri Fleet", removido do sistema em 19/10/2026. */
+      { label: "Orkiestri Finance", href: "/products/one-finance" },
       { label: "Ver todos", href: "/products" },
     ],
   },

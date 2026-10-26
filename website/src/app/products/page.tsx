@@ -1,17 +1,17 @@
 import Link from "next/link";
-import { ArrowRight } from "lucide-react";
 import { PageHero } from "@/components/sections/page-hero";
 import { Section, SectionHeader } from "@/components/ui/section";
 import { Button } from "@/components/ui/button";
 import { ProductsGrid } from "@/components/sections/products-grid";
 import { Container } from "@/components/ui/container";
 import { CTA } from "@/components/sections/cta";
+import { products } from "@/config/products";
 import { buildMetadata } from "@/lib/seo";
 
 export const metadata = buildMetadata({
   title: "Produtos",
   description:
-    "Conheça o ecossistema Orkiestri One e descubra como cada aplicação contribui para uma operação mais integrada.",
+    "As aplicações do Orkiestri One: chamados, conhecimento, projetos, agenda, financeiro e administração, sob o mesmo login.",
   path: "/products",
 });
 
@@ -20,40 +20,44 @@ export default function ProductsPage() {
     <>
       <PageHero
         eyebrow="Produtos"
-        title="Uma plataforma. Múltiplas possibilidades."
-        description="Conheça o ecossistema Orkiestri One e descubra como cada aplicação contribui para uma operação mais integrada."
+        /* "Uma plataforma. Múltiplas possibilidades." dizia respeito a
+           qualquer software do mundo. O título agora diz o que a pessoa vai
+           encontrar aqui. */
+        title={`${products.length} aplicações que dividem o mesmo login.`}
+        description="Chamados, conhecimento, projetos, agenda, financeiro e administração. Você ativa o que a operação usa; o resto não atrapalha a tela de ninguém."
         breadcrumb={[{ label: "Produtos", href: "/products" }]}
       />
 
-      <Container>
+      <Container className="pt-16 md:pt-20">
+        {/* Faixa da plataforma: é o ÚNICO elemento desta página com fundo
+            próprio e botão sólido, porque é a única coisa aqui que não é um
+            item de lista — é o guarda-chuva de todos eles. */}
         <Link
           href="/products/orkiestri-one"
-          className="group flex flex-col items-start justify-between gap-6 rounded-(--radius-image) bg-dark p-8 text-white md:flex-row md:items-center md:p-12"
+          className="hairline edge-light group flex flex-col items-start justify-between gap-7 rounded-(--radius-image) border bg-panel p-8 transition-colors hover:border-white/15 md:flex-row md:items-center md:p-12"
         >
           <div>
-            <span className="text-sm font-semibold uppercase tracking-wider text-primary">
-              Plataforma
+            <span className="text-[0.8125rem] font-medium text-flame-soft">
+              A plataforma
             </span>
-            <h2 className="mt-2 text-2xl font-bold md:text-3xl">
-              Orkiestri One — o Business Operating System
+            <h2 className="mt-2 font-display text-[1.5rem] font-bold tracking-[-0.03em] text-chalk [font-stretch:106%] md:text-[2rem]">
+              Orkiestri One
             </h2>
-            <p className="mt-2 max-w-xl text-gray-300">
-              Todas as aplicações compartilham a mesma base, login e experiência.
-              Ative apenas os módulos necessários.
+            <p className="mt-3 max-w-xl text-[0.9375rem] leading-relaxed text-chalk-dim">
+              Um login, um banco de dados, as mesmas permissões. As aplicações
+              não se integram — elas já nascem no mesmo lugar.
             </p>
           </div>
-          <span className="inline-flex items-center gap-2 rounded-(--radius-button) bg-primary px-6 py-3 font-medium text-white transition-transform group-hover:scale-[1.03] motion-reduce:group-hover:scale-100">
+          <span className="inline-flex h-[52px] shrink-0 items-center rounded-(--radius-button) bg-primary px-6 font-semibold text-[#1b0c02] transition-transform duration-200 ease-(--ease-out-quart) group-hover:scale-[1.03] motion-reduce:group-hover:scale-100">
             Conhecer a plataforma
-            <ArrowRight className="h-5 w-5" aria-hidden />
           </span>
         </Link>
       </Container>
 
       <Section>
         <SectionHeader
-          eyebrow="Aplicações"
-          title="Aplicações desenvolvidas para trabalhar juntas."
-          description="Cada módulo resolve um problema específico. Podem ser adquiridos individualmente ou como parte da plataforma completa."
+          title="Cada uma resolve um problema que existe."
+          description="Esta lista é espelho do sistema: um módulo só entra aqui depois de existir lá dentro. Podem ser contratados em conjunto ou por departamento."
         />
         <div className="mt-12">
           <ProductsGrid />
