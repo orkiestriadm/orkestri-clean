@@ -200,6 +200,27 @@
       0 24px 60px -24px rgba(0, 0, 0, 0.8);
   }
 
+  /* Malha técnica de fundo.
+     Dá textura de engenharia ao escuro sem desenhar nada: são dois degradês
+     de 1px repetidos a cada 64px. A máscara radial faz a malha existir só
+     perto da fonte de luz e sumir antes de virar papel quadriculado. */
+  .malha {
+    background-image:
+      linear-gradient(to right, rgba(255, 255, 255, 0.045) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(255, 255, 255, 0.045) 1px, transparent 1px);
+    background-size: 64px 64px;
+    -webkit-mask-image: radial-gradient(
+      ellipse 58% 52% at 28% 0%,
+      #000 18%,
+      transparent 72%
+    );
+    mask-image: radial-gradient(
+      ellipse 58% 52% at 28% 0%,
+      #000 18%,
+      transparent 72%
+    );
+  }
+
   /* Grão. Um preto chapado em tela grande mostra o banding do degradê e
      parece vazio; o ruído a 3% quebra as duas coisas. SVG inline para não
      custar requisição. */
@@ -324,6 +345,62 @@
    Usa scroll-driven animations: quem cuida é o compositor, então não há
    listener de scroll nem trabalho por quadro na thread principal. Onde o
    navegador não suporta, a mídia simplesmente fica parada. */
+/* ── Borda viva da moldura do hero ───────────────────────────────────────
+   Um arco de luz laranja dá uma volta lenta pela borda da tela do produto.
+   É o ÚNICO movimento contínuo do site: a página inteira é disciplinada
+   para que este detalhe seja notado.
+
+   Depende de `@property`, porque só um ângulo registrado como `<angle>` é
+   interpolável — sem ele o navegador salta de 0 a 360 sem passar pelo meio.
+   Onde não há suporte (Firefox antigo), o arco simplesmente fica parado
+   numa posição, que continua bonito. */
+@property --angulo-borda {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
+}
+
+@keyframes girar-borda {
+  to {
+    --angulo-borda: 360deg;
+  }
+}
+
+.borda-viva::before {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  z-index: -1;
+  border-radius: inherit;
+  background: conic-gradient(
+    from var(--angulo-borda),
+    transparent 0%,
+    rgba(255, 106, 26, 0.5) 10%,
+    rgba(255, 196, 138, 0.75) 15%,
+    rgba(255, 106, 26, 0.5) 20%,
+    transparent 34%,
+    transparent 100%
+  );
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .borda-viva::before {
+    animation: girar-borda 7s linear infinite;
+  }
+}
+
+/* ── Holofote que segue o ponteiro ───────────────────────────────────────
+   As coordenadas vêm de `components/ui/holofote.tsx`, que só as escreve em
+   telas de apontador fino. Sem as variáveis, o degradê fica centrado e
+   invisível — o elemento nunca "quebra". */
+.holofote {
+  background: radial-gradient(
+    520px circle at var(--holofote-x, 50%) var(--holofote-y, 0%),
+    rgba(255, 106, 26, 0.09),
+    transparent 62%
+  );
+}
+
 /* Troca de tela na trilha de módulos do hero: a captura nova entra por
    opacidade em vez de aparecer de estalo. */
 @keyframes fade-in {

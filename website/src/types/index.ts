@@ -18,6 +18,8 @@ export interface Product {
   ai: string[];
   integrations?: string[];
   audience?: string[];
+  /** Rótulo curto, para trilhas e abas onde o nome completo não cabe. */
+  short?: string;
   /** Captura real da aplicação. Ausente enquanto não houver imagem do módulo. */
   screenshot?: Screenshot;
   /** Módulo ainda não disponível: a página vira vitrine, sem CTA de demonstração. */

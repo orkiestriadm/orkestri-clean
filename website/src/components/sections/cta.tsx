@@ -7,8 +7,8 @@ import { Reveal } from "@/components/animations/reveal";
 
 /** Final CTA — reused across pages (doc 05). */
 export function CTA({
-  title = "Pronto para transformar sua operação?",
-  text = "Vamos conversar sobre como a tecnologia pode simplificar processos e acelerar o crescimento da sua empresa.",
+  title = "Pronto para parar de lembrar sozinho?",
+  text = "A conta nasce numa conversa de WhatsApp e, a partir dali, é o sistema que te procura.",
 }: {
   title?: string;
   text?: string;

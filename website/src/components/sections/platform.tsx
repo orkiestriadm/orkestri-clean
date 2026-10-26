@@ -15,8 +15,11 @@ import { Reveal } from "@/components/animations/reveal";
 import { products } from "@/config/products";
 
 /**
- * Orkiestri One — Business Operating System highlight (doc 05).
- * Bento layout: one lead cell + supporting capability cells.
+ * Orkiestri One — como as aplicações se encaixam.
+ *
+ * O texto fala com uma PESSOA (26/10/2026). Era "plataforma empresarial
+ * modular que reúne gestão, automação e integrações" — o visitante saía
+ * entendendo que isto é um ERP.
  */
 export function Platform() {
   return (
@@ -36,13 +39,12 @@ export function Platform() {
             Orkiestri One
           </span>
           <h2 className="mt-4 text-[2rem] font-bold tracking-[-0.03em] md:text-[3rem]">
-            O sistema operacional da sua empresa.
+            Um lugar só, e ele te avisa.
           </h2>
           <p className="mt-5 text-lg leading-relaxed text-chalk-faint">
-            Uma plataforma empresarial modular que reúne gestão, automação,
-            inteligência artificial e integrações em uma única experiência. Em
-            vez de dezenas de sistemas desconectados, sua empresa opera em um
-            ambiente único, consistente e preparado para crescer.
+            Agenda, contas, projetos, pedidos e procedimentos sob o mesmo login e
+            no mesmo banco de dados. Não são sistemas que se integram: já
+            nascem juntos — e todos sabem te achar no WhatsApp.
           </p>
         </Reveal>
 
@@ -110,17 +112,17 @@ export function Platform() {
                 <IconTile icon={ShieldCheck} size="lg" tone="on-dark" />
                 <div>
                   <h3 className="text-xl font-semibold">
-                    Segurança de nível corporativo
+                    O que é seu continua seu
                   </h3>
                   <p className="mt-2 max-w-xl text-chalk-faint">
-                    Autenticação multifator, criptografia, permissões granulares,
-                    logs de auditoria e conformidade com a LGPD.
+                    Verificação em duas etapas, criptografia, permissão por pessoa,
+                    histórico de quem mexeu em quê e conformidade com a LGPD.
                   </p>
                 </div>
               </div>
               <Button asChild size="lg" className="shrink-0">
                 <Link href="/products/orkiestri-one">
-                  Conhecer a Plataforma
+                  Ver tudo o que ele organiza
                   <ArrowRight className="h-5 w-5" aria-hidden />
                 </Link>
               </Button>

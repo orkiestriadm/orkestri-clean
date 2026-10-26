@@ -13,7 +13,7 @@ export const metadata = buildMetadata({
 
 const benefits = [
   "Demonstração guiada pela nossa equipe",
-  "Foco nos desafios da sua operação",
+  "Foco nos desafios da o seu dia a dia",
   "Sem compromisso",
   "Resposta em até 1 dia útil",
 ];
@@ -24,7 +24,7 @@ export default function DemoPage() {
       <PageHero
         eyebrow="Demonstração"
         title="Veja o Orkiestri One em ação."
-        description="Conte-nos sobre a sua operação e prepararemos uma demonstração focada nos seus desafios reais."
+        description="Conte-nos sobre a o seu dia a dia e prepararemos uma demonstração focada nos seus desafios reais."
         breadcrumb={[{ label: "Demonstração", href: "/demo" }]}
       />
       <Container className="pb-24">

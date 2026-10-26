@@ -5,6 +5,7 @@ import Image from "next/image";
 import { motion, useReducedMotion } from "framer-motion";
 import { Container } from "@/components/ui/container";
 import { WhatsAppButton } from "@/components/ui/whatsapp-button";
+import { Holofote } from "@/components/ui/holofote";
 import { products } from "@/config/products";
 import { cn } from "@/lib/utils";
 import { EASE_OUT } from "@/lib/motion";
@@ -57,9 +58,14 @@ export function Hero() {
           abaixo devolve o preto às bordas, que é o que faz o laranja ler
           como LUZ em vez de tinta de fundo. */}
       <div aria-hidden className="pointer-events-none absolute inset-0 -z-10">
+        {/* Malha técnica, só perto da fonte de luz. */}
+        <div className="malha absolute inset-0" />
         <div className="absolute -left-24 -top-64 h-[560px] w-[680px] rounded-full bg-flame/[0.10] blur-[130px]" />
         {/* Vinheta: escurece as quatro bordas por cima do glow. */}
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_70%_60%_at_38%_28%,transparent,var(--color-ink)_78%)]" />
+        {/* A luz que segue o ponteiro. Fica ACIMA da vinheta, senão o preto
+            das bordas a apagaria justamente onde ela deve aparecer. */}
+        <Holofote />
         {/* Fio de horizonte: separa o hero do que vem abaixo sem borda dura. */}
         <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
       </div>
@@ -70,28 +76,29 @@ export function Hero() {
           <div className="flex flex-col items-start">
             <motion.h1
               {...entrada(0)}
-              className="font-display text-[2.5rem] font-bold leading-[1.02] tracking-[-0.035em] text-chalk [font-stretch:112%] sm:text-[3.25rem] lg:text-[3.5rem] xl:text-[3.9rem]"
+              className="font-display text-[2.25rem] font-bold leading-[1.04] tracking-[-0.035em] text-chalk [font-stretch:112%] sm:text-[2.75rem] lg:text-[3rem] xl:text-[3.5rem]"
             >
-              Seis aplicações, um login, uma operação só.
+              Anote por mensagem. Seja lembrado por mensagem.
             </motion.h1>
 
             <motion.p
               {...entrada(1)}
               className="mt-7 max-w-[52ch] text-[1.0625rem] leading-[1.65] text-chalk-dim"
             >
-              {/* Esta lista tem de bater com `config/products.ts`, que por sua
-                  vez espelha o `NAV` do sistema. Até 26/10/2026 ela citava
-                  "frota" e "ativos", removidos da produção em 19/10. */}
-              Chamados, conhecimento, projetos, agenda, financeiro e orçamento
-              no mesmo sistema — com inteligência artificial e automação onde o
-              trabalho acontece. Você ativa só os módulos que a sua operação
-              usa.
+              {/* Cada promessa daqui é verificável no backend: os lembretes
+                  em `alert.scheduler.ts`, os comandos em
+                  `whatsapp-inbound.module.ts`. Não acrescentar nada sem
+                  conferir lá. */}
+              Agenda, contas, gastos e projetos num lugar só. Você escreve no
+              WhatsApp para anotar, e o Orkiestri te procura lá quando chega a
+              hora: uma hora antes do compromisso, no domingo com o resumo da
+              semana.
             </motion.p>
 
             <motion.div {...entrada(2)} className="mt-9">
               <WhatsAppButton />
               <p className="mt-4 text-sm leading-relaxed text-chalk-faint">
-                A conversa cria a empresa e libera os módulos. Sem formulário.
+                A conversa cria a conta e liga os módulos. Sem formulário.
               </p>
             </motion.div>
           </div>
@@ -136,7 +143,7 @@ function Moldura({ tela }: { tela: (typeof modulos)[number] }) {
   const grande = (tela.screenshot!.width ?? 0) >= 1600;
 
   return (
-    <div className="hairline edge-light relative rounded-[22px] border bg-panel p-2">
+    <div className="borda-viva hairline edge-light relative isolate rounded-[22px] border bg-panel p-2">
       <div className="relative aspect-[16/10] w-full overflow-hidden rounded-[15px] bg-ink-raise lg:aspect-[16/11]">
         {/* `key` força o cruzamento de imagens na troca: sem ele o React
             reaproveita o nó e a tela nova aparece de estalo. */}
@@ -196,7 +203,7 @@ function Trilha({
   return (
     <div className="border-t border-white/[0.07] pt-6">
       <p className="text-sm text-chalk-faint">
-        As telas são do sistema em operação. Escolha um módulo:
+        As telas são do sistema rodando. Escolha o que quer ver:
       </p>
       <div
         role="tablist"
@@ -227,7 +234,7 @@ function Trilha({
             >
               {/* O nome da marca se repete em todos os módulos; na trilha só
                   o que distingue um módulo do outro ajuda a escolher. */}
-              {p.name.replace("Orkiestri ", "")}
+              {p.short ?? p.name}
               {selecionado && (
                 <motion.span
                   layoutId="modulo-ativo"

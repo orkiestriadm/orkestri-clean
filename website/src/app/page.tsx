@@ -1,7 +1,8 @@
 import Script from "next/script";
 import { Hero } from "@/components/sections/hero";
 import { Plataforma } from "@/components/home/plataforma";
-import { Aurelia } from "@/components/home/aurelia";
+import { Avisos } from "@/components/home/avisos";
+import { Comandos } from "@/components/home/comandos";
 import { Engenharia } from "@/components/home/engenharia";
 import { Tecnologias } from "@/components/home/tecnologias";
 import { Perguntas } from "@/components/home/perguntas";
@@ -12,12 +13,12 @@ import { buildMetadata, softwareApplicationSchema } from "@/lib/seo";
 export const metadata = buildMetadata({
   path: "/",
   keywords: [
-    "software empresarial",
-    "plataforma empresarial",
-    "business operating system",
-    "software sob medida",
-    "inteligência artificial",
-    "Orkiestri One",
+    'organizar agenda pelo whatsapp',
+    'lembrete de compromisso no whatsapp',
+    'controle de gastos por mensagem',
+    'contas a pagar whatsapp',
+    'anotações e tarefas',
+    'Orkiestri',
   ],
 });
 
@@ -27,15 +28,16 @@ export const metadata = buildMetadata({
  * A página tinha catorze seções e quase 12.000px de altura; a maior parte
  * repetia o mesmo argumento em formatos diferentes, e três blocos inteiros
  * (números, depoimentos e logos de clientes) eram conteúdo inventado. Agora
- * são sete seções, nesta ordem, cada uma com um trabalho só:
+ * são oito seções, nesta ordem, cada uma com um trabalho só:
  *
  *   1. Hero ......... o que é, e a porta de entrada
  *   2. Plataforma ... as aplicações e o que compartilham
- *   3. WhatsApp ..... o que o sistema faz por mensagem
- *   4. Engenharia ... quem constrói, e como
- *   5. Tecnologias .. com o quê
- *   6. Perguntas .... as objeções
- *   7. Fechamento ... a mesma porta, de novo
+ *   3. Avisos ...... o que o sistema MANDA no WhatsApp
+ *   4. Comandos .... o que VOCÊ manda de volta
+ *   5. Engenharia .. quem constrói, e como
+ *   6. Tecnologias . com o quê
+ *   7. Perguntas ... as objeções
+ *   8. Fechamento .. a mesma porta, de novo
  *
  * O cadastro acontece pelo WhatsApp e SÓ por lá. Se algum dia voltar um
  * segundo caminho de cadastro à página, ele tira força deste — foi o que
@@ -54,7 +56,8 @@ export default function HomePage() {
 
       <Hero />
       <Plataforma />
-      <Aurelia />
+      <Avisos />
+      <Comandos />
       <Engenharia />
       <Tecnologias />
       <Perguntas items={homeFaq} />
