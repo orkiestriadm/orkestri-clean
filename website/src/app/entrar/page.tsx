@@ -139,7 +139,7 @@ export default function EntrarPage() {
         {/* Link de verdade: se o JavaScript falhar, o acesso continua saindo. */}
         <a
           href={DESTINO}
-          className="inline-flex h-10 items-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 text-sm font-medium text-white backdrop-blur-sm transition-colors hover:bg-white/20 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f97316]"
+          className="inline-flex h-10 items-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 text-sm font-medium text-white backdrop-blur-sm transition-colors hover:bg-white/20 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flame"
         >
           Pular
           <ArrowRight className="h-4 w-4" aria-hidden />
