@@ -30,7 +30,7 @@ export const metadata = buildMetadata({
  * são sete seções, nesta ordem, cada uma com um trabalho só:
  *
  *   1. Hero ......... o que é, e a porta de entrada
- *   2. Plataforma ... as doze aplicações e o que compartilham
+ *   2. Plataforma ... as aplicações e o que compartilham
  *   3. WhatsApp ..... o que o sistema faz por mensagem
  *   4. Engenharia ... quem constrói, e como
  *   5. Tecnologias .. com o quê

@@ -20,7 +20,7 @@ import { products } from "@/config/products";
  */
 export function Platform() {
   return (
-    <section className="relative overflow-hidden bg-dark py-20 text-white md:py-28">
+    <section className="relative overflow-hidden bg-ink py-20 text-white md:py-28">
       {/* Warm glow — subtle depth on the dark surface (doc 06: gradientes suaves). */}
       <div
         aria-hidden
@@ -32,13 +32,13 @@ export function Platform() {
 
       <Container className="relative">
         <Reveal className="max-w-3xl">
-          <span className="text-sm font-semibold uppercase tracking-wider text-primary">
+          <span className="text-[0.8125rem] font-medium text-flame-soft">
             Orkiestri One
           </span>
           <h2 className="mt-4 text-[2rem] font-bold tracking-[-0.03em] md:text-[3rem]">
             O sistema operacional da sua empresa.
           </h2>
-          <p className="mt-5 text-lg leading-relaxed text-gray-300">
+          <p className="mt-5 text-lg leading-relaxed text-chalk-faint">
             Uma plataforma empresarial modular que reúne gestão, automação,
             inteligência artificial e integrações em uma única experiência. Em
             vez de dezenas de sistemas desconectados, sua empresa opera em um
@@ -56,7 +56,7 @@ export function Platform() {
                 <h3 className="mt-6 text-2xl font-semibold">
                   Uma base. Todas as aplicações.
                 </h3>
-                <p className="mt-3 leading-relaxed text-gray-400">
+                <p className="mt-3 leading-relaxed text-chalk-faint">
                   {products.length} aplicações compartilham o mesmo login,
                   permissões, dados e experiência. Ative apenas o que a sua
                   operação precisa — a plataforma cresce junto.
@@ -66,12 +66,12 @@ export function Platform() {
                 {products.slice(0, 6).map((p) => (
                   <span
                     key={p.slug}
-                    className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-medium text-gray-300"
+                    className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-medium text-chalk-faint"
                   >
                     {p.name}
                   </span>
                 ))}
-                <span className="rounded-full border border-primary/25 bg-primary/10 px-3 py-1.5 text-xs font-medium text-primary">
+                <span className="rounded-full border border-primary/25 bg-primary/10 px-3 py-1.5 text-xs font-medium text-flame-soft">
                   +{products.length - 6}
                 </span>
               </div>
@@ -112,7 +112,7 @@ export function Platform() {
                   <h3 className="text-xl font-semibold">
                     Segurança de nível corporativo
                   </h3>
-                  <p className="mt-2 max-w-xl text-gray-400">
+                  <p className="mt-2 max-w-xl text-chalk-faint">
                     Autenticação multifator, criptografia, permissões granulares,
                     logs de auditoria e conformidade com a LGPD.
                   </p>
@@ -145,10 +145,10 @@ function BentoCell({
 }) {
   return (
     <Reveal delay={delay}>
-      <div className="h-full rounded-(--radius-card) border border-white/10 bg-white/[0.03] p-6 transition-colors duration-200 hover:border-primary/30 hover:bg-white/[0.05]">
+      <div className="h-full rounded-(--radius-card) border border-white/10 bg-white/[0.03] p-6 transition-colors duration-200 hover:border-flame/30 hover:bg-white/[0.05]">
         <IconTile icon={icon} tone="on-dark" />
         <h3 className="mt-5 text-lg font-semibold">{title}</h3>
-        <p className="mt-2 text-[0.9375rem] leading-relaxed text-gray-400">
+        <p className="mt-2 text-[0.9375rem] leading-relaxed text-chalk-faint">
           {text}
         </p>
       </div>

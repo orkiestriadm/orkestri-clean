@@ -96,20 +96,20 @@ export function TrialModal() {
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-dark/60 p-4 backdrop-blur-sm"
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-ink/60 p-4 backdrop-blur-sm"
       onClick={fechar}
       role="dialog"
       aria-modal="true"
       aria-label="Teste grátis"
     >
       <div
-        className="relative w-full max-w-md overflow-hidden rounded-(--radius-card) bg-white shadow-2xl"
+        className="relative w-full max-w-md overflow-hidden rounded-(--radius-card) bg-panel shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         <button
           onClick={fechar}
           aria-label="Fechar"
-          className="absolute right-4 top-4 z-10 flex h-8 w-8 items-center justify-center rounded-full text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600"
+          className="absolute right-4 top-4 z-10 flex h-8 w-8 items-center justify-center rounded-full text-chalk-faint transition-colors hover:bg-white/[0.06] hover:text-chalk-dim"
         >
           <X className="h-5 w-5" />
         </button>
@@ -118,8 +118,8 @@ export function TrialModal() {
           {passo === "ok" ? (
             <div className="flex flex-col items-center gap-4 py-4 text-center">
               <CheckCircle2 className="h-12 w-12 text-success" aria-hidden />
-              <h3 className="text-xl font-semibold text-dark">Seu teste está pronto! 🎉</h3>
-              <p className="text-gray-600">
+              <h3 className="text-xl font-semibold text-chalk">Seu teste está pronto! 🎉</h3>
+              <p className="text-chalk-dim">
                 Enviamos o e-mail e a senha de acesso no seu WhatsApp. São{" "}
                 <strong>7 dias</strong> para explorar. Bom teste!
               </p>
@@ -129,12 +129,12 @@ export function TrialModal() {
             <>
               <button
                 onClick={() => { setPasso("dados"); setErro(""); }}
-                className="mb-4 inline-flex items-center gap-1 text-sm text-gray-500 hover:text-dark"
+                className="mb-4 inline-flex items-center gap-1 text-sm text-chalk-dim hover:text-chalk"
               >
                 <ArrowLeft className="h-4 w-4" /> Voltar
               </button>
-              <h3 className="text-xl font-bold text-dark">Confirme o código</h3>
-              <p className="mt-1 text-sm text-gray-500">
+              <h3 className="text-xl font-bold text-chalk">Confirme o código</h3>
+              <p className="mt-1 text-sm text-chalk-dim">
                 Enviamos um código no WhatsApp <strong>{whatsapp}</strong>. Digite-o abaixo.
               </p>
               <div className="mt-5 flex flex-col gap-1.5">
@@ -158,8 +158,8 @@ export function TrialModal() {
             </>
           ) : (
             <>
-              <h3 className="text-xl font-bold text-dark">Teste grátis por 7 dias</h3>
-              <p className="mt-1 text-sm text-gray-500">
+              <h3 className="text-xl font-bold text-chalk">Teste grátis por 7 dias</h3>
+              <p className="mt-1 text-sm text-chalk-dim">
                 Sem cartão. Você recebe o acesso no WhatsApp e já começa a usar.
               </p>
 
@@ -179,7 +179,7 @@ export function TrialModal() {
                     value={whatsapp} onChange={(e) => setWhatsapp(e.target.value)}
                     placeholder="(11) 99999-9999"
                   />
-                  <span className="text-xs text-gray-400">É por aqui que enviamos suas credenciais.</span>
+                  <span className="text-xs text-chalk-faint">É por aqui que enviamos suas credenciais.</span>
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <Label htmlFor="trial-produto" required>Qual módulo quer testar?</Label>
@@ -192,16 +192,16 @@ export function TrialModal() {
                           aria-pressed={on}
                           className={cn(
                             "flex items-center gap-2 rounded-(--radius-input) border p-2.5 text-left text-sm transition-colors",
-                            on ? "border-primary bg-primary-soft" : "border-gray-200 hover:border-gray-300"
+                            on ? "border-primary bg-flame/10" : "border-white/[0.08] hover:border-white/20"
                           )}
                         >
                           <span className={cn(
                             "flex h-4 w-4 shrink-0 items-center justify-center rounded-full border",
-                            on ? "border-primary bg-primary text-white" : "border-gray-300 text-transparent"
+                            on ? "border-primary bg-primary text-white" : "border-white/[0.14] text-transparent"
                           )}>
                             <Check className="h-3 w-3" />
                           </span>
-                          <span className="truncate font-medium text-dark">{p.name.replace("Orkiestri ", "")}</span>
+                          <span className="truncate font-medium text-chalk">{p.name.replace("Orkiestri ", "")}</span>
                         </button>
                       );
                     })}
@@ -215,7 +215,7 @@ export function TrialModal() {
                     onChange={(e) => setCodigoIndicacao(e.target.value.toUpperCase())}
                     placeholder="ORK-XXXXXX"
                   />
-                  <span className="text-xs text-gray-400">Recebeu um código de quem te indicou? Cole aqui.</span>
+                  <span className="text-xs text-chalk-faint">Recebeu um código de quem te indicou? Cole aqui.</span>
                 </div>
               </div>
 
@@ -224,9 +224,9 @@ export function TrialModal() {
               <Button onClick={iniciar} disabled={carregando} size="lg" className="mt-5 w-full">
                 {carregando ? <><Loader2 className="h-5 w-5 animate-spin" /> Enviando código…</> : "Começar meu teste grátis"}
               </Button>
-              <p className="mt-4 text-center text-xs text-gray-400">
+              <p className="mt-4 text-center text-xs text-chalk-faint">
                 Prefere uma demonstração guiada com a nossa equipe?{" "}
-                <Link href="/demo" onClick={fechar} className="text-primary underline-offset-2 hover:underline">
+                <Link href="/demo" onClick={fechar} className="text-flame-soft underline-offset-2 hover:underline">
                   Solicitar demonstração
                 </Link>
               </p>

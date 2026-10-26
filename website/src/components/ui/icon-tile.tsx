@@ -10,14 +10,26 @@ const sizes: Record<Size, { box: string; icon: string }> = {
   lg: { box: "h-14 w-14 rounded-2xl", icon: "h-6 w-6" },
 };
 
+/**
+ * Os três tons existiam para um site claro: `primary` era o ladrilho laranja
+ * de destaque, `dark` o neutro e `on-dark` a versão para as poucas seções
+ * escuras. Com o site inteiro escuro (26/10/2026), `dark` — um gradiente
+ * azul-marinho — sumia no fundo, e a mesma página acabava com ladrilho
+ * laranja numa seção e um quadrado invisível na outra.
+ *
+ * Agora há dois papéis de verdade: `primary` destaca, `dark` e `on-dark`
+ * são o ladrilho discreto. Mantidos os três nomes porque dez arquivos os
+ * passam.
+ */
+const ladrilhoDiscreto =
+  "bg-flame/10 text-flame-soft ring-1 ring-inset ring-flame/20";
+
 const tones: Record<Tone, string> = {
-  // Warm gradient tile — the signature accent surface.
+  /* Laranja sólido com aresta de luz: o único que "acende". */
   primary:
-    "bg-gradient-to-br from-primary to-[#fb923c] text-white shadow-[0_2px_8px_rgba(249,115,22,0.25),inset_0_1px_0_rgba(255,255,255,0.25)]",
-  dark: "bg-gradient-to-br from-dark to-dark-soft text-white shadow-[0_2px_8px_rgba(15,23,42,0.2),inset_0_1px_0_rgba(255,255,255,0.1)]",
-  // For use inside dark sections.
-  "on-dark":
-    "bg-primary/15 text-primary ring-1 ring-inset ring-primary/20",
+    "bg-gradient-to-br from-primary to-flame-soft text-[#1b0c02] shadow-[0_2px_10px_rgba(255,106,26,0.3),inset_0_1px_0_rgba(255,255,255,0.3)]",
+  dark: ladrilhoDiscreto,
+  "on-dark": ladrilhoDiscreto,
 };
 
 /**

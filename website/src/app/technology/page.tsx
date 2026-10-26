@@ -52,12 +52,12 @@ export default function TechnologyPage() {
             const Icon = p.icon;
             return (
               <Reveal key={p.title} delay={(i % 3) * 0.05}>
-                <div className="h-full rounded-(--radius-card) border border-gray-200 bg-white p-6">
+                <div className="h-full rounded-(--radius-card) border border-white/[0.08] bg-panel p-6">
                   <IconTile icon={Icon} tone="dark" />
-                  <h3 className="mt-5 text-lg font-semibold text-dark">
+                  <h3 className="mt-5 text-lg font-semibold text-chalk">
                     {p.title}
                   </h3>
-                  <p className="mt-2 text-[0.9375rem] text-gray-500">{p.text}</p>
+                  <p className="mt-2 text-[0.9375rem] text-chalk-dim">{p.text}</p>
                 </div>
               </Reveal>
             );

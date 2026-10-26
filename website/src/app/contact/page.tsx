@@ -26,21 +26,21 @@ export default function ContactPage() {
         <div className="grid gap-10 lg:grid-cols-[1fr_1.4fr]">
           <div className="flex flex-col gap-6">
             <div>
-              <h2 className="text-xl font-semibold text-dark">
+              <h2 className="text-xl font-semibold text-chalk">
                 Fale diretamente
               </h2>
-              <p className="mt-2 text-gray-600">
+              <p className="mt-2 text-chalk-dim">
                 Prefere outro canal? Estamos por aqui.
               </p>
             </div>
             <a
               href={`mailto:${siteConfig.contact.email}`}
-              className="flex items-center gap-3 rounded-2xl border border-gray-200 bg-white p-5 transition-colors hover:border-primary/40"
+              className="flex items-center gap-3 rounded-2xl border border-white/[0.08] bg-panel p-5 transition-colors hover:border-flame/40"
             >
               <IconTile icon={Mail} />
               <span>
-                <span className="block text-sm text-gray-400">E-mail</span>
-                <span className="font-medium text-dark">
+                <span className="block text-sm text-chalk-faint">E-mail</span>
+                <span className="font-medium text-chalk">
                   {siteConfig.contact.email}
                 </span>
               </span>
@@ -49,12 +49,12 @@ export default function ContactPage() {
               href={siteConfig.social.linkedin}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-3 rounded-2xl border border-gray-200 bg-white p-5 transition-colors hover:border-primary/40"
+              className="flex items-center gap-3 rounded-2xl border border-white/[0.08] bg-panel p-5 transition-colors hover:border-flame/40"
             >
               <IconTile icon={Linkedin} />
               <span>
-                <span className="block text-sm text-gray-400">LinkedIn</span>
-                <span className="font-medium text-dark">/orkiestri</span>
+                <span className="block text-sm text-chalk-faint">LinkedIn</span>
+                <span className="font-medium text-chalk">/orkiestri</span>
               </span>
             </a>
           </div>

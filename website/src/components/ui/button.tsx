@@ -12,12 +12,16 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
+        /* Texto quase preto sobre o laranja, não branco: com o tom do escuro
+           (#ff6a1a) o branco dá 3,1:1 e reprova no AA; o quase preto dá
+           5,6:1. É a mesma razão pela qual o botão do WhatsApp tem texto
+           escuro sobre o verde. */
         primary:
-          "bg-primary text-white hover:bg-primary-hover hover:scale-[1.02] motion-reduce:hover:scale-100 shadow-soft",
+          "bg-primary text-[#1b0c02] hover:bg-primary-hover hover:scale-[1.02] motion-reduce:hover:scale-100 shadow-soft",
         secondary:
-          "border border-gray-200 bg-white text-dark hover:bg-gray-50 hover:border-gray-300 hover:scale-[1.02] motion-reduce:hover:scale-100",
-        ghost: "text-dark hover:bg-gray-100",
-        dark: "bg-dark text-white hover:bg-dark-soft hover:scale-[1.02] motion-reduce:hover:scale-100",
+          "border border-white/[0.08] bg-panel text-chalk hover:bg-white/[0.05] hover:border-white/20 hover:scale-[1.02] motion-reduce:hover:scale-100",
+        ghost: "text-chalk hover:bg-white/[0.06]",
+        dark: "bg-ink text-white hover:bg-panel-high hover:scale-[1.02] motion-reduce:hover:scale-100",
       },
       size: {
         sm: "h-10 px-4 text-[0.9375rem]",

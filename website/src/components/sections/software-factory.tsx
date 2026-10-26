@@ -17,14 +17,14 @@ export function SoftwareFactory() {
       <ol className="mt-14 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {softwareFactoryProcess.map((step, i) => (
           <Reveal key={step.title} delay={(i % 4) * 0.05} as="li">
-            <div className="h-full rounded-(--radius-card) border border-gray-200 bg-white p-6">
-              <span className="text-sm font-bold text-primary">
+            <div className="h-full rounded-(--radius-card) border border-white/[0.08] bg-panel p-6">
+              <span className="text-sm font-bold text-flame-soft">
                 {String(i + 1).padStart(2, "0")}
               </span>
-              <h3 className="mt-2 text-lg font-semibold text-dark">
+              <h3 className="mt-2 text-lg font-semibold text-chalk">
                 {step.title}
               </h3>
-              <p className="mt-1.5 text-sm leading-relaxed text-gray-500">
+              <p className="mt-1.5 text-sm leading-relaxed text-chalk-dim">
                 {step.description}
               </p>
             </div>

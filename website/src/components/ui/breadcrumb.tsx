@@ -12,9 +12,9 @@ export function Breadcrumb({
 }) {
   return (
     <nav aria-label="Breadcrumb" className={cn("text-sm", className)}>
-      <ol className="flex flex-wrap items-center gap-1.5 text-gray-400">
+      <ol className="flex flex-wrap items-center gap-1.5 text-chalk-faint">
         <li>
-          <Link href="/" className="transition-colors hover:text-primary">
+          <Link href="/" className="transition-colors hover:text-flame-soft">
             Início
           </Link>
         </li>
@@ -22,13 +22,13 @@ export function Breadcrumb({
           <li key={item.href} className="flex items-center gap-1.5">
             <ChevronRight className="h-3.5 w-3.5" aria-hidden />
             {i === items.length - 1 ? (
-              <span className="font-medium text-gray-600" aria-current="page">
+              <span className="font-medium text-chalk-dim" aria-current="page">
                 {item.label}
               </span>
             ) : (
               <Link
                 href={item.href}
-                className="transition-colors hover:text-primary"
+                className="transition-colors hover:text-flame-soft"
               >
                 {item.label}
               </Link>

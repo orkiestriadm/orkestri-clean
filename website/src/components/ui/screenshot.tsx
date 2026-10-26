@@ -101,7 +101,7 @@ export function Screenshot({
               "relative block w-full cursor-zoom-in rounded-[25px] text-left",
               /* Sem moldura a imagem se funde ao fundo; com ela, uma borda
                  neutra e fina, no espírito do doc 06. */
-              bordered ? "bg-gray-200/60 p-px" : "",
+              bordered ? "bg-white/10 p-px" : "",
               "transition-[transform,box-shadow] duration-[280ms] ease-(--ease-out-quart)",
               bordered ? "shadow-soft group-hover:shadow-soft-lg" : "",
               "focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary",
@@ -123,7 +123,7 @@ export function Screenshot({
             {/* Superfície do card */}
             <div
               ref={surface}
-              className="relative overflow-hidden rounded-[24px] bg-white"
+              className="relative overflow-hidden rounded-[24px] bg-panel"
             >
               {/* Fio de luz na borda superior — acabamento de vidro */}
               {bordered && (
@@ -136,7 +136,7 @@ export function Screenshot({
               <div
                 className={cn(
                   "relative",
-                  uniform && "flex aspect-[16/9] w-full items-center justify-center bg-white"
+                  uniform && "flex aspect-[16/9] w-full items-center justify-center bg-panel"
                 )}
               >
                 {/* Caixa na proporção real da captura.
@@ -202,7 +202,7 @@ export function Screenshot({
                 aria-hidden
                 className={cn(
                   "pointer-events-none absolute bottom-4 right-4 z-20 inline-flex items-center gap-1.5",
-                  "rounded-full border border-white/15 bg-dark/75 px-3 py-1.5 text-xs font-medium text-white",
+                  "rounded-full border border-white/15 bg-ink/75 px-3 py-1.5 text-xs font-medium text-white",
                   "opacity-0 backdrop-blur-sm transition-opacity duration-200 group-hover:opacity-100"
                 )}
               >
@@ -226,7 +226,7 @@ export function Screenshot({
 
       {/* ── Galeria em tela cheia ─────────────────────────────────────────── */}
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-[100] bg-dark/85 backdrop-blur-md data-[state=closed]:opacity-0 data-[state=open]:opacity-100 transition-opacity duration-200" />
+        <Dialog.Overlay className="fixed inset-0 z-[100] bg-ink/85 backdrop-blur-md data-[state=closed]:opacity-0 data-[state=open]:opacity-100 transition-opacity duration-200" />
         <Dialog.Content
           className={cn(
             "fixed inset-0 z-[100] flex flex-col outline-none",

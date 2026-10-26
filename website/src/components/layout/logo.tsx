@@ -43,7 +43,7 @@ export function Logo({
       <span
         className={cn(
           "text-xl font-bold tracking-tight",
-          tone === "dark" ? "text-dark" : "text-white"
+          tone === "dark" ? "text-chalk" : "text-white"
         )}
       >
         Orkiestri

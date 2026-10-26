@@ -25,26 +25,26 @@ export function ProductsMenu({ onNavigate }: { onNavigate?: () => void }) {
       variants={panel}
       initial="hidden"
       animate="show"
-      className="w-[720px] rounded-(--radius-card) border border-gray-200 bg-white p-3 shadow-soft-lg"
+      className="w-[720px] rounded-(--radius-card) border border-white/[0.08] bg-panel p-3 shadow-soft-lg"
     >
       <div className="grid grid-cols-2 gap-1">
         <Link
           href="/products/orkiestri-one"
           onClick={onNavigate}
-          className="col-span-2 flex items-center justify-between rounded-2xl bg-dark p-5 text-white transition-transform hover:scale-[1.01] motion-reduce:hover:scale-100"
+          className="col-span-2 flex items-center justify-between rounded-2xl bg-ink p-5 text-white transition-transform hover:scale-[1.01] motion-reduce:hover:scale-100"
         >
           <span>
-            <span className="text-xs font-semibold uppercase tracking-wider text-primary">
+            <span className="text-[0.75rem] font-medium text-flame-soft">
               Plataforma
             </span>
             <span className="mt-1 block text-lg font-semibold">
               Orkiestri One
             </span>
-            <span className="text-sm text-gray-300">
+            <span className="text-sm text-chalk-faint">
               O Business Operating System da sua empresa.
             </span>
           </span>
-          <ArrowRight className="h-5 w-5 shrink-0 text-primary" aria-hidden />
+          <ArrowRight className="h-5 w-5 shrink-0 text-flame-soft" aria-hidden />
         </Link>
 
         {products.map((p) => {
@@ -54,14 +54,14 @@ export function ProductsMenu({ onNavigate }: { onNavigate?: () => void }) {
               key={p.slug}
               href={`/products/${p.slug}`}
               onClick={onNavigate}
-              className="group flex items-start gap-3 rounded-2xl p-3 transition-colors hover:bg-gray-50"
+              className="group flex items-start gap-3 rounded-2xl p-3 transition-colors hover:bg-white/[0.05]"
             >
               <IconTile icon={Icon} size="sm" />
               <span className="min-w-0">
-                <span className="block text-sm font-semibold text-dark group-hover:text-primary">
+                <span className="block text-sm font-semibold text-chalk group-hover:text-flame-soft">
                   {p.name}
                 </span>
-                <span className="block truncate text-xs text-gray-500">
+                <span className="block truncate text-xs text-chalk-dim">
                   {p.category}
                 </span>
               </span>
@@ -80,7 +80,7 @@ export function ServicesMenu({ onNavigate }: { onNavigate?: () => void }) {
       variants={panel}
       initial="hidden"
       animate="show"
-      className="w-[380px] rounded-(--radius-card) border border-gray-200 bg-white p-3 shadow-soft-lg"
+      className="w-[380px] rounded-(--radius-card) border border-white/[0.08] bg-panel p-3 shadow-soft-lg"
     >
       <div className="flex flex-col gap-1">
         {services.map((s) => {
@@ -90,14 +90,14 @@ export function ServicesMenu({ onNavigate }: { onNavigate?: () => void }) {
               key={s.slug}
               href={`/services/${s.slug}`}
               onClick={onNavigate}
-              className="group flex items-start gap-3 rounded-2xl p-3 transition-colors hover:bg-gray-50"
+              className="group flex items-start gap-3 rounded-2xl p-3 transition-colors hover:bg-white/[0.05]"
             >
               <IconTile icon={Icon} size="sm" />
               <span className="min-w-0">
-                <span className="block text-sm font-semibold text-dark group-hover:text-primary">
+                <span className="block text-sm font-semibold text-chalk group-hover:text-flame-soft">
                   {s.name}
                 </span>
-                <span className="block text-xs text-gray-500">{s.tagline}</span>
+                <span className="block text-xs text-chalk-dim">{s.tagline}</span>
               </span>
             </Link>
           );

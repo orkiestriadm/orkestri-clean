@@ -1,55 +1,93 @@
 import {
   Headset,
-  KanbanSquare,
-  Truck,
-  Boxes,
-  Wallet,
-  PiggyBank,
-  HeartHandshake,
-  Workflow,
-  ShoppingCart,
-  Activity,
-  ShieldCheck,
+  BookOpen,
+  FolderKanban,
   CalendarDays,
+  Wallet,
+  Settings,
 } from "lucide-react";
 import type { Product } from "@/types";
 
 /**
- * Orkiestri One — Business Applications.
- * Source: orkiestri-design-system/12-products.md + 05-website-copywriting.md
- * Order follows the brand architecture (doc 01).
+ * Aplicações do Orkiestri One.
+ *
+ * 🔴 ESTA LISTA É ESPELHO DO SISTEMA, NÃO DE MATERIAL DE MARKETING.
+ *
+ * A fonte da verdade é `frontend/src/lib/modules.tsx` → `NAV`: cada produto
+ * aqui é um grupo de lá, e cada item de `features` é uma tela que existe.
+ * Antes de acrescentar qualquer coisa a este arquivo, abra o `NAV` e
+ * confirme que a tela existe.
+ *
+ * Por que a regra é dura: até 26/10/2026 o site anunciava DOZE aplicações —
+ * Desk, Projects, Space, Fleet, Assets, Finance, Budget, CRM, Flow, Supply,
+ * Observe e Core. A redução de escopo de 19/10/2026 tinha removido da
+ * produção Fleet, Assets, Relations (CRM), Supply, Strategy, People,
+ * Compliance e Approvals, medindo tabela por tabela o que não tinha uso. O
+ * site continuou vendendo cinco módulos que não existiam mais, e ainda
+ * mostrava capturas de tela deles. Ao mesmo tempo não vendia o Conhecimento,
+ * que tem 61 artigos em produção.
+ *
+ * Budget e Flow não sumiram: viraram TELAS. "Orçamento" é item do Finance
+ * desde 19/10/2026 e "Automações" é item do Service. Promover tela a produto
+ * foi o que inflou a lista para doze.
+ *
+ * As URLs dos produtos removidos redirecionam para /products
+ * (ver `next.config.ts`) em vez de dar 404.
  */
 export const products: Product[] = [
   {
     slug: "one-desk",
     screenshot: {
       src: "/screenshots/orkiestridesk.png",
-      alt: "Orkiestri Desk — fila de chamados por status, com indicadores de SLA e atendimento em andamento",
+      alt: "Orkiestri Service — fila de chamados por status, com indicadores de SLA e atendimento em andamento",
       width: 2200,
       height: 1086,
     },
-    name: "Orkiestri Desk",
-    category: "Service Management",
-    tagline: "Centralize chamados, solicitações e atendimento.",
+    name: "Orkiestri Service",
+    category: "Chamados e atendimento",
+    tagline: "Centralize chamados, catálogo de serviços e horas.",
     description:
-      "Reúna solicitações, incidentes, mudanças e catálogo de serviços em um único portal, com SLA, workflow e base de conhecimento.",
+      "O módulo com mais uso da plataforma. Reúne o catálogo de serviços, a fila de chamados com SLA, o apontamento de horas, a pesquisa de satisfação e as automações que tiram o trabalho repetitivo do caminho.",
     icon: Headset,
+    /* Telas reais do grupo `service` do NAV. */
     features: [
-      "Portal de Serviços",
-      "Service Desk & Help Desk",
       "Catálogo de Serviços",
-      "SLA & Workflow",
-      "Base de Conhecimento",
-      "Portal do Cliente",
+      "Chamados com SLA",
+      "Apontamento de Horas",
+      "CSAT (satisfação)",
+      "Automações",
+      "Relatórios",
     ],
     ai: [
+      "Abertura de chamado por WhatsApp",
       "Resumo automático",
       "Classificação inteligente",
-      "Sugestão de solução",
-      "Análise de sentimento",
     ],
-    integrations: ["Microsoft Teams", "Email", "WhatsApp", "Azure AD", "LDAP"],
-    audience: ["TI", "RH", "Facilities", "Financeiro", "Jurídico"],
+    integrations: ["WhatsApp", "E-mail", "Microsoft 365"],
+    audience: ["TI", "Facilities", "Administrativo"],
+  },
+  {
+    slug: "one-quality",
+    screenshot: {
+      src: "/screenshots/conhecimento.png",
+      alt: "Orkiestri Quality — base de conhecimento com artigos publicados organizados por categoria",
+      width: 1690,
+      height: 1030,
+    },
+    name: "Orkiestri Quality",
+    category: "Procedimentos e conhecimento",
+    tagline: "A resposta certa onde todo mundo acha.",
+    description:
+      "Base de conhecimento com artigos, categorias e busca. Procedimento documentado uma vez para de ser perguntado toda semana — e quem atende chamado responde com o mesmo texto que o time publicou.",
+    icon: BookOpen,
+    features: [
+      "Artigos e categorias",
+      "Busca no conteúdo publicado",
+      "Consulta pelo WhatsApp",
+    ],
+    ai: ["Busca semântica", "Sugestão de artigo no chamado"],
+    integrations: ["WhatsApp"],
+    audience: ["TI", "Qualidade", "Operações"],
   },
   {
     slug: "one-projects",
@@ -60,270 +98,106 @@ export const products: Product[] = [
       height: 1332,
     },
     name: "Orkiestri Projects",
-    category: "Project Management",
-    tagline: "Planeje, acompanhe e entregue projetos com eficiência.",
+    category: "Projetos e entregas",
+    tagline: "Do quadro de tarefas à linha do tempo.",
     description:
-      "Do backlog à entrega: kanban, gantt, sprints, custos e dependências em uma experiência única para times de qualquer tamanho.",
-    icon: KanbanSquare,
+      "Projetos em quadro kanban, com tarefas, responsáveis e progresso. A linha do tempo mostra como as entregas se encaixam, e os projetos concluídos ficam com histórico em vez de sumirem da lista.",
+    icon: FolderKanban,
     features: [
-      "Kanban & Gantt",
-      "Cronograma & Roadmap",
-      "Backlog & Sprints",
-      "Controle de Tempo e Custos",
-      "Documentos",
-      "Dependências",
+      "Quadro de projetos",
+      "Tarefas e responsáveis",
+      "Linha do Tempo (Gantt)",
+      "Projetos concluídos",
     ],
-    ai: [
-      "Estimativa de prazo",
-      "Resumo de reuniões",
-      "Geração automática de tarefas",
-      "Análise de riscos",
-    ],
-    integrations: ["GitHub", "Azure DevOps", "Jira", "Microsoft Project"],
+    ai: ["Criação de projeto e consulta de tarefas por WhatsApp"],
+    integrations: ["WhatsApp"],
+    audience: ["PMO", "Operações", "TI"],
   },
   {
     slug: "one-space",
     screenshot: {
       src: "/screenshots/orkiestrispace.png",
-      alt: "Orkiestri Space — agenda corporativa do mês com eventos, próximos compromissos e disponibilidade do time",
-      width: 1683,
-      height: 711,
+      alt: "Orkiestri Space — agenda da semana com compromissos e participantes",
+      width: 1690,
+      height: 1030,
     },
     name: "Orkiestri Space",
-    category: "Agenda & Colaboração",
-    tagline: "Organize a agenda e os compromissos do time.",
+    category: "Agenda e anotações",
+    tagline: "A agenda do time e o bloco de notas de cada um.",
     description:
-      "Agenda corporativa conectada à operação: eventos, reuniões, treinamentos e disponibilidade das equipes no mesmo ambiente dos projetos e chamados.",
+      "Agenda com compromissos, recorrência e participantes, integrada ao Outlook e ao Microsoft 365. O Keep guarda a anotação que não é tarefa de ninguém — e as duas coisas respondem a uma mensagem no WhatsApp.",
     icon: CalendarDays,
     features: [
-      "Agenda compartilhada",
-      "Visões de mês, semana e dia",
-      "Disponibilidade do time",
-      "Convites e participantes",
-      "Lembretes e notificações",
-      "Compromissos vinculados a projetos",
+      "Agenda e compromissos",
+      "Recorrência",
+      "Keep (anotações)",
+      "Integração com Outlook",
     ],
-    ai: [
-      "Sugestão de melhor horário",
-      "Resumo de reuniões",
-      "Detecção de conflitos de agenda",
-    ],
-    integrations: ["Google Agenda", "Microsoft 365", "Google Meet", "Teams"],
-  },
-  {
-    slug: "one-fleet",
-    screenshot: {
-      src: "/screenshots/frota.png",
-      alt: "Orkiestri Fleet — frota com placa, modelo, categoria, responsável, hodômetro e status de cada veículo",
-      width: 920,
-      height: 608,
-    },
-    name: "Orkiestri Fleet",
-    category: "Fleet Management",
-    tagline: "Gerencie veículos, reservas, abastecimentos e manutenção.",
-    description:
-      "Controle completo da operação de veículos — de reservas e motoristas a manutenção, documentação e telemetria.",
-    icon: Truck,
-    features: [
-      "Cadastro & Reservas",
-      "Motoristas & Checklist",
-      "Abastecimento & Multas",
-      "Manutenção & Pneus",
-      "Documentação",
-      "Telemetria & Sinistros",
-    ],
-    ai: [
-      "Previsão de manutenção",
-      "Detecção de custos elevados",
-      "Sugestão de otimização",
-    ],
-    integrations: ["GPS", "Telemetria", "ERP"],
-  },
-  {
-    slug: "one-assets",
-    screenshot: {
-      src: "/screenshots/ativos.png",
-      alt: "Orkiestri Assets — inventário de equipamentos por categoria, com responsável e status",
-      width: 1742,
-      height: 599,
-    },
-    name: "Orkiestri Assets",
-    category: "Asset Management",
-    tagline: "Controle ativos, patrimônio e inventário.",
-    description:
-      "Gestão de ativos físicos e tecnológicos com inventário, QR Code, RFID, garantias e licenças em tempo real.",
-    icon: Boxes,
-    features: [
-      "Inventário & Patrimônio",
-      "QR Code & RFID",
-      "Movimentações",
-      "Auditoria",
-      "Garantias & Licenças",
-      "Equipamentos",
-    ],
-    ai: ["Detecção de ativos críticos", "Previsão de substituição"],
+    ai: ["Marcar compromisso e anotar pelo WhatsApp"],
+    integrations: ["Microsoft 365", "Outlook", "WhatsApp"],
+    audience: ["Todo o time"],
   },
   {
     slug: "one-finance",
     screenshot: {
-      src: "/screenshots/contratos.png",
-      alt: "Orkiestri Finance — contratos com vigência, status e valores consolidados",
-      width: 1692,
-      height: 991,
+      src: "/screenshots/orcamento-dashboard.png",
+      alt: "Orkiestri Finance — painel de orçamento com previsto, realizado e desvio por período",
+      width: 1755,
+      height: 999,
     },
     name: "Orkiestri Finance",
-    category: "Financial Management",
-    tagline: "Organize receitas, despesas e indicadores financeiros.",
+    category: "Financeiro e orçamento",
+    tagline: "Contas a pagar, gastos e orçamento no mesmo lugar.",
     description:
-      "Centralize contas, fluxo de caixa, centros de custo e indicadores em dashboards claros para decisões mais rápidas.",
+      "Painel financeiro, contas a pagar, despesas pessoais e orçamento com previsto × realizado por período. O orçamento era um produto à parte até 19/10/2026; virou tela daqui, porque dinheiro é um assunto só.",
     icon: Wallet,
     features: [
-      "Contas & Fluxo de Caixa",
-      "Receitas & Despesas",
-      "Centros de Custo",
-      "Dashboards & Indicadores",
-      "Pagamentos",
-      "Recebimentos",
+      "Painel financeiro",
+      "Contas a pagar",
+      "Meus Gastos",
+      "Orçamento (previsto × realizado)",
     ],
-    ai: [
-      "Previsão financeira",
-      "Análise de tendências",
-      "Detecção de anomalias",
-    ],
-  },
-  {
-    slug: "one-budget",
-    screenshot: {
-      src: "/screenshots/orcamento-dashboard.png",
-      alt: "Orkiestri Budget — dashboard orçamentário com CAPEX, OPEX, evolução mensal e distribuição por centro de custo",
-      width: 2200,
-      height: 1265,
-    },
-    name: "Orkiestri Budget",
-    category: "Budget Planning",
-    tagline: "Planeje e acompanhe o orçamento da empresa.",
-    description:
-      "Planejamento orçamentário corporativo com CAPEX, OPEX, forecast, aprovações e comparativos em um só lugar.",
-    icon: PiggyBank,
-    features: [
-      "CAPEX & OPEX",
-      "Forecast",
-      "Revisões",
-      "Aprovações",
-      "Comparativos",
-      "Indicadores",
-    ],
-    ai: ["Projeções", "Simulações", "Sugestão de otimizações"],
-  },
-  {
-    slug: "one-crm",
-    screenshot: {
-      src: "/screenshots/clientes.png",
-      alt: "Orkiestri CRM — carteira de clientes com health score, MRR e responsável por conta",
-      width: 1687,
-      height: 876,
-    },
-    name: "Orkiestri CRM",
-    category: "Customer Relationship",
-    tagline: "Fortaleça o relacionamento com seus clientes.",
-    description:
-      "Do lead à renovação: pipeline, oportunidades, propostas e follow-up para times comerciais orientados a resultado.",
-    icon: HeartHandshake,
-    features: [
-      "Leads & Pipeline",
-      "Oportunidades",
-      "Empresas & Contatos",
-      "Funil & Agenda",
-      "Propostas",
-      "Histórico & Follow-up",
-    ],
-    ai: ["Score de leads", "Próxima ação", "Resumo de reuniões"],
-  },
-  {
-    slug: "one-flow",
-    name: "Orkiestri Flow",
-    category: "Workflow Automation",
-    tagline: "Automatize processos internos sem complexidade.",
-    description:
-      "Um designer visual para criar fluxos, aprovações e integrações — automatize o repetitivo sem escrever código.",
-    icon: Workflow,
-    features: [
-      "Designer Visual",
-      "Fluxos & Aprovações",
-      "Eventos",
-      "Integrações",
-      "Notificações",
-      "Formulários",
-    ],
-    ai: ["Construção automática de workflows", "Sugestão de automações"],
-  },
-  {
-    slug: "one-supply",
-    comingSoon: true,
-    name: "Orkiestri Supply",
-    category: "Procurement",
-    tagline: "Gerencie compras, fornecedores e suprimentos.",
-    description:
-      "Do pedido ao recebimento: solicitações, cotações, contratos e fornecedores com indicadores de performance.",
-    icon: ShoppingCart,
-    features: [
-      "Solicitações & Cotações",
-      "Pedidos",
-      "Fornecedores",
-      "Contratos",
-      "Recebimento",
-      "Indicadores",
-    ],
-    ai: ["Sugestão de fornecedores", "Comparação inteligente"],
-  },
-  {
-    slug: "one-observe",
-    screenshot: {
-      src: "/screenshots/monitoramento.png",
-      alt: "Orkiestri Observe — monitoramento operacional em tempo real com disponibilidade e estado de cada ativo",
-      width: 1058,
-      height: 623,
-    },
-    name: "Orkiestri Observe",
-    category: "Observability",
-    tagline: "Monitore indicadores operacionais em tempo real.",
-    description:
-      "Observe ambientes, serviços e aplicações com dashboards de disponibilidade, logs, alertas e métricas.",
-    icon: Activity,
-    features: [
-      "Dashboards",
-      "Disponibilidade",
-      "Logs & Alertas",
-      "Infraestrutura",
-      "Aplicações & Serviços",
-      "Métricas",
-    ],
-    ai: [
-      "Detecção de incidentes",
-      "Análise de causa raiz",
-      "Análise preditiva",
-    ],
+    ai: ["Lançamento de gasto e relatório por WhatsApp"],
+    integrations: ["WhatsApp"],
+    audience: ["Financeiro", "Diretoria", "Todo o time"],
   },
   {
     slug: "one-core",
     name: "Orkiestri Core",
-    category: "Platform Administration",
-    tagline: "Administre usuários, permissões e integrações.",
+    category: "Administração da plataforma",
+    tagline: "Usuários, permissões e o que o sistema avisa.",
     description:
-      "O núcleo da plataforma: identidade, autenticação, SSO, permissões granulares, logs e API para toda a operação.",
-    icon: ShieldCheck,
+      "Cadastros, papéis e permissões granulares, regras de alerta, histórico de auditoria, configuração do WhatsApp e assinatura. É a parte que o administrador usa para o resto funcionar do jeito da empresa.",
+    icon: Settings,
     features: [
-      "Usuários & Permissões",
-      "Empresas & Filiais",
-      "Autenticação & SSO",
-      "Logs",
-      "Configurações",
-      "Integrações & API",
+      "Cadastros e usuários",
+      "Papéis e permissões",
+      "Regras de alertas",
+      "Configuração do WhatsApp",
+      "Histórico de auditoria",
+      "Assinatura",
     ],
-    ai: ["Auditoria inteligente", "Detecção de acessos anômalos"],
+    ai: [],
+    integrations: ["WhatsApp", "Microsoft 365"],
+    audience: ["Administrador", "TI"],
   },
 ];
 
 export function getProduct(slug: string): Product | undefined {
   return products.find((p) => p.slug === slug);
 }
+
+/**
+ * Slugs que o site anunciou até 26/10/2026 e que não correspondem mais a
+ * nenhum módulo. Ficam aqui porque `next.config.ts` os redireciona para
+ * /products — um 404 em URL que já foi indexada é pior do que um redirecionamento.
+ */
+export const PRODUTOS_DESCONTINUADOS = [
+  "one-fleet",
+  "one-assets",
+  "one-crm",
+  "one-supply",
+  "one-observe",
+  "one-budget",
+  "one-flow",
+] as const;

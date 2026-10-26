@@ -1,26 +1,4 @@
-import type { Stat, ProcessStep, FaqItem } from "@/types";
-
-/** Home — Números (doc 04). Placeholder values, ready to be replaced with real data. */
-export const stats: Stat[] = [
-  { value: "500", suffix: "+", label: "Projetos entregues" },
-  { value: "99.9", suffix: "%", label: "Disponibilidade" },
-  { value: "40", suffix: "+", label: "Integrações" },
-  { value: "10", suffix: " anos", label: "de engenharia" },
-];
-
-/** Home — Diferenciais (doc 05). */
-export const differentials: string[] = [
-  "Arquitetura Modular",
-  "Cloud Native",
-  "Alta Performance",
-  "API First",
-  "Business Operating System",
-  "Inteligência Artificial",
-  "Integrações",
-  "Segurança",
-  "Experiência Premium",
-  "Escalabilidade",
-];
+import type { ProcessStep, FaqItem } from "@/types";
 
 /** Home — Tecnologias (doc 04). */
 export const technologies: string[] = [
