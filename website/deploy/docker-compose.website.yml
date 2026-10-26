@@ -16,6 +16,20 @@ services:
     read_only: true
     tmpfs:
       - /tmp
+      # Cache do otimizador de imagem do Next.
+      #
+      # Sem isto o container NÃO consegue criar `/app/.next/cache` (o sistema
+      # de arquivos é read_only) e cada pedido a `/_next/image` termina em
+      # `ENOENT: mkdir` + unhandledRejection — a resposta nunca fecha e a
+      # imagem fica carregando para sempre. Em 26/10/2026 isso deixou oito das
+      # nove capturas do hero em branco em produção; só a primeira aparecia,
+      # porque eu a tinha aquecido com um curl.
+      #
+      # `mode=1777` é obrigatório: tmpfs nasce de root e o processo roda como
+      # `app` (ver Dockerfile) — sem isso o diretório existe e continua sem
+      # permissão de escrita, que é o mesmo erro com outra mensagem.
+      # Ver [[feedback-volume-nasce-root-dockerfile]], mesma armadilha.
+      - /app/.next/cache:mode=1777,size=64m
     environment:
       NODE_ENV: production
       PORT: "3000"

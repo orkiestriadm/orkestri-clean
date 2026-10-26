@@ -1,4 +1,5 @@
 import type { NavItem } from "@/types";
+import { WHATSAPP_CADASTRO } from "./site";
 
 /**
  * Primary navigation.
@@ -48,7 +49,10 @@ export const footerNav: { title: string; items: NavItem[] }[] = [
     title: "Contato",
     items: [
       { label: "Falar com especialista", href: "/contact" },
-      { label: "Solicitar demonstração", href: "/demo" },
+      /* "Solicitar demonstração" saiu daqui em 26/10/2026: o cadastro passou
+         a ser só pelo WhatsApp, e o rodapé era o último lugar do site que
+         ainda oferecia o caminho antigo. */
+      { label: "Criar conta no WhatsApp", href: WHATSAPP_CADASTRO },
       { label: "Política de Privacidade", href: "/privacy" },
       { label: "Termos de Uso", href: "/terms" },
     ],

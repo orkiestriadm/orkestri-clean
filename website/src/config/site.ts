@@ -23,3 +23,17 @@ export const siteConfig = {
 } as const;
 
 export type SiteConfig = typeof siteConfig;
+
+/**
+ * Único caminho de cadastro do site (decisão do cliente, 26/10/2026): abre a
+ * conversa já com o texto pronto, e a Aurélia conduz o cadastro por lá.
+ *
+ * O número tem de ser o mesmo a que a instância do Evolution está conectada
+ * em produção — apontando para outro, a mensagem chega a um WhatsApp que
+ * ninguém lê e o visitante fica sem resposta.
+ */
+export const WHATSAPP_NUMERO = "5514991661688";
+
+export const WHATSAPP_CADASTRO = `https://wa.me/${WHATSAPP_NUMERO}?text=${encodeURIComponent(
+  "Quero fazer meu cadastro no Orkiestri",
+)}`;

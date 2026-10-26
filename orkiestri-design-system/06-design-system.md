@@ -380,11 +380,36 @@ Info
 
 # Background
 
-Sempre branco.
+Branco nas páginas internas do site e em todo o sistema.
 
-Nunca utilizar fundo escuro como padrão.
+**Exceção: a home (landing page) é escura.** Decisão do cliente em 26/10/2026,
+depois de três referências visuais escuras que ele mesmo trouxe. A home é a
+única página de conversão do site e precisa ser impactante; as internas
+continuam claras, e nenhuma delas deve ser escurecida sem nova decisão.
 
-Dark Mode poderá existir futuramente.
+Escala escura da landing (definida em `website/src/app/globals.css`):
+
+| Token | Valor | Uso |
+| --- | --- | --- |
+| `ink` | `#07080B` | fundo base |
+| `ink-raise` | `#0E1016` | faixa alternada |
+| `panel` | `#15181F` | superfícies |
+| `flame` | `#FF6A1A` | a luz — glow, fio aceso, gradiente |
+| `ember` | `#FFC48A` | âmbar, para dados e microdetalhe |
+| `signal` | `#25D366` | verde do WhatsApp, **só** no botão de cadastro |
+| `chalk` / `chalk-dim` / `chalk-faint` | `#F4F6F9` / `#99A0AD` / `#868E9D` | texto |
+
+Três regras que sustentam o resultado:
+
+1. O laranja do escuro é `#FF6A1A`, não o `#F97316` da marca: sobre quase
+   preto, o `#F97316` perde brilho e vira ocre.
+2. O laranja é **fonte de luz**, não tinta de fundo. Glow largo demais tinge a
+   página inteira de marrom — é preciso vinheta para devolver o preto às
+   bordas.
+3. O verde aparece **uma vez por tela**. Usá-lo como cor de enfeite destrói o
+   que ele comunica: que o clique sai do site e abre uma conversa.
+
+Dark Mode do sistema (app) continua apenas previsto, não implementado.
 
 ---
 

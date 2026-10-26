@@ -54,6 +54,13 @@ export const softwareFactoryProcess: ProcessStep[] = [
 
 /** Home / plataforma FAQ (doc 07 — FAQ accordion). */
 export const homeFaq: FaqItem[] = [
+  /* Primeira pergunta de propósito: o site passou a ter um único caminho de
+     cadastro (26/10/2026) e quem chega estranha não achar formulário. */
+  {
+    question: "Por que o cadastro é pelo WhatsApp?",
+    answer:
+      "Porque é onde a conversa já acontece. Você manda uma mensagem, responde as perguntas do cadastro ali mesmo e recebe a empresa criada com os módulos ligados — sem formulário no navegador e sem esperar aprovação. Depois disso, o mesmo canal serve para abrir chamado, marcar compromisso, criar projeto ou lançar uma despesa. Se preferir falar com uma pessoa antes, use a página de contato.",
+  },
   {
     question: "O que é o Orkiestri One?",
     answer:

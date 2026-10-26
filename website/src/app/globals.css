@@ -39,9 +39,46 @@
   --color-surface: #ffffff;
   --color-surface-muted: #f9fafb;
 
+  /* ---------- Escala escura da landing ----------
+     A home passou a ser escura (decisão do cliente, 26/10/2026). O resto do
+     site segue claro, então estes tokens convivem com os de cima em vez de
+     substituí-los: as seções escuras pedem `ink`/`panel` por nome.
+     Os quatro degraus são frios de propósito — um preto neutro ao lado do
+     laranja puxa para o marrom. */
+  --color-ink: #07080b;
+  --color-ink-raise: #0e1016;
+  --color-panel: #15181f;
+  --color-panel-high: #1c2029;
+
+  /* ---------- A luz ----------
+     Mais claro que o `--color-primary` do design system: #f97316 sobre quase
+     preto perde brilho e vira ocre. Este laranja é usado como FONTE DE LUZ
+     (glow, fio de borda aceso, gradiente), não como tinta de preenchimento. */
+  --color-flame: #ff6a1a;
+  --color-flame-soft: #ff8a3d;
+  --color-ember: #ffc48a;
+
+  /* ---------- O único verde da página ----------
+     Verde do WhatsApp. Aparece UMA vez por tela, só no botão de cadastro —
+     é o que o torna impossível de não ver. Não usar para mais nada. */
+  --color-signal: #25d366;
+  --color-signal-hover: #1eb757;
+
+  /* ---------- Texto sobre o escuro ---------- */
+  --color-chalk: #f4f6f9;
+  --color-chalk-dim: #99a0ad;
+  /* #6a7280 dava 3,4:1 sobre o ink — reprova no AA para texto pequeno, que é
+     justamente onde este tom é usado (legendas, microcópia). */
+  --color-chalk-faint: #868e9d;
+
   /* ---------- Typography ---------- */
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system,
     "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  /* Archivo em largura expandida para as manchetes. Inter e Archivo são as
+     duas grotescas, mas o eixo `wdth` as separa à primeira vista: a manchete
+     fica larga e de engenharia, o texto corrido segue estreito e neutro. */
+  --font-display: var(--font-archivo), var(--font-inter), ui-sans-serif,
+    system-ui, sans-serif;
 
   /* Type scale (doc 06 — hierarchy) */
   --text-caption: 0.875rem; /* 14px */
@@ -137,6 +174,35 @@
     .container-content {
       padding-inline: 6rem; /* desktop 96px */
     }
+  }
+
+  /* ── Superfícies escuras ────────────────────────────────────────────────
+     Um fio branco a 8% é a única borda usada no escuro. Borda cinza sólida
+     endurece a silhueta do card; o fio some e deixa só a aresta de luz. */
+  .hairline {
+    border-color: rgba(255, 255, 255, 0.08);
+  }
+
+  /* Aresta de luz no topo do painel: um filete claro por dentro, como se a
+     luz da página batesse na quina. É o que dá volume à superfície escura
+     sem recorrer a sombra, que no escuro não aparece. */
+  .edge-light {
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.07),
+      0 24px 60px -24px rgba(0, 0, 0, 0.8);
+  }
+
+  /* Grão. Um preto chapado em tela grande mostra o banding do degradê e
+     parece vazio; o ruído a 3% quebra as duas coisas. SVG inline para não
+     custar requisição. */
+  .ink-grain::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    opacity: 0.035;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
   }
 
   /* Subtle premium border used across cards (doc 06 — no heavy shadows) */
@@ -247,6 +313,17 @@
    Usa scroll-driven animations: quem cuida é o compositor, então não há
    listener de scroll nem trabalho por quadro na thread principal. Onde o
    navegador não suporta, a mídia simplesmente fica parada. */
+/* Troca de tela na trilha de módulos do hero: a captura nova entra por
+   opacidade em vez de aparecer de estalo. */
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
 @keyframes media-parallax {
   from {
     transform: translate3d(0, 22px, 0) scale(1.01);
