@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "3.4.0";
+export const VERSAO = "4.0.0";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -23,10 +23,10 @@ export const VERSAO = "3.4.0";
  * Não é gerada no build: `new Date()` no bundle muda a cada compilação, e duas
  * builds do mesmo código pareceriam versões diferentes.
  */
-export const VERSAO_DATA = "2026-10-20";
+export const VERSAO_DATA = "2026-10-27";
 
 /** Nome da entrega, para dar contexto ao número. */
-export const VERSAO_NOME = "O Orkiestri inteiro pelo WhatsApp";
+export const VERSAO_NOME = "Mensalidade de R$ 11,90 com pagamento no cartão ou Pix";
 
 /**
  * Histórico exibido na tela Sobre, do mais recente para o mais antigo.
@@ -40,6 +40,20 @@ export const HISTORICO: { versao: string; data: string; titulo: string; itens: s
   // substituída pela 3.2.0 antes de chegar a produção. Esta lista é o que
   // mudou para quem USA o sistema, e uma versão que ninguém recebeu não mudou
   // nada para ninguém — anunciá-la só faria procurarem uma tela que não existe.
+  {
+    versao: "4.0.0",
+    data: "2026-10-27",
+    titulo: "Mensalidade de R$ 11,90 com pagamento no cartão ou Pix",
+    itens: [
+      "A mensalidade agora é de R$ 11,90 por mês, com TODOS os módulos liberados — não existe mais plano por módulo",
+      "Dá para pagar de duas formas: no cartão, que renova sozinho todo mês e você não precisa lembrar de nada; ou no Pix, pagando um mês de cada vez. O Pix chega como código de copia e cola no próprio WhatsApp",
+      "O aviso de vencimento passou a sair três vezes — faltando 3 dias, faltando 1 dia e no próprio dia — sempre com o link para pagar na hora, sem precisar responder nada",
+      "MUDOU: responder *1* no WhatsApp não libera mais o acesso na hora. O *1* devolve a cobrança, e o mês é liberado quando o pagamento é confirmado. Antes o acesso saía na confiança e a equipe cobrava depois",
+      "O link de pagamento abre sem login, de propósito: quem está com a mensalidade vencida não consegue entrar no sistema, então pedir login ali seria uma porta trancada",
+      "Indicar alguém continua valendo como indicação, mas não gera mais comissão em dinheiro. As comissões que já estavam pendentes seguem para a equipe pagar",
+      "Saiu do ar o cadastro antigo que vendia plano por empresa (R$ 99,90 e R$ 199,90). A entrada é o teste gratuito de 7 dias",
+    ],
+  },
   {
     versao: "3.4.0",
     data: "2026-10-21",

@@ -57,8 +57,15 @@ export default function ReferralPanel() {
     finally { setBusy(null); }
   };
 
+  // Libera o mês À MÃO, SEM pagamento. O caminho normal é a pessoa pagar no
+  // Mercado Pago (cartão ou Pix) e o acesso abrir sozinho — este botão é a
+  // exceção: cortesia, erro de cobrança, acerto por fora.
   const efetivar = (u: Linha) => {
-    if (!confirm(`Marcar que ${u.nome} EFETIVOU a assinatura (R$ 27,00 por mês)? O primeiro mês conta do fim do teste (ou de hoje, se o teste já venceu).` + (u.indicadoPor ? `\n\nComo foi indicado por ${u.indicadoPor}, será criada a comissão de R$ 5,00.` : ""))) return;
+    if (!confirm(
+      `Liberar um mês para ${u.nome} SEM pagamento?\n\n` +
+      `Isso NÃO cobra nada: é liberação manual (cortesia ou acerto por fora). ` +
+      `O mês conta do fim do teste, ou de hoje se o teste já venceu.`
+    )) return;
     acao(() => api.post(`/referral/admin/${u.id}/efetivar`), u.id);
   };
   const desfazer = (u: Linha) => {
@@ -174,7 +181,7 @@ export default function ReferralPanel() {
             <div style={{ display: "flex", gap: 8, marginTop: 12, flexWrap: "wrap" }}>
               {wa && <a href={wa} target="_blank" rel="noreferrer" style={{ ...actBtn, color: "var(--accent-green)", borderColor: "color-mix(in srgb, var(--accent-green) 40%, transparent)" }}><MessageCircle size={13} /> Falar</a>}
               {!u.efetivado
-                ? <button onClick={() => efetivar(u)} disabled={busy === u.id} style={{ ...actBtn, background: "var(--accent-violet)", color: "#fff", border: "none" }}>Marcar efetivado (R$ 27)</button>
+                ? <button onClick={() => efetivar(u)} disabled={busy === u.id} style={{ ...actBtn, background: "var(--accent-violet)", color: "#fff", border: "none" }}>Liberar mês sem pagamento</button>
                 : <button onClick={() => desfazer(u)} disabled={busy === u.id} style={actBtn}>Desfazer efetivação</button>}
               {u.efetivado && u.referralId && u.comissao?.status === "PENDENTE" &&
                 <button onClick={() => pagarComissao(u)} disabled={busy === u.id} style={{ ...actBtn, color: "var(--accent-violet)", borderColor: "color-mix(in srgb, var(--accent-violet) 40%, transparent)" }}>Marcar comissão paga</button>}

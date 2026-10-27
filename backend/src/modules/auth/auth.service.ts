@@ -5,7 +5,8 @@ import { ConfigService } from "@nestjs/config";
 import { PrismaService } from "../../prisma/prisma.service";
 import { CacheService } from "../cache/cache.service";
 import { registrarIndicacao, montarMensagemAtivacao, codigoIndicacao } from "../referral/referral.helpers";
-import { LEMBRETE_ANTECEDENCIA_MS, precisaLembrete, montarLembrete, codigoRenovacao, faseDaConta, acessoVencido } from "./trial-renovacao";
+import { LEMBRETE_ANTECEDENCIA_MS, marcoDoAviso, montarLembrete, codigoRenovacao, faseDaConta, acessoVencido } from "./trial-renovacao";
+import { urlCheckout } from "../assinatura/checkout-token";
 import { WhatsAppService } from "../notifications/whatsapp.service";
 import { EmailService } from "../notifications/email.service";
 import { AutomacaoService } from "../automacoes/automacoes.module";
@@ -560,13 +561,17 @@ export class AuthService implements OnModuleInit {
       throw new UnauthorizedException("Credenciais inválidas");
     }
     // Acesso vencido: a senha está certa, mas acabou o teste de 7 dias (sem
-    // efetivar) ou o mês pago (sem renovar). Bloqueia aqui (não desativa a conta)
-    // para o suporte ainda ver o registro e fazer o contato. Responder "1" no
-    // WhatsApp em até 15 dias libera de novo.
+    // pagar) ou o mês pago (sem renovar). Bloqueia aqui (não desativa a conta)
+    // para o suporte ainda ver o registro e fazer o contato.
+    //
+    // A mensagem traz o LINK de pagamento porque quem está aqui não consegue
+    // entrar: mandar a pessoa "procurar no sistema" seria mandá-la para uma
+    // porta trancada. O link abre sem login, e pagar libera em até 15 dias.
     if (acessoVencido(user as any, new Date())) {
+      const link = this.linkDePagamento(user.id);
       throw new UnauthorizedException((user as any).assinaturaEm
-        ? "Sua mensalidade venceu. Responda 1 no aviso que enviamos no WhatsApp para renovar, ou fale com a nossa equipe."
-        : "Seu teste de 7 dias expirou. Responda 1 no aviso que enviamos no WhatsApp para continuar, ou fale com a nossa equipe.");
+        ? `Sua mensalidade venceu. Para voltar a usar, pague em ${link} — assim que o pagamento for confirmado, o acesso é liberado.`
+        : `Seu teste de 7 dias terminou. Para continuar, pague em ${link} — assim que o pagamento for confirmado, o acesso é liberado.`);
     }
     // ── Primeiro acesso: a senha provisória NÃO abre sessão ────────────────
     //
@@ -1361,16 +1366,23 @@ export class AuthService implements OnModuleInit {
 
   /**
    * Chamado de hora em hora (horário comercial): manda no WhatsApp o aviso de
-   * que o acesso vence em menos de 24 h — fim do teste ou fim do mês pago — com
-   * a opção de renovar respondendo "1". Uma vez por ciclo: `trialLembreteEm` é
-   * reservado ANTES do envio (para duas rodadas não mandarem em dobro) e volta
-   * ao valor anterior se o envio falhar, para tentar de novo na hora seguinte.
+   * que o acesso vai vencer — fim do teste ou fim do mês pago — com a opção de
+   * receber a cobrança respondendo "1", mais o link para pagar direto.
+   *
+   * São TRÊS avisos por ciclo: faltando 3 dias, 1 dia e no próprio dia. A trava
+   * contra aviso em dobro é a UNIQUE de `assinatura_avisos` (userId + limite +
+   * marco): duas rodadas na mesma hora disputam o INSERT e só uma ganha. Vale
+   * mais que uma reserva em campo solto, porque o banco é que decide.
+   *
+   * Quem está no cartão (renovação automática) não recebe nada: o Mercado Pago
+   * cobra sozinho — `marcoDoAviso` já cuida disso.
    */
   async enviarLembretesTrial(agora = new Date()): Promise<number> {
     const janela = { gt: agora, lte: new Date(agora.getTime() + LEMBRETE_ANTECEDENCIA_MS) };
     const candidatos = await this.prisma.user.findMany({
       where: {
         isTrial: true, ativo: true,
+        assinaturaRenovacaoAuto: false,
         OR: [
           { assinaturaEm: null, trialExpiraEm: janela },
           { assinaturaEm: { not: null }, assinaturaValidaAte: janela },
@@ -1380,30 +1392,55 @@ export class AuthService implements OnModuleInit {
       select: {
         id: true, nome: true, organizationId: true, isTrial: true, trialExpiraEm: true, trialModulo: true,
         assinaturaEm: true, assinaturaValidaAte: true, trialLembreteEm: true,
+        assinaturaRenovacaoAuto: true,
         profile: { select: { whatsapp: true } },
       } as any,
     });
     let enviados = 0;
     for (const u of candidatos as any[]) {
       const f = faseDaConta(u);
-      if (!f || !precisaLembrete(u, agora) || !u.profile?.whatsapp) continue;
-      const anterior: Date | null = u.trialLembreteEm ?? null;
-      const reserva = await this.prisma.user.updateMany({
-        where: { id: u.id, trialLembreteEm: anterior } as any,
-        data: { trialLembreteEm: agora } as any,
+      const marco = marcoDoAviso(u, agora);
+      if (!f || marco === null || !u.profile?.whatsapp) continue;
+
+      // Reserva no banco. Colisão na UNIQUE = outra rodada já mandou este aviso.
+      try {
+        await (this.prisma as any).assinaturaAviso.create({
+          data: { userId: u.id, limite: f.limite, marco },
+        });
+      } catch {
+        continue;
+      }
+
+      const msg = montarLembrete({
+        fase: f.fase, nome: u.nome, modulo: u.trialModulo, limite: f.limite,
+        codigo: codigoRenovacao(u.id), marco,
+        urlCheckout: this.linkDePagamento(u.id),
       });
-      if (reserva.count === 0) continue;
-      const msg = montarLembrete({ fase: f.fase, nome: u.nome, modulo: u.trialModulo, limite: f.limite, codigo: codigoRenovacao(u.id) });
       const inst = await this.wa.resolveInstance(u.organizationId || this.TRIAL_ORG).catch(() => undefined);
       const ok = await this.wa.sendMessage(u.profile.whatsapp, msg, inst).catch(() => false);
       if (!ok) {
-        await this.prisma.user.update({ where: { id: u.id }, data: { trialLembreteEm: anterior } as any }).catch(() => {});
-        this.logger.warn(`Aviso de vencimento (${f.fase}) não saiu para user=${u.id}; tenta de novo na próxima rodada.`);
+        // Devolve a vaga para a próxima rodada tentar de novo.
+        await (this.prisma as any).assinaturaAviso.deleteMany({
+          where: { userId: u.id, limite: f.limite, marco },
+        }).catch(() => {});
+        this.logger.warn(`Aviso de vencimento (${f.fase}, ${marco}d) não saiu para user=${u.id}; tenta de novo na próxima rodada.`);
         continue;
       }
+
+      // `trialLembreteEm` continua sendo a marca de "recebeu aviso deste ciclo",
+      // que é o que autoriza um "1" solto a contar como resposta.
+      await this.prisma.user.update({
+        where: { id: u.id }, data: { trialLembreteEm: agora } as any,
+      }).catch(() => {});
       enviados++;
     }
     return enviados;
+  }
+
+  /** O link da página de pagamento, que funciona sem login. */
+  private linkDePagamento(userId: string): string {
+    const appUrl = this.config.get<string>("APP_URL") || "https://www.orkiestri.com";
+    return urlCheckout(appUrl, userId);
   }
 
   /**

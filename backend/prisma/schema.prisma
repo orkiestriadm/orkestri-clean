@@ -280,12 +280,19 @@ model User {
   trialLembreteEm           DateTime? @map("trial_lembrete_em")
   trialRenovacaoResposta    String?   @map("trial_renovacao_resposta")
   trialRenovacaoRespostaEm  DateTime? @map("trial_renovacao_resposta_em")
-  // Efetivação (assinatura) marcada à mão pelo admin no painel de Indicações.
+  // Efetivação (assinatura): hoje vem do pagamento confirmado no Mercado Pago;
+  // o painel de Indicações ainda consegue marcar à mão (liberação da equipe).
   assinaturaEm        DateTime? @map("assinatura_em")
   assinaturaValor     Int?      @map("assinatura_valor")
-  // Fim do mês pago (R$ 27/mês). Renovar pelo WhatsApp soma um mês; vencido,
-  // o login bloqueia. Nulo em quem foi efetivado antes da mensalidade existir.
+  // Fim do mês pago (R$ 11,90/mês). Cada pagamento confirmado soma um mês;
+  // vencido, o login bloqueia. Nulo em quem foi efetivado antes da mensalidade
+  // existir — esses ficam fora do ciclo e a equipe cuida à mão.
   assinaturaValidaAte DateTime? @map("assinatura_valida_ate")
+  /// Assinatura de CARTÃO no Mercado Pago (preapproval). Preenchido quando a
+  /// pessoa autoriza a recorrência; a partir daí o MP cobra sozinho todo mês e
+  /// cada cobrança aprovada chega por webhook. Nulo em quem paga por Pix.
+  assinaturaPreapprovalId String?  @map("assinatura_preapproval_id")
+  assinaturaRenovacaoAuto Boolean  @default(false) @map("assinatura_renovacao_auto")
   criadoEm         DateTime  @default(now()) @map("criado_em")
   atualizadoEm     DateTime  @updatedAt @map("atualizado_em")
 
@@ -316,6 +323,8 @@ model User {
   profile                    UserProfile?
   indicacoesFeitas           Referral[]                  @relation("IndicacoesFeitas")
   indicacaoRecebida          Referral?                   @relation("IndicacaoRecebida")
+  assinaturaCobrancas        AssinaturaCobranca[]        @relation("AssinaturaCobrancaUser")
+  assinaturaAvisos           AssinaturaAviso[]           @relation("AssinaturaAvisoUser")
   chamadosSolicitados        Chamado[]                   @relation("ChamadoSolicitante")
   chamadosAtendidos          Chamado[]                   @relation("ChamadoAtendente")
   comentariosChamado         ChamadoComentario[]
@@ -1363,6 +1372,70 @@ model Referral {
   @@index([indicadorUserId])
   @@index([status])
   @@map("referrals")
+}
+
+// ── Mensalidade (R$ 11,90/mês) — cobrança pelo Mercado Pago ───────────────────
+//
+// O acesso pago NÃO é concedido na palavra da pessoa: cada mês nasce aqui como
+// cobrança pendente e só vira acesso quando o Mercado Pago confirma. Por isso a
+// tabela guarda `validadeConcedidaAte` — o MP repete webhook como REGRA, não
+// como exceção, e sem essa marca o mesmo pagamento somaria dois meses.
+
+model AssinaturaCobranca {
+  id     String @id @default(uuid())
+  userId String @map("user_id")
+  user   User   @relation("AssinaturaCobrancaUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  /// Centavos (1190 = R$ 11,90), gravado na linha para preservar o histórico
+  /// quando o preço mudar.
+  valor Int
+  /// Mês de referência, "AAAA-MM". Uma cobrança pendente por ciclo.
+  ciclo String
+  /// cartao | pix — nulo até a pessoa escolher no checkout.
+  meio  String?
+  /// pendente | pago | expirado | cancelado | estornado
+  status String @default("pendente")
+
+  /// Pagamento no MP. UNIQUE: é o que faz o webhook repetido ser inofensivo.
+  mpPaymentId     String? @unique @map("mp_payment_id")
+  /// Preapproval que originou a cobrança (só nas de cartão).
+  mpPreapprovalId String? @map("mp_preapproval_id")
+
+  /// Pix copia-e-cola, do jeito que vai no WhatsApp.
+  pixQrCode   String?   @db.Text @map("pix_qr_code")
+  checkoutUrl String?   @map("checkout_url")
+  expiraEm    DateTime? @map("expira_em")
+  pagoEm      DateTime? @map("pago_em")
+
+  /// Até quando ESTA cobrança esticou o acesso. Preenchido = já foi aplicada.
+  validadeConcedidaAte DateTime? @map("validade_concedida_ate")
+
+  criadoEm     DateTime @default(now()) @map("criado_em")
+  atualizadoEm DateTime @updatedAt @map("atualizado_em")
+
+  @@index([userId, status])
+  @@index([status])
+  @@index([mpPreapprovalId])
+  @@map("assinatura_cobrancas")
+}
+
+/// Um aviso de vencimento enviado. A UNIQUE é a trava: dois ciclos do cron na
+/// mesma hora não mandam o mesmo aviso duas vezes para a mesma pessoa.
+model AssinaturaAviso {
+  id     String @id @default(uuid())
+  userId String @map("user_id")
+  user   User   @relation("AssinaturaAvisoUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  /// Vencimento a que o aviso se refere — é o que separa um ciclo do outro.
+  limite DateTime
+  /// Quantos dias faltavam: 3, 1 ou 0 (no dia).
+  marco  Int
+
+  enviadoEm DateTime @default(now()) @map("enviado_em")
+
+  @@unique([userId, limite, marco])
+  @@index([userId])
+  @@map("assinatura_avisos")
 }
 
 /// Papel de acesso, POR ORGANIZACAO.

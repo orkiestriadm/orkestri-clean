@@ -38,6 +38,7 @@ import { GastosModule } from './modules/gastos/gastos.module';
 import { IntegracoesModule } from './modules/integracoes/integracoes.module';
 import { WhatsappInboundModule } from './modules/agenda/whatsapp-inbound.module';
 import { ReferralModule } from './modules/referral/referral.module';
+import { AssinaturaModule } from './modules/assinatura/assinatura.module';
 import { JwtModule } from '@nestjs/jwt';
 
 /**
@@ -89,6 +90,10 @@ import { JwtModule } from '@nestjs/jwt';
     OrganizationsModule,
     CadastroRequestModule,
     BillingModule,
+    // Mensalidade (R$ 11,90/mês) cobrada no Mercado Pago. Rotas em
+    // /api/assinatura/*: checkout sem login (o vencido não consegue entrar) e
+    // o webhook, que é quem libera o mês pago.
+    AssinaturaModule,
     JwtModule.register({ secret: process.env.JWT_SECRET, signOptions: { expiresIn: "1h" } }),
     FinanceiroModule,
     GastosModule,
