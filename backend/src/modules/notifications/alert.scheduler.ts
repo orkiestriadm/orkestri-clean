@@ -5,6 +5,7 @@ import { WhatsAppService } from "./whatsapp.service";
 import { ConfigService } from "@nestjs/config";
 import * as crypto from "crypto";
 import { EmailService } from "./email.service";
+import { EventoAlertaService } from './evento-alerta.service';
 
 const DEFAULT_CONFIGS = [
   { id:"d60", minutos:60, ativo:true, emoji:"ðŸ””", titulo:"Lembrete 1 hora",    mensagem:"Voce tem um evento em 60 minutos:\n\n*{evento}*\n{horario}\n\n{url}" },
@@ -36,6 +37,7 @@ export class AlertScheduler implements OnModuleInit {
     private wa: WhatsAppService,
     private config: ConfigService,
     private email: EmailService,
+    private eventoAlertas: EventoAlertaService,
   ) {}
 
   onModuleInit() {
@@ -183,7 +185,7 @@ export class AlertScheduler implements OnModuleInit {
       const windowEnd = new Date(now.getTime() + (maxMin + 3) * 60 * 1000);
 
       const events = await this.prisma.event.findMany({
-        where: { inicio: { gte: now, lte: windowEnd } },
+        where: { inicio: { gte: new Date(now.getTime() - 150000), lte: windowEnd }, externalCancelled: false, confirmado: true },
         include: {
           user: {
             select: {
@@ -204,12 +206,17 @@ export class AlertScheduler implements OnModuleInit {
         const horario = fmtHorario(new Date(ev.inicio));
 
         for (const cfg of configs) {
+          if (cfg.organizationId && cfg.organizationId !== (ev as any).organizationId) continue;
           if (Math.abs(diffMin - cfg.minutos) > 2.5) continue;
+          if (cfg.minutos === 0 && diffMin > 0) continue;
 
-          const key = `${ev.id}::${cfg.minutos}`;
+          const key = `${ev.id}::${new Date(ev.inicio).toISOString()}::${cfg.minutos}`;
           const lastSent = this.sent.get(key) || 0;
           if (Date.now() - lastSent < 8 * 60 * 1000) continue;
 
+          const inst = await this.wa.resolveInstance((ev as any).organizationId);
+          const codigo = await this.eventoAlertas.prepararEnvio(ev, cfg.minutos, inst);
+          if (!codigo) continue;
           this.sent.set(key, Date.now());
           this.logger.log(`ALERTA [${cfg.minutos}min] "${ev.titulo}" -> ${(ev.user as any).email}`);
 
@@ -234,13 +241,13 @@ export class AlertScheduler implements OnModuleInit {
           // cadastrou o WhatsApp recebe o lembrete do próprio compromisso.
           const profile = (ev.user as any).profile;
           if (profile?.whatsapp) {
-            const body = this.fmt(cfg.mensagem, ev.titulo, horario, appUrl);
+            const body = cfg.minutos === 0 ? this.eventoAlertas.mensagemAgora(ev, codigo) : this.fmt(cfg.mensagem, ev.titulo, horario, appUrl);
             const msg  = `${cfg.emoji} *${MARCA}*\n\n${body}`;
             try {
-              const inst = await this.wa.resolveInstance((ev as any).organizationId);
               const ok = await this.wa.sendMessage(profile.whatsapp, msg, inst);
+              await this.eventoAlertas.registrarEnvio(ev, cfg.minutos, ok);
               this.logger.log(`WA ${ok ? "OK" : "FALHOU"} [${inst}] -> ${profile.whatsapp}`);
-            } catch (e: any) { this.logger.error("WA erro: " + e.message); }
+            } catch (e: any) { await this.eventoAlertas.registrarEnvio(ev, cfg.minutos, false); this.logger.error("WA erro: " + e.message); }
           }
         }
       }

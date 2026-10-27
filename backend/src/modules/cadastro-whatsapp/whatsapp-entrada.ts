@@ -98,5 +98,5 @@ export function mensagemPrimeiroContato(
     return `Oi! Sou a Aurélia, do *${MARCA}*. Você já tem cadastro com este WhatsApp. Envie *menu* para ver seus recursos ou *acesso* para receber as orientações de entrada.`;
   if (tipo === "vincular" || jaTemConta)
     return `Oi! Sou a Aurélia, do *${MARCA}*. Para usar sua conta existente com este WhatsApp, entre no sistema, abra seu *Perfil* e siga a opção *Criar evento pelo WhatsApp*. Envie aqui *VINCULAR* e o código que aparecer.\n\nSe precisar recuperar o acesso, use *Esqueci a senha* no site. Não precisa criar outra conta.`;
-  return `Oi! Eu sou a *Aurélia*, do *${MARCA}*. 😊\nAjudo você a lembrar compromissos e organizar o dia pelo WhatsApp.\n\nComo posso ajudar?\n*1* — Criar minha conta gratuita\n*2* — Já tenho uma conta\n*3* — Conhecer o Orkiestri\n*0* — Sair\n\nPara começar direto, responda *CADASTRO*. Eu faço uma pergunta de cada vez.`;
+  return `Oi! Eu sou a *Aurélia*, do *${MARCA}*. 😊\nAjudo você a lembrar compromissos e organizar o dia pelo WhatsApp.\n\nComo posso ajudar?\n*1* — Criar minha conta gratuita\n*2* — Já tenho uma conta\n*3* — Conhecer o ${MARCA}\n*0* — Sair\n\nPara começar direto, responda *CADASTRO*. Eu faço uma pergunta de cada vez.`;
 }
