@@ -13,6 +13,8 @@ import { NotificacaoDispatcher } from "./notificacao-dispatcher.service";
 import { NotificacaoWorker } from "./notificacao-worker.service";
 import { WhatsAppMonitor } from "./whatsapp-monitor.service";
 import { NotificacaoPrefsController } from "./notificacao-prefs.controller";
+import { EventoAlertaService } from './evento-alerta.service';
+import { IntegracoesModule } from '../integracoes/integracoes.module';
 
 class UpdatePhoneDto {
   @IsOptional() @IsString() whatsapp?: string;
@@ -207,18 +209,19 @@ import { JwtModule } from "@nestjs/jwt";
 @Module({
   imports: [
     AlertConfigModule,
+    IntegracoesModule,
     JwtModule.registerAsync({
       inject: [ConfigService],
       useFactory: (c: ConfigService) => ({ secret: c.get("JWT_SECRET", "fallback_secret") }),
     }),
   ],
   providers: [
-    WhatsAppService, AlertScheduler, EmailService, ConfigService,
+    WhatsAppService, AlertScheduler, EventoAlertaService, EmailService, ConfigService,
     NotificacaoDispatcher, NotificacaoWorker, WhatsAppMonitor,
   ],
   controllers: [NotificationsController, NotificacaoPrefsController],
   // O despachante é exportado porque os módulos de negócio (frota, orçamento,
   // chamados) passam a notificar por ele em vez de falar com o WhatsApp direto.
-  exports: [WhatsAppService, AlertScheduler, EmailService, NotificacaoDispatcher],
+  exports: [WhatsAppService, AlertScheduler, EmailService, NotificacaoDispatcher, EventoAlertaService],
 })
 export class NotificationsModule {}

@@ -1,14 +1,28 @@
+import { WhatsappRotinaService, comandoRotina } from "./whatsapp-rotina.service";
+import { WhatsappOperacaoController } from "./whatsapp-operacao.controller";
+import { WhatsappMediaService, WhatsappAnexosController } from "./whatsapp-media.service";
+import { WhatsappContextoService, contextoSolicitado, comandoEmpresarial } from "./whatsapp-contexto.service";
+import { WhatsappEquipeService } from "./whatsapp-equipe.service";
+import { WhatsappLinguagemService } from "./whatsapp-linguagem.service";
+import { dataTarefa } from "./whatsapp-rotina-datas";
+import { identificarExecucao, acaoUtil, abrirMensagem } from "./whatsapp-execucao";
+import { WhatsappInicioService } from "../cadastro-whatsapp/whatsapp-inicio.service";
+import { executarMensagemUmaVez, executarComRecibo } from "./whatsapp-recibos";
 import { MARCA } from "../../common/marca";
+import { mesmoTelefoneCadastro, mensagemPrimeiroContato } from '../cadastro-whatsapp/whatsapp-entrada';
 import {
-  Module, Controller, Post, Body, Query, Headers, HttpCode, HttpStatus, Logger, Injectable,
+  Module, Controller, Post, Body, Query, Headers, HttpCode, HttpStatus, Logger, Injectable, ServiceUnavailableException, Optional, Inject,
 } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
 import { WhatsAppService } from "../notifications/whatsapp.service";
+import { EventoAlertaService } from '../notifications/evento-alerta.service';
+import { WhatsappGuiadoService } from './whatsapp-guiado.service';
+import { IntegracoesModule } from '../integracoes/integracoes.module';
 import { NotificationsModule } from "../notifications/notifications.module";
 import { AuthModule } from "../auth/auth.module";
 import { AuthService } from "../auth/auth.service";
 import { registrarIndicacao, montarMensagemAtivacao, codigoIndicacao } from "../referral/referral.helpers";
-import { ReferralModule } from "../referral/referral.module";
+import { ReferralModule, ReferralService } from "../referral/referral.module";
 import {
   interpretarRespostaRenovacao, podeRenovar, codigoRenovacao, produtoLabel, faseDaConta, avisoDoCicloAtual,
   LEMBRETE_ANTECEDENCIA_MS, VALOR_MENSALIDADE_LABEL, RespostaRenovacao,
@@ -57,19 +71,6 @@ function primeiroNome(nome: string): string {
   return (nome || "").trim().split(/\s+/)[0] || "";
 }
 
-// Mensagem de ajuda para quem AINDA NÃO vinculou o WhatsApp: o primeiro passo é
-// justamente se apresentar ao sistema.
-const AJUDA_VINCULAR =
-  `😊 *Oi! Eu sou o ajudante do ${MARCA} aqui no WhatsApp.*\n\n` +
-  "Antes de começar, eu preciso saber quem é você. É rapidinho, e você faz só uma vez:\n\n" +
-  `1️⃣ Abra o ${MARCA} no computador ou no celular.\n` +
-  "2️⃣ Toque no seu *Perfil*.\n" +
-  "3️⃣ Procure *Criar evento pelo WhatsApp*. Vai aparecer um *código* (letras e números).\n" +
-  "4️⃣ Copie esse código e me mande aqui assim:\n" +
-  "👉 *VINCULAR* e o seu código\n" +
-  "     (por exemplo: *VINCULAR ABC123*)\n\n" +
-  "Assim que fizer isso, eu te ensino todo o resto. 😉";
-
 // A assistente do WhatsApp tem nome: "Aurélia". O /ajuda abre um menuzinho
 // ("Financeiro: 1, Agenda: 2, encerrar: 0") e, conforme a escolha, ela manda o
 // passo a passo SÓ daquele módulo. Mostra apenas o que a pessoa pode usar.
@@ -108,6 +109,7 @@ function montarMenuAjuda(acessos: AcessosWhats, nome: string): string {
   if (acessos.conhecimento) m += "📚 Para *Conhecimento*: responda *6*\n";
   m += "📖 Para ver *TUDO de uma vez*: responda *7*\n";
   m += "👋 Para encerrar nossa conversa: responda *0*";
+  m += "\n\n☀️ Para consultar seu dia: *meu dia*. Para escolher o resumo automático: *rotina*.\n📝 Para criar tarefa: *tarefa: comprar material amanhã*.";
   return m;
 }
 
@@ -135,10 +137,7 @@ function ajudaFinanceiro(temAgenda: boolean): string {
     "*VER QUANTO GASTOU*\n" +
     "👉 *Relatório: quanto gastei esse mês*\n" +
     "(dá para pedir por *crédito*, *débito* ou *no total*)\n\n" +
-    "*CONTAS A PAGAR DA EMPRESA*\n" +
-    "👉 *Conta: Energia 350 vence 10/11* — lança\n" +
-    "👉 *contas a pagar* — lista as em aberto\n" +
-    "👉 *relatório de contas* — total, vencido e o que vence em 30 dias\n\n";
+    "Para contas a pagar da organização, envie *empresa*.\n\n";
   if (!temAgenda) {
     m += "✨ *Mais fácil ainda:* pode mandar só *Mercado 150 crédito* que eu já entendo.\n\n";
   }
@@ -344,6 +343,10 @@ export function parseComandoEvento(texto: string, agora: Date): Parsed | "sem_da
   } else if (/\bhoje\b/.test(low)) {
     temData = true;
     resto = resto.replace(/\bhoje\b/i, " ");
+  } else if (/\bontem\b/.test(low)) {
+    const d = new Date(agora); d.setDate(d.getDate() - 1);
+    ano = d.getFullYear(); mes = d.getMonth(); dia = d.getDate(); temData = true;
+    resto = resto.replace(/\bontem\b/i, " ");
   } else {
     const mData = resto.match(/\b(\d{1,2})[\/\-.](\d{1,2})(?:[\/\-.](\d{2,4}))?\b/); // 27/08 ou 27/08/2026
     if (mData) {
@@ -367,7 +370,7 @@ export function parseComandoEvento(texto: string, agora: Date): Parsed | "sem_da
   const inicio = diaTodo
     ? new Date(ano, mes, dia, 0, 0, 0, 0)
     : new Date(ano, mes, dia, hora!, minuto, 0, 0);
-  if (isNaN(inicio.getTime())) return "sem_data_hora";
+  if (isNaN(inicio.getTime()) || inicio.getFullYear() !== ano || inicio.getMonth() !== mes || inicio.getDate() !== dia) return "sem_data_hora";
   const fim = diaTodo ? null : new Date(inicio.getTime() + 60 * 60 * 1000);
 
   // Fim da recorrência: "até <data>" > "por N <unidade>" > padrão 3 meses.
@@ -645,9 +648,7 @@ export function parseComandoCorrigir(texto: string, agora: Date): ParsedCorrecao
 function soDigitos(s: string | null | undefined): string { return (s || "").replace(/\D/g, ""); }
 function nucleo(s: string): string { let d = soDigitos(s); if (d.length > 11 && d.startsWith("55")) d = d.slice(2); return d; }
 function telefoneBate(jid: string, cadastrado: string | null): boolean {
-  const a = nucleo(jid), b = nucleo(cadastrado || "");
-  if (a.length < 8 || b.length < 8) return false;
-  return a === b || a.slice(-10) === b.slice(-10) || a.slice(-11) === b.slice(-11);
+  return mesmoTelefoneCadastro(jid, cadastrado);
 }
 
 // ── Service ───────────────────────────────────────────────────────────────────
@@ -669,11 +670,31 @@ export class WhatsappInboundService {
   }
   private fecharMenu(jid: string) { this.menuAte.delete(jid); }
 
+  private readonly entradaCompativel: boolean;
+  private readonly referral: ReferralService;
+
   constructor(
     private prisma: PrismaService, private wa: WhatsAppService, private auth: AuthService,
-    private assinatura: AssinaturaService,
+    @Inject(ReferralService) referralOuAssinatura: ReferralService | AssinaturaService,
     private cadastroWhats: CadastroWhatsappService,
-  ) {}
+    private inicio?: WhatsappInicioService,
+    private rotina?: WhatsappRotinaService,
+    private contexto?: WhatsappContextoService,
+    private equipe?: WhatsappEquipeService,
+    private linguagem?: WhatsappLinguagemService,
+    private media?: WhatsappMediaService,
+    @Optional() private eventoAlertas?: EventoAlertaService,
+    @Optional() private guiado?: WhatsappGuiadoService,
+    private assinatura: AssinaturaService = undefined,
+  ) {
+    // Conserva a chamada programática de cinco argumentos da integração de
+    // pagamentos. No Nest, os onze serviços originais são injetados por tipo,
+    // e AssinaturaService vem do módulo próprio, na última posição.
+    this.entradaCompativel = !inicio && !rotina && !contexto && !equipe && !linguagem && !media
+      && typeof (referralOuAssinatura as AssinaturaService)?.prepararCobranca === "function";
+    this.referral = this.entradaCompativel ? undefined : referralOuAssinatura as ReferralService;
+    if (this.entradaCompativel) this.assinatura = referralOuAssinatura as AssinaturaService;
+  }
 
   private fmtData(d: Date): string {
     return d.toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
@@ -687,36 +708,38 @@ export class WhatsappInboundService {
   // achar a conta pelo número cadastrado. Por ora só a renovação do teste passa.
   private async identificar(remoteJid: string, jidAlternativo?: string): Promise<{ id: string; organizationId: string; nome: string; telefone: string | null } | null> {
     const idPart = remoteJid.split("@")[0];
-    const byLid = await this.prisma.userProfile.findFirst({
+    const byLid = await this.prisma.userProfile.findMany({
       where: { whatsappLid: idPart } as any,
-      select: { whatsapp: true, user: { select: { id: true, organizationId: true, ativo: true, nome: true } } },
+      select: { whatsapp: true, user: { select: { id: true, organizationId: true, ativo: true, bloqueado: true, nome: true } } },
     });
-    if (byLid?.user?.ativo) return { ...byLid.user, telefone: byLid.whatsapp };
+    if (byLid.length > 1) return null;
+    if (byLid[0]?.user?.ativo && !byLid[0].user.bloqueado) return { ...byLid[0].user, telefone: byLid[0].whatsapp };
+    if (byLid.length) return null;
     const jidTelefone = remoteJid.endsWith("@s.whatsapp.net") ? remoteJid
       : jidAlternativo?.endsWith("@s.whatsapp.net") ? jidAlternativo : null;
     if (jidTelefone) {
       const tel = jidTelefone.split("@")[0];
       const perfis = await this.prisma.userProfile.findMany({
         where: { NOT: { whatsapp: null } },
-        select: { whatsapp: true, user: { select: { id: true, organizationId: true, ativo: true, nome: true } } },
+        select: { whatsapp: true, user: { select: { id: true, organizationId: true, ativo: true, bloqueado: true, nome: true } } },
       });
-      const p = perfis.find(x => x.user?.ativo && telefoneBate(tel, x.whatsapp));
-      if (p?.user) return { ...p.user, telefone: p.whatsapp };
+      const matches = perfis.filter(x => telefoneBate(tel, x.whatsapp));
+      const p = matches.length === 1 && matches[0].user?.ativo && !matches[0].user.bloqueado ? matches[0] : null;
+      if (p?.user) {
+        if (remoteJid.endsWith("@lid")) await this.prisma.userProfile.update({ where: { userId: p.user.id }, data: { whatsappLid: idPart } } as any);
+        return { ...p.user, telefone: p.whatsapp };
+      }
     }
     return null;
   }
 
-  // ── Renovação pelo WhatsApp (resposta ao aviso de vencimento) ───────────────
+  // ── Renovação pelo WhatsApp (resposta ao aviso de "vence amanhã") ────────────
   //
-  // Vale para o fim do TESTE e para o fim de cada MÊS pago. O "1" NÃO libera
-  // acesso: ele abre a cobrança de R$ 11,90 e devolve os meios de pagamento
-  // (link do cartão e Pix). Quem estica o acesso é o webhook do Mercado Pago,
-  // quando o pagamento é confirmado.
-  //
-  // Devolve true quando a mensagem era mesmo sobre a renovação e já foi
-  // respondida. "1"/"2" soltos só contam para quem recebeu o aviso do
-  // vencimento atual — para qualquer outra pessoa seguem o fluxo normal (menu,
-  // gasto etc.).
+  // Vale para o fim do TESTE (o "1" efetiva a conta e abre o primeiro mês) e
+  // para o fim de cada MÊS pago (o "1" soma mais um mês). Devolve true quando a
+  // mensagem era mesmo sobre a renovação e já foi respondida. "1"/"2" soltos só
+  // contam para quem recebeu o aviso do vencimento atual — para qualquer outra
+  // pessoa seguem o fluxo normal (menu, gasto etc.).
   private async tratarRenovacao(remoteJid: string, jidAlt: string, resp: RespostaRenovacao & { soNumero: boolean }, inst: string): Promise<boolean> {
     const campos = {
       id: true, nome: true, email: true, organizationId: true, isTrial: true, trialExpiraEm: true, trialModulo: true,
@@ -851,7 +874,8 @@ export class WhatsappInboundService {
   // então respondemos pelo TELEFONE cadastrado (chega na mesma conversa). Sem
   // telefone, caímos no jid cru (best-effort, pode falhar em @lid).
   private async responder(remoteJid: string, telefone: string | null, orgId: string | null, inst: string, msg: string) {
-    if (telefone && orgId) { await this.wa.sendMessageForOrg(orgId, telefone, msg).catch(() => {}); return; }
+    if (this.entradaCompativel && telefone && orgId) { await this.wa.sendMessageForOrg(orgId, telefone, msg).catch(() => {}); return; }
+    // O fluxo completo responde pela instância compartilhada que recebeu a conversa.
     if (telefone) { await this.wa.sendMessage(telefone, msg, inst).catch(() => {}); return; }
     await this.wa.sendToJid(remoteJid, msg, inst).catch(() => {});
   }
@@ -873,17 +897,17 @@ export class WhatsappInboundService {
       update: { whatsappLid: idPart } as any,
       create: { userId: alvo.id, whatsappLid: idPart } as any,
     });
-    this.logger.log(`WhatsApp vinculado: user=${alvo.id} lid=${idPart}`);
+    this.logger.log(`WhatsApp vinculado: user=${alvo.id}`);
     const tel = alvo.profile?.whatsapp ?? null;
     await this.responder(remoteJid, tel, alvo.organizationId, inst,
       `✅ *WhatsApp vinculado à conta de ${alvo.nome}!*`);
     // Tutorial logo em seguida (2º envio), mostrando SÓ o que a conta pode fazer.
     const perms = await this.auth.resolvePermissions(alvo.id).catch(() => [] as string[]);
     await this.responder(remoteJid, tel, alvo.organizationId, inst,
-      montarBoasVindas(acessosDe(perms), alvo.nome));
+      'Tudo pronto! Escreva *menu* para escolher o que quer fazer. Eu vou ajudar com uma pergunta de cada vez.\n\nVocê pode escrever *voltar* para rever uma pergunta ou *cancelar* para não salvar.');
     // 3º envio: o guia em PDF. Best-effort — se falhar, não atrapalha o vínculo.
     // Vai para o telefone quando houver; senão tenta o jid cru (pode falhar no LID).
-    await this.wa.sendDocumentFile(tel || remoteJid, GUIA_PDF_PATH, GUIA_PDF_NOME, GUIA_PDF_LEGENDA, inst).catch(() => {});
+    // O menu vivo substitui o PDF antigo, que ensinava números e comandos anteriores.
   }
 
   // "INDICACAO <código>" — o próprio usuário (já vinculado) diz que veio pela
@@ -901,7 +925,7 @@ export class WhatsappInboundService {
         "🤖 Não consegui registrar essa indicação. Confira o código (ex.: *INDICACAO ORK-XXXXXX*) — pode ser inválido, o seu próprio código, ou você já registrou uma indicação antes.", inst).catch(() => {});
       return;
     }
-    this.logger.log(`Indicação via WhatsApp: indicado=${user.id} por="${nome}"`);
+    this.logger.log(`Indicação via WhatsApp: indicado=${user.id}`);
     await this.wa.sendToJid(remoteJid, montarMensagemAtivacao(nome, codigoIndicacao(user.id)), inst).catch(() => {});
   }
 
@@ -913,17 +937,19 @@ export class WhatsappInboundService {
     const user = await this.identificar(remoteJid);
     if (!user) {
       this.fecharMenu(remoteJid);
-      await this.wa.sendToJid(remoteJid, AJUDA_VINCULAR, inst).catch(() => {});
+      await this.cadastroWhats.orientarPrimeiroContato(remoteJid.endsWith('@s.whatsapp.net') ? remoteJid.split('@')[0] : '', remoteJid, inst);
       return;
     }
     const perms = await this.auth.resolvePermissions(user.id).catch(() => [] as string[]);
     const a = acessosDe(perms);
+    // O menu pessoal não oferece operações da organização.
+    a.projetos = false; a.chamados = false; a.conhecimento = false;
     const quantos = Object.values(a).filter(Boolean).length;
 
     if (quantos > 1) {
       this.abrirMenu(remoteJid);
       await this.responder(remoteJid, user.telefone, user.organizationId, inst,
-        montarMenuAjuda(a, user.nome));
+        this.contexto.mensagem("PESSOAL") + "\n\n" + montarMenuAjuda(a, user.nome));
       return;
     }
 
@@ -956,6 +982,7 @@ export class WhatsappInboundService {
     const perms = await this.auth.resolvePermissions(user.id).catch(() => [] as string[]);
     const a = acessosDe(perms);
     const diz = (m: string) => this.responder(remoteJid, user.telefone, user.organizationId, inst, m);
+    a.projetos = false; a.chamados = false; a.conhecimento = false;
 
     if (opcao === "0") {
       this.fecharMenu(remoteJid);
@@ -1451,7 +1478,8 @@ export class WhatsappInboundService {
         mensagemOriginal: (textoOriginal || "").slice(0, 500),
       },
     });
-    this.logger.log(`Gasto criado via WhatsApp: user=${user.id} "${parsed.descricao}" R$${parsed.valor} ${parsed.formaPagamento} ${parsed.parcelas}x`);
+    acaoUtil("GASTO_REGISTRADO");
+    this.logger.log(`Gasto criado via WhatsApp: user=${user.id}`);
 
     const cat = parsed.categoria ? `  _(${parsed.categoria})_` : "";
     const formaTxt = FORMA_LABEL[parsed.formaPagamento];
@@ -1561,7 +1589,7 @@ export class WhatsappInboundService {
     if (mud.categoria) data.categoria = mud.categoria;
 
     await (this.prisma as any).gasto.update({ where: { id: ultimo.id }, data }).catch(() => {});
-    this.logger.log(`Gasto corrigido via WhatsApp: user=${user.id} id=${ultimo.id} ${JSON.stringify(mud)}`);
+    this.logger.log(`Gasto corrigido via WhatsApp: user=${user.id} id=${ultimo.id}`);
 
     const g = { ...ultimo, ...data };
     const forma = FORMA_LABEL[g.formaPagamento] || g.formaPagamento;
@@ -1625,7 +1653,46 @@ export class WhatsappInboundService {
     await this.responder(remoteJid, user.telefone, user.organizationId, inst, msg);
   }
 
-  async processar(body: any): Promise<void> {
+  private async tratarInicio(remoteJid: string, inst: string, texto: string): Promise<boolean> {
+    const normal=texto.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
+    const acesso=/^(acesso|recuperar acesso|minha conta)$/.test(normal);
+    const abrir=/^(comecar|primeiros passos|organizar)$/.test(normal);
+    if (!acesso && !abrir && !await this.inicio.temFluxo(remoteJid,inst)) return false;
+    const user=await this.identificar(remoteJid);
+    if (!user) {
+      await this.wa.sendToJid(remoteJid,"Para começar, envie *cadastro*. Se já tem conta, vincule seu WhatsApp pelo código do seu Perfil.",inst);
+      return true;
+    }
+    if (acesso) { await this.inicio.enviarAcesso(user.id,inst); return true; }
+    if (abrir) await this.prisma.$executeRaw`DELETE FROM whatsapp_previas WHERE user_id=${user.id} AND instancia=${inst} AND conversa=${remoteJid}`;
+    const perms=await this.auth.resolvePermissions(user.id).catch(()=>[] as string[]);
+    return this.inicio.fluxo(user,remoteJid,inst,texto,perms,(tipo,dados)=>{
+      if(tipo === "evento") {
+        const p=parseComandoEvento("Evento: Compromisso "+dados.resposta,new Date());
+        if(!p || p === "sem_data_hora" || p.recorrencia) return null;
+        const registro={titulo:dados.titulo,inicio:p.inicio.toISOString(),fim:p.fim?.toISOString()||null,diaTodo:p.diaTodo};
+        const quando=p.diaTodo?p.inicio.toLocaleDateString("pt-BR")+" (dia todo)":p.inicio.toLocaleString("pt-BR");
+        return {tipo,resumo:"🗓️ *"+dados.titulo+"*\n"+quando,registro};
+      }
+      const p=parseComandoGasto("Gasto: "+dados.valor+" "+dados.resposta,new Date());
+      if(!p || p === "sem_valor") return null;
+      return {tipo,resumo:"💸 *"+dados.titulo+"*\nR$ "+this.fmtValor(p.valor)+" · "+FORMA_LABEL[p.formaPagamento]+"\n"+p.dataGasto.toLocaleDateString("pt-BR"),
+        registro:{...p,descricao:dados.titulo,dataGasto:p.dataGasto.toISOString()}};
+    },async acao=>{
+      const atuais=await this.auth.resolvePermissions(user.id).catch(()=>[] as string[]);
+      if(acao.tipo === "gasto") {
+        await this.criarGasto(user,{...acao.registro,dataGasto:new Date(acao.registro.dataGasto)},"Passo a passo pelo WhatsApp",remoteJid,inst);
+        return;
+      }
+      if(!podeAgenda(atuais)) { await this.responder(remoteJid,user.telefone,user.organizationId,inst,"Seu acesso à Agenda mudou. Envie *menu* para continuar.");return; }
+      const p=acao.registro;
+      await this.prisma.event.create({data:{...p,tipo:"COMPROMISSO" as any,cor:"#22d3ee",userId:user.id,criadoPorId:user.id,organizationId:user.organizationId} as any});
+      acaoUtil("COMPROMISSO_CRIADO");
+      await this.responder(remoteJid,user.telefone,user.organizationId,inst,"✅ Compromisso criado: *"+p.titulo+"*\n"+new Date(p.inicio).toLocaleString("pt-BR")+"\nEnvie *compromissos* para consultar ou *começar* para organizar outro item.");
+    });
+  }
+
+  private async processarCompativel(body: any): Promise<void> {
     // Evolution v1.8.2 — evento messages.upsert
     const data = Array.isArray(body?.data) ? body.data[0] : body?.data;
     const key = data?.key || {};
@@ -1852,6 +1919,434 @@ export class WhatsappInboundService {
     await this.responder(remoteJid, dono.telefone, dono.organizationId, inst,
       "🤖 Não entendi. 💸 Para anotar um gasto: *Gasto: Cartão Nubank 400 pix*.\n🗓️ Para um compromisso: *Evento: Médico amanhã 14h*.\nOu mande *ajuda*.");
   }
+
+  async processar(body: any): Promise<void> {
+    if (this.entradaCompativel) return this.processarCompativel(body);
+    const mensagens = Array.isArray(body?.data) ? body.data : [body?.data];
+    for (const data of mensagens) {
+      const key = data?.key;
+      if (typeof key?.id !== "string" || !key.id || typeof key?.remoteJid !== "string" || !key.remoteJid) {
+        this.logger.warn("Mensagem ignorada: identificador ausente.");
+        continue;
+      }
+      if (key.fromMe || key.remoteJid.includes("@g.us")) continue;
+      const instancia = data?.owner || body?.instance || "orkestri-default";
+      if (typeof instancia !== "string") continue;
+      const resultado = await executarMensagemUmaVez(this.prisma,
+        { instancia, conversa: key.remoteJid, mensagemId: key.id },
+        () => this.processarMensagem({ ...body, data }), { instance: instancia, data });
+      if (resultado === "revisar") this.logger.error("Mensagem requer revisão: " + key.id);
+    }
+  }
+
+  async reprocessarSeguro(recibo: any): Promise<void> {
+    const body = abrirMensagem(recibo.payload_protegido);
+    const key = body?.data?.key;
+    if (key?.id !== recibo.mensagem_id || key?.remoteJid !== recibo.conversa || body?.instance !== recibo.instancia || key?.fromMe) throw new Error("Recibo inválido");
+    const user = await this.identificar(recibo.conversa);
+    if (!user || user.id !== recibo.user_id || user.organizationId !== recibo.organization_id) throw new Error("Identidade mudou");
+    if (await this.contexto.obter(user, recibo.instancia, recibo.conversa) !== recibo.contexto) throw new Error("Contexto mudou");
+    await executarComRecibo(this.prisma, { instancia: recibo.instancia, conversa: recibo.conversa, mensagemId: recibo.mensagem_id }, () => this.processarMensagem(body));
+  }
+
+  private async processarMensagem(body: any): Promise<void> {
+    // Evolution v1.8.2 — evento messages.upsert
+    const data = Array.isArray(body?.data) ? body.data[0] : body?.data;
+    const key = data?.key || {};
+    const remoteJid: string = key?.remoteJid || "";
+    // Responder SEMPRE pela instância que RECEBEU a mensagem (vem no payload como
+    // owner/instance). O default do serviço é "orkestri", que está desconectada —
+    // usar ele fazia a confirmação falhar com 500 "Connection Closed".
+    const inst: string = data?.owner || body?.instance || "orkestri-default";
+    if (!remoteJid || remoteJid.includes("@g.us")) return; // grupo — ignora
+    let texto: string = (
+      data?.message?.conversation ||
+      data?.message?.extendedTextMessage?.text ||
+      data?.message?.ephemeralMessage?.message?.extendedTextMessage?.text || ""
+    ).trim();
+
+    this.logger.log(`inbound fromMe=${!!key?.fromMe} caracteres=${texto.length}`);
+    let forcarPrevia = false;
+    const usuarioEntrada = await this.identificar(remoteJid, key.remoteJidAlt || key.senderPn);
+    if (usuarioEntrada) {
+      const atual = await this.contexto.obter(usuarioEntrada, inst, remoteJid);
+      await identificarExecucao(usuarioEntrada, atual);
+      if (texto && this.eventoAlertas && await this.eventoAlertas.tratar(usuarioEntrada, texto, remoteJid, inst, () => this.auth.resolvePermissions(usuarioEntrada.id))) return;
+      const media = await this.media.tratar(data, usuarioEntrada, inst, remoteJid, atual);
+      if (media.consumido) return;
+      if (media.transcricao) {
+        if (await this.contexto.obter(usuarioEntrada, inst, remoteJid) !== atual) {
+          await this.wa.sendToJid(remoteJid,"O contexto mudou enquanto o áudio era transcrito. Envie novamente no contexto desejado.",inst); return;
+        }
+        texto = media.transcricao; forcarPrevia = true;
+      }
+    } else if (!texto && data?.message) {
+      await this.wa.sendToJid(remoteJid,"Para enviar áudio ou anexos, primeiro cadastre ou vincule sua conta. Envie *cadastro* para começar.",inst);
+    }
+    if (!texto) return;
+
+    if (usuarioEntrada && this.guiado && await this.guiado.tratar(usuarioEntrada,texto,remoteJid,inst,{
+      evento: t => parseComandoEvento('Evento: '+t,new Date()),
+      gasto: t => parseComandoGasto(t,new Date(),true),
+      outro: async (acao,v) => {
+        if (acao==='dia') await this.rotina.tratar(usuarioEntrada.id,inst,'meu dia');
+        if (acao==='gastos.resumo') await this.gerarRelatorioWhats(remoteJid,parseComandoRelatorio('Relatório: quanto gastei esse mês',new Date()) as ParsedRelatorio,inst);
+        if (acao==='chamados.lista') await this.listarMeusChamados(remoteJid,inst);
+        if (acao==='chamado.criar') await this.abrirChamado(remoteJid,v.descricao,inst);
+        if (acao==='contas.lista') await this.listarContas(remoteJid,inst);
+        if (acao==='contas.resumo') await this.relatorioContas(remoteJid,inst);
+        if (acao==='buscar') await this.buscarConhecimento(remoteJid,v.texto,inst);
+      },
+    })) return;
+
+    // ── Cadastro em andamento? ANTES de tudo. ─────────────────────────────────
+    //
+    // Quem está preenchendo o formulário ainda NÃO é usuário: `identificar()`
+    // devolveria null e a pessoa receberia "você não está vinculado" no meio do
+    // próprio cadastro. Pior, o e-mail que ela mandou cairia nos parsers de
+    // evento e de gasto, que responderiam "não entendi".
+    //
+    // Por isso este bloco vem primeiro, e não depois dos comandos: enquanto a
+    // conversa de cadastro está aberta, TODA mensagem daquele número é resposta
+    // de formulário. Só mensagem que CHEGOU — um texto enviado pelo próprio
+    // número do bot (fromMe) não responde formulário de ninguém.
+    if (!key?.fromMe) {
+      try {
+        const jidCadastro = remoteJid.endsWith("@s.whatsapp.net") ? remoteJid : (key.remoteJidAlt || key.senderPn || "");
+        const numero = jidCadastro.endsWith("@s.whatsapp.net") ? jidCadastro.split("@")[0] : "";
+        if (usuarioEntrada && pareceInteresseEmCadastro(texto)) {
+          await this.wa.sendToJid(remoteJid, mensagemPrimeiroContato('existente'), inst);
+          return;
+        }
+        if (!numero && pareceInteresseEmCadastro(texto)) { await this.wa.sendToJid(remoteJid,"Não consegui confirmar seu telefone nesta mensagem. Envie *CADASTRO* novamente ou fale com nossa equipe pelo site para continuar.",inst); return; }
+        const cadastro = await this.cadastroWhats.conversaAberta(numero, remoteJid);
+        if (cadastro) {
+          if (await this.cadastroWhats.tratarResposta(cadastro, texto, inst)) return;
+        } else if (numero && await this.cadastroWhats.tratarConvite(numero, texto, inst, remoteJid)) {
+          return;
+        } else if (numero && pareceInteresseEmCadastro(texto)) {
+          // Chegou querendo se cadastrar e nao tem conversa aberta. O servico
+          // decide se abre: devolve false quando o numero JA tem conta, e ai a
+          // mensagem segue para os comandos normais — quem ja e cliente
+          // escrevendo "quero criar uma conta" quase sempre quer outra coisa.
+          if (await this.cadastroWhats.iniciarPeloChat(numero, inst, texto, remoteJid)) return;
+        }
+      } catch (e: any) {
+        // Falha aqui não pode engolir a mensagem de quem JÁ é usuário: segue
+        // para os comandos normais em vez de deixar a pessoa sem resposta.
+        this.logger.warn(`cadastro-whatsapp: ${e?.message || e}`);
+        if (!usuarioEntrada) {
+          await this.wa.sendToJid(remoteJid, 'Não consegui conferir seu cadastro agora. Tente novamente em instantes; vou continuar te ajudando por aqui.', inst);
+          return;
+        }
+      }
+    }
+
+    // Consulta a base antes de orientar qualquer remetente não identificado.
+    // Um código explícito de vínculo mantém seu caminho de comprovação da conta.
+    if (!usuarioEntrada && !/^vincular\s+[a-z0-9]{4,10}$/i.test(texto)) {
+      const jid = remoteJid.endsWith('@s.whatsapp.net') ? remoteJid : key.remoteJidAlt || key.senderPn || '';
+      await this.cadastroWhats.orientarPrimeiroContato(jid.endsWith('@s.whatsapp.net') ? jid.split('@')[0] : '', remoteJid, inst, texto);
+      return;
+    }
+
+    const usuarioContexto = usuarioEntrada;
+    if (usuarioContexto) {
+      const solicitado = forcarPrevia ? null : contextoSolicitado(texto);
+      if (solicitado) {
+        await this.contexto.trocar(usuarioContexto, inst, remoteJid, solicitado);
+        this.fecharMenu(remoteJid);
+        await this.wa.sendToJid(remoteJid, this.contexto.mensagem(solicitado) + "\nRascunhos anteriores cancelados. Envie *menu* para continuar.", inst);
+        return;
+      }
+      const atual = await this.contexto.obter(usuarioContexto, inst, remoteJid);
+      await identificarExecucao(usuarioContexto, atual);
+      if (atual === "PESSOAL") {
+        const inicioAberto = await this.inicio.temFluxo(remoteJid, inst);
+        if (inicioAberto && forcarPrevia) {
+          await this.wa.sendToJid(remoteJid,"Você está preenchendo um registro passo a passo. Responda por texto ou envie *cancelar* antes de iniciar uma ação por áudio.",inst); return;
+        }
+        if (!inicioAberto) {
+        const linguagem = await this.linguagem.tratar(usuarioContexto.id, inst, remoteJid, texto, comando => {
+          if (comando.length > 1000 || /[\r\n]/.test(comando)) return null;
+          const agora = new Date();
+          const dataBR = (d: Date) => d.toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" });
+          if (/^tarefa:/i.test(comando)) {
+            const p = dataTarefa(comando.replace(/^tarefa:\s*/i, ""), agora);
+            if (!p) return null;
+            const dia = p.dia.split("-").reverse().join("/");
+            return { comando: `tarefa: ${p.titulo} ${dia}`, resumo: `Tarefa: *${p.titulo}*\nData: ${dia}` };
+          }
+          if (/^Evento:/i.test(comando)) {
+            if (!/(?:hoje|amanh[aã]|\d{1,2}\/\d{1,2})/i.test(comando)) return null;
+            const p = parseComandoEvento(comando, agora);
+            if (!p || p === "sem_data_hora" || p.recorrencia) return null;
+            const quando = dataBR(p.inicio) + (p.diaTodo ? "" : " " + p.inicio.toLocaleTimeString("pt-BR", { timeZone: "America/Sao_Paulo", hour: "2-digit", minute: "2-digit" }));
+            return { comando: `Evento: ${p.titulo} ${quando}`, resumo: `Compromisso: *${p.titulo}*\nQuando: ${quando}${p.diaTodo ? " (dia todo)" : ""}` };
+          }
+          const valores = comando.replace(/\d{1,2}\/\d{1,2}(?:\/\d{4})?/g, "").replace(/\d{1,2}\s*(?:x|vezes)\b/gi, "").match(/\d[\d.,]*/g);
+          if (valores?.length !== 1) return null;
+          const p = parseComandoGasto(comando, agora, true);
+          if (!p || p === "sem_valor" || !Number.isFinite(p.valor) || p.valor <= 0) return null;
+          const forma = { PIX: "pix", CREDITO: "crédito", DEBITO: "débito", DINHEIRO: "dinheiro", BOLETO: "boleto", NAO_INFORMADO: "" }[p.formaPagamento];
+          return { comando: `Gasto: ${p.descricao} R$ ${p.valor.toFixed(2).replace(".", ",")} ${forma} ${p.parcelas}x ${dataBR(p.dataGasto)}`,
+            resumo: `Gasto: *${p.descricao}*\nValor total: R$ ${p.valor.toFixed(2).replace(".", ",")}\nPagamento: ${forma || "não informado"} · ${p.parcelas} parcela(s)\nData: ${dataBR(p.dataGasto)}` };
+        }, forcarPrevia);
+        if (linguagem.consumido) return;
+        if (linguagem.comando) texto = linguagem.comando;
+        }
+        const nota = /^(?:\/?(?:nota|anota|lembrete)|(?:minhas\s+)?notas?\b|(?:excluir|apagar|remover)\s+(?:a\s+)?(?:nota|anota))/i.test(texto);
+        if (nota) {
+          const p = await this.auth.resolvePermissions(usuarioContexto.id);
+          const required = /^(?:excluir|apagar|remover)/i.test(texto) ? "keep:deletar"
+            : /^(?:minhas\s+)?notas?[.!?]*$/i.test(texto) ? "keep:ver" : "keep:criar";
+          if (!p.includes("*") && !p.includes(required)) {
+            await this.wa.sendToJid(remoteJid, "🔒 Sua conta não tem permissão para esta operação no Keep.", inst); return;
+          }
+        }
+      }
+      if (/^contexto[.!?]*$/i.test(texto)) {
+        await this.wa.sendToJid(remoteJid, this.contexto.mensagem(atual), inst); return;
+      }
+      if (atual === "PESSOAL" && comandoEmpresarial(texto)) {
+        await this.wa.sendToJid(remoteJid, "👤 Você está no *contexto pessoal*. Envie *empresa* e repita o comando para trabalhar na sua organização.", inst); return;
+      }
+      if (atual === "EMPRESA") {
+        if (await this.equipe.tratar(usuarioContexto, inst, remoteJid, texto)) return;
+        if (/^(?:oi|olá|ola|ajuda|menu|voltar|9|7)[.!?]*$/i.test(texto)) {
+          await this.wa.sendToJid(remoteJid, this.contexto.mensagem(atual) + "\n\n*projetos* — seus projetos\n*projeto: Nome* — criar projeto\n*meus chamados* — acompanhar chamados\n*contas a pagar* — consultar contas\n*conta: Energia 350 vence 10/11* — lançar conta\n\nAs operações exigem as permissões do sistema.", inst); return;
+        }
+        const neutro = /^(?:acesso|vincular\s|renovar\s|indica|ork-|0$)/i.test(texto);
+        if (!neutro && !comandoEmpresarial(texto)) {
+          await this.wa.sendToJid(remoteJid, "🏢 Você está no *contexto empresa*. Para agenda, gastos, notas e tarefas pessoais, envie *pessoal*. Para os comandos da organização, envie *menu*.", inst); return;
+        }
+        if (!neutro) {
+          const p = await this.auth.resolvePermissions(usuarioContexto.id);
+          const necessario = /conta/i.test(texto) ? "financeiro:ver"
+            : /^(?:buscar|procurar|pesquisar|busca)/i.test(texto) ? "conhecimento:ver"
+            : /(?:chamado|ticket|suporte)/i.test(texto) ? "chamados:ver" : "projetos:ver";
+          if (!p.includes("*") && !p.includes(necessario)) {
+            await this.wa.sendToJid(remoteJid, "🔒 Sua conta não tem permissão para consultar este módulo da empresa.", inst); return;
+          }
+        }
+      }
+    }
+
+    if (comandoRotina(texto)) {
+      const user=await this.identificar(remoteJid);
+      if (!user) { await this.wa.sendToJid(remoteJid,"Primeiro envie *cadastro* ou vincule sua conta pelo Perfil para usar sua rotina.",inst); return; }
+      await this.rotina.tratar(user.id,inst,texto);
+      return;
+    }
+
+    if (!key?.fromMe && await this.tratarInicio(remoteJid,inst,texto)) return;
+
+    // Cadastro, rascunhos e confirmações já tiveram prioridade. Fora deles,
+    // encerrar e voltar ao menu funcionam mesmo após o estado ter expirado.
+    if (/^\/?0\s*[?!.]*$/.test(texto)) {
+      this.fecharMenu(remoteJid);
+      const msg = "👋 Combinado! Encerrei nossa conversa. Para voltar, envie *menu* ou *9*.";
+      if (usuarioEntrada) await this.responder(remoteJid,usuarioEntrada.telefone,usuarioEntrada.organizationId,inst,msg);
+      else await this.wa.sendToJid(remoteJid,msg,inst);
+      return;
+    }
+
+    // ── Ajuda? "ajuda"/"menu"/"voltar (ao menu)" — a Aurélia abre o menu de módulos.
+    //    "voltar"/"menu" funcionam mesmo depois do estado expirar. ──
+    if (/^\/?(9|oi|ol[aá]|bom dia|boa tarde|boa noite|ajuda|help|menu(?: principal)?|voltar(?: ao menu(?: principal)?)?)\s*[?!.]*$/i.test(texto)) {
+      await this.enviarAjuda(remoteJid, inst);
+      return;
+    }
+
+    // ── Resposta ao menu da Aurélia (1/2/9/0)? Só interpretamos como escolha quando
+    //    o menu está aberto para esta conversa — senão um "1" solto seria roubado.
+    //    9 = voltar ao menu principal; 0 = encerrar. ──
+    if (this.noMenu(remoteJid) && /^\/?[0-9]\s*[?!.]*$/.test(texto)) {
+      await this.responderMenu(remoteJid, texto.replace(/\D/g, ""), inst);
+      return;
+    }
+
+    // ── Resposta ao aviso de fim do teste? "1" (renovar) / "2" (não) / "RENOVAR <código>" ──
+    //    Só mensagem que CHEGOU: um "1" digitado no celular do bot, na conversa
+    //    com a pessoa (fromMe), não pode efetivar a conta dela.
+    const renov = key?.fromMe ? null : interpretarRespostaRenovacao(texto);
+    if (renov) {
+      const jidAlt: string = key?.remoteJidAlt || key?.senderPn || "";
+      if (await this.tratarRenovacao(remoteJid, jidAlt, renov, inst)) return;
+    }
+
+    if (/^\d+(?:[.,]\d+)?$/.test(texto)) {
+      const msg = "Para usar as opções, envie *menu* e escolha um número. Para registrar um gasto, informe a descrição e o valor, por exemplo: *Gasto: Mercado 50 pix*.";
+      if (usuarioEntrada) await this.responder(remoteJid,usuarioEntrada.telefone,usuarioEntrada.organizationId,inst,msg);
+      else await this.wa.sendToJid(remoteJid,NAO_VINCULADO,inst);
+      return;
+    }
+
+    // ── Ligar/desligar o resumo semanal de gastos ──
+    const mResumo = texto.match(/^\/?(parar|desligar|cancelar|voltar|ligar|ativar)\s+(?:o\s+)?resumo\b/i);
+    if (mResumo) { await this.configurarResumo(remoteJid, /^(parar|desligar|cancelar)/i.test(mResumo[1]), inst); return; }
+
+    // ── Vínculo? "VINCULAR <código>" ──
+    const mVinc = texto.match(/^vincular\s+([a-z0-9]{4,10})$/i);
+    if (mVinc) { await this.vincular(remoteJid, mVinc[1].toUpperCase(), inst); return; }
+
+    // ── Indicação? "INDICACAO ORK-XXXX" ou só "ORK-XXXX" (código sempre tem ORK-). ──
+    let codInd: string | null = null;
+    const mIndKey = texto.match(/^(?:indica[çc][aã]o|indicado(?: por)?|vim por)\s+(.+)$/i);
+    if (mIndKey) codInd = mIndKey[1].trim();
+    else if (/^ORK-?[a-z0-9]{4,10}$/i.test(texto)) codInd = texto.trim();
+    if (codInd) { await this.registrarIndicacaoWhats(remoteJid, codInd, inst); return; }
+
+    // ── Comandos dos módulos que entraram em 20/10/2026 ──────────────────
+    //
+    // Ficam ANTES do relatório e dos parsers de gasto/evento porque todos
+    // exigem uma palavra-chave explícita no começo ("Nota:", "Chamado:",
+    // "Buscar:"), enquanto aqueles tentam adivinhar pelo formato do texto.
+    // Invertida a ordem, "Nota: gastei 50 no mercado" viraria despesa.
+
+    // Keep
+    const mNota = texto.match(/^\/?(?:nota|anota(?:r|ção|cao)?|lembrete)\s*[:\-]?\s*([\s\S]+)$/i);
+    if (mNota) { await this.criarNota(remoteJid, mNota[1], inst); return; }
+    if (/^\/?(?:minhas\s+)?notas?\b[.!?]*$/i.test(texto)) { await this.listarNotas(remoteJid, inst); return; }
+
+    // Agenda: listar e excluir (criar é o parseComandoEvento, mais abaixo)
+    if (/^\/?(?:meus\s+)?compromissos?\b[.!?]*$/i.test(texto) || /^\/?(?:minha\s+)?agenda\b[.!?]*$/i.test(texto)) {
+      await this.listarCompromissos(remoteJid, inst); return;
+    }
+    const mDelEvento = texto.match(/^\/?(?:excluir|apagar|cancelar|remover)\s+(?:o\s+)?(?:compromisso|evento)\s+(\d{1,2})\b/i);
+    if (mDelEvento) { await this.excluirCompromisso(remoteJid, Number(mDelEvento[1]), inst); return; }
+
+    // Keep: excluir
+    const mDelNota = texto.match(/^\/?(?:excluir|apagar|remover)\s+(?:a\s+)?(?:nota|anota[çc][ãa]o)\s+(\d{1,2})\b/i);
+    if (mDelNota) { await this.excluirNota(remoteJid, Number(mDelNota[1]), inst); return; }
+
+    // Projetos
+    const mProj = texto.match(/^\/?(?:projeto|novo projeto|criar projeto)\s*[:\-]\s*([\s\S]+)$/i);
+    if (mProj) { await this.criarProjeto(remoteJid, mProj[1], inst); return; }
+    if (/^\/?(?:meus\s+)?projetos?\b[.!?]*$/i.test(texto)) { await this.listarProjetos(remoteJid, inst); return; }
+    if (/^\/?(?:minhas\s+)?tarefas?\b[.!?]*$/i.test(texto)) { await this.listarMinhasTarefas(remoteJid, inst); return; }
+
+    // Finance: contas a pagar. O relatório vem ANTES da criação, senão
+    // "relatório de contas" cairia no parser de criar conta.
+    if (/^\/?(?:relat[óo]rio|resumo)\s+(?:de\s+)?contas?\b[.!?]*$/i.test(texto)) { await this.relatorioContas(remoteJid, inst); return; }
+    if (/^\/?contas?(?:\s+a\s+pagar)?\b[.!?]*$/i.test(texto)) { await this.listarContas(remoteJid, inst); return; }
+    const mConta = texto.match(/^\/?(?:conta|nova conta|lan[çc]ar conta)\s*[:\-]\s*([\s\S]+)$/i);
+    if (mConta) { await this.criarConta(remoteJid, mConta[1], inst); return; }
+
+    // Chamados
+    const mCham = texto.match(/^\/?(?:chamado|abrir chamado|suporte|ticket)\s*[:\-]?\s*([\s\S]+)$/i);
+    if (mCham) { await this.abrirChamado(remoteJid, mCham[1], inst); return; }
+    if (/^\/?(?:meus\s+)?chamados?\b[.!?]*$/i.test(texto)) { await this.listarMeusChamados(remoteJid, inst); return; }
+
+    // Conhecimento
+    const mBusca = texto.match(/^\/?(?:buscar|procurar|pesquisar|busca)\s*[:\-]?\s*([\s\S]+)$/i);
+    if (mBusca) { await this.buscarConhecimento(remoteJid, mBusca[1], inst); return; }
+
+    // ── Relatório? "Relatório: quanto gastei ..." ──
+    const rel = parseComandoRelatorio(texto, new Date());
+    if (rel) { await this.gerarRelatorioWhats(remoteJid, rel, inst); return; }
+
+    // ── Apagar o último gasto? "apagar" / "errei" ──
+    if (/^\/?(apagar|apaga|desfazer|errei)\b[.!]*$/i.test(texto)) { await this.apagarUltimoGasto(remoteJid, inst); return; }
+
+    // ── Corrigir o último gasto? "corrige o último pra 150" / "foi no pix" ──
+    const correcao = parseComandoCorrigir(texto, new Date());
+    if (correcao) { await this.corrigirUltimoGasto(remoteJid, correcao, inst); return; }
+
+    // ── Comando de gasto? "Gasto: Mercado 150 crédito 12x" ──
+    const gasto = parseComandoGasto(texto, new Date(), true);
+    if (gasto === "sem_valor") {
+      await this.wa.sendToJid(remoteJid,
+        "🤖 Não consegui identificar o valor do gasto. Envie assim:\n\n*Gasto: Mercado 150 no crédito*\n\nSe for parcelado: *Gasto: TV 2400 crédito 12x*.", inst).catch(() => {});
+      return;
+    }
+    if (gasto) { await this.registrarGasto(remoteJid, gasto, texto, inst); return; }
+
+    // ── Comando de evento? ──
+    const parsed = parseComandoEvento(texto, new Date());
+    if (parsed !== null) {
+      // ── Identifica a conta dona deste WhatsApp ──
+      const user = await this.identificar(remoteJid);
+      if (!user) { await this.wa.sendToJid(remoteJid, NAO_VINCULADO, inst).catch(() => {}); return; }
+
+      if (parsed === "sem_data_hora") {
+        await this.responder(remoteJid, user.telefone, user.organizationId, inst,
+          "🤖 Não consegui identificar a data/hora. Envie assim:\n\n*Evento: Reunião com cliente 27/08 14:00*\n\nTambém vale _hoje_, _amanhã_ e horários como _9h_ ou _14:30_.");
+        return;
+      }
+
+      const perms = await this.auth.resolvePermissions(user.id).catch(() => [] as string[]);
+      if (!podeAgenda(perms)) {
+        await this.responder(remoteJid, user.telefone, user.organizationId, inst,
+          "🔒 Sua conta não tem permissão para criar eventos. Peça ao administrador acesso à *Agenda*.");
+        return;
+      }
+
+      // Cria o evento na agenda da PESSOA que enviou
+      await this.prisma.event.create({
+        data: {
+          titulo: parsed.titulo,
+          inicio: parsed.inicio,
+          fim: parsed.fim,
+          tipo: "COMPROMISSO" as any,
+          cor: "#22d3ee",
+          diaTodo: parsed.diaTodo,
+          recorrencia: parsed.recorrencia as any,
+          recorrenciaFim: parsed.recorrenciaFim,
+          userId: user.id,
+          criadoPorId: user.id,
+          organizationId: user.organizationId,
+        } as any,
+      });
+      acaoUtil("COMPROMISSO_CRIADO");
+      this.logger.log(`Evento criado via WhatsApp: user=${user.id}`);
+
+      const quando = parsed.diaTodo
+        ? parsed.inicio.toLocaleDateString("pt-BR") + " (dia todo)"
+        : this.fmtData(parsed.inicio) + (parsed.fim ? ` – ${this.fmtData(parsed.fim)}` : "");
+      let msg = `✅ Evento criado na sua agenda:\n\n🗓️ *${parsed.titulo}*\n🕐 ${quando}`;
+      if (parsed.recorrencia) {
+        const fimTxt = parsed.recorrenciaFim ? parsed.recorrenciaFim.toLocaleDateString("pt-BR") : "";
+        msg += `\n🔁 ${RECOR_LABEL[parsed.recorrencia] || parsed.recorrencia}` + (fimTxt ? ` até ${fimTxt}` : "");
+      }
+      await this.responder(remoteJid, user.telefone, user.organizationId, inst, msg);
+      return;
+    }
+
+    // ── Nada casou explicitamente. Última chance: gasto SEM a palavra "Gasto:"
+    //    (ex.: "Mercado 150 crédito"). Só tentamos se houver número no texto, para
+    //    não bater no banco a cada "bom dia". ──
+    if (!/\d/.test(texto)) {
+      if (usuarioEntrada) await this.responder(remoteJid,usuarioEntrada.telefone,usuarioEntrada.organizationId,inst,
+        "🤖 Não entendi essa mensagem. Envie *menu* ou *9* para ver as opções disponíveis.");
+      return;
+    }
+    const dono = await this.identificar(remoteJid);
+    if (!dono) return;
+    const perms = await this.auth.resolvePermissions(dono.id).catch(() => [] as string[]);
+    if (!podeGastos(perms)) return; // sem Financeiro, não há o que fazer aqui
+
+    const gastoCru = parseComandoGasto(texto, new Date(), false);
+    const ehGasto = gastoCru && gastoCru !== "sem_valor";
+
+    if (!podeAgenda(perms)) {
+      // Só-Gastos: atalho total — qualquer texto com valor vira gasto.
+      if (ehGasto) await this.criarGasto(dono, gastoCru as ParsedGasto, texto, remoteJid, inst);
+      return;
+    }
+
+    // Tem os DOIS módulos: como o evento SEMPRE exige a palavra "Evento", um texto
+    // sem palavra-chave só pode ser gasto ou conversa fiada. Anotamos direto quando
+    // há sinal claro de gasto (forma de pagamento reconhecida: pix, cartão, crédito,
+    // débito, dinheiro, boleto). Se for ambíguo (número solto), respondemos uma dica
+    // em vez de ficar mudo.
+    if (ehGasto && (gastoCru as ParsedGasto).formaPagamento !== "NAO_INFORMADO") {
+      await this.criarGasto(dono, gastoCru as ParsedGasto, texto, remoteJid, inst);
+      return;
+    }
+    await this.responder(remoteJid, dono.telefone, dono.organizationId, inst,
+      "🤖 Não entendi. 💸 Para anotar um gasto: *Gasto: Cartão Nubank 400 pix*.\n🗓️ Para um compromisso: *Evento: Médico amanhã 14h*.\nOu mande *ajuda*.");
+  }
 }
 
 // ── Controller (público — validado por segredo) ───────────────────────────────
@@ -1871,14 +2366,14 @@ export class WhatsappInboundController {
     // Sem segredo configurado, o recurso fica DESLIGADO (evita spoofing de número).
     if (!esperado) { this.logger.warn("WHATSAPP_INBOUND_SECRET não configurado — inbound ignorado."); return { received: true }; }
     if (secretQuery !== esperado && secretHeader !== esperado) return { received: true };
-    try { await this.svc.processar(body); } catch (e: any) { this.logger.error("inbound erro: " + e.message); }
+    try { await this.svc.processar(body); } catch { this.logger.error("Persistência de entrada indisponível."); throw new ServiceUnavailableException("Tente novamente"); }
     return { received: true };
   }
 }
 
 @Module({
-  imports: [NotificationsModule, AuthModule, ReferralModule, AssinaturaModule, CadastroWhatsappModule],
-  controllers: [WhatsappInboundController],
-  providers: [WhatsappInboundService],
+  imports: [NotificationsModule, AuthModule, ReferralModule, AssinaturaModule, CadastroWhatsappModule, IntegracoesModule],
+  controllers: [WhatsappInboundController, WhatsappOperacaoController, WhatsappAnexosController],
+  providers: [WhatsappInboundService, { provide: "WHATSAPP_INBOUND", useExisting: WhatsappInboundService }, WhatsappRotinaService, WhatsappContextoService, WhatsappEquipeService, WhatsappLinguagemService, WhatsappMediaService, WhatsappGuiadoService],
 })
 export class WhatsappInboundModule {}

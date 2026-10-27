@@ -39,6 +39,9 @@ import { IntegracoesModule } from './modules/integracoes/integracoes.module';
 import { WhatsappInboundModule } from './modules/agenda/whatsapp-inbound.module';
 import { ReferralModule } from './modules/referral/referral.module';
 import { AssinaturaModule } from './modules/assinatura/assinatura.module';
+// Resgatado do servidor de produção: o módulo roda lá desde 26/10 e nunca
+// esteve no git. Ver o commit de resgate para o que ainda falta.
+import { ProspectsModule } from './modules/prospects/prospects.module';
 import { JwtModule } from '@nestjs/jwt';
 
 /**
@@ -74,6 +77,7 @@ import { JwtModule } from '@nestjs/jwt';
     CacheModule,
     PrismaModule, HealthModule, AuthModule, UsersModule,
     StatsModule, AgendaModule, NotificationsModule, WhatsappInboundModule, ReferralModule,
+    ProspectsModule,
     ProjectsModule, KeepModule,
     AuditModule, StatusModule, CommentsModule,
     SistemaModule, TwoFAModule,

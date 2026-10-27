@@ -1,0 +1,2 @@
+ALTER TABLE "ProspectLead" ADD COLUMN "revisado" BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE "ProspectLead" ADD COLUMN "arquivado" BOOLEAN NOT NULL DEFAULT false;
