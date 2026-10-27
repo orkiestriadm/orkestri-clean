@@ -8,13 +8,15 @@ import { NotificationsModule } from "../notifications/notifications.module";
 import { AuthModule } from "../auth/auth.module";
 import { AuthService } from "../auth/auth.service";
 import { registrarIndicacao, montarMensagemAtivacao, codigoIndicacao } from "../referral/referral.helpers";
-import { ReferralModule, ReferralService } from "../referral/referral.module";
+import { ReferralModule } from "../referral/referral.module";
 import {
   interpretarRespostaRenovacao, podeRenovar, codigoRenovacao, produtoLabel, faseDaConta, avisoDoCicloAtual,
-  proximaValidade, LEMBRETE_ANTECEDENCIA_MS, RespostaRenovacao,
-  montarRespostaEfetivou, montarRespostaRenovouMes, montarRespostaRecusou,
+  LEMBRETE_ANTECEDENCIA_MS, VALOR_MENSALIDADE_LABEL, RespostaRenovacao,
+  montarRespostaRecusou,
   RESPOSTA_JA_RENOVADO, RESPOSTA_PRAZO_ENCERRADO, RESPOSTA_CODIGO_INVALIDO, RESPOSTA_NAO_IDENTIFICADO,
+  RESPOSTA_PAGAMENTO_INDISPONIVEL,
 } from "../auth/trial-renovacao";
+import { AssinaturaModule, AssinaturaService } from "../assinatura/assinatura.module";
 import { createHash } from "crypto";
 import { CadastroWhatsappModule, CadastroWhatsappService, pareceInteresseEmCadastro } from "../cadastro-whatsapp/cadastro-whatsapp.module";
 
@@ -669,7 +671,7 @@ export class WhatsappInboundService {
 
   constructor(
     private prisma: PrismaService, private wa: WhatsAppService, private auth: AuthService,
-    private referral: ReferralService,
+    private assinatura: AssinaturaService,
     private cadastroWhats: CadastroWhatsappService,
   ) {}
 
@@ -704,22 +706,27 @@ export class WhatsappInboundService {
     return null;
   }
 
-  // ── Renovação pelo WhatsApp (resposta ao aviso de "vence amanhã") ────────────
+  // ── Renovação pelo WhatsApp (resposta ao aviso de vencimento) ───────────────
   //
-  // Vale para o fim do TESTE (o "1" efetiva a conta e abre o primeiro mês) e
-  // para o fim de cada MÊS pago (o "1" soma mais um mês). Devolve true quando a
-  // mensagem era mesmo sobre a renovação e já foi respondida. "1"/"2" soltos só
-  // contam para quem recebeu o aviso do vencimento atual — para qualquer outra
-  // pessoa seguem o fluxo normal (menu, gasto etc.).
+  // Vale para o fim do TESTE e para o fim de cada MÊS pago. O "1" NÃO libera
+  // acesso: ele abre a cobrança de R$ 11,90 e devolve os meios de pagamento
+  // (link do cartão e Pix). Quem estica o acesso é o webhook do Mercado Pago,
+  // quando o pagamento é confirmado.
+  //
+  // Devolve true quando a mensagem era mesmo sobre a renovação e já foi
+  // respondida. "1"/"2" soltos só contam para quem recebeu o aviso do
+  // vencimento atual — para qualquer outra pessoa seguem o fluxo normal (menu,
+  // gasto etc.).
   private async tratarRenovacao(remoteJid: string, jidAlt: string, resp: RespostaRenovacao & { soNumero: boolean }, inst: string): Promise<boolean> {
     const campos = {
       id: true, nome: true, email: true, organizationId: true, isTrial: true, trialExpiraEm: true, trialModulo: true,
       assinaturaEm: true, assinaturaValidaAte: true, trialLembreteEm: true,
+      assinaturaRenovacaoAuto: true,
       trialRenovacaoResposta: true, trialRenovacaoRespostaEm: true, profile: { select: { whatsapp: true } },
     } as any;
     const agora = new Date();
-    const renovouAgoraPouco = (u: any) =>
-      u.trialRenovacaoResposta === "RENOVOU" && u.trialRenovacaoRespostaEm &&
+    const respondeuAgoraPouco = (u: any) =>
+      ["RENOVOU", "PAGOU", "QUER_PAGAR"].includes(u.trialRenovacaoResposta) && u.trialRenovacaoRespostaEm &&
       new Date(u.trialRenovacaoRespostaEm).getTime() > agora.getTime() - 3 * 24 * 60 * 60 * 1000;
 
     let alvo: any = null;
@@ -768,8 +775,8 @@ export class WhatsappInboundService {
     }
     const avisoAtual = avisoDoCicloAtual(alvo);
     if (resp.soNumero && !avisoAtual) {
-      // "1" repetido depois de já ter renovado: confirma em vez de ficar mudo.
-      if (renovouAgoraPouco(alvo)) { await falar(RESPOSTA_JA_RENOVADO); return true; }
+      // "1" repetido depois de já ter respondido: confirma em vez de ficar mudo.
+      if (respondeuAgoraPouco(alvo)) { await falar(RESPOSTA_JA_RENOVADO); return true; }
       return false; // não recebeu o aviso deste vencimento
     }
 
@@ -795,48 +802,48 @@ export class WhatsappInboundService {
       return true;
     }
 
-    if (f.fase === "TESTE") {
-      // Reserva atômica: dois "1" seguidos não efetivam (nem geram comissão) duas vezes.
-      const validaAte = proximaValidade(f.limite, agora);
-      const reserva = await this.prisma.user.updateMany({
-        where: { id: alvo.id, assinaturaEm: null } as any,
-        data: {
-          assinaturaEm: agora, assinaturaValidaAte: validaAte, trialAvisadoSuporte: false,
-          trialRenovacaoResposta: "RENOVOU", trialRenovacaoRespostaEm: agora,
-        } as any,
-      });
-      if (reserva.count === 0) { await falar(RESPOSTA_JA_RENOVADO); return true; }
-      // Mesma efetivação do painel de Indicações: valor da assinatura + comissão do indicador.
-      await this.referral.efetivar(alvo.id).catch((e: any) =>
-        this.logger.error(`Efetivação pelo WhatsApp gravou a assinatura mas falhou no restante (user=${alvo.id}): ${e?.message || e}`));
-      await falar(montarRespostaEfetivou({ nome: alvo.nome }));
-      await this.auth.notificarEquipeTrial(alvo.id, "trial_renovou",
-        "Teste efetivado pelo WhatsApp — combinar pagamento",
-        `${contato} respondeu 1 e efetivou o ${produto} (R$ 27,00 por mês, 1º mês até ${validaAte.toLocaleDateString("pt-BR")}). Fale com a pessoa para combinar o pagamento.`).catch(() => {});
-      this.logger.log(`Trial efetivado pelo WhatsApp: user=${alvo.id}`);
-      return true;
-    }
+    // No cartão o Mercado Pago cobra sozinho: não há nada para a pessoa fazer.
+    if (alvo.assinaturaRenovacaoAuto) { await falar(RESPOSTA_JA_RENOVADO); return true; }
 
-    // MENSAL. Só renova perto do vencimento (ou já vencido): reenviar o código no
-    // meio do mês não pode ir somando meses sem querer.
+    // Longe do vencimento e sem aviso deste ciclo: já está em dia. Sem isso,
+    // reenviar o código no meio do mês abriria cobrança sem motivo.
     if (!avisoAtual && f.limite.getTime() - agora.getTime() > LEMBRETE_ANTECEDENCIA_MS) {
       await falar(RESPOSTA_JA_RENOVADO);
       return true;
     }
-    const validaAte = proximaValidade(f.limite, agora);
-    const reserva = await this.prisma.user.updateMany({
-      where: { id: alvo.id, assinaturaValidaAte: f.limite } as any,
-      data: {
-        assinaturaValidaAte: validaAte, trialAvisadoSuporte: false,
-        trialRenovacaoResposta: "RENOVOU", trialRenovacaoRespostaEm: agora,
-      } as any,
-    });
-    if (reserva.count === 0) { await falar(RESPOSTA_JA_RENOVADO); return true; }
-    await falar(montarRespostaRenovouMes({ nome: alvo.nome, modulo: alvo.trialModulo, validaAte }));
-    await this.auth.notificarEquipeTrial(alvo.id, "assinatura_renovou",
-      "Mensalidade renovada pelo WhatsApp — cobrar",
-      `${contato} respondeu 1 e renovou o ${produto} por mais um mês (R$ 27,00, até ${validaAte.toLocaleDateString("pt-BR")}). Fale com a pessoa para o pagamento.`).catch(() => {});
-    this.logger.log(`Mensalidade renovada pelo WhatsApp: user=${alvo.id} até ${validaAte.toISOString()}`);
+
+    // Registra a INTENÇÃO. Note que nada de acesso é concedido aqui: o "1" vale
+    // como "quero pagar", e o mês entra quando o pagamento for confirmado.
+    await this.prisma.user.update({
+      where: { id: alvo.id },
+      data: { trialRenovacaoResposta: "QUER_PAGAR", trialRenovacaoRespostaEm: agora } as any,
+    }).catch(() => {});
+
+    let cobranca: { texto: string; pixCopiaECola: string | null };
+    try {
+      // Idempotente: dois "1" seguidos reaproveitam a mesma cobrança e o mesmo
+      // Pix, em vez de gerar duas cobranças e duas conversas de suporte.
+      cobranca = await this.assinatura.prepararCobranca(alvo.id, agora);
+    } catch (e: any) {
+      this.logger.error(`Cobrança não abriu para user=${alvo.id}: ${e?.message || e}`);
+      await falar(RESPOSTA_PAGAMENTO_INDISPONIVEL);
+      await this.auth.notificarEquipeTrial(alvo.id, "cobranca_falhou",
+        "Não conseguimos abrir a cobrança",
+        `${contato} respondeu 1 para pagar o ${produto}, mas a cobrança não abriu: ${e?.message || e}. Fale com a pessoa.`).catch(() => {});
+      return true;
+    }
+
+    await falar(cobranca.texto);
+    // O copia-e-cola vai sozinho na mensagem seguinte: no celular, código no
+    // meio de texto corrido não se copia com um toque.
+    if (cobranca.pixCopiaECola) await falar(cobranca.pixCopiaECola);
+
+    const rotulo = f.fase === "TESTE" ? "Teste" : "Mensalidade";
+    await this.auth.notificarEquipeTrial(alvo.id, f.fase === "TESTE" ? "trial_quer_pagar" : "assinatura_quer_pagar",
+      `${rotulo}: quer pagar — cobrança enviada`,
+      `${contato} respondeu 1 e recebeu a cobrança do ${produto} (${VALOR_MENSALIDADE_LABEL}, ` +
+      `vence em ${f.limite.toLocaleDateString("pt-BR")}). O acesso só segue quando o pagamento for confirmado.`).catch(() => {});
+    this.logger.log(`Cobrança enviada pelo WhatsApp (${f.fase}): user=${alvo.id}`);
     return true;
   }
 
@@ -1870,7 +1877,7 @@ export class WhatsappInboundController {
 }
 
 @Module({
-  imports: [NotificationsModule, AuthModule, ReferralModule, CadastroWhatsappModule],
+  imports: [NotificationsModule, AuthModule, ReferralModule, AssinaturaModule, CadastroWhatsappModule],
   controllers: [WhatsappInboundController],
   providers: [WhatsappInboundService],
 })

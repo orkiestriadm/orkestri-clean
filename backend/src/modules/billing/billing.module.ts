@@ -2,7 +2,7 @@ import {
   Module, Controller, Get, Post, Body, Param,
   UseGuards, Req, ForbiddenException, NotFoundException,
   BadRequestException, HttpCode, HttpStatus, Logger,
-  ConflictException, UsePipes, ValidationPipe,
+  ConflictException, UsePipes, ValidationPipe, GoneException,
 } from '@nestjs/common';
 import { Injectable } from '@nestjs/common';
 import { ScheduleModule, Cron } from '@nestjs/schedule';
@@ -13,6 +13,20 @@ import { AuthGuard } from '@nestjs/passport';
 import { Resend } from 'resend';
 import * as bcrypt from 'bcryptjs';
 import { IsEmail, IsIn, IsNumber, IsOptional, IsString, MinLength } from "class-validator";
+
+// ─── LEGADO: billing por ORGANIZAÇÃO (Business Cloud / Business Plus) ────────
+//
+// Este módulo é de outra fase do produto, quando se vendiam planos por
+// organização a R$ 99,90 e R$ 199,90. A mensalidade de hoje é por CONTA, custa
+// R$ 11,90 com todos os módulos, e vive em `modules/assinatura`.
+//
+// Por que o código continua aqui: o painel do super-admin lê estes dados e as
+// linhas de `org_billing` existem no banco. O que foi DESLIGADO é a criação de
+// assinatura no Mercado Pago (`assignPlan` e `initiateSignup`) — um mesmo token
+// do MP criando preapproval de R$ 99,90 e de R$ 11,90 é a receita certa para
+// cobrar de alguém o valor errado.
+//
+// Não ligue isto de novo sem decidir qual dos dois preços o produto vende.
 
 // ─── Planos ──────────────────────────────────────────────────────────────────
 
@@ -303,60 +317,15 @@ export class BillingService {
       return { billing, checkoutUrl: null, message: 'Plano Enterprise atribuído. Status definido como enterprise_manual.' };
     }
 
-    // Planos pagos → criar preapproval no Mercado Pago
     const masterEmail = dto.masterEmail || org.users[0]?.email;
     if (!masterEmail) throw new BadRequestException('Email do master não encontrado. Informe masterEmail.');
 
-    const mpPlanId = this.config.get<string>(`MP_PLAN_${dto.plano.toUpperCase()}`);
-    const accessToken = this.getMpClient();
-    const appUrl = this.config.get<string>('APP_URL', 'https://orkiestri.com');
-
-    let preapprovalId: string | null = null;
-    let checkoutUrl: string | null = null;
-
-    try {
-      // Quando usa plan_id (recomendado): não enviar auto_recurring — o plano já o define.
-      // Sem plan_id (fallback): enviar auto_recurring inline.
-      const body: Record<string, unknown> = {
-        reason: `Orkiestri ${plan.nome}`,
-        payer_email: masterEmail,
-        back_url: `${appUrl}/dashboard/billing/me`,
-        status: 'pending',
-      };
-      if (mpPlanId) {
-        body.preapproval_plan_id = mpPlanId;
-      } else {
-        body.auto_recurring = {
-          frequency: 1,
-          frequency_type: 'months',
-          transaction_amount: plan.valor,
-          currency_id: 'BRL',
-        };
-      }
-
-      const response = await fetch('https://api.mercadopago.com/preapproval', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(body),
-      });
-
-      if (!response.ok) {
-        const err = await response.text();
-        this.logger.error(`MP PreApproval error: ${err}`);
-        throw new BadRequestException('Erro ao criar assinatura no Mercado Pago. Verifique as configurações.');
-      }
-
-      const data = await response.json() as { id: string; init_point: string };
-      preapprovalId = data.id;
-      checkoutUrl = data.init_point;
-    } catch (e) {
-      if (e instanceof BadRequestException) throw e;
-      this.logger.error(`MP error: ${e.message}`);
-      // Continua sem MP (fallback — billing fica pendente)
-    }
+    // DESLIGADO: aqui era criado o preapproval de R$ 99,90 / R$ 199,90, no
+    // MESMO Mercado Pago que hoje cobra a mensalidade de R$ 11,90. O plano
+    // continua sendo atribuído (o painel do SA lê isso), mas sem gerar cobrança
+    // nenhuma — quem cobra é `modules/assinatura`.
+    const preapprovalId: string | null = null;
+    const checkoutUrl: string | null = null;
 
     const now = new Date();
     const billing = await this.prisma.orgBilling.upsert({
@@ -396,7 +365,11 @@ export class BillingService {
       );
     }
 
-    return { billing, checkoutUrl, message: checkoutUrl ? 'Link de pagamento gerado e enviado por e-mail.' : 'Plano atribuído. Configure MP_ACCESS_TOKEN para gerar link de pagamento.' };
+    return {
+      billing,
+      checkoutUrl,
+      message: 'Plano atribuído. Este painel NÃO gera cobrança — a mensalidade é cobrada por conta, em Indicações / assinatura.',
+    };
   }
 
   async overrideStatus(orgId: string, dto: OverrideStatusDto, saId: string) {
@@ -470,6 +443,16 @@ export class BillingService {
   // ── Auto-signup público (landing page → MP → provisionamento) ─────────────
 
   async initiateSignup(dto: PublicSignupDto) {
+    // DESLIGADO. Este fluxo criava organização nova cobrando R$ 99,90/R$ 199,90
+    // no Mercado Pago. Quem entra hoje entra pelo teste de 7 dias e paga
+    // R$ 11,90 por conta (`modules/assinatura`).
+    throw new GoneException(
+      'Este cadastro saiu do ar. Comece pelo teste gratuito de 7 dias em orkiestri.com.',
+    );
+
+    // O que vem abaixo não roda mais. Fica como registro do fluxo antigo até a
+    // limpeza do legado — apagar agora levaria junto `provisionSignupSession`,
+    // que ainda é referenciada pelos handlers deste arquivo.
     const ALLOWED_PLANS = ['business_cloud', 'business_plus'];
     if (!ALLOWED_PLANS.includes(dto.plano)) {
       throw new BadRequestException('Plano inválido. Para Enterprise, entre em contato.');
@@ -998,16 +981,19 @@ export class BillingController {
   }
 }
 
-// Webhook (sem guard JWT — público, verificado por assinatura MP)
+// DESLIGADO. Este webhook dizia-se "verificado por assinatura MP", mas NÃO
+// verificava nada: recebia o `x-signature` e o ignorava, e o MP_WEBHOOK_SECRET
+// não era lido em lugar nenhum. Qualquer um que descobrisse a URL marcava
+// mensalidade como paga.
+//
+// O webhook de verdade é `POST /api/assinatura/webhook/mp`, que confere o HMAC
+// e devolve 403 quando não bate. É esse o endereço a cadastrar no painel do
+// Mercado Pago.
 @Controller('billing/webhook')
 export class BillingWebhookController {
-  constructor(private billing: BillingService) {}
-
   @Post('mp')
-  @HttpCode(HttpStatus.OK)
-  async mercadopago(@Req() req: any, @Body() body: Record<string, unknown>) {
-    const xSignature = req.headers['x-signature'];
-    return this.billing.processWebhook(body, xSignature);
+  async mercadopago() {
+    throw new GoneException('Endpoint desativado. Use /api/assinatura/webhook/mp.');
   }
 }
 

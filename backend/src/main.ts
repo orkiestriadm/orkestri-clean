@@ -9,6 +9,7 @@ import * as fs from "fs";
 import { randomBytes } from "crypto";
 import { Request, Response, NextFunction, json, urlencoded } from "express";
 import { FirstAccessGuard } from "./modules/auth/first-access.guard";
+import { CSRF_EXEMPT_PATHS as CSRF_EXEMPT } from "./common/csrf-exempt";
 
 async function bootstrap() {
   const logger = new Logger("Bootstrap");
@@ -51,21 +52,10 @@ async function bootstrap() {
   // CSRF — Double Submit Cookie pattern
   // O frontend lê o cookie csrf_token (não-HttpOnly) e envia como header X-CSRF-Token
   const CSRF_SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
-  const CSRF_EXEMPT_PATHS = ["/api/auth/login", "/api/auth/solicitar-acesso", "/api/auth/esqueci-senha",
-    "/api/auth/trial/iniciar", "/api/auth/trial/confirmar",
-    "/api/auth/enviar-otp", "/api/auth/verificar-otp", "/api/auth/redefinir-senha",
-    "/api/auth/tenant-info", "/api/auth/organizations", "/api/billing/webhook/mp",
-    // Primeiro acesso: a troca de senha acontece ANTES de existir sessao, e
-    // portanto antes de haver cookie CSRF util. Quem protege e a senha
-    // provisoria + o codigo do e-mail, com teto de tentativas no controller.
-    "/api/auth/primeiro-acesso/confirmar", "/api/auth/primeiro-acesso/reenviar",
-    "/api/billing/public/signup", "/health",
-    // Webhook do Microsoft Graph: chamado pela Microsoft, sem cookie CSRF. A
-    // autenticidade vem do clientState verificado no controller.
-    "/api/integracoes/microsoft/webhook",
-    // Webhook de ENTRADA do WhatsApp (Evolution): POST de máquina, sem cookie
-    // CSRF. A autenticidade vem do ?secret= validado no controller.
-    "/api/whatsapp/inbound"];
+  // A lista mora em `common/csrf-exempt.ts` para poder ser testada: aqui dentro
+  // do bootstrap, nenhum teste a alcançava, e um webhook ausente dela morria
+  // com 403 sem ninguém notar.
+  const CSRF_EXEMPT_PATHS = CSRF_EXEMPT;
 
   app.use((req: Request, res: Response, next: NextFunction) => {
     // Emite cookie CSRF a cada request (token rotativo por sessão)

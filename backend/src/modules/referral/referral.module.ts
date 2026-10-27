@@ -7,7 +7,7 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { WhatsAppService } from "../notifications/whatsapp.service";
 import { NotificationsModule } from "../notifications/notifications.module";
 import { registrarIndicacao, codigoIndicacao, montarMensagemAtivacao } from "./referral.helpers";
-import { proximaValidade } from "../auth/trial-renovacao";
+import { proximaValidade, VALOR_MENSALIDADE } from "../auth/trial-renovacao";
 import { IsOptional, IsString } from "class-validator";
 
 // Tipo inline (`@Body() body: DefinirIndicadorDto`) PARECE validação, mas não
@@ -21,9 +21,9 @@ class ComissaoPagaDto {
   @IsOptional() @IsString() notas?: string;
 }
 
-// Valores fixos do MVP (centavos). Configuráveis depois.
-const VALOR_ASSINATURA = 2700; // R$ 27,00
-const VALOR_COMISSAO = 500;    // R$ 5,00
+// Valor da mensalidade (centavos). A fonte é `trial-renovacao.ts`: um preço
+// escrito em dois lugares vira dois preços no dia em que um deles muda.
+const VALOR_ASSINATURA = VALOR_MENSALIDADE;
 
 function requireSuperAdmin(req: any) {
   if (!req.user?.isSuperAdmin) throw new ForbiddenException("Acesso restrito a super-admins.");
@@ -61,7 +61,7 @@ export class ReferralService {
         modulo: u.trialModulo, inicio: u.criadoEm, expira,
         diasRestantes, vencido,
         efetivado: !!u.assinaturaEm, assinaturaEm: u.assinaturaEm,
-        // Mensalidade (R$ 27/mês): até quando vale o mês pago e se já venceu sem renovar.
+        // Mensalidade: até quando vale o mês pago e se já venceu sem renovar.
         validaAte: u.assinaturaValidaAte,
         mensalidadeVencida: !!u.assinaturaEm && !!u.assinaturaValidaAte && new Date(u.assinaturaValidaAte).getTime() < now,
         // Aviso de fim do teste no WhatsApp e a resposta (RENOVOU / RECUSOU).
@@ -96,9 +96,16 @@ export class ReferralService {
     };
   }
 
-  // Marca a assinatura (R$27/mês). Se o usuário foi indicado, cria a comissão (R$5).
-  // Sem mês pago ainda, abre o primeiro — a partir do fim do teste se ele não
-  // acabou. Quem chama já com a validade gravada (o "1" do WhatsApp) mantém a dela.
+  // Libera um mês À MÃO, sem pagamento — é a válvula da equipe (cortesia, erro
+  // de cobrança, acerto por fora).
+  //
+  // O caminho normal da mensalidade NÃO passa mais por aqui: quem concede mês é
+  // `AssinaturaService.aplicarPagamentoConfirmado`, chamada pelo webhook do
+  // Mercado Pago. Isto aqui é exceção registrada, não o fluxo.
+  //
+  // Indicação não gera mais comissão em dinheiro: a indicação segue marcada
+  // como EFETIVADO (é o histórico de quem trouxe quem), e as comissões que já
+  // estavam pendentes continuam pendentes para a equipe pagar.
   async efetivar(userId: string) {
     const u = await this.prisma.user.findUnique({
       where: { id: userId },
@@ -117,10 +124,7 @@ export class ReferralService {
     if (r) {
       await this.prisma.referral.update({
         where: { id: r.id },
-        data: {
-          status: "EFETIVADO", efetivadoEm: new Date(), assinaturaValor: VALOR_ASSINATURA,
-          comissaoValor: VALOR_COMISSAO, comissaoStatus: "PENDENTE",
-        } as any,
+        data: { status: "EFETIVADO", efetivadoEm: new Date(), assinaturaValor: VALOR_ASSINATURA } as any,
       });
     }
     return { ok: true };

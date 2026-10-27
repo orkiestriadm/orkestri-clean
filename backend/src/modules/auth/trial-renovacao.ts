@@ -4,24 +4,37 @@ import { MARCA } from "../../common/marca";
 // Renovação do acesso pelo WhatsApp — do teste de 7 dias e, depois, da
 // mensalidade.
 //
-// Faltando um dia para o acesso vencer, a Aurélia manda um aviso com duas
-// opções (1 = continuar, 2 = não quero). No TESTE, o "1" efetiva a conta na
-// própria organização default — a mesma efetivação do painel de Indicações
-// (R$ 27 + comissão do indicador, se houver) — e libera um mês. Na MENSALIDADE,
-// o "1" libera mais um mês (a comissão é só da primeira efetivação). Sem
-// resposta, o login bloqueia quando vence, e o "1" ainda vale por 15 dias.
+// Antes do fim da gratuidade a Aurélia avisa três vezes (3 dias, 1 dia e no
+// próprio dia) com duas opções (1 = continuar, 2 = não quero). O "1" NÃO libera
+// mais o acesso: ele devolve a cobrança de R$ 11,90 — link do cartão, que
+// renova sozinho, e Pix para quem prefere pagar mês a mês. O mês só entra
+// quando o Mercado Pago confirma o pagamento.
+//
+// Quem já está no cartão (renovação automática) não recebe aviso nenhum: o MP
+// cobra e o webhook estica o acesso. Só ouve a Aurélia se a cobrança falhar.
+//
+// Sem pagamento, o login bloqueia quando vence, e dá para retomar por 15 dias.
 //
 // Aqui ficam só as regras e os textos, sem banco nem WhatsApp, para serem
 // testáveis.
 
-/** Antecedência do aviso: entra na fila quando faltam até 24 h. */
-export const LEMBRETE_ANTECEDENCIA_MS = 24 * 60 * 60 * 1000;
+/** Antecedência do primeiro aviso, em dias de calendário. */
+export const MARCOS_AVISO = [3, 1, 0] as const;
+
+/** Antecedência máxima do aviso — usada para varrer candidatos no banco. */
+export const LEMBRETE_ANTECEDENCIA_MS = 4 * 24 * 60 * 60 * 1000;
 
 /** Depois de vencer, a pessoa ainda pode responder "1" por este prazo. */
 export const RENOVACAO_PRAZO_APOS_VENCER_MS = 15 * 24 * 60 * 60 * 1000;
 
-/** Valor da mensalidade, em centavos (o mesmo do painel de Indicações). */
-export const VALOR_MENSALIDADE = 2700;
+/** Valor da mensalidade, em centavos. Todos os módulos inclusos. */
+export const VALOR_MENSALIDADE = 1190;
+
+/** O valor escrito, num lugar só: mudar o preço não pode deixar texto velho. */
+export const VALOR_MENSALIDADE_LABEL = "R$ 11,90";
+
+/** Prazo do Pix antes de expirar. Curto o bastante para não virar fila eterna. */
+export const PIX_VALIDADE_MS = 3 * 24 * 60 * 60 * 1000;
 
 export const PRODUTO_LABEL: Record<string, string> = {
   "one-desk": `${MARCA} One Desk`,
@@ -51,6 +64,10 @@ export function codigoRenovacao(userId: string): string {
   return createHash("sha256").update(userId + "|renovacao|" + secret).digest("hex").slice(0, 6).toUpperCase();
 }
 
+// O token do link de pagamento fica em `assinatura/checkout-token.ts`: ele
+// precisa ser REVERSÍVEL (o servidor tem de saber de quem é o link sem varrer a
+// tabela), e isso é outra natureza de código do que os hashes daqui.
+
 /** Mesmo dia do mês seguinte; 31/01 vira 28 (ou 29)/02, não 03/03. */
 export function somarUmMes(d: Date): Date {
   const r = new Date(d);
@@ -72,6 +89,11 @@ export function proximaValidade(limiteAtual: Date | null, agora: Date): Date {
   return somarUmMes(base);
 }
 
+/** Mês de referência da cobrança, "AAAA-MM", no fuso de quem paga. */
+export function cicloDe(d: Date): string {
+  return diaBRT(d).slice(0, 7); // "AAAA-MM-DD" → "AAAA-MM"
+}
+
 export type ContaRenovavel = {
   isTrial: boolean;
   trialExpiraEm: Date | null;
@@ -80,6 +102,8 @@ export type ContaRenovavel = {
   trialLembreteEm: Date | null;
   trialRenovacaoResposta?: string | null;
   trialRenovacaoRespostaEm?: Date | null;
+  /// No cartão o MP cobra sozinho: a Aurélia não pede nada por WhatsApp.
+  assinaturaRenovacaoAuto?: boolean;
 };
 
 export type Fase = "TESTE" | "MENSAL";
@@ -97,35 +121,62 @@ export function faseDaConta(u: ContaRenovavel): { fase: Fase; limite: Date } | n
   return u.assinaturaValidaAte ? { fase: "MENSAL", limite: new Date(u.assinaturaValidaAte) } : null;
 }
 
-/** O login deve barrar: venceu o teste (sem efetivar) ou venceu o mês pago. */
+/** O login deve barrar: venceu o teste (sem pagar) ou venceu o mês pago. */
 export function acessoVencido(u: ContaRenovavel, agora: Date): boolean {
   const f = faseDaConta(u);
   return !!f && f.limite.getTime() < agora.getTime();
 }
 
+/** Dia no fuso de São Paulo, "AAAA-MM-DD" — para contar dias de calendário. */
+function diaBRT(d: Date): string {
+  // en-CA formata como AAAA-MM-DD, que é o que queremos comparar.
+  return new Date(d).toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
+}
+
 /**
- * O último aviso é do vencimento ATUAL? Um único campo (`trialLembreteEm`)
- * serve a todos os ciclos: aviso mandado até 48 h antes do limite de agora é
- * deste ciclo; mais antigo que isso é de um ciclo que já foi renovado.
+ * Quantos dias de CALENDÁRIO faltam, no fuso de São Paulo. Contar em dias de
+ * calendário (e não em horas) é o que faz "falta 1 dia" querer dizer "vence
+ * amanhã" para quem lê, independente da hora em que o aviso sai.
+ */
+export function diasRestantes(limite: Date, agora: Date): number {
+  const a = Date.parse(diaBRT(agora) + "T00:00:00Z");
+  const b = Date.parse(diaBRT(limite) + "T00:00:00Z");
+  return Math.round((b - a) / (24 * 60 * 60 * 1000));
+}
+
+/**
+ * Qual aviso cabe AGORA (3, 1, 0 dias) — ou null se hoje não é dia de avisar.
+ * Quem está no cartão não recebe: o MP cobra sozinho.
+ *
+ * Não ter marco para "faltam 2 dias" é de propósito: três avisos num ciclo de
+ * sete dias já é o limite do que não vira importunação.
+ */
+export function marcoDoAviso(u: ContaRenovavel, agora: Date): number | null {
+  const f = faseDaConta(u);
+  if (!f || u.assinaturaRenovacaoAuto) return null;
+  // Já venceu: o aviso de "vence hoje" chegaria depois do fato. Quem está
+  // vencido ouve outra coisa (a cobrança, ou o bloqueio no login).
+  if (f.limite.getTime() <= agora.getTime()) return null;
+  const dias = diasRestantes(f.limite, agora);
+  return (MARCOS_AVISO as readonly number[]).includes(dias) ? dias : null;
+}
+
+/** Ainda dá para retomar: não venceu ou venceu há menos de 15 dias. */
+export function podeRenovar(u: ContaRenovavel, agora: Date): boolean {
+  const f = faseDaConta(u);
+  return !!f && f.limite.getTime() + RENOVACAO_PRAZO_APOS_VENCER_MS > agora.getTime();
+}
+
+/**
+ * O último aviso é do vencimento ATUAL? Serve para decidir se um "1" solto é
+ * resposta ao aviso ou se é o "1" do menu da Aurélia. Aviso mandado dentro da
+ * janela dos avisos deste limite conta; mais antigo é de um ciclo que já passou.
  */
 export function avisoDoCicloAtual(u: ContaRenovavel): boolean {
   const f = faseDaConta(u);
   if (!f || !u.trialLembreteEm) return false;
-  return new Date(u.trialLembreteEm).getTime() >= f.limite.getTime() - 2 * LEMBRETE_ANTECEDENCIA_MS;
-}
-
-/** O aviso sai uma vez por ciclo, quando faltam até 24 h para vencer. */
-export function precisaLembrete(u: ContaRenovavel, agora: Date): boolean {
-  const f = faseDaConta(u);
-  if (!f || avisoDoCicloAtual(u)) return false;
-  const falta = f.limite.getTime() - agora.getTime();
-  return falta > 0 && falta <= LEMBRETE_ANTECEDENCIA_MS;
-}
-
-/** Ainda dá para renovar: não venceu ou venceu há menos de 15 dias. */
-export function podeRenovar(u: ContaRenovavel, agora: Date): boolean {
-  const f = faseDaConta(u);
-  return !!f && f.limite.getTime() + RENOVACAO_PRAZO_APOS_VENCER_MS > agora.getTime();
+  const maiorMarco = Math.max(...MARCOS_AVISO) + 1;
+  return new Date(u.trialLembreteEm).getTime() >= f.limite.getTime() - maiorMarco * 24 * 60 * 60 * 1000;
 }
 
 export type RespostaRenovacao = { opcao: "RENOVAR" | "RECUSAR"; codigo: string | null };
@@ -139,7 +190,7 @@ export function interpretarRespostaRenovacao(texto: string): (RespostaRenovacao 
   const t = (texto || "").trim();
   if (/^\/?1\s*[?!.]*$/.test(t)) return { opcao: "RENOVAR", codigo: null, soNumero: true };
   if (/^\/?2\s*[?!.]*$/.test(t)) return { opcao: "RECUSAR", codigo: null, soNumero: true };
-  const m = t.match(/^\/?(renovar|quero renovar|renova[çc][aã]o)(?:\s+([a-z0-9]{6}))?\s*[?!.]*$/i);
+  const m = t.match(/^\/?(renovar|quero renovar|renova[çc][aã]o|pagar)(?:\s+([a-z0-9]{6}))?\s*[?!.]*$/i);
   if (m) return { opcao: "RENOVAR", codigo: m[2] ? m[2].toUpperCase() : null, soNumero: false };
   return null;
 }
@@ -155,46 +206,93 @@ const fmtDia = (d: Date) =>
 // Nome como está no cadastro (no acesso de teste, é o começo do e-mail).
 const nomeCadastro = (nome: string) => (nome || "").trim();
 
-export function montarLembrete(p: { fase: Fase; nome: string; modulo: string | null; limite: Date; codigo: string }): string {
+/** Título do aviso conforme o quanto falta — o mesmo texto para 3, 1 e 0 dias
+ * soaria automático demais na terceira vez. */
+function tituloAviso(fase: Fase, marco: number): string {
+  const oQue = fase === "TESTE" ? "teste" : "mensalidade";
+  if (marco === 0) return fase === "TESTE" ? `⏳ *Hoje é o último dia do seu teste*` : `⏳ *Sua mensalidade vence hoje*`;
+  if (marco === 1) return fase === "TESTE" ? `⏳ *Seu teste termina amanhã*` : `⏳ *Sua mensalidade vence amanhã*`;
+  return `⏳ *Faltam ${marco} dias para o seu ${oQue} ${fase === "TESTE" ? "acabar" : "vencer"}*`;
+}
+
+export function montarLembrete(p: {
+  fase: Fase; nome: string; modulo: string | null; limite: Date; codigo: string; marco: number;
+  urlCheckout?: string;
+}): string {
   const produto = produtoLabel(p.modulo);
+  // Quem não quer conversa paga direto; quem quer, responde 1.
+  const atalho = p.urlCheckout ? `Ou pague agora, sem responder nada:\n${p.urlCheckout}\n\n` : "";
   const rodape = `_Se o 1 não for reconhecido, envie: RENOVAR ${p.codigo}_`;
+  const quando = fmtQuando(p.limite);
   if (p.fase === "TESTE") {
     return (
-      `⏳ *Seu teste termina amanhã*\n\n` +
-      `Olá, *${nomeCadastro(p.nome)}*! Aqui é a Aurélia, do ${MARCA}. Seus 7 dias de teste do *${produto}* acabam em *${fmtQuando(p.limite)}*.\n\n` +
-      `Quer continuar usando? Responda com o número:\n\n` +
-      `*1* — Sim, quero continuar (R$ 27,00 por mês)\n` +
-      `*2* — Não, obrigado\n\n` + rodape
+      `${tituloAviso("TESTE", p.marco)}\n\n` +
+      `Olá, *${nomeCadastro(p.nome)}*! Aqui é a Aurélia, do ${MARCA}. Seus 7 dias de teste do *${produto}* acabam em *${quando}*.\n\n` +
+      `Quer continuar? São *${VALOR_MENSALIDADE_LABEL} por mês*, com todos os módulos liberados.\n\n` +
+      `*1* — Quero continuar\n` +
+      `*2* — Não, obrigado\n\n` + atalho + rodape
     );
   }
   return (
-    `⏳ *Sua mensalidade vence amanhã*\n\n` +
-    `Olá, *${nomeCadastro(p.nome)}*! Aqui é a Aurélia, do ${MARCA}. Sua assinatura do *${produto}* vale até *${fmtQuando(p.limite)}*.\n\n` +
-    `Quer renovar por mais um mês? Responda com o número:\n\n` +
-    `*1* — Sim, renovar (R$ 27,00 por mês)\n` +
-    `*2* — Não, encerrar\n\n` + rodape
+    `${tituloAviso("MENSAL", p.marco)}\n\n` +
+    `Olá, *${nomeCadastro(p.nome)}*! Aqui é a Aurélia, do ${MARCA}. Seu acesso ao *${produto}* vale até *${quando}*.\n\n` +
+    `Quer seguir por mais um mês? São *${VALOR_MENSALIDADE_LABEL}*.\n\n` +
+    `*1* — Quero renovar\n` +
+    `*2* — Não, encerrar\n\n` + atalho + rodape
   );
 }
 
-/** Resposta ao "1" no fim do TESTE (texto aprovado pelo usuário em 14/09/2026). */
-export function montarRespostaEfetivou(p: { nome: string }): string {
+/**
+ * Resposta ao "1": a cobrança. Não promete acesso — o acesso vem quando o
+ * pagamento cai. O Pix vai numa mensagem separada (`montarPixCopiaECola`),
+ * porque código no meio de texto corrido não se copia no celular.
+ */
+export function montarCobranca(p: {
+  nome: string; modulo: string | null; urlCheckout: string; temPix: boolean;
+}): string {
+  const pix = p.temPix
+    ? `*Pix* — paga um mês de cada vez. O código vem na mensagem seguinte. 👇\n\n`
+    : `*Pix* — se preferir pagar um mês de cada vez, escolha Pix na mesma página.\n\n`;
   return (
-    `✅ *Você acaba de ter seu acesso efetivado!*\n\n` +
-    `Não se preocupe com o pagamento de imediato: nossa equipe entrará em contato e vai apresentar as opções.\n\n` +
-    `Enquanto isso, desfrute do nosso sistema e aproveite para conhecer outros módulos que vão te ajudar a orquestrar a vida.\n\n` +
-    `Valeu, ${nomeCadastro(p.nome)}!`
+    `💳 *Falta só o pagamento*\n\n` +
+    `São *${VALOR_MENSALIDADE_LABEL}* pelo próximo mês, ${nomeCadastro(p.nome)}. Escolha como pagar:\n\n` +
+    `*Cartão* — renova sozinho todo mês, você não precisa lembrar:\n${p.urlCheckout}\n\n` +
+    pix +
+    `Assim que o pagamento cair, eu te aviso aqui e seu acesso segue liberado.`
   );
 }
 
-/** Resposta ao "1" no fim de um MÊS pago. */
-export function montarRespostaRenovouMes(p: { nome: string; modulo: string | null; validaAte: Date }): string {
+/** O copia-e-cola do Pix, sozinho na mensagem, para dar um toque e copiar. */
+export function montarPixCopiaECola(codigo: string): string {
+  return codigo;
+}
+
+/** Confirmação depois que o Mercado Pago aprovou o pagamento. */
+export function montarPagamentoConfirmado(p: { nome: string; modulo: string | null; validaAte: Date; renovacaoAuto: boolean }): string {
+  const fecho = p.renovacaoAuto
+    ? `A renovação é automática no cartão — não precisa fazer nada no mês que vem.`
+    : `No mês que vem eu te aviso de novo por aqui.`;
   return (
-    `✅ *Assinatura renovada!*\n\n` +
-    `Seu acesso ao *${produtoLabel(p.modulo)}* segue liberado até *${fmtDia(p.validaAte)}*. ` +
-    `Nossa equipe entrará em contato com as opções de pagamento da mensalidade.\n\n` +
-    `Valeu, ${nomeCadastro(p.nome)}!`
+    `✅ *Pagamento confirmado!*\n\n` +
+    `Seu acesso ao *${produtoLabel(p.modulo)}* está liberado até *${fmtDia(p.validaAte)}*, ${nomeCadastro(p.nome)}. ${fecho}\n\n` +
+    `Qualquer coisa, é só me chamar aqui. 🧡`
   );
 }
+
+/** Cobrança no cartão que não passou — o MP tenta de novo, mas é melhor avisar. */
+export function montarCobrancaFalhou(p: { nome: string; limite: Date; urlCheckout: string }): string {
+  return (
+    `⚠️ *Não conseguimos cobrar no seu cartão*\n\n` +
+    `Olá, ${nomeCadastro(p.nome)}! A cobrança de *${VALOR_MENSALIDADE_LABEL}* não passou. ` +
+    `Seu acesso vale até *${fmtDia(p.limite)}*.\n\n` +
+    `Dá para trocar o cartão ou pagar no Pix aqui:\n${p.urlCheckout}`
+  );
+}
+
+// Não há texto de "o Pix venceu": ninguém o dispararia. O prazo do Pix é do
+// Mercado Pago, e um Pix expirado simplesmente deixa de contar como cobrança
+// aberta — o "1" seguinte gera outro. Texto escrito sem quem o envie é promessa
+// que o sistema não cumpre.
 
 export function montarRespostaRecusou(p: { fase: Fase; nome: string; limite: Date; vencido: boolean; codigo: string }): string {
   const oQue = p.fase === "TESTE" ? "Obrigado por testar o " + MARCA + ". 🙏" : "Obrigado por ter usado o " + MARCA + ". 🙏";
@@ -207,6 +305,10 @@ export function montarRespostaRecusou(p: { fase: Fase; nome: string; limite: Dat
 }
 
 export const RESPOSTA_JA_RENOVADO = "✅ Seu acesso já está renovado — não precisa fazer mais nada. Qualquer dúvida, é só chamar.";
+export const RESPOSTA_COBRANCA_PENDENTE =
+  "🤖 A cobrança deste mês já está aberta — é só pagar no link ou no Pix que eu mandei aqui. Assim que cair, eu te aviso.";
+export const RESPOSTA_PAGAMENTO_INDISPONIVEL =
+  "🤖 Não consegui abrir o pagamento agora — o problema é do nosso lado. Nossa equipe já foi avisada e vai falar com você por aqui.";
 export const RESPOSTA_PRAZO_ENCERRADO =
   "🤖 O prazo para renovar pelo WhatsApp já passou. Nossa equipe vai falar com você por aqui para liberar o acesso.";
 export const RESPOSTA_CODIGO_INVALIDO =
