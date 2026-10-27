@@ -26,10 +26,15 @@ const simpleLinks = [
  * claro inteiro, que virou código morto no mesmo dia.
  */
 export function Navbar() {
-  const [scrolled, setScrolled] = useState(false);
+  const naHome = usePathname() === "/";
+  /* Só a home começa com o cabeçalho transparente, porque lá ele fica sobre
+     um hero alto. Nas páginas internas ele já nasce sólido: assim o conteúdo
+     nunca passa por baixo de um cabeçalho invisível enquanto o JavaScript
+     ainda não rodou — e o estado inicial bate com o servidor, porque a rota
+     é a mesma dos dois lados. */
+  const [scrolled, setScrolled] = useState(!naHome);
   const [openMenu, setOpenMenu] = useState<"products" | "services" | null>(null);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const naHome = usePathname() === "/";
 
   useEffect(() => {
     /* Na home o cabeçalho só vira sólido depois que o botão verde do hero
