@@ -62,31 +62,35 @@ enum ProjectTipo {
 // ── Multi-tenancy ──────────────────────────────────────────────────────────────
 
 model Organization {
-  id                String   @id @default(uuid())
-  nome              String
-  slug              String   @unique
-  plano             String   @default("starter")
-  ativo             Boolean  @default(true)
+  whatsappEventoAlertas WhatsappEventoAlerta[]
+  whatsappContextos     WhatsappContexto[]
+  whatsappAtividades    WhatsappAtividade[]
+  whatsappAnexos        WhatsappAnexo[]
+  id                    String                 @id @default(uuid())
+  nome                  String
+  slug                  String                 @unique
+  plano                 String                 @default("starter")
+  ativo                 Boolean                @default(true)
   // Cadastro da empresa
-  cnpj              String?
-  nomeFantasia      String?  @map("nome_fantasia")
-  segmento          String?
-  site              String?
-  emailContato      String?  @map("email_contato")
-  telefone          String?
-  responsavelNome   String?  @map("responsavel_nome")
-  cep               String?
-  endereco          String?
-  cidade            String?
-  estado            String?
-  observacoes       String?
+  cnpj                  String?
+  nomeFantasia          String?                @map("nome_fantasia")
+  segmento              String?
+  site                  String?
+  emailContato          String?                @map("email_contato")
+  telefone              String?
+  responsavelNome       String?                @map("responsavel_nome")
+  cep                   String?
+  endereco              String?
+  cidade                String?
+  estado                String?
+  observacoes           String?
   // CRM ↔ Tenant link
-  crmClienteId      String?  @unique @map("crm_cliente_id")
-  statusComercial   String?  @map("status_comercial")
-  statusOperacional String?  @map("status_operacional")
-  modulosAtivos     String[] @default([]) @map("modulos_ativos")
-  criadoEm          DateTime @default(now()) @map("criado_em")
-  atualizadoEm      DateTime @updatedAt @map("atualizado_em")
+  crmClienteId          String?                @unique @map("crm_cliente_id")
+  statusComercial       String?                @map("status_comercial")
+  statusOperacional     String?                @map("status_operacional")
+  modulosAtivos         String[]               @default([]) @map("modulos_ativos")
+  criadoEm              DateTime               @default(now()) @map("criado_em")
+  atualizadoEm          DateTime               @updatedAt @map("atualizado_em")
 
   users                   User[]
   roles                   Role[]
@@ -246,10 +250,15 @@ model SuperAdmin {
 // ── Users ─────────────────────────────────────────────────────────────────────
 
 model User {
-  id               String    @id @default(uuid())
-  organizationId   String    @map("organization_id")
-  nome             String
-  email            String
+  whatsappEventoAlertas WhatsappEventoAlerta[]
+  whatsappContextos     WhatsappContexto[]
+  whatsappPrevias       WhatsappPrevia[]
+  whatsappAtividades    WhatsappAtividade[]
+  whatsappAnexos        WhatsappAnexo[]
+  id                    String                 @id @default(uuid())
+  organizationId        String                 @map("organization_id")
+  nome                  String
+  email                 String
 
   /// CPF do cadastro geral. Sem UNIQUE no banco de proposito: a
 
@@ -259,22 +268,22 @@ model User {
 
   /// dois tenants.
 
-  cpf            String?
-  senhaHash        String    @map("senha_hash")
-  ativo            Boolean   @default(true)
-  avatar           String?
-  ultimoLogin      DateTime? @map("ultimo_login")
-  primeiroAcesso   Boolean   @default(true) @map("primeiro_acesso")
-  bloqueado        Boolean   @default(false) @map("bloqueado")
-  tentativasFalhas Int       @default(0) @map("tentativas_falhas")
+  cpf                      String?
+  senhaHash                String    @map("senha_hash")
+  ativo                    Boolean   @default(true)
+  avatar                   String?
+  ultimoLogin              DateTime? @map("ultimo_login")
+  primeiroAcesso           Boolean   @default(true) @map("primeiro_acesso")
+  bloqueado                Boolean   @default(false) @map("bloqueado")
+  tentativasFalhas         Int       @default(0) @map("tentativas_falhas")
   // Acesso de teste (trial) criado pela landing page. `isTrial` marca a conta;
   // `trialExpiraEm` é o teto de 7 dias (login bloqueia depois); `trialModulo` é
   // o produto Orkiestri One escolhido no modal; `trialAvisadoSuporte` evita
   // reavisar o suporte todo dia depois que a conta vence.
-  isTrial          Boolean   @default(false) @map("is_trial")
-  trialExpiraEm    DateTime? @map("trial_expira_em")
-  trialModulo      String?   @map("trial_modulo")
-  trialAvisadoSuporte Boolean @default(false) @map("trial_avisado_suporte")
+  isTrial                  Boolean   @default(false) @map("is_trial")
+  trialExpiraEm            DateTime? @map("trial_expira_em")
+  trialModulo              String?   @map("trial_modulo")
+  trialAvisadoSuporte      Boolean   @default(false) @map("trial_avisado_suporte")
   // Aviso de "falta 1 dia" enviado no WhatsApp — o último, vale para o teste e
   // para cada mensalidade — e a última resposta: RENOVOU (1) ou RECUSOU (2).
   trialLembreteEm           DateTime? @map("trial_lembrete_em")
@@ -391,7 +400,6 @@ model User {
 
   @@unique([organizationId, email])
   @@index([organizationId])
-
   @@index([organizationId, cpf])
   @@map("users")
 }
@@ -620,16 +628,16 @@ model UserRequest {
 
   // coluna que o Hub usa seria destruicao que ninguem pediu.
 
-  setorId        String?   @map("setor_id")
+  setorId String? @map("setor_id")
 
-  gestorId        String?   @map("gestor_id")
-  jornadaHorasDia Float?    @map("jornada_horas_dia")
+  gestorId        String?  @map("gestor_id")
+  jornadaHorasDia Float?   @map("jornada_horas_dia")
   squad           String?
-  perfilRoleId    String?   @map("perfil_role_id")
+  perfilRoleId    String?  @map("perfil_role_id")
   senioridade     String?
-  tipoVinculo     String?   @map("tipo_vinculo")
-  criadoEm        DateTime  @default(now()) @map("criado_em")
-  atualizadoEm    DateTime  @updatedAt @map("atualizado_em")
+  tipoVinculo     String?  @map("tipo_vinculo")
+  criadoEm        DateTime @default(now()) @map("criado_em")
+  atualizadoEm    DateTime @updatedAt @map("atualizado_em")
 
   @@map("user_requests")
 }
@@ -1351,16 +1359,16 @@ model UserProfile {
 // centavos, gravados na própria linha para preservar histórico.
 model Referral {
   id              String    @id @default(uuid())
-  codigoUsado     String    @map("codigo_usado")            // código digitado no cadastro
-  indicadorUserId String    @map("indicador_user_id")       // quem indicou (recebe a comissão)
+  codigoUsado     String    @map("codigo_usado") // código digitado no cadastro
+  indicadorUserId String    @map("indicador_user_id") // quem indicou (recebe a comissão)
   indicadoUserId  String    @unique @map("indicado_user_id") // 1 indicação por indicado
-  status          String    @default("PENDENTE")            // PENDENTE | EFETIVADO | CANCELADO
+  status          String    @default("PENDENTE") // PENDENTE | EFETIVADO | CANCELADO
   // Efetivação (marcada à mão pelo admin)
   efetivadoEm     DateTime? @map("efetivado_em")
-  assinaturaValor Int?      @map("assinatura_valor")        // centavos (ex.: 2700 = R$27)
+  assinaturaValor Int?      @map("assinatura_valor") // centavos (ex.: 2700 = R$27)
   // Comissão
-  comissaoValor   Int?      @map("comissao_valor")          // centavos (ex.: 500 = R$5)
-  comissaoStatus  String?   @map("comissao_status")         // PENDENTE | PAGA | CANCELADA
+  comissaoValor   Int?      @map("comissao_valor") // centavos (ex.: 500 = R$5)
+  comissaoStatus  String?   @map("comissao_status") // PENDENTE | PAGA | CANCELADA
   comissaoPagaEm  DateTime? @map("comissao_paga_em")
   notas           String?
   criadoEm        DateTime  @default(now()) @map("criado_em")
@@ -1531,24 +1539,25 @@ model UserSession {
 // ── Agenda ────────────────────────────────────────────────────────────────────
 
 model Event {
-  id             String      @id @default(uuid())
-  organizationId String      @map("organization_id")
-  userId         String      @map("user_id")
-  criadoPorId    String      @map("created_by")
-  titulo         String
-  descricao      String?
-  tipo           EventType   @default(PESSOAL)
-  cor            String?
-  inicio         DateTime
-  fim            DateTime?
-  diaTodo        Boolean     @default(false) @map("dia_todo")
-  origemTipo     String?     @map("origem_tipo")
-  origemId       String?     @map("origem_id")
-  confirmado     Boolean     @default(true)
-  recorrencia    Recurrence? @map("recorrencia")
-  recorrenciaFim DateTime?   @map("recorrencia_fim")
-  local          String?
-  ata            String?     @db.Text
+  whatsappAlertas WhatsappEventoAlerta[]
+  id              String                 @id @default(uuid())
+  organizationId  String                 @map("organization_id")
+  userId          String                 @map("user_id")
+  criadoPorId     String                 @map("created_by")
+  titulo          String
+  descricao       String?
+  tipo            EventType              @default(PESSOAL)
+  cor             String?
+  inicio          DateTime
+  fim             DateTime?
+  diaTodo         Boolean                @default(false) @map("dia_todo")
+  origemTipo      String?                @map("origem_tipo")
+  origemId        String?                @map("origem_id")
+  confirmado      Boolean                @default(true)
+  recorrencia     Recurrence?            @map("recorrencia")
+  recorrenciaFim  DateTime?              @map("recorrencia_fim")
+  local           String?
+  ata             String?                @db.Text
 
   // ── Proveniência de calendário externo (Outlook / futuro Google) ────────────
   // A tabela Event é a AGENDA UNIFICADA. Um evento nativo tem provider="internal".
@@ -1583,6 +1592,26 @@ model Event {
   @@index([criadoPorId])
   @@index([provider, externalId])
   @@map("events")
+}
+
+model WhatsappEventoAlerta {
+  eventId        String       @map("event_id")
+  inicio         DateTime
+  userId         String       @map("user_id")
+  organizationId String       @map("organization_id")
+  instancia      String
+  codigo         String       @unique
+  estado         String       @default("PENDENTE")
+  envios         Json         @default("{}")
+  expiraEm       DateTime     @map("expira_em")
+  atualizadoEm   DateTime     @default(now()) @map("atualizado_em")
+  event          Event        @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@id([eventId, inicio])
+  @@index([userId, organizationId, instancia, expiraEm], map: "whatsapp_evento_alertas_resposta_idx")
+  @@map("whatsapp_evento_alertas")
 }
 
 model EventParticipant {
@@ -2153,24 +2182,24 @@ model Milestone {
 }
 
 model Task {
-  id             String        @id @default(uuid())
-  projectId      String        @map("project_id")
-  milestoneId    String?       @map("milestone_id")
-  assigneeId     String?       @map("assignee_id")
-  criadoPorId    String        @map("created_by")
+  id             String             @id @default(uuid())
+  projectId      String             @map("project_id")
+  milestoneId    String?            @map("milestone_id")
+  assigneeId     String?            @map("assignee_id")
+  criadoPorId    String             @map("created_by")
   titulo         String
   descricao      String?
-  status         TaskStatus    @default(A_FAZER)
-  prioridade     Priority      @default(MEDIA)
-  dataInicio     DateTime?     @map("data_inicio")
-  dataVencimento DateTime?     @map("data_vencimento")
-  horasEstimadas Float?        @map("horas_estimadas")
-  criadoEm       DateTime      @default(now()) @map("criado_em")
-  atualizadoEm   DateTime      @updatedAt @map("atualizado_em")
-  project        Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  milestone      Milestone?    @relation(fields: [milestoneId], references: [id])
-  assignee       User?         @relation("TaskAssignee", fields: [assigneeId], references: [id])
-  criadoPor      User          @relation("TaskCreator", fields: [criadoPorId], references: [id])
+  status         TaskStatus         @default(A_FAZER)
+  prioridade     Priority           @default(MEDIA)
+  dataInicio     DateTime?          @map("data_inicio")
+  dataVencimento DateTime?          @map("data_vencimento")
+  horasEstimadas Float?             @map("horas_estimadas")
+  criadoEm       DateTime           @default(now()) @map("criado_em")
+  atualizadoEm   DateTime           @updatedAt @map("atualizado_em")
+  project        Project            @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  milestone      Milestone?         @relation(fields: [milestoneId], references: [id])
+  assignee       User?              @relation("TaskAssignee", fields: [assigneeId], references: [id])
+  criadoPor      User               @relation("TaskCreator", fields: [criadoPorId], references: [id])
   comments       TaskComment[]
   registros      TaskRegistro[]
   historico      ProjectHistorico[]
@@ -2947,7 +2976,7 @@ model DocumentoVeiculo {
   /// UF onde o veiculo esta registrado. Escolhida a mao: e ela que decide a
   /// regra de vencimento do licenciamento, e o DETRAN emissor do CRLV nem
   /// sempre e o estado de registro.
-  uf              String?          // UF de registro
+  uf              String? // UF de registro
   numero          String?
   descricao       String?
   dataEmissao     DateTime?        @map("data_emissao")
@@ -3128,7 +3157,6 @@ model AlertConfig {
   @@unique([organizationId, minutos])
   @@map("alert_configs")
 }
-
 
 model SistemaConfig {
   id             String       @id @default(uuid())
@@ -3864,7 +3892,7 @@ model Gasto {
   parcelas         Int      @default(1)
   valorParcela     Decimal? @map("valor_parcela") @db.Decimal(15, 2)
   dataGasto        DateTime @map("data_gasto")
-  origem           String   @default("WHATSAPP")    // WHATSAPP | MANUAL | AUDIO
+  origem           String   @default("WHATSAPP") // WHATSAPP | MANUAL | AUDIO
   mensagemOriginal String?  @map("mensagem_original") @db.Text
 
   criadoEm     DateTime @default(now()) @map("criado_em")
@@ -5089,15 +5117,15 @@ model EstrategicoCaso {
   responsavelOperacional User?                @relation("EstrategicoRespOperacional", fields: [responsavelOperacionalId], references: [id], onDelete: SetNull)
   proximaAcaoResponsavel User?                @relation("EstrategicoRespProximaAcao", fields: [proximaAcaoResponsavelId], references: [id], onDelete: SetNull)
 
-  apoios         EstrategicoCasoArea[]
-  eventos        EstrategicoEvento[]
-  tarefas        EstrategicoTarefa[]
-  dependencias   EstrategicoDependencia[]
-  documentos     EstrategicoDocumento[]
-  comentarios    EstrategicoComentario[]
-  valores        EstrategicoValorHistorico[]
-  historico      EstrategicoHistorico[]
-  decisoes       EstrategicoDecisao[]
+  apoios       EstrategicoCasoArea[]
+  eventos      EstrategicoEvento[]
+  tarefas      EstrategicoTarefa[]
+  dependencias EstrategicoDependencia[]
+  documentos   EstrategicoDocumento[]
+  comentarios  EstrategicoComentario[]
+  valores      EstrategicoValorHistorico[]
+  historico    EstrategicoHistorico[]
+  decisoes     EstrategicoDecisao[]
 
   @@unique([organizationId, codigo])
   @@index([organizationId, deletedAt])
@@ -5451,4 +5479,197 @@ model CadastroWhatsapp {
   @@index([status, expiraEm])
   @@index([ipOrigem, criadoEm])
   @@map("cadastros_whatsapp")
+}
+
+model WhatsappPrevia {
+  userId    String   @map("user_id")
+  instancia String
+  conversa  String
+  comando   String
+  expiraEm  DateTime @default(dbgenerated("(CURRENT_TIMESTAMP + '00:10:00'::interval)")) @map("expira_em") @db.Timestamptz(6)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, instancia, conversa])
+  @@index([expiraEm], map: "whatsapp_previas_expira_idx")
+  @@map("whatsapp_previas")
+}
+
+model WhatsappContexto {
+  userId         String       @map("user_id")
+  organizationId String       @map("organization_id")
+  instancia      String
+  conversa       String
+  contexto       String       @default("PESSOAL")
+  atualizadoEm   DateTime     @default(now()) @map("atualizado_em") @db.Timestamptz(6)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@id([userId, instancia, conversa])
+  @@map("whatsapp_contextos")
+}
+
+model WhatsappRecibo {
+  id               String   @unique @default(dbgenerated("gen_random_uuid()::text"))
+  userId           String?  @map("user_id")
+  organizationId   String?  @map("organization_id")
+  contexto         String?
+  payloadProtegido String?  @map("payload_protegido")
+  efeitosIniciados Boolean  @default(true) @map("efeitos_iniciados")
+  tentativas       Int      @default(1)
+  instancia        String
+  conversa         String
+  mensagemId       String   @map("mensagem_id")
+  estado           String   @default("PROCESSANDO")
+  criadoEm         DateTime @default(now()) @map("criado_em") @db.Timestamptz(6)
+  atualizadoEm     DateTime @default(now()) @map("atualizado_em") @db.Timestamptz(6)
+
+  @@id([instancia, conversa, mensagemId])
+  @@index([estado, criadoEm], map: "whatsapp_recibos_estado_criado_idx")
+  @@index([userId, criadoEm], map: "whatsapp_recibos_user_idx")
+  @@index([organizationId, contexto, criadoEm], map: "whatsapp_recibos_org_idx")
+  @@map("whatsapp_recibos")
+}
+
+model WhatsappAnexo {
+  id             String       @id
+  userId         String       @map("user_id")
+  organizationId String       @map("organization_id")
+  nome           String
+  mime           String
+  tamanho        Int
+  criadoEm       DateTime     @default(now()) @map("criado_em") @db.Timestamptz(6)
+  expiraEm       DateTime     @default(dbgenerated("(CURRENT_TIMESTAMP + '30 days'::interval)")) @map("expira_em") @db.Timestamptz(6)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([userId, criadoEm], map: "whatsapp_anexos_user_idx")
+  @@index([expiraEm], map: "whatsapp_anexos_expira_idx")
+  @@map("whatsapp_anexos")
+}
+
+model WhatsappAtividade {
+  instancia      String
+  mensagemId     String       @map("mensagem_id")
+  userId         String       @map("user_id")
+  organizationId String       @map("organization_id")
+  contexto       String
+  tipo           String
+  acaoUtil       String?      @map("acao_util")
+  criadoEm       DateTime     @default(now()) @map("criado_em") @db.Timestamptz(6)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@id([instancia, mensagemId, userId])
+  @@index([userId, criadoEm], map: "whatsapp_atividade_user_idx")
+  @@index([organizationId, contexto, criadoEm], map: "whatsapp_atividade_org_idx")
+  @@map("whatsapp_atividade")
+}
+
+model WhatsappRevisao {
+  id         String   @id
+  instancia  String
+  mensagemId String   @map("mensagem_id")
+  autorId    String   @map("autor_id")
+  motivo     String
+  acao       String
+  criadoEm   DateTime @default(now()) @map("criado_em") @db.Timestamptz(6)
+
+  @@map("whatsapp_revisoes")
+}
+
+model WhatsappBoasVindas {
+  userId           String   @id @map("user_id")
+  cadastroId       String   @unique @map("cadastro_id")
+  telefone         String
+  instancia        String
+  estado           String   @default("PENDENTE")
+  tentativas       Int      @default(0)
+  tentativaId      String?  @map("tentativa_id")
+  proximaTentativa DateTime @default(now()) @map("proxima_tentativa") @db.Timestamptz(6)
+  expiraEm         DateTime @default(dbgenerated("(CURRENT_TIMESTAMP + '24:00:00'::interval)")) @map("expira_em") @db.Timestamptz(6)
+  criadoEm         DateTime @default(now()) @map("criado_em") @db.Timestamptz(6)
+  atualizadoEm     DateTime @default(now()) @map("atualizado_em") @db.Timestamptz(6)
+
+  @@index([estado, proximaTentativa], map: "whatsapp_boas_vindas_pendentes_idx")
+  @@map("whatsapp_boas_vindas")
+}
+
+model WhatsappInicio {
+  userId    String   @map("user_id")
+  instancia String
+  conversa  String
+  etapa     String
+  dados     Json     @default("{}")
+  expiraEm  DateTime @default(dbgenerated("(CURRENT_TIMESTAMP + '00:30:00'::interval)")) @map("expira_em") @db.Timestamptz(6)
+
+  @@id([userId, instancia, conversa])
+  @@index([expiraEm], map: "whatsapp_inicio_expira_idx")
+  @@index([instancia, conversa], map: "whatsapp_inicio_conversa_idx")
+  @@map("whatsapp_inicio")
+}
+
+model WhatsappRotina {
+  userId       String   @id @map("user_id")
+  ativo        Boolean  @default(false)
+  horario      String   @default("08:00")
+  diasUteis    Boolean  @default(false) @map("dias_uteis")
+  telefone     String
+  instancia    String
+  revisao      String
+  atualizadoEm DateTime @default(now()) @map("atualizado_em") @db.Timestamptz(6)
+
+  @@index([ativo, horario], map: "whatsapp_rotina_ativos_idx")
+  @@map("whatsapp_rotina")
+}
+
+model WhatsappRotinaEnvio {
+  userId       String   @map("user_id")
+  dia          DateTime @db.Date
+  revisao      String
+  estado       String   @default("ENVIANDO")
+  criadoEm     DateTime @default(now()) @map("criado_em") @db.Timestamptz(6)
+  atualizadoEm DateTime @default(now()) @map("atualizado_em") @db.Timestamptz(6)
+
+  @@id([userId, dia])
+  @@index([estado, criadoEm], map: "whatsapp_rotina_envios_estado_idx")
+  @@map("whatsapp_rotina_envios")
+}
+
+model ProspectLead {
+  id             String            @id @default(uuid())
+  nome           String
+  telefone       String            @unique
+  email          String            @default("")
+  empresa        String            @default("")
+  lista          String
+  etapa          String            @default("NOVO")
+  observacoes    String            @default("")
+  bloqueado      Boolean           @default(false)
+  revisado       Boolean           @default(false)
+  arquivado      Boolean           @default(false)
+  proximoContato DateTime?
+  criadoEm       DateTime          @default(now())
+  atualizadoEm   DateTime          @updatedAt
+  mensagens      ProspectMessage[]
+
+  @@index([etapa, lista])
+}
+
+model ProspectMessage {
+  id                  String       @id @default(uuid())
+  leadId              String
+  lead                ProspectLead @relation(fields: [leadId], references: [id])
+  campanha            String
+  texto               String
+  status              String       @default("PENDENTE")
+  erro                String?
+  criadoEm            DateTime     @default(now())
+  enviadoEm           DateTime?
+  instancia           String?
+  conviteTelefone     String?
+  conviteEstado       String?
+  conviteRespondidoEm DateTime?
+
+  @@index([status, criadoEm])
+  @@index([conviteTelefone, instancia, conviteEstado])
 }
