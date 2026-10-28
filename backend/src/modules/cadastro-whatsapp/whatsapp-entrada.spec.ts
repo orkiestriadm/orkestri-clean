@@ -97,10 +97,14 @@ describe("Identificação e recepção da Aurélia", () => {
   });
   it("separa cadastro geral do comando legado de teste da agenda", () => {
     expect(comandoCadastroGeral("CADASTRO")).toBe(true);
-    expect(comandoCadastroGeral("Quero fazer meu cadastro no Orkiestri")).toBe(
-      true,
-    );
+    expect(comandoCadastroGeral("cadastrar")).toBe(true);
     expect(comandoCadastroGeral("CADASTRO AGENDA")).toBe(false);
+  });
+  it("a frase que o SITE manda NÃO é atalho — ela tem de cair no convite", () => {
+    // Quem clica em "cadastrar" no site ainda não viu o que é o produto nem
+    // quanto custa. Tratar isso como atalho levava a pessoa direto para
+    // "qual é seu nome completo?", sem convite e sem preço.
+    expect(comandoCadastroGeral("Quero fazer meu cadastro no Orkiestri")).toBe(false);
   });
   it("consulta a base antes de orientar um número sem conta", async () => {
     const { incoming, prisma, wa } = setup();

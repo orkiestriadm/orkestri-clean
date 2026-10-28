@@ -1,9 +1,14 @@
 import {
-  Module, Controller, Get, Post, Param, Query, Headers, Body,
+  Module, Controller, Get, Post, Param, Query, Headers, Body, UseGuards,
   Injectable, Logger, NotFoundException, BadRequestException, ForbiddenException,
   HttpCode, HttpStatus,
 } from "@nestjs/common";
+import { AuthGuard } from "@nestjs/passport";
+import { IsInt, IsOptional, IsString, Max, MaxLength, Min } from "class-validator";
 import { ConfigService } from "@nestjs/config";
+// Mesma regra de acesso do gestor de leads: é o que já define "Super Admin"
+// no backend. Um guard novo aqui seria uma segunda definição do mesmo papel.
+import { ProspectSaGuard } from "../prospects/prospects.module";
 import { PrismaService } from "../../prisma/prisma.service";
 import { WhatsAppService } from "../notifications/whatsapp.service";
 import { NotificationsModule } from "../notifications/notifications.module";
@@ -197,6 +202,111 @@ export class AssinaturaService {
     });
 
     return { cobranca: atualizada, usuario, qrCodeBase64: pagamento.point_of_interaction?.transaction_data?.qr_code_base64 || null };
+  }
+
+  /**
+   * O painel de billing: quem está no ciclo e como cada um está.
+   *
+   * O estado NÃO é coluna guardada — é derivado de `faseDaConta` e da data, as
+   * mesmas funções que decidem o bloqueio no login. Uma coluna "inadimplente"
+   * criaria uma segunda verdade, que cedo ou tarde discorda da que barra a
+   * pessoa na porta.
+   */
+  async painel(agora = new Date()) {
+    const contas = await this.prisma.user.findMany({
+      where: { ativo: true } as any,
+      select: {
+        id: true, nome: true, email: true, criadoEm: true,
+        isTrial: true, trialExpiraEm: true, trialModulo: true,
+        assinaturaEm: true, assinaturaValidaAte: true,
+        assinaturaRenovacaoAuto: true,
+        organization: { select: { nome: true } },
+        profile: { select: { whatsapp: true } },
+      } as any,
+      orderBy: { criadoEm: "desc" },
+    });
+
+    const cobrancas = await (this.prisma as any).assinaturaCobranca.findMany({
+      where: { status: { in: ["pago", "pendente"] } },
+      orderBy: { criadoEm: "desc" },
+    });
+    const porUsuario = new Map<string, any[]>();
+    for (const c of cobrancas) porUsuario.set(c.userId, [...(porUsuario.get(c.userId) || []), c]);
+
+    const linhas = (contas as any[]).map((u) => {
+      const f = faseDaConta(u as any);
+      const minhas = porUsuario.get(u.id) || [];
+      const ultimoPago = minhas.find((c: any) => c.status === "pago" && c.validadeConcedidaAte);
+      const pendente = minhas.find((c: any) => c.status === "pendente");
+      const vencido = !!f && f.limite.getTime() < agora.getTime();
+
+      // A ordem importa: "fora do ciclo" vem primeiro, senão uma conta sem
+      // fase nenhuma apareceria como se estivesse em dia.
+      const estado = !f ? "FORA_DO_CICLO"
+        : vencido ? (podeRenovar(u as any, agora) ? "INADIMPLENTE" : "ENCERRADO")
+        : f.fase === "TESTE" ? "EM_TESTE"
+        : "EM_DIA";
+
+      return {
+        id: u.id, nome: u.nome, email: u.email, whatsapp: u.profile?.whatsapp || null,
+        organizacao: u.organization?.nome || null, produto: produtoLabel(u.trialModulo),
+        estado, fase: f?.fase ?? null, venceEm: f?.limite ?? null,
+        criadoEm: u.criadoEm, clienteDesde: u.assinaturaEm, renovacaoAuto: !!u.assinaturaRenovacaoAuto,
+        ultimoPagamento: ultimoPago
+          ? { pagoEm: ultimoPago.pagoEm, valorCentavos: ultimoPago.valor, meio: ultimoPago.meio }
+          : null,
+        cobrancaPendente: pendente ? { ciclo: pendente.ciclo, meio: pendente.meio, expiraEm: pendente.expiraEm } : null,
+        totalPagoCentavos: minhas.filter((c: any) => c.status === "pago").reduce((s: number, c: any) => s + c.valor, 0),
+      };
+    });
+
+    const quantos = (e: string) => linhas.filter((l) => l.estado === e).length;
+    return {
+      valorMensalLabel: VALOR_MENSALIDADE_LABEL,
+      resumo: {
+        emDia: quantos("EM_DIA"), emTeste: quantos("EM_TESTE"),
+        inadimplentes: quantos("INADIMPLENTE"), encerrados: quantos("ENCERRADO"),
+        foraDoCiclo: quantos("FORA_DO_CICLO"),
+        noCartao: linhas.filter((l) => l.renovacaoAuto).length,
+        recebidoCentavos: linhas.reduce((s, l) => s + l.totalPagoCentavos, 0),
+      },
+      contas: linhas,
+    };
+  }
+
+  /**
+   * Libera meses SEM pagamento — a cortesia da equipe.
+   *
+   * Passa pela mesma porta de todo mundo (`aplicarPagamentoConfirmado`), e não
+   * por um UPDATE na validade: assim a cortesia herda a idempotência, avisa a
+   * pessoa no WhatsApp e, principalmente, FICA NO HISTÓRICO. Uma cobrança de
+   * valor 0 com meio "cortesia" é a prova de quem liberou e quando — antes
+   * disso, renovar de graça era SQL na mão e não sobrava registro nenhum.
+   */
+  async liberarCortesia(userId: string, meses: number, motivo: string, agora = new Date()) {
+    const quantos = Math.min(12, Math.max(1, Math.floor(meses || 1)));
+    const u = await this.carregar(userId);
+    if (!faseDaConta(u as any) && !u.isTrial) {
+      throw new BadRequestException("Esta conta está fora do ciclo de mensalidade — a cortesia não teria o que estender.");
+    }
+
+    const concedidos: string[] = [];
+    for (let i = 0; i < quantos; i++) {
+      const validadeAlvo = this.proximoPeriodo(await this.carregar(userId), agora);
+      const cobranca = await (this.prisma as any).assinaturaCobranca.create({
+        // Sem campo de observação na tabela, e não vale uma migration em
+        // produção só por isso: o motivo fica no log, e a linha já diz o que
+        // importa — valor 0 e meio "cortesia".
+        data: { userId, valor: 0, ciclo: cicloDe(validadeAlvo), meio: "cortesia", status: "pendente" },
+      });
+      const r = await this.aplicarPagamentoConfirmado(cobranca.id, agora);
+      if (!r) break;
+      concedidos.push(cobranca.id);
+    }
+
+    this.logger.warn(`Cortesia de ${concedidos.length} mês(es) para user=${userId}. Motivo: ${motivo || "não informado"}`);
+    const final = await this.carregar(userId);
+    return { meses: concedidos.length, validaAte: final.assinaturaValidaAte, cobrancas: concedidos };
   }
 
   /** Cria a assinatura de cartão e devolve o endereço do checkout do MP. */
@@ -698,10 +808,45 @@ export class AssinaturaWebhookController {
   }
 }
 
+class CortesiaDto {
+  @IsOptional() @IsInt() @Min(1) @Max(12) meses?: number;
+  @IsOptional() @IsString() @MaxLength(500) motivo?: string;
+}
+
+/**
+ * Painel de billing — exclusivo do Super Admin.
+ *
+ * Fica aqui, e não no `billing` legado, porque quem conhece o ciclo é este
+ * módulo: o legado ainda fala de planos de R$ 99,90 e R$ 199,90, que não
+ * existem mais. Hoje é um preço só.
+ */
+@Controller("superadmin/billing")
+@UseGuards(AuthGuard("jwt"), ProspectSaGuard)
+export class AssinaturaAdminController {
+  constructor(private svc: AssinaturaService) {}
+
+  @Get()
+  painel() {
+    return this.svc.painel();
+  }
+
+  @Post(":userId/cortesia")
+  @HttpCode(HttpStatus.OK)
+  cortesia(@Param("userId") userId: string, @Body() body: CortesiaDto) {
+    return this.svc.liberarCortesia(userId, body.meses ?? 1, body.motivo || "");
+  }
+
+  /** O link de pagamento, para a equipe reenviar a quem perdeu a mensagem. */
+  @Get(":userId/link")
+  link(@Param("userId") userId: string) {
+    return { link: this.svc.linkDePagamento(userId) };
+  }
+}
+
 @Module({
   imports: [NotificationsModule],
-  controllers: [AssinaturaCheckoutController, AssinaturaWebhookController],
-  providers: [AssinaturaService],
+  controllers: [AssinaturaCheckoutController, AssinaturaWebhookController, AssinaturaAdminController],
+  providers: [AssinaturaService, ProspectSaGuard],
   exports: [AssinaturaService],
 })
 export class AssinaturaModule {}

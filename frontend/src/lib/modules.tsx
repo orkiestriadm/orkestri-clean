@@ -132,6 +132,7 @@ export const NAV: NavGroup[] = [
       // digitando o endereço. O grupo é `access: "sa"`, a mesma regra do
       // ProspectSaGuard no backend — o menu não mostra o que a API recusaria.
       { href: "/dashboard/leads",      label: "Leads",               icon: UserPlus,   permission: null },
+      { href: "/dashboard/billing/painel", label: "Billing",         icon: Wallet,     permission: null },
     ],
   },
 ];

@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "4.2.1";
+export const VERSAO = "4.3.0";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -26,7 +26,7 @@ export const VERSAO = "4.2.1";
 export const VERSAO_DATA = "2026-10-28";
 
 /** Nome da entrega, para dar contexto ao número. */
-export const VERSAO_NOME = "Gestão de leads: excluir contatos e filtrar pela dash";
+export const VERSAO_NOME = "Entrada pela Aurélia, boas-vindas que ensinam e painel de billing";
 
 /**
  * Histórico exibido na tela Sobre, do mais recente para o mais antigo.
@@ -40,8 +40,20 @@ export const HISTORICO: { versao: string; data: string; titulo: string; itens: s
   // substituída pela 3.2.0 antes de chegar a produção. Esta lista é o que
   // mudou para quem USA o sistema, e uma versão que ninguém recebeu não mudou
   // nada para ninguém — anunciá-la só faria procurarem uma tela que não existe.
-  // A 4.0.1 também não aparece, pelo mesmo motivo da 3.1.0: ficou pronta e
-  // não chegou a produção. O que ela trazia está aqui, na 4.1.0.
+  {
+    versao: "4.3.0",
+    data: "2026-10-28",
+    titulo: "Entrada pela Aurélia, boas-vindas que ensinam e painel de billing",
+    itens: [
+      "Quem clica em cadastrar no site agora recebe o convite da Aurélia antes de qualquer pergunta. Antes caía direto num “qual é seu nome completo?”, sem ter lido o que é o produto nem quanto custa",
+      "Responder 2 no convite passa a agradecer e deixar o site à mão, em vez de falar de uma conta que a pessoa não tem",
+      "Depois do cadastro chega uma segunda mensagem com um exemplo por módulo e o caminho do comando ajuda. Quem acabava de entrar ficava olhando para uma conversa vazia, sem saber o que escrever",
+      "Quem escolhe “só para mim” não vira mais uma organização chamada “Pessoal”: o espaço passa a ter o nome da própria pessoa",
+      "A administração ganhou um painel de billing: quem está em dia, em teste, inadimplente ou encerrado, quanto já entrou, e um botão para liberar acesso sem cobrança",
+    ],
+  },
+  // A 4.0.1 e a 4.2.x não aparecem, pelo mesmo motivo da 3.1.0: mexeram em
+  // telas que só a administração vê, ou nunca chegaram a produção.
   {
     versao: "4.1.0",
     data: "2026-10-28",

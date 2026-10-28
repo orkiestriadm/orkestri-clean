@@ -51,9 +51,12 @@ export function comandoCadastroGeral(texto: string): boolean {
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
     .replace(/[.!?]+$/, "");
-  return /^(cadastro|cadastrar|cadastro (?:no )?orkiestri|quero me cadastrar|quero fazer meu cadastro(?: no orkiestri)?)$/.test(
-    t,
-  );
+  // ATALHO de quem já decidiu: pula o convite e abre direto a primeira
+  // pergunta. As frases longas que o SITE manda ("quero fazer meu cadastro
+  // no Orkiestri") saíram daqui de propósito — quem clica em cadastrar no
+  // site ainda não viu o convite, e ia parar num "qual é seu nome completo?"
+  // sem nunca ter lido o que é o produto nem quanto custa.
+  return /^(cadastro|cadastrar|cadastro (?:no )?orkiestri)$/.test(t);
 }
 
 export type SituacaoNumero = {
