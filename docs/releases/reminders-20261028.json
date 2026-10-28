@@ -1,0 +1,66 @@
+{
+  "activatedAt": "2026-10-28T19:00:50.100520+00:00",
+  "revision": "011930db3769a5dca8a7c00e8dd0bd0cb95c7e36",
+  "image": "sha256:e03a9a3bbc5fd91eb42180b1817a3355e9205f48718853d4b16140140e4f4b0f",
+  "container": "5319f7871f1e32ceca924976e6144ab703a8cbb398226d9a3b26a3e308bf2a7a",
+  "apiHealth": "healthy",
+  "runtimeChecksums": "passed",
+  "publicRoutes": 3,
+  "otherServicesPreserved": [
+    "orkestri_frontend",
+    "orkestri_website",
+    "orkestri_nginx",
+    "orkestri_postgres",
+    "orkestri_redis",
+    "orkestri_evolution_v2",
+    "orkestri_media_worker"
+  ],
+  "migrationsExecuted": false,
+  "rollback": "orkestri/api:rollback-reminders-011930d-20261028",
+  "artifact": {
+    "revision": "011930db3769a5dca8a7c00e8dd0bd0cb95c7e36",
+    "base": "0941515b0cab9c337abf28997aaa285ce3636657",
+    "sourceFiles": [
+      {
+        "path": "backend/src/modules/notifications/alert.scheduler.spec.ts",
+        "sha256": "ad69dc6915291b763b17e2822560a0f461ea8ddf1fd19ad8e00c138bf18f3f59",
+        "baseline": null
+      },
+      {
+        "path": "backend/src/modules/notifications/alert.scheduler.ts",
+        "sha256": "d9cbed489460607478368ba9bb4da983fa0431b17d2a4231b29ac97412acfa32",
+        "baseline": "b8e9a70bbb83899d508c5d04128ccbd9eafc8b2f45de63b23695f9c851a10679"
+      },
+      {
+        "path": "backend/src/modules/notifications/evento-alerta.spec.ts",
+        "sha256": "2beb6b389d03e732c77fdba25e298ab978336ad31902ab01e00517763589b91a",
+        "baseline": "1f9b95bbb590a49b9390dfc458f40bc59d73c8e226a20d5b75d95e215c3d6802"
+      },
+      {
+        "path": "docs/LEMBRETES_AGENDA_POR_ORGANIZACAO_2026-10-28.md",
+        "sha256": "a2f434ca83360e4acec82a11ccee68caa8a05e39c7e35e6caf6bbb744c58f0e9",
+        "baseline": null
+      }
+    ],
+    "runtimeFiles": [
+      {
+        "path": "modules/notifications/alert.scheduler.js",
+        "sha256": "6587567093dab64a05563ee7e7ec4f0e7864cd14d8fa2067ebf75f132ba153b8"
+      },
+      {
+        "path": "modules/notifications/alert.scheduler.js.map",
+        "sha256": "4c103324e40a106fdf0b465b6662c54c177df696ea01df5d92c8f8239cc6e8ac"
+      }
+    ],
+    "typescript": "5.9.3"
+  },
+  "previousImage": "sha256:7bb817c0f0529b3a55b3d1d11f793ac63c3726dd699dcd8328e0643167a878cb",
+  "liveVerification": {
+    "automaticReminderObservedInWhatsApp": true,
+    "reminderMinutes": 15,
+    "durableReceipt": "ENVIADO",
+    "sentAt": "2026-10-28T19:02:49.350Z",
+    "appointmentTimePreserved": true,
+    "inAppNotificationCreated": true
+  }
+}

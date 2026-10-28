@@ -1,11 +1,11 @@
 ## Referência após publicação autorizada em 28/10/2026
 
-A base atual é `origin/codex/fix-whatsapp-signup-flow`, com a correção já em produção no commit 9d15275. Partir dessa referência enquanto o PR #16 estiver aberto. A branch coordination é a base anterior a essa correção. Depois das integrações revisadas, adotar a referência resultante registrada no GitHub. Main continua protegida nesta tarefa. Ver `docs/DEPLOY_CADASTRO_WHATSAPP_2026-10-28.md`. A autorização deste deploy não autoriza futuras publicações.
+A base atual é `origin/codex/fix-agenda-reminders-by-organization`, com as correções do cadastro e dos lembretes já em produção no commit 011930d. Partir dessa referência enquanto o PR #17 estiver aberto. A branch coordination é a base anterior a essa correção. Depois das integrações revisadas, adotar a referência resultante registrada no GitHub. Main continua protegida nesta tarefa. Ver `docs/DEPLOY_LEMBRETES_AGENDA_2026-10-28.md`. A autorização deste deploy não autoriza futuras publicações.
 
 # Base compartilhada entre Codex e Claude
 
 ## Referência atual
-- Usar a branch remota `codex/fix-whatsapp-signup-flow` enquanto o PR #16 estiver aberto; seguir a referência atualizada acima após integração.
+- Usar a branch remota `codex/fix-agenda-reminders-by-organization` enquanto o PR #17 estiver aberto; seguir a referência atualizada acima após integração.
 - A base de código foi copiada dos fontes observados em produção em 28/10/2026: API e frontend 4.3.0; site 3.3.2. Os hashes dos 530 arquivos auditados constam em `docs/baselines/production-20261028.json`.
 - Ler `docs/SINCRONIZACAO_GITHUB.md` e `docs/PARIDADE_PRODUCAO_2026-10-28.md` antes de trabalhar.
 - A pasta antiga `C:/orkestri-clean` e as antigas pastas do Claude contêm linhas históricas/Hub preservadas. Não usá-las como fonte de uma nova alteração da versão atual nem copiá-las sobre esta base.
