@@ -8,6 +8,7 @@ import {
   SmilePlus, Receipt, CreditCard,
   ShoppingBag, Wallet, FileSpreadsheet,
   ClipboardCheck, FolderKanban, ShieldCheck, HeartPulse, Bell, Info, CheckCircle2,
+  UserPlus,
 } from "lucide-react";
 
 // `permission` como lista significa OU — ver canAccessModule.
@@ -127,6 +128,10 @@ export const NAV: NavGroup[] = [
     items: [
       { href: "/dashboard/plataforma", label: "Saúde da Plataforma", icon: HeartPulse, permission: null },
       { href: "/dashboard/superadmin", label: "Organizações",        icon: Building2,  permission: null },
+      // A tela existia desde 26/10 sem link em lugar nenhum: só se chegava
+      // digitando o endereço. O grupo é `access: "sa"`, a mesma regra do
+      // ProspectSaGuard no backend — o menu não mostra o que a API recusaria.
+      { href: "/dashboard/leads",      label: "Leads",               icon: UserPlus,   permission: null },
     ],
   },
 ];
