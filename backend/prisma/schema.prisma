@@ -127,6 +127,15 @@ model Organization {
   webhooks           Webhook[]
   monitoringKey      String?  @map("monitoring_key")
   pingLogs           PingLog[]
+  // ── Gestão de Frotas ──
+  veiculos           Veiculo[]
+  motoristas         Motorista[]
+  categoriasVeiculo  CategoriaVeiculo[]
+  pneus              Pneu[]
+  revisoesVeiculo    RevisaoVeiculo[]
+  manutencoesVeiculo ManutencaoVeiculo[]
+  documentosVeiculo  DocumentoVeiculo[]
+  abastecimentos     Abastecimento[]
 
   @@map("organizations")
 }
@@ -1464,6 +1473,7 @@ model Ativo {
   setor           Setor?               @relation(fields: [setorId], references: [id], onDelete: SetNull)
   transferencias  TransferenciaAtivo[]
   pingLogs        PingLog[]
+  veiculo         Veiculo?
 
   @@unique([organizationId, codigo])
   @@index([organizationId, status])
@@ -1505,6 +1515,249 @@ model TransferenciaAtivo {
 
   @@index([ativoId])
   @@map("transferencias_ativo")
+}
+
+// ── Gestão de Frotas ──────────────────────────────────────────────────────────
+//
+// Cadastro central: Veiculo. Todos os sub-cadastros vinculam-se por veiculoId.
+// Padrão comum: exclusão lógica (deletedAt), auditoria de usuário (criadoPorId /
+// atualizadoPorId — escalares; a trilha completa fica em audit_log), criadoEm e
+// atualizadoEm. Tudo escopado por organizationId (multi-tenant).
+
+model CategoriaVeiculo {
+  id             String       @id @default(uuid())
+  organizationId String       @map("organization_id")
+  nome           String
+  descricao      String?
+  icone          String       @default("car")
+  cor            String       @default("#0ea5e9")
+  ativo          Boolean      @default(true)
+  criadoPorId    String?      @map("criado_por_id")
+  atualizadoPorId String?     @map("atualizado_por_id")
+  deletedAt      DateTime?    @map("deleted_at")
+  criadoEm       DateTime     @default(now()) @map("criado_em")
+  atualizadoEm   DateTime     @updatedAt @map("atualizado_em")
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  veiculos       Veiculo[]
+
+  @@unique([organizationId, nome])
+  @@index([organizationId, deletedAt])
+  @@map("categorias_veiculo")
+}
+
+model Veiculo {
+  id              String              @id @default(uuid())
+  organizationId  String              @map("organization_id")
+  codigo          String
+  placa           String
+  renavam         String?
+  chassi          String?
+  marca           String?
+  modelo          String?
+  anoFabricacao   Int?                @map("ano_fabricacao")
+  anoModelo       Int?                @map("ano_modelo")
+  cor             String?
+  tipo            String              @default("carro")
+  combustivel     String              @default("flex")
+  categoriaId     String?             @map("categoria_id")
+  status          String              @default("ativo")
+  kmAtual         Int                 @default(0) @map("km_atual")
+  capacidadeTanque Float?             @map("capacidade_tanque")
+  motoristaId     String?             @map("motorista_id")
+  setorId         String?             @map("setor_id")
+  ativoId         String?             @unique @map("ativo_id")
+  dataAquisicao   DateTime?           @map("data_aquisicao")
+  valorAquisicao  Float?              @map("valor_aquisicao")
+  observacoes     String?             @db.Text
+  criadoPorId     String?             @map("criado_por_id")
+  atualizadoPorId String?             @map("atualizado_por_id")
+  deletedAt       DateTime?           @map("deleted_at")
+  criadoEm        DateTime            @default(now()) @map("criado_em")
+  atualizadoEm    DateTime            @updatedAt @map("atualizado_em")
+  organization    Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  categoria       CategoriaVeiculo?   @relation(fields: [categoriaId], references: [id], onDelete: SetNull)
+  motorista       Motorista?          @relation("VeiculoMotoristaPadrao", fields: [motoristaId], references: [id], onDelete: SetNull)
+  setor           Setor?              @relation(fields: [setorId], references: [id], onDelete: SetNull)
+  ativo           Ativo?              @relation(fields: [ativoId], references: [id], onDelete: SetNull)
+  pneus           Pneu[]
+  revisoes        RevisaoVeiculo[]
+  manutencoes     ManutencaoVeiculo[]
+  documentos      DocumentoVeiculo[]
+  abastecimentos  Abastecimento[]
+
+  @@unique([organizationId, placa])
+  @@unique([organizationId, codigo])
+  @@index([organizationId, status])
+  @@index([organizationId, deletedAt])
+  @@map("veiculos")
+}
+
+model Motorista {
+  id              String       @id @default(uuid())
+  organizationId  String       @map("organization_id")
+  nome            String
+  cpf             String?
+  cnh             String?
+  categoriaCnh    String?      @map("categoria_cnh")
+  validadeCnh     DateTime?    @map("validade_cnh")
+  telefone        String?
+  email           String?
+  userId          String?      @map("user_id")
+  status          String       @default("ativo")
+  observacoes     String?      @db.Text
+  criadoPorId     String?      @map("criado_por_id")
+  atualizadoPorId String?      @map("atualizado_por_id")
+  deletedAt       DateTime?    @map("deleted_at")
+  criadoEm        DateTime     @default(now()) @map("criado_em")
+  atualizadoEm    DateTime     @updatedAt @map("atualizado_em")
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  veiculos        Veiculo[]    @relation("VeiculoMotoristaPadrao")
+  abastecimentos  Abastecimento[]
+
+  @@index([organizationId, deletedAt])
+  @@index([organizationId, status])
+  @@map("motoristas")
+}
+
+model Pneu {
+  id              String       @id @default(uuid())
+  organizationId  String       @map("organization_id")
+  veiculoId       String?      @map("veiculo_id")
+  numeroSerie     String?      @map("numero_serie")
+  marca           String?
+  modelo          String?
+  medida          String?
+  posicao         String?
+  dataInstalacao  DateTime?    @map("data_instalacao")
+  kmInstalacao    Int?         @map("km_instalacao")
+  kmAtual         Int?         @map("km_atual")
+  vidaUtilKm      Int?         @map("vida_util_km")
+  status          String       @default("em_uso")
+  observacoes     String?      @db.Text
+  criadoPorId     String?      @map("criado_por_id")
+  atualizadoPorId String?      @map("atualizado_por_id")
+  deletedAt       DateTime?    @map("deleted_at")
+  criadoEm        DateTime     @default(now()) @map("criado_em")
+  atualizadoEm    DateTime     @updatedAt @map("atualizado_em")
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  veiculo         Veiculo?     @relation(fields: [veiculoId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, deletedAt])
+  @@index([veiculoId])
+  @@map("pneus")
+}
+
+model RevisaoVeiculo {
+  id              String       @id @default(uuid())
+  organizationId  String       @map("organization_id")
+  veiculoId       String       @map("veiculo_id")
+  tipo            String?
+  descricao       String?
+  dataPrevista    DateTime?    @map("data_prevista")
+  kmPrevisto      Int?         @map("km_previsto")
+  dataRealizada   DateTime?    @map("data_realizada")
+  kmRealizado     Int?         @map("km_realizado")
+  status          String       @default("agendada")
+  custo           Float?
+  oficina         String?
+  observacoes     String?      @db.Text
+  criadoPorId     String?      @map("criado_por_id")
+  atualizadoPorId String?      @map("atualizado_por_id")
+  deletedAt       DateTime?    @map("deleted_at")
+  criadoEm        DateTime     @default(now()) @map("criado_em")
+  atualizadoEm    DateTime     @updatedAt @map("atualizado_em")
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  veiculo         Veiculo      @relation(fields: [veiculoId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, deletedAt])
+  @@index([veiculoId])
+  @@index([organizationId, status])
+  @@map("revisoes_veiculo")
+}
+
+model ManutencaoVeiculo {
+  id              String       @id @default(uuid())
+  organizationId  String       @map("organization_id")
+  veiculoId       String       @map("veiculo_id")
+  tipo            String       @default("corretiva")
+  descricao       String?
+  data            DateTime?
+  dataAgendada    DateTime?    @map("data_agendada")
+  km              Int?
+  custo           Float?
+  fornecedorId    String?      @map("fornecedor_id")
+  oficina         String?
+  pecas           Json         @default("[]")
+  status          String       @default("aberta")
+  observacoes     String?      @db.Text
+  criadoPorId     String?      @map("criado_por_id")
+  atualizadoPorId String?      @map("atualizado_por_id")
+  deletedAt       DateTime?    @map("deleted_at")
+  criadoEm        DateTime     @default(now()) @map("criado_em")
+  atualizadoEm    DateTime     @updatedAt @map("atualizado_em")
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  veiculo         Veiculo      @relation(fields: [veiculoId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, deletedAt])
+  @@index([veiculoId])
+  @@index([organizationId, status])
+  @@map("manutencoes_veiculo")
+}
+
+model DocumentoVeiculo {
+  id              String       @id @default(uuid())
+  organizationId  String       @map("organization_id")
+  veiculoId       String       @map("veiculo_id")
+  tipo            String       @default("crlv")
+  numero          String?
+  descricao       String?
+  dataEmissao     DateTime?    @map("data_emissao")
+  dataVencimento  DateTime?    @map("data_vencimento")
+  valor           Float?
+  arquivoUrl      String?      @map("arquivo_url")
+  status          String       @default("vigente")
+  observacoes     String?      @db.Text
+  criadoPorId     String?      @map("criado_por_id")
+  atualizadoPorId String?      @map("atualizado_por_id")
+  deletedAt       DateTime?    @map("deleted_at")
+  criadoEm        DateTime     @default(now()) @map("criado_em")
+  atualizadoEm    DateTime     @updatedAt @map("atualizado_em")
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  veiculo         Veiculo      @relation(fields: [veiculoId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, deletedAt])
+  @@index([veiculoId])
+  @@index([organizationId, dataVencimento])
+  @@map("documentos_veiculo")
+}
+
+model Abastecimento {
+  id              String       @id @default(uuid())
+  organizationId  String       @map("organization_id")
+  veiculoId       String       @map("veiculo_id")
+  motoristaId     String?      @map("motorista_id")
+  data            DateTime     @default(now())
+  kmAtual         Int?         @map("km_atual")
+  litros          Float?
+  valorLitro      Float?       @map("valor_litro")
+  valorTotal      Float?       @map("valor_total")
+  tipoCombustivel String?      @map("tipo_combustivel")
+  posto           String?
+  tanqueCheio     Boolean      @default(true) @map("tanque_cheio")
+  consumoKmL      Float?       @map("consumo_km_l")
+  observacoes     String?      @db.Text
+  criadoPorId     String?      @map("criado_por_id")
+  atualizadoPorId String?      @map("atualizado_por_id")
+  deletedAt       DateTime?    @map("deleted_at")
+  criadoEm        DateTime     @default(now()) @map("criado_em")
+  atualizadoEm    DateTime     @updatedAt @map("atualizado_em")
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  veiculo         Veiculo      @relation(fields: [veiculoId], references: [id], onDelete: Cascade)
+  motorista       Motorista?   @relation(fields: [motoristaId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, deletedAt])
+  @@index([veiculoId, data])
+  @@map("abastecimentos")
 }
 
 // ── Conhecimento ──────────────────────────────────────────────────────────────
@@ -1586,6 +1839,7 @@ model Setor {
   ativos         Ativo[]
   collaborators  Collaborator[] @relation("SetorCollaborators")
   aprovadorConfig AprovadorSetor?
+  veiculos       Veiculo[]
 
   @@unique([organizationId, nome])
   @@map("setores")

@@ -7,7 +7,7 @@ import {
   Building2, GanttChart, BarChart2, Users, History, Settings, LogOut,
   Headphones, PiggyBank, Truck, BookOpen, Package, Zap, Clock, FileText, Activity, CheckSquare,
   SmilePlus, TrendingUp, UserCircle, Receipt, ChevronDown, Shield, Star, LayoutGrid, CreditCard, Brain,
-  LayoutGrid as Grid3x3, GitBranch, Network, ShoppingBag,
+  LayoutGrid as Grid3x3, GitBranch, Network, ShoppingBag, Wrench,
 } from "lucide-react";
 import { useAuthStore } from "@/lib/store";
 import UserStatus from "@/components/ui/UserStatus";
@@ -51,6 +51,21 @@ const NAV: NavGroup[] = [
       { href: "/dashboard/aprovacoes",label: "Aprovações",     icon: CheckSquare,  permission: null },
       { href: "/dashboard/orcamento", label: "Orçamento",      icon: PiggyBank,    permission: "orcamento:ver" },
       { href: "/dashboard/keep",      label: "Keep",           icon: StickyNote,   permission: "keep:ver" },
+    ],
+  },
+  {
+    id: "frota", label: "Gestão de Frotas",
+    items: [
+      { href: "/dashboard/frota",                label: "Dashboard",      icon: LayoutDashboard, permission: "frota:ver" },
+      { href: "/dashboard/frota/veiculos",       label: "Veículos",       icon: Truck,           permission: "frota:ver" },
+      { href: "/dashboard/frota/motoristas",     label: "Motoristas",     icon: Users,           permission: "frota:ver" },
+      { href: "/dashboard/frota/pneus",          label: "Pneus",          icon: Package,         permission: "frota:ver" },
+      { href: "/dashboard/frota/revisoes",       label: "Revisões",       icon: CalendarDays,    permission: "frota:ver" },
+      { href: "/dashboard/frota/manutencoes",    label: "Manutenções",    icon: Wrench,          permission: "frota:ver" },
+      { href: "/dashboard/frota/documentacoes",  label: "Documentações",  icon: FileText,        permission: "frota:ver" },
+      { href: "/dashboard/frota/abastecimentos", label: "Abastecimentos", icon: Zap,             permission: "frota:ver" },
+      { href: "/dashboard/frota/relatorios",     label: "Relatórios",     icon: BarChart2,       permission: "frota:relatorios" },
+      { href: "/dashboard/frota/configuracoes",  label: "Configurações",  icon: Settings,        permission: "frota:configurar" },
     ],
   },
   {

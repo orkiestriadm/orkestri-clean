@@ -45,6 +45,7 @@ import { ChamadoTemplatesModule } from './modules/chamado-templates/chamado-temp
 import { WorkforceModule } from './modules/workforce/workforce.module';
 import { SquadsModule } from './modules/squads/squads.module';
 import { BillingModule } from './modules/billing/billing.module';
+import { FrotaModule } from './modules/frota/frota.module';
 
 @Module({
   imports: [
@@ -80,6 +81,7 @@ import { BillingModule } from './modules/billing/billing.module';
     WorkforceModule,
     SquadsModule,
     BillingModule,
+    FrotaModule,
   ],
 })
 export class AppModule {}

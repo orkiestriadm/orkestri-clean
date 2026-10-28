@@ -241,7 +241,8 @@ export class AlertScheduler implements OnModuleInit {
       // Limpa cache antigo (exceto chaves sla-violado que tem ciclo proprio de 2h)
       const cutoff = Date.now() - 30 * 60 * 1000;
       for (const [k, t] of this.sent) {
-        if (!k.startsWith("sla-violado") && t < cutoff) this.sent.delete(k);
+        // sla-violado e frota-* têm de-dup diário próprio; não limpar para evitar reenvio
+        if (!k.startsWith("sla-violado") && !k.startsWith("frota-") && t < cutoff) this.sent.delete(k);
       }
 
     } catch (e: any) {
@@ -250,6 +251,7 @@ export class AlertScheduler implements OnModuleInit {
 
     await this.runSlaCheck();
     await this.runFaturaCheck();
+    await this.runFrotaCheck();
   }
 
   private async runFaturaCheck() {
@@ -306,6 +308,115 @@ export class AlertScheduler implements OnModuleInit {
       }
     } catch (e: any) {
       this.logger.error("Fatura check erro: " + e.message);
+    }
+  }
+
+  // ── Gestão de Frotas: CNH, documentos, revisões e manutenções ────────────────
+  private async runFrotaCheck() {
+    try {
+      const now = getNow();
+      const hoje = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const em30 = new Date(hoje.getTime() + 30 * 86400000);
+      const em7  = new Date(hoje.getTime() + 7 * 86400000);
+      const diaKey = hoje.toISOString().slice(0, 10);
+
+      // Coleta os registros que precisam de alerta (todas as orgs, escopo respeitado por org abaixo)
+      const [motoristas, documentos, revisoes, manutencoes] = await Promise.all([
+        (this.prisma as any).motorista.findMany({
+          where: { deletedAt: null, status: "ativo", validadeCnh: { not: null, lte: em30 } },
+          select: { id: true, nome: true, validadeCnh: true, organizationId: true },
+        }).catch(() => []),
+        (this.prisma as any).documentoVeiculo.findMany({
+          where: { deletedAt: null, dataVencimento: { not: null, lte: em30 } },
+          select: { id: true, tipo: true, dataVencimento: true, organizationId: true, veiculo: { select: { placa: true } } },
+        }).catch(() => []),
+        (this.prisma as any).revisaoVeiculo.findMany({
+          where: { deletedAt: null, status: "agendada", dataPrevista: { not: null, lte: em7 } },
+          select: { id: true, dataPrevista: true, organizationId: true, veiculo: { select: { placa: true } } },
+        }).catch(() => []),
+        (this.prisma as any).manutencaoVeiculo.findMany({
+          where: { deletedAt: null, status: { notIn: ["concluida", "cancelada"] }, dataAgendada: { not: null, lte: em7 } },
+          select: { id: true, descricao: true, dataAgendada: true, organizationId: true, veiculo: { select: { placa: true } } },
+        }).catch(() => []),
+      ]);
+
+      type Alerta = { org: string; tipo: string; titulo: string; mensagem: string; refTipo: string; refId: string; key: string };
+      const alertas: Alerta[] = [];
+      const dias = (d: Date) => Math.ceil((new Date(d).getTime() - hoje.getTime()) / 86400000);
+
+      for (const m of motoristas) {
+        const d = dias(m.validadeCnh);
+        const venc = d < 0;
+        alertas.push({
+          org: m.organizationId, tipo: venc ? "frota_cnh_vencida" : "frota_cnh_vencendo",
+          titulo: venc ? `🚫 CNH vencida — ${m.nome}` : `📄 CNH vence em ${d}d — ${m.nome}`,
+          mensagem: `Motorista ${m.nome} — CNH ${venc ? `vencida há ${-d} dia(s)` : `vence em ${d} dia(s)`}.`,
+          refTipo: "motorista", refId: m.id, key: `frota-cnh::${m.id}::${diaKey}`,
+        });
+      }
+      for (const doc of documentos) {
+        const d = dias(doc.dataVencimento);
+        const venc = d < 0;
+        const placa = doc.veiculo?.placa || "veículo";
+        alertas.push({
+          org: doc.organizationId, tipo: venc ? "frota_doc_vencido" : "frota_doc_vencendo",
+          titulo: venc ? `🚫 ${String(doc.tipo).toUpperCase()} vencido — ${placa}` : `📄 ${String(doc.tipo).toUpperCase()} vence em ${d}d — ${placa}`,
+          mensagem: `Documento ${doc.tipo} do veículo ${placa} — ${venc ? `vencido há ${-d} dia(s)` : `vence em ${d} dia(s)`}.`,
+          refTipo: "documento_veiculo", refId: doc.id, key: `frota-doc::${doc.id}::${diaKey}`,
+        });
+      }
+      for (const r of revisoes) {
+        const d = dias(r.dataPrevista);
+        const placa = r.veiculo?.placa || "veículo";
+        alertas.push({
+          org: r.organizationId, tipo: "frota_revisao",
+          titulo: `🔧 Revisão ${d < 0 ? "atrasada" : `em ${d}d`} — ${placa}`,
+          mensagem: `Revisão agendada do veículo ${placa} — ${d < 0 ? `atrasada há ${-d} dia(s)` : `prevista em ${d} dia(s)`}.`,
+          refTipo: "revisao_veiculo", refId: r.id, key: `frota-rev::${r.id}::${diaKey}`,
+        });
+      }
+      for (const mn of manutencoes) {
+        const d = dias(mn.dataAgendada);
+        const placa = mn.veiculo?.placa || "veículo";
+        alertas.push({
+          org: mn.organizationId, tipo: "frota_manutencao",
+          titulo: `🛠️ Manutenção ${d < 0 ? "atrasada" : `em ${d}d`} — ${placa}`,
+          mensagem: `Manutenção ${mn.descricao || ""} do veículo ${placa} — ${d < 0 ? `atrasada há ${-d} dia(s)` : `agendada em ${d} dia(s)`}.`,
+          refTipo: "manutencao_veiculo", refId: mn.id, key: `frota-man::${mn.id}::${diaKey}`,
+        });
+      }
+
+      if (!alertas.length) return;
+
+      // Masters por organização (cache dentro deste tick)
+      const orgIds = [...new Set(alertas.map(a => a.org))];
+      const mastersByOrg = new Map<string, any[]>();
+      for (const org of orgIds) {
+        const masters = await this.prisma.user.findMany({
+          where: { organizationId: org, ativo: true, userRoles: { some: { role: { isMaster: true } } } },
+          select: { id: true, profile: { select: { whatsapp: true, whatsappAlertas: true } } },
+        }).catch(() => [] as any[]);
+        mastersByOrg.set(org, masters);
+      }
+
+      for (const a of alertas) {
+        if (this.sent.has(a.key)) continue;
+        this.sent.set(a.key, Date.now());
+        const masters = mastersByOrg.get(a.org) || [];
+        const inst = await this.wa.resolveInstance(a.org).catch(() => null);
+        for (const m of masters) {
+          await this.prisma.notification.create({
+            data: { userId: m.id, tipo: a.tipo, titulo: a.titulo, mensagem: a.mensagem, referenciaTipo: a.refTipo, referenciaId: a.refId },
+          }).catch(() => {});
+          const phone = m.profile?.whatsapp;
+          if (phone && m.profile?.whatsappAlertas && inst) {
+            await this.wa.sendMessage(phone, `🚗 *Orkestri — Frota*\n\n${a.titulo}\n${a.mensagem}`, inst).catch(() => {});
+          }
+        }
+        this.logger.log(`Alerta frota [${a.tipo}] org=${a.org} ref=${a.refId}`);
+      }
+    } catch (e: any) {
+      this.logger.error("Frota check erro: " + e.message);
     }
   }
 }
