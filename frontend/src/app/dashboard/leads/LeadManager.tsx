@@ -70,6 +70,11 @@ export default function LeadManager() {
     }).catch(() => setFeedback('Não foi possível carregar os modelos atualizados. Recarregue a tela antes de preparar uma campanha.'));
   }, [user?.isSuperAdmin]);
   useEffect(() => setPagina(0), [busca, lista, etapa, situacao]);
+  // Excluir (ou mover) os últimos contatos de uma lista faz a lista deixar de
+  // existir. Sem isto o filtro continua apontando para ela: o seletor volta a
+  // exibir "Todas as listas", porque a opção sumiu, enquanto a tela insiste em
+  // "nenhum contato encontrado". Apareceu no primeiro teste real da exclusão.
+  useEffect(() => { if (lista && leads.length && !leads.some(l => l.lista === lista)) setLista(''); }, [leads, lista]);
   if (!user?.isSuperAdmin) return <div className="p-8">Acesso exclusivo do Super Admin.</div>;
   const naSituacao = SITUACOES.find(s => s.id === situacao)?.teste ?? (() => true);
   const filtrados = leads.filter(l => naSituacao(l)
