@@ -4,6 +4,7 @@ import { randomUUID } from "crypto";
 import { PrismaService } from "../../prisma/prisma.service";
 import { WhatsAppService } from "../notifications/whatsapp.service";
 import { mensagemInicioTesteAgenda } from "../prospects/lead-onboarding";
+import { DIAS_DE_TESTE, VALOR_MENSALIDADE_LABEL } from "../auth/trial-renovacao";
 
 export type UsuarioInicio = { id: string; organizationId: string; nome: string; telefone: string | null };
 export type AcaoInicio = { tipo: "evento" | "gasto"; resumo: string; registro: any };
@@ -32,6 +33,8 @@ export class WhatsappInicioService {
     if (convite) return convite;
     const app = (process.env.APP_URL || "http://localhost").replace(/\/$/, "");
     return `✅ *Sua conta está pronta, ${user.nome.split(/\s+/)[0]}!*\n\n` +
+      `Você tem *${DIAS_DE_TESTE} dias* para usar tudo sem pagar nada. ` +
+      `Quando estiver acabando eu te aviso por aqui, com as formas de pagar — são *${VALOR_MENSALIDADE_LABEL} por mês*, com todos os módulos.\n\n` +
       "Para usar aqui no WhatsApp, escreva *menu*. Eu mostro suas opções e faço uma pergunta por vez.\n\n" +
       `E-mail de acesso: *${user.email}*\n` +
       `Quer usar também o site? Crie sua senha em:\n${app}/recuperar-senha\n` +

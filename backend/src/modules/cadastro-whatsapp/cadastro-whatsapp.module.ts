@@ -11,6 +11,7 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { WhatsAppService } from "../notifications/whatsapp.service";
 import { NotificationsModule } from "../notifications/notifications.module";
 import { semearPermissoes, semearPapeisDaOrganizacao } from "../auth/auth.service";
+import { fimDoTeste, PRODUTO_PADRAO } from "../auth/trial-renovacao";
 
 /**
  * Cadastro feito INTEIRO pelo WhatsApp.
@@ -413,12 +414,36 @@ export class CadastroWhatsappService {
           },
         });
 
+        // A conta nasce com a gratuidade CORRENDO, com data de fim.
+        //
+        // Sem `trialExpiraEm`, `faseDaConta` devolve null e a conta fica fora
+        // do ciclo: não recebe aviso de vencimento, não recebe cobrança e o
+        // acesso nunca termina. Era o que acontecia com todo mundo que entrava
+        // por aqui — a cobrança só alcançava quem vinha pelo site.
+        //
+        // Marcar `isTrial` não reduz o que a pessoa enxerga: ela recebe o papel
+        // master da organização nova, e `resolvePermissions` devolve "*" para
+        // quem é master ANTES de olhar o ramo de teste. O convite de agenda é
+        // que entra com papel restrito, e por isso mantém as regras próprias.
         const user = await tx.user.create({
           data: {
             id: randomUUID(), organizationId: org.id,
             nome: cadastro.nome, email: respostas.email, cpf: cadastro.cpf,
             senhaHash: hash, ativo: true, primeiroAcesso: false,
-            ...(testeAgenda ? dadosTesteAgenda() : {}),
+            // O convite gratuito fica de fora: é cortesia declarada, e a
+            // própria mensagem de boas-vindas diz que "o acesso nesta fase é
+            // gratuito". Dar prazo a ele seria desdizer o que foi prometido a
+            // quem foi convidado.
+            ...(testeAgenda
+              ? dadosTesteAgenda()
+              : conviteGratuito
+                ? {}
+                : {
+                    isTrial: true,
+                    trialModulo: PRODUTO_PADRAO,
+                    trialExpiraEm: fimDoTeste(),
+                    trialAvisadoSuporte: false,
+                  }),
           },
         });
 

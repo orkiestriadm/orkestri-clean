@@ -208,6 +208,23 @@ export class AssinaturaService {
     const mp = this.mp();
     if (!mp) throw new BadRequestException("Pagamento indisponível no momento. Fale com a nossa equipe.");
 
+    // Reaproveita a assinatura que já está esperando autorização.
+    //
+    // Sem isto, cada clique cria um preapproval novo no Mercado Pago. Se a
+    // pessoa abrir o link duas vezes e autorizar as duas, são DUAS assinaturas
+    // mensais no mesmo cartão — e nós só guardamos o id da última, então a
+    // primeira cobraria todo mês sem ninguém olhando para ela.
+    //
+    // Reaproveitar também fixa o dia do ciclo: o Mercado Pago marca a cobrança
+    // pela data de criação do preapproval, então o dia é o do primeiro clique,
+    // não o de uma tentativa repetida.
+    if (u.assinaturaPreapprovalId) {
+      const atual = await mp.consultarPreapproval(u.assinaturaPreapprovalId).catch(() => null);
+      if (atual?.status === "pending" && atual.init_point) {
+        return { initPoint: atual.init_point, preapprovalId: atual.id, reaproveitada: true };
+      }
+    }
+
     let preapproval;
     try {
       preapproval = await mp.criarPreapproval({

@@ -31,6 +31,18 @@ export function mesmoTelefoneCadastro(
   );
 }
 
+/**
+ * O endereço que abre a conversa de cadastro já com a primeira palavra escrita.
+ *
+ * Existe porque a Aurélia passou a ser a ÚNICA porta de entrada: todo lugar que
+ * antes oferecia cadastro próprio aponta para cá. O texto é "cadastro" porque é
+ * o que `comandoCadastroGeral` reconhece — mudar um sem o outro quebra a porta.
+ */
+export function linkCadastroWhatsapp(): string {
+  const numero = (process.env.LEADS_WHATSAPP_NUMERO || "5514991661688").replace(/\D/g, "");
+  return `https://wa.me/${numero}?text=cadastro`;
+}
+
 export function comandoCadastroGeral(texto: string): boolean {
   const t = texto
     .trim()
