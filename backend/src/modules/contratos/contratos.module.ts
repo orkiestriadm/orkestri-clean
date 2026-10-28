@@ -2,18 +2,22 @@ import {
   Module, Controller, Get, Post, Put, Delete, Patch,
   Body, Param, Query, UseGuards, Req,
   Injectable, NotFoundException, BadRequestException, ForbiddenException,
-  UseInterceptors, UploadedFile,
+  UseInterceptors, UploadedFile, Res,
 } from "@nestjs/common";
 import { AuthGuard } from "@nestjs/passport";
 import { FileInterceptor } from "@nestjs/platform-express";
 import { diskStorage } from "multer";
+import type { Response } from "express";
 import * as path from "path";
 import * as fs from "fs";
+import { UPLOAD_DIR, enviarAnexo, removerAnexo } from "../../common/anexos";
 import { PrismaService } from "../../prisma/prisma.service";
 import { Permissions } from "../auth/permissions.decorator";
 import { PermissionsGuard } from "../auth/permissions.guard";
 import { AutomacaoService } from "../automacoes/automacoes.module";
 import { AutomacoesModule } from "../automacoes/automacoes.module";
+
+const anexoUrl = (contratoId: string, anexoId: string) => `/api/contratos/${contratoId}/anexos/${anexoId}/arquivo`;
 
 const STATUS_VALID = ["vigente", "vencendo", "vencido", "suspenso", "rescindido"];
 const TIPOS_VALID  = ["servico", "manutencao", "suporte", "licenca", "consultoria", "outro"];
@@ -271,10 +275,13 @@ class ContratosController {
     const orgId = req.user?.organizationId;
     const c = await this.db.contrato.findFirst({ where: { id, ...(orgId ? { organizationId: orgId } : {}) } });
     if (!c) throw new NotFoundException("Contrato não encontrado");
-    return this.db.contratoAnexo.findMany({
+    const anexos = await this.db.contratoAnexo.findMany({
       where: { contratoId: id },
       orderBy: { criadoEm: "desc" },
     });
+    // `url` no banco guarda o caminho em disco (legado); o que sai na API é o
+    // endpoint autenticado — o arquivo não é mais acessível diretamente.
+    return anexos.map((a: any) => ({ ...a, url: anexoUrl(id, a.id) }));
   }
 
   @Post(":id/anexos")
@@ -282,7 +289,7 @@ class ContratosController {
   @UseInterceptors(FileInterceptor("arquivo", {
     storage: diskStorage({
       destination: (req: any, _file: any, cb: any) => {
-        const dir = `/app/uploads/contratos/${req.params.id}`;
+        const dir = path.join(UPLOAD_DIR, "contratos", path.basename(String(req.params.id)));
         fs.mkdirSync(dir, { recursive: true });
         cb(null, dir);
       },
@@ -302,17 +309,35 @@ class ContratosController {
     const c = await this.db.contrato.findFirst({ where: { id, ...(orgId ? { organizationId: orgId } : {}) } });
     if (!c) throw new NotFoundException("Contrato não encontrado");
     if (!file) throw new BadRequestException("Nenhum arquivo enviado");
-    const url = `/uploads/contratos/${id}/${file.filename}`;
-    return this.db.contratoAnexo.create({
+    const anexo = await this.db.contratoAnexo.create({
       data: {
         contratoId: id,
         nome: file.originalname,
-        url,
+        // caminho em disco (não é URL pública) — o download sai por anexoUrl()
+        url: `/uploads/contratos/${id}/${file.filename}`,
         tamanho: file.size,
         tipo: file.mimetype,
         criadoPorId: req.user?.sub || null,
       },
     });
+    return { ...anexo, url: anexoUrl(id, anexo.id) };
+  }
+
+  // Download autenticado — substitui o antigo /uploads/* servido como estático.
+  @Get(":id/anexos/:anexoId/arquivo")
+  @Permissions("crm:ver")
+  async baixarAnexo(
+    @Req() req: any,
+    @Param("id") id: string,
+    @Param("anexoId") anexoId: string,
+    @Res() res: Response,
+  ) {
+    const orgId = req.user?.organizationId;
+    const c = await this.db.contrato.findFirst({ where: { id, ...(orgId ? { organizationId: orgId } : {}) } });
+    if (!c) throw new NotFoundException("Contrato não encontrado");
+    const anexo = await this.db.contratoAnexo.findFirst({ where: { id: anexoId, contratoId: id } });
+    if (!anexo) throw new NotFoundException("Anexo não encontrado");
+    enviarAnexo(res, ["contratos", id], path.basename(anexo.url || ""), anexo.nome, anexo.tipo);
   }
 
   @Delete(":id/anexos/:anexoId")
@@ -327,10 +352,7 @@ class ContratosController {
     if (!c) throw new NotFoundException("Contrato não encontrado");
     const anexo = await this.db.contratoAnexo.findFirst({ where: { id: anexoId, contratoId: id } });
     if (!anexo) throw new NotFoundException("Anexo não encontrado");
-    try {
-      const filePath = `/app${anexo.url}`;
-      if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
-    } catch {}
+    removerAnexo(["contratos", id], path.basename(anexo.url || ""));
     await this.db.contratoAnexo.delete({ where: { id: anexoId } });
     return { message: "Anexo removido" };
   }

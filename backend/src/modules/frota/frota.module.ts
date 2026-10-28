@@ -2,14 +2,16 @@ import {
   Module, Controller, Get, Post, Put, Patch, Delete,
   Body, Param, Query, UseGuards, Req,
   NotFoundException, BadRequestException,
-  UseInterceptors, UploadedFile,
+  UseInterceptors, UploadedFile, Res,
 } from "@nestjs/common";
 import { AuthGuard } from "@nestjs/passport";
 import { FileInterceptor } from "@nestjs/platform-express";
 import { diskStorage, memoryStorage } from "multer";
+import type { Response } from "express";
 import * as XLSX from "xlsx";
 import * as path from "path";
 import * as fs from "fs";
+import { enviarAnexo } from "../../common/anexos";
 import { PrismaService } from "../../prisma/prisma.service";
 import { Permissions } from "../auth/permissions.decorator";
 import { PermissionsGuard } from "../auth/permissions.guard";
@@ -23,6 +25,11 @@ import { ReservasModule } from "./reservas/reservas.module";
 
 const FROTA_UPLOAD_DIR = process.env.UPLOAD_DIR || "/app/uploads";
 const ANEXO_TIPOS = ["cnh_frente", "cnh_verso", "exame", "certificado"];
+
+// Anexos de frota não são servidos como estáticos: cada download passa pelo
+// endpoint autenticado do próprio controller (JWT + org + permissão frota:ver).
+const anexoUrl = (recurso: string, donoId: string, anexoId: string) =>
+  `/api/frota/${recurso}/${donoId}/anexos/${anexoId}/arquivo`;
 
 // Layout-padrão de posições de pneus por tipo de veículo (x/y em grid 0-100 p/ árvore visual)
 type PneuPos = { codigo: string; label: string; x: number; y: number };
@@ -513,7 +520,17 @@ class MotoristasController extends BaseFrotaController {
       where: { motoristaId: id, organizationId: orgId, deletedAt: null },
       orderBy: { criadoEm: "desc" },
     });
-    return anexos.map((a: any) => ({ ...a, url: `/uploads/motoristas/${id}/${a.nomeArquivo}` }));
+    return anexos.map((a: any) => ({ ...a, url: anexoUrl("motoristas", id, a.id) }));
+  }
+
+  // GET /frota/motoristas/:id/anexos/:anexoId/arquivo — download autenticado
+  @Get(":id/anexos/:anexoId/arquivo")
+  @Permissions("frota:ver")
+  async baixarAnexo(@Param("id") id: string, @Param("anexoId") anexoId: string, @Req() req: any, @Res() res: Response) {
+    const orgId = req.user?.organizationId;
+    const anexo = await this.db.motoristaAnexo.findFirst({ where: { id: anexoId, motoristaId: id, organizationId: orgId, deletedAt: null } });
+    if (!anexo) throw new NotFoundException("Anexo não encontrado");
+    enviarAnexo(res, ["motoristas", id], anexo.nomeArquivo, anexo.nomeOriginal, anexo.mime);
   }
 
   // POST /frota/motoristas/:id/anexos — upload (cnh_frente | cnh_verso | exame | certificado)
@@ -546,7 +563,7 @@ class MotoristasController extends BaseFrotaController {
         criadoPorId: req.user?.id || null,
       },
     });
-    return { ...anexo, url: `/uploads/motoristas/${id}/${anexo.nomeArquivo}` };
+    return { ...anexo, url: anexoUrl("motoristas", id, anexo.id) };
   }
 
   // DELETE /frota/motoristas/:id/anexos/:anexoId
@@ -938,7 +955,17 @@ class ManutencoesController extends BaseFrotaController {
   async listAnexos(@Param("id") id: string, @Req() req: any) {
     const orgId = req.user?.organizationId;
     const anexos = await this.db.manutencaoAnexo.findMany({ where: { manutencaoId: id, organizationId: orgId, deletedAt: null }, orderBy: { criadoEm: "desc" } });
-    return anexos.map((a: any) => ({ ...a, url: `/uploads/manutencoes/${id}/${a.nomeArquivo}` }));
+    return anexos.map((a: any) => ({ ...a, url: anexoUrl("manutencoes", id, a.id) }));
+  }
+
+  // GET /frota/manutencoes/:id/anexos/:anexoId/arquivo — download autenticado
+  @Get(":id/anexos/:anexoId/arquivo")
+  @Permissions("frota:ver")
+  async baixarAnexo(@Param("id") id: string, @Param("anexoId") anexoId: string, @Req() req: any, @Res() res: Response) {
+    const orgId = req.user?.organizationId;
+    const anexo = await this.db.manutencaoAnexo.findFirst({ where: { id: anexoId, manutencaoId: id, organizationId: orgId, deletedAt: null } });
+    if (!anexo) throw new NotFoundException("Anexo não encontrado");
+    enviarAnexo(res, ["manutencoes", id], anexo.nomeArquivo, anexo.nomeOriginal, anexo.mime);
   }
 
   @Post(":id/anexos")
@@ -963,7 +990,7 @@ class ManutencoesController extends BaseFrotaController {
     const anexo = await this.db.manutencaoAnexo.create({
       data: { id: crypto.randomUUID(), organizationId: orgId, manutencaoId: id, tipo, nomeArquivo: file.filename, nomeOriginal: file.originalname, mime: file.mimetype, tamanho: file.size, criadoPorId: req.user?.id || null },
     });
-    return { ...anexo, url: `/uploads/manutencoes/${id}/${anexo.nomeArquivo}` };
+    return { ...anexo, url: anexoUrl("manutencoes", id, anexo.id) };
   }
 
   @Delete(":id/anexos/:anexoId")
@@ -1031,7 +1058,17 @@ class DocumentosController extends BaseFrotaController {
   async listAnexos(@Param("id") id: string, @Req() req: any) {
     const orgId = req.user?.organizationId;
     const anexos = await this.db.documentoAnexo.findMany({ where: { documentoId: id, organizationId: orgId, deletedAt: null }, orderBy: { criadoEm: "desc" } });
-    return anexos.map((a: any) => ({ ...a, url: `/uploads/documentos/${id}/${a.nomeArquivo}` }));
+    return anexos.map((a: any) => ({ ...a, url: anexoUrl("documentos", id, a.id) }));
+  }
+
+  // GET /frota/documentos/:id/anexos/:anexoId/arquivo — download autenticado
+  @Get(":id/anexos/:anexoId/arquivo")
+  @Permissions("frota:ver")
+  async baixarAnexo(@Param("id") id: string, @Param("anexoId") anexoId: string, @Req() req: any, @Res() res: Response) {
+    const orgId = req.user?.organizationId;
+    const anexo = await this.db.documentoAnexo.findFirst({ where: { id: anexoId, documentoId: id, organizationId: orgId, deletedAt: null } });
+    if (!anexo) throw new NotFoundException("Anexo não encontrado");
+    enviarAnexo(res, ["documentos", id], anexo.nomeArquivo, anexo.nomeOriginal, anexo.mime);
   }
 
   @Post(":id/anexos")
@@ -1055,7 +1092,7 @@ class DocumentosController extends BaseFrotaController {
     const anexo = await this.db.documentoAnexo.create({
       data: { id: crypto.randomUUID(), organizationId: orgId, documentoId: id, nomeArquivo: file.filename, nomeOriginal: file.originalname, mime: file.mimetype, tamanho: file.size, criadoPorId: req.user?.id || null },
     });
-    return { ...anexo, url: `/uploads/documentos/${id}/${anexo.nomeArquivo}` };
+    return { ...anexo, url: anexoUrl("documentos", id, anexo.id) };
   }
 
   @Delete(":id/anexos/:anexoId")

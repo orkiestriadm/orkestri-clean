@@ -19,10 +19,11 @@ async function bootstrap() {
   app.use(json({ limit: "50mb" }));
   app.use(urlencoded({ extended: true, limit: "50mb" }));
 
-  // Servir uploads de arquivos (anexos de chamados)
+  // Diretório de anexos. NÃO é servido como estático: cada arquivo só sai por um
+  // endpoint autenticado do módulo dono (`.../anexos/:anexoId/arquivo`), que valida
+  // JWT, organização e permissão antes de fazer o stream. Ver src/common/anexos.ts.
   const uploadsDir = process.env.UPLOAD_DIR || "/app/uploads";
   if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
-  app.useStaticAssets(uploadsDir, { prefix: "/uploads" });
 
   // Cookie parsing (required for HttpOnly JWT cookies)
   app.use(cookieParser());

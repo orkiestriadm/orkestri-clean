@@ -1,8 +1,10 @@
-import { Module, Controller, Get, Post, Put, Patch, Delete, Body, Param, Query, UseGuards, Req, NotFoundException, BadRequestException, ForbiddenException, ConflictException, UseInterceptors, UploadedFile } from "@nestjs/common";
+import { Module, Controller, Get, Post, Put, Patch, Delete, Body, Param, Query, UseGuards, Req, Res, NotFoundException, BadRequestException, ForbiddenException, ConflictException, UseInterceptors, UploadedFile } from "@nestjs/common";
 import { FileInterceptor } from "@nestjs/platform-express";
 import { diskStorage } from "multer";
+import type { Response } from "express";
 import * as path from "path";
 import * as fs from "fs";
+import { UPLOAD_DIR, enviarAnexo, removerAnexo } from "../../common/anexos";
 import { AuthGuard } from "@nestjs/passport";
 import { IsString, IsOptional, IsInt, Min, Max } from "class-validator";
 import { Type } from "class-transformer";
@@ -913,9 +915,9 @@ class SlaEscalationScheduler implements OnModuleInit {
 }
 
 // ── Upload Controller ────────────────────────────────────────────────────────
-const UPLOAD_DIR = process.env.UPLOAD_DIR || "/app/uploads";
 const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20 MB
-const ALLOWED_MIMES = ["image/jpeg","image/png","image/gif","image/webp","application/pdf","text/plain","application/vnd.ms-excel","application/vnd.openxmlformats-officedocument.spreadsheetml.sheet","application/msword","application/vnd.openxmlformats-officedocument.wordprocessingml.document","application/zip","video/mp4","text/csv"];
+const anexoUrl = (chamadoId: string, anexoId: string) => `/api/chamados/${chamadoId}/anexos/${anexoId}/arquivo`;
+const ALLOWED_MIMES =["image/jpeg","image/png","image/gif","image/webp","application/pdf","text/plain","application/vnd.ms-excel","application/vnd.openxmlformats-officedocument.spreadsheetml.sheet","application/msword","application/vnd.openxmlformats-officedocument.wordprocessingml.document","application/zip","video/mp4","text/csv"];
 
 @Controller("chamados")
 @UseGuards(AuthGuard("jwt"))
@@ -943,27 +945,48 @@ class ChamadoUploadController {
   }))
   async upload(@Req() req: any, @Param("id") id: string, @UploadedFile() file: any) {
     if (!file) throw new BadRequestException("Arquivo obrigatório");
-    const chamado = await (this.prisma as any).chamado.findUnique({ where: { id } });
-    if (!chamado) throw new NotFoundException("Chamado não encontrado");
+    await this.assertChamado(req, id);
     const anexo = await (this.prisma as any).chamadoAnexo.create({
       data: { id: require("uuid").v4(), chamadoId: id, uploaderId: req.user.id, nomeOriginal: file.originalname, nomeArquivo: file.filename, mimeType: file.mimetype, tamanhoBytes: file.size },
     });
-    return { ...anexo, url: `/uploads/${id}/${file.filename}` };
+    return { ...anexo, url: anexoUrl(id, anexo.id) };
   }
 
   @Get(":id/anexos")
-  async listAnexos(@Param("id") id: string) {
+  async listAnexos(@Req() req: any, @Param("id") id: string) {
+    await this.assertChamado(req, id);
     const anexos = await (this.prisma as any).chamadoAnexo.findMany({ where: { chamadoId: id }, include: { uploader: { select: { id: true, nome: true } } }, orderBy: { criadoEm: "asc" } });
-    return anexos.map((a: any) => ({ ...a, url: `/uploads/${id}/${a.nomeArquivo}` }));
+    return anexos.map((a: any) => ({ ...a, url: anexoUrl(id, a.id) }));
+  }
+
+  // Download autenticado — substitui o antigo /uploads/* servido como estático.
+  @Get(":id/anexos/:anexoId/arquivo")
+  async baixarAnexo(@Req() req: any, @Param("id") id: string, @Param("anexoId") anexoId: string, @Res() res: Response) {
+    await this.assertChamado(req, id);
+    const anexo = await (this.prisma as any).chamadoAnexo.findFirst({ where: { id: anexoId, chamadoId: id } });
+    if (!anexo) throw new NotFoundException("Anexo não encontrado");
+    enviarAnexo(res, [id], anexo.nomeArquivo, anexo.nomeOriginal, anexo.mimeType);
   }
 
   @Delete(":id/anexos/:anexoId")
   async deleteAnexo(@Req() req: any, @Param("id") id: string, @Param("anexoId") anexoId: string) {
-    const anexo = await (this.prisma as any).chamadoAnexo.findUnique({ where: { id: anexoId } });
+    await this.assertChamado(req, id);
+    const anexo = await (this.prisma as any).chamadoAnexo.findFirst({ where: { id: anexoId, chamadoId: id } });
     if (!anexo) throw new NotFoundException("Anexo não encontrado");
     if (anexo.uploaderId !== req.user.id && !req.user.isMaster) throw new ForbiddenException("Sem permissão");
-    try { fs.unlinkSync(path.join(UPLOAD_DIR, id, anexo.nomeArquivo)); } catch {}
+    removerAnexo([id], anexo.nomeArquivo);
     return (this.prisma as any).chamadoAnexo.delete({ where: { id: anexoId } });
+  }
+
+  /** Garante que o chamado existe e pertence à organização do usuário. */
+  private async assertChamado(req: any, id: string) {
+    const orgId = req.user?.organizationId;
+    const chamado = await (this.prisma as any).chamado.findFirst({
+      where: { id, ...(orgId ? { organizationId: orgId } : {}) },
+      select: { id: true },
+    });
+    if (!chamado) throw new NotFoundException("Chamado não encontrado");
+    return chamado;
   }
 }
 
