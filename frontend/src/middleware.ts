@@ -20,7 +20,9 @@ export function middleware(request: NextRequest) {
   }
 
   // Se já logado, redireciona /login para /dashboard
-  if (pathname === "/login" && token) {
+  // A presença do cookie não prova que a sessão ainda é válida.
+  // A recuperação permite abrir o formulário sem depender da API de limpeza.
+  if (pathname === "/login" && token && request.nextUrl.searchParams.get("reauth") !== "1") {
     return NextResponse.redirect(new URL("/dashboard", request.url));
   }
 
