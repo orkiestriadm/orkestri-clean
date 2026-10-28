@@ -76,7 +76,7 @@ function TabDashboard({ cicloId }:{ cicloId:string }) {
       {/* KPI Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          { label:"Total Previsto", value:fmtBRL(kpis.totalPrevisto), icon:Target, color:"text-violet-400", bg:"bg-violet-500/10" },
+          { label:"Total Previsto", value:fmtBRL(kpis.totalPrevisto), icon:Target, color:"text-red-400", bg:"bg-red-500/10" },
           { label:"Total Realizado", value:fmtBRL(kpis.totalRealizado), icon:DollarSign, color:"text-cyan-400", bg:"bg-cyan-500/10" },
           { label:"Execução Global", value:fmtPct(kpis.execucao), icon:BarChart3, color:execColor(kpis.execucao), bg:"bg-white/5" },
           { label:"Estouros", value:String(kpis.estouros), icon:AlertTriangle, color:"text-red-400", bg:"bg-red-500/10" },
@@ -102,7 +102,7 @@ function TabDashboard({ cicloId }:{ cicloId:string }) {
                 <div className="flex-1 space-y-1">
                   <div className="flex items-center gap-2">
                     <div className="flex-1 bg-white/5 rounded-full h-1.5 overflow-hidden">
-                      <div className="h-full bg-violet-500 rounded-full" style={{width:`${m.previsto>0?Math.min((m.previsto/(Math.max(...evolucaoMensal.map(x=>x.previsto))||1))*100,100):0}%`}} />
+                      <div className="h-full bg-red-500 rounded-full" style={{width:`${m.previsto>0?Math.min((m.previsto/(Math.max(...evolucaoMensal.map(x=>x.previsto))||1))*100,100):0}%`}} />
                     </div>
                     <span className="w-20 text-right text-muted-foreground font-mono">{fmtBRL(m.previsto)}</span>
                   </div>
@@ -119,7 +119,7 @@ function TabDashboard({ cicloId }:{ cicloId:string }) {
             ))}
           </div>
           <div className="flex items-center gap-4 mt-4 pt-4 border-t border-border text-[10px] text-muted-foreground">
-            <span className="flex items-center gap-1.5"><span className="w-3 h-1.5 rounded-full bg-violet-500 inline-block"/>Previsto</span>
+            <span className="flex items-center gap-1.5"><span className="w-3 h-1.5 rounded-full bg-red-500 inline-block"/>Previsto</span>
             <span className="flex items-center gap-1.5"><span className="w-3 h-1.5 rounded-full bg-cyan-500 inline-block"/>Realizado</span>
             <span className="flex items-center gap-1.5"><span className="w-3 h-1.5 rounded-full bg-red-500 inline-block"/>Estouro</span>
           </div>
@@ -356,7 +356,7 @@ function LancarModal({ item, mes, onClose, onSaved }:{ item:Item; mes:number; on
         </div>
         <div className="mb-4 p-3 bg-white/3 rounded-lg text-xs text-muted-foreground">
           <div className="font-medium text-foreground mb-1">{item.nome}</div>
-          <div>Previsto: <span className="font-mono text-violet-400">{fmtBRL(mesData?.valorPrevisto||0)}</span></div>
+          <div>Previsto: <span className="font-mono text-red-400">{fmtBRL(mesData?.valorPrevisto||0)}</span></div>
         </div>
         <form onSubmit={submit} className="space-y-4">
           <div>
@@ -440,7 +440,7 @@ function TabItens({ tipo, cicloId, categorias, centrosCusto, fornecedores }:{
       {/* Totals strip */}
       <div className="grid grid-cols-3 gap-3">
         {[
-          { l:"Total Previsto", v:fmtBRL(totalPrevisto), c:"text-violet-400" },
+          { l:"Total Previsto", v:fmtBRL(totalPrevisto), c:"text-red-400" },
           { l:"Total Realizado", v:fmtBRL(totalRealizado), c:execColor(totalExec) },
           { l:"Execução", v:fmtPct(totalExec), c:execColor(totalExec) },
         ].map(k=>(
@@ -504,7 +504,7 @@ function TabItens({ tipo, cicloId, categorias, centrosCusto, fornecedores }:{
                             </button>
                           ) : prev > 0 ? (
                             <button onClick={()=>setLancar({item,mes:mi+1})}
-                              className="text-[10px] font-mono text-violet-400/60 hover:text-violet-400 transition-colors w-full px-1">
+                              className="text-[10px] font-mono text-red-400/60 hover:text-red-400 transition-colors w-full px-1">
                               {fmtBRL(prev).replace("R$","").trim()}
                             </button>
                           ) : (
@@ -514,7 +514,7 @@ function TabItens({ tipo, cicloId, categorias, centrosCusto, fornecedores }:{
                         </div>
                       );
                     })}
-                    <div className="py-3 text-center text-[11px] font-mono text-violet-400">{fmtBRL(item.totais.previsto).replace("R$","").trim()}</div>
+                    <div className="py-3 text-center text-[11px] font-mono text-red-400">{fmtBRL(item.totais.previsto).replace("R$","").trim()}</div>
                     <div className={cn("py-3 text-center text-[11px] font-mono", execColor(item.totais.execucao))}>{fmtBRL(item.totais.realizado).replace("R$","").trim()}</div>
                     <div className="py-3 px-1">
                       <div className={cn("text-[10px] font-mono text-center mb-1", execColor(item.totais.execucao))}>{fmtPct(item.totais.execucao)}</div>
@@ -646,7 +646,7 @@ function TabConfiguracoes({ categorias, centrosCusto, fornecedores, reload }:{
 }) {
   const [showCC, setShowCC] = useState(false);
   const [showForn, setShowForn] = useState(false);
-  const [ccForm, setCcForm] = useState({codigo:"",nome:"",cor:"#a78bfa"});
+  const [ccForm, setCcForm] = useState({codigo:"",nome:"",cor:"#EF5350"});
   const [fornForm, setFornForm] = useState({nome:"",cnpj:"",segmento:""});
   const [saving, setSaving] = useState(false);
 
@@ -656,7 +656,7 @@ function TabConfiguracoes({ categorias, centrosCusto, fornecedores, reload }:{
     setSaving(true);
     try {
       await api.post("/orcamento/centros-custo", ccForm);
-      setShowCC(false); setCcForm({codigo:"",nome:"",cor:"#a78bfa"}); reload();
+      setShowCC(false); setCcForm({codigo:"",nome:"",cor:"#EF5350"}); reload();
     } catch {} finally { setSaving(false); }
   }
 

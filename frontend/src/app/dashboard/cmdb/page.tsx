@@ -44,8 +44,8 @@ function RelationshipGraph({ center, satellites, onNodeClick }: {
     <svg width="100%" height={H} viewBox={`0 0 ${W} ${H}`} style={{ overflow:"visible" }}>
       <defs>
         <radialGradient id="gc" cx="50%" cy="50%" r="50%">
-          <stop offset="0%" stopColor="rgba(109,40,217,0.3)" />
-          <stop offset="100%" stopColor="rgba(109,40,217,0.06)" />
+          <stop offset="0%" stopColor="rgba(211, 47, 47,0.3)" />
+          <stop offset="100%" stopColor="rgba(211, 47, 47,0.06)" />
         </radialGradient>
         <filter id="glow"><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
       </defs>

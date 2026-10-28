@@ -20,13 +20,13 @@ const COLUNAS = [
 ];
 const PRIORIDADES = ["BAIXA","MEDIA","ALTA","URGENTE"];
 const PRIO_COLORS: Record<string,string> = { BAIXA:"var(--accent-green)", MEDIA:"var(--accent-cyan)", ALTA:"var(--accent-amber)", URGENTE:"var(--accent-red)" };
-const CORES_PROJ = ["#a78bfa","#22d3ee","#34d399","#fbbf24","#f87171","#60a5fa","#f472b6"];
+const CORES_PROJ = ["#EF5350","#22d3ee","#34d399","#fbbf24","#f87171","#60a5fa","#f472b6"];
 const STATUS_LABELS: Record<string,string> = { PLANEJAMENTO:"Planejamento", EM_ANDAMENTO:"Em andamento", PAUSADO:"Pausado", CONCLUIDO:"Concluido", CANCELADO:"Cancelado" };
 const STATUS_COLORS: Record<string,string> = { PLANEJAMENTO:"var(--accent-violet)", EM_ANDAMENTO:"var(--accent-cyan)", PAUSADO:"var(--accent-amber)", CONCLUIDO:"var(--accent-green)", CANCELADO:"var(--accent-red)" };
 
 function Avatar({ nome, size=28 }: { nome:string; size?:number }) {
   const i = nome.split(" ").map((n:string)=>n[0]).slice(0,2).join("").toUpperCase();
-  return <div style={{ width:size, height:size, fontSize:size*0.35 }} className="rounded-full bg-gradient-to-br from-violet-500/40 to-cyan-500/30 border border-violet-500/30 flex items-center justify-center font-bold text-[var(--accent-violet)] shrink-0">{i}</div>;
+  return <div style={{ width:size, height:size, fontSize:size*0.35 }} className="rounded-full bg-gradient-to-br from-red-500/40 to-cyan-500/30 border border-red-500/30 flex items-center justify-center font-bold text-[var(--accent-violet)] shrink-0">{i}</div>;
 }
 function Spin() { return <svg className="animate-spin" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 12a9 9 0 11-6.219-8.56" strokeLinecap="round"/></svg>; }
 function Modal({ title, onClose, children, wide }: any) {
@@ -49,7 +49,7 @@ function ProjectModal({ project, users, onClose, onSave }: { project?:Project; u
   const { user: me } = useAuthStore();
   const [titulo,    setTitulo]    = useState(project?.titulo||"");
   const [descricao, setDescricao] = useState(project?.descricao||"");
-  const [cor,       setCor]       = useState(project?.cor||"#a78bfa");
+  const [cor,       setCor]       = useState(project?.cor||"#EF5350");
   const [prioridade,setPrio]      = useState(project?.prioridade||"MEDIA");
   const [dataFim,   setDataFim]   = useState(project?.dataFim?.slice(0,10)||"");
   const [membros,   setMembros]   = useState<string[]>(project?.members?.map(m=>m.user.id).filter(id=>id!==me?.id)||[]);
@@ -305,7 +305,7 @@ export default function ProjetosPage() {
           )}
           {projects.map(p => (
             <div key={p.id} onClick={()=>{ api.get("/projects/"+p.id).then(r=>setSelected(r.data)).catch(()=>{}); }}
-              className={`p-3.5 rounded-xl cursor-pointer mb-2.5 border transition-all ${selected?.id===p.id ? "border-[var(--accent-violet)] bg-[var(--accent-violet-dim)] shadow-[0_0_15px_rgba(124,58,237,0.1)]" : "border-[var(--border-subtle)] bg-[var(--bg-card)] hover:border-[var(--border-medium)] hover:shadow-premium-sm"}`}
+              className={`p-3.5 rounded-xl cursor-pointer mb-2.5 border transition-all ${selected?.id===p.id ? "border-[var(--accent-violet)] bg-[var(--accent-violet-dim)] shadow-[0_0_15px_rgba(211,47,47,0.1)]" : "border-[var(--border-subtle)] bg-[var(--bg-card)] hover:border-[var(--border-medium)] hover:shadow-premium-sm"}`}
             >
               <div className="flex items-center gap-2 mb-2">
                 <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background:p.cor }} />

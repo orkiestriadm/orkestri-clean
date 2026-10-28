@@ -1,43 +1,16 @@
 import React from "react";
 
-export function OrkestriIcon({ size = 32, className = "" }: { size?: number; className?: string }) {
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 120 120"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      className={className}
-    >
-      <defs>
-        <linearGradient id="ok-grad" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#7C3AED" />
-          <stop offset="55%" stopColor="#a855f7" />
-          <stop offset="100%" stopColor="#C026D3" />
-        </linearGradient>
-      </defs>
-      <rect width="120" height="120" rx="28" fill="url(#ok-grad)" />
-      <g stroke="white" strokeWidth="13" strokeLinecap="round" strokeLinejoin="round" fill="none">
-        <circle cx="44" cy="60" r="18" />
-        <path d="M 72 36 L 72 78" />
-        <path d="M 91 46 L 72 60 L 91 76" />
-      </g>
-    </svg>
-  );
-}
-
-/** Alias mantido para compatibilidade com imports existentes */
-export const OrkestriLogo = OrkestriIcon;
+/**
+ * Marca da Triunfo Transbrasiliana usada no sidebar e nas paginas de auth.
+ * - Light theme: logo colorida (texto preto sobre fundo claro)
+ * - Dark theme:  logo branca (texto branco sobre fundo escuro)
+ * Alternancia feita por CSS em globals.css via [data-theme="dark"].
+ */
 
 type BrandSize = "sm" | "md" | "lg" | "xl" | "xxl";
 
-const SIZE: Record<BrandSize, { icon: number; text: string; gap: string }> = {
-  sm:  { icon: 26, text: "text-[15px]", gap: "gap-2" },
-  md:  { icon: 30, text: "text-[17px]", gap: "gap-2.5" },
-  lg:  { icon: 36, text: "text-[20px]", gap: "gap-3" },
-  xl:  { icon: 52, text: "text-[28px]", gap: "gap-3.5" },
-  xxl: { icon: 68, text: "text-[36px]", gap: "gap-4" },
+const HEIGHT: Record<BrandSize, number> = {
+  sm: 24, md: 32, lg: 40, xl: 56, xxl: 72,
 };
 
 export function BrandLogo({
@@ -47,16 +20,43 @@ export function BrandLogo({
   size?: BrandSize;
   className?: string;
 }) {
-  const s = SIZE[size];
+  const h = HEIGHT[size];
   return (
-    <span className={`inline-flex items-center ${s.gap} ${className}`}>
-      <OrkestriIcon size={s.icon} />
-      <span
-        className={`font-display font-bold tracking-tight text-[var(--text-primary)] leading-none ${s.text}`}
-        style={{ letterSpacing: "-0.02em" }}
-      >
-        Orkiestri
-      </span>
+    <span className={`inline-flex items-center ${className}`} aria-label="Triunfo Transbrasiliana">
+      <img
+        src="/branding/logo-ttbr-colorida.png"
+        alt="Triunfo Transbrasiliana"
+        className="brand-light"
+        style={{ height: h, width: "auto" }}
+      />
+      <img
+        src="/branding/logo-ttbr-branca.png"
+        alt="Triunfo Transbrasiliana"
+        className="brand-dark"
+        style={{ height: h, width: "auto" }}
+      />
     </span>
   );
 }
+
+/**
+ * Aliases mantidos por compatibilidade com imports legados.
+ * Renderizam a mesma logo da Triunfo.
+ */
+export const OrkestriIcon = ({ size = 32, className = "" }: { size?: number; className?: string }) => (
+  <span className={`inline-flex items-center ${className}`} aria-label="Triunfo Transbrasiliana">
+    <img
+      src="/branding/logo-ttbr-colorida.png"
+      alt="Triunfo Transbrasiliana"
+      className="brand-light"
+      style={{ height: size, width: "auto" }}
+    />
+    <img
+      src="/branding/logo-ttbr-branca.png"
+      alt="Triunfo Transbrasiliana"
+      className="brand-dark"
+      style={{ height: size, width: "auto" }}
+    />
+  </span>
+);
+export const OrkestriLogo = OrkestriIcon;

@@ -33,12 +33,12 @@ export default function MemberSelector({
       {/* Preview dos selecionados */}
       <div style={{ display:"flex", flexWrap:"wrap", gap:6, marginBottom:8 }}>
         {selectedUsers.map(u => (
-          <div key={u.id} style={{ display:"flex", alignItems:"center", gap:5, padding:"3px 8px 3px 6px", borderRadius:20, background:"var(--accent-violet-dim)", border:"1px solid rgba(124,58,237,0.25)" }}>
-            <div style={{ width:18, height:18, borderRadius:"50%", background:"linear-gradient(135deg,rgba(124,58,237,0.5),rgba(34,211,238,0.4))", display:"flex", alignItems:"center", justifyContent:"center", fontSize:9, fontWeight:700, color:"var(--accent-violet)" }}>
+          <div key={u.id} style={{ display:"flex", alignItems:"center", gap:5, padding:"3px 8px 3px 6px", borderRadius:20, background:"var(--accent-violet-dim)", border:"1px solid rgba(211,47,47,0.25)" }}>
+            <div style={{ width:18, height:18, borderRadius:"50%", background:"linear-gradient(135deg,rgba(211,47,47,0.5),rgba(34,211,238,0.4))", display:"flex", alignItems:"center", justifyContent:"center", fontSize:9, fontWeight:700, color:"var(--accent-violet)" }}>
               {u.nome.charAt(0).toUpperCase()}
             </div>
             <span style={{ fontSize:12, color:"var(--accent-violet)", fontWeight:500 }}>{u.nome.split(" ")[0]}</span>
-            <button onClick={() => toggle(u.id)} style={{ background:"none", border:"none", cursor:"pointer", color:"rgba(124,58,237,0.6)", fontSize:14, lineHeight:1, padding:0, display:"flex" }}>
+            <button onClick={() => toggle(u.id)} style={{ background:"none", border:"none", cursor:"pointer", color:"rgba(211,47,47,0.6)", fontSize:14, lineHeight:1, padding:0, display:"flex" }}>
               <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M18 6L6 18M6 6l12 12"/></svg>
             </button>
           </div>
@@ -71,11 +71,11 @@ export default function MemberSelector({
               ) : filtered.map(u => {
                 const isSel = selected.includes(u.id);
                 return (
-                  <div key={u.id} onClick={() => toggle(u.id)} style={{ display:"flex", alignItems:"center", gap:12, padding:"10px 12px", borderRadius:10, cursor:"pointer", background:isSel?"var(--accent-violet-dim)":"transparent", border:isSel?"1px solid rgba(124,58,237,0.2)":"1px solid transparent", transition:"all 0.15s" }}
+                  <div key={u.id} onClick={() => toggle(u.id)} style={{ display:"flex", alignItems:"center", gap:12, padding:"10px 12px", borderRadius:10, cursor:"pointer", background:isSel?"var(--accent-violet-dim)":"transparent", border:isSel?"1px solid rgba(211,47,47,0.2)":"1px solid transparent", transition:"all 0.15s" }}
                     onMouseEnter={e => { if(!isSel)(e.currentTarget as HTMLElement).style.background = "var(--bg-hover)"; }}
                     onMouseLeave={e => { if(!isSel)(e.currentTarget as HTMLElement).style.background = "transparent"; }}
                   >
-                    <div style={{ width:34, height:34, borderRadius:"50%", background:"linear-gradient(135deg,rgba(124,58,237,0.4),rgba(34,211,238,0.3))", border:"1px solid rgba(124,58,237,0.3)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:13, fontWeight:700, color:"var(--accent-violet)", flexShrink:0 }}>
+                    <div style={{ width:34, height:34, borderRadius:"50%", background:"linear-gradient(135deg,rgba(211,47,47,0.4),rgba(34,211,238,0.3))", border:"1px solid rgba(211,47,47,0.3)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:13, fontWeight:700, color:"var(--accent-violet)", flexShrink:0 }}>
                       {u.nome.split(" ").map((n:string)=>n[0]).slice(0,2).join("").toUpperCase()}
                     </div>
                     <div style={{ flex:1, minWidth:0 }}>

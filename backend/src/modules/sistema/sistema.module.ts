@@ -5,7 +5,7 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { ConfigService } from "@nestjs/config";
 import * as fs from "fs";
 import * as path from "path";
-import { execSync } from "child_process";
+import { execFileSync } from "child_process";
 
 class UpdateSistemaConfigDto {
   @IsOptional() @IsString() logsPath?: string;
@@ -15,6 +15,9 @@ class UpdateSistemaConfigDto {
   @IsOptional() @IsString() backupIncrementalCron?: string;
   @IsOptional() @IsBoolean() backupFullAtivo?: boolean;
   @IsOptional() @IsBoolean() backupIncrementalAtivo?: boolean;
+  @IsOptional() @IsString() backupFullRetencao?: string;
+  @IsOptional() @IsString() backupIncrementalRetencao?: string;
+  @IsOptional() @IsString() backupCopiaPath?: string;
 }
 
 @Injectable()
@@ -53,6 +56,9 @@ export class SistemaService implements OnModuleInit {
       backupIncrementalCron:this.config.backupIncrementalCron|| "hourly",
       backupFullAtivo:      this.config.backupFullAtivo      !== "false",
       backupIncrementalAtivo: this.config.backupIncrementalAtivo !== "false",
+      backupFullRetencao:        this.config.backupFullRetencao        || "14",
+      backupIncrementalRetencao: this.config.backupIncrementalRetencao || "24",
+      backupCopiaPath:           this.config.backupCopiaPath           || "",
       ultimoBackupFull:     this.config.ultimoBackupFull     || null,
       ultimoBackupIncremental: this.config.ultimoBackupIncremental || null,
       ultimaLimpezaLogs:    this.config.ultimaLimpezaLogs    || null,
@@ -93,68 +99,133 @@ export class SistemaService implements OnModuleInit {
     const retHoras = Number(cfg.logsRetencaoHoras) || 24;
     this.logsInterval = setInterval(() => this.cleanLogs(retHoras), 60*60*1000);
     this.logger.log(`Limpeza de logs agendada (retencao: ${retHoras}h)`);
+
+    // Catch-up: se esta atrasado, roda logo apos o boot (evita nunca disparar com restarts frequentes)
+    const lastFull = cfg.ultimoBackupFull ? new Date(cfg.ultimoBackupFull).getTime() : 0;
+    if (cfg.backupFullAtivo && Date.now() - lastFull >= fullMs) {
+      setTimeout(() => this.runBackupFull().catch(() => {}), 2 * 60 * 1000);
+    }
+    const lastInc = cfg.ultimoBackupIncremental ? new Date(cfg.ultimoBackupIncremental).getTime() : 0;
+    if (cfg.backupIncrementalAtivo && Date.now() - lastInc >= incMs) {
+      setTimeout(() => this.runBackupIncremental().catch(() => {}), 3 * 60 * 1000);
+    }
   }
 
-  async runBackupFull(): Promise<{ sucesso: boolean; arquivo?: string; erro?: string }> {
+  // Extrai host/porta/usuario/senha/db do DATABASE_URL, descartando a query-string.
+  private parseDbUrl() {
+    const dbUrl = this.configService.get("DATABASE_URL", "");
+    try {
+      const u = new URL(dbUrl);
+      return {
+        host: u.hostname,
+        port: u.port || "5432",
+        user: decodeURIComponent(u.username),
+        pass: decodeURIComponent(u.password),
+        db:   u.pathname.replace(/^\//, ""), // só o nome; URL já separa a query
+      };
+    } catch {
+      const m = dbUrl.match(/postgresql:\/\/([^:]+):([^@]+)@([^:]+):(\d+)\/([^?]+)/);
+      if (!m) throw new Error("DATABASE_URL invalida");
+      return { user: m[1], pass: m[2], host: m[3], port: m[4], db: m[5] };
+    }
+  }
+
+  // Executa pg_dump escrevendo DIRETO no arquivo (-f), sem buffer na RAM e sem shell.
+  private dumpToFile(arquivo: string, extraArgs: string[]) {
+    const { host, port, user, pass, db } = this.parseDbUrl();
+    const args = ["-h", host, "-p", port, "-U", user, "-Fc", ...extraArgs, "-f", arquivo, db];
+    execFileSync("pg_dump", args, {
+      env: { ...process.env, PGPASSWORD: pass },
+      maxBuffer: 1024 * 1024 * 64,
+      stdio: ["ignore", "ignore", "pipe"], // stderr capturado p/ mensagem de erro
+    });
+  }
+
+  // Mantem apenas os N backups mais recentes na pasta.
+  private pruneOldBackups(dir: string, keep: number) {
+    try {
+      const arq = fs.readdirSync(dir)
+        .filter(f => f.endsWith(".dump") || f.endsWith(".sql"))
+        .map(f => ({ f, t: fs.statSync(path.join(dir, f)).mtimeMs }))
+        .sort((a, b) => b.t - a.t);
+      for (const { f } of arq.slice(Math.max(1, keep))) fs.unlinkSync(path.join(dir, f));
+    } catch (e: any) {
+      this.logger.warn("Falha ao limpar backups antigos: " + e.message);
+    }
+  }
+
+  // Copia opcional para um segundo caminho (ex: share de rede montado).
+  private copiaExterna(arquivo: string, cfg: any) {
+    const destino = cfg.backupCopiaPath;
+    if (!destino) return;
+    try {
+      fs.mkdirSync(destino, { recursive: true });
+      fs.copyFileSync(arquivo, path.join(destino, path.basename(arquivo)));
+      this.logger.log(`Copia externa do backup em: ${destino}`);
+    } catch (e: any) {
+      this.logger.warn("Falha na copia externa: " + e.message);
+    }
+  }
+
+  // Reaplica config e reagenda os jobs (chamado quando a config muda na UI).
+  public async reagendar() {
+    await this.loadConfig();
+    this.startSchedulers();
+  }
+
+  async runBackupFull(): Promise<{ sucesso: boolean; arquivo?: string; tamanhoMB?: number; erro?: string }> {
     const cfg = this.getConfig();
     const now = new Date();
     const ts  = now.toISOString().replace(/[:.]/g, "-").slice(0, 19);
     const dir = path.join(cfg.backupPath, "full");
-    const arquivo = path.join(dir, `backup-full-${ts}.sql`);
+    const arquivo = path.join(dir, `backup-full-${ts}.dump`);
 
     try {
-      const dbUrl = this.configService.get("DATABASE_URL", "");
-      const match = dbUrl.match(/postgresql:\/\/([^:]+):([^@]+)@([^:]+):(\d+)\/(.+)/);
-      if (!match) throw new Error("DATABASE_URL invalida");
-      const [, user, pass, host, port, db] = match;
-
-      const cmd = `PGPASSWORD=${pass} pg_dump -h ${host} -p ${port} -U ${user} -Fc ${db}`;
-      const output = execSync(cmd);
       fs.mkdirSync(dir, { recursive: true });
-      fs.writeFileSync(arquivo, output);
+      this.dumpToFile(arquivo, []);                       // dump completo (schema + dados), formato custom
+      const tamanho = fs.statSync(arquivo).size;
+      if (tamanho === 0) throw new Error("pg_dump gerou arquivo vazio");
       await this.saveConfig("ultimoBackupFull", now.toISOString());
+      this.pruneOldBackups(dir, Number(cfg.backupFullRetencao) || 14);
+      this.copiaExterna(arquivo, cfg);
 
-      this.logger.log(`Backup full concluido: ${arquivo}`);
-      await this.logEvent("backup_full", `Backup full gerado: ${path.basename(arquivo)}`);
-      return { sucesso: true, arquivo: path.basename(arquivo) };
+      const mb = +(tamanho / 1048576).toFixed(1);
+      this.logger.log(`Backup full concluido: ${arquivo} (${mb} MB)`);
+      await this.logEvent("backup_full", `Backup full gerado: ${path.basename(arquivo)} (${mb} MB)`);
+      return { sucesso: true, arquivo: path.basename(arquivo), tamanhoMB: mb };
     } catch (e: any) {
-      this.logger.error("Erro no backup full: " + e.message);
-      return { sucesso: false, erro: e.message };
+      try { if (fs.existsSync(arquivo)) fs.unlinkSync(arquivo); } catch {} // remove arquivo parcial/zerado
+      const msg = (e.stderr ? e.stderr.toString() : "") || e.message;
+      this.logger.error("Erro no backup full: " + msg);
+      return { sucesso: false, erro: String(msg).slice(0, 300) };
     }
   }
 
-  async runBackupIncremental(): Promise<{ sucesso: boolean; arquivo?: string; erro?: string }> {
+  async runBackupIncremental(): Promise<{ sucesso: boolean; arquivo?: string; tamanhoMB?: number; erro?: string }> {
     const cfg = this.getConfig();
     const now = new Date();
     const ts  = now.toISOString().replace(/[:.]/g, "-").slice(0, 19);
     const dir = path.join(cfg.backupPath, "incremental");
-    const arquivo = path.join(dir, `backup-inc-${ts}.sql`);
+    const arquivo = path.join(dir, `backup-inc-${ts}.dump`);
 
     try {
-      const dbUrl = this.configService.get("DATABASE_URL", "");
-      const match = dbUrl.match(/postgresql:\/\/([^:]+):([^@]+)@([^:]+):(\d+)\/(.+)/);
-      if (!match) throw new Error("DATABASE_URL invalida");
-      const [, user, pass, host, port, db] = match;
-
-      // Backup incremental: apenas tabelas com dados recentes (ultima hora)
-      const tables = ["events", "tasks", "notes", "daily_tasks", "notifications", "audit_log"];
-      const since  = new Date(now.getTime() - 60*60*1000).toISOString();
-      const whereClauses = tables.map(t =>
-        `(SELECT '${t}' as tabela, COUNT(*) as registros FROM ${t} WHERE criado_em >= '${since}')`
-      ).join(" UNION ALL ");
-
-      const cmd = `PGPASSWORD=${pass} pg_dump -h ${host} -p ${port} -U ${user} --data-only --table=${tables.join(" --table=")} ${db}`;
-      const output = execSync(cmd);
       fs.mkdirSync(dir, { recursive: true });
-      fs.writeFileSync(arquivo, output);
+      this.dumpToFile(arquivo, ["--data-only"]);          // dados de TODAS as tabelas (snapshot leve/frequente)
+      const tamanho = fs.statSync(arquivo).size;
+      if (tamanho === 0) throw new Error("pg_dump gerou arquivo vazio");
       await this.saveConfig("ultimoBackupIncremental", now.toISOString());
+      this.pruneOldBackups(dir, Number(cfg.backupIncrementalRetencao) || 24);
+      this.copiaExterna(arquivo, cfg);
 
-      this.logger.log(`Backup incremental concluido: ${arquivo}`);
-      await this.logEvent("backup_incremental", `Backup incremental gerado: ${path.basename(arquivo)}`);
-      return { sucesso: true, arquivo: path.basename(arquivo) };
+      const mb = +(tamanho / 1048576).toFixed(1);
+      this.logger.log(`Backup incremental concluido: ${arquivo} (${mb} MB)`);
+      await this.logEvent("backup_incremental", `Backup incremental gerado: ${path.basename(arquivo)} (${mb} MB)`);
+      return { sucesso: true, arquivo: path.basename(arquivo), tamanhoMB: mb };
     } catch (e: any) {
-      this.logger.error("Erro no backup incremental: " + e.message);
-      return { sucesso: false, erro: e.message };
+      try { if (fs.existsSync(arquivo)) fs.unlinkSync(arquivo); } catch {}
+      const msg = (e.stderr ? e.stderr.toString() : "") || e.message;
+      this.logger.error("Erro no backup incremental: " + msg);
+      return { sucesso: false, erro: String(msg).slice(0, 300) };
     }
   }
 
@@ -205,7 +276,7 @@ export class SistemaService implements OnModuleInit {
     const fullDir = path.join(cfg.backupPath, "full");
     const incDir  = path.join(cfg.backupPath, "incremental");
     const readDir = (d: string) => {
-      try { return fs.readdirSync(d).filter(f => f.endsWith(".sql")).reverse().slice(0, 20); }
+      try { return fs.readdirSync(d).filter(f => f.endsWith(".dump") || f.endsWith(".sql")).sort().reverse().slice(0, 20); }
       catch { return []; }
     };
     return { full: readDir(fullDir), incremental: readDir(incDir) };
@@ -243,9 +314,13 @@ class SistemaController {
     if (dto.backupIncrementalCron) updates.backupIncrementalCron = dto.backupIncrementalCron;
     if (dto.backupFullAtivo !== undefined)        updates.backupFullAtivo        = String(dto.backupFullAtivo);
     if (dto.backupIncrementalAtivo !== undefined) updates.backupIncrementalAtivo = String(dto.backupIncrementalAtivo);
+    if (dto.backupFullRetencao)        updates.backupFullRetencao        = dto.backupFullRetencao;
+    if (dto.backupIncrementalRetencao) updates.backupIncrementalRetencao = dto.backupIncrementalRetencao;
+    if (dto.backupCopiaPath !== undefined) updates.backupCopiaPath        = dto.backupCopiaPath;
     for (const [k, v] of Object.entries(updates)) {
       await this.sistemaService.saveConfig(k, v);
     }
+    await this.sistemaService.reagendar();
     return this.sistemaService.getConfig();
   }
 

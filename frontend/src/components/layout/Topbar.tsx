@@ -45,7 +45,7 @@ const TITLES: Record<string, { label: string; desc: string }> = {
 export default function Topbar({ children }: { children?: React.ReactNode }) {
   const path = usePathname();
   const { user } = useAuthStore();
-  const meta = TITLES[path] || { label: "Orkiestri", desc: "" };
+  const meta = TITLES[path] || { label: "HUB Operacional", desc: "" };
   const [focusOpen, setFocusOpen] = useState(false);
   const [exitingImpersonation, setExitingImpersonation] = useState(false);
 

@@ -37,7 +37,7 @@ type SimpleUser = { id: string; nome: string; email: string };
 const TIPOS: Record<string, { label: string; icon: any; color: string }> = {
   despesa:             { label: "Despesa",             icon: DollarSign,  color: "#fbbf24" },
   horas_extra:         { label: "Horas extra",         icon: Timer,       color: "#22d3ee" },
-  alteracao_cadastral: { label: "Alt. cadastral",      icon: UserCog,     color: "#a78bfa" },
+  alteracao_cadastral: { label: "Alt. cadastral",      icon: UserCog,     color: "#EF5350" },
   folga_compensatoria: { label: "Folga compens.",      icon: CalendarOff, color: "#34d399" },
   compra:              { label: "Compra",               icon: ShoppingCart,color: "#f472b6" },
   viagem:              { label: "Viagem",               icon: Plane,       color: "#60a5fa" },
@@ -56,7 +56,7 @@ const DECISAO_CFG: Record<string, { label: string; color: string }> = {
   REJEITADO:         { label: "Rejeitado",        color: "#f87171" },
   ESCALADO:          { label: "Escalado",         color: "#fbbf24" },
   DELEGADO:          { label: "Delegado",         color: "#60a5fa" },
-  AJUSTE_SOLICITADO: { label: "Ajuste solicit.",  color: "#a78bfa" },
+  AJUSTE_SOLICITADO: { label: "Ajuste solicit.",  color: "#EF5350" },
 };
 
 /* ═══════════════════════════════════════════════
@@ -65,7 +65,7 @@ const DECISAO_CFG: Record<string, { label: string; color: string }> = {
 function Avatar({ nome, size = 32 }: { nome: string; size?: number }) {
   const ini = nome.split(" ").map((n: string) => n[0]).slice(0, 2).join("").toUpperCase();
   return (
-    <div style={{ width: size, height: size, borderRadius: "50%", background: "linear-gradient(135deg,rgba(124,58,237,0.35),rgba(34,211,238,0.25))", border: "1px solid rgba(124,58,237,0.3)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: size * 0.35, fontWeight: 700, color: "var(--accent-violet)", flexShrink: 0 }}>
+    <div style={{ width: size, height: size, borderRadius: "50%", background: "linear-gradient(135deg,rgba(211,47,47,0.35),rgba(34,211,238,0.25))", border: "1px solid rgba(211,47,47,0.3)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: size * 0.35, fontWeight: 700, color: "var(--accent-violet)", flexShrink: 0 }}>
       {ini}
     </div>
   );
@@ -324,7 +324,7 @@ function AjustesModal({ request, onClose, onSave }: { request: WfRequest; onClos
     <ModalWrapper onClose={onClose}>
       <div className="flex items-center justify-between mb-4">
         <h3 className="font-display text-[15px] font-bold text-[var(--text-primary)] flex items-center gap-2">
-          <MessageSquare size={15} className="text-violet-400" /> Solicitar ajustes
+          <MessageSquare size={15} className="text-red-400" /> Solicitar ajustes
         </h3>
         <button className="btn-icon" onClick={onClose}><X size={14} /></button>
       </div>
@@ -551,7 +551,7 @@ export default function AprovacoesPage() {
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             {[
               { label: "Fila — Aguardando minha aprovação", value: stats?.aguardandoMinhaAprovacao ?? 0, color: "#fbbf24", icon: Clock, urgent: (stats?.aguardandoMinhaAprovacao ?? 0) > 0 },
-              { label: "Minhas pendentes", value: stats?.minhasPendentes ?? 0, color: "#a78bfa", icon: Timer, urgent: false },
+              { label: "Minhas pendentes", value: stats?.minhasPendentes ?? 0, color: "#EF5350", icon: Timer, urgent: false },
               { label: "Aprovadas (total)", value: stats?.aprovadas ?? 0, color: "#34d399", icon: CheckCircle2, urgent: false },
               { label: "Rejeitadas (total)", value: stats?.rejeitadas ?? 0, color: "#f87171", icon: XCircle, urgent: false },
             ].map(s => {
@@ -582,7 +582,7 @@ export default function AprovacoesPage() {
             {TABS.map(t => (
               <button key={t.key} onClick={() => setTab(t.key)}
                 className={cn("flex items-center gap-2 px-4 py-2 rounded-xl text-[13px] font-medium transition-all",
-                  tab === t.key ? "bg-gradient-to-r from-violet-600 to-violet-500 text-white shadow-[0_0_12px_rgba(124,58,237,0.35)]"
+                  tab === t.key ? "bg-gradient-to-r from-red-600 to-red-500 text-white shadow-[0_0_12px_rgba(211,47,47,0.35)]"
                     : "text-[var(--text-muted)] hover:text-[var(--text-secondary)]")}>
                 {t.label}
                 {t.count > 0 && (

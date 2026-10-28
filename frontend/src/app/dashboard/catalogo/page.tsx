@@ -48,9 +48,9 @@ const SERVICES: ServiceItem[] = [
   { nome: "Nota Fiscal",          descricao: "Solicitação de emissão de NF",        icon: FileCheck,   color: "#fbbf24", sla: "Atende em 2 dias", categoria: "Financeiro", chamadoCategoria: "Financeiro" },
   { nome: "Adiantamento",         descricao: "Solicitação de adiantamento financeiro",icon: DollarSign,color: "#fbbf24", sla: "Atende em 3 dias", categoria: "Financeiro", chamadoCategoria: "Financeiro" },
   // Jurídico
-  { nome: "Revisão de Contrato",  descricao: "Análise de documento legal",          icon: Scale,       color: "#a78bfa", sla: "Atende em 5 dias", categoria: "Jurídico",  chamadoCategoria: "Jurídico" },
-  { nome: "Procuração",           descricao: "Emissão de procuração",               icon: Stamp,       color: "#a78bfa", sla: "Atende em 3 dias", categoria: "Jurídico",  chamadoCategoria: "Jurídico" },
-  { nome: "Parecer Jurídico",     descricao: "Consulta ao jurídico",                icon: BookOpen,    color: "#a78bfa", sla: "Atende em 5 dias", categoria: "Jurídico",  chamadoCategoria: "Jurídico" },
+  { nome: "Revisão de Contrato",  descricao: "Análise de documento legal",          icon: Scale,       color: "#EF5350", sla: "Atende em 5 dias", categoria: "Jurídico",  chamadoCategoria: "Jurídico" },
+  { nome: "Procuração",           descricao: "Emissão de procuração",               icon: Stamp,       color: "#EF5350", sla: "Atende em 3 dias", categoria: "Jurídico",  chamadoCategoria: "Jurídico" },
+  { nome: "Parecer Jurídico",     descricao: "Consulta ao jurídico",                icon: BookOpen,    color: "#EF5350", sla: "Atende em 5 dias", categoria: "Jurídico",  chamadoCategoria: "Jurídico" },
   // Facilities
   { nome: "Reserva de Sala",      descricao: "Agendamento de sala de reunião",      icon: CalendarDays,color: "#fb923c", sla: "Atende em 2h",    categoria: "Facilities", chamadoCategoria: "Solicitação" },
   { nome: "Manutenção Predial",   descricao: "Reparo ou manutenção física",         icon: Building2,   color: "#fb923c", sla: "Atende em 1 dia",  categoria: "Facilities", chamadoCategoria: "Solicitação" },
@@ -62,7 +62,7 @@ const CATEGORIES: Array<{ key: "Todos" | CategoryKey; color?: string }> = [
   { key: "TI",         color: "#60a5fa" },
   { key: "RH",         color: "#34d399" },
   { key: "Financeiro", color: "#fbbf24" },
-  { key: "Jurídico",   color: "#a78bfa" },
+  { key: "Jurídico",   color: "#EF5350" },
   { key: "Facilities", color: "#fb923c" },
 ];
 

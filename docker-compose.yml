@@ -9,6 +9,7 @@ volumes:
   redis_data:
   uploads_data:
   evolution_data:
+  backup_data:
 
 services:
 
@@ -86,6 +87,7 @@ services:
       # connection_limit do Prisma: número máximo de conexões ao Postgres por instância do PrismaClient.
       # Com PrismaModule @Global (uma instância só), 10 conexões = teto seguro para max_connections=50 do PG.
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?connection_limit=10&pool_timeout=20
+      APP_VAULT_KEY: ${APP_VAULT_KEY:-}
       REDIS_HOST: redis
       REDIS_PORT: 6379
       REDIS_PASSWORD: ${REDIS_PASSWORD}
@@ -109,6 +111,7 @@ services:
       MP_PLAN_BUSINESS_PLUS: ${MP_PLAN_BUSINESS_PLUS}
     volumes:
       - uploads_data:/app/uploads
+      - backup_data:/app/backup
     networks:
       - orkestri_net
     depends_on:
@@ -148,6 +151,44 @@ services:
       - orkestri_net
     depends_on:
       - api
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "3"
+
+  # Worker do Monitoramento Operacional — ICMP scheduler isolado da api.
+  # Pode escalar horizontalmente: defina MON_SHARD_TOTAL/MON_SHARD_INDEX em replicas.
+  monitor_worker:
+    build:
+      context: .
+      dockerfile: ./monitoring-worker/Dockerfile
+    container_name: orkestri_monitor_worker
+    restart: unless-stopped
+    mem_limit: 256m
+    memswap_limit: 256m
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?connection_limit=5&pool_timeout=20
+      APP_VAULT_KEY: ${APP_VAULT_KEY:-}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      MON_PARALLEL: "50"
+      MON_TICK_MS: "5000"
+      MON_SHARD_INDEX: "0"
+      MON_SHARD_TOTAL: "1"
+      # Leitura do Zabbix (serviços + hardware). Vazio = integração desligada.
+      ZABBIX_API_URL: ${ZABBIX_API_URL:-}
+      ZABBIX_API_TOKEN: ${ZABBIX_API_TOKEN:-}
+      MON_ZABBIX_INTERVAL_MS: "60000"
+      TZ: America/Sao_Paulo
+    networks:
+      - orkestri_net
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     logging:
       driver: "json-file"
       options:

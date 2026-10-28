@@ -13,14 +13,14 @@ const PLANS = {
   business_cloud: {
     nome: "Business Cloud",
     preco: "R$ 99,90",
-    color: "#a78bfa",
+    color: "#EF5350",
     maxUsers: "5 usuários operacionais + 1 admin",
     features: ["Service Desk", "Projetos e tarefas", "Agenda integrada", "Dashboards executivos", "Controle orçamentário"],
   },
   business_plus: {
     nome: "Business Plus",
     preco: "R$ 199,90",
-    color: "#7c3aed",
+    color: "#D32F2F",
     maxUsers: "10 usuários operacionais + 2 admins",
     features: ["Tudo do Business Cloud", "Automações avançadas", "WhatsApp integrado", "Gestão de contratos", "SLA avançado"],
   },
@@ -59,7 +59,7 @@ function PasswordInput({
           onChange={e => onChange(e.target.value)}
           placeholder={placeholder}
           className={`w-full bg-[var(--bg-secondary)] border rounded-xl px-4 py-3 text-sm text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:ring-2 transition pr-10
-            ${error ? "border-red-500 focus:ring-red-500/30" : "border-[var(--border-subtle)] focus:ring-violet-500/30 focus:border-violet-500"}`}
+            ${error ? "border-red-500 focus:ring-red-500/30" : "border-[var(--border-subtle)] focus:ring-red-500/30 focus:border-red-500"}`}
         />
         <button
           type="button"
@@ -173,7 +173,7 @@ function SignupContent() {
         </Link>
         <div className="text-sm" style={{ color: "var(--text-muted)" }}>
           Já tem conta?{" "}
-          <Link href="/login" className="font-semibold" style={{ color: "var(--accent-violet, #7c3aed)" }}>
+          <Link href="/login" className="font-semibold" style={{ color: "var(--accent-violet, #D32F2F)" }}>
             Entrar
           </Link>
         </div>
@@ -193,7 +193,7 @@ function SignupContent() {
                 <div
                   className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all"
                   style={{
-                    background: step >= n ? "var(--accent-violet, #7c3aed)" : "var(--bg-secondary)",
+                    background: step >= n ? "var(--accent-violet, #D32F2F)" : "var(--bg-secondary)",
                     color: step >= n ? "#fff" : "var(--text-muted)",
                     border: step >= n ? "none" : "1px solid var(--border-subtle)",
                   }}
@@ -271,7 +271,7 @@ function SignupContent() {
               <button
                 onClick={() => setStep(2)}
                 className="w-full py-4 rounded-xl font-semibold text-sm text-white flex items-center justify-center gap-2 transition-all hover:opacity-90 hover:-translate-y-0.5"
-                style={{ background: "var(--accent-violet, #7c3aed)" }}
+                style={{ background: "var(--accent-violet, #D32F2F)" }}
               >
                 Continuar com {plan.nome}
                 <ArrowRight size={16} />
@@ -310,7 +310,7 @@ function SignupContent() {
                       onChange={e => setOrgNome(e.target.value)}
                       placeholder="Ex: Acme Tecnologia"
                       className={`w-full bg-[var(--bg-secondary)] border rounded-xl px-4 py-3 text-sm text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:ring-2 transition
-                        ${fieldErrors.orgNome ? "border-red-500 focus:ring-red-500/30" : "border-[var(--border-subtle)] focus:ring-violet-500/30 focus:border-violet-500"}`}
+                        ${fieldErrors.orgNome ? "border-red-500 focus:ring-red-500/30" : "border-[var(--border-subtle)] focus:ring-red-500/30 focus:border-red-500"}`}
                     />
                     {fieldErrors.orgNome && <p className="text-red-400 text-xs mt-1">{fieldErrors.orgNome}</p>}
                   </div>
@@ -318,7 +318,7 @@ function SignupContent() {
                   <div>
                     <label className="block text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-1.5">
                       URL da empresa (slug) *
-                      <span className="normal-case font-normal ml-1">— usado no acesso: app.orkiestri.com/<strong>{orgSlug || "sua-empresa"}</strong></span>
+                      <span className="normal-case font-normal ml-1">— usado no acesso: hub.local/<strong>{orgSlug || "sua-empresa"}</strong></span>
                     </label>
                     <input
                       type="text"
@@ -326,7 +326,7 @@ function SignupContent() {
                       onChange={e => { setOrgSlug(toSlug(e.target.value)); setSlugEdited(true); }}
                       placeholder="acme-tecnologia"
                       className={`w-full bg-[var(--bg-secondary)] border rounded-xl px-4 py-3 text-sm text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:ring-2 transition font-mono
-                        ${fieldErrors.orgSlug ? "border-red-500 focus:ring-red-500/30" : "border-[var(--border-subtle)] focus:ring-violet-500/30 focus:border-violet-500"}`}
+                        ${fieldErrors.orgSlug ? "border-red-500 focus:ring-red-500/30" : "border-[var(--border-subtle)] focus:ring-red-500/30 focus:border-red-500"}`}
                     />
                     {fieldErrors.orgSlug && <p className="text-red-400 text-xs mt-1">{fieldErrors.orgSlug}</p>}
                   </div>
@@ -341,7 +341,7 @@ function SignupContent() {
                       onChange={e => setAdminNome(e.target.value)}
                       placeholder="João Silva"
                       className={`w-full bg-[var(--bg-secondary)] border rounded-xl px-4 py-3 text-sm text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:ring-2 transition
-                        ${fieldErrors.adminNome ? "border-red-500 focus:ring-red-500/30" : "border-[var(--border-subtle)] focus:ring-violet-500/30 focus:border-violet-500"}`}
+                        ${fieldErrors.adminNome ? "border-red-500 focus:ring-red-500/30" : "border-[var(--border-subtle)] focus:ring-red-500/30 focus:border-red-500"}`}
                     />
                     {fieldErrors.adminNome && <p className="text-red-400 text-xs mt-1">{fieldErrors.adminNome}</p>}
                   </div>
@@ -354,7 +354,7 @@ function SignupContent() {
                       onChange={e => setAdminEmail(e.target.value)}
                       placeholder="joao@acme.com"
                       className={`w-full bg-[var(--bg-secondary)] border rounded-xl px-4 py-3 text-sm text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:ring-2 transition
-                        ${fieldErrors.adminEmail ? "border-red-500 focus:ring-red-500/30" : "border-[var(--border-subtle)] focus:ring-violet-500/30 focus:border-violet-500"}`}
+                        ${fieldErrors.adminEmail ? "border-red-500 focus:ring-red-500/30" : "border-[var(--border-subtle)] focus:ring-red-500/30 focus:border-red-500"}`}
                     />
                     {fieldErrors.adminEmail && <p className="text-red-400 text-xs mt-1">{fieldErrors.adminEmail}</p>}
                   </div>
@@ -367,7 +367,7 @@ function SignupContent() {
                   onClick={handleSubmit}
                   disabled={loading}
                   className="w-full mt-6 py-4 rounded-xl font-semibold text-sm text-white flex items-center justify-center gap-2 transition-all hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
-                  style={{ background: "var(--accent-violet, #7c3aed)" }}
+                  style={{ background: "var(--accent-violet, #D32F2F)" }}
                 >
                   {loading ? (
                     <><Loader2 size={16} className="animate-spin" /> Processando...</>

@@ -109,7 +109,7 @@ function OrgWhatsAppPanel() {
             <button className="btn btn-ghost" style={{ fontSize: 11 }} onClick={refreshStatus}>Atualizar status</button>
           </div>
 
-          <div style={{ padding: "12px 16px", borderRadius: 10, background: "rgba(124,58,237,0.05)", border: "1px solid rgba(124,58,237,0.15)", fontSize: 11, color: "var(--text-muted)", lineHeight: 1.7 }}>
+          <div style={{ padding: "12px 16px", borderRadius: 10, background: "rgba(211,47,47,0.05)", border: "1px solid rgba(211,47,47,0.15)", fontSize: 11, color: "var(--text-muted)", lineHeight: 1.7 }}>
             <strong style={{ color: "var(--text-primary)" }}>Como conectar:</strong><br />
             1. Clique em <em>Criar instância</em> para registrar na Evolution API<br />
             2. Clique em <em>Ver QR Code</em> e aguarde o código aparecer<br />

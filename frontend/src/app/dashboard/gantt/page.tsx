@@ -63,7 +63,7 @@ export default function GanttPage() {
           <div style={{ fontSize:11, fontFamily:"var(--font-mono)", color:"var(--text-muted)", letterSpacing:"0.08em", marginBottom:10, textTransform:"uppercase" }}>Projetos</div>
           {loading ? <div style={{ textAlign:"center", padding:20, color:"var(--text-muted)" }}>Carregando...</div> :
           projects.map(p => (
-            <div key={p.id} onClick={()=>loadDetail(p.id)} style={{ padding:"10px 12px", borderRadius:8, cursor:"pointer", marginBottom:4, border:`1px solid ${selected===p.id?"rgba(124,58,237,0.3)":"var(--border-subtle)"}`, background:selected===p.id?"var(--accent-violet-dim)":"var(--bg-card)", transition:"all 0.15s" }}>
+            <div key={p.id} onClick={()=>loadDetail(p.id)} style={{ padding:"10px 12px", borderRadius:8, cursor:"pointer", marginBottom:4, border:`1px solid ${selected===p.id?"rgba(211,47,47,0.3)":"var(--border-subtle)"}`, background:selected===p.id?"var(--accent-violet-dim)":"var(--bg-card)", transition:"all 0.15s" }}>
               <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:4 }}>
                 <div style={{ width:8, height:8, borderRadius:"50%", background:p.cor }} />
                 <span style={{ fontSize:12, fontWeight:500, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{p.titulo}</span>
@@ -92,7 +92,7 @@ export default function GanttPage() {
                   const isToday = d.getTime() === today.getTime();
                   const isMon   = d.getDay() === 1;
                   return (
-                    <div key={i} style={{ width:COL, flexShrink:0, textAlign:"center", padding:"4px 0", borderLeft:isMon?"1px solid var(--border-subtle)":"none", background:isToday?"rgba(124,58,237,0.06)":"transparent" }}>
+                    <div key={i} style={{ width:COL, flexShrink:0, textAlign:"center", padding:"4px 0", borderLeft:isMon?"1px solid var(--border-subtle)":"none", background:isToday?"rgba(211,47,47,0.06)":"transparent" }}>
                       {(isMon || i===0) && <div style={{ fontSize:9, color:"var(--text-muted)", fontFamily:"var(--font-mono)" }}>{d.getDate()}/{d.getMonth()+1}</div>}
                       <div style={{ fontSize:8, color:isToday?"var(--accent-violet)":"var(--text-muted)", fontFamily:"var(--font-mono)" }}>{["D","S","T","Q","Q","S","S"][d.getDay()]}</div>
                     </div>
@@ -117,10 +117,10 @@ export default function GanttPage() {
                       {days.map((d,i) => {
                         const isT = i === isToday;
                         const isMon = d.getDay() === 1;
-                        return <div key={i} style={{ position:"absolute", left:i*COL, width:COL, top:0, bottom:0, background:isT?"rgba(124,58,237,0.04)":d.getDay()===0||d.getDay()===6?"rgba(0,0,0,0.03)":"transparent", borderLeft:isMon?"1px solid var(--border-subtle)":"none" }} />;
+                        return <div key={i} style={{ position:"absolute", left:i*COL, width:COL, top:0, bottom:0, background:isT?"rgba(211,47,47,0.04)":d.getDay()===0||d.getDay()===6?"rgba(0,0,0,0.03)":"transparent", borderLeft:isMon?"1px solid var(--border-subtle)":"none" }} />;
                       })}
                       {/* Linha hoje */}
-                      {isToday >= 0 && <div style={{ position:"absolute", left:isToday*COL+COL/2, top:0, bottom:0, width:2, background:"rgba(124,58,237,0.3)", zIndex:2 }} />}
+                      {isToday >= 0 && <div style={{ position:"absolute", left:isToday*COL+COL/2, top:0, bottom:0, width:2, background:"rgba(211,47,47,0.3)", zIndex:2 }} />}
                       {/* Barra da task */}
                       {bar.startIdx < viewDays && bar.width > 0 && (
                         <div title={task.titulo} style={{ position:"absolute", left:bar.startIdx*COL+2, width:bar.width*COL-4, top:"25%", height:"50%", background:task.status==="CONCLUIDA"?color+"80":color, borderRadius:4, zIndex:1, opacity:0.85, boxShadow:`0 1px 4px ${color}40`, display:"flex", alignItems:"center", paddingLeft:6 }}>

@@ -414,7 +414,7 @@ export default function RelatoriosPage() {
                     <div className="space-y-2">
                       {(categoria?.porCategoria || []).slice(0, 8).map((c: any, i: number) => {
                         const max = categoria.porCategoria[0]?.total || 1;
-                        const colors = ["#6366f1","#22c55e","#f59e0b","#ef4444","#06b6d4","#f472b6","#84cc16","#a78bfa"];
+                        const colors = ["#6366f1","#22c55e","#f59e0b","#ef4444","#06b6d4","#f472b6","#84cc16","#EF5350"];
                         return (
                           <div key={i}>
                             <div className="flex justify-between text-xs mb-1">
@@ -577,7 +577,7 @@ export default function RelatoriosPage() {
                   <div className="space-y-2">
                     {(visaoGeral.tasksPorMembro || []).slice(0, 8).map((m: any, i: number) => {
                       const max = visaoGeral.tasksPorMembro[0]?.total || 1;
-                      const colors = ["#6366f1","#22c55e","#f59e0b","#ef4444","#06b6d4","#f472b6","#84cc16","#a78bfa"];
+                      const colors = ["#6366f1","#22c55e","#f59e0b","#ef4444","#06b6d4","#f472b6","#84cc16","#EF5350"];
                       return (
                         <div key={i}>
                           <div className="flex justify-between text-xs mb-1">
@@ -735,7 +735,7 @@ export default function RelatoriosPage() {
                       </thead>
                       <tbody>
                         {categoriasBrk.map((c: any, i: number) => {
-                          const colors = ["#6366f1","#22c55e","#f59e0b","#ef4444","#06b6d4","#f472b6","#84cc16","#a78bfa"];
+                          const colors = ["#6366f1","#22c55e","#f59e0b","#ef4444","#06b6d4","#f472b6","#84cc16","#EF5350"];
                           const color = colors[i % colors.length];
                           const pct = c.pctResolvidos;
                           return (

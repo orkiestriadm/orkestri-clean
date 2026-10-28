@@ -54,7 +54,7 @@ function AISearchPanel({ artigos, onClose, onOpenArticle }: {
       <div className="card" style={{ width: "100%", maxWidth: 640, maxHeight: "70vh", overflowY: "auto", padding: 0 }}>
         {/* Header */}
         <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "18px 20px", borderBottom: "1px solid var(--border-subtle)" }}>
-          <div style={{ width: 32, height: 32, borderRadius: 10, background: "rgba(124,58,237,0.15)", border: "1px solid rgba(124,58,237,0.25)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+          <div style={{ width: 32, height: 32, borderRadius: 10, background: "rgba(211,47,47,0.15)", border: "1px solid rgba(211,47,47,0.25)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
             <Brain size={15} style={{ color: "var(--accent-violet)" }} />
           </div>
           <div style={{ flex: 1 }}>
@@ -82,7 +82,7 @@ function AISearchPanel({ artigos, onClose, onOpenArticle }: {
           <div style={{ padding: "16px 20px" }}>
             {/* AI Answer */}
             {answer && (
-              <div style={{ background: "rgba(124,58,237,0.06)", border: "1px solid rgba(124,58,237,0.18)", borderRadius: 12, padding: "14px 16px", marginBottom: 16 }}>
+              <div style={{ background: "rgba(211,47,47,0.06)", border: "1px solid rgba(211,47,47,0.18)", borderRadius: 12, padding: "14px 16px", marginBottom: 16 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
                   <Sparkles size={12} style={{ color: "var(--accent-violet)" }} />
                   <span style={{ fontSize: 11, fontWeight: 700, color: "var(--accent-violet)", fontFamily: "var(--font-mono)", letterSpacing: "0.06em" }}>RESPOSTA IA</span>

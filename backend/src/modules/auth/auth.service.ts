@@ -93,6 +93,11 @@ const ALL_PERMISSIONS: { recurso: string; acao: string; descricao: string }[] = 
   { recurso: "automacoes",    acao: "criar",       descricao: "Criar automações" },
   { recurso: "automacoes",    acao: "editar",      descricao: "Editar automações" },
   { recurso: "automacoes",    acao: "excluir",     descricao: "Excluir automações" },
+  // Monitoramento operacional
+  { recurso: "monitoramento", acao: "ver",         descricao: "Ver monitoramento de serviços e hardware" },
+  // Financeiro
+  { recurso: "financeiro",    acao: "ver",         descricao: "Ver módulo financeiro (contas a pagar, dashboard)" },
+  { recurso: "financeiro",    acao: "gerenciar",   descricao: "Criar, editar e excluir títulos financeiros" },
 ];
 
 // Permissões base — todo usuário recebe automaticamente, independente do papel
@@ -134,6 +139,8 @@ const ROLE_DEFAULTS: Record<string, { nivel: number; descricao: string; permisso
       "conhecimento:ver","conhecimento:criar","conhecimento:editar","conhecimento:publicar",
       "sla:ver","sla:gerenciar",
       "automacoes:ver","automacoes:criar","automacoes:editar","automacoes:excluir",
+      "monitoramento:ver",
+      "financeiro:ver","financeiro:gerenciar",
     ],
   },
   analista: {
@@ -150,6 +157,8 @@ const ROLE_DEFAULTS: Record<string, { nivel: number; descricao: string; permisso
       "solicitacoes:ver","solicitacoes:criar",
       "conhecimento:ver","conhecimento:criar",
       "ativos:ver",
+      "monitoramento:ver",
+      "financeiro:ver",
     ],
   },
   tecnico: {

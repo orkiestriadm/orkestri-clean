@@ -172,8 +172,8 @@ export default function WorkforcePage() {
                   <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
                     {data.skills.top.map(sk=>(
                       <div key={sk.id} style={{ display:"flex", alignItems:"center", gap:10 }}>
-                        <div style={{ width:24, height:24, borderRadius:6, background:(sk.cor||"#a78bfa")+"20", border:`1px solid ${(sk.cor||"#a78bfa")}40`, display:"flex", alignItems:"center", justifyContent:"center" }}>
-                          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke={sk.cor||"#a78bfa"} strokeWidth="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+                        <div style={{ width:24, height:24, borderRadius:6, background:(sk.cor||"#EF5350")+"20", border:`1px solid ${(sk.cor||"#EF5350")}40`, display:"flex", alignItems:"center", justifyContent:"center" }}>
+                          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke={sk.cor||"#EF5350"} strokeWidth="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
                         </div>
                         <div style={{ flex:1, minWidth:0 }}>
                           <div style={{ fontSize:13, fontWeight:500 }}>{sk.nome}</div>

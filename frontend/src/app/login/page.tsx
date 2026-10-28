@@ -5,24 +5,14 @@ import Link from "next/link";
 import { useAuthStore } from "@/lib/store";
 import { authApi } from "@/lib/api";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowRight, Shield, Zap, BarChart3, Eye, EyeOff, CheckCircle2 } from "lucide-react";
-import { BrandLogo } from "@/components/ui/logo";
+import { Mail, Lock, Eye, EyeOff } from "lucide-react";
 
-const FEATURES = [
-  { icon: Shield, label: "Segurança enterprise", desc: "Multi-tenant, JWT HttpOnly, OWASP nativo" },
-  { icon: Zap, label: "Automações inteligentes", desc: "Fluxos e notificações via WhatsApp" },
-  { icon: BarChart3, label: "Analytics em tempo real", desc: "KPIs, CSAT, SLA e dashboards executivos" },
-];
-
-const STATS = [
-  { value: "+120", label: "empresas ativas" },
-  { value: "4.9★", label: "satisfação" },
-  { value: "99,9%", label: "disponibilidade" },
-];
+const RED = "#D32F2F";
+const RED_HOVER = "#B71C1C";
 
 export default function LoginPage() {
   const router = useRouter();
-  const { loading, error, clearError, user } = useAuthStore();
+  const { user } = useAuthStore();
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -31,7 +21,7 @@ export default function LoginPage() {
   const [localError, setLocalError] = useState("");
 
   useEffect(() => { setMounted(true); }, []);
-  useEffect(() => { if (user) router.replace("/dashboard"); }, [user]);
+  useEffect(() => { if (user) router.replace("/dashboard"); }, [user, router]);
   useEffect(() => { setLocalError(""); }, [email, senha]);
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -44,7 +34,7 @@ export default function LoginPage() {
       useAuthStore.setState({ user: result.user, token: result.accessToken, loading: false });
       router.replace(result.primeiroAcesso ? "/primeiro-acesso" : "/dashboard");
     } catch (err: any) {
-      setLocalError(err?.response?.data?.message || "Credenciais inválidas. Verifique seus dados.");
+      setLocalError(err?.response?.data?.message || "Credenciais invalidas. Verifique seus dados.");
       setLocalLoading(false);
     }
   };
@@ -52,170 +42,99 @@ export default function LoginPage() {
   if (!mounted) return null;
 
   return (
-    <div className="bg-[var(--bg-primary)] overflow-hidden transition-colors duration-300" style={{ height: '100dvh', display: 'grid', gridTemplateColumns: '1fr 1fr' }}>
+    <div className="relative w-full overflow-hidden bg-black" style={{ height: '100dvh' }}>
+      {/* Background rodovia full-bleed */}
+      <img
+        src="/branding/rodovia.jpg"
+        alt=""
+        aria-hidden
+        className="absolute inset-0 w-full h-full object-cover"
+      />
+      {/* Overlay forte pra escurecer (foto e diurna) e dar ar noturno */}
+      <div className="absolute inset-0 bg-gradient-to-b from-black/55 via-black/65 to-black/80" />
+      <div className="absolute inset-0 bg-gradient-to-r from-black/40 via-transparent to-black/30" />
 
-      {/* ── Background ── */}
-      <div className="fixed inset-0 pointer-events-none select-none">
-        {/* Primary orb */}
-        <div className="absolute top-[-15%] left-[-8%] w-[800px] h-[800px] rounded-full bg-violet-600/10 dark:bg-violet-700/8 blur-[150px]" />
-        {/* Cyan orb */}
-        <div className="absolute bottom-[-15%] right-[-8%] w-[700px] h-[700px] rounded-full bg-cyan-500/10 dark:bg-cyan-500/6 blur-[130px]" />
-        {/* Small accent */}
-        <div className="absolute top-1/2 right-1/3 w-[300px] h-[300px] rounded-full bg-violet-500/10 dark:bg-violet-500/5 blur-[80px] -translate-y-1/2" />
-        {/* Dot grid */}
-        <div className="absolute inset-0 opacity-[0.05] dark:opacity-[0.022]"
-          style={{ backgroundImage: 'radial-gradient(circle, var(--accent-violet) 1px, transparent 1px)', backgroundSize: '32px 32px' }} />
-        {/* Vertical gradient separator */}
-        <div className="hidden lg:block absolute top-0 bottom-0 left-1/2 w-px bg-gradient-to-b from-transparent via-[var(--border-strong)] to-transparent" />
-      </div>
-
-      {/* ── Left panel ── */}
-      <motion.div
-        initial={{ opacity: 0, x: -28 }}
-        animate={{ opacity: 1, x: 0 }}
-        transition={{ duration: 0.75, ease: [0.22, 1, 0.36, 1] }}
-        className="hidden lg:flex flex-col justify-between relative z-10 p-14 xl:p-20"
-      >
-        {/* Logo */}
-        <Link href="/">
-          <BrandLogo size="xxl" />
-        </Link>
-
-        {/* Main statement */}
-        <div className="space-y-10">
-          <div>
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-[var(--accent-violet)]/20 bg-[var(--accent-violet-dim)] text-[var(--accent-violet)] text-[11px] font-medium mb-6">
-              <span className="w-1.5 h-1.5 rounded-full bg-[var(--accent-green)] animate-pulse" />
-              Sistema disponível · 99,9% uptime
-            </div>
-            <h1 className="font-display text-[44px] font-bold leading-[1.08] tracking-tight text-[var(--text-primary)] mb-5">
-              Profundidade
-              <br />
-              <span className="bg-gradient-to-r from-violet-500 via-fuchsia-400 to-violet-500 dark:from-violet-400 dark:via-fuchsia-300 dark:to-violet-400 bg-clip-text text-transparent">
-                corporativa.
-              </span>
-              <br />
-              Experiência
-              <br />
-              <span className="text-[var(--text-muted)]">moderna.</span>
-            </h1>
-            <p className="text-[15px] text-[var(--text-secondary)] leading-relaxed max-w-[340px]">
-              Transforme tarefas, chamados, projetos e indicadores em uma única operação inteligente.
+      {/* Conteudo */}
+      <div className="relative z-10 h-full grid" style={{ gridTemplateColumns: '1fr min(38%, 560px)' }}>
+        {/* Lado esquerdo: vazio na maior parte, texto descritivo embaixo */}
+        <div className="hidden lg:flex flex-col justify-end p-10 xl:p-14">
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.15 }}
+          >
+            <p className="text-white/85 text-[15px] xl:text-[16px] drop-shadow-[0_2px_12px_rgba(0,0,0,0.6)]">
+              HUB Operacional &middot; Triunfo Transbrasiliana
             </p>
-          </div>
-
-          {/* Feature list */}
-          <div className="space-y-4">
-            {FEATURES.map(({ icon: Icon, label, desc }, i) => (
-              <motion.div
-                key={label}
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.35 + i * 0.1, duration: 0.5 }}
-                className="flex items-start gap-3.5 group"
-              >
-                <div className="w-9 h-9 rounded-[10px] bg-[var(--bg-hover)] border border-[var(--border-subtle)] flex items-center justify-center shrink-0 mt-0.5 group-hover:bg-[var(--bg-active)] group-hover:border-[var(--border-medium)] transition-all">
-                  <Icon size={16} className="text-[var(--accent-violet)]" />
-                </div>
-                <div>
-                  <div className="text-[13px] font-semibold text-[var(--text-primary)]">{label}</div>
-                  <div className="text-[12px] text-[var(--text-secondary)] mt-0.5">{desc}</div>
-                </div>
-              </motion.div>
-            ))}
-          </div>
-
-          {/* Stats strip */}
-          <div className="grid grid-cols-3 gap-3">
-            {STATS.map((stat, i) => (
-              <motion.div
-                key={stat.label}
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.6 + i * 0.08, duration: 0.4 }}
-                className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-card)]/50 p-3 text-center shadow-premium-sm"
-              >
-                <div className="font-display font-bold text-lg text-[var(--accent-violet)] leading-none">{stat.value}</div>
-                <div className="text-[10px] text-[var(--text-muted)] mt-1 font-mono">{stat.label}</div>
-              </motion.div>
-            ))}
-          </div>
+          </motion.div>
         </div>
 
-        {/* Social proof footer */}
-        <div className="flex items-center gap-3">
-          <div className="flex -space-x-1.5">
-            {['G', 'T', 'R', 'M', 'A'].map((l, i) => (
-              <div key={i} className="w-7 h-7 rounded-full border-2 border-[var(--bg-primary)] bg-gradient-to-br from-violet-500/60 to-violet-700/60 flex items-center justify-center text-[9px] font-bold text-white shadow-sm">
-                {l}
-              </div>
-            ))}
-          </div>
-          <p className="text-[12px] text-[var(--text-muted)]">+120 empresas confiam no Orkiestri</p>
-        </div>
-      </motion.div>
-
-      {/* ── Right panel — Form ── */}
-      <div className="flex items-center justify-center p-6 relative z-10">
-        <motion.div
-          initial={{ opacity: 0, y: 24 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.65, ease: [0.22, 1, 0.36, 1] }}
-          className="w-full max-w-[420px]"
+        {/* Lado direito: painel escuro com form */}
+        <motion.aside
+          initial={{ opacity: 0, x: 24 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+          className="relative flex flex-col h-full"
+          style={{ backgroundColor: 'rgba(0,0,0,0.62)', backdropFilter: 'blur(2px)' }}
         >
-          {/* Mobile logo */}
-          <div className="mb-10 lg:hidden flex justify-center">
-            <BrandLogo size="lg" />
-          </div>
+          <div className="flex-1 flex flex-col items-center justify-center px-8 sm:px-12 py-10">
+            {/* Logo Triunfo */}
+            <motion.img
+              src="/branding/logo-ttbr-branca.png"
+              alt="Triunfo Transbrasiliana"
+              initial={{ opacity: 0, scale: 0.94 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.7, delay: 0.1 }}
+              className="w-full max-w-[280px] mb-6 drop-shadow-[0_6px_20px_rgba(0,0,0,0.4)]"
+            />
 
-          {/* Header */}
-          <div className="mb-8">
-            <h2 className="font-display text-[30px] font-bold text-[var(--text-primary)] mb-2 leading-tight tracking-tight">
-              Bem Vindo ao seu HUB Operacional
+            {/* Welcome */}
+            <h2 className="text-white text-[22px] sm:text-[24px] font-medium text-center mb-8 tracking-tight">
+              Bem Vindo ao HUB Operacional
             </h2>
-          </div>
 
-          {/* Form card */}
-          <div className="relative rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-glass)] backdrop-blur-2xl p-8 shadow-premium-lg">
-            {/* Top glow line */}
-            <div className="absolute top-0 left-8 right-8 h-px bg-gradient-to-r from-transparent via-[var(--accent-violet)]/40 to-transparent" />
-
-            <form onSubmit={handleLogin} className="flex flex-col gap-5">
-
-              {/* Email */}
-              <div className="flex flex-col gap-1.5">
-                <label className="text-[11px] font-semibold text-[var(--text-muted)] tracking-widest uppercase">E-mail</label>
+            <form onSubmit={handleLogin} className="w-full max-w-[380px] flex flex-col gap-3.5">
+              {/* Email com badge vermelho */}
+              <div className="flex items-stretch rounded-md overflow-hidden bg-white shadow-sm">
+                <div
+                  className="flex items-center justify-center px-3.5"
+                  style={{ backgroundColor: RED }}
+                  aria-hidden
+                >
+                  <Mail size={18} className="text-white" />
+                </div>
                 <input
                   type="email"
                   value={email}
                   onChange={e => setEmail(e.target.value)}
-                  placeholder="nome@empresa.com"
+                  placeholder="E-mail"
                   autoComplete="email"
-                  className="input-o py-3.5"
+                  className="flex-1 px-3.5 py-3 text-[14px] text-gray-800 placeholder:text-gray-500 outline-none bg-white"
                 />
               </div>
 
-              {/* Password */}
-              <div className="flex flex-col gap-1.5">
-                <div className="flex items-center justify-between">
-                  <label className="text-[11px] font-semibold text-[var(--text-muted)] tracking-widest uppercase">Senha</label>
-                  <Link href="/recuperar-senha" className="text-[12px] text-[var(--accent-violet)] opacity-80 hover:opacity-100 transition-opacity">
-                    Esqueci a senha
-                  </Link>
+              {/* Senha com badge vermelho */}
+              <div className="flex items-stretch rounded-md overflow-hidden bg-white shadow-sm">
+                <div
+                  className="flex items-center justify-center px-3.5"
+                  style={{ backgroundColor: RED }}
+                  aria-hidden
+                >
+                  <Lock size={18} className="text-white" />
                 </div>
-                <div className="relative">
+                <div className="relative flex-1">
                   <input
                     type={showPassword ? "text" : "password"}
                     value={senha}
                     onChange={e => setSenha(e.target.value)}
-                    placeholder="••••••••••"
+                    placeholder="Senha"
                     autoComplete="current-password"
-                    className="input-o py-3.5 pr-11"
+                    className="w-full px-3.5 py-3 pr-10 text-[14px] text-gray-800 placeholder:text-gray-500 outline-none bg-white"
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(s => !s)}
-                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-800 transition-colors"
                     aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
                   >
                     {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
@@ -227,22 +146,25 @@ export default function LoginPage() {
               <AnimatePresence>
                 {localError && (
                   <motion.div
-                    initial={{ opacity: 0, y: -8, height: 0 }}
+                    initial={{ opacity: 0, y: -6, height: 0 }}
                     animate={{ opacity: 1, y: 0, height: 'auto' }}
-                    exit={{ opacity: 0, y: -8, height: 0 }}
+                    exit={{ opacity: 0, y: -6, height: 0 }}
                     transition={{ duration: 0.22 }}
-                    className="text-[13px] text-[var(--accent-red)] bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-3 text-center"
+                    className="text-[13px] text-red-100 bg-red-700/40 border border-red-500/40 rounded-md px-3.5 py-2.5 text-center"
                   >
                     {localError}
                   </motion.div>
                 )}
               </AnimatePresence>
 
-              {/* Submit */}
+              {/* Botao Entrar */}
               <button
                 type="submit"
                 disabled={localLoading || !email || !senha}
-                className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl btn-primary text-white font-semibold text-[14px] disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full py-3.5 mt-1 rounded-md text-white font-semibold text-[15px] tracking-wide transition-colors disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                style={{ backgroundColor: localLoading ? RED_HOVER : RED }}
+                onMouseEnter={(e) => { if (!localLoading && email && senha) e.currentTarget.style.backgroundColor = RED_HOVER; }}
+                onMouseLeave={(e) => { if (!localLoading) e.currentTarget.style.backgroundColor = RED; }}
               >
                 {localLoading ? (
                   <>
@@ -253,31 +175,29 @@ export default function LoginPage() {
                     Verificando...
                   </>
                 ) : (
-                  <>Entrar no workspace <ArrowRight size={16} /></>
+                  <span>Entrar</span>
                 )}
               </button>
 
-              {/* Trust signals */}
-              <div className="flex items-center justify-center gap-4 pt-1">
-                {['Dados criptografados', 'LGPD compliant', 'Multi-tenant'].map((t, i) => (
-                  <div key={t} className="flex items-center gap-1">
-                    <CheckCircle2 size={10} className="text-[var(--accent-green)] shrink-0" />
-                    <span className="text-[10px] text-[var(--text-faint)]">{t}</span>
-                  </div>
-                ))}
+              {/* Link senha */}
+              <div className="text-center mt-1">
+                <Link
+                  href="/recuperar-senha"
+                  className="text-[12px] text-white/70 hover:text-white transition-colors"
+                >
+                  Esqueci minha senha
+                </Link>
               </div>
             </form>
           </div>
 
-          {/* Footer links */}
-          <div className="mt-6 text-center space-y-3">
-            <Link href="/solicitar-acesso" className="text-[13px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors">
-              Quer conhecer o sistema?{' '}
-              <span className="text-[var(--accent-violet)] opacity-80 hover:opacity-100">Teste Grátis por 7 dias →</span>
-            </Link>
-            <p className="text-[11px] text-[var(--text-faint)] font-mono">Orkiestri Enterprise · v2.0.4</p>
+          {/* Footer painel */}
+          <div className="px-8 pb-5 text-center">
+            <p className="text-[11px] text-white/50">
+              &copy; Triunfo Transbrasiliana &middot; Sistema interno
+            </p>
           </div>
-        </motion.div>
+        </motion.aside>
       </div>
     </div>
   );

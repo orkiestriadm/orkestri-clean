@@ -1,0 +1,14 @@
+{
+  "name": "orkestri-monitoring-worker",
+  "version": "1.0.0",
+  "description": "Worker de monitoramento ICMP/TCP/HTTP para o Orkestri",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "@prisma/client": "5.22.0",
+    "ioredis": "^5.3.2",
+    "prisma": "5.22.0"
+  }
+}

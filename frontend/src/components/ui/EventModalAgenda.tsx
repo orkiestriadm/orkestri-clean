@@ -7,7 +7,7 @@ import MemberSelector from "./MemberSelector";
 type User = { id: string; nome: string; email: string; };
 
 const TIPOS = ["PESSOAL","REUNIAO","PROJETO","COMPROMISSO","LEMBRETE"];
-const CORES = ["#a78bfa","#22d3ee","#34d399","#fbbf24","#f87171","#60a5fa","#f472b6"];
+const CORES = ["#EF5350","#22d3ee","#34d399","#fbbf24","#f87171","#60a5fa","#f472b6"];
 const RECORRENCIAS = [
   { value:"", label:"Nao repetir" },
   { value:"DIARIA", label:"Diariamente" },
@@ -33,7 +33,7 @@ export default function EventModalAgenda({ date, event, users, onClose, onSave }
   const [inicio,      setInicio]      = useState(event?event.inicio.slice(0,16):date.includes("T")?date:date+"T09:00");
   const [fim,         setFim]         = useState(event?.fim?event.fim.slice(0,16):date.includes("T")?date.replace(/T\d+:\d+/,m=>{ const [h,min]=m.slice(1).split(":"); return `T${String(Number(h)+1).padStart(2,"0")}:${min}`; }):date+"T10:00");
   const [tipo,        setTipo]        = useState(event?.tipo||"PESSOAL");
-  const [cor,         setCor]         = useState(event?.cor||"#a78bfa");
+  const [cor,         setCor]         = useState(event?.cor||"#EF5350");
   const [diaTodo,     setDiaTodo]     = useState(event?.diaTodo||false);
   const [local,       setLocal]       = useState(event?.local||"");
   const [recorrencia, setRecorrencia] = useState(event?.recorrencia||"");

@@ -6,6 +6,7 @@ type Config = {
   logsPath: string; logsRetencaoHoras: string;
   backupPath: string; backupFullCron: string; backupIncrementalCron: string;
   backupFullAtivo: boolean; backupIncrementalAtivo: boolean;
+  backupFullRetencao: string; backupIncrementalRetencao: string; backupCopiaPath: string;
   ultimoBackupFull?: string; ultimoBackupIncremental?: string; ultimaLimpezaLogs?: string;
 };
 type Backups = { full: string[]; incremental: string[] };
@@ -158,7 +159,13 @@ export default function SistemaConfig() {
           <div>
             <label style={{ fontSize:11, color:"var(--text-muted)", fontFamily:"var(--font-mono)", letterSpacing:"0.08em", display:"block", marginBottom:6 }}>CAMINHO DO BACKUP</label>
             <input className="input-o" value={config.backupPath} onChange={e=>setConfig({...config,backupPath:e.target.value})} placeholder="/app/backup" />
-            <p style={{ fontSize:10, color:"var(--text-muted)", marginTop:4 }}>Na maquina host: C:\orkestri-clean\backup | Subpastas: \full e \incremental</p>
+            <p style={{ fontSize:10, color:"var(--text-muted)", marginTop:4 }}>Volume persistente do container. Subpastas: /full e /incremental</p>
+          </div>
+
+          <div>
+            <label style={{ fontSize:11, color:"var(--text-muted)", fontFamily:"var(--font-mono)", letterSpacing:"0.08em", display:"block", marginBottom:6 }}>CÓPIA EXTERNA (OPCIONAL)</label>
+            <input className="input-o" value={config.backupCopiaPath} onChange={e=>setConfig({...config,backupCopiaPath:e.target.value})} placeholder="ex: /mnt/backup-rede (deixe vazio para desativar)" />
+            <p style={{ fontSize:10, color:"var(--text-muted)", marginTop:4 }}>Se preenchido, cada backup é copiado também para este caminho (ex: share de rede montado no host).</p>
           </div>
 
           {/* Backup Full */}
@@ -187,7 +194,11 @@ export default function SistemaConfig() {
                 ))}
               </div>
             </div>
-            <p style={{ fontSize:10, color:"var(--text-muted)", marginTop:8 }}>Copia completa do banco de dados. Armazenado em: backup/full/</p>
+            <div style={{ marginTop:10 }}>
+              <label style={{ fontSize:11, color:"var(--text-muted)", fontFamily:"var(--font-mono)", display:"block", marginBottom:6 }}>RETENÇÃO (Nº DE ARQUIVOS)</label>
+              <input className="input-o" type="number" min={1} value={config.backupFullRetencao} onChange={e=>setConfig({...config,backupFullRetencao:e.target.value})} placeholder="14" style={{ maxWidth:120 }} />
+            </div>
+            <p style={{ fontSize:10, color:"var(--text-muted)", marginTop:8 }}>Cópia completa (schema + dados), formato custom (.dump, restaurável com pg_restore). Em backup/full/. Mantém os N mais recentes.</p>
             <button className="btn btn-ghost" style={{ fontSize:12, marginTop:10 }} onClick={runFull} disabled={runningFull}>
               {runningFull ? <><Spin/> Executando...</> : "Executar backup full agora"}
             </button>
@@ -219,7 +230,11 @@ export default function SistemaConfig() {
                 ))}
               </div>
             </div>
-            <p style={{ fontSize:10, color:"var(--text-muted)", marginTop:8 }}>Copia apenas os dados alterados na ultima janela de tempo. Armazenado em: backup/incremental/</p>
+            <div style={{ marginTop:10 }}>
+              <label style={{ fontSize:11, color:"var(--text-muted)", fontFamily:"var(--font-mono)", display:"block", marginBottom:6 }}>RETENÇÃO (Nº DE ARQUIVOS)</label>
+              <input className="input-o" type="number" min={1} value={config.backupIncrementalRetencao} onChange={e=>setConfig({...config,backupIncrementalRetencao:e.target.value})} placeholder="24" style={{ maxWidth:120 }} />
+            </div>
+            <p style={{ fontSize:10, color:"var(--text-muted)", marginTop:8 }}>Snapshot leve só de dados (todas as tabelas), frequente. Em backup/incremental/. Mantém os N mais recentes.</p>
             <button className="btn btn-ghost" style={{ fontSize:12, marginTop:10 }} onClick={runInc} disabled={runningInc}>
               {runningInc ? <><Spin/> Executando...</> : "Executar backup incremental agora"}
             </button>

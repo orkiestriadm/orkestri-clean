@@ -18,14 +18,14 @@ const MONTHS      = ["Janeiro","Fevereiro","Marco","Abril","Maio","Junho","Julho
 type TipoMeta = { value: string; label: string; icon: any; defaultColor: string };
 const TIPO_META: TipoMeta[] = [
   { value: "REUNIAO",     label: "Reunião",     icon: Users,         defaultColor: "#22d3ee" },
-  { value: "COMPROMISSO", label: "Compromisso", icon: CalendarDays,  defaultColor: "#a78bfa" },
+  { value: "COMPROMISSO", label: "Compromisso", icon: CalendarDays,  defaultColor: "#EF5350" },
   { value: "PROJETO",     label: "Projeto",     icon: Briefcase,     defaultColor: "#34d399" },
   { value: "LEMBRETE",    label: "Lembrete",    icon: Bell,          defaultColor: "#fbbf24" },
   { value: "PESSOAL",     label: "Pessoal",     icon: ClipboardList, defaultColor: "#f472b6" },
 ];
 const tipoMeta = (t: string) => TIPO_META.find(x => x.value === t) || TIPO_META[1];
 
-const CORES = ["#a78bfa","#22d3ee","#34d399","#fbbf24","#f87171","#60a5fa","#f472b6","#fb923c","#a3e635","#94a3b8"];
+const CORES = ["#EF5350","#22d3ee","#34d399","#fbbf24","#f87171","#60a5fa","#f472b6","#fb923c","#a3e635","#94a3b8"];
 const RECORRENCIAS = [
   { value:"", label:"Nao repetir" },
   { value:"DIARIA", label:"Diariamente" },
@@ -86,7 +86,7 @@ function dayVisual(date: Date) {
   const holiday   = getHoliday(date);
 
   if (isToday) {
-    return { bg: "rgba(124,58,237,0.06)", border: "1px solid rgba(124,58,237,0.5)", color: "var(--accent-violet)", weight: 700, kind: "today" as const, holiday };
+    return { bg: "rgba(211,47,47,0.06)", border: "1px solid rgba(211,47,47,0.5)", color: "var(--accent-violet)", weight: 700, kind: "today" as const, holiday };
   }
   if (holiday) {
     // Feriado: vermelho real, com bg mais nítido
@@ -269,18 +269,14 @@ function CalendarSkeleton({ view }: { view: View }) {
 
 // ── Item #9: estado vazio ─────────────────────────────────────────────────────
 function EmptyState({ onCreate, period }: { onCreate: () => void; period: string }) {
+  // Banner fino — NÃO substitui a grade do calendário (que continua visível e clicável)
   return (
-    <div className="card" style={{ padding: "60px 20px", textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
-      <div style={{ width: 56, height: 56, borderRadius: "50%", background: "rgba(124,58,237,0.1)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <Calendar size={28} style={{ color: "var(--accent-violet)" }} />
-      </div>
-      <div>
-        <h3 style={{ fontSize: 15, fontWeight: 600, color: "var(--text-primary)", marginBottom: 4 }}>Nenhum evento {period}</h3>
-        <p style={{ fontSize: 12, color: "var(--text-muted)" }}>Comece criando seu primeiro evento — clique em qualquer dia ou no botão acima.</p>
-      </div>
-      <button className="btn btn-violet" style={{ fontSize: 12, marginTop: 4 }} onClick={onCreate}>
+    <div className="card" style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 14, padding: "11px 18px", marginBottom: 10, flexWrap: "wrap" }}>
+      <Calendar size={17} style={{ color: "var(--accent-violet)" }} />
+      <span style={{ fontSize: 13, color: "var(--text-muted)" }}>Nenhum evento {period} — clique em um dia do calendário ou crie agora.</span>
+      <button className="btn btn-violet" style={{ fontSize: 12 }} onClick={onCreate}>
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 5v14M5 12h14" strokeLinecap="round"/></svg>
-        Criar evento agora
+        Criar evento
       </button>
     </div>
   );
@@ -610,7 +606,7 @@ function MonthView({ events, cur, onDayClick, onDayDblClick, onEventClick, selec
                     alignItems: "center",
                     justifyContent: "center",
                     zIndex: 2,
-                    boxShadow: "0 2px 6px rgba(124,58,237,0.4)",
+                    boxShadow: "0 2px 6px rgba(211,47,47,0.4)",
                   }}
                 >
                   +
@@ -1193,9 +1189,9 @@ export default function AgendaPage() {
         {/* item #9: empty state quando carregou e não tem nada */}
         {isEmpty && <EmptyState period={emptyPeriod} onCreate={() => setModalNew(toLocalISOStr(new Date()))} />}
 
-        {!loading && !isEmpty && view==="mes" && <MonthView events={events} cur={cur} selectedDate={curDate} onDayClick={(ds:string)=>setCurDate(new Date(ds+"T12:00:00"))} onDayDblClick={(ds:string)=>setModalNew(ds+"T09:00")} onEventClick={(ev:Event)=>setModalDet(ev)} />}
-        {!loading && !isEmpty && view==="semana" && <WeekView events={events} weekStart={weekStart} onSlotClick={(dt:string)=>setModalNew(dt)} onEventClick={(ev:Event)=>setModalDet(ev)} />}
-        {!loading && !isEmpty && view==="dia" && <DayView events={events} date={curDate} onSlotClick={(dt:string)=>setModalNew(dt)} onEventClick={(ev:Event)=>setModalDet(ev)} />}
+        {!loading && view==="mes" && <MonthView events={events} cur={cur} selectedDate={curDate} onDayClick={(ds:string)=>setCurDate(new Date(ds+"T12:00:00"))} onDayDblClick={(ds:string)=>setModalNew(ds+"T09:00")} onEventClick={(ev:Event)=>setModalDet(ev)} />}
+        {!loading && view==="semana" && <WeekView events={events} weekStart={weekStart} onSlotClick={(dt:string)=>setModalNew(dt)} onEventClick={(ev:Event)=>setModalDet(ev)} />}
+        {!loading && view==="dia" && <DayView events={events} date={curDate} onSlotClick={(dt:string)=>setModalNew(dt)} onEventClick={(ev:Event)=>setModalDet(ev)} />}
         </main>
        </div>
       </div>

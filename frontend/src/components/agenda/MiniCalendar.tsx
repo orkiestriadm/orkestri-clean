@@ -129,10 +129,10 @@ export default function MiniCalendar({ selectedDate, eventDates, onChange }: Pro
             color = "white";
             fontWeight = 700;
           } else if (isToday) {
-            bg = "rgba(124,58,237,0.12)";
+            bg = "rgba(211,47,47,0.12)";
             color = "var(--accent-violet)";
             fontWeight = 700;
-            border = "1px solid rgba(124,58,237,0.5)";
+            border = "1px solid rgba(211,47,47,0.5)";
           }
           if (outOfMonth) {
             color = "var(--text-muted)";
@@ -162,7 +162,7 @@ export default function MiniCalendar({ selectedDate, eventDates, onChange }: Pro
                 fontFamily: "var(--font-mono)",
               }}
               onMouseEnter={e => { if (!isSelected) (e.currentTarget as HTMLElement).style.background = "var(--bg-hover)"; }}
-              onMouseLeave={e => { if (!isSelected) (e.currentTarget as HTMLElement).style.background = isToday ? "rgba(124,58,237,0.12)" : "transparent"; }}
+              onMouseLeave={e => { if (!isSelected) (e.currentTarget as HTMLElement).style.background = isToday ? "rgba(211,47,47,0.12)" : "transparent"; }}
             >
               {d.getDate()}
               {hasEvent && !isSelected && (

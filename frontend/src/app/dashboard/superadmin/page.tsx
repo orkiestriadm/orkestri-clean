@@ -518,7 +518,7 @@ const STATUS_COLOR: Record<string, string> = {
   overdue: "#eab308",
   suspended: "#ef4444",
   cancelled: "#6b7280",
-  enterprise_manual: "#7c3aed",
+  enterprise_manual: "#D32F2F",
 };
 const STATUS_LABEL: Record<string, string> = {
   trial: "Trial",
@@ -673,7 +673,7 @@ function OverrideStatusModal({ billing, onClose, onSave }: { billing: OrgBilling
 }
 
 function PaymentHistoryModal({ billing, onClose }: { billing: OrgBilling; onClose: () => void }) {
-  const PAY_STATUS: Record<string, string> = { approved: "#22c55e", rejected: "#ef4444", pending: "#f59e0b", refunded: "#a78bfa", cancelled: "#6b7280" };
+  const PAY_STATUS: Record<string, string> = { approved: "#22c55e", rejected: "#ef4444", pending: "#f59e0b", refunded: "#EF5350", cancelled: "#6b7280" };
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100 }}>
       <div style={{ background: "var(--bg-card)", border: "1px solid var(--border-medium)", borderRadius: 16, padding: 24, width: 500, maxHeight: "80vh", overflowY: "auto" }}>
@@ -735,7 +735,7 @@ function BillingPanel() {
 
   const { stats, billings } = data;
   const statCards = [
-    { label: "MRR", value: `R$ ${stats.mrr.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`, color: "#7c3aed" },
+    { label: "MRR", value: `R$ ${stats.mrr.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`, color: "#D32F2F" },
     { label: "Ativos", value: stats.active, color: "#22c55e" },
     { label: "Trial", value: stats.trial, color: "#f59e0b" },
     { label: "Inadimplentes", value: stats.overdue, color: "#eab308" },

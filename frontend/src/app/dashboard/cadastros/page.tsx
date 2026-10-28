@@ -53,10 +53,10 @@ type Collaborator = {
 };
 
 // ── Constantes ────────────────────────────────────────────────────────────────
-const CORES_SETOR  = ["#a78bfa","#22d3ee","#34d399","#fbbf24","#f87171","#60a5fa","#f472b6","#94a3b8"];
+const CORES_SETOR  = ["#EF5350","#22d3ee","#34d399","#fbbf24","#f87171","#60a5fa","#f472b6","#94a3b8"];
 const ALL_MODULOS  = ["projetos","crm","keep","gantt","relatorios"];
 const MODULOS_CFG  = [
-  { key:"projetos",  label:"Projetos",       desc:"Gerenciamento de projetos e tarefas", cor:"#a78bfa" },
+  { key:"projetos",  label:"Projetos",       desc:"Gerenciamento de projetos e tarefas", cor:"#EF5350" },
   { key:"crm",       label:"CRM",            desc:"Pipeline de negocios e clientes",     cor:"#f472b6" },
   { key:"keep",      label:"Keep",           desc:"Notas e anotacoes pessoais",           cor:"#22d3ee" },
   { key:"gantt",     label:"Linha do Tempo", desc:"Visualizacao Gantt dos projetos",      cor:"#34d399" },
@@ -74,7 +74,7 @@ function Spin() {
 }
 function Avatar({ nome, size=36 }: { nome:string; size?:number }) {
   const i = nome.split(" ").map((n:string)=>n[0]).slice(0,2).join("").toUpperCase();
-  return <div style={{ width:size, height:size, borderRadius:"50%", background:"linear-gradient(135deg,rgba(124,58,237,0.4),rgba(34,211,238,0.3))", border:"1px solid rgba(124,58,237,0.3)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:size*0.35, fontWeight:700, color:"var(--accent-violet)", flexShrink:0 }}>{i}</div>;
+  return <div style={{ width:size, height:size, borderRadius:"50%", background:"linear-gradient(135deg,rgba(211,47,47,0.4),rgba(34,211,238,0.3))", border:"1px solid rgba(211,47,47,0.3)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:size*0.35, fontWeight:700, color:"var(--accent-violet)", flexShrink:0 }}>{i}</div>;
 }
 function Field({ label, children }: any) {
   return <div><label style={{ fontSize:11, color:"var(--text-muted)", fontFamily:"var(--font-mono)", letterSpacing:"0.08em", display:"block", marginBottom:6 }}>{label}</label>{children}</div>;
@@ -114,7 +114,7 @@ function ConfirmModal({ title, message, confirmLabel, danger, onConfirm, onClose
 function SetorModal({ setor, setores, users, onClose, onSave }: { setor?: Setor; setores: Setor[]; users: User[]; onClose:()=>void; onSave:()=>void }) {
   const [nome,         setNome]         = useState(setor?.nome||"");
   const [descricao,    setDescricao]    = useState(setor?.descricao||"");
-  const [cor,          setCor]          = useState(setor?.cor||"#a78bfa");
+  const [cor,          setCor]          = useState(setor?.cor||"#EF5350");
   const [parentId,     setParentId]     = useState(setor?.parentId||"");
   const [responsavelId,setResponsavelId]= useState(setor?.responsavelId||"");
   const [loading, setLoading] = useState(false);
@@ -317,7 +317,7 @@ function UserModal({ user, setores, roles, onClose, onSave }: { user?: User; set
                 const cor = nivelColor(r);
                 return (
                   <button key={r.id} onClick={()=>setRoleId(r.id)}
-                    style={{ display:"flex", alignItems:"center", gap:12, padding:"11px 14px", background:sel?"var(--accent-violet-dim)":"var(--bg-hover)", border:`1px solid ${sel?"rgba(124,58,237,0.4)":"var(--border-subtle)"}`, borderRadius:8, cursor:"pointer", textAlign:"left", transition:"all 0.15s", width:"100%" }}>
+                    style={{ display:"flex", alignItems:"center", gap:12, padding:"11px 14px", background:sel?"var(--accent-violet-dim)":"var(--bg-hover)", border:`1px solid ${sel?"rgba(211,47,47,0.4)":"var(--border-subtle)"}`, borderRadius:8, cursor:"pointer", textAlign:"left", transition:"all 0.15s", width:"100%" }}>
                     <div style={{ width:32, height:32, borderRadius:8, background:cor+"18", border:`1px solid ${cor}35`, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
                       <span style={{ fontSize:10, fontWeight:800, color:cor, fontFamily:"var(--font-mono)" }}>{r.nivel}</span>
                     </div>
@@ -356,7 +356,7 @@ function UserModal({ user, setores, roles, onClose, onSave }: { user?: User; set
                     <div style={{ fontSize:10, color:"var(--text-muted)", fontFamily:"var(--font-mono)", marginBottom:4, textTransform:"uppercase" }}>{recurso}</div>
                     <div style={{ display:"flex", flexWrap:"wrap", gap:3 }}>
                       {acoes.map(a => (
-                        <span key={a} style={{ fontSize:10, fontFamily:"var(--font-mono)", background:"rgba(124,58,237,0.08)", border:"1px solid rgba(124,58,237,0.2)", borderRadius:4, padding:"1px 6px", color:"var(--accent-violet)" }}>{a}</span>
+                        <span key={a} style={{ fontSize:10, fontFamily:"var(--font-mono)", background:"rgba(211,47,47,0.08)", border:"1px solid rgba(211,47,47,0.2)", borderRadius:4, padding:"1px 6px", color:"var(--accent-violet)" }}>{a}</span>
                       ))}
                     </div>
                   </div>
@@ -399,7 +399,7 @@ function ResetPwdModal({ user, onClose }: { user: User; onClose:()=>void }) {
         <div style={{ textAlign:"center", padding:"24px 0", color:"var(--accent-green)" }}>Senha alterada com sucesso!</div>
       ) : (
         <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
-          <div style={{ background:"var(--accent-violet-dim)", border:"1px solid rgba(124,58,237,0.2)", borderRadius:8, padding:"10px 14px", fontSize:13, color:"var(--text-secondary)" }}>
+          <div style={{ background:"var(--accent-violet-dim)", border:"1px solid rgba(211,47,47,0.2)", borderRadius:8, padding:"10px 14px", fontSize:13, color:"var(--text-secondary)" }}>
             Alterando senha de <strong>{user.nome}</strong>
           </div>
           <Field label="NOVA SENHA"><input className="input-o" type="password" value={senha} onChange={e=>setSenha(e.target.value)} autoFocus /></Field>
@@ -512,7 +512,7 @@ function UserPermissionsModal({ user, allPerms, onClose }: { user: User; allPerm
         {loading ? (
           <div style={{ display:"flex", justifyContent:"center", padding:32 }}><Spin/></div>
         ) : isAllAccess ? (
-          <div style={{ padding:"14px 16px", background:"rgba(124,58,237,0.08)", border:"1px solid rgba(124,58,237,0.2)", borderRadius:8, fontSize:12, color:"var(--accent-violet)" }}>
+          <div style={{ padding:"14px 16px", background:"rgba(211,47,47,0.08)", border:"1px solid rgba(211,47,47,0.2)", borderRadius:8, fontSize:12, color:"var(--accent-violet)" }}>
             Este usuário tem acesso irrestrito. Overrides não se aplicam a contas master.
           </div>
         ) : (
@@ -534,7 +534,7 @@ function UserPermissionsModal({ user, allPerms, onClose }: { user: User; allPerm
                       } else if (ov?.conceder === false) {
                         bg="rgba(239,68,68,0.12)"; border="rgba(239,68,68,0.4)"; color="#ef4444"; label="- revogado";
                       } else if (isActive) {
-                        bg="rgba(124,58,237,0.08)"; border="rgba(124,58,237,0.25)"; color="var(--accent-violet)"; label="";
+                        bg="rgba(211,47,47,0.08)"; border="rgba(211,47,47,0.25)"; color="var(--accent-violet)"; label="";
                       } else {
                         bg="var(--bg-hover)"; border="var(--border-subtle)"; color="var(--text-muted)"; label="";
                       }
@@ -574,7 +574,7 @@ type DiretorioUser = { id:string; nome:string; email:string; avatar?:string; car
 
 function SetorCard({ s, depth=0 }: { s: SetorTree; depth?: number }) {
   const [open, setOpen] = useState(true);
-  const cor = s.cor || "#a78bfa";
+  const cor = s.cor || "#EF5350";
   const memberCount = s._count?.users ?? 0;
   return (
     <div style={{ marginLeft: depth * 24 }}>
@@ -791,7 +791,7 @@ function MatrizTab() {
               const perms = data.permissions.filter(p => p.recurso === recurso);
               return perms.map((perm, pi) => (
                 <tr key={perm.id}
-                  onMouseEnter={e=>(e.currentTarget as HTMLElement).style.background="rgba(124,58,237,0.03)"}
+                  onMouseEnter={e=>(e.currentTarget as HTMLElement).style.background="rgba(211,47,47,0.03)"}
                   onMouseLeave={e=>(e.currentTarget as HTMLElement).style.background="transparent"}>
                   <td style={{ padding:"3px 16px 3px 0", borderBottom: pi === perms.length-1 ? "1px solid var(--border-subtle)" : "none", position:"sticky", left:0, background:"var(--card)", zIndex:1 }}>
                     <div style={{ display:"flex", alignItems:"center", gap:8 }}>
@@ -1315,7 +1315,7 @@ function OrgForm({ org, onClose, onSave }: { org?: OrgItem; onClose:()=>void; on
   );
 }
 
-const SKILL_COLORS = ["#a78bfa","#22d3ee","#34d399","#fbbf24","#f87171","#60a5fa","#f472b6","#94a3b8"];
+const SKILL_COLORS = ["#EF5350","#22d3ee","#34d399","#fbbf24","#f87171","#60a5fa","#f472b6","#94a3b8"];
 const SKILL_CATEGORIAS_SUGGESTIONS = ["Tecnologia","Soft Skill","Certificação","Idioma","Ferramenta","Metodologia","Domínio de Negócio"];
 
 const SQUAD_PAPEIS = ["membro","lider","product_owner","tech_lead","scrum_master"];
@@ -1443,7 +1443,7 @@ function SquadMembersManager({ squad, allCollabs, onClose, onSave }: { squad: Sq
           {available.length===0?"Todos os colaboradores já no squad":"+ Adicionar membro"}
         </button>
       ) : (
-        <div style={{ display:"flex", flexDirection:"column", gap:10, padding:14, borderRadius:10, background:"var(--accent-violet-dim)", border:"1px solid rgba(124,58,237,0.2)" }}>
+        <div style={{ display:"flex", flexDirection:"column", gap:10, padding:14, borderRadius:10, background:"var(--accent-violet-dim)", border:"1px solid rgba(211,47,47,0.2)" }}>
           <select className="input-o" value={newCollabId} onChange={e=>setNewCollabId(e.target.value)}>
             <option value="">— Colaborador —</option>
             {available.map(c=><option key={c.id} value={c.id}>{c.user?.nome}</option>)}
@@ -1542,7 +1542,7 @@ function AusenciaCreateForm({ collabs, onClose, onSave }: { collabs: Collaborato
 }
 
 const NIVEL_OPTS = ["junior","pleno","senior","especialista"];
-const NIVEL_COLORS: Record<string,string> = { junior:"#94a3b8", pleno:"#60a5fa", senior:"#a78bfa", especialista:"#fbbf24" };
+const NIVEL_COLORS: Record<string,string> = { junior:"#94a3b8", pleno:"#60a5fa", senior:"#EF5350", especialista:"#fbbf24" };
 
 function CollabSkillsManager({ collab, allSkills, onClose }: { collab: Collaborator; allSkills: Skill[]; onClose:()=>void }) {
   const [assignments, setAssignments] = useState<any[]>([]);
@@ -1592,8 +1592,8 @@ function CollabSkillsManager({ collab, allSkills, onClose }: { collab: Collabora
         <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
           {assignments.map(a => (
             <div key={a.id} style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 12px", borderRadius:8, border:"1px solid var(--border-subtle)", background:"var(--bg-secondary)" }}>
-              <div style={{ width:28, height:28, borderRadius:7, background:(a.skill.cor||"#a78bfa")+"20", border:`1px solid ${(a.skill.cor||"#a78bfa")}40`, display:"flex", alignItems:"center", justifyContent:"center" }}>
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={a.skill.cor||"#a78bfa"} strokeWidth="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+              <div style={{ width:28, height:28, borderRadius:7, background:(a.skill.cor||"#EF5350")+"20", border:`1px solid ${(a.skill.cor||"#EF5350")}40`, display:"flex", alignItems:"center", justifyContent:"center" }}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={a.skill.cor||"#EF5350"} strokeWidth="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
               </div>
               <div style={{ flex:1, minWidth:0 }}>
                 <div style={{ fontSize:13, fontWeight:500 }}>{a.skill.nome}</div>
@@ -1617,7 +1617,7 @@ function CollabSkillsManager({ collab, allSkills, onClose }: { collab: Collabora
           {availableSkills.length === 0 ? "Todas as skills do catálogo já atribuídas" : "+ Atribuir nova skill"}
         </button>
       ) : (
-        <div style={{ display:"flex", flexDirection:"column", gap:10, padding:14, borderRadius:10, background:"var(--accent-violet-dim)", border:"1px solid rgba(124,58,237,0.2)" }}>
+        <div style={{ display:"flex", flexDirection:"column", gap:10, padding:14, borderRadius:10, background:"var(--accent-violet-dim)", border:"1px solid rgba(211,47,47,0.2)" }}>
           <div style={{ fontSize:11, fontFamily:"var(--font-mono)", letterSpacing:"0.08em", color:"var(--accent-violet)" }}>NOVA ATRIBUIÇÃO</div>
           <div style={{ display:"flex", gap:8 }}>
             <select className="input-o" value={newSkillId} onChange={e=>setNewSkillId(e.target.value)} style={{ flex:1 }}>
@@ -2301,7 +2301,7 @@ export default function CadastrosPage() {
                   </div>
                   <div style={{ minWidth:0 }}>
                     {c.cargo && <div style={{ fontSize:12, color:"var(--text-secondary)" }}>{c.cargo}{c.senioridade?` · ${c.senioridade}`:""}</div>}
-                    {c.setor && <span className="badge" style={{ fontSize:10, background:(c.setor.cor||"#a78bfa")+"15", color:c.setor.cor||"#a78bfa", border:`1px solid ${(c.setor.cor||"#a78bfa")}30`, marginTop:4 }}>{c.setor.nome}</span>}
+                    {c.setor && <span className="badge" style={{ fontSize:10, background:(c.setor.cor||"#EF5350")+"15", color:c.setor.cor||"#EF5350", border:`1px solid ${(c.setor.cor||"#EF5350")}30`, marginTop:4 }}>{c.setor.nome}</span>}
                     {c.departamento && !c.setor && <div style={{ fontSize:11, color:"var(--text-muted)" }}>{c.departamento}</div>}
                     {c.gestor?.user && <div style={{ fontSize:10, color:"var(--text-muted)", fontFamily:"var(--font-mono)", marginTop:2 }}>↑ {c.gestor.user.nome}</div>}
                   </div>
@@ -2426,7 +2426,7 @@ export default function CadastrosPage() {
                 ) : filteredSkills.length===0 ? (
                   <div className="empty-state"><p style={{ color:"var(--text-secondary)", fontWeight:500 }}>{search?"Nenhuma skill encontrada":"Nenhuma skill cadastrada — cadastre habilidades técnicas, certificações ou competências"}</p></div>
                 ) : filteredSkills.map((s,i)=>{
-                  const color = s.cor || "#a78bfa";
+                  const color = s.cor || "#EF5350";
                   return (
                     <div key={s.id} style={{ display:"grid", gridTemplateColumns:"1fr 1fr auto auto auto", gap:16, padding:"14px 20px", borderBottom:i<filteredSkills.length-1?"1px solid var(--border-subtle)":"none", alignItems:"center", opacity:s.ativo?1:0.55, transition:"background 0.15s" }}
                       onMouseEnter={e=>(e.currentTarget as HTMLElement).style.background="var(--bg-hover)"}
@@ -2468,7 +2468,7 @@ export default function CadastrosPage() {
         {tab==="ausencias" && (() => {
           const filteredAus = ausencias.filter(a => filterAusenciaStatus==="todos" ? true : a.status===filterAusenciaStatus);
           const tipoLabels: Record<string, string> = { ferias:"Férias", atestado:"Atestado", folga:"Folga", licenca:"Licença", banco_horas:"Banco de horas", outro:"Outro" };
-          const tipoColors: Record<string, string> = { ferias:"#22d3ee", atestado:"#f87171", folga:"#a78bfa", licenca:"#fbbf24", banco_horas:"#34d399", outro:"#94a3b8" };
+          const tipoColors: Record<string, string> = { ferias:"#22d3ee", atestado:"#f87171", folga:"#EF5350", licenca:"#fbbf24", banco_horas:"#34d399", outro:"#94a3b8" };
           const statusColors: Record<string, string> = { PENDENTE:"#fbbf24", APROVADA:"#34d399", REJEITADA:"#f87171", CANCELADA:"#94a3b8" };
           const aprovar = async (a: Ausencia) => { try { await api.patch(`/ausencias/${a.id}/aprovar`); load(); } catch {} };
           const cancelar = async (a: Ausencia) => { if (!confirm(`Cancelar ausência de ${a.collaborator.user.nome}?`)) return; try { await api.patch(`/ausencias/${a.id}/cancelar`); load(); } catch {} };
@@ -2587,7 +2587,7 @@ export default function CadastrosPage() {
               ) : (
                 <div className="animate-up" style={{ display:"grid", gridTemplateColumns:"repeat(2,1fr)", gap:12 }}>
                   {filteredSquads.map(sq=>{
-                    const cor = sq.cor || "#a78bfa";
+                    const cor = sq.cor || "#EF5350";
                     return (
                       <div key={sq.id} className="card" style={{ padding:0, overflow:"hidden", opacity:sq.ativo?1:0.6 }}>
                         <div style={{ padding:"14px 18px", borderBottom:"1px solid var(--border-subtle)", display:"flex", alignItems:"center", gap:12 }}>

@@ -37,7 +37,7 @@ function SuspendedContent() {
 
         <p className="text-sm mb-6 leading-relaxed" style={{ color: "var(--text-secondary, #9090b0)" }}>
           {isTrialExpired
-            ? "O período de avaliação gratuita da sua organização chegou ao fim. Para continuar usando o Orkiestri, ative sua assinatura."
+            ? "O período de avaliação gratuita da sua organização chegou ao fim. Para continuar usando o HUB Operacional, ative sua assinatura."
             : "O acesso da sua organização foi suspenso por inadimplência ou cancelamento. Regularize para voltar a usar a plataforma."}
         </p>
 
@@ -49,7 +49,7 @@ function SuspendedContent() {
               target="_blank"
               rel="noopener noreferrer"
               className="w-full flex items-center justify-center gap-2 rounded-xl px-4 py-3 font-semibold text-white transition-opacity hover:opacity-90"
-              style={{ background: "var(--accent-violet, #7c3aed)" }}
+              style={{ background: "var(--accent-violet, #D32F2F)" }}
             >
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <rect x="1" y="4" width="22" height="16" rx="2" ry="2"/>
@@ -60,7 +60,7 @@ function SuspendedContent() {
           )}
 
           <a
-            href="https://wa.me/5511999999999?text=Preciso%20de%20ajuda%20com%20minha%20assinatura%20Orkiestri"
+            href="https://wa.me/5511999999999?text=Preciso%20de%20ajuda%20com%20minha%20assinatura%20HUB Operacional"
             target="_blank"
             rel="noopener noreferrer"
             className="w-full flex items-center justify-center gap-2 rounded-xl px-4 py-3 font-medium transition-colors"
@@ -88,7 +88,7 @@ function SuspendedContent() {
 
       {/* Rodapé */}
       <p className="mt-8 text-xs" style={{ color: "var(--text-muted, #60608080)" }}>
-        Orkiestri · orkiestri.com
+        HUB Operacional · Triunfo Transbrasiliana
       </p>
     </div>
   );

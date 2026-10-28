@@ -58,6 +58,18 @@ function StatCard({ label, value, color, onClick, active }: { label:string; valu
   );
 }
 
+// Field helper — DEVE ficar fora dos componentes. Quando declarado dentro,
+// uma nova referencia eh criada a cada render e o React desmonta a subtree,
+// fazendo o input perder foco a cada keystroke.
+function F({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <label style={{ fontSize:10, color:"var(--text-muted)", fontFamily:"var(--font-mono)", display:"block", marginBottom:4 }}>{label}</label>
+      {children}
+    </div>
+  );
+}
+
 // ── AtivoForm ─────────────────────────────────────────────────────────────────
 function AtivoForm({ ativo, categorias, users, setores, onSave, onCancel }: {
   ativo?: Ativo; categorias: Categoria[];
@@ -80,13 +92,6 @@ function AtivoForm({ ativo, categorias, users, setores, onSave, onCancel }: {
     } catch (e: any) { setErr(e?.response?.data?.message || "Erro ao salvar"); }
     finally { setSaving(false); }
   };
-
-  const F = ({ label, children }: { label: string; children: React.ReactNode }) => (
-    <div>
-      <label style={{ fontSize:10, color:"var(--text-muted)", fontFamily:"var(--font-mono)", display:"block", marginBottom:4 }}>{label}</label>
-      {children}
-    </div>
-  );
 
   return (
     <div style={{ maxWidth:680, display:"flex", flexDirection:"column", gap:14 }}>

@@ -77,7 +77,7 @@ export default function DisponibilidadePage() {
   const selectedUsers = users.filter(u => selected.includes(u.id));
   const freeSlots = suggest.filter(s => s.disponivel);
 
-  const COLORS = ["#a78bfa","#22d3ee","#34d399","#fbbf24","#f87171","#60a5fa","#f472b6"];
+  const COLORS = ["#EF5350","#22d3ee","#34d399","#fbbf24","#f87171","#60a5fa","#f472b6"];
 
   return (
     <div style={{ display:"flex", flexDirection:"column", height:"100%", background:"var(--bg-primary)" }}>

@@ -112,7 +112,7 @@ export default function FocusMode({ onClose }: { onClose: () => void }) {
         {/* Controles */}
         <div style={{ display:"flex", gap:10, width:"100%" }}>
           <button className="btn btn-ghost" style={{ flex:1 }} onClick={reset}>Resetar</button>
-          <button className="btn" style={{ flex:2, background:running?"var(--accent-red)":"linear-gradient(135deg,#7c3aed,#6d28d9)", border:"none", color:"white", fontWeight:700, fontSize:15, letterSpacing:"0.04em" }} onClick={toggle}>
+          <button className="btn" style={{ flex:2, background:running?"var(--accent-red)":"linear-gradient(135deg,#D32F2F,#B71C1C)", border:"none", color:"white", fontWeight:700, fontSize:15, letterSpacing:"0.04em" }} onClick={toggle}>
             {running ? "Pausar" : seconds===phaseCfg.duration ? "Iniciar" : "Continuar"}
           </button>
           <button className="btn btn-ghost" style={{ flex:1 }} onClick={next}>Pular</button>

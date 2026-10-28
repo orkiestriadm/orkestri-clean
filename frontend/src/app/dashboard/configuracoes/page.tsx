@@ -252,7 +252,7 @@ export default function ConfiguracoesPage() {
                         <label style={{ fontSize:10, color:"var(--text-muted)", fontFamily:"var(--font-mono)", display:"block", marginBottom:4 }}>MENSAGEM WHATSAPP</label>
                         <textarea className="input-o" value={local.mensagem} onChange={e=>setEditD(p=>({...p,mensagem:e.target.value}))} style={{ minHeight:80, resize:"vertical", fontFamily:"var(--font-mono)", fontSize:12 }} />
                         <div style={{ display:"flex", gap:4, marginTop:4 }}>
-                          {VARS.map(v=><button key={v} onClick={()=>setEditD(p=>({...p,mensagem:(p.mensagem||cfg.mensagem)+v}))} style={{ background:"var(--accent-violet-dim)", border:"1px solid rgba(124,58,237,0.2)", borderRadius:4, padding:"2px 7px", fontSize:10, color:"var(--accent-violet)", cursor:"pointer", fontFamily:"var(--font-mono)" }}>{v}</button>)}
+                          {VARS.map(v=><button key={v} onClick={()=>setEditD(p=>({...p,mensagem:(p.mensagem||cfg.mensagem)+v}))} style={{ background:"var(--accent-violet-dim)", border:"1px solid rgba(211,47,47,0.2)", borderRadius:4, padding:"2px 7px", fontSize:10, color:"var(--accent-violet)", cursor:"pointer", fontFamily:"var(--font-mono)" }}>{v}</button>)}
                         </div>
                       </div>
                       <div style={{ background:"rgba(34,211,238,0.05)", border:"1px solid rgba(34,211,238,0.15)", borderRadius:8, padding:"10px 12px" }}>

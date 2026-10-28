@@ -75,9 +75,9 @@ export default function SolicitarAcessoPage() {
 
       {/* ── Background ── */}
       <div className="fixed inset-0 pointer-events-none select-none">
-        <div className="absolute top-[-15%] left-[-8%] w-[800px] h-[800px] rounded-full bg-violet-600/10 dark:bg-violet-700/8 blur-[150px]" />
+        <div className="absolute top-[-15%] left-[-8%] w-[800px] h-[800px] rounded-full bg-red-600/10 dark:bg-red-700/8 blur-[150px]" />
         <div className="absolute bottom-[-15%] right-[-8%] w-[700px] h-[700px] rounded-full bg-cyan-500/10 dark:bg-cyan-500/6 blur-[130px]" />
-        <div className="absolute top-1/2 right-1/3 w-[300px] h-[300px] rounded-full bg-violet-500/10 dark:bg-violet-500/5 blur-[80px] -translate-y-1/2" />
+        <div className="absolute top-1/2 right-1/3 w-[300px] h-[300px] rounded-full bg-red-500/10 dark:bg-red-500/5 blur-[80px] -translate-y-1/2" />
         <div className="absolute inset-0 opacity-[0.05] dark:opacity-[0.022]"
           style={{ backgroundImage: 'radial-gradient(circle, var(--accent-violet) 1px, transparent 1px)', backgroundSize: '32px 32px' }} />
         <div className="hidden lg:block absolute top-0 bottom-0 left-1/2 w-px bg-gradient-to-b from-transparent via-[var(--border-strong)] to-transparent" />
@@ -103,7 +103,7 @@ export default function SolicitarAcessoPage() {
             <h1 className="font-display text-[44px] font-bold leading-[1.08] tracking-tight text-[var(--text-primary)] mb-5">
               Profundidade
               <br />
-              <span className="bg-gradient-to-r from-violet-500 via-fuchsia-400 to-violet-500 dark:from-violet-400 dark:via-fuchsia-300 dark:to-violet-400 bg-clip-text text-transparent">
+              <span className="bg-gradient-to-r from-red-500 via-red-400 to-red-500 dark:from-red-400 dark:via-red-300 dark:to-red-400 bg-clip-text text-transparent">
                 corporativa.
               </span>
               <br />
@@ -155,12 +155,12 @@ export default function SolicitarAcessoPage() {
         <div className="flex items-center gap-3">
           <div className="flex -space-x-1.5">
             {['G', 'T', 'R', 'M', 'A'].map((l, i) => (
-              <div key={i} className="w-7 h-7 rounded-full border-2 border-[var(--bg-primary)] bg-gradient-to-br from-violet-500/60 to-violet-700/60 flex items-center justify-center text-[9px] font-bold text-white shadow-sm">
+              <div key={i} className="w-7 h-7 rounded-full border-2 border-[var(--bg-primary)] bg-gradient-to-br from-red-500/60 to-red-700/60 flex items-center justify-center text-[9px] font-bold text-white shadow-sm">
                 {l}
               </div>
             ))}
           </div>
-          <p className="text-[12px] text-[var(--text-muted)]">+120 empresas confiam no Orkiestri</p>
+          <p className="text-[12px] text-[var(--text-muted)]">+120 empresas confiam no HUB Operacional</p>
         </div>
       </motion.div>
 

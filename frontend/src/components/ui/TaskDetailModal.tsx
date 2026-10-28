@@ -61,7 +61,7 @@ export default function TaskDetailModal({ projectId, task, onClose, onUpdate }: 
                 <div>
                   <div style={{ fontSize:11, color:"var(--text-muted)", fontFamily:"var(--font-mono)", marginBottom:6 }}>RESPONSAVEL</div>
                   <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-                    <div style={{ width:28, height:28, borderRadius:"50%", background:"var(--accent-violet-dim)", border:"1px solid rgba(124,58,237,0.3)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:11, fontWeight:700, color:"var(--accent-violet)" }}>{task.assignee.nome.charAt(0)}</div>
+                    <div style={{ width:28, height:28, borderRadius:"50%", background:"var(--accent-violet-dim)", border:"1px solid rgba(211,47,47,0.3)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:11, fontWeight:700, color:"var(--accent-violet)" }}>{task.assignee.nome.charAt(0)}</div>
                     <span style={{ fontSize:13 }}>{task.assignee.nome}</span>
                   </div>
                 </div>

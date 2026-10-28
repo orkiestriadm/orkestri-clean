@@ -162,7 +162,7 @@ function AgentSetup({ apiUrl }: { apiUrl: string }) {
         Configurar Agente de Monitoramento
       </div>
       <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 16 }}>
-        O agente roda na sua rede interna, faz o ping dos ativos e envia os resultados para o Orkiestri. Não é necessário abrir portas — só precisa de acesso à internet de saída.
+        O agente roda na sua rede interna, faz o ping dos ativos e envia os resultados para o HUB Operacional. Não é necessário abrir portas — só precisa de acesso à internet de saída.
       </div>
 
       <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>

@@ -197,8 +197,8 @@ function AIInsightsPanel({ alerts, loading }: { alerts: Alert[]; loading: boolea
   return (
     <div className="card-premium flex flex-col">
       <div className="flex items-center gap-2.5 px-5 pt-5 pb-3 border-b border-[var(--border-subtle)] shrink-0">
-        <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-violet-500/12 border border-violet-500/20">
-          <Brain size={14} className="text-violet-400" />
+        <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-red-500/12 border border-red-500/20">
+          <Brain size={14} className="text-red-400" />
         </div>
         <div>
           <div className="text-[12px] font-bold text-[var(--text-primary)] uppercase tracking-wide">IA Insights</div>
@@ -375,7 +375,7 @@ export default function CommandCenter() {
             </div>
             <button onClick={() => setShowSettings(s => !s)}
               className={cn("flex items-center gap-2 px-3.5 py-2 rounded-xl border text-[12px] font-medium transition-all",
-                showSettings ? "border-violet-500/40 bg-violet-500/10 text-violet-400" : "border-[var(--border-subtle)] bg-[var(--bg-secondary)] text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+                showSettings ? "border-red-500/40 bg-red-500/10 text-red-400" : "border-[var(--border-subtle)] bg-[var(--bg-secondary)] text-[var(--text-muted)] hover:text-[var(--text-primary)]"
               )}>
               <Settings2 size={13} />
               Widgets
@@ -390,7 +390,7 @@ export default function CommandCenter() {
                 {WIDGETS.map(w => (
                   <button key={w.id} onClick={() => toggleWidget(w.id)}
                     className={cn("flex items-center gap-2 px-3 py-1.5 rounded-lg border text-[12px] font-medium transition-all",
-                      hidden[w.id] ? "border-[var(--border-subtle)] text-[var(--text-muted)] opacity-60" : "border-violet-500/30 bg-violet-500/8 text-violet-400"
+                      hidden[w.id] ? "border-[var(--border-subtle)] text-[var(--text-muted)] opacity-60" : "border-red-500/30 bg-red-500/8 text-red-400"
                     )}>
                     {hidden[w.id] ? <EyeOff size={11} /> : <Eye size={11} />}
                     {w.label}
@@ -430,10 +430,10 @@ export default function CommandCenter() {
 
             {!hidden.projetos && (
               <SectorWidget
-                title="Projetos" icon={FolderKanban} accent="#a78bfa" href="/dashboard/projetos"
+                title="Projetos" icon={FolderKanban} accent="#EF5350" href="/dashboard/projetos"
                 loading={loading}
                 metrics={[
-                  { label: "Projetos Ativos",  value: exec?.projetos.ativos       ?? dash?.projetos.ativos       ?? 0, color: "text-violet-400" },
+                  { label: "Projetos Ativos",  value: exec?.projetos.ativos       ?? dash?.projetos.ativos       ?? 0, color: "text-red-400" },
                   { label: "Concl./mês",       value: exec?.projetos.concluidosMes ?? "—", color: "text-emerald-400" },
                   { label: "Tasks — Total",    value: dash?.tasks.total            ?? "—", color: "text-[var(--text-primary)]" },
                   { label: "Tasks — Concl.",   value: dash?.tasks.concluidas       ?? "—", color: "text-emerald-400" },
@@ -509,16 +509,16 @@ export default function CommandCenter() {
                         <AreaChart data={chartData} margin={{ top: 10, right: 0, left: 0, bottom: 0 }}>
                           <defs>
                             <linearGradient id="ccGrad" x1="0" y1="0" x2="0" y2="1">
-                              <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.22} />
-                              <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0} />
+                              <stop offset="5%" stopColor="#E53935" stopOpacity={0.22} />
+                              <stop offset="95%" stopColor="#E53935" stopOpacity={0} />
                             </linearGradient>
                           </defs>
                           <XAxis dataKey="name" tick={{ fontSize: 10, fill: "var(--text-muted)", fontFamily: "var(--font-mono)" }}
                             axisLine={false} tickLine={false} interval={2} dy={10} />
                           <Tooltip content={<ChartTooltip />} cursor={{ stroke: "var(--border-strong)", strokeWidth: 1, strokeDasharray: "4 4" }} />
-                          <Area type="monotone" dataKey="value" stroke="#8b5cf6" strokeWidth={2.5}
+                          <Area type="monotone" dataKey="value" stroke="#E53935" strokeWidth={2.5}
                             fill="url(#ccGrad)" dot={{ r: 0 }}
-                            activeDot={{ r: 5, fill: "#8b5cf6", stroke: "var(--bg-card)", strokeWidth: 2 }} />
+                            activeDot={{ r: 5, fill: "#E53935", stroke: "var(--bg-card)", strokeWidth: 2 }} />
                         </AreaChart>
                       </ResponsiveContainer>
                     </div>
@@ -619,10 +619,10 @@ export default function CommandCenter() {
                   <div className="px-5 py-3 border-b border-[var(--border-subtle)] bg-[var(--bg-secondary)]/50 shrink-0">
                     <div className="flex items-center justify-between mb-1.5">
                       <span className="text-[11px] text-[var(--text-muted)]">{concluidas}/{daily.length} concluídas</span>
-                      <span className="text-[12px] font-bold text-violet-500">{progresso}%</span>
+                      <span className="text-[12px] font-bold text-red-500">{progresso}%</span>
                     </div>
                     <div className="h-1.5 bg-[var(--bg-hover)] rounded-full overflow-hidden">
-                      <div className="h-full rounded-full bg-violet-500 transition-all duration-700" style={{ width: `${progresso}%` }} />
+                      <div className="h-full rounded-full bg-red-500 transition-all duration-700" style={{ width: `${progresso}%` }} />
                     </div>
                   </div>
                 )}
@@ -642,7 +642,7 @@ export default function CommandCenter() {
                         <div key={task.id} onClick={() => toggleTask(task.id, task.concluido)}
                           className={cn("group flex items-center gap-3 px-5 py-3 cursor-pointer hover:bg-[var(--bg-hover)] transition-all", task.concluido && "opacity-50")}>
                           <div className={cn("w-4 h-4 rounded-[5px] flex items-center justify-center shrink-0 border transition-all",
-                            task.concluido ? "bg-violet-500 border-violet-500 text-white" : "border-[var(--border-strong)] group-hover:border-violet-500/50")}>
+                            task.concluido ? "bg-red-500 border-red-500 text-white" : "border-[var(--border-strong)] group-hover:border-red-500/50")}>
                             {task.concluido && <Check size={10} strokeWidth={3} />}
                           </div>
                           <span className={cn("flex-1 text-[12px] font-medium truncate",
@@ -678,13 +678,13 @@ export default function CommandCenter() {
                 { href: "/dashboard/executivo",  label: "Executivo",    icon: TrendingUp,  accent: "#10b981" },
                 { href: "/dashboard/relatorios", label: "Relatórios",   icon: BarChart3,   accent: "#3b82f6" },
                 { href: "/dashboard/agenda",     label: "Agenda",       icon: Calendar,    accent: "#f59e0b" },
-                { href: "/dashboard/orcamento",  label: "Orçamento",    icon: PiggyBank,   accent: "#a78bfa" },
+                { href: "/dashboard/orcamento",  label: "Orçamento",    icon: PiggyBank,   accent: "#EF5350" },
                 { href: "/dashboard/clientes",   label: "Clientes",     icon: Building2,   accent: "#06b6d4" },
                 { href: "/dashboard/workforce",  label: "Workforce",    icon: Users,       accent: "#ec4899" },
                 { href: "/dashboard/contratos",  label: "Contratos",    icon: FileText,    accent: "#0ea5e9" },
                 { href: "/dashboard/faturas",    label: "Faturas",      icon: Receipt,     accent: "#34d399" },
                 { href: "/dashboard/gantt",      label: "Linha do Tempo", icon: Activity,  accent: "#f97316" },
-                { href: "/dashboard/keep",       label: "Keep",         icon: StickyNote,  accent: "#8b5cf6" },
+                { href: "/dashboard/keep",       label: "Keep",         icon: StickyNote,  accent: "#E53935" },
                 { href: "/dashboard/conhecimento",label:"Conhecimento", icon: CheckCircle2,accent: "#22d3ee" },
                 { href: "/dashboard/ativos",     label: "Ativos",       icon: Package,     accent: "#64748b" },
               ].map(m => {

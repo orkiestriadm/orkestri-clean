@@ -346,7 +346,7 @@ export default function FaturasPage() {
             { label: "Pendentes", value: stats?.pendentes ?? 0, sub: stats ? fmt(stats.valorPendente) : "—", icon: Clock, cls: "text-amber-500 bg-amber-500/10 border-amber-500/20" },
             { label: "Vencidas",  value: stats?.vencidas ?? 0,  sub: stats ? fmt(stats.valorVencido) : "—",  icon: AlertCircle, cls: "text-red-500 bg-red-500/10 border-red-500/20" },
             { label: "Pagas",     value: stats?.pagas ?? 0,     sub: "este ciclo",                           icon: CheckCircle2, cls: "text-emerald-500 bg-emerald-500/10 border-emerald-500/20" },
-            { label: "Total",     value: stats?.total ?? 0,     sub: stats ? fmt(stats.valorTotal) : "—",    icon: DollarSign, cls: "text-violet-500 bg-violet-500/10 border-violet-500/20" },
+            { label: "Total",     value: stats?.total ?? 0,     sub: stats ? fmt(stats.valorTotal) : "—",    icon: DollarSign, cls: "text-red-500 bg-red-500/10 border-red-500/20" },
           ].map(card => (
             <div key={card.label} className="p-4 rounded-xl border border-border bg-card flex flex-col gap-2">
               <div className="flex items-center justify-between">

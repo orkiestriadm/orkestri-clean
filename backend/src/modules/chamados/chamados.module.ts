@@ -335,6 +335,122 @@ class ChamadosController {
     }));
   }
 
+  /**
+   * Timeline unificada do chamado: junta auditoria + comentarios + anexos + apontamentos
+   * num unico stream cronologico. Usada pela UI pra mostrar histórico completo de
+   * tudo que aconteceu (quem abriu, quando, quem assumiu, mudancas de status,
+   * comentarios publicos e internos, anexos enviados, horas apontadas).
+   */
+  @Get(":id/timeline")
+  @Permissions("chamados:ver")
+  async timeline(@Param("id") id: string, @Req() req: any) {
+    const c: any = await (this.prisma as any).chamado.findUnique({
+      where: { id },
+      select: { id: true, organizationId: true, status: true, atendenteId: true, solicitanteId: true },
+    });
+    if (!c) throw new NotFoundException("Chamado nao encontrado");
+    const orgId = req.user?.organizationId;
+    if (orgId && c.organizationId && c.organizationId !== orgId) throw new NotFoundException("Chamado nao encontrado");
+    const userId = req.user.id;
+    const inPublicQueue = c.status === "aberto" && !c.atendenteId;
+    const canView = req.user.isMaster || c.solicitanteId === userId || c.atendenteId === userId || inPublicQueue;
+    if (!canView) throw new ForbiddenException("Acesso negado");
+
+    const [audits, coments, anexos, apts] = await Promise.all([
+      (this.prisma as any).chamadoAuditoria.findMany({
+        where: { chamadoId: id },
+        include: { user: { select: { id: true, nome: true, avatar: true } } },
+        orderBy: { criadoEm: "desc" }, take: 500,
+      }),
+      (this.prisma as any).chamadoComentario.findMany({
+        where: { chamadoId: id },
+        include: { user: { select: { id: true, nome: true, avatar: true } } },
+        orderBy: { criadoEm: "desc" }, take: 500,
+      }),
+      (this.prisma as any).chamadoAnexo.findMany({
+        where: { chamadoId: id },
+        include: { uploader: { select: { id: true, nome: true, avatar: true } } },
+        orderBy: { criadoEm: "desc" }, take: 200,
+      }),
+      (this.prisma as any).apontamentoHoras.findMany({
+        where: { chamadoId: id },
+        include: { user: { select: { id: true, nome: true, avatar: true } } },
+        orderBy: { criadoEm: "desc" }, take: 200,
+      }),
+    ]);
+
+    const events: any[] = [];
+
+    for (const a of audits) {
+      // O comentario tem fonte propria abaixo; aqui no audit so registra a acao.
+      if (a.acao === "comentario") continue;
+      events.push({
+        id: `aud:${a.id}`,
+        kind: "audit",
+        acao: a.acao,
+        de: a.de, para: a.para,
+        metadata: a.metadata,
+        criadoEm: a.criadoEm,
+        actor: a.user ? { id: a.user.id, nome: a.user.nome, avatar: a.user.avatar } : null,
+      });
+    }
+    for (const c of coments) {
+      events.push({
+        id: `com:${c.id}`,
+        kind: "comentario",
+        interno: c.interno,
+        texto: c.texto,
+        criadoEm: c.criadoEm,
+        actor: { id: c.user.id, nome: c.user.nome, avatar: c.user.avatar },
+      });
+    }
+    for (const a of anexos) {
+      events.push({
+        id: `anx:${a.id}`,
+        kind: "anexo",
+        nomeOriginal: a.nomeOriginal,
+        nomeArquivo: a.nomeArquivo,
+        mimeType: a.mimeType,
+        tamanhoBytes: a.tamanhoBytes,
+        url: `/uploads/${id}/${a.nomeArquivo}`,
+        criadoEm: a.criadoEm,
+        actor: { id: a.uploader.id, nome: a.uploader.nome, avatar: a.uploader.avatar },
+      });
+    }
+    for (const p of apts) {
+      events.push({
+        id: `apt:${p.id}`,
+        kind: "apontamento",
+        minutos: p.minutos,
+        descricao: p.descricao,
+        criadoEm: p.criadoEm,
+        actor: p.user ? { id: p.user.id, nome: p.user.nome, avatar: p.user.avatar } : null,
+      });
+    }
+
+    events.sort((a, b) => +new Date(b.criadoEm) - +new Date(a.criadoEm));
+
+    // Metricas resumidas
+    const criacao = audits.find((x: any) => x.acao === "criado");
+    const tempoEmAberto = criacao ? Date.now() - +new Date(criacao.criadoEm) : null;
+    const interacoesPublicas = coments.filter((c: any) => !c.interno).length;
+    const interacoesInternas = coments.filter((c: any) => c.interno).length;
+    const totalMinutos = apts.reduce((s: number, x: any) => s + (x.minutos || 0), 0);
+
+    return {
+      events,
+      metricas: {
+        tempoEmAbertoMs: tempoEmAberto,
+        totalEventos: events.length,
+        interacoesPublicas,
+        interacoesInternas,
+        totalAnexos: anexos.length,
+        totalApontamentos: apts.length,
+        totalMinutosApontados: totalMinutos,
+      },
+    };
+  }
+
   /** Registra uma entrada de auditoria. Tolerante a falhas: nunca quebra o fluxo. */
   private async recordAudit(chamadoId: string, userId: string | null, acao: string, de?: string | null, para?: string | null, metadata?: any) {
     try {
@@ -510,11 +626,22 @@ class ChamadosController {
     if (!canEdit) throw new ForbiddenException("Sem permissao");
     const resolvidoEm = body.status === "resolvido" && existing.status !== "resolvido" ? new Date() : undefined;
     const fechadoEm   = body.status === "fechado"   && existing.status !== "fechado"   ? new Date() : undefined;
+    // Reabertura: voltou de resolvido/fechado/cancelado para aberto/em_atendimento
+    const wasClosed = ["resolvido","fechado","cancelado"].includes(existing.status);
+    const reopening = wasClosed && ["aberto","em_atendimento","aguardando"].includes(body.status);
     const updated = await this.prisma.chamado.update({
       where: { id },
-      data: { status: body.status, ...(resolvidoEm && { resolvidoEm }), ...(fechadoEm && { fechadoEm }) },
+      data: {
+        status: body.status,
+        ...(resolvidoEm && { resolvidoEm }),
+        ...(fechadoEm && { fechadoEm }),
+        ...(reopening && { reaberturasCount: { increment: 1 } as any }),
+      },
       include: INCLUDE_DETAIL,
     });
+    if (reopening) {
+      await this.recordAudit(id, req.user.id, "reabertura", existing.status, body.status, { contador: ((existing as any).reaberturasCount || 0) + 1 });
+    }
     if (existing.solicitanteId !== req.user.id) {
       await this.notificarSolicitante(existing.solicitanteId, updated, body.status);
       const solicitante = await this.prisma.user.findUnique({ where: { id: existing.solicitanteId }, select: { email: true, nome: true } });
@@ -669,6 +796,9 @@ class ChamadosController {
       data: { chamadoId: id, userId: req.user.id, texto: dto.texto.trim(), interno: dto.interno ?? false },
       include: { user: { select: { id: true, nome: true, avatar: true } } },
     });
+    await this.recordAudit(id, req.user.id, "comentario", null,
+      dto.interno ? "interno" : "publico",
+      { preview: dto.texto.slice(0, 140), comentarioId: comentario.id });
     // Track primeira resposta do atendente (SLA response time)
     if (!dto.interno && req.user.id === chamado.atendenteId) {
       const slaData = await (this.prisma as any).chamado.findUnique({ where: { id }, select: { primeiraRespostaEm: true } });
@@ -692,6 +822,60 @@ class ChamadosController {
         });
       }
     }
+    // Notifica watchers (seguindo o chamado, mas nao quem comentou)
+    try {
+      const watchers: any[] = await (this.prisma as any).chamadoWatcher.findMany({
+        where: { chamadoId: id, userId: { not: req.user.id } },
+        select: { userId: true },
+      });
+      const me = await this.prisma.user.findUnique({ where: { id: req.user.id }, select: { nome: true } });
+      for (const w of watchers) {
+        await this.prisma.notification.create({
+          data: {
+            userId: w.userId, tipo: "chamado_comentario",
+            titulo: `Novo comentario no chamado #${chamado.numero}`,
+            mensagem: `${me?.nome}: ${dto.texto.slice(0, 80)}`,
+            referenciaTipo: "chamado", referenciaId: id,
+          },
+        }).catch(() => {});
+      }
+    } catch {}
+
+    // Mentions @nome → notificar usuarios mencionados (mesma org)
+    try {
+      const mentions = Array.from(new Set((dto.texto.match(/@([\w\.\-]{2,40})/g) || []).map(s => s.slice(1).toLowerCase())));
+      if (mentions.length) {
+        const orgId = req.user?.organizationId;
+        // busca por inicio do nome OU email prefix
+        const users: any[] = await this.prisma.user.findMany({
+          where: {
+            organizationId: orgId,
+            OR: mentions.flatMap(m => ([
+              { nome:  { startsWith: m, mode: "insensitive" as any } },
+              { email: { startsWith: m + "@", mode: "insensitive" as any } },
+              { email: { startsWith: m + ".", mode: "insensitive" as any } },
+            ])),
+          },
+          select: { id: true, nome: true },
+        });
+        const me = await this.prisma.user.findUnique({ where: { id: req.user.id }, select: { nome: true } });
+        for (const u of users) {
+          if (u.id === req.user.id) continue;
+          await this.prisma.notification.create({
+            data: {
+              userId: u.id, tipo: "chamado_mencao",
+              titulo: `${me?.nome} mencionou voce no chamado #${chamado.numero}`,
+              mensagem: dto.texto.slice(0, 120),
+              referenciaTipo: "chamado", referenciaId: id,
+            },
+          }).catch(() => {});
+        }
+        if (users.length) {
+          await this.recordAudit(id, req.user.id, "mencao", null, users.map(u => u.nome).join(", "), { count: users.length });
+        }
+      }
+    } catch {}
+
     return {
       id: comentario.id, texto: comentario.texto, interno: comentario.interno,
       criadoEm: comentario.criadoEm,
@@ -766,6 +950,347 @@ class ChamadosController {
         },
       });
     } catch {}
+  }
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // Chamados v2: watchers, subtasks, links, custom fields
+  // ════════════════════════════════════════════════════════════════════════════
+
+  private async assertVer(id: string, req: any) {
+    const c: any = await (this.prisma as any).chamado.findUnique({
+      where: { id },
+      select: { id: true, organizationId: true, status: true, atendenteId: true, solicitanteId: true, numero: true },
+    });
+    if (!c) throw new NotFoundException("Chamado nao encontrado");
+    const orgId = req.user?.organizationId;
+    if (orgId && c.organizationId && c.organizationId !== orgId) throw new NotFoundException("Chamado nao encontrado");
+    const userId = req.user.id;
+    const inPublicQueue = c.status === "aberto" && !c.atendenteId;
+    const canView = req.user.isMaster || c.solicitanteId === userId || c.atendenteId === userId || inPublicQueue;
+    if (!canView) throw new ForbiddenException("Acesso negado");
+    return c;
+  }
+
+  // ── Watchers ───────────────────────────────────────────────────────────────
+  @Get(":id/watchers")
+  @Permissions("chamados:ver")
+  async listWatchers(@Param("id") id: string, @Req() req: any) {
+    await this.assertVer(id, req);
+    const rows = await (this.prisma as any).chamadoWatcher.findMany({
+      where: { chamadoId: id },
+      include: { user: { select: { id: true, nome: true, email: true, avatar: true } } },
+      orderBy: { criadoEm: "asc" },
+    });
+    return rows.map((r: any) => ({ id: r.id, criadoEm: r.criadoEm, user: r.user }));
+  }
+
+  @Post(":id/watchers")
+  @Permissions("chamados:ver")
+  async addWatcher(@Param("id") id: string, @Body() body: { userId?: string }, @Req() req: any) {
+    const c = await this.assertVer(id, req);
+    const userId = body?.userId || req.user.id;
+    // Verifica que userId existe na mesma org
+    const u: any = await (this.prisma as any).user.findFirst({
+      where: { id: userId, organizationId: c.organizationId },
+      select: { id: true, nome: true, email: true, avatar: true },
+    });
+    if (!u) throw new BadRequestException("Usuario invalido");
+    try {
+      const w: any = await (this.prisma as any).chamadoWatcher.create({
+        data: { id: crypto.randomUUID(), chamadoId: id, userId },
+        include: { user: { select: { id: true, nome: true, email: true, avatar: true } } },
+      });
+      await this.recordAudit(id, req.user.id, "watcher_add", null, u.nome, { userId });
+      return { id: w.id, criadoEm: w.criadoEm, user: w.user };
+    } catch (e: any) {
+      // unique constraint = ja eh watcher
+      if (String(e.code) === "P2002") {
+        const existing: any = await (this.prisma as any).chamadoWatcher.findFirst({
+          where: { chamadoId: id, userId },
+          include: { user: { select: { id: true, nome: true, email: true, avatar: true } } },
+        });
+        return existing && { id: existing.id, criadoEm: existing.criadoEm, user: existing.user };
+      }
+      throw e;
+    }
+  }
+
+  @Delete(":id/watchers/:userId")
+  @Permissions("chamados:ver")
+  async removeWatcher(@Param("id") id: string, @Param("userId") userId: string, @Req() req: any) {
+    await this.assertVer(id, req);
+    if (userId !== req.user.id && !req.user.isMaster) throw new ForbiddenException("So o proprio usuario ou admin pode remover");
+    await (this.prisma as any).chamadoWatcher.deleteMany({ where: { chamadoId: id, userId } });
+    return { ok: true };
+  }
+
+  // ── Subtasks ───────────────────────────────────────────────────────────────
+  @Get(":id/subtasks")
+  @Permissions("chamados:ver")
+  async listSubtasks(@Param("id") id: string, @Req() req: any) {
+    await this.assertVer(id, req);
+    return (this.prisma as any).chamadoSubtask.findMany({
+      where: { chamadoId: id },
+      include: { assignee: { select: { id: true, nome: true, avatar: true } } },
+      orderBy: [{ ordem: "asc" }, { criadoEm: "asc" }],
+    });
+  }
+
+  @Post(":id/subtasks")
+  @Permissions("chamados:editar")
+  async addSubtask(@Param("id") id: string, @Body() body: { titulo?: string; assigneeId?: string }, @Req() req: any) {
+    await this.assertVer(id, req);
+    if (!body?.titulo?.trim()) throw new BadRequestException("Titulo obrigatorio");
+    const max: any = await (this.prisma as any).chamadoSubtask.aggregate({ where: { chamadoId: id }, _max: { ordem: true } });
+    const novaOrdem = (max?._max?.ordem ?? -1) + 1;
+    const st: any = await (this.prisma as any).chamadoSubtask.create({
+      data: {
+        id: crypto.randomUUID(),
+        chamadoId: id,
+        titulo: body.titulo.trim(),
+        assigneeId: body.assigneeId || null,
+        ordem: novaOrdem,
+      },
+      include: { assignee: { select: { id: true, nome: true, avatar: true } } },
+    });
+    await this.recordAudit(id, req.user.id, "subtask_add", null, st.titulo, { subtaskId: st.id });
+    return st;
+  }
+
+  @Patch(":id/subtasks/:taskId")
+  @Permissions("chamados:editar")
+  async updateSubtask(@Param("id") id: string, @Param("taskId") taskId: string, @Body() body: any, @Req() req: any) {
+    await this.assertVer(id, req);
+    const st: any = await (this.prisma as any).chamadoSubtask.findUnique({ where: { id: taskId } });
+    if (!st || st.chamadoId !== id) throw new NotFoundException("Subtask nao encontrada");
+    const data: any = {};
+    if (body.titulo !== undefined) data.titulo = String(body.titulo).trim();
+    if (body.assigneeId !== undefined) data.assigneeId = body.assigneeId || null;
+    if (body.ordem !== undefined) data.ordem = Number(body.ordem);
+    if (body.concluido !== undefined) {
+      data.concluido = !!body.concluido;
+      data.concluidoEm = body.concluido ? new Date() : null;
+    }
+    const upd: any = await (this.prisma as any).chamadoSubtask.update({
+      where: { id: taskId }, data,
+      include: { assignee: { select: { id: true, nome: true, avatar: true } } },
+    });
+    if (body.concluido !== undefined && body.concluido !== st.concluido) {
+      await this.recordAudit(id, req.user.id, "subtask_toggle", st.concluido ? "feito" : "pendente",
+        body.concluido ? "feito" : "pendente", { titulo: upd.titulo, subtaskId: taskId });
+    }
+    return upd;
+  }
+
+  @Delete(":id/subtasks/:taskId")
+  @Permissions("chamados:editar")
+  async deleteSubtask(@Param("id") id: string, @Param("taskId") taskId: string, @Req() req: any) {
+    await this.assertVer(id, req);
+    const st: any = await (this.prisma as any).chamadoSubtask.findUnique({ where: { id: taskId } });
+    if (!st || st.chamadoId !== id) throw new NotFoundException("Subtask nao encontrada");
+    await (this.prisma as any).chamadoSubtask.delete({ where: { id: taskId } });
+    await this.recordAudit(id, req.user.id, "subtask_remove", st.titulo, null);
+    return { ok: true };
+  }
+
+  // ── Links entre chamados ────────────────────────────────────────────────────
+  private static readonly LINK_TIPOS = ["RELACIONADO","BLOQUEIA","BLOQUEADO_POR","DUPLICADO_DE"];
+
+  @Get(":id/links")
+  @Permissions("chamados:ver")
+  async listLinks(@Param("id") id: string, @Req() req: any) {
+    await this.assertVer(id, req);
+    const rows: any[] = await (this.prisma as any).chamadoLink.findMany({
+      where: { OR: [{ fromChamadoId: id }, { toChamadoId: id }] },
+      include: {
+        fromChamado: { select: { id: true, numero: true, titulo: true, status: true } },
+        toChamado:   { select: { id: true, numero: true, titulo: true, status: true } },
+        criadoPor:   { select: { id: true, nome: true } },
+      },
+      orderBy: { criadoEm: "desc" },
+    });
+    // Normaliza: from ponto de vista do chamado atual, mostra "outro" e o tipo
+    return rows.map(r => {
+      const outroChamado = r.fromChamadoId === id ? r.toChamado : r.fromChamado;
+      // Inverte tipo quando o chamado eh o "destino" (BLOQUEIA <-> BLOQUEADO_POR)
+      let tipo = r.tipo;
+      if (r.fromChamadoId !== id) {
+        if (tipo === "BLOQUEIA") tipo = "BLOQUEADO_POR";
+        else if (tipo === "BLOQUEADO_POR") tipo = "BLOQUEIA";
+        // DUPLICADO_DE invertido tambem
+        else if (tipo === "DUPLICADO_DE") tipo = "DUPLICADO_POR";
+      }
+      return {
+        id: r.id, tipo, criadoEm: r.criadoEm,
+        outro: outroChamado, criadoPor: r.criadoPor,
+      };
+    });
+  }
+
+  @Post(":id/links")
+  @Permissions("chamados:editar")
+  async addLink(@Param("id") id: string, @Body() body: { toChamadoId?: string; tipo?: string }, @Req() req: any) {
+    const c = await this.assertVer(id, req);
+    if (!body?.toChamadoId) throw new BadRequestException("toChamadoId obrigatorio");
+    if (body.toChamadoId === id) throw new BadRequestException("Nao pode vincular chamado a si mesmo");
+    const tipo = String(body.tipo || "RELACIONADO").toUpperCase();
+    if (!ChamadosController.LINK_TIPOS.includes(tipo)) throw new BadRequestException("Tipo invalido");
+    // Confere o outro chamado na mesma org
+    const o: any = await (this.prisma as any).chamado.findUnique({ where: { id: body.toChamadoId } });
+    if (!o || o.organizationId !== c.organizationId) throw new NotFoundException("Chamado destino nao encontrado");
+    try {
+      const link: any = await (this.prisma as any).chamadoLink.create({
+        data: {
+          id: crypto.randomUUID(),
+          fromChamadoId: id, toChamadoId: body.toChamadoId, tipo,
+          criadoPorId: req.user.id,
+        },
+      });
+      await this.recordAudit(id, req.user.id, "link_add", null, tipo, { toChamadoId: body.toChamadoId, toNumero: o.numero });
+      await this.recordAudit(body.toChamadoId, req.user.id, "link_add", null, tipo, { fromChamadoId: id, fromNumero: c.numero, inverso: true });
+      return link;
+    } catch (e: any) {
+      if (String(e.code) === "P2002") throw new BadRequestException("Vinculo ja existe");
+      throw e;
+    }
+  }
+
+  @Delete(":id/links/:linkId")
+  @Permissions("chamados:editar")
+  async removeLink(@Param("id") id: string, @Param("linkId") linkId: string, @Req() req: any) {
+    await this.assertVer(id, req);
+    const link: any = await (this.prisma as any).chamadoLink.findUnique({ where: { id: linkId } });
+    if (!link) throw new NotFoundException("Link nao encontrado");
+    if (link.fromChamadoId !== id && link.toChamadoId !== id) throw new NotFoundException("Link nao encontrado");
+    await (this.prisma as any).chamadoLink.delete({ where: { id: linkId } });
+    await this.recordAudit(id, req.user.id, "link_remove", link.tipo, null);
+    return { ok: true };
+  }
+
+  // ── Custom fields (admin define) ────────────────────────────────────────────
+  @Get("custom-fields")
+  @Permissions("chamados:ver")
+  async listCustomFields(@Query("categoria") categoria: string, @Req() req: any) {
+    const orgId = req.user.organizationId;
+    const where: any = { organizationId: orgId, ativo: true };
+    if (categoria) where.OR = [{ categoria }, { categoria: null }];
+    return (this.prisma as any).chamadoCustomField.findMany({ where, orderBy: [{ ordem: "asc" }, { criadoEm: "asc" }] });
+  }
+
+  @Post("custom-fields")
+  @Permissions("chamados:editar")
+  async createCustomField(@Body() body: any, @Req() req: any) {
+    if (!body?.label?.trim()) throw new BadRequestException("Label obrigatorio");
+    const tipo = String(body.tipo || "TEXT").toUpperCase();
+    if (!["TEXT","TEXTAREA","NUMBER","DATE","SELECT","BOOLEAN"].includes(tipo)) throw new BadRequestException("Tipo invalido");
+    return (this.prisma as any).chamadoCustomField.create({
+      data: {
+        id: crypto.randomUUID(),
+        organizationId: req.user.organizationId,
+        categoria: body.categoria || null,
+        label: body.label.trim(),
+        tipo,
+        obrigatorio: !!body.obrigatorio,
+        ordem: Number(body.ordem) || 0,
+        opcoesJson: body.opcoes || null,
+      },
+    });
+  }
+
+  @Patch("custom-fields/:id")
+  @Permissions("chamados:editar")
+  async updateCustomField(@Param("id") id: string, @Body() body: any, @Req() req: any) {
+    const f: any = await (this.prisma as any).chamadoCustomField.findUnique({ where: { id } });
+    if (!f || f.organizationId !== req.user.organizationId) throw new NotFoundException("Campo nao encontrado");
+    const data: any = {};
+    for (const k of ["label","tipo","categoria","obrigatorio","ordem","opcoesJson","ativo"]) if (body[k] !== undefined) data[k] = body[k];
+    return (this.prisma as any).chamadoCustomField.update({ where: { id }, data });
+  }
+
+  @Delete("custom-fields/:id")
+  @Permissions("chamados:editar")
+  async deleteCustomField(@Param("id") id: string, @Req() req: any) {
+    const f: any = await (this.prisma as any).chamadoCustomField.findUnique({ where: { id } });
+    if (!f || f.organizationId !== req.user.organizationId) throw new NotFoundException("Campo nao encontrado");
+    await (this.prisma as any).chamadoCustomField.delete({ where: { id } });
+    return { ok: true };
+  }
+
+  // ── Custom values por chamado ───────────────────────────────────────────────
+  @Get(":id/custom-values")
+  @Permissions("chamados:ver")
+  async getCustomValues(@Param("id") id: string, @Req() req: any) {
+    await this.assertVer(id, req);
+    return (this.prisma as any).chamadoCustomValue.findMany({
+      where: { chamadoId: id },
+      include: { field: true },
+    });
+  }
+
+  @Patch(":id/custom-values")
+  @Permissions("chamados:editar")
+  async upsertCustomValues(@Param("id") id: string, @Body() body: { values?: Record<string, string> }, @Req() req: any) {
+    await this.assertVer(id, req);
+    const values = body?.values || {};
+    const ops: any[] = [];
+    for (const [fieldId, valor] of Object.entries(values)) {
+      const f: any = await (this.prisma as any).chamadoCustomField.findUnique({ where: { id: fieldId } });
+      if (!f) continue;
+      const v = valor == null ? "" : String(valor);
+      const existing: any = await (this.prisma as any).chamadoCustomValue.findFirst({ where: { chamadoId: id, fieldId } });
+      if (existing) {
+        if (!v) ops.push((this.prisma as any).chamadoCustomValue.delete({ where: { id: existing.id } }));
+        else if (existing.valor !== v) {
+          ops.push((this.prisma as any).chamadoCustomValue.update({ where: { id: existing.id }, data: { valor: v } }));
+          await this.recordAudit(id, req.user.id, "custom_field", existing.valor, v, { label: f.label, fieldId });
+        }
+      } else if (v) {
+        ops.push((this.prisma as any).chamadoCustomValue.create({
+          data: { id: crypto.randomUUID(), chamadoId: id, fieldId, valor: v },
+        }));
+        await this.recordAudit(id, req.user.id, "custom_field", null, v, { label: f.label, fieldId });
+      }
+    }
+    if (ops.length) await (this.prisma as any).$transaction(ops);
+    return this.getCustomValues(id, req);
+  }
+
+  // ── Tempo por status (derivado do log de auditoria) ─────────────────────────
+  @Get(":id/status-durations")
+  @Permissions("chamados:ver")
+  async statusDurations(@Param("id") id: string, @Req() req: any) {
+    const c = await this.assertVer(id, req);
+    const audits: any[] = await (this.prisma as any).chamadoAuditoria.findMany({
+      where: { chamadoId: id },
+      orderBy: { criadoEm: "asc" },
+    });
+    const criacao = audits.find(a => a.acao === "criado");
+    if (!criacao) return { segments: [], byStatus: {} };
+    const transicoes = audits.filter(a => a.acao === "status");
+    const segments: { status: string; iniciadoEm: Date; finalizadoEm: Date | null; duracaoSeg: number }[] = [];
+    let cursor = criacao.criadoEm;
+    let cur = criacao.para || "aberto";
+    for (const t of transicoes) {
+      const end = t.criadoEm;
+      segments.push({ status: cur, iniciadoEm: cursor, finalizadoEm: end, duracaoSeg: Math.max(0, Math.floor((+new Date(end) - +new Date(cursor)) / 1000)) });
+      cur = t.para;
+      cursor = end;
+    }
+    // Atual: ate agora
+    const now = new Date();
+    segments.push({ status: cur, iniciadoEm: cursor, finalizadoEm: null, duracaoSeg: Math.max(0, Math.floor((+now - +new Date(cursor)) / 1000)) });
+    const byStatus: Record<string, number> = {};
+    for (const s of segments) byStatus[s.status] = (byStatus[s.status] || 0) + s.duracaoSeg;
+    return { segments, byStatus, statusAtual: cur, totalSeg: Math.max(0, Math.floor((+now - +new Date(criacao.criadoEm)) / 1000)) };
+  }
+
+  // ── Sou seguidor? Útil para o botão na UI. ──────────────────────────────────
+  @Get(":id/watchers/me")
+  @Permissions("chamados:ver")
+  async isWatching(@Param("id") id: string, @Req() req: any) {
+    await this.assertVer(id, req);
+    const w: any = await (this.prisma as any).chamadoWatcher.findFirst({ where: { chamadoId: id, userId: req.user.id } });
+    return { watching: !!w };
   }
 }
 

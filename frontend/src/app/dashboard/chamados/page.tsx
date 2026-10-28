@@ -6,8 +6,9 @@ import { api } from "@/lib/api";
 import {
   Plus, Search, X, Send, Tag, Building2, Star, Loader2, RefreshCw,
   MessageSquare, ExternalLink, BookOpen, Hand, Inbox, User as UserIcon,
-  Globe2, History, AlertCircle, CheckCircle2, Download, Clock,
+  Globe2, History, AlertCircle, CheckCircle2, Download, Clock, Settings2,
 } from "lucide-react";
+import Link from "next/link";
 import Topbar from "@/components/layout/Topbar";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -50,7 +51,7 @@ const STATUS_COLS = [
   { key: "em_atendimento", label: "Em Atendimento", color: "#60a5fa", bg: "bg-blue-500/10",    border: "border-blue-500/30"   },
   { key: "aguardando",     label: "Aguardando",     color: "#fbbf24", bg: "bg-yellow-500/10",  border: "border-yellow-500/30" },
   { key: "resolvido",      label: "Resolvido",      color: "#34d399", bg: "bg-emerald-500/10", border: "border-emerald-500/30"},
-  { key: "fechado",        label: "Fechado",        color: "#a78bfa", bg: "bg-violet-500/10",  border: "border-violet-500/30" },
+  { key: "fechado",        label: "Fechado",        color: "#EF5350", bg: "bg-red-500/10",  border: "border-red-500/30" },
 ];
 const PRIORIDADE_MAP: Record<string, { label: string; color: string; dot: string }> = {
   baixa:   { label: "Baixa",   color: "text-slate-400",  dot: "bg-slate-400"  },
@@ -895,7 +896,7 @@ function ChamadoDrawer({ chamado, isMaster, userId, canEditar, onClose, onUpdate
                             </div>
                             <div className="mt-2 flex flex-wrap gap-1.5 items-center text-[10px]">
                               {s.skillMatch && (
-                                <span className="px-2 py-0.5 rounded-full" style={{ background: "rgba(124,58,237,0.12)", color: "var(--accent-violet)", border: "1px solid rgba(124,58,237,0.2)" }}>
+                                <span className="px-2 py-0.5 rounded-full" style={{ background: "rgba(211,47,47,0.12)", color: "var(--accent-violet)", border: "1px solid rgba(211,47,47,0.2)" }}>
                                   Skill {s.skillMatch.nivel}
                                 </span>
                               )}
@@ -1116,6 +1117,11 @@ export default function ChamadosPage() {
           <Download size={13} /> CSV
         </button>
       )}
+      <Link href="/dashboard/chamados/campos"
+        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[var(--border-subtle)] text-xs text-[var(--text-muted)] hover:bg-[var(--bg-hover)] transition-colors"
+        title="Configurar campos customizados">
+        <Settings2 size={13} /> Campos
+      </Link>
       <button onClick={() => setShowNew(true)}
         className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-[var(--border-subtle)] text-xs text-[var(--text-muted)] hover:bg-[var(--bg-hover)] transition-colors">
         <Plus size={13} /> Novo Chamado
@@ -1136,7 +1142,7 @@ export default function ChamadosPage() {
             <StatCard label="Em Atend."    value={stats.em_atendimento}  color="text-blue-400" />
             <StatCard label="Aguardando"   value={stats.aguardando}      color="text-yellow-400" />
             <StatCard label="Resolvidos"   value={stats.resolvido}       color="text-emerald-400" />
-            <StatCard label="Fechados"     value={stats.fechado}         color="text-violet-400" />
+            <StatCard label="Fechados"     value={stats.fechado}         color="text-red-400" />
             <StatCard label="SLA Violado"  value={stats.slaViolados}     color={stats.slaViolados > 0 ? "text-red-400" : undefined} />
             <StatCard label="SLA em Risco" value={stats.slaEmRisco}      color={stats.slaEmRisco > 0 ? "text-yellow-400" : undefined} />
           </div>

@@ -8,6 +8,8 @@ import {
   ArrowLeft, Headphones, User, Building2, Clock, CheckCircle,
   XCircle, AlertTriangle, Send, Lock, Unlock, Edit2, Save, X,
   Plus, Trash2, Star, RefreshCw, ChevronDown, Paperclip,
+  History, MessageSquare, UserCheck, AlertCircle, Tag, Activity,
+  ArrowRight, FilePlus, UserPlus, Pencil,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -42,6 +44,25 @@ type Anexo = {
   tamanhoBytes: number; criadoEm: string; url: string;
   uploader: { id: string; nome: string };
 };
+type TimelineActor = { id: string; nome: string; avatar?: string } | null;
+type TimelineEvent =
+  | { id: string; kind: "audit"; acao: string; de?: string|null; para?: string|null; metadata?: any; criadoEm: string; actor: TimelineActor }
+  | { id: string; kind: "comentario"; interno: boolean; texto: string; criadoEm: string; actor: TimelineActor }
+  | { id: string; kind: "anexo"; nomeOriginal: string; nomeArquivo: string; mimeType: string; tamanhoBytes: number; url: string; criadoEm: string; actor: TimelineActor }
+  | { id: string; kind: "apontamento"; minutos: number; descricao?: string; criadoEm: string; actor: TimelineActor };
+type TimelineMetrics = {
+  tempoEmAbertoMs: number | null; totalEventos: number;
+  interacoesPublicas: number; interacoesInternas: number;
+  totalAnexos: number; totalApontamentos: number; totalMinutosApontados: number;
+};
+
+type Watcher = { id: string; criadoEm: string; user: { id: string; nome: string; email: string; avatar?: string } };
+type Subtask = { id: string; titulo: string; concluido: boolean; assigneeId?: string|null; ordem: number; criadoEm: string; concluidoEm?: string|null; assignee?: { id: string; nome: string; avatar?: string } | null };
+type LinkedTicket = { id: string; tipo: string; criadoEm: string; outro: { id: string; numero: number; titulo: string; status: string }; criadoPor?: { id: string; nome: string } | null };
+type CustomFieldDef = { id: string; categoria?: string|null; label: string; tipo: string; obrigatorio: boolean; ordem: number; opcoesJson?: any; ativo: boolean };
+type CustomValue = { id: string; fieldId: string; valor: string; field: CustomFieldDef };
+type StatusDurations = { byStatus: Record<string, number>; statusAtual: string; totalSeg: number; segments: { status: string; iniciadoEm: string; finalizadoEm: string|null; duracaoSeg: number }[] };
+type ChamadoTemplate = { id: string; nome: string; titulo: string; descricao?: string };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const STATUS_MAP: Record<string, { label: string; color: string; bg: string }> = {
@@ -200,6 +221,23 @@ export default function ChamadoDetailPage({ params }: { params: Promise<{ id: st
 
   const [chamado, setChamado] = useState<Chamado | null>(null);
   const [apontamentos, setApontamentos] = useState<Apontamento[]>([]);
+  const [timeline, setTimeline] = useState<TimelineEvent[]>([]);
+  const [tlMetrics, setTlMetrics] = useState<TimelineMetrics | null>(null);
+  const [tlFilter, setTlFilter] = useState<"all"|"audit"|"comentario"|"anexo"|"apontamento">("all");
+  // Chamados v2
+  const [watchers, setWatchers] = useState<Watcher[]>([]);
+  const [iAmWatching, setIAmWatching] = useState(false);
+  const [subtasks, setSubtasks] = useState<Subtask[]>([]);
+  const [novaSub, setNovaSub] = useState("");
+  const [links, setLinks] = useState<LinkedTicket[]>([]);
+  const [linkForm, setLinkForm] = useState<{ numero: string; tipo: string }>({ numero: "", tipo: "RELACIONADO" });
+  const [linkErr, setLinkErr] = useState("");
+  const [customFields, setCustomFields] = useState<CustomFieldDef[]>([]);
+  const [customValues, setCustomValues] = useState<CustomValue[]>([]);
+  const [customDirty, setCustomDirty] = useState<Record<string, string>>({});
+  const [statusDur, setStatusDur] = useState<StatusDurations | null>(null);
+  const [templates, setTemplates] = useState<ChamadoTemplate[]>([]);
+  const [showTplMenu, setShowTplMenu] = useState(false);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [usuarios, setUsuarios] = useState<{ id: string; nome: string }[]>([]);
@@ -245,14 +283,41 @@ export default function ChamadoDetailPage({ params }: { params: Promise<{ id: st
   async function load(silent = false) {
     silent ? setRefreshing(true) : setLoading(true);
     try {
-      const [{ data: c }, { data: apts }, { data: anx }] = await Promise.all([
+      const [
+        { data: c }, { data: apts }, { data: anx }, { data: tl },
+        { data: w }, { data: wm }, { data: st }, { data: lk },
+        { data: cf }, { data: cv }, { data: sd }, { data: tpls },
+      ] = await Promise.all([
         api.get(`/chamados/${id}`),
         api.get(`/apontamentos?chamadoId=${id}`),
         api.get(`/chamados/${id}/anexos`).catch(() => ({ data: [] })),
+        api.get(`/chamados/${id}/timeline`).catch(() => ({ data: { events: [], metricas: null } })),
+        api.get(`/chamados/${id}/watchers`).catch(() => ({ data: [] })),
+        api.get(`/chamados/${id}/watchers/me`).catch(() => ({ data: { watching: false } })),
+        api.get(`/chamados/${id}/subtasks`).catch(() => ({ data: [] })),
+        api.get(`/chamados/${id}/links`).catch(() => ({ data: [] })),
+        api.get(`/chamados/custom-fields`).catch(() => ({ data: [] })),
+        api.get(`/chamados/${id}/custom-values`).catch(() => ({ data: [] })),
+        api.get(`/chamados/${id}/status-durations`).catch(() => ({ data: null })),
+        api.get(`/chamado-templates`).catch(() => ({ data: [] })),
       ]);
       setChamado(c);
       setApontamentos(apts);
       setAnexos(Array.isArray(anx) ? anx : []);
+      setTimeline(tl?.events || []);
+      setTlMetrics(tl?.metricas || null);
+      setWatchers(Array.isArray(w) ? w : []);
+      setIAmWatching(!!wm?.watching);
+      setSubtasks(Array.isArray(st) ? st : []);
+      setLinks(Array.isArray(lk) ? lk : []);
+      // re-fetch custom fields filtrados pela categoria do chamado
+      try {
+        const { data: cfFiltered } = await api.get(`/chamados/custom-fields`, { params: { categoria: c?.categoria || undefined } });
+        setCustomFields(Array.isArray(cfFiltered) ? cfFiltered : []);
+      } catch { setCustomFields(Array.isArray(cf) ? cf : []); }
+      setCustomValues(Array.isArray(cv) ? cv : []);
+      setStatusDur(sd || null);
+      setTemplates(Array.isArray(tpls) ? tpls : []);
       setEditForm({ titulo: c.titulo, descricao: c.descricao, status: c.status, prioridade: c.prioridade, categoria: c.categoria || "", tags: c.tags || "", atendenteId: c.atendenteId || "" });
       if (c.avaliacao) setCsatNota(c.avaliacao);
     } catch { router.push("/dashboard/chamados"); }
@@ -314,6 +379,95 @@ export default function ChamadoDetailPage({ params }: { params: Promise<{ id: st
       const { data } = await api.get(`/apontamentos?chamadoId=${id}`);
       setApontamentos(data);
     } finally { setSavingApt(false); }
+  }
+
+  // ─── Watchers ────
+  async function toggleWatch() {
+    try {
+      if (iAmWatching) {
+        await api.delete(`/chamados/${id}/watchers/${user?.id}`);
+        setIAmWatching(false);
+        setWatchers(prev => prev.filter(x => x.user.id !== user?.id));
+      } else {
+        const { data } = await api.post(`/chamados/${id}/watchers`, {});
+        setIAmWatching(true);
+        setWatchers(prev => [...prev, data]);
+      }
+    } catch {}
+  }
+  async function removeWatcher(userId: string) {
+    try {
+      await api.delete(`/chamados/${id}/watchers/${userId}`);
+      setWatchers(prev => prev.filter(x => x.user.id !== userId));
+      if (userId === user?.id) setIAmWatching(false);
+    } catch {}
+  }
+  // ─── Subtasks ────
+  async function addSubtask() {
+    const t = novaSub.trim();
+    if (!t) return;
+    try {
+      const { data } = await api.post(`/chamados/${id}/subtasks`, { titulo: t });
+      setSubtasks(prev => [...prev, data]);
+      setNovaSub("");
+    } catch {}
+  }
+  async function toggleSubtask(s: Subtask) {
+    try {
+      const { data } = await api.patch(`/chamados/${id}/subtasks/${s.id}`, { concluido: !s.concluido });
+      setSubtasks(prev => prev.map(x => x.id === s.id ? data : x));
+    } catch {}
+  }
+  async function deleteSubtask(s: Subtask) {
+    try {
+      await api.delete(`/chamados/${id}/subtasks/${s.id}`);
+      setSubtasks(prev => prev.filter(x => x.id !== s.id));
+    } catch {}
+  }
+  // ─── Links ────
+  async function addLink() {
+    setLinkErr("");
+    const num = Number(linkForm.numero);
+    if (!num) { setLinkErr("Digite o número do chamado"); return; }
+    try {
+      // resolve numero -> id via api de chamados (lista filtrada)
+      const { data: list } = await api.get(`/chamados`, { params: { q: String(num) } });
+      const items = list?.chamados || list || [];
+      const found: any = items.find((x: any) => x.numero === num);
+      if (!found) { setLinkErr(`Chamado #${num} não encontrado`); return; }
+      const { data: link } = await api.post(`/chamados/${id}/links`, { toChamadoId: found.id, tipo: linkForm.tipo });
+      // recarrega lista de links pra pegar nome formatado
+      const { data: refreshed } = await api.get(`/chamados/${id}/links`);
+      setLinks(refreshed);
+      setLinkForm({ numero: "", tipo: "RELACIONADO" });
+    } catch (e: any) {
+      setLinkErr(e?.response?.data?.message || "Erro ao vincular");
+    }
+  }
+  async function removeLink(linkId: string) {
+    try {
+      await api.delete(`/chamados/${id}/links/${linkId}`);
+      setLinks(prev => prev.filter(x => x.id !== linkId));
+    } catch {}
+  }
+  // ─── Custom values ────
+  function setCustomLocal(fieldId: string, valor: string) {
+    setCustomDirty(prev => ({ ...prev, [fieldId]: valor }));
+  }
+  async function saveCustomValues() {
+    if (Object.keys(customDirty).length === 0) return;
+    try {
+      const { data } = await api.patch(`/chamados/${id}/custom-values`, { values: customDirty });
+      setCustomValues(data);
+      setCustomDirty({});
+    } catch {}
+  }
+  // ─── Templates: aplicar no editor de comentário ────
+  function applyTemplate(t: ChamadoTemplate) {
+    const snip = t.descricao || t.titulo;
+    setNovoComent(prev => (prev ? prev + "\n\n" : "") + snip);
+    setShowTplMenu(false);
+    setTimeout(() => comentRef.current?.focus(), 50);
   }
 
   async function handleDeleteApontamento(aptId: string) {
@@ -436,6 +590,21 @@ export default function ChamadoDetailPage({ params }: { params: Promise<{ id: st
                     <span className={cn("text-[10px] font-medium px-2 py-0.5 rounded-full border", statusInfo.bg)}>{statusInfo.label}</span>
                     <span className={cn("text-[11px] font-medium", prioInfo.color)}>● {prioInfo.label}</span>
                     <span className="text-[11px] text-muted-foreground font-mono">#{chamado.numero}</span>
+                    {(chamado as any).reaberturasCount > 0 && (
+                      <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-orange-500/15 text-orange-400 border border-orange-500/30">
+                        ↺ Reaberto {(chamado as any).reaberturasCount}x
+                      </span>
+                    )}
+                    <button
+                      onClick={toggleWatch}
+                      className={cn("text-[10px] font-medium px-2 py-0.5 rounded-full border transition-colors",
+                        iAmWatching
+                          ? "bg-primary/15 text-primary border-primary/30"
+                          : "bg-muted/40 text-muted-foreground border-border hover:bg-accent")}
+                      title={iAmWatching ? "Deixar de seguir" : "Seguir o chamado pra receber notificações"}
+                    >
+                      {iAmWatching ? "✓ Seguindo" : "+ Seguir"}
+                    </button>
                     {tags.map(t => (
                       <span key={t} className="text-[10px] px-1.5 py-0.5 rounded border border-border text-muted-foreground">{t}</span>
                     ))}
@@ -453,14 +622,14 @@ export default function ChamadoDetailPage({ params }: { params: Promise<{ id: st
 
             {/* Banner fila pública (qualquer um com chamados:editar) */}
             {showAssumir && !editando && (
-              <div className="rounded-xl border border-violet-500/30 bg-violet-500/5 p-4 flex items-center gap-3">
+              <div className="rounded-xl border border-red-500/30 bg-red-500/5 p-4 flex items-center gap-3">
                 <div className="flex-1 min-w-0">
                   <div className="text-sm font-semibold text-foreground">Chamado na fila pública</div>
                   <div className="text-xs text-muted-foreground mt-0.5">Ninguém assumiu ainda. Clique em "Assumir" para que ele apareça no seu painel.</div>
                 </div>
                 <button
                   onClick={handleAssumir}
-                  className="px-4 py-2 rounded-lg text-xs font-semibold bg-violet-500/15 text-violet-300 border border-violet-500/30 hover:bg-violet-500/25 transition-colors shrink-0"
+                  className="px-4 py-2 rounded-lg text-xs font-semibold bg-red-500/15 text-red-300 border border-red-500/30 hover:bg-red-500/25 transition-colors shrink-0"
                 >
                   Assumir Chamado
                 </button>
@@ -506,6 +675,54 @@ export default function ChamadoDetailPage({ params }: { params: Promise<{ id: st
               </div>
             )}
 
+            {/* Campos customizados (por categoria) */}
+            {customFields.length > 0 && (
+              <CustomFieldsCard
+                fields={customFields}
+                values={customValues}
+                dirty={customDirty}
+                onChange={setCustomLocal}
+                onSave={saveCustomValues}
+              />
+            )}
+
+            {/* Subtasks / Checklist */}
+            <SubtasksCard
+              subtasks={subtasks}
+              novo={novaSub}
+              setNovo={setNovaSub}
+              onAdd={addSubtask}
+              onToggle={toggleSubtask}
+              onDelete={deleteSubtask}
+              canEdit={canEditarPerm}
+              currentUserId={user?.id || ""}
+              isMaster={isMaster}
+            />
+
+            {/* Vinculos entre chamados */}
+            <LinksCard
+              links={links}
+              form={linkForm}
+              setForm={setLinkForm}
+              err={linkErr}
+              onAdd={addLink}
+              onRemove={removeLink}
+              canEdit={canEditarPerm}
+            />
+
+            {/* Tempo por status (derivado do log) */}
+            {statusDur && <StatusDurationsCard data={statusDur} />}
+
+            {/* Histórico unificado (auditoria + comentários + anexos + apontamentos) */}
+            <TimelineSection
+              events={timeline}
+              metricas={tlMetrics}
+              filter={tlFilter}
+              setFilter={setTlFilter}
+              chamadoCriadoEm={chamado.criadoEm}
+              solicitanteNome={chamado.solicitante?.nome}
+            />
+
             {/* Comentários */}
             <div className="rounded-xl border border-border bg-card p-5">
               <div className="flex items-center justify-between mb-4">
@@ -533,16 +750,45 @@ export default function ChamadoDetailPage({ params }: { params: Promise<{ id: st
                   rows={3}
                   className="w-full bg-muted/50 border border-border rounded-xl px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary resize-none"
                 />
-                <div className="flex items-center justify-between">
-                  <button
-                    onClick={() => setInterno(i => !i)}
-                    className={cn("flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border transition-colors",
-                      interno ? "bg-yellow-500/10 text-yellow-400 border-yellow-500/30" : "text-muted-foreground border-border hover:bg-accent"
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setInterno(i => !i)}
+                      className={cn("flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border transition-colors",
+                        interno ? "bg-yellow-500/10 text-yellow-400 border-yellow-500/30" : "text-muted-foreground border-border hover:bg-accent"
+                      )}
+                    >
+                      {interno ? <Lock size={12} /> : <Unlock size={12} />}
+                      {interno ? "Nota interna" : "Público"}
+                    </button>
+                    {/* Template picker */}
+                    {templates.length > 0 && (
+                      <div className="relative">
+                        <button
+                          onClick={() => setShowTplMenu(s => !s)}
+                          className="flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg border border-border text-muted-foreground hover:bg-accent transition-colors"
+                          title="Inserir template de resposta"
+                        >
+                          ⚡ Template <ChevronDown size={11} />
+                        </button>
+                        {showTplMenu && (
+                          <div className="absolute bottom-full left-0 mb-1 min-w-[260px] max-h-[300px] overflow-auto bg-card border border-border rounded-lg shadow-lg z-30">
+                            {templates.map(t => (
+                              <button
+                                key={t.id}
+                                onClick={() => applyTemplate(t)}
+                                className="block w-full text-left px-3 py-2 text-xs hover:bg-accent border-b border-border last:border-b-0"
+                              >
+                                <div className="font-semibold text-foreground">{t.nome}</div>
+                                <div className="text-muted-foreground truncate">{t.descricao || t.titulo}</div>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
                     )}
-                  >
-                    {interno ? <Lock size={12} /> : <Unlock size={12} />}
-                    {interno ? "Nota interna" : "Público"}
-                  </button>
+                    <span className="text-[10px] text-muted-foreground">Use <code className="bg-muted/50 px-1 rounded">@nome</code> para mencionar</span>
+                  </div>
                   <button
                     onClick={handleComentario}
                     disabled={!novoComent.trim() || enviandoComent}
@@ -696,6 +942,16 @@ export default function ChamadoDetailPage({ params }: { params: Promise<{ id: st
 
           {/* ── Right: sidebar ── */}
           <div className="space-y-4">
+            {/* Seguidores */}
+            <WatchersCard
+              watchers={watchers}
+              iAmWatching={iAmWatching}
+              onToggleSelf={toggleWatch}
+              onRemove={removeWatcher}
+              currentUserId={user?.id || ""}
+              isMaster={isMaster}
+            />
+
             {/* Info */}
             <div className="rounded-xl border border-border bg-card p-4 space-y-4">
               <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Informações</h3>
@@ -743,7 +999,7 @@ export default function ChamadoDetailPage({ params }: { params: Promise<{ id: st
                     { label: "Cliente", content: chamado.cliente ? <div className="flex items-center gap-1.5 text-foreground"><Building2 size={13} className="text-muted-foreground" />{chamado.cliente.empresa || chamado.cliente.nome}</div> : "—" },
                     { label: "Categoria", content: chamado.categoria || <span className="text-muted-foreground">—</span> },
                     chamado.horasEstimadas != null && { label: "Horas estimadas", content: <span className="font-mono text-xs text-blue-400">{chamado.horasEstimadas}h</span> },
-                    chamado.skillRequerida && { label: "Skill requerida", content: <span className="text-xs text-violet-400">{chamado.skillRequerida.nome}{chamado.nivelMinimo ? ` · ${chamado.nivelMinimo}` : ""}</span> },
+                    chamado.skillRequerida && { label: "Skill requerida", content: <span className="text-xs text-red-400">{chamado.skillRequerida.nome}{chamado.nivelMinimo ? ` · ${chamado.nivelMinimo}` : ""}</span> },
                     { label: "Criado em", content: <span className="font-mono text-xs">{fmtDt(chamado.criadoEm)}</span> },
                     { label: "Atualizado", content: <span className="font-mono text-xs">{fmtDt(chamado.atualizadoEm)}</span> },
                     chamado.resolvidoEm && { label: "Resolvido em", content: <span className="font-mono text-xs text-green-400">{fmtDt(chamado.resolvidoEm)}</span> },
@@ -786,4 +1042,568 @@ export default function ChamadoDetailPage({ params }: { params: Promise<{ id: st
       </div>
     </div>
   );
+}
+
+// ───────────────────────────────────────────────────────────────────────────────
+// Timeline / Histórico unificado
+// ───────────────────────────────────────────────────────────────────────────────
+
+function fmtRelative(d: string): string {
+  const diff = Date.now() - new Date(d).getTime();
+  if (diff < 60_000)    return `${Math.round(diff/1000)}s atrás`;
+  if (diff < 3_600_000) return `${Math.round(diff/60_000)} min atrás`;
+  if (diff < 86_400_000) return `${Math.round(diff/3_600_000)} h atrás`;
+  if (diff < 7 * 86_400_000) return `${Math.round(diff/86_400_000)} d atrás`;
+  return new Date(d).toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: diff > 365*86_400_000 ? "numeric" : undefined });
+}
+function fmtAbs(d: string) {
+  return new Date(d).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+}
+function fmtDur(ms: number | null): string {
+  if (!ms || ms < 0) return "—";
+  const sec = Math.floor(ms / 1000);
+  const min = Math.floor(sec / 60);
+  const hr  = Math.floor(min / 60);
+  const day = Math.floor(hr  / 24);
+  if (day > 0) return `${day}d ${hr % 24}h`;
+  if (hr  > 0) return `${hr}h ${min % 60}m`;
+  if (min > 0) return `${min} min`;
+  return `${sec}s`;
+}
+function fmtHorasMin(min: number): string {
+  const h = Math.floor(min / 60);
+  const m = Math.round(min % 60);
+  if (h && m) return `${h}h ${m}m`;
+  if (h)      return `${h}h`;
+  return `${m}m`;
+}
+
+// Avatar mini reutilizado pelos eventos da timeline
+function MiniAvatar({ nome }: { nome?: string }) {
+  if (!nome) return (
+    <div className="w-7 h-7 rounded-full bg-muted/50 flex items-center justify-center text-[10px] text-muted-foreground">?</div>
+  );
+  const ini = nome.split(" ").slice(0, 2).map(s => s[0]).join("").toUpperCase();
+  // hash simples para hue estavel por nome
+  let h = 0; for (const ch of nome) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  const hue = h % 360;
+  return (
+    <div
+      title={nome}
+      className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-semibold text-white flex-shrink-0"
+      style={{ background: `linear-gradient(135deg, hsl(${hue},65%,45%), hsl(${(hue+30)%360},65%,55%))` }}
+    >
+      {ini}
+    </div>
+  );
+}
+
+const FILTER_LABEL: Record<string, string> = {
+  all:          "Tudo",
+  audit:        "Sistema",
+  comentario:   "Comentários",
+  anexo:        "Anexos",
+  apontamento:  "Horas",
+};
+
+function TimelineSection({
+  events, metricas, filter, setFilter, chamadoCriadoEm, solicitanteNome,
+}: {
+  events: TimelineEvent[];
+  metricas: TimelineMetrics | null;
+  filter: "all"|"audit"|"comentario"|"anexo"|"apontamento";
+  setFilter: (f: "all"|"audit"|"comentario"|"anexo"|"apontamento") => void;
+  chamadoCriadoEm: string;
+  solicitanteNome?: string;
+}) {
+  const filtered = filter === "all" ? events : events.filter(e => e.kind === filter);
+
+  // Agrupar por dia (chave: YYYY-MM-DD)
+  const groups = filtered.reduce<Record<string, TimelineEvent[]>>((acc, ev) => {
+    const k = new Date(ev.criadoEm).toISOString().slice(0, 10);
+    (acc[k] = acc[k] || []).push(ev);
+    return acc;
+  }, {});
+  const dayKeys = Object.keys(groups).sort().reverse();
+
+  return (
+    <div className="rounded-xl border border-border bg-card p-5">
+      {/* Header da seção */}
+      <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+        <div className="flex items-center gap-2">
+          <History size={14} className="text-muted-foreground" />
+          <h2 className="text-sm font-semibold text-foreground">Histórico do chamado</h2>
+          <span className="text-xs text-muted-foreground">({events.length})</span>
+        </div>
+        <div className="flex items-center gap-1 text-[11px]">
+          {(["all","audit","comentario","anexo","apontamento"] as const).map(k => {
+            const isOn = filter === k;
+            const count = k === "all" ? events.length : events.filter(e => e.kind === k).length;
+            return (
+              <button key={k}
+                onClick={() => setFilter(k)}
+                className={cn("px-2.5 py-1 rounded-md transition-colors border",
+                  isOn
+                    ? "bg-primary/15 text-primary border-primary/30"
+                    : "border-transparent text-muted-foreground hover:bg-accent")}
+              >
+                {FILTER_LABEL[k]} {count > 0 && <span className="opacity-60">· {count}</span>}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Métricas resumo */}
+      {metricas && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-4 pb-4 border-b border-border">
+          <MetricChip label="Aberto há"          value={fmtDur(metricas.tempoEmAbertoMs)} />
+          <MetricChip label="Interações"         value={`${metricas.interacoesPublicas} púb · ${metricas.interacoesInternas} int`} />
+          <MetricChip label="Anexos"             value={metricas.totalAnexos.toString()} />
+          <MetricChip label="Horas apontadas"    value={metricas.totalMinutosApontados ? fmtHorasMin(metricas.totalMinutosApontados) : "—"} />
+        </div>
+      )}
+
+      {/* Timeline */}
+      {filtered.length === 0 ? (
+        <p className="text-sm text-muted-foreground text-center py-6">
+          {events.length === 0 ? "Histórico vazio." : "Nenhum evento no filtro atual."}
+        </p>
+      ) : (
+        <div className="space-y-5">
+          {dayKeys.map(day => (
+            <div key={day}>
+              <div className="text-[10px] uppercase tracking-widest text-muted-foreground font-mono mb-2">
+                {new Date(day + "T12:00:00").toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "short" })}
+              </div>
+              <ol className="relative border-l border-border ml-3 space-y-3">
+                {groups[day].map(ev => <TimelineItem key={ev.id} ev={ev} />)}
+              </ol>
+            </div>
+          ))}
+          {solicitanteNome && (
+            <div className="pt-2 text-[11px] text-muted-foreground italic">
+              Chamado aberto por <b>{solicitanteNome}</b> em {fmtAbs(chamadoCriadoEm)}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function MetricChip({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-lg border border-border bg-muted/30 p-2.5">
+      <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-mono">{label}</div>
+      <div className="text-sm font-semibold text-foreground mt-0.5 truncate" title={value}>{value}</div>
+    </div>
+  );
+}
+
+// Mapeia uma acao de auditoria pra label/icone/cor amigaveis
+function describeAudit(ev: Extract<TimelineEvent, { kind: "audit" }>) {
+  const a = ev.acao;
+  if (a === "criado")        return { Icon: AlertCircle, color: "text-blue-400",   verb: "Abriu o chamado" };
+  if (a === "status")        return { Icon: Activity,    color: "text-yellow-400", verb: `Status: ${ev.de || "—"} → ${ev.para || "—"}` };
+  if (a === "prioridade")    return { Icon: Tag,         color: "text-orange-400", verb: `Prioridade: ${ev.de || "—"} → ${ev.para || "—"}` };
+  if (a === "atribuicao")    return { Icon: UserCheck,   color: "text-violet-400", verb: ev.para ? "Atribuiu atendente" : "Removeu atendente" };
+  if (a === "assumido")      return { Icon: UserPlus,    color: "text-green-400",  verb: "Assumiu o chamado" };
+  if (a === "comentario")    return { Icon: MessageSquare, color: "text-blue-400", verb: `Comentário ${ev.para === "interno" ? "interno" : "público"}` };
+  if (a === "reabertura")    return { Icon: RefreshCw,   color: "text-orange-400", verb: `Reabriu o chamado (${(ev.metadata as any)?.contador || "?"}ª vez)` };
+  if (a === "watcher_add")   return { Icon: UserPlus,    color: "text-cyan-400",   verb: `Adicionou seguidor: ${ev.para}` };
+  if (a === "subtask_add")   return { Icon: CheckCircle, color: "text-green-400",  verb: `Adicionou subtarefa: "${ev.para}"` };
+  if (a === "subtask_toggle")return { Icon: CheckCircle, color: ev.para === "feito" ? "text-green-400" : "text-muted-foreground", verb: `Subtarefa "${(ev.metadata as any)?.titulo || ""}" ${ev.para === "feito" ? "concluída" : "reaberta"}` };
+  if (a === "subtask_remove")return { Icon: Trash2,      color: "text-red-400",    verb: `Removeu subtarefa: "${ev.de}"` };
+  if (a === "link_add")      return { Icon: ArrowRight,  color: "text-violet-400", verb: `Vinculou chamado: ${(ev.metadata as any)?.toNumero ? "#" + (ev.metadata as any).toNumero : (ev.metadata as any)?.fromNumero ? "#" + (ev.metadata as any).fromNumero : ""} (${ev.para})` };
+  if (a === "link_remove")   return { Icon: ArrowRight,  color: "text-muted-foreground", verb: `Removeu vínculo ${ev.de || ""}` };
+  if (a === "custom_field")  return { Icon: Pencil,      color: "text-blue-400",   verb: `Campo "${(ev.metadata as any)?.label || ""}": ${ev.de || "—"} → ${ev.para || "—"}` };
+  if (a === "mencao")        return { Icon: UserCheck,   color: "text-cyan-400",   verb: `Mencionou ${ev.para}` };
+  return { Icon: Pencil, color: "text-muted-foreground", verb: a };
+}
+
+// ───────────────────────────────────────────────────────────────────────────────
+// Watchers / Seguidores
+// ───────────────────────────────────────────────────────────────────────────────
+function WatchersCard({ watchers, iAmWatching, onToggleSelf, onRemove, currentUserId, isMaster }: {
+  watchers: Watcher[]; iAmWatching: boolean; onToggleSelf: () => void;
+  onRemove: (userId: string) => void; currentUserId: string; isMaster: boolean;
+}) {
+  return (
+    <div className="rounded-xl border border-border bg-card p-4">
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
+          <User size={12} /> Seguidores ({watchers.length})
+        </h3>
+        <button
+          onClick={onToggleSelf}
+          className={cn("text-[11px] px-2 py-0.5 rounded-md border transition-colors",
+            iAmWatching ? "bg-primary/15 text-primary border-primary/30" : "text-muted-foreground border-border hover:bg-accent")}
+        >
+          {iAmWatching ? "✓ Seguindo" : "+ Seguir"}
+        </button>
+      </div>
+      {watchers.length === 0 ? (
+        <p className="text-xs text-muted-foreground italic">Ninguém está acompanhando este chamado.</p>
+      ) : (
+        <div className="space-y-1.5">
+          {watchers.map(w => (
+            <div key={w.id} className="flex items-center gap-2 text-xs">
+              <MiniAvatar nome={w.user.nome} />
+              <span className="flex-1 truncate text-foreground">{w.user.nome}</span>
+              {(w.user.id === currentUserId || isMaster) && (
+                <button onClick={() => onRemove(w.user.id)} className="text-muted-foreground hover:text-red-400" title="Remover">
+                  <X size={12} />
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ───────────────────────────────────────────────────────────────────────────────
+// Subtasks (checklist)
+// ───────────────────────────────────────────────────────────────────────────────
+function SubtasksCard({ subtasks, novo, setNovo, onAdd, onToggle, onDelete, canEdit, currentUserId, isMaster }: {
+  subtasks: Subtask[]; novo: string; setNovo: (s: string) => void;
+  onAdd: () => void; onToggle: (s: Subtask) => void; onDelete: (s: Subtask) => void;
+  canEdit: boolean; currentUserId: string; isMaster: boolean;
+}) {
+  const done = subtasks.filter(s => s.concluido).length;
+  const pct = subtasks.length ? Math.round((done / subtasks.length) * 100) : 0;
+  return (
+    <div className="rounded-xl border border-border bg-card p-5">
+      <div className="flex items-center justify-between mb-3">
+        <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
+          <CheckCircle size={14} className="text-muted-foreground" />
+          Checklist <span className="text-muted-foreground font-normal">({done}/{subtasks.length})</span>
+        </h2>
+        {subtasks.length > 0 && (
+          <span className="text-[11px] text-muted-foreground font-mono">{pct}% concluído</span>
+        )}
+      </div>
+      {subtasks.length > 0 && (
+        <div className="h-1 rounded-full bg-muted overflow-hidden mb-3">
+          <div className="h-full bg-green-500 transition-all" style={{ width: `${pct}%` }} />
+        </div>
+      )}
+      <div className="space-y-1">
+        {subtasks.length === 0 && (
+          <p className="text-xs text-muted-foreground italic">Sem subtarefas. Adicione abaixo.</p>
+        )}
+        {subtasks.map(s => (
+          <div key={s.id} className="flex items-center gap-2 py-1.5 px-2 rounded hover:bg-accent/30 transition-colors group">
+            <input
+              type="checkbox" checked={s.concluido}
+              onChange={() => onToggle(s)}
+              disabled={!canEdit}
+              className="rounded border-border w-4 h-4 cursor-pointer"
+            />
+            <span className={cn("flex-1 text-sm", s.concluido ? "line-through text-muted-foreground" : "text-foreground")}>
+              {s.titulo}
+            </span>
+            {s.assignee && (
+              <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
+                <MiniAvatar nome={s.assignee.nome} /> {s.assignee.nome.split(" ")[0]}
+              </span>
+            )}
+            {canEdit && (
+              <button onClick={() => onDelete(s)} className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-red-400 transition" title="Remover">
+                <Trash2 size={12} />
+              </button>
+            )}
+          </div>
+        ))}
+      </div>
+      {canEdit && (
+        <div className="mt-3 flex gap-2">
+          <input
+            value={novo}
+            onChange={e => setNovo(e.target.value)}
+            onKeyDown={e => { if (e.key === "Enter") onAdd(); }}
+            placeholder="Nova subtarefa…"
+            className="flex-1 px-3 py-1.5 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+          />
+          <button onClick={onAdd} disabled={!novo.trim()}
+            className="px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-medium disabled:opacity-50">
+            <Plus size={12} className="inline" /> Add
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ───────────────────────────────────────────────────────────────────────────────
+// Linked tickets
+// ───────────────────────────────────────────────────────────────────────────────
+const LINK_TIPO_LABEL: Record<string, { label: string; color: string }> = {
+  RELACIONADO:    { label: "relacionado",     color: "text-blue-400" },
+  BLOQUEIA:       { label: "bloqueia",        color: "text-red-400" },
+  BLOQUEADO_POR:  { label: "bloqueado por",   color: "text-orange-400" },
+  DUPLICADO_DE:   { label: "duplicado de",    color: "text-muted-foreground" },
+  DUPLICADO_POR:  { label: "duplicado por",   color: "text-muted-foreground" },
+};
+
+function LinksCard({ links, form, setForm, err, onAdd, onRemove, canEdit }: {
+  links: LinkedTicket[]; form: { numero: string; tipo: string };
+  setForm: (f: { numero: string; tipo: string }) => void;
+  err: string; onAdd: () => void; onRemove: (id: string) => void; canEdit: boolean;
+}) {
+  return (
+    <div className="rounded-xl border border-border bg-card p-5">
+      <h2 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
+        <ArrowRight size={14} className="text-muted-foreground" />
+        Chamados vinculados <span className="text-muted-foreground font-normal">({links.length})</span>
+      </h2>
+      {links.length === 0 && <p className="text-xs text-muted-foreground italic mb-3">Nenhum vínculo.</p>}
+      <div className="space-y-1.5 mb-3">
+        {links.map(l => {
+          const info = LINK_TIPO_LABEL[l.tipo] || { label: l.tipo, color: "text-muted-foreground" };
+          return (
+            <div key={l.id} className="flex items-center gap-2 text-sm py-1.5 px-2 rounded hover:bg-accent/30 group">
+              <span className={cn("text-[10px] uppercase font-mono font-medium", info.color)}>{info.label}</span>
+              <Link href={`/dashboard/chamados/${l.outro.id}`} className="flex-1 truncate hover:underline">
+                <span className="text-muted-foreground font-mono">#{l.outro.numero}</span> <span className="text-foreground">{l.outro.titulo}</span>
+              </Link>
+              {canEdit && (
+                <button onClick={() => onRemove(l.id)} className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-red-400" title="Desvincular">
+                  <X size={12} />
+                </button>
+              )}
+            </div>
+          );
+        })}
+      </div>
+      {canEdit && (
+        <div className="flex gap-2">
+          <select value={form.tipo} onChange={e => setForm({ ...form, tipo: e.target.value })}
+            className="px-2 py-1.5 rounded-lg border border-border bg-background text-xs">
+            <option value="RELACIONADO">Relacionado</option>
+            <option value="BLOQUEIA">Bloqueia</option>
+            <option value="BLOQUEADO_POR">Bloqueado por</option>
+            <option value="DUPLICADO_DE">Duplicado de</option>
+          </select>
+          <input
+            value={form.numero}
+            onChange={e => setForm({ ...form, numero: e.target.value })}
+            onKeyDown={e => { if (e.key === "Enter") onAdd(); }}
+            placeholder="# do chamado"
+            type="number"
+            className="flex-1 px-3 py-1.5 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+          />
+          <button onClick={onAdd} disabled={!form.numero}
+            className="px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-medium disabled:opacity-50">
+            Vincular
+          </button>
+        </div>
+      )}
+      {err && <div className="text-xs text-red-400 mt-2">{err}</div>}
+    </div>
+  );
+}
+
+// ───────────────────────────────────────────────────────────────────────────────
+// Custom fields
+// ───────────────────────────────────────────────────────────────────────────────
+function CustomFieldsCard({ fields, values, dirty, onChange, onSave }: {
+  fields: CustomFieldDef[]; values: CustomValue[];
+  dirty: Record<string, string>;
+  onChange: (fieldId: string, valor: string) => void;
+  onSave: () => void;
+}) {
+  const valueOf = (fid: string) => {
+    if (fid in dirty) return dirty[fid];
+    const v = values.find(x => x.fieldId === fid);
+    return v?.valor ?? "";
+  };
+  const hasDirty = Object.keys(dirty).length > 0;
+  const sorted = [...fields].sort((a, b) => a.ordem - b.ordem);
+  return (
+    <div className="rounded-xl border border-border bg-card p-5">
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
+          <Tag size={14} className="text-muted-foreground" /> Campos customizados
+        </h2>
+        {hasDirty && (
+          <button onClick={onSave} className="px-3 py-1 rounded-lg bg-primary text-primary-foreground text-xs font-medium">
+            <Save size={11} className="inline mr-1" /> Salvar alterações
+          </button>
+        )}
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        {sorted.map(f => {
+          const v = valueOf(f.id);
+          const opts: string[] = Array.isArray(f.opcoesJson) ? f.opcoesJson : (f.opcoesJson?.options || []);
+          return (
+            <div key={f.id} className="space-y-1">
+              <label className="block text-[11px] text-muted-foreground">
+                {f.label} {f.obrigatorio && <span className="text-red-400">*</span>}
+              </label>
+              {f.tipo === "TEXTAREA" ? (
+                <textarea value={v} onChange={e => onChange(f.id, e.target.value)} rows={2}
+                  className="w-full px-3 py-1.5 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-1 focus:ring-primary resize-none" />
+              ) : f.tipo === "SELECT" ? (
+                <select value={v} onChange={e => onChange(f.id, e.target.value)}
+                  className="w-full px-3 py-1.5 rounded-lg border border-border bg-background text-sm">
+                  <option value="">—</option>
+                  {opts.map(o => <option key={o} value={o}>{o}</option>)}
+                </select>
+              ) : f.tipo === "BOOLEAN" ? (
+                <label className="flex items-center gap-2 text-sm">
+                  <input type="checkbox" checked={v === "true"} onChange={e => onChange(f.id, e.target.checked ? "true" : "false")} className="w-4 h-4" />
+                  <span className="text-foreground">{v === "true" ? "Sim" : "Não"}</span>
+                </label>
+              ) : (
+                <input
+                  value={v}
+                  onChange={e => onChange(f.id, e.target.value)}
+                  type={f.tipo === "DATE" ? "date" : f.tipo === "NUMBER" ? "number" : "text"}
+                  className="w-full px-3 py-1.5 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ───────────────────────────────────────────────────────────────────────────────
+// Status durations (tempo gasto em cada status)
+// ───────────────────────────────────────────────────────────────────────────────
+const STATUS_COLOR_BAR: Record<string, string> = {
+  aberto: "#94a3b8",
+  em_atendimento: "#60a5fa",
+  aguardando: "#facc15",
+  resolvido: "#22c55e",
+  fechado: "#64748b",
+  cancelado: "#ef4444",
+};
+function StatusDurationsCard({ data }: { data: StatusDurations }) {
+  const total = Math.max(1, data.totalSeg);
+  const items = Object.entries(data.byStatus).sort((a,b) => b[1]-a[1]);
+  return (
+    <div className="rounded-xl border border-border bg-card p-5">
+      <h2 className="text-sm font-semibold text-foreground flex items-center gap-2 mb-3">
+        <Clock size={14} className="text-muted-foreground" /> Tempo em cada status
+        <span className="text-muted-foreground font-normal">· total {fmtDur(data.totalSeg * 1000)}</span>
+      </h2>
+      <div className="flex w-full h-2 rounded-full overflow-hidden bg-muted mb-3">
+        {items.map(([s, sec]) => (
+          <div key={s}
+            title={`${s}: ${fmtDur(sec * 1000)} (${Math.round(sec / total * 100)}%)`}
+            style={{ width: `${(sec / total) * 100}%`, background: STATUS_COLOR_BAR[s] || "#888" }}
+          />
+        ))}
+      </div>
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-xs">
+        {items.map(([s, sec]) => (
+          <div key={s} className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: STATUS_COLOR_BAR[s] || "#888" }} />
+            <span className="text-muted-foreground capitalize flex-1">{s.replace(/_/g, " ")}</span>
+            <span className="font-mono text-foreground">{fmtDur(sec * 1000)}</span>
+          </div>
+        ))}
+      </div>
+      {data.statusAtual && (
+        <div className="text-[10px] text-muted-foreground mt-3 italic">
+          Status atual: <b className="text-foreground capitalize">{data.statusAtual.replace(/_/g, " ")}</b>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TimelineItem({ ev }: { ev: TimelineEvent }) {
+  // Aviso: a auditoria de "comentario" nao vai aparecer (filtrado no backend),
+  // os comentarios reais entram como kind === "comentario" abaixo.
+  if (ev.kind === "audit") {
+    const { Icon, color, verb } = describeAudit(ev);
+    return (
+      <li className="ml-4 relative">
+        <span className="absolute -left-[26px] top-0.5 w-5 h-5 rounded-full bg-card border border-border flex items-center justify-center">
+          <Icon size={11} className={color} />
+        </span>
+        <div className="flex items-center gap-2 text-sm text-foreground">
+          <MiniAvatar nome={ev.actor?.nome} />
+          <span className="font-medium">{ev.actor?.nome || "Sistema"}</span>
+          <span className="text-muted-foreground">·</span>
+          <span className="text-muted-foreground">{verb}</span>
+        </div>
+        <div className="text-[11px] text-muted-foreground mt-0.5 ml-9" title={fmtAbs(ev.criadoEm)}>
+          {fmtRelative(ev.criadoEm)}
+        </div>
+      </li>
+    );
+  }
+  if (ev.kind === "comentario") {
+    return (
+      <li className="ml-4 relative">
+        <span className="absolute -left-[26px] top-0.5 w-5 h-5 rounded-full bg-card border border-border flex items-center justify-center">
+          <MessageSquare size={11} className={ev.interno ? "text-yellow-400" : "text-blue-400"} />
+        </span>
+        <div className="flex items-center gap-2 text-sm">
+          <MiniAvatar nome={ev.actor?.nome} />
+          <span className="font-medium text-foreground">{ev.actor?.nome || "?"}</span>
+          {ev.interno && (
+            <span className="text-[10px] px-1.5 py-0.5 rounded bg-yellow-500/15 text-yellow-400 border border-yellow-500/30 font-medium">
+              <Lock size={9} className="inline mr-1" /> Nota interna
+            </span>
+          )}
+          <span className="text-muted-foreground">·</span>
+          <span className="text-[11px] text-muted-foreground" title={fmtAbs(ev.criadoEm)}>{fmtRelative(ev.criadoEm)}</span>
+        </div>
+        <div className={cn("text-sm mt-1 ml-9 px-3 py-2 rounded-lg whitespace-pre-wrap break-words",
+          ev.interno ? "bg-yellow-500/8 border border-yellow-500/20 text-foreground"
+                     : "bg-muted/40 text-foreground")}>
+          {ev.texto}
+        </div>
+      </li>
+    );
+  }
+  if (ev.kind === "anexo") {
+    return (
+      <li className="ml-4 relative">
+        <span className="absolute -left-[26px] top-0.5 w-5 h-5 rounded-full bg-card border border-border flex items-center justify-center">
+          <Paperclip size={11} className="text-emerald-400" />
+        </span>
+        <div className="flex items-center gap-2 text-sm">
+          <MiniAvatar nome={ev.actor?.nome} />
+          <span className="font-medium text-foreground">{ev.actor?.nome || "?"}</span>
+          <span className="text-muted-foreground">enviou anexo</span>
+          <span className="text-muted-foreground">·</span>
+          <span className="text-[11px] text-muted-foreground" title={fmtAbs(ev.criadoEm)}>{fmtRelative(ev.criadoEm)}</span>
+        </div>
+        <a href={ev.url} target="_blank" rel="noopener noreferrer"
+           className="text-xs ml-9 mt-1 inline-flex items-center gap-1.5 text-emerald-400 hover:underline">
+          <FilePlus size={11} /> {ev.nomeOriginal}
+          <span className="text-muted-foreground">· {(ev.tamanhoBytes/1024).toFixed(0)} KB</span>
+        </a>
+      </li>
+    );
+  }
+  if (ev.kind === "apontamento") {
+    return (
+      <li className="ml-4 relative">
+        <span className="absolute -left-[26px] top-0.5 w-5 h-5 rounded-full bg-card border border-border flex items-center justify-center">
+          <Clock size={11} className="text-cyan-400" />
+        </span>
+        <div className="flex items-center gap-2 text-sm">
+          <MiniAvatar nome={ev.actor?.nome} />
+          <span className="font-medium text-foreground">{ev.actor?.nome || "?"}</span>
+          <span className="text-muted-foreground">apontou</span>
+          <span className="font-mono text-cyan-400">{fmtHorasMin(ev.minutos)}</span>
+          <span className="text-muted-foreground">·</span>
+          <span className="text-[11px] text-muted-foreground" title={fmtAbs(ev.criadoEm)}>{fmtRelative(ev.criadoEm)}</span>
+        </div>
+        {ev.descricao && <div className="text-xs text-muted-foreground italic ml-9 mt-1">{ev.descricao}</div>}
+      </li>
+    );
+  }
+  return null;
 }

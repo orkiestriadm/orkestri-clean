@@ -65,7 +65,7 @@ const STATUS_LEAD_LIST= [
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const STATUS_PROJ: Record<string, { label: string; color: string }> = {
-  PLANEJAMENTO: { label: "Planejamento", color: "#a78bfa" },
+  PLANEJAMENTO: { label: "Planejamento", color: "#EF5350" },
   EM_ANDAMENTO: { label: "Em andamento", color: "#22d3ee" },
   PAUSADO: { label: "Pausado", color: "#fbbf24" },
   CONCLUIDO: { label: "Concluído", color: "#34d399" },
@@ -140,8 +140,8 @@ function Avatar({ nome, size = 28 }: { nome: string; size?: number }) {
   return (
     <div style={{
       width: size, height: size, borderRadius: "50%", flexShrink: 0,
-      background: "linear-gradient(135deg,rgba(124,58,237,0.4),rgba(34,211,238,0.3))",
-      border: "1px solid rgba(124,58,237,0.3)",
+      background: "linear-gradient(135deg,rgba(211,47,47,0.4),rgba(34,211,238,0.3))",
+      border: "1px solid rgba(211,47,47,0.3)",
       display: "flex", alignItems: "center", justifyContent: "center",
       fontSize: size * 0.35, fontWeight: 700, color: "var(--accent-violet)",
     }}>
@@ -519,7 +519,7 @@ function TabVisaoGeral({ ws, onAddNota, onReload }: { ws: Workspace; onAddNota: 
             <span style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", fontFamily: "var(--font-mono)", letterSpacing: "0.08em" }}>ATIVIDADE RECENTE</span>
             <button
               onClick={onAddNota}
-              style={{ fontSize: 10, color: "var(--accent-violet)", background: "rgba(124,58,237,0.08)", border: "1px solid rgba(124,58,237,0.2)", borderRadius: 6, padding: "3px 8px", cursor: "pointer", fontFamily: "var(--font-mono)" }}>
+              style={{ fontSize: 10, color: "var(--accent-violet)", background: "rgba(211,47,47,0.08)", border: "1px solid rgba(211,47,47,0.2)", borderRadius: 6, padding: "3px 8px", cursor: "pointer", fontFamily: "var(--font-mono)" }}>
               + NOTA
             </button>
           </div>
@@ -531,7 +531,7 @@ function TabVisaoGeral({ ws, onAddNota, onReload }: { ws: Workspace; onAddNota: 
                 <div key={ev.id} style={{ display: "flex", gap: 10, padding: "8px 16px", alignItems: "flex-start" }}>
                   <div style={{
                     width: 22, height: 22, borderRadius: 6, flexShrink: 0,
-                    background: "rgba(124,58,237,0.08)", border: "1px solid rgba(124,58,237,0.12)",
+                    background: "rgba(211,47,47,0.08)", border: "1px solid rgba(211,47,47,0.12)",
                     display: "flex", alignItems: "center", justifyContent: "center",
                     fontSize: 11, color: "var(--accent-violet)",
                   }}>
@@ -830,13 +830,13 @@ function TabOrganizacao({ cliente, isMaster }: { cliente: Cliente; isMaster: boo
 
   return (
     <div className="card" style={{ padding: "40px 24px", textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", gap: 16 }}>
-      <div style={{ width: 48, height: 48, borderRadius: 14, background: "rgba(124,58,237,0.08)", border: "1px solid rgba(124,58,237,0.2)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <div style={{ width: 48, height: 48, borderRadius: 14, background: "rgba(211,47,47,0.08)", border: "1px solid rgba(211,47,47,0.2)", display: "flex", alignItems: "center", justifyContent: "center" }}>
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent-violet)" strokeWidth="1.5"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>
       </div>
       <div>
         <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)", marginBottom: 6 }}>Sem organização provisionada</div>
         <div style={{ fontSize: 12, color: "var(--text-muted)", maxWidth: 320, lineHeight: 1.6 }}>
-          Este cliente ainda não possui um tenant operacional no Orkiestri.
+          Este cliente ainda não possui um tenant operacional no HUB Operacional.
           {isMaster ? " Crie uma solicitação de provisionamento para iniciar o onboarding." : ""}
         </div>
       </div>
@@ -905,8 +905,8 @@ function TabTimeline({ clienteId, onAddNota }: { clienteId: string; onAddNota: (
                 {/* Icon */}
                 <div style={{
                   width: 38, height: 38, borderRadius: 10, flexShrink: 0, zIndex: 1,
-                  background: ev.tipo === "nota" ? "rgba(124,58,237,0.1)" : "var(--bg-card)",
-                  border: ev.tipo === "nota" ? "1px solid rgba(124,58,237,0.3)" : "1px solid var(--border-subtle)",
+                  background: ev.tipo === "nota" ? "rgba(211,47,47,0.1)" : "var(--bg-card)",
+                  border: ev.tipo === "nota" ? "1px solid rgba(211,47,47,0.3)" : "1px solid var(--border-subtle)",
                   display: "flex", alignItems: "center", justifyContent: "center",
                   fontSize: 14, color: ev.tipo === "nota" ? "var(--accent-violet)" : "var(--text-muted)",
                 }}>
@@ -1014,8 +1014,8 @@ export default function ClienteWorkspacePage({ params }: { params: Promise<{ id:
             {/* Avatar large */}
             <div style={{
               width: 56, height: 56, borderRadius: 14, flexShrink: 0,
-              background: "linear-gradient(135deg,rgba(124,58,237,0.3),rgba(34,211,238,0.2))",
-              border: "1px solid rgba(124,58,237,0.25)",
+              background: "linear-gradient(135deg,rgba(211,47,47,0.3),rgba(34,211,238,0.2))",
+              border: "1px solid rgba(211,47,47,0.25)",
               display: "flex", alignItems: "center", justifyContent: "center",
               fontSize: 18, fontWeight: 700, color: "var(--accent-violet)",
             }}>

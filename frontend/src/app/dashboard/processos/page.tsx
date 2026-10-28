@@ -22,14 +22,14 @@ type Template = {
 // ── Constants ──────────────────────────────────────────────────────────────────
 const TIPO_CORES: Record<string, string> = {
   ti:"#60a5fa", rh:"#34d399", financeiro:"#fbbf24",
-  juridico:"#a78bfa", compras:"#f472b6", facilities:"#fb923c", outro:"#94a3b8",
+  juridico:"#EF5350", compras:"#f472b6", facilities:"#fb923c", outro:"#94a3b8",
 };
 const TIPO_LABELS: Record<string, string> = {
   ti:"TI", rh:"RH", financeiro:"Financeiro", juridico:"Jurídico",
   compras:"Compras", facilities:"Facilities", outro:"Outro",
 };
 const STEP_BORDER: Record<StepTipo, string> = {
-  inicio:"#94a3b8", tarefa:"#60a5fa", aprovacao:"#a78bfa",
+  inicio:"#94a3b8", tarefa:"#60a5fa", aprovacao:"#EF5350",
   notificacao:"#22d3ee", condicao:"#fbbf24", fim:"#94a3b8",
 };
 const STEP_TYPES: { tipo: StepTipo; label: string }[] = [
@@ -45,7 +45,7 @@ function StepIcon({ tipo, size = 14 }: { tipo: StepTipo; size?: number }) {
   const p = { size, className: "shrink-0" };
   if (tipo === "inicio")      return <Play {...p} style={{ color:"#34d399" }} />;
   if (tipo === "tarefa")      return <CheckSquare {...p} style={{ color:"#60a5fa" }} />;
-  if (tipo === "aprovacao")   return <Shield {...p} style={{ color:"#a78bfa" }} />;
+  if (tipo === "aprovacao")   return <Shield {...p} style={{ color:"#EF5350" }} />;
   if (tipo === "notificacao") return <Bell {...p} style={{ color:"#22d3ee" }} />;
   if (tipo === "condicao")    return <GitBranch {...p} style={{ color:"#fbbf24" }} />;
   return <Flag {...p} style={{ color:"#94a3b8" }} />;
@@ -89,7 +89,7 @@ function StepCard({ step, index, onDelete, onChangeName, onChangeField }: {
       <div className="flex items-center gap-2 mt-1.5 ml-6 flex-wrap">
         {step.responsavel && <span className="text-[10px] px-2 py-0.5 rounded-full bg-[var(--bg-secondary)] text-[var(--text-muted)] border border-[var(--border-subtle)]">👤 {step.responsavel}</span>}
         {step.prazo       && <span className="text-[10px] px-2 py-0.5 rounded-full bg-[var(--bg-secondary)] text-[var(--text-muted)] border border-[var(--border-subtle)]">⏱ {step.prazo}d</span>}
-        {step.obrigatorio && <span className="text-[10px] px-2 py-0.5 rounded-full bg-violet-500/10 text-violet-400 border border-violet-500/20">obrigatório</span>}
+        {step.obrigatorio && <span className="text-[10px] px-2 py-0.5 rounded-full bg-red-500/10 text-red-400 border border-red-500/20">obrigatório</span>}
         {step.tipo === "condicao" && <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20">Sim / Não</span>}
       </div>
 
@@ -114,7 +114,7 @@ function StepCard({ step, index, onDelete, onChangeName, onChangeField }: {
           </div>
           <label className="flex items-center gap-2 cursor-pointer select-none">
             <input type="checkbox" checked={!!step.obrigatorio}
-              onChange={e => onChangeField("obrigatorio", e.target.checked)} className="accent-violet-500" />
+              onChange={e => onChangeField("obrigatorio", e.target.checked)} className="accent-red-500" />
             <span className="text-[12px] text-[var(--text-secondary)]">Etapa obrigatória</span>
           </label>
         </div>

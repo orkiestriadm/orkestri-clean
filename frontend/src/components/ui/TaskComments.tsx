@@ -61,7 +61,7 @@ export default function TaskComments({ projectId, taskId }: { projectId: string;
           const isMe = c.user.id === me?.id;
           return (
             <div key={c.id} style={{ display:"flex", gap:8, alignItems:"flex-start" }}>
-              <div style={{ width:26, height:26, borderRadius:"50%", background:"linear-gradient(135deg,rgba(124,58,237,0.4),rgba(34,211,238,0.3))", border:"1px solid rgba(124,58,237,0.3)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:10, fontWeight:700, color:"var(--accent-violet)", flexShrink:0 }}>
+              <div style={{ width:26, height:26, borderRadius:"50%", background:"linear-gradient(135deg,rgba(211,47,47,0.4),rgba(34,211,238,0.3))", border:"1px solid rgba(211,47,47,0.3)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:10, fontWeight:700, color:"var(--accent-violet)", flexShrink:0 }}>
                 {c.user.nome.charAt(0).toUpperCase()}
               </div>
               <div style={{ flex:1, minWidth:0 }}>

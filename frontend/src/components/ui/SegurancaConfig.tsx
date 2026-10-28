@@ -212,7 +212,7 @@ function PasswordPolicySection({ isMaster }: { isMaster: boolean }) {
   return (
     <div className="card" style={{ padding:"20px 24px" }}>
       <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:20, paddingBottom:12, borderBottom:"1px solid var(--border-subtle)" }}>
-        <div style={{ width:38, height:38, borderRadius:10, background:"rgba(124,58,237,0.1)", border:"1px solid rgba(124,58,237,0.2)", display:"flex", alignItems:"center", justifyContent:"center" }}>
+        <div style={{ width:38, height:38, borderRadius:10, background:"rgba(211,47,47,0.1)", border:"1px solid rgba(211,47,47,0.2)", display:"flex", alignItems:"center", justifyContent:"center" }}>
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent-violet)" strokeWidth="1.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
         </div>
         <div>
@@ -256,7 +256,7 @@ function PasswordPolicySection({ isMaster }: { isMaster: boolean }) {
               { key:"requireNumber",  label:"Numeros",                 desc:"Ex: 1, 2, 3" },
               { key:"requireSpecial", label:"Caracteres especiais",    desc:"Ex: @, #, !" },
             ].map(item => (
-              <div key={item.key} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"10px 14px", borderRadius:8, background:"var(--bg-hover)", border:`1px solid ${(policy as any)[item.key]?"rgba(124,58,237,0.2)":"var(--border-subtle)"}` }}>
+              <div key={item.key} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"10px 14px", borderRadius:8, background:"var(--bg-hover)", border:`1px solid ${(policy as any)[item.key]?"rgba(211,47,47,0.2)":"var(--border-subtle)"}` }}>
                 <div>
                   <div style={{ fontSize:13, color:"var(--text-primary)", fontWeight:500 }}>{item.label}</div>
                   <div style={{ fontSize:11, color:"var(--text-muted)", marginTop:1 }}>{item.desc}</div>

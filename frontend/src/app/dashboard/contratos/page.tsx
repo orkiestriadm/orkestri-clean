@@ -463,7 +463,7 @@ export default function ContratosPage() {
           <StatCard icon={CheckCircle}   label="Vigentes"    value={stats.vigentes} color="bg-emerald-500/10 text-emerald-400 border-emerald-500/20" />
           <StatCard icon={AlertTriangle} label="Vencendo"    value={stats.vencendo} color="bg-amber-500/10 text-amber-400 border-amber-500/20" sub="em 30 dias" />
           <StatCard icon={XCircle}       label="Vencidos"    value={stats.vencidos} color="bg-red-500/10 text-red-400 border-red-500/20" />
-          <StatCard icon={DollarSign}    label="Valor Total" value={fmtMoney(stats.valorTotal)} color="bg-violet-500/10 text-violet-400 border-violet-500/20" />
+          <StatCard icon={DollarSign}    label="Valor Total" value={fmtMoney(stats.valorTotal)} color="bg-red-500/10 text-red-400 border-red-500/20" />
         </div>
       )}
 

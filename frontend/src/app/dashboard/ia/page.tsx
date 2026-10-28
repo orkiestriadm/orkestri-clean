@@ -126,14 +126,14 @@ function TrendChart({ data }: { data: { data: string; total: number }[] }) {
           {/* Area fill */}
           <defs>
             <linearGradient id="iaGrad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#8b5cf6" stopOpacity={0.2} />
-              <stop offset="100%" stopColor="#8b5cf6" stopOpacity={0} />
+              <stop offset="0%" stopColor="#E53935" stopOpacity={0.2} />
+              <stop offset="100%" stopColor="#E53935" stopOpacity={0} />
             </linearGradient>
           </defs>
           <path d={`${linePath} L ${xOf(values.length - 1)} ${H - PAD} L ${xOf(0)} ${H - PAD} Z`}
             fill="url(#iaGrad)" />
           {/* Main line */}
-          <path d={linePath} fill="none" stroke="#8b5cf6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+          <path d={linePath} fill="none" stroke="#E53935" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
           {/* 7-day avg dashed */}
           <path d={avgPoints.join(" ")} fill="none" stroke="#f59e0b" strokeWidth="1.5"
             strokeDasharray="4 3" strokeLinecap="round" />
@@ -143,7 +143,7 @@ function TrendChart({ data }: { data: { data: string; total: number }[] }) {
           ) : null)}
           {/* Regular dots */}
           {values.map((v, i) => v <= anomalyThreshold ? (
-            <circle key={i} cx={xOf(i)} cy={yOf(v)} r={2.5} fill="#8b5cf6" opacity={0.6} />
+            <circle key={i} cx={xOf(i)} cy={yOf(v)} r={2.5} fill="#E53935" opacity={0.6} />
           ) : null)}
           {/* X labels — every 2 */}
           {data.filter((_, i) => i % 2 === 0).map((d, ii) => {
@@ -156,7 +156,7 @@ function TrendChart({ data }: { data: { data: string; total: number }[] }) {
         </svg>
       </div>
       <div className="flex items-center gap-4 mt-2 text-[10px] text-[var(--text-muted)] font-mono">
-        <span className="flex items-center gap-1"><span className="w-6 border-t-2 border-violet-500 inline-block" /> Volume diário</span>
+        <span className="flex items-center gap-1"><span className="w-6 border-t-2 border-red-500 inline-block" /> Volume diário</span>
         <span className="flex items-center gap-1"><span className="w-6 border-t-[1.5px] border-dashed border-amber-400 inline-block" /> Média 7 dias</span>
         {values.some(v => v > anomalyThreshold) && (
           <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-red-400 inline-block" /> Anomalia</span>
@@ -427,7 +427,7 @@ export default function IAPage() {
       <Topbar />
       <div className="flex items-center justify-center flex-1">
         <div className="flex flex-col items-center gap-3">
-          <div className="w-9 h-9 border-2 border-violet-500 border-t-transparent rounded-full animate-spin" />
+          <div className="w-9 h-9 border-2 border-red-500 border-t-transparent rounded-full animate-spin" />
           <span className="text-[12px] text-[var(--text-muted)] font-mono">Computando inteligência operacional...</span>
         </div>
       </div>
@@ -461,8 +461,8 @@ export default function IAPage() {
 
           {/* ── Header ── */}
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl flex items-center justify-center bg-violet-500/12 border border-violet-500/25">
-              <Brain size={17} className="text-violet-400" />
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center bg-red-500/12 border border-red-500/25">
+              <Brain size={17} className="text-red-400" />
             </div>
             <div>
               <h1 className="font-display text-[22px] font-bold text-[var(--text-primary)] tracking-tight">IA Operacional</h1>
@@ -541,8 +541,8 @@ export default function IAPage() {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
               <div className="card-premium p-5 lg:col-span-2">
                 <div className="flex items-center gap-2 mb-4">
-                  <div className="w-6 h-6 rounded-lg bg-violet-500/12 border border-violet-500/20 flex items-center justify-center">
-                    <TrendingUp size={12} className="text-violet-400" />
+                  <div className="w-6 h-6 rounded-lg bg-red-500/12 border border-red-500/20 flex items-center justify-center">
+                    <TrendingUp size={12} className="text-red-400" />
                   </div>
                   <h2 className="text-[13px] font-bold text-[var(--text-primary)]">Análise de Tendência</h2>
                 </div>

@@ -107,7 +107,7 @@ function NoteCard({ note, onUpdate, onDelete }: { note: Note; onUpdate: (id: str
           )}
           <div style={{ display:"flex", gap:6, marginTop:4 }}>
             <input value={newItem} onChange={e=>setNewItem(e.target.value)} onKeyDown={e=>e.key==="Enter"&&addItem()} placeholder="Novo item..." style={{ flex:1, background:"rgba(255,255,255,0.05)", border:"1px solid var(--border-subtle)", borderRadius:6, padding:"5px 10px", fontSize:12, color:"var(--text-primary)", outline:"none" }} />
-            <button onClick={addItem} style={{ background:"var(--accent-violet-dim)", border:"1px solid rgba(124,58,237,0.2)", borderRadius:6, padding:"5px 10px", fontSize:12, color:"var(--accent-violet)", cursor:"pointer" }}>+</button>
+            <button onClick={addItem} style={{ background:"var(--accent-violet-dim)", border:"1px solid rgba(211,47,47,0.2)", borderRadius:6, padding:"5px 10px", fontSize:12, color:"var(--accent-violet)", cursor:"pointer" }}>+</button>
           </div>
         </div>
       )}
@@ -239,7 +239,7 @@ export default function KeepPage() {
         {/* Sidebar */}
         <div style={{ width:220, borderRight:"1px solid var(--border-subtle)", padding:"16px 12px", flexShrink:0, display:"flex", flexDirection:"column", gap:4 }}>
           {NAV_ITEMS.map(item => (
-            <button key={item.key} onClick={()=>setView(item.key as any)} style={{ display:"flex", alignItems:"center", gap:8, padding:"8px 12px", borderRadius:8, background:view===item.key?"var(--accent-violet-dim)":"transparent", border:view===item.key?"1px solid rgba(124,58,237,0.2)":"1px solid transparent", cursor:"pointer", textAlign:"left", width:"100%", transition:"all 0.15s" }}>
+            <button key={item.key} onClick={()=>setView(item.key as any)} style={{ display:"flex", alignItems:"center", gap:8, padding:"8px 12px", borderRadius:8, background:view===item.key?"var(--accent-violet-dim)":"transparent", border:view===item.key?"1px solid rgba(211,47,47,0.2)":"1px solid transparent", cursor:"pointer", textAlign:"left", width:"100%", transition:"all 0.15s" }}>
               <span style={{ fontSize:13, color:view===item.key?"var(--accent-violet)":"var(--text-secondary)", fontWeight:view===item.key?500:400 }}>{item.label}</span>
               {item.count > 0 && <span style={{ marginLeft:"auto", fontSize:11, color:"var(--text-muted)", background:"var(--bg-hover)", borderRadius:10, padding:"1px 6px" }}>{item.count}</span>}
             </button>
@@ -261,12 +261,12 @@ export default function KeepPage() {
                     <button onClick={()=>{ setNewTipo("CHECKLIST"); setNewNote(true); }} className="btn btn-ghost" style={{ fontSize:12, flexShrink:0 }}>Lista</button>
                   </div>
                 ) : (
-                  <div style={{ border:"1px solid rgba(124,58,237,0.3)", borderRadius:14, padding:"14px 16px", marginBottom:20, background:"var(--bg-card)", boxShadow:"0 0 0 3px rgba(124,58,237,0.08)" }}>
+                  <div style={{ border:"1px solid rgba(211,47,47,0.3)", borderRadius:14, padding:"14px 16px", marginBottom:20, background:"var(--bg-card)", boxShadow:"0 0 0 3px rgba(211,47,47,0.08)" }}>
                     <input value={newTitle} onChange={e=>setNewTitle(e.target.value)} placeholder="Titulo (opcional)" style={{ width:"100%", background:"transparent", border:"none", outline:"none", fontSize:14, fontWeight:600, color:"var(--text-primary)", marginBottom:10, fontFamily:"var(--font-display)" }} />
                     <textarea value={newContent} onChange={e=>setNewContent(e.target.value)} placeholder={newTipo==="CHECKLIST"?"Primeiro item da lista...":"Escreva sua nota..."} autoFocus style={{ width:"100%", background:"transparent", border:"none", outline:"none", fontSize:13, color:"var(--text-secondary)", resize:"none", minHeight:80, fontFamily:"var(--font-body)", lineHeight:1.6 }} />
                     <div style={{ display:"flex", gap:8, marginTop:12, borderTop:"1px solid var(--border-subtle)", paddingTop:12 }}>
                       <button onClick={()=>{ setNewNote(false); setNewTitle(""); setNewContent(""); }} style={{ fontSize:12, padding:"5px 12px", borderRadius:7, background:"transparent", border:"1px solid var(--border-subtle)", cursor:"pointer", color:"var(--text-muted)" }}>Cancelar</button>
-                      <button onClick={createNote} disabled={creating} style={{ fontSize:12, padding:"5px 14px", borderRadius:7, background:"linear-gradient(135deg,#7c3aed,#6d28d9)", border:"none", cursor:"pointer", color:"white", fontWeight:600, display:"flex", alignItems:"center", gap:6 }}>{creating?<Spin/>:"Salvar nota"}</button>
+                      <button onClick={createNote} disabled={creating} style={{ fontSize:12, padding:"5px 14px", borderRadius:7, background:"linear-gradient(135deg,#D32F2F,#B71C1C)", border:"none", cursor:"pointer", color:"white", fontWeight:600, display:"flex", alignItems:"center", gap:6 }}>{creating?<Spin/>:"Salvar nota"}</button>
                     </div>
                   </div>
                 )

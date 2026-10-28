@@ -24,7 +24,9 @@ COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/prisma ./prisma
 COPY package*.json ./
-RUN mkdir -p /app/uploads && chown -R app:app /app
+# Pre-cria as pastas montadas como volume com dono 'app' — assim um volume nomeado
+# novo herda a permissao correta (evita EACCES no backup ao rodar como nao-root).
+RUN mkdir -p /app/uploads /app/backup /app/logs && chown -R app:app /app
 USER app
 EXPOSE 3000
 CMD ["sh", "-c", "npx prisma migrate deploy && node dist/main"]

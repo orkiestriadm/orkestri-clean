@@ -437,7 +437,7 @@ function TemplateVarsHint() {
     <div style={{ fontSize: 10, color: "var(--text-muted)", display: "flex", flexWrap: "wrap", gap: 4 }}>
       <span style={{ marginRight: 4 }}>Variáveis:</span>
       {TEMPLATE_VARS.map(v => (
-        <code key={v} style={{ background: "rgba(124,58,237,0.1)", color: "var(--accent-violet)", padding: "1px 5px", borderRadius: 3, fontSize: 10 }}>{v}</code>
+        <code key={v} style={{ background: "rgba(211,47,47,0.1)", color: "var(--accent-violet)", padding: "1px 5px", borderRadius: 3, fontSize: 10 }}>{v}</code>
       ))}
     </div>
   );
@@ -799,7 +799,7 @@ function WebhooksPanel({ canCreate }: { canCreate: boolean; }) {
         </div>
       </div>
 
-      <div style={{ padding: "10px 14px", background: "rgba(124,58,237,0.06)", border: "1px solid rgba(124,58,237,0.15)", borderRadius: 8, fontSize: 11, color: "var(--text-secondary)", marginBottom: 20 }}>
+      <div style={{ padding: "10px 14px", background: "rgba(211,47,47,0.06)", border: "1px solid rgba(211,47,47,0.15)", borderRadius: 8, fontSize: 11, color: "var(--text-secondary)", marginBottom: 20 }}>
         <strong style={{ color: "var(--accent-violet)" }}>Eventos disponíveis: </strong>
         {EVENTOS_WEBHOOK.map((ev, i) => (
           <span key={ev}><code style={{ fontSize: 10, background: "rgba(0,0,0,0.2)", padding: "1px 5px", borderRadius: 3 }}>{ev}</code>{i < EVENTOS_WEBHOOK.length - 1 ? ", " : ""}</span>
@@ -823,7 +823,7 @@ function WebhooksPanel({ canCreate }: { canCreate: boolean; }) {
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                   <span style={{ fontSize: 13, fontWeight: 600 }}>{w.nome}</span>
-                  <code style={{ fontSize: 10, background: "rgba(124,58,237,0.12)", color: "#a78bfa", padding: "1px 6px", borderRadius: 4 }}>{w.evento}</code>
+                  <code style={{ fontSize: 10, background: "rgba(211,47,47,0.12)", color: "#EF5350", padding: "1px 6px", borderRadius: 4 }}>{w.evento}</code>
                 </div>
                 <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{w.url}</div>
                 <div style={{ fontSize: 10, color: "var(--text-muted)", marginTop: 2, fontFamily: "var(--font-mono)" }}>
@@ -975,7 +975,7 @@ export default function AutomacoesPage() {
             </div>
 
             {/* Info box */}
-            <div style={{ padding: "12px 16px", background: "rgba(124,58,237,0.06)", border: "1px solid rgba(124,58,237,0.15)", borderRadius: 8, fontSize: 12, color: "var(--text-secondary)", marginBottom: 24, maxWidth: 760 }}>
+            <div style={{ padding: "12px 16px", background: "rgba(211,47,47,0.06)", border: "1px solid rgba(211,47,47,0.15)", borderRadius: 8, fontSize: 12, color: "var(--text-secondary)", marginBottom: 24, maxWidth: 760 }}>
               <strong style={{ color: "var(--accent-violet)" }}>Como funciona: </strong>
               Quando um evento ocorre, as condições são avaliadas (grupos combinados com <strong>OU</strong>, condições dentro do grupo com <strong>E</strong>). Se passar, as ações são executadas em sequência.{" "}
               <strong>Ações disponíveis:</strong> mudar status, prioridade, atribuir atendente, escalar, adicionar/remover tags, comentar, notificar, enviar WhatsApp e <strong>criar tarefas em projetos</strong>.

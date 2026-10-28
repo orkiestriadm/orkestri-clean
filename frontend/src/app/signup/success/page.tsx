@@ -80,7 +80,7 @@ function StatusContent() {
         <Link
           href="/login"
           className="w-full flex items-center justify-center gap-2 rounded-xl px-6 py-3.5 font-semibold text-sm text-white transition-opacity hover:opacity-90"
-          style={{ background: "var(--accent-violet, #7c3aed)" }}
+          style={{ background: "var(--accent-violet, #D32F2F)" }}
         >
           Acessar o sistema agora →
         </Link>
@@ -111,12 +111,12 @@ function StatusContent() {
         <Link
           href="/signup"
           className="w-full flex items-center justify-center gap-2 rounded-xl px-6 py-3.5 font-semibold text-sm text-white transition-opacity hover:opacity-90"
-          style={{ background: "var(--accent-violet, #7c3aed)" }}
+          style={{ background: "var(--accent-violet, #D32F2F)" }}
         >
           Tentar novamente
         </Link>
         <a
-          href="https://wa.me/5511999999999?text=Tive%20um%20problema%20no%20cadastro%20do%20Orkiestri"
+          href="https://wa.me/5511999999999?text=Tive%20um%20problema%20no%20cadastro%20do%20HUB Operacional"
           target="_blank"
           rel="noopener noreferrer"
           className="mt-3 block text-sm font-medium transition-opacity hover:opacity-70"
@@ -145,7 +145,7 @@ function StatusContent() {
         <Link
           href="/signup"
           className="w-full flex items-center justify-center gap-2 rounded-xl px-6 py-3.5 font-semibold text-sm text-white transition-opacity hover:opacity-90"
-          style={{ background: "var(--accent-violet, #7c3aed)" }}
+          style={{ background: "var(--accent-violet, #D32F2F)" }}
         >
           Novo cadastro
         </Link>
@@ -158,8 +158,8 @@ function StatusContent() {
   return (
     <div className="text-center">
       <div className="mx-auto mb-6 w-20 h-20 rounded-full flex items-center justify-center"
-        style={{ background: "rgba(124,58,237,0.1)", border: "2px solid rgba(124,58,237,0.3)" }}>
-        <Loader2 size={36} color="#7c3aed" className="animate-spin" />
+        style={{ background: "rgba(211,47,47,0.1)", border: "2px solid rgba(211,47,47,0.3)" }}>
+        <Loader2 size={36} color="#D32F2F" className="animate-spin" />
       </div>
       <h1 className="text-2xl font-bold mb-2" style={{ color: "var(--text-primary)" }}>
         {status === "paid" ? "Pagamento confirmado!" : "Aguardando confirmação de pagamento"}
@@ -175,7 +175,7 @@ function StatusContent() {
           <div
             key={i}
             className="w-2 h-2 rounded-full animate-bounce"
-            style={{ background: "#7c3aed", animationDelay: `${i * 0.15}s` }}
+            style={{ background: "#D32F2F", animationDelay: `${i * 0.15}s` }}
           />
         ))}
       </div>
@@ -223,7 +223,7 @@ export default function SignupSuccessPage() {
         </div>
 
         <footer className="py-6 text-center text-xs" style={{ color: "var(--text-muted)" }}>
-          Orkiestri · orkiestri.com
+          HUB Operacional · Triunfo Transbrasiliana
         </footer>
       </div>
     </Suspense>

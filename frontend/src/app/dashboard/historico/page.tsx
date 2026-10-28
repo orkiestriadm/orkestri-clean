@@ -29,7 +29,7 @@ type AuditStats = {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const ACAO_COLOR: Record<string, string> = {
-  LOGIN: "#a78bfa", LOGOUT: "#94a3b8",
+  LOGIN: "#EF5350", LOGOUT: "#94a3b8",
   CREATE: "#34d399", UPDATE: "#22d3ee",
   DELETE: "#f87171", APPROVE: "#fbbf24",
   BLOCK: "#f97316", UNBLOCK: "#34d399",
@@ -140,7 +140,7 @@ function TimelineView({ items }: { items: AuditEntry[] }) {
                     </div>
                     {e.user && (
                       <div style={{ display:"flex", alignItems:"center", gap:5, flexShrink:0 }}>
-                        <div style={{ width:20, height:20, borderRadius:"50%", background:"var(--accent-violet-dim)", border:"1px solid rgba(124,58,237,0.3)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:9, fontWeight:700, color:"var(--accent-violet)" }}>
+                        <div style={{ width:20, height:20, borderRadius:"50%", background:"var(--accent-violet-dim)", border:"1px solid rgba(211,47,47,0.3)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:9, fontWeight:700, color:"var(--accent-violet)" }}>
                           {e.user.nome.charAt(0).toUpperCase()}
                         </div>
                         <span style={{ fontSize:11, color:"var(--text-muted)" }}>{e.user.nome}</span>

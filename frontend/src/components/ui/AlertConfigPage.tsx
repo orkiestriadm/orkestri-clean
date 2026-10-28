@@ -87,7 +87,7 @@ function ConfigCard({ cfg, onChange }: { cfg: AlertConfig; onChange: (updated: A
             <textarea className="input-o" value={local.mensagem} onChange={e => setLocal(p => ({ ...p, mensagem: e.target.value }))} style={{ minHeight:100, resize:"vertical", fontFamily:"var(--font-mono)", fontSize:12 }} />
             <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginTop:6 }}>
               {VARIAVEIS.map(v => (
-                <button key={v.var} onClick={() => setLocal(p => ({ ...p, mensagem: p.mensagem + v.var }))} style={{ background:"var(--accent-violet-dim)", border:"1px solid rgba(124,58,237,0.2)", borderRadius:6, padding:"3px 8px", fontSize:11, color:"var(--accent-violet)", cursor:"pointer", fontFamily:"var(--font-mono)" }} title={v.desc}>
+                <button key={v.var} onClick={() => setLocal(p => ({ ...p, mensagem: p.mensagem + v.var }))} style={{ background:"var(--accent-violet-dim)", border:"1px solid rgba(211,47,47,0.2)", borderRadius:6, padding:"3px 8px", fontSize:11, color:"var(--accent-violet)", cursor:"pointer", fontFamily:"var(--font-mono)" }} title={v.desc}>
                   {v.var}
                 </button>
               ))}

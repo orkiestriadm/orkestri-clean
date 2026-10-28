@@ -35,7 +35,7 @@ type PipelineData = Record<string, Cliente[]>;
 const PIPELINE_STAGES = [
   { key: "lead",        label: "Lead",        cor: "#94a3b8", icon: "●" },
   { key: "prospect",    label: "Prospect",    cor: "#60a5fa", icon: "◎" },
-  { key: "oportunidade",label: "Oportunidade",cor: "#a78bfa", icon: "◈" },
+  { key: "oportunidade",label: "Oportunidade",cor: "#EF5350", icon: "◈" },
   { key: "negociacao",  label: "Negociação",  cor: "#fbbf24", icon: "◆" },
   { key: "ativo",       label: "Cliente",     cor: "#34d399", icon: "✦" },
   { key: "inativo",     label: "Inativo",     cor: "#f87171", icon: "○" },
@@ -467,8 +467,8 @@ function ClienteCard({ c }: { c: Cliente }) {
           <div style={{ display: "flex", alignItems: "center", gap: 10, flex: 1, minWidth: 0 }}>
             <div style={{
               width: 38, height: 38, borderRadius: 10, flexShrink: 0,
-              background: "linear-gradient(135deg,rgba(124,58,237,0.25),rgba(34,211,238,0.2))",
-              border: "1px solid rgba(124,58,237,0.2)",
+              background: "linear-gradient(135deg,rgba(211,47,47,0.25),rgba(34,211,238,0.2))",
+              border: "1px solid rgba(211,47,47,0.2)",
               display: "flex", alignItems: "center", justifyContent: "center",
               fontSize: 13, fontWeight: 700, color: "var(--accent-violet)",
             }}>
@@ -537,8 +537,8 @@ function ClienteCard({ c }: { c: Cliente }) {
           <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 10, paddingTop: 10, borderTop: "1px solid var(--border-subtle)" }}>
             <div style={{
               width: 18, height: 18, borderRadius: "50%", flexShrink: 0,
-              background: "linear-gradient(135deg,rgba(124,58,237,0.3),rgba(34,211,238,0.2))",
-              border: "1px solid rgba(124,58,237,0.2)",
+              background: "linear-gradient(135deg,rgba(211,47,47,0.3),rgba(34,211,238,0.2))",
+              border: "1px solid rgba(211,47,47,0.2)",
               display: "flex", alignItems: "center", justifyContent: "center",
               fontSize: 8, fontWeight: 700, color: "var(--accent-violet)",
             }}>
@@ -571,8 +571,8 @@ function ClienteRow({ c, idx, total }: { c: Cliente; idx: number; total: number 
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <div style={{
             width: 32, height: 32, borderRadius: 8, flexShrink: 0,
-            background: "linear-gradient(135deg,rgba(124,58,237,0.2),rgba(34,211,238,0.15))",
-            border: "1px solid rgba(124,58,237,0.15)",
+            background: "linear-gradient(135deg,rgba(211,47,47,0.2),rgba(34,211,238,0.15))",
+            border: "1px solid rgba(211,47,47,0.15)",
             display: "flex", alignItems: "center", justifyContent: "center",
             fontSize: 11, fontWeight: 700, color: "var(--accent-violet)",
           }}>

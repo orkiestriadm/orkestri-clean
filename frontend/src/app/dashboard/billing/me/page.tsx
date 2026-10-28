@@ -23,7 +23,7 @@ type BillingMe = {
 
 const STATUS_COLOR: Record<string, string> = {
   trial: "#f59e0b", active: "#22c55e", overdue: "#eab308",
-  suspended: "#ef4444", cancelled: "#6b7280", enterprise_manual: "#7c3aed",
+  suspended: "#ef4444", cancelled: "#6b7280", enterprise_manual: "#D32F2F",
 };
 const STATUS_LABEL: Record<string, string> = {
   trial: "Trial", active: "Ativo", overdue: "Inadimplente",
@@ -31,7 +31,7 @@ const STATUS_LABEL: Record<string, string> = {
 };
 const PAY_COLOR: Record<string, string> = {
   approved: "#22c55e", rejected: "#ef4444", pending: "#f59e0b",
-  refunded: "#a78bfa", cancelled: "#6b7280",
+  refunded: "#EF5350", cancelled: "#6b7280",
 };
 
 function Spin() {
@@ -183,7 +183,7 @@ export default function BillingMePage() {
                   <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.05em" }}>Incluído no plano</div>
                   <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
                     {billing.planInfo.features.map(f => (
-                      <span key={f} style={{ fontSize: 11, padding: "3px 10px", borderRadius: 20, background: "rgba(124,58,237,0.1)", border: "1px solid rgba(124,58,237,0.2)", color: "#a78bfa" }}>
+                      <span key={f} style={{ fontSize: 11, padding: "3px 10px", borderRadius: 20, background: "rgba(211,47,47,0.1)", border: "1px solid rgba(211,47,47,0.2)", color: "#EF5350" }}>
                         ✓ {f}
                       </span>
                     ))}
