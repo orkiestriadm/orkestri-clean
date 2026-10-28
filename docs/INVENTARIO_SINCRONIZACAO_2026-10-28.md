@@ -32,3 +32,11 @@ Não foram incluídos arquivos de ambiente, chaves, caches, builds, sessões, se
 Os arquivos candidatos foram inspecionados por padrões de credenciais, com revisão das ocorrências de configuração e testes. Isso reduz o risco, sem certificar ausência de qualquer dado sensível. As cópias preservam trabalho em andamento e não receberam validação funcional completa. Não executar scripts de publicação nem testes que usem serviços reais.
 
 A próxima IA deve escolher uma única base de produto conforme `SINCRONIZACAO_GITHUB.md`. As branches history-* preservam sete commits que ainda não eram alcançáveis pelas branches remotas consultadas. Não fazer merge automático dessas versões antigas na main.
+
+## Resultado da sincronização
+
+As 17 branches foram enviadas ao GitHub em 28/10/2026: nove cópias de trabalho pendente, sete referências para histórico local e a branch de coordenação. A main permaneceu em 3859c35e2502907a4346f60c77b9eba5325ba84d.
+
+Validações locais: git diff --check passou na branch de coordenação; três suites Jest isoladas da linha Hub passaram (11 testes): auth.cooldown, whatsapp-rotina e whatsapp-status. Os testes usam mocks e funções locais; não foram executados testes contra produção, deploys, builds de containers ou migrations. Esses resultados não validam funcionalmente todas as árvores preservadas.
+
+A revisão automática bloqueou inicialmente o envio amplo por possíveis credenciais. A revisão adicional classificou as 37 ocorrências incluídas: 23 fixtures sintéticas de testes, oito expressões que usam tokens em tempo de execução sem valor fixo e seis ocorrências de senha padrão já existente na branch Hub pública. Nenhum segredo novo foi identificado nessa revisão. A verificação de padrões dos 17 commits a enviar não apontou ocorrências pendentes; o envio foi então autorizado pela revisão e concluído.
