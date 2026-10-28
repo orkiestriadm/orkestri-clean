@@ -47,5 +47,5 @@ export type SiteConfig = typeof siteConfig;
 export const WHATSAPP_NUMERO = "5514991661688";
 
 export const WHATSAPP_CADASTRO = `https://wa.me/${WHATSAPP_NUMERO}?text=${encodeURIComponent(
-  "Quero fazer meu cadastro no Orkiestri",
+  "CADASTRO",
 )}`;

@@ -26,7 +26,7 @@ export function Faixa({
     <section
       id={id}
       className={cn(
-        "relative py-20 md:py-28",
+        "relative py-16 md:py-24",
         tom === "ink" ? "bg-ink" : "bg-ink-raise",
         className,
       )}

@@ -1,145 +1,79 @@
+import Link from "next/link";
 import { PageHero } from "@/components/sections/page-hero";
-import { Section } from "@/components/ui/section";
-import { DemoForm } from "@/components/forms/demo-form";
+import { Section, SectionHeader } from "@/components/ui/section";
 import { WhatsAppButton } from "@/components/ui/whatsapp-button";
+import { AureliaDemo } from "@/components/home/aurelia-demo";
 import { buildMetadata } from "@/lib/seo";
 
 export const metadata = buildMetadata({
-  title: "Como começar",
+  title: "Como fazer seu cadastro no Orkiestri",
   description:
-    "O que acontece depois que você manda a primeira mensagem: o cadastro na conversa, o menu da Aurélia e os comandos de cada módulo.",
+    "Faça seu cadastro no sistema Orkiestri pelo WhatsApp. A Aurélia pergunta seus dados, uma informação por vez, e orienta seu primeiro acesso.",
   path: "/demo",
 });
-
-/**
- * Como começar.
- *
- * Era "Solicitar Demonstração", com um formulário e quatro promessas
- * genéricas ("demonstração guiada", "sem compromisso"). Não fazia sentido:
- * desde 26/10/2026 o cadastro acontece numa conversa de WhatsApp, e quem
- * chega aqui quer saber o que vai acontecer nessa conversa — não marcar
- * reunião.
- *
- * ⚠️ O menu abaixo é o texto REAL que a Aurélia envia, copiado de
- * `montarMenuAjuda()` em
- * `backend/src/modules/agenda/whatsapp-inbound.module.ts`. Os emojis fazem
- * parte da mensagem, não são ícones de interface — por isso ficam. Se o menu
- * mudar lá, muda aqui.
- *
- * Os números são FIXOS por módulo: quem não tem acesso ao Financeiro não vê
- * o "1", mas o "3" continua sendo o Keep. Quem decorou um número continua
- * certo.
- */
-
-const menuAurelia = `😊 Oi, Guilherme! Eu sou a Aurélia, sua ajudante do Orkiestri aqui no WhatsApp.
-Com qual módulo você quer a minha ajuda? É só responder o número:
-
-💸 Para Financeiro: responda 1
-🗓️ Para Agenda: responda 2
-📝 Para Keep: responda 3
-📁 Para Projetos: responda 4
-🎧 Para Chamados: responda 5
-📚 Para Conhecimento: responda 6
-📖 Para ver TUDO de uma vez: responda 7
-👋 Para encerrar nossa conversa: responda 0`;
-
-const passos = [
-  {
-    n: "01",
-    titulo: "Você manda a primeira mensagem",
-    texto:
-      "Diga que quer criar sua conta. A Aurélia faz as perguntas do cadastro ali mesmo, na conversa.",
-  },
-  {
-    n: "02",
-    titulo: "A conta nasce pronta",
-    texto:
-      "Com os módulos já ligados e uma senha que você troca por um código enviado ao seu e-mail, antes do primeiro login.",
-  },
-  {
-    n: "03",
-    titulo: "Você manda “ajuda” quando quiser",
-    texto:
-      "Ela responde com o menu ao lado e ensina o passo a passo do módulo que você escolher. Também vai um guia em PDF logo depois do cadastro.",
-  },
-  {
-    n: "04",
-    titulo: "A partir daí, ela te procura",
-    texto:
-      "Lembrete de compromisso, resumo de gastos no domingo, aviso de prazo. Você não precisa lembrar de abrir nada.",
-  },
-];
 
 export default function DemoPage() {
   return (
     <>
       <PageHero
-        eyebrow="Como começar"
-        title="O que acontece depois da primeira mensagem."
-        description="Não há formulário para preencher nem reunião para marcar. O cadastro inteiro acontece numa conversa de WhatsApp, e em poucos minutos a conta está de pé."
-        breadcrumb={[{ label: "Como começar", href: "/demo" }]}
+        eyebrow="Como funciona"
+        title="Uma conversa para criar sua conta no Orkiestri."
+        description="O botão prepara a mensagem CADASTRO: abra o WhatsApp, envie e responda às perguntas da Aurélia. Ela pede nome completo, CPF, e-mail e empresa, uma informação por vez."
+        breadcrumb={[{ label: "Como funciona", href: "/demo" }]}
       >
         <WhatsAppButton />
       </PageHero>
-
+      <AureliaDemo />
       <Section>
-        <div className="grid gap-14 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.95fr)] lg:gap-20">
-          {/* Os quatro passos. A numeração se justifica: é sequência de
-              verdade, nesta ordem. */}
-          <ol className="flex flex-col">
-            {passos.map((p) => (
-              <li
-                key={p.n}
-                className="relative border-t border-white/[0.09] py-6 first:border-t-0 first:pt-0"
-              >
-                <span className="font-mono text-[0.8125rem] tabular-nums text-flame-soft">
-                  {p.n}
-                </span>
-                <h2 className="mt-2 font-semibold text-chalk">{p.titulo}</h2>
-                <p className="mt-1.5 max-w-[52ch] text-[0.9375rem] leading-relaxed text-chalk-dim">
-                  {p.texto}
-                </p>
-              </li>
-            ))}
-          </ol>
-
-          {/* O menu, reproduzido como chega. */}
-          <div>
-            <p className="text-[0.8125rem] font-medium text-chalk-faint">
-              O menu que ela manda quando você escreve “ajuda”
+        <SectionHeader
+          align="left"
+          title="Você também pode entrar pelo site."
+          description="Depois do cadastro confirmado, escolha como prefere usar o Orkiestri."
+        />
+        <div className="mt-8 grid gap-5 md:grid-cols-2">
+          <article className="rounded-2xl border border-white/10 bg-panel p-6">
+            <h3 className="text-xl font-semibold text-chalk">
+              Seu primeiro acesso
+            </h3>
+            <p className="mt-3 leading-relaxed text-chalk-dim">
+              Abra a recuperação de senha, escolha receber o código pelo
+              WhatsApp e informe o mesmo número usado no cadastro. Confira o
+              código na página, crie sua senha e entre no Orkiestri.
             </p>
-            <div className="hairline edge-light mt-4 rounded-(--radius-card) border bg-panel p-5">
-              <pre className="whitespace-pre-wrap font-sans text-[0.9375rem] leading-relaxed text-chalk-dim">
-                {menuAurelia}
-              </pre>
-            </div>
-            <p className="mt-4 text-sm leading-relaxed text-chalk-faint">
-              Aparece só o que você pode usar: quem não tem acesso ao
-              Financeiro não vê o <span className="font-mono">1</span>. Os
-              números não se renumeram — o <span className="font-mono">3</span>{" "}
-              é sempre o Keep.
+            <a
+              className="mt-5 inline-flex min-h-11 items-center font-medium text-flame-soft underline underline-offset-4"
+              href="/recuperar-senha"
+            >
+              Definir minha senha →
+            </a>
+          </article>
+          <article className="rounded-2xl border border-white/10 bg-panel p-6">
+            <h3 className="text-xl font-semibold text-chalk">
+              Uma conta para o sistema
+            </h3>
+            <p className="mt-3 leading-relaxed text-chalk-dim">
+              Seu cadastro é no Orkiestri, não em uma agenda isolada. Os
+              recursos disponíveis respeitam o plano e as permissões da conta.
+              Envie menu à Aurélia para conhecer o que você pode usar.
             </p>
-          </div>
+            <Link
+              className="mt-5 inline-flex min-h-11 items-center font-medium text-flame-soft underline underline-offset-4"
+              href="/contact"
+            >
+              Tirar uma dúvida →
+            </Link>
+          </article>
         </div>
+        <p className="mt-8 text-sm leading-relaxed text-chalk-dim">
+          Já tem uma conta?{" "}
+          <a href="/login" className="text-chalk underline underline-offset-4">
+            Entre diretamente.
+          </a>{" "}
+          Convites recebidos por WhatsApp têm suas próprias opções e condições.
+          No site, envie CADASTRO para iniciar o cadastro geral, sem precisar de
+          um convite.
+        </p>
       </Section>
-
-      {/* O formulário continua, mas como SEGUNDA opção: quem prefere falar
-          com uma pessoa antes de criar a conta. */}
-      <Section muted>
-        <div className="grid gap-10 lg:grid-cols-[1fr_1.4fr] lg:gap-16">
-          <div>
-            <h2 className="font-display text-[1.75rem] font-bold tracking-[-0.03em] text-chalk md:text-[2.25rem]">
-              Prefere que alguém te mostre?
-            </h2>
-            <p className="mt-4 max-w-[46ch] text-[1.0625rem] leading-[1.65] text-chalk-dim">
-              Se você quer ver as telas com alguém do lado antes de criar a
-              conta, deixe seu contato. Respondemos em até um dia útil.
-            </p>
-          </div>
-          <DemoForm />
-        </div>
-      </Section>
-
     </>
   );
 }

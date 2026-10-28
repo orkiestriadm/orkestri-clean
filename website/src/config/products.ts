@@ -134,7 +134,7 @@ export const products: Product[] = [
       width: 1690,
       height: 1030,
     },
-    name: "O que você não quer repetir",
+    name: "Base de conhecimento",
     short: "Conhecimento",
     category: "Quality",
     tagline: "Escreveu uma vez, para de ser perguntado.",

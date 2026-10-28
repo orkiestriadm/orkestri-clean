@@ -14,8 +14,7 @@ import { cn } from "@/lib/utils";
 const simpleLinks = [
   { label: "Empresa", href: "/company" },
   { label: "Tecnologia", href: "/technology" },
-  { label: "Cases", href: "/cases" },
-  { label: "Blog", href: "/blog" },
+  { label: "Como funciona", href: "/demo" },
 ];
 
 /**
@@ -26,35 +25,35 @@ const simpleLinks = [
  * claro inteiro, que virou código morto no mesmo dia.
  */
 export function Navbar() {
-  const naHome = usePathname() === "/";
+  const pathname = usePathname();
+  const naHome = pathname === "/";
   /* Só a home começa com o cabeçalho transparente, porque lá ele fica sobre
      um hero alto. Nas páginas internas ele já nasce sólido: assim o conteúdo
      nunca passa por baixo de um cabeçalho invisível enquanto o JavaScript
      ainda não rodou — e o estado inicial bate com o servidor, porque a rota
      é a mesma dos dois lados. */
   const [scrolled, setScrolled] = useState(!naHome);
-  const [openMenu, setOpenMenu] = useState<"products" | "services" | null>(null);
+  const [openMenu, setOpenMenu] = useState<"products" | "services" | null>(
+    null,
+  );
   const [mobileOpen, setMobileOpen] = useState(false);
 
   useEffect(() => {
-    /* Na home o cabeçalho só vira sólido depois que o botão verde do hero
-       sai de vista: enquanto ele está na tela, repetir o CTA aqui em cima
-       seria o mesmo verde duas vezes na mesma dobra. Nas outras páginas não
-       há hero verde, então o cabeçalho reage ao primeiro pixel de rolagem. */
+    /* A home abre transparente; as páginas internas usam a superfície sólida. */
     const onScroll = () => setScrolled(window.scrollY > (naHome ? 420 : 12));
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, [naHome]);
 
-  /* O CTA de cadastro só se esconde na home, e só antes da rolagem. */
-  const ctaOculto = naHome && !scrolled;
-
   const linkDeTexto =
-    "rounded-lg px-3.5 py-2 text-[0.9375rem] font-medium text-chalk-dim transition-colors hover:text-chalk";
+    "whitespace-nowrap rounded-lg px-3.5 py-2 text-[0.9375rem] font-medium text-chalk-dim transition-colors hover:text-chalk";
 
   return (
     <header
+      onKeyDown={(event) => {
+        if (event.key === "Escape") setOpenMenu(null);
+      }}
       className={cn(
         "fixed inset-x-0 top-0 z-40 transition-all duration-300",
         scrolled
@@ -66,13 +65,17 @@ export function Navbar() {
         <Logo tone="light" />
 
         <nav
-          className="hidden items-center gap-1 lg:flex"
+          aria-label="Navegação principal"
+          className="hidden items-center gap-1 xl:flex"
           onMouseLeave={() => setOpenMenu(null)}
         >
           <MenuTrigger
             label="Produtos"
             open={openMenu === "products"}
             onOpen={() => setOpenMenu("products")}
+            onToggle={() =>
+              setOpenMenu(openMenu === "products" ? null : "products")
+            }
           >
             <ProductsMenu onNavigate={() => setOpenMenu(null)} />
           </MenuTrigger>
@@ -80,6 +83,9 @@ export function Navbar() {
             label="Soluções"
             open={openMenu === "services"}
             onOpen={() => setOpenMenu("services")}
+            onToggle={() =>
+              setOpenMenu(openMenu === "services" ? null : "services")
+            }
           >
             <ServicesMenu onNavigate={() => setOpenMenu(null)} />
           </MenuTrigger>
@@ -87,7 +93,12 @@ export function Navbar() {
             <Link
               key={l.href}
               href={l.href}
-              className={cn("relative", linkDeTexto)}
+              className={cn(
+                "relative",
+                linkDeTexto,
+                pathname === l.href && "nav-active",
+              )}
+              aria-current={pathname === l.href ? "page" : undefined}
               onMouseEnter={() => setOpenMenu(null)}
             >
               {l.label}
@@ -95,8 +106,8 @@ export function Navbar() {
           ))}
         </nav>
 
-        <div className="hidden items-center gap-2 lg:flex">
-          <a href="/entrar" className={linkDeTexto}>
+        <div className="hidden shrink-0 items-center gap-2 xl:flex">
+          <a href="/login" className={linkDeTexto}>
             Entrar
           </a>
           {/* O cadastro do site inteiro passa por aqui. */}
@@ -105,23 +116,20 @@ export function Navbar() {
             target="_blank"
             rel="noopener noreferrer"
             className={cn(
-              "inline-flex h-10 items-center gap-2 rounded-(--radius-button) bg-signal px-4",
+              "inline-flex h-10 items-center gap-2 whitespace-nowrap rounded-(--radius-button) bg-signal px-4",
               "text-[0.9375rem] font-semibold text-[#06281A]",
               "transition-all duration-200 ease-(--ease-out-quart) hover:bg-signal-hover",
               "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal",
-              ctaOculto && "pointer-events-none opacity-0",
             )}
-            aria-hidden={ctaOculto}
-            tabIndex={ctaOculto ? -1 : undefined}
           >
             <MessageCircle className="h-[18px] w-[18px]" aria-hidden />
-            Criar conta
+            Cadastre-se é gratuito!
           </a>
         </div>
 
         <button
           type="button"
-          className="inline-flex h-10 w-10 cursor-pointer items-center justify-center rounded-lg text-chalk lg:hidden"
+          className="inline-flex h-10 w-10 cursor-pointer items-center justify-center rounded-lg text-chalk xl:hidden"
           aria-label="Abrir menu"
           aria-expanded={mobileOpen}
           onClick={() => setMobileOpen(true)}
@@ -141,11 +149,13 @@ function MenuTrigger({
   label,
   open,
   onOpen,
+  onToggle,
   children,
 }: {
   label: string;
   open: boolean;
   onOpen: () => void;
+  onToggle: () => void;
   children: React.ReactNode;
 }) {
   return (
@@ -157,6 +167,10 @@ function MenuTrigger({
           open ? "text-chalk" : "text-chalk-dim hover:text-chalk",
         )}
         aria-expanded={open}
+        onClick={onOpen}
+        onKeyDown={(event) => {
+          if (event.key === "Escape" && open) onToggle();
+        }}
       >
         {label}
         <ChevronDown

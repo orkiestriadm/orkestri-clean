@@ -10,8 +10,7 @@ export const mainNav: NavItem[] = [
   { label: "Produtos", href: "/products" },
   { label: "Soluções", href: "/services" },
   { label: "Tecnologia", href: "/technology" },
-  { label: "Cases", href: "/cases" },
-  { label: "Blog", href: "/blog" },
+  { label: "Como funciona", href: "/demo" },
   { label: "Contato", href: "/contact" },
 ];
 
@@ -20,19 +19,20 @@ export const footerNav: { title: string; items: NavItem[] }[] = [
     title: "Produtos",
     items: [
       { label: "Orkiestri One", href: "/products/orkiestri-one" },
-      { label: "Orkiestri Service", href: "/products/one-desk" },
-      { label: "Orkiestri Projects", href: "/products/one-projects" },
+      { label: "Agenda e anotações", href: "/products/one-space" },
+      { label: "Pedidos e chamados", href: "/products/one-desk" },
+      { label: "Projetos e tarefas", href: "/products/one-projects" },
       /* Era "Orkiestri Fleet", removido do sistema em 19/10/2026. */
-      { label: "Orkiestri Finance", href: "/products/one-finance" },
+      { label: "Contas e gastos", href: "/products/one-finance" },
       { label: "Ver todos", href: "/products" },
     ],
   },
   {
     title: "Soluções",
     items: [
-      { label: "Software Factory", href: "/services/software-factory" },
-      { label: "AI Solutions", href: "/services/ai-solutions" },
-      { label: "Cloud Solutions", href: "/services/cloud-solutions" },
+      { label: "Software sob medida", href: "/services/software-factory" },
+      { label: "Inteligência artificial", href: "/services/ai-solutions" },
+      { label: "Soluções em nuvem", href: "/services/cloud-solutions" },
       { label: "Consultoria", href: "/services/consulting" },
     ],
   },
@@ -41,9 +41,7 @@ export const footerNav: { title: string; items: NavItem[] }[] = [
     items: [
       { label: "Quem Somos", href: "/company" },
       { label: "Tecnologia", href: "/technology" },
-      { label: "Cases", href: "/cases" },
       { label: "Carreiras", href: "/company/careers" },
-      { label: "Blog", href: "/blog" },
     ],
   },
   {
@@ -53,7 +51,10 @@ export const footerNav: { title: string; items: NavItem[] }[] = [
       /* "Solicitar demonstração" saiu daqui em 26/10/2026: o cadastro passou
          a ser só pelo WhatsApp, e o rodapé era o último lugar do site que
          ainda oferecia o caminho antigo. */
-      { label: "Criar conta no WhatsApp", href: WHATSAPP_CADASTRO },
+      { label: "Cadastre-se é gratuito!", href: WHATSAPP_CADASTRO },
+      { label: "Como funciona", href: "/demo" },
+      { label: "Guias de uso", href: "/blog" },
+      { label: "Possibilidades de uso", href: "/cases" },
       { label: "Política de Privacidade", href: "/privacy" },
       { label: "Termos de Uso", href: "/terms" },
     ],

@@ -3,6 +3,7 @@ import { Archivo, Inter } from "next/font/google";
 import Script from "next/script";
 import { Navbar } from "@/components/layout/navbar";
 import { Footer } from "@/components/layout/footer";
+import { ExperienceEffects } from "@/components/layout/experience-effects";
 import { buildMetadata, organizationSchema } from "@/lib/seo";
 import { siteConfig } from "@/config/site";
 import "./globals.css";
@@ -57,6 +58,7 @@ export default function RootLayout({
           Pular para o conteúdo
         </a>
         <Navbar />
+        <ExperienceEffects />
         <main id="main">{children}</main>
         <Footer />
         {/* O <TrialModal> saiu daqui em 26/10/2026: o cadastro passou a ser

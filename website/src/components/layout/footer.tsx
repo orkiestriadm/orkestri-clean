@@ -29,8 +29,8 @@ export function Footer() {
           <div className="flex flex-col gap-4">
             <Logo tone="light" />
             <p className="max-w-xs text-sm leading-relaxed text-chalk-dim">
-              A sua agenda, as suas contas e os seus projetos num lugar só —
-              com aviso no WhatsApp na hora em que ainda dá tempo.
+              A sua agenda, as suas contas e os seus projetos num lugar só — com
+              aviso no WhatsApp na hora em que ainda dá tempo.
             </p>
             <div className="mt-2 flex gap-2">
               {socials.map((s) => {
@@ -76,7 +76,7 @@ export function Footer() {
             direitos reservados.
           </p>
           <p className="flex items-center gap-2">
-            Engineering Business Growth.
+            Sua rotina, no ritmo certo.
             {/* Versão discreta: serve de referência ao relatar problema, sem
                 disputar atenção com o conteúdo do rodapé. */}
             <span

@@ -5,6 +5,7 @@ import { Container } from "@/components/ui/container";
 import { ContactForm } from "@/components/forms/contact-form";
 import { buildMetadata } from "@/lib/seo";
 import { siteConfig } from "@/config/site";
+import { getService } from "@/config/services";
 
 export const metadata = buildMetadata({
   title: "Contato",
@@ -13,16 +14,19 @@ export const metadata = buildMetadata({
   path: "/contact",
 });
 
-export default function ContactPage() {
+export default async function ContactPage({ searchParams }: { searchParams: Promise<{ service?: string; interest?: string }> }) {
+  const query = await searchParams;
+  const service = query.service ? getService(query.service) : undefined;
+  const project = Boolean(service) || query.interest === "project";
   return (
     <>
       <PageHero
         eyebrow="Contato"
-        title="Vamos construir algo extraordinário juntos."
-        description="Nossa equipe está pronta para entender seus desafios e apresentar a melhor solução para sua empresa."
+        title={project ? "Vamos conversar sobre seu projeto." : "O que você precisa resolver?"}
+        description={service ? `Conte o que você precisa em ${service.name.toLowerCase()}. Sua solicitação já vai com esse contexto.` : "Tire uma dúvida sobre o produto, peça ajuda com sua conta ou conte sua ideia de software sob medida."}
         breadcrumb={[{ label: "Contato", href: "/contact" }]}
       />
-      <Container className="pb-24">
+      <Container className="scroll-mt-24 pb-24" id="contato">
         <div className="grid gap-10 lg:grid-cols-[1fr_1.4fr]">
           <div className="flex flex-col gap-6">
             <div>
@@ -59,7 +63,7 @@ export default function ContactPage() {
             </a>
           </div>
 
-          <ContactForm endpoint="/api/contact" />
+          <ContactForm initialInterest={project ? "project" : "product"} service={service?.name} />
         </div>
       </Container>
     </>
