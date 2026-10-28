@@ -10,7 +10,7 @@ RUN apk add --no-cache openssl openssl-dev
 COPY --from=deps /app/node_modules ./node_modules
 COPY package*.json ./
 COPY nest-cli.json ./
-COPY tsconfig.json ./
+COPY tsconfig*.json ./
 COPY prisma ./prisma
 COPY src ./src
 # O engine do Prisma JA VEM no node_modules, pelo postinstall do `npm install`

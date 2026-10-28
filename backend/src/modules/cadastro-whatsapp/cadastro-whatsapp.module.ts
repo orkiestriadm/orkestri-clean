@@ -17,7 +17,7 @@ import { fimDoTeste, PRODUTO_PADRAO } from "../auth/trial-renovacao";
  * Cadastro feito INTEIRO pelo WhatsApp.
  *
  * A pessoa clica no site, o WhatsApp abre já na conversa com a Aurélia, e ela
- * pergunta nome, CPF, e-mail e empresa — uma coisa por vez. O número de
+ * pergunta nome, CPF, e-mail e nome da organização — uma coisa por vez. O número de
  * WhatsApp não é perguntado: é aquele de onde a mensagem veio.
  *
  * QUEM INICIA É A PESSOA
@@ -260,11 +260,22 @@ export class CadastroWhatsappService {
 
     const respostas = this.lerRespostas(cadastro);
     if(/^manter$/i.test(resposta)) {
-      const atual=({NOME:cadastro.nome,CPF:cadastro.cpf,EMAIL:respostas.email,EMPRESA:respostas.empresa,EMPRESA_NOME:respostas.empresa} as any)[cadastro.etapa];
+      const atual = ({
+        NOME: cadastro.nome,
+        CPF: cadastro.cpf,
+        EMAIL: respostas.email,
+        EMPRESA: respostas.empresa || (respostas.usoPessoal === true ? cadastro.nome : null),
+        EMPRESA_NOME: respostas.empresa,
+      } as any)[cadastro.etapa];
       if(atual)resposta=atual;
     }
 
-    const perguntas:Record<string,string>={NOME:'Como é seu *nome completo*?',CPF:'Qual é seu *CPF*? Envie os 11 números. Uso esse dado para identificar sua conta.',EMAIL:'Qual é seu *e-mail*? Exemplo: *nome@gmail.com*. Ele será seu acesso ao site.',EMPRESA:'Você vai usar para você ou para uma empresa?\n*1* — Só para mim\n*2* — Para uma empresa\n\n_Serve só para dar nome ao seu espaço. Nos dois casos você recebe o sistema completo._',EMPRESA_NOME:'Qual é o nome da empresa?'};
+    const perguntas: Record<string, string> = {
+      NOME: 'Como é seu *nome completo*?',
+      CPF: 'Qual é seu *CPF*? Envie os 11 números. Uso esse dado para identificar sua conta.',
+      EMAIL: 'Qual é seu *e-mail*? Exemplo: *nome@gmail.com*. Ele será seu acesso ao site.',
+      EMPRESA: 'Qual é o nome da sua *empresa ou organização*? Se não tiver empresa, informe seu *nome completo*. Esse nome aparecerá na sua organização.',
+    };
     if (cadastro.etapa === 'INICIO' && !comandoCadastroGeral(resposta) && !interesseConviteAgenda(resposta)) {
       if(resposta==='1') {
         if(await this.tratarConvite(cadastro.whatsapp,'1',inst||process.env.EVOLUTION_INSTANCE||'orkestri-default',respostas.whatsappLid?`${respostas.whatsappLid}@lid`:''))return true;
@@ -279,14 +290,14 @@ export class CadastroWhatsappService {
       await this.responder(cadastro,'Para criar sua conta, responda *1*. Se não tiver interesse, responda *2*.',inst);return true;
     }
     if (/^voltar$/i.test(resposta)) {
-      const anterior:any={NOME:'INICIO',CPF:'NOME',EMAIL:'CPF',EMPRESA:'EMAIL',EMPRESA_NOME:'EMPRESA',CONFIRMACAO:'EMPRESA',CORRIGIR_DADO:'CONFIRMACAO'};
+      const anterior:any={NOME:'INICIO',CPF:'NOME',EMAIL:'CPF',EMPRESA:'EMAIL',EMPRESA_NOME:'EMAIL',CONFIRMACAO:'EMPRESA',CORRIGIR_DADO:'CONFIRMACAO'};
       const etapa=anterior[cadastro.etapa]||'NOME';delete respostas._revisando;
       await this.avancar(cadastro.id,etapa,respostas);
       await this.responder(cadastro,etapa==='INICIO'?mensagemPrimeiroContato('novo'):etapa==='CONFIRMACAO'?this.msgConfirmacao(cadastro.nome,cadastro.cpf,respostas):perguntas[etapa]+'\n\nO que você já informou foi preservado. Se estiver correto, envie *manter*.\n*Cancelar* — Parar o cadastro',inst);return true;
     }
     if(cadastro.etapa==='CORRIGIR_DADO') {
       const etapa=({'1':'NOME','2':'CPF','3':'EMAIL','4':'EMPRESA'} as any)[resposta];
-      if(!etapa){await this.responder(cadastro,'Qual informação quer corrigir?\n*1* — Nome\n*2* — CPF\n*3* — E-mail\n*4* — Uso pessoal ou empresa\n*Voltar* — Conferir os dados',inst);return true;}
+      if(!etapa){await this.responder(cadastro,'Qual informação quer corrigir?\n*1* — Nome\n*2* — CPF\n*3* — E-mail\n*4* — Nome da organização\n*Voltar* — Conferir os dados',inst);return true;}
       respostas._revisando=true;await this.avancar(cadastro.id,etapa,respostas);await this.responder(cadastro,perguntas[etapa]+'\n\n*Voltar* — Pergunta anterior · *Cancelar* — Sair',inst);return true;
     }
 
@@ -304,7 +315,8 @@ export class CadastroWhatsappService {
         NOME: this.msgAbertura(testeSolicitado),
         CPF: `Vamos continuar seu cadastro no ${MARCA}. Qual é o seu *CPF*?`,
         EMAIL: `Vamos continuar seu cadastro no ${MARCA}. Qual é o seu *e-mail*?`,
-        EMPRESA: `Vamos continuar seu cadastro no ${MARCA}. Qual é o nome da sua *empresa*? Para uso pessoal, responda *Pessoal*.`,
+        EMPRESA: perguntas.EMPRESA,
+        EMPRESA_NOME: perguntas.EMPRESA,
         CONFIRMACAO: this.msgConfirmacao(cadastro.nome || '', cadastro.cpf || '', respostas),
       };
       await this.responder(cadastro, pergunta[cadastro.etapa] || this.msgAbertura(testeSolicitado), inst);
@@ -355,24 +367,15 @@ export class CadastroWhatsappService {
       }
       respostas.email = email;
       await this.avancar(cadastro.id, "EMPRESA", respostas);
-      if(await this.corrigido(cadastro,respostas,inst))return true;
+      if (await this.corrigido(cadastro, respostas, inst)) return true;
       await this.responder(cadastro, perguntas.EMPRESA, inst);
       return true;
     }
 
-    if (cadastro.etapa === "EMPRESA" || cadastro.etapa === 'EMPRESA_NOME') {
-      if(cadastro.etapa==='EMPRESA'&&resposta==='2'){await this.avancar(cadastro.id,'EMPRESA_NOME',respostas);await this.responder(cadastro,perguntas.EMPRESA_NOME+'\n\n*Voltar* — Escolher uso pessoal',inst);return true;}
-      // "Só para mim" NÃO é nome de empresa.
-      //
-      // Guardar a palavra "Pessoal" aqui fazia a ORGANIZAÇÃO nascer chamada
-      // "Pessoal" — em produção havia duas assim, e nenhuma dizia de quem era.
-      // Uso pessoal passa a ser uma marca própria, e o nome da organização
-      // vira o nome da pessoa.
-      const usoPessoal = cadastro.etapa === 'EMPRESA' && resposta === '1';
-      const empresa = usoPessoal ? '' : resposta;
-      if (!usoPessoal && empresa.length < 2) return this.invalida(cadastro, perguntas.EMPRESA, inst);
-      respostas.empresa = empresa;
-      respostas.usoPessoal = usoPessoal;
+    if (cadastro.etapa === "EMPRESA" || cadastro.etapa === "EMPRESA_NOME") {
+      if (resposta.length < 2) return this.invalida(cadastro, perguntas.EMPRESA, inst);
+      respostas.empresa = resposta;
+      delete respostas.usoPessoal;
       delete respostas._revisando;
       await this.avancar(cadastro.id, "CONFIRMACAO", respostas);
       const atual = await (this.prisma as any).cadastroWhatsapp.findUnique({ where: { id: cadastro.id } });
@@ -382,13 +385,18 @@ export class CadastroWhatsappService {
 
     if (cadastro.etapa === "CONFIRMACAO") {
       if (/^(1|sim|s|confirmar|confirmo(?: meus dados)?|ok)[.!]?$/i.test(resposta)) {
+        if (!(typeof respostas.empresa === "string" && respostas.empresa.trim()) && respostas.usoPessoal !== true) {
+          await this.avancar(cadastro.id, "EMPRESA", respostas);
+          await this.responder(cadastro, perguntas.EMPRESA, inst);
+          return true;
+        }
         const atual = await (this.prisma as any).cadastroWhatsapp.findUnique({ where: { id: cadastro.id } });
         await this.concluir(atual, respostas, inst);
         return true;
       }
       if (/^(2|nao|não|n|corrigir)$/i.test(resposta)) {
         await this.avancar(cadastro.id,'CORRIGIR_DADO',respostas);
-        await this.responder(cadastro,'Qual informação quer corrigir?\n*1* — Nome\n*2* — CPF\n*3* — E-mail\n*4* — Uso pessoal ou empresa\n*Voltar* — Conferir os dados',inst);
+        await this.responder(cadastro,'Qual informação quer corrigir?\n*1* — Nome\n*2* — CPF\n*3* — E-mail\n*4* — Nome da organização\n*Voltar* — Conferir os dados',inst);
         return true;
       }
       return this.invalida(cadastro, "Responda *1* para confirmar ou *2* para corrigir.", inst);
@@ -419,9 +427,8 @@ export class CadastroWhatsappService {
 
         const org = await tx.organization.create({
           data: {
-            // Empresa quando houver; senão, o nome da PESSOA. Nunca a palavra
-            // que ela escolheu no menu — ver o comentário na etapa EMPRESA.
-            nome: respostas.empresa || cadastro.nome,
+            // Um único campo obrigatório: nome da empresa ou da própria pessoa.
+            nome: respostas.empresa,
             slug, ativo: true,
             statusOperacional: "ativo", statusComercial: testeAgenda || conviteGratuito ? "teste" : "ativo",
             modulosAtivos: [],
@@ -596,7 +603,7 @@ export class CadastroWhatsappService {
       `👤 Nome: *${nome}*\n` +
       `🪪 CPF: *${formatarCpf(cpf)}*\n` +
       `📧 E-mail: *${r.email}*\n` +
-      (r.empresa ? `🏢 Empresa: *${r.empresa}*\n\n` : `🏢 Uso: *só para mim*\n\n`) +
+      `🏢 Organização: *${r.empresa || (r.usoPessoal === true ? nome : "Não informado")}*\n\n` +
       "Responda *1* para confirmar ou *2* para corrigir."
     );
   }

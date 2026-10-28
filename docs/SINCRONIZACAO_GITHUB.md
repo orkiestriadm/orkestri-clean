@@ -1,6 +1,10 @@
+## Referência após publicação autorizada em 28/10/2026
+
+A base atual é `origin/codex/fix-whatsapp-signup-flow`, com a correção já em produção no commit 9d15275. Partir dessa referência enquanto o PR #16 estiver aberto. A branch coordination é a base anterior a essa correção. Depois das integrações revisadas, adotar a referência resultante registrada no GitHub. Main continua protegida nesta tarefa. Ver `docs/DEPLOY_CADASTRO_WHATSAPP_2026-10-28.md`. A autorização deste deploy não autoriza futuras publicações.
+
 # Fluxo compartilhado de Git
 
-A base de produção observada em 28/10/2026 foi sincronizada para `codex/sync-20261028/coordination`, sem deploy. Enquanto o PR #15 estiver aberto, esta é a referência para Codex e Claude. Após a integração revisada, a referência passa a ser main atualizada. Nenhum merge na main está autorizado nesta tarefa.
+A referência compartilhada atual é `origin/codex/fix-whatsapp-signup-flow`: fontes auditados da produção mais a correção do cadastro publicada em 28/10/2026 após autorização. Usar essa referência enquanto o PR #16 estiver aberto. A main permanece protegida nesta tarefa; futuras publicações exigem nova autorização.
 
 Leia `AGENTS.md`, `CLAUDE.md` e `PARIDADE_PRODUCAO_2026-10-28.md`. O inventário das versões históricas está em `INVENTARIO_SINCRONIZACAO_2026-10-28.md`.
 
