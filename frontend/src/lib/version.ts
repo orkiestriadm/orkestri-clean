@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "4.1.1";
+export const VERSAO = "4.2.0";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -26,7 +26,7 @@ export const VERSAO = "4.1.1";
 export const VERSAO_DATA = "2026-10-28";
 
 /** Nome da entrega, para dar contexto ao número. */
-export const VERSAO_NOME = "O cadastro é com a Aurélia, e o teste passa a ter prazo";
+export const VERSAO_NOME = "Gestão de leads: excluir contatos e filtrar pela dash";
 
 /**
  * Histórico exibido na tela Sobre, do mais recente para o mais antigo.
