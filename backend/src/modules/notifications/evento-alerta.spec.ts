@@ -209,7 +209,7 @@ describe("Envio do aviso de agora", () => {
         findMany: jest
           .fn()
           .mockResolvedValue([
-            { minutos: 0, organizationId: "org", emoji: "", titulo: "Agora" },
+            { minutos: 0, organizationId: "org", ativo: true, emoji: "", titulo: "Agora" },
           ]),
       },
       event: { findMany: jest.fn().mockResolvedValue([event]) },
@@ -237,3 +237,4 @@ describe("Envio do aviso de agora", () => {
     expect(wa.sendMessage).toHaveBeenCalledTimes(1);
   });
 });
+

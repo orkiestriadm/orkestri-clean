@@ -8,10 +8,10 @@ import { EmailService } from "./email.service";
 import { EventoAlertaService } from './evento-alerta.service';
 
 const DEFAULT_CONFIGS = [
-  { id:"d60", minutos:60, ativo:true, emoji:"ðŸ””", titulo:"Lembrete 1 hora",    mensagem:"Voce tem um evento em 60 minutos:\n\n*{evento}*\n{horario}\n\n{url}" },
-  { id:"d15", minutos:15, ativo:true, emoji:"â°", titulo:"Lembrete 15 minutos", mensagem:"Atencao! Seu evento comeca em 15 minutos:\n\n*{evento}*\n{horario}\n\n{url}" },
-  { id:"d5",  minutos:5,  ativo:true, emoji:"âš ", titulo:"URGENTE 5 minutos",   mensagem:"URGENTE! Faltam apenas 5 minutos:\n\n*{evento}*\n{horario}\n\n{url}" },
-  { id:"d0",  minutos:0,  ativo:true, emoji:"ðŸš¨", titulo:"Acontecendo AGORA",   mensagem:"Seu evento esta acontecendo AGORA:\n\n*{evento}*\n\n{url}" },
+  { id:"d60", minutos:60, ativo:true, emoji:"\u{1F514}", titulo:"Lembrete 1 hora", mensagem:"Voce tem um evento em 60 minutos:\n\n*{evento}*\n{horario}\n\n{url}" },
+  { id:"d15", minutos:15, ativo:true, emoji:"\u23F0", titulo:"Lembrete 15 minutos", mensagem:"Atencao! Seu evento comeca em 15 minutos:\n\n*{evento}*\n{horario}\n\n{url}" },
+  { id:"d5", minutos:5, ativo:true, emoji:"\u26A0\uFE0F", titulo:"URGENTE 5 minutos", mensagem:"URGENTE! Faltam apenas 5 minutos:\n\n*{evento}*\n{horario}\n\n{url}" },
+  { id:"d0", minutos:0, ativo:true, emoji:"\u{1F6A8}", titulo:"Acontecendo AGORA", mensagem:"Seu evento esta acontecendo AGORA:\n\n*{evento}*\n\n{url}" },
 ];
 
 // Offset fixo para America/Sao_Paulo em ms (-3h)
@@ -175,13 +175,25 @@ export class AlertScheduler implements OnModuleInit {
 
       this.logger.debug(`Scheduler tick: ${now.toISOString()} (local: ${now.toLocaleString("pt-BR", { timeZone: process.env.TZ || "America/Sao_Paulo" })})`);
 
-      let configs: any[] = DEFAULT_CONFIGS;
+      const configsByOrganization = new Map<string, any[]>();
+      let dbConfigs: any[] = [];
       try {
-        const dbCfgs = await this.prisma.alertConfig.findMany({ where: { ativo: true } });
-        if (dbCfgs.length > 0) configs = dbCfgs;
+        // Carrega também as desativadas: ausência de regras permite os padrões;
+        // regras explicitamente desativadas devem continuar sem enviar avisos.
+        dbConfigs = await this.prisma.alertConfig.findMany();
+        for (const cfg of dbConfigs) {
+          const own = configsByOrganization.get(cfg.organizationId) || [];
+          own.push(cfg);
+          configsByOrganization.set(cfg.organizationId, own);
+        }
       } catch {}
 
-      const maxMin = Math.max(...configs.map((c: any) => c.minutos));
+      // Organizações novas também precisam entrar na janela do aviso de 60 min,
+      // mesmo quando as regras de outras organizações só antecipam 15 minutos.
+      const maxMin = Math.max(
+        ...DEFAULT_CONFIGS.map(c => c.minutos),
+        ...dbConfigs.filter(c => c.ativo).map(c => c.minutos),
+      );
       const windowEnd = new Date(now.getTime() + (maxMin + 3) * 60 * 1000);
 
       const events = await this.prisma.event.findMany({
@@ -205,6 +217,8 @@ export class AlertScheduler implements OnModuleInit {
         const diffMin = diffMs / 60000;
         const horario = fmtHorario(new Date(ev.inicio));
 
+        const ownConfigs = configsByOrganization.get((ev as any).organizationId);
+        const configs = ownConfigs ? ownConfigs.filter(c => c.ativo) : DEFAULT_CONFIGS;
         for (const cfg of configs) {
           if (cfg.organizationId && cfg.organizationId !== (ev as any).organizationId) continue;
           if (Math.abs(diffMin - cfg.minutos) > 2.5) continue;
