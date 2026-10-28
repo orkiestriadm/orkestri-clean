@@ -237,4 +237,3 @@ describe("Envio do aviso de agora", () => {
     expect(wa.sendMessage).toHaveBeenCalledTimes(1);
   });
 });
-
