@@ -112,6 +112,21 @@ export class AssinaturaService {
   }
 
   /**
+   * O último pagamento que já concedeu acesso.
+   *
+   * Existe por causa de um buraco achado no primeiro pagamento real: a tela só
+   * dizia "confirmado" enquanto a aba ficava aberta. Quem pagava e recarregava
+   * voltava a ver o botão de pagar, sem nenhum sinal de que o dinheiro entrou —
+   * e o próximo passo natural de quem acha que falhou é pagar de novo.
+   */
+  private async ultimoPagamento(userId: string) {
+    return (this.prisma as any).assinaturaCobranca.findFirst({
+      where: { userId, status: "pago", validadeConcedidaAte: { not: null } },
+      orderBy: { validadeConcedidaAte: "desc" },
+    });
+  }
+
+  /**
    * Abre (ou reaproveita) a cobrança do próximo mês e devolve os meios de
    * pagamento. Chamado pelo "1" do WhatsApp e pela página de checkout.
    *
@@ -358,6 +373,8 @@ export class AssinaturaService {
       ? await this.pendenteDoCiclo(u.id, cicloDe(this.proximoPeriodo(u, agora)), agora)
       : null;
 
+    const pago = await this.ultimoPagamento(u.id);
+
     return {
       nome: u.nome,
       produto: produtoLabel(u.trialModulo),
@@ -370,6 +387,14 @@ export class AssinaturaService {
       renovacaoAuto: u.assinaturaRenovacaoAuto,
       proximoPeriodoAte: f ? this.proximoPeriodo(u, agora) : null,
       pix: pendente?.pixQrCode ? { copiaECola: pendente.pixQrCode, expiraEm: pendente.expiraEm } : null,
+      ultimoPagamento: pago
+        ? {
+            pagoEm: pago.pagoEm,
+            valorCentavos: pago.valor,
+            meio: pago.meio,
+            liberouAte: pago.validadeConcedidaAte,
+          }
+        : null,
     };
   }
 

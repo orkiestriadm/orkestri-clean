@@ -6,6 +6,12 @@
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev", "--prefix", "website", "--", "-p", "4321"],
       "port": 4321
+    },
+    {
+      "name": "sistema",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "--prefix", "frontend", "--", "-p", "4322"],
+      "port": 4322
     }
   ]
 }

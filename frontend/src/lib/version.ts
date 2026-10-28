@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "4.0.0";
+export const VERSAO = "4.0.1";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -23,10 +23,10 @@ export const VERSAO = "4.0.0";
  * Não é gerada no build: `new Date()` no bundle muda a cada compilação, e duas
  * builds do mesmo código pareceriam versões diferentes.
  */
-export const VERSAO_DATA = "2026-10-27";
+export const VERSAO_DATA = "2026-10-28";
 
 /** Nome da entrega, para dar contexto ao número. */
-export const VERSAO_NOME = "Mensalidade de R$ 11,90 com pagamento no cartão ou Pix";
+export const VERSAO_NOME = "A tela de pagamento passa a confirmar o que já foi pago";
 
 /**
  * Histórico exibido na tela Sobre, do mais recente para o mais antigo.
@@ -40,6 +40,16 @@ export const HISTORICO: { versao: string; data: string; titulo: string; itens: s
   // substituída pela 3.2.0 antes de chegar a produção. Esta lista é o que
   // mudou para quem USA o sistema, e uma versão que ninguém recebeu não mudou
   // nada para ninguém — anunciá-la só faria procurarem uma tela que não existe.
+  {
+    versao: "4.0.1",
+    data: "2026-10-28",
+    titulo: "A tela de pagamento passa a confirmar o que já foi pago",
+    itens: [
+      "Depois de pagar, recarregar a página não faz mais ela pedir pagamento de novo: ela mostra quanto entrou, quando, e até quando o acesso está liberado",
+      "Quem volta ao link dias depois vê que o mês já está pago, com a data. Antes a tela parecia estar cobrando outra vez, e o caminho natural de quem achava que o pagamento falhou era pagar duas vezes",
+      "Para quem realmente quer adiantar o mês seguinte, as opções de pagamento continuam a um clique",
+    ],
+  },
   {
     versao: "4.0.0",
     data: "2026-10-27",
