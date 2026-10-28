@@ -1,7 +1,7 @@
 import { WhatsappInicioService } from "./whatsapp-inicio.service";
 import { concluirCadastroAtomico } from "./cadastro-atomico";
 import { comandoCadastroGeral, consultarNumeroCadastro, mensagemPrimeiroContato, numeroCadastro } from './whatsapp-entrada';
-import { dadosTesteAgenda, interesseConviteAgenda, ORIGEM_CONVITE_AGENDA, ORIGEM_CONVITE_GRATUITO } from "../prospects/lead-onboarding";
+import { dadosTesteAgenda, interesseConviteAgenda, textoSemInteresse, ORIGEM_CONVITE_AGENDA, ORIGEM_CONVITE_GRATUITO } from "../prospects/lead-onboarding";
 import { identificarExecucao, execucaoWhats } from "../agenda/whatsapp-execucao";
 import { MARCA } from "../../common/marca";
 import { Module, Injectable, Logger } from "@nestjs/common";
@@ -264,15 +264,19 @@ export class CadastroWhatsappService {
       if(atual)resposta=atual;
     }
 
-    const perguntas:Record<string,string>={NOME:'Como é seu *nome completo*?',CPF:'Qual é seu *CPF*? Envie os 11 números. Uso esse dado para identificar sua conta.',EMAIL:'Qual é seu *e-mail*? Exemplo: *nome@gmail.com*. Ele será seu acesso ao site.',EMPRESA:'Você vai usar para você ou para uma empresa?\n*1* — Só para mim\n*2* — Para uma empresa',EMPRESA_NOME:'Qual é o nome da empresa?'};
+    const perguntas:Record<string,string>={NOME:'Como é seu *nome completo*?',CPF:'Qual é seu *CPF*? Envie os 11 números. Uso esse dado para identificar sua conta.',EMAIL:'Qual é seu *e-mail*? Exemplo: *nome@gmail.com*. Ele será seu acesso ao site.',EMPRESA:'Você vai usar para você ou para uma empresa?\n*1* — Só para mim\n*2* — Para uma empresa\n\n_Serve só para dar nome ao seu espaço. Nos dois casos você recebe o sistema completo._',EMPRESA_NOME:'Qual é o nome da empresa?'};
     if (cadastro.etapa === 'INICIO' && !comandoCadastroGeral(resposta) && !interesseConviteAgenda(resposta)) {
       if(resposta==='1') {
         if(await this.tratarConvite(cadastro.whatsapp,'1',inst||process.env.EVOLUTION_INSTANCE||'orkestri-default',respostas.whatsappLid?`${respostas.whatsappLid}@lid`:''))return true;
         await this.avancar(cadastro.id,'NOME',respostas);await this.responder(cadastro,this.msgAbertura(false),inst);return true;
       }
-      if(resposta==='2'||/^j[aá] tenho (?:uma )?conta$/i.test(resposta)){await this.encerrar(cadastro.id,'CANCELADO');await this.responder(cadastro,mensagemPrimeiroContato('vincular'),inst);return true;}
-      if(resposta==='3'){await this.responder(cadastro,`Você conversa comigo para marcar compromissos, fazer anotações, anotar gastos e organizar projetos e tarefas.\n\nPara criar sua conta gratuita, responda *1*. Para conhecer o site: https://www.orkiestri.com\n*0* — Sair`,inst);return true;}
-      await this.responder(cadastro,'Para criar sua conta, responda *1*. Se já tem uma conta, responda *2*. Para conhecer o sistema, responda *3*.\n*0* — Sair',inst);return true;
+      // "2" agora é "não tenho interesse", como diz o convite. Quem já tem
+      // conta é reconhecido pelo número antes de chegar aqui; para o caso raro
+      // de o número ser outro, a frase escrita continua valendo.
+      if(/^j[aá] tenho (?:uma )?conta$/i.test(resposta)){await this.encerrar(cadastro.id,'CANCELADO');await this.responder(cadastro,mensagemPrimeiroContato('vincular'),inst);return true;}
+      if(resposta==='2'){await this.encerrar(cadastro.id,'CANCELADO');await this.responder(cadastro,textoSemInteresse(),inst);return true;}
+      if(resposta==='3'){await this.responder(cadastro,`Você conversa comigo para marcar compromissos, fazer anotações, anotar gastos e organizar projetos e tarefas.\n\nPara criar sua conta gratuita, responda *1*. Para conhecer o site: https://www.orkiestri.com`,inst);return true;}
+      await this.responder(cadastro,'Para criar sua conta, responda *1*. Se não tiver interesse, responda *2*.',inst);return true;
     }
     if (/^voltar$/i.test(resposta)) {
       const anterior:any={NOME:'INICIO',CPF:'NOME',EMAIL:'CPF',EMPRESA:'EMAIL',EMPRESA_NOME:'EMPRESA',CONFIRMACAO:'EMPRESA',CORRIGIR_DADO:'CONFIRMACAO'};
@@ -358,9 +362,17 @@ export class CadastroWhatsappService {
 
     if (cadastro.etapa === "EMPRESA" || cadastro.etapa === 'EMPRESA_NOME') {
       if(cadastro.etapa==='EMPRESA'&&resposta==='2'){await this.avancar(cadastro.id,'EMPRESA_NOME',respostas);await this.responder(cadastro,perguntas.EMPRESA_NOME+'\n\n*Voltar* — Escolher uso pessoal',inst);return true;}
-      const empresa=cadastro.etapa==='EMPRESA'&&resposta==='1'?'Pessoal':resposta;
-      if (empresa.length < 2) return this.invalida(cadastro, perguntas.EMPRESA, inst);
+      // "Só para mim" NÃO é nome de empresa.
+      //
+      // Guardar a palavra "Pessoal" aqui fazia a ORGANIZAÇÃO nascer chamada
+      // "Pessoal" — em produção havia duas assim, e nenhuma dizia de quem era.
+      // Uso pessoal passa a ser uma marca própria, e o nome da organização
+      // vira o nome da pessoa.
+      const usoPessoal = cadastro.etapa === 'EMPRESA' && resposta === '1';
+      const empresa = usoPessoal ? '' : resposta;
+      if (!usoPessoal && empresa.length < 2) return this.invalida(cadastro, perguntas.EMPRESA, inst);
       respostas.empresa = empresa;
+      respostas.usoPessoal = usoPessoal;
       delete respostas._revisando;
       await this.avancar(cadastro.id, "CONFIRMACAO", respostas);
       const atual = await (this.prisma as any).cadastroWhatsapp.findUnique({ where: { id: cadastro.id } });
@@ -407,6 +419,8 @@ export class CadastroWhatsappService {
 
         const org = await tx.organization.create({
           data: {
+            // Empresa quando houver; senão, o nome da PESSOA. Nunca a palavra
+            // que ela escolheu no menu — ver o comentário na etapa EMPRESA.
             nome: respostas.empresa || cadastro.nome,
             slug, ativo: true,
             statusOperacional: "ativo", statusComercial: testeAgenda || conviteGratuito ? "teste" : "ativo",
@@ -582,7 +596,7 @@ export class CadastroWhatsappService {
       `👤 Nome: *${nome}*\n` +
       `🪪 CPF: *${formatarCpf(cpf)}*\n` +
       `📧 E-mail: *${r.email}*\n` +
-      `🏢 Empresa: *${r.empresa}*\n\n` +
+      (r.empresa ? `🏢 Empresa: *${r.empresa}*\n\n` : `🏢 Uso: *só para mim*\n\n`) +
       "Responda *1* para confirmar ou *2* para corrigir."
     );
   }

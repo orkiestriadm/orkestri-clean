@@ -108,7 +108,9 @@ describe("Identificação e recepção da Aurélia", () => {
     expect(prisma.userProfile.findMany).toHaveBeenCalled();
     expect(wa.sendMessage).toHaveBeenCalledWith(
       TEL,
-      expect.stringContaining("Criar minha conta gratuita"),
+      // Desde 28/10/2026 quem chega novo recebe o MESMO convite da campanha de
+      // leads — é a mensagem que o site promete ao mandar a pessoa para cá.
+      expect.stringContaining("Quero me cadastrar e experimentar"),
       "teste",
     );
     expect(wa.sendMessage.mock.calls[0][1]).not.toContain("VINCULAR ABC123");

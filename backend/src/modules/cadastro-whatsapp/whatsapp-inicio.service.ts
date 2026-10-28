@@ -43,10 +43,47 @@ export class WhatsappInicioService {
       "Para receber estas orientações novamente, escreva *acesso*.";
   }
 
+  /**
+   * O que dá para pedir, uma linha por módulo.
+   *
+   * Vai logo depois da confirmação do cadastro. Quem acabou de criar a conta
+   * não sabe o que escrever, e os 7 dias de teste correm desde o primeiro
+   * minuto: sem isto, a pessoa recebe "sua conta está pronta" e fica olhando
+   * para uma conversa vazia. O passo a passo detalhado não entra aqui — fica
+   * no comando *ajuda*, que já existe e abre módulo a módulo.
+   */
+  private mensagemComoUsar(nome: string) {
+    const nm = (nome || "").trim().split(/\s+/)[0];
+    return `🧡 *Boas-vindas${nm ? `, ${nm}` : ""}!* Já pode me pedir as coisas por aqui:\n\n` +
+      "🗓️ *Agenda* — _reunião com o contador amanhã às 10h_\n" +
+      "💸 *Financeiro* — _gastei 50 no mercado_\n" +
+      "📝 *Keep* — _anota: ligar para o João_\n" +
+      "📁 *Projetos* — _tarefa: revisar a proposta sexta_\n" +
+      "☀️ *Seu dia* — mande *meu dia* e eu conto o que vem pela frente\n\n" +
+      "Escreva do seu jeito, sem formato certo. Se eu não entender, eu pergunto.\n\n" +
+      "📖 Para o passo a passo de cada módulo, mande *ajuda*.";
+  }
+
+  /**
+   * As duas mensagens do primeiro acesso: a confirmação e o como usar.
+   *
+   * O resultado é o da PRIMEIRA — é ela que diz à pessoa que a conta existe.
+   * Se a segunda falhar, o cadastro não vira pendência por isso; fica no log
+   * e a pessoa ainda tem o *ajuda*.
+   */
+  private async enviarPrimeiroAcesso(telefone: string, user: { nome: string; email: string }, instancia: string): Promise<boolean> {
+    const ok = await this.wa.sendMessage(telefone, this.mensagemAcesso(user), instancia);
+    if (ok) {
+      const guia = await this.wa.sendMessage(telefone, this.mensagemComoUsar(user.nome), instancia).catch(() => false);
+      if (!guia) this.logger.warn("Boas-vindas enviadas sem o guia de uso; a pessoa ainda tem o comando *ajuda*.");
+    }
+    return ok;
+  }
+
   async enviarAcesso(userId: string, instancia: string): Promise<boolean> {
     const user = await (this.prisma as any).user.findUnique({ where: { id: userId }, include: { profile: true } });
     if (!user?.ativo || user.bloqueado || !user.profile?.whatsapp) return false;
-    return this.wa.sendMessage(user.profile.whatsapp, this.mensagemAcesso(user), instancia);
+    return this.enviarPrimeiroAcesso(user.profile.whatsapp, user, instancia);
   }
 
   async temFluxo(conversa: string, instancia: string): Promise<boolean> {
@@ -74,7 +111,7 @@ export class WhatsappInicioService {
       const user = await (this.prisma as any).user.findUnique({ where: { id: userId }, include: { profile: true } });
       descartada = !user?.ativo || user.bloqueado || !user.profile?.whatsapp ||
         user.profile.whatsapp.replace(/\D/g, "") !== row.telefone.replace(/\D/g, "");
-      if (!descartada) ok = await this.wa.sendMessage(row.telefone, this.mensagemAcesso(user), row.instancia);
+      if (!descartada) ok = await this.enviarPrimeiroAcesso(row.telefone, user, row.instancia);
     } catch { this.logger.warn("Falha de envio de boas-vindas; tentativa registrada."); }
     const estado = descartada ? "DESCARTADA" : ok ? "ACEITA" : row.tentativas >= 5 ? "FALHOU" : "PENDENTE";
     const proxima = new Date(Date.now() + Math.min(900000, 30000 * 2 ** row.tentativas));
