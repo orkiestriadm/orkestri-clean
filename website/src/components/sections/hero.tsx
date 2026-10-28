@@ -1,251 +1,77 @@
-"use client";
-
-import { useState } from "react";
-import Image from "next/image";
-import { motion, useReducedMotion } from "framer-motion";
+import Link from "next/link";
+import { ArrowDown, Check, MoveUpRight } from "lucide-react";
 import { Container } from "@/components/ui/container";
 import { WhatsAppButton } from "@/components/ui/whatsapp-button";
-import { Holofote } from "@/components/ui/holofote";
-import { products } from "@/config/products";
-import { cn } from "@/lib/utils";
-import { EASE_OUT } from "@/lib/motion";
-
-/**
- * Hero da home — escuro, com as telas reais do sistema.
- *
- * Três decisões sustentam esta seção e não devem ser afrouxadas:
- *
- *   1. UM botão. O cadastro acontece pelo WhatsApp e só por lá (decisão do
- *      cliente, 26/10/2026). Qualquer outro botão aqui disputa com ele e o
- *      enfraquece — era o que acontecia antes, com três lado a lado.
- *   2. O verde aparece UMA vez na página inteira. Não é enfeite: diz que o
- *      clique sai do site e abre uma conversa. Usá-lo em outro lugar
- *      destrói essa leitura.
- *   3. A trilha de módulos embaixo é o convite a vasculhar. Ela troca a tela
- *      sem sair da dobra — quem chega descobre o tamanho do sistema antes de
- *      rolar um pixel.
- *
- * O número do WhatsApp é o mesmo a que a instância do Evolution está
- * conectada em produção; apontando para outro, a Aurélia nunca vê a mensagem.
- */
-
-/* Só os módulos com captura real entram na trilha. Anunciar um módulo e
-   mostrar um retângulo vazio é pior do que não anunciar. */
-const modulos = products.filter((p) => p.screenshot);
+import { AureliaSignature } from "@/components/home/aurelia-signature";
 
 export function Hero() {
-  const reduce = useReducedMotion();
-  const [ativo, setAtivo] = useState(0);
-  const tela = modulos[ativo];
-
-  /* Entrada orquestrada: a manchete, o texto, o botão e a tela chegam em
-     cascata uma única vez. É o ÚNICO movimento não pedido da página — as
-     seções abaixo não repetem fade-up, que é o que faz uma página parecer
-     gerada. */
-  const entrada = (i: number) => ({
-    initial: reduce ? { opacity: 0 } : { opacity: 0, y: 14 },
-    animate: { opacity: 1, y: 0 },
-    transition: { duration: 0.5, ease: EASE_OUT, delay: 0.06 * i },
-  });
-
   return (
-    <section className="ink-grain relative isolate overflow-hidden bg-ink pt-28 pb-16 md:pt-32 lg:pt-36 lg:pb-20">
-      {/* A luz.
-          Uma fonte só, assimétrica, alta e à esquerda — a de duas fontes
-          largas que havia aqui tingia a página inteira de marrom: laranja
-          difuso sobre preto neutro vira ocre, e o "quase preto" desaparece.
-          Agora o glow é menor, mais fraco e fica contido no alto; a vinheta
-          abaixo devolve o preto às bordas, que é o que faz o laranja ler
-          como LUZ em vez de tinta de fundo. */}
-      <div aria-hidden className="pointer-events-none absolute inset-0 -z-10">
-        {/* Malha técnica, só perto da fonte de luz. */}
-        <div className="malha absolute inset-0" />
-        <div className="absolute -left-24 -top-64 h-[560px] w-[680px] rounded-full bg-flame/[0.10] blur-[130px]" />
-        {/* Vinheta: escurece as quatro bordas por cima do glow. */}
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_70%_60%_at_38%_28%,transparent,var(--color-ink)_78%)]" />
-        {/* A luz que segue o ponteiro. Fica ACIMA da vinheta, senão o preto
-            das bordas a apagaria justamente onde ela deve aparecer. */}
-        <Holofote />
-        {/* Fio de horizonte: separa o hero do que vem abaixo sem borda dura. */}
-        <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
-      </div>
-
-      <Container className="relative z-10">
-        <div className="grid items-center gap-12 lg:grid-cols-[minmax(0,0.88fr)_minmax(0,1.12fr)] lg:gap-16">
-          {/* ── Texto ─────────────────────────────────────────────────── */}
-          <div className="flex flex-col items-start">
-            <motion.h1
-              {...entrada(0)}
-              className="font-display text-[2.25rem] font-bold leading-[1.04] tracking-[-0.035em] text-chalk [font-stretch:112%] sm:text-[2.75rem] lg:text-[3rem] xl:text-[3.5rem]"
-            >
-              Anote por mensagem. Seja lembrado por mensagem.
-            </motion.h1>
-
-            <motion.p
-              {...entrada(1)}
-              className="mt-7 max-w-[52ch] text-[1.0625rem] leading-[1.65] text-chalk-dim"
-            >
-              {/* Cada promessa daqui é verificável no backend: os lembretes
-                  em `alert.scheduler.ts`, os comandos em
-                  `whatsapp-inbound.module.ts`. Não acrescentar nada sem
-                  conferir lá. */}
-              Agenda, contas, gastos e projetos num lugar só. Você escreve no
-              WhatsApp para anotar, e o Orkiestri te procura lá quando chega a
-              hora: uma hora antes do compromisso, no domingo com o resumo da
-              semana.
-            </motion.p>
-
-            <motion.div {...entrada(2)} className="mt-9">
+    <section className="hero-modern relative isolate overflow-hidden bg-ink pb-10 pt-28 md:pb-14 md:pt-36">
+      <div
+        aria-hidden
+        className="hero-aurora pointer-events-none absolute inset-0 -z-10"
+      />
+      <Container>
+        <div className="grid items-center gap-8 md:grid-cols-[1.05fr_.95fr] lg:gap-14">
+          <div className="hero-enter relative z-10">
+            <p className="section-kicker mb-6 inline-flex items-center gap-3">
+              <span className="h-px w-7 bg-flame/70" aria-hidden />
+              Sua rotina, no ritmo certo.
+            </p>
+            <h1 className="max-w-[13ch] font-display text-[clamp(2.75rem,5.5vw,5.1rem)] font-semibold leading-[1.02] tracking-[-.055em] text-chalk">
+              <span className="hero-highlight">Aurélia.</span>
+              <br />
+              Sua rotina
+              <br />
+              em harmonia.
+            </h1>
+            <p className="mt-6 max-w-[42ch] text-base leading-[1.75] text-chalk-dim lg:text-lg">
+              A assistente virtual do Orkiestri que{" "}
+              <strong className="font-medium text-chalk">
+                orquestra seus compromissos pelo WhatsApp.
+              </strong>{" "}
+              Você manda uma mensagem. Ela ajuda a organizar, consultar e
+              lembrar.
+            </p>
+            <div className="mt-7 flex flex-col items-start gap-3">
               <WhatsAppButton />
-              <p className="mt-4 text-sm leading-relaxed text-chalk-faint">
-                A conversa cria a conta e liga os módulos. Sem formulário.
-              </p>
-            </motion.div>
+              <a
+                href="#aurelia"
+                className="inline-flex min-h-11 items-center gap-3 text-sm font-medium text-chalk-dim transition-colors hover:text-chalk"
+              >
+                Conheça a Aurélia <ArrowDown size={16} aria-hidden />
+              </a>
+            </div>
+            <p className="mt-2 max-w-md text-xs leading-relaxed text-chalk-dim">
+              Cadastro gratuito no Orkiestri. A Aurélia guia você pelo WhatsApp,
+              uma pergunta por vez.
+            </p>
           </div>
-
-          {/* ── Tela ──────────────────────────────────────────────────── */}
-          <motion.div
-            initial={reduce ? { opacity: 0 } : { opacity: 0, y: 28 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7, ease: EASE_OUT, delay: 0.22 }}
-            /* A tela ultrapassa a margem direita e sai da janela. Não é
-               descuido: contida, ela virava uma figura educada ao lado do
-               texto; sangrando, diz que há mais sistema do que cabe na tela —
-               que é exatamente o convite a ir ver. */
-            className="relative lg:-mr-12 xl:-mr-24 2xl:-mr-40"
-          >
-            {/* Brilho SOB a moldura, não atrás dela: atrás, o laranja vazava
-                por cima da captura e a deixava amarelada e sem contraste.
-                Embaixo, lê como a luz que a tela joga na mesa. */}
-            <div
-              aria-hidden
-              className="pointer-events-none absolute inset-x-8 -bottom-6 -z-10 h-40 rounded-full bg-flame/20 blur-[60px]"
-            />
-            <Moldura tela={tela} />
-          </motion.div>
+          <div className="hero-enter min-w-0">
+            <AureliaSignature />
+          </div>
         </div>
-
-        {/* ── Trilha de módulos ──────────────────────────────────────── */}
-        <motion.div {...entrada(4)} className="mt-14 lg:mt-16">
-          <Trilha ativo={ativo} onEscolher={setAtivo} />
-        </motion.div>
+        <div className="mt-8 flex flex-col justify-between gap-5 border-t border-white/10 pt-6 md:mt-12 md:flex-row md:items-center">
+          <ul className="flex flex-wrap gap-x-6 gap-y-3 text-xs text-chalk-dim">
+            {[
+              "No WhatsApp que você já usa",
+              "Agenda acessível pelo site",
+              "Cadastro guiado pela Aurélia",
+            ].map((text) => (
+              <li key={text} className="flex items-center gap-2">
+                <Check size={14} className="text-flame-soft" aria-hidden />
+                {text}
+              </li>
+            ))}
+          </ul>
+          <Link
+            href="/services"
+            className="inline-flex min-h-11 shrink-0 items-center gap-2 text-xs text-chalk-faint transition-colors hover:text-chalk"
+          >
+            Software para sua empresa <MoveUpRight size={13} aria-hidden />
+          </Link>
+        </div>
       </Container>
     </section>
-  );
-}
-
-/** Moldura da captura: fio de luz e respiro de 8px em volta da tela. */
-function Moldura({ tela }: { tela: (typeof modulos)[number] }) {
-  /* As capturas não têm o mesmo tamanho: vão de 920px a 2200px de largura.
-     Ampliar todas no mesmo fator deixaria as pequenas borradas — a de Frota
-     (920px) já entra quase no tamanho natural. Só as grandes sobram pixel
-     para recortar, e são essas que ganham o zoom. */
-  const grande = (tela.screenshot!.width ?? 0) >= 1600;
-
-  return (
-    <div className="borda-viva hairline edge-light relative isolate rounded-[22px] border bg-panel p-2">
-      <div className="relative aspect-[16/10] w-full overflow-hidden rounded-[15px] bg-ink-raise lg:aspect-[16/11]">
-        {/* `key` força o cruzamento de imagens na troca: sem ele o React
-            reaproveita o nó e a tela nova aparece de estalo. */}
-        <Image
-          key={tela.slug}
-          src={tela.screenshot!.src}
-          alt={tela.screenshot!.alt}
-          fill
-          priority
-          /* Captura de interface é densa em texto miúdo; o padrão (q=75)
-             borra as letras e a tela passa a parecer de baixa qualidade. */
-          quality={92}
-          sizes="(max-width: 1024px) 100vw, 1100px"
-          /* A tela inteira reduzida a 600px fica ilegível e lê como borrão
-             cinza — pior do que não mostrar. Ampliada e ancorada no canto
-             superior esquerdo, aparece um PEDAÇO em tamanho legível: dá para
-             ler os rótulos, e é isso que prova que o sistema existe. */
-          className={cn(
-            "animate-[fade-in_.45s_ease-out] object-cover object-left-top",
-            grande && "origin-top-left scale-[1.45]",
-          )}
-        />
-        {/* O corte à direita e embaixo fica duro; este véu dissolve a aresta
-            para dentro do painel. */}
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_right,transparent_72%,rgba(7,8,11,0.55)),linear-gradient(to_bottom,transparent_74%,rgba(7,8,11,0.5))]"
-        />
-      </div>
-    </div>
-  );
-}
-
-/** Seletor de módulo. Tabs de verdade: setas do teclado navegam. */
-function Trilha({
-  ativo,
-  onEscolher,
-}: {
-  ativo: number;
-  onEscolher: (i: number) => void;
-}) {
-  const mover = (e: React.KeyboardEvent, i: number) => {
-    const destino =
-      e.key === "ArrowRight"
-        ? (i + 1) % modulos.length
-        : e.key === "ArrowLeft"
-          ? (i - 1 + modulos.length) % modulos.length
-          : null;
-    if (destino === null) return;
-    e.preventDefault();
-    onEscolher(destino);
-    (
-      document.getElementById(`modulo-${destino}`) as HTMLButtonElement | null
-    )?.focus();
-  };
-
-  return (
-    <div className="border-t border-white/[0.07] pt-6">
-      <p className="text-sm text-chalk-faint">
-        As telas são do sistema rodando. Escolha o que quer ver:
-      </p>
-      <div
-        role="tablist"
-        aria-label="Módulos do Orkiestri One"
-        /* Rola na horizontal no celular; a barra fica escondida porque a
-           própria lista já indica que há mais à direita pelo corte. */
-        className="mt-4 flex gap-x-7 gap-y-3 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] lg:flex-wrap lg:overflow-visible [&::-webkit-scrollbar]:hidden"
-      >
-        {modulos.map((p, i) => {
-          const selecionado = i === ativo;
-          return (
-            <button
-              key={p.slug}
-              id={`modulo-${i}`}
-              type="button"
-              role="tab"
-              aria-selected={selecionado}
-              tabIndex={selecionado ? 0 : -1}
-              onClick={() => onEscolher(i)}
-              onKeyDown={(e) => mover(e, i)}
-              className={cn(
-                "relative shrink-0 cursor-pointer whitespace-nowrap pb-2 text-[0.9375rem] font-medium transition-colors duration-200",
-                "focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-flame",
-                selecionado
-                  ? "text-chalk"
-                  : "text-chalk-faint hover:text-chalk-dim",
-              )}
-            >
-              {/* O nome da marca se repete em todos os módulos; na trilha só
-                  o que distingue um módulo do outro ajuda a escolher. */}
-              {p.short ?? p.name}
-              {selecionado && (
-                <motion.span
-                  layoutId="modulo-ativo"
-                  className="absolute inset-x-0 -bottom-px h-px bg-flame shadow-[0_0_12px_2px_rgba(255,106,26,0.6)]"
-                  transition={{ duration: 0.25, ease: EASE_OUT }}
-                />
-              )}
-            </button>
-          );
-        })}
-      </div>
-    </div>
   );
 }

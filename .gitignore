@@ -77,3 +77,18 @@ frontend_build.zip
 
 # Gravado pelo deploy: de qual ref os arquivos do servidor vieram.
 .deploy-ref
+
+# Local sync audits and nested build outputs
+.sync-review/
+.whatsapp-audit/
+.presentation-costs/
+**/.next/
+**/dist/
+**/out/
+**/coverage/
+*.tgz
+*.pyc
+**/__pycache__/
+.claude/launch.json
+.claude/scheduled_tasks.lock
+_tmp_*.sql

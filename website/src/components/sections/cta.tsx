@@ -7,11 +7,13 @@ import { Reveal } from "@/components/animations/reveal";
 
 /** Final CTA — reused across pages (doc 05). */
 export function CTA({
-  title = "Pronto para parar de lembrar sozinho?",
-  text = "A conta nasce numa conversa de WhatsApp e, a partir dali, é o sistema que te procura.",
+  title,
+  text,
+  intent = "trial",
 }: {
   title?: string;
   text?: string;
+  intent?: "trial" | "project";
 }) {
   return (
     <section className="py-20 md:py-28">
@@ -29,11 +31,27 @@ export function CTA({
           />
           <div className="relative mx-auto flex max-w-2xl flex-col items-center">
             <h2 className="text-[2rem] font-bold text-white md:text-[2.75rem]">
-              {title}
+              {title ??
+                (intent === "project"
+                  ? "Qual problema seu próximo software precisa resolver?"
+                  : "Seu Orkiestri começa com uma conversa.")}
             </h2>
-            <p className="mt-4 text-lg text-chalk-faint">{text}</p>
+            <p className="mt-4 text-lg text-chalk-dim">
+              {text ??
+                (intent === "project"
+                  ? "Conte o contexto, as pessoas envolvidas e o que você quer melhorar. Vamos conversar sobre o caminho para construir."
+                  : "A Aurélia guia seu cadastro no sistema Orkiestri pelo WhatsApp. Os recursos disponíveis seguem o plano e as permissões da conta.")}
+            </p>
             <div className="mt-8 flex flex-wrap justify-center gap-3">
-              <WhatsAppButton />
+              {intent === "trial" ? (
+                <WhatsAppButton />
+              ) : (
+                <Button asChild size="lg">
+                  <Link href="/contact?interest=project#contato">
+                    Conversar sobre meu projeto
+                  </Link>
+                </Button>
+              )}
               <Button
                 asChild
                 size="lg"

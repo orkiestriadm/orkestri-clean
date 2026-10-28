@@ -23,15 +23,18 @@ export function Fechamento() {
       <Container className="relative">
         <div className="mx-auto flex max-w-2xl flex-col items-center text-center">
           <h2 className="font-display text-[2rem] font-bold leading-[1.08] tracking-[-0.03em] text-chalk [font-stretch:110%] md:text-[2.75rem]">
-            A sua conta começa com uma mensagem.
+            Sua próxima semana pode ser mais leve.
           </h2>
           <p className="mt-5 max-w-[46ch] text-[1.0625rem] leading-[1.65] text-chalk-dim">
-            Você manda, a Aurélia faz as perguntas e devolve a conta pronta, com
-            os módulos ligados. Daí em diante é ela quem te lembra do que
-            você ia esquecer.
+            Crie sua conta no Orkiestri pelo WhatsApp. A Aurélia guia o cadastro
+            e ajuda você a começar a usar os recursos do sistema.
           </p>
 
           <WhatsAppButton className="mt-10" />
+          <p className="mt-4 max-w-lg text-sm leading-relaxed text-chalk-dim">
+            Uma conta no Orkiestri. Os recursos disponíveis seguem o plano e as
+            permissões da sua conta.
+          </p>
 
           <p className="mt-6 text-sm text-chalk-faint">
             Prefere conversar antes?{" "}

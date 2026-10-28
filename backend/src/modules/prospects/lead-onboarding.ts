@@ -23,10 +23,26 @@ export function linksConviteAgenda() {
   const numero = (process.env.LEADS_WHATSAPP_NUMERO || '5514991661688').replace(/\D/g, '');
   return { cadastro: `https://wa.me/${numero}?text=${encodeURIComponent(COMANDO_CONVITE_AGENDA)}`, login: `${app}/login`, senha: `${app}/recuperar-senha`, agenda: `${app}/dashboard/agenda` };
 }
+/**
+ * O convite, num lugar só.
+ *
+ * Chega por dois caminhos que precisam dizer a MESMA coisa: a campanha
+ * disparada pelo gestor de leads (com o nome da pessoa) e o primeiro contato
+ * de quem clicou em "cadastrar" no site (sem nome, porque ainda não sabemos
+ * quem é). Duas cópias do texto viravam duas promessas diferentes.
+ */
+export function textoConvite(nome?: string) {
+  const ola = nome ? `Olá, ${nome}!` : 'Olá!';
+  return `${ola} 👋 *Que tal receber seus compromissos e lembretes no WhatsApp que você já usa todos os dias?*\n\nSou a *Aurélia*, assistente do *${MARCA}*. Eu te ajudo a organizar a rotina e lembrar do que importa: reuniões, consultas e aqueles compromissos que não podem passar despercebidos. 📅\n\nQuero te convidar para conhecer o ${MARCA}. *O cadastro e o acesso nesta fase são gratuitos, sem cartão.* Você se cadastra aqui mesmo, conversando comigo, e eu te ajudo a agendar seu primeiro compromisso.\n\n*Vamos começar? É gratuito!*\n\n*1* — Quero me cadastrar e experimentar\n*2* — Não tenho interesse. Encerrar convite\n\nAo responder *1*, vou pedir seus dados, uma informação por vez. Se as condições de acesso mudarem, você será avisado com antecedência.\n\nConheça o ${MARCA}: https://www.orkiestri.com`;
+}
+/** Quem respondeu "2": agradece e deixa a porta do site aberta. */
+export function textoSemInteresse() {
+  return `Tudo bem, obrigada pelo seu tempo! 🧡\n\nNão vou mais te escrever sobre isso. Se um dia quiser conhecer o ${MARCA} com calma, o site está aqui:\nhttps://www.orkiestri.com\n\nE se mudar de ideia, é só me mandar *CADASTRO* nesta conversa.`;
+}
 export function modelosConviteAgenda() {
   const l = linksConviteAgenda();
   return [
-    { nome: `Convite • cadastro gratuito no ${MARCA}`, texto: `Olá, {nome}! 👋 *Que tal receber seus compromissos e lembretes no WhatsApp que você já usa todos os dias?*\n\nSou a *Aurélia*, assistente do *${MARCA}*. Eu te ajudo a organizar a rotina e lembrar do que importa: reuniões, consultas e aqueles compromissos que não podem passar despercebidos. 📅\n\nQuero te convidar para conhecer o ${MARCA}. *O cadastro e o acesso nesta fase são gratuitos, sem cartão.* Você se cadastra aqui mesmo, conversando comigo, e eu te ajudo a agendar seu primeiro compromisso.\n\n*Vamos começar? É gratuito!*\n\n*1* — Quero me cadastrar e experimentar\n*2* — Não tenho interesse. Encerrar convite\n\nAo responder *1*, vou pedir seus dados, uma informação por vez. Se as condições de acesso mudarem, você será avisado com antecedência.\n\nConheça o ${MARCA}: https://www.orkiestri.com` },
+    { nome: `Convite • cadastro gratuito no ${MARCA}`, texto: textoConvite('{nome}') },
     { nome: `Orientação • primeiro acesso ao ${MARCA}`, texto: `Olá, {nome}! Se ainda não criou sua conta, envie *CADASTRO* aqui nesta conversa. A Aurélia fará seu cadastro no ${MARCA} pelo WhatsApp.\n\nSe já concluiu o cadastro e quiser usar também o site, defina sua senha em ${l.senha}. Escolha o código por WhatsApp e informe o mesmo número usado no cadastro.\n\nDepois, entre com seu e-mail e a senha que criou: ${l.login}\nPara começar por aqui, envie *começar* à Aurélia.` },
     { nome: 'Acompanhamento • primeiro compromisso', texto: `Olá, {nome}! Vamos usar sua agenda do ${MARCA}? Na conversa com a Aurélia, envie *começar*, escolha *1 — compromisso*, informe o título, o dia e o horário e confirme a prévia.\n\nPara consultar o que marcou, envie *compromissos*. Pelo site: ${l.agenda}\n\nSe precisar receber novamente as instruções de acesso, envie *acesso* à Aurélia.` },
     { nome: 'Conversão • continuar após o teste', texto: `Olá, {nome}! Como foi seu teste da agenda do ${MARCA}? Quer continuar organizando seus compromissos com a Aurélia? Responda para conhecer as condições do plano e receber orientação para contratar. Nenhuma contratação é feita por esta mensagem.` },

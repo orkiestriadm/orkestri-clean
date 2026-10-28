@@ -15,7 +15,7 @@ import { cn } from "@/lib/utils";
  * clique; o do WhatsApp era o que o produto realmente atende.
  */
 export function WhatsAppButton({
-  children = "Criar minha conta no WhatsApp",
+  children = "Cadastre-se é gratuito!",
   tamanho = "lg",
   className,
 }: {
@@ -29,7 +29,7 @@ export function WhatsAppButton({
       target="_blank"
       rel="noopener noreferrer"
       className={cn(
-        "inline-flex items-center justify-center whitespace-nowrap rounded-(--radius-button) bg-signal font-semibold text-[#06281A]",
+        "inline-flex max-w-full items-center justify-center rounded-(--radius-button) bg-signal font-semibold text-[#06281A]",
         "transition-all duration-200 ease-(--ease-out-quart)",
         "shadow-[0_0_0_1px_rgba(37,211,102,0.45),0_14px_40px_-12px_rgba(37,211,102,0.5)]",
         "hover:bg-signal-hover hover:shadow-[0_0_0_1px_rgba(37,211,102,0.6),0_18px_50px_-10px_rgba(37,211,102,0.65)]",

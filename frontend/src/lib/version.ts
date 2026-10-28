@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "4.0.0";
+export const VERSAO = "4.3.0";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -23,10 +23,10 @@ export const VERSAO = "4.0.0";
  * Não é gerada no build: `new Date()` no bundle muda a cada compilação, e duas
  * builds do mesmo código pareceriam versões diferentes.
  */
-export const VERSAO_DATA = "2026-10-27";
+export const VERSAO_DATA = "2026-10-28";
 
 /** Nome da entrega, para dar contexto ao número. */
-export const VERSAO_NOME = "Mensalidade de R$ 11,90 com pagamento no cartão ou Pix";
+export const VERSAO_NOME = "Entrada pela Aurélia, boas-vindas que ensinam e painel de billing";
 
 /**
  * Histórico exibido na tela Sobre, do mais recente para o mais antigo.
@@ -40,6 +40,35 @@ export const HISTORICO: { versao: string; data: string; titulo: string; itens: s
   // substituída pela 3.2.0 antes de chegar a produção. Esta lista é o que
   // mudou para quem USA o sistema, e uma versão que ninguém recebeu não mudou
   // nada para ninguém — anunciá-la só faria procurarem uma tela que não existe.
+  {
+    versao: "4.3.0",
+    data: "2026-10-28",
+    titulo: "Entrada pela Aurélia, boas-vindas que ensinam e painel de billing",
+    itens: [
+      "Quem clica em cadastrar no site agora recebe o convite da Aurélia antes de qualquer pergunta. Antes caía direto num “qual é seu nome completo?”, sem ter lido o que é o produto nem quanto custa",
+      "Responder 2 no convite passa a agradecer e deixar o site à mão, em vez de falar de uma conta que a pessoa não tem",
+      "Depois do cadastro chega uma segunda mensagem com um exemplo por módulo e o caminho do comando ajuda. Quem acabava de entrar ficava olhando para uma conversa vazia, sem saber o que escrever",
+      "Quem escolhe “só para mim” não vira mais uma organização chamada “Pessoal”: o espaço passa a ter o nome da própria pessoa",
+      "A administração ganhou um painel de billing: quem está em dia, em teste, inadimplente ou encerrado, quanto já entrou, e um botão para liberar acesso sem cobrança",
+    ],
+  },
+  // A 4.0.1 e a 4.2.x não aparecem, pelo mesmo motivo da 3.1.0: mexeram em
+  // telas que só a administração vê, ou nunca chegaram a produção.
+  {
+    versao: "4.1.0",
+    data: "2026-10-28",
+    titulo: "O cadastro é com a Aurélia, e o teste passa a ter prazo",
+    itens: [
+      "A entrada no Orkiestri agora é por um caminho só: conversando com a Aurélia no WhatsApp. O cadastro pelo site saiu do ar e passa a indicar a conversa",
+      "Toda conta nova nasce com 7 dias para usar tudo sem pagar nada. Antes, quem se cadastrava pelo WhatsApp ficava sem prazo nenhum e nunca era cobrado — o aviso e a mensalidade só alcançavam quem tinha entrado pelo site",
+      "Faltando 3 dias, 1 dia e no último dia, a Aurélia avisa no WhatsApp com o link para pagar. Quem já está no cartão não recebe aviso: a cobrança é automática",
+      "No cartão, a cobrança se repete no mesmo dia em que você assinou, todo mês",
+      "Abrir o pagamento no cartão duas vezes não cria mais duas assinaturas: o segundo clique devolve a mesma",
+      "Depois de pagar, recarregar a página não faz mais ela pedir pagamento de novo: ela mostra quanto entrou, quando, e até quando o acesso está liberado",
+      "Quem volta ao link dias depois vê que o mês já está pago, com a data. Antes a tela parecia estar cobrando outra vez, e o caminho natural de quem achava que o pagamento falhou era pagar duas vezes",
+      "Para quem realmente quer adiantar o mês seguinte, as opções de pagamento continuam a um clique",
+    ],
+  },
   {
     versao: "4.0.0",
     data: "2026-10-27",

@@ -1,10 +1,9 @@
 import Script from "next/script";
 import { Hero } from "@/components/sections/hero";
 import { Plataforma } from "@/components/home/plataforma";
-import { Avisos } from "@/components/home/avisos";
-import { Comandos } from "@/components/home/comandos";
-import { Engenharia } from "@/components/home/engenharia";
-import { Tecnologias } from "@/components/home/tecnologias";
+import { AureliaShowcase } from "@/components/home/aurelia-showcase";
+import { AgendaSpotlight } from "@/components/home/agenda-spotlight";
+import { AureliaDemo } from "@/components/home/aurelia-demo";
 import { Perguntas } from "@/components/home/perguntas";
 import { Fechamento } from "@/components/home/fechamento";
 import { homeFaq } from "@/config/content";
@@ -13,31 +12,24 @@ import { buildMetadata, softwareApplicationSchema } from "@/lib/seo";
 export const metadata = buildMetadata({
   path: "/",
   keywords: [
-    'organizar agenda pelo whatsapp',
-    'lembrete de compromisso no whatsapp',
-    'controle de gastos por mensagem',
-    'contas a pagar whatsapp',
-    'anotações e tarefas',
-    'Orkiestri',
+    "organizar agenda pelo whatsapp",
+    "lembrete de compromisso no whatsapp",
+    "controle de gastos por mensagem",
+    "contas a pagar whatsapp",
+    "anotações e tarefas",
+    "Orkiestri",
   ],
 });
 
 /**
- * Home — única página escura do site (26/10/2026).
+ * Home: teste da agenda → demonstração → benefícios → outros módulos → dúvidas.
  *
  * A página tinha catorze seções e quase 12.000px de altura; a maior parte
  * repetia o mesmo argumento em formatos diferentes, e três blocos inteiros
  * (números, depoimentos e logos de clientes) eram conteúdo inventado. Agora
- * são oito seções, nesta ordem, cada uma com um trabalho só:
+ * A demonstração da Aurélia precede os demais módulos para explicar o teste.
  *
- *   1. Hero ......... o que é, e a porta de entrada
- *   2. Plataforma ... as aplicações e o que compartilham
- *   3. Avisos ...... o que o sistema MANDA no WhatsApp
- *   4. Comandos .... o que VOCÊ manda de volta
- *   5. Engenharia .. quem constrói, e como
- *   6. Tecnologias . com o quê
- *   7. Perguntas ... as objeções
- *   8. Fechamento .. a mesma porta, de novo
+ * Serviços e tecnologias têm páginas próprias, acessíveis pelo menu.
  *
  * O cadastro acontece pelo WhatsApp e SÓ por lá. Se algum dia voltar um
  * segundo caminho de cadastro à página, ele tira força deste — foi o que
@@ -55,11 +47,10 @@ export default function HomePage() {
       />
 
       <Hero />
+      <AureliaShowcase />
+      <AgendaSpotlight />
       <Plataforma />
-      <Avisos />
-      <Comandos />
-      <Engenharia />
-      <Tecnologias />
+      <AureliaDemo />
       <Perguntas items={homeFaq} />
       <Fechamento />
     </>

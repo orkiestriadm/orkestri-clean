@@ -35,9 +35,10 @@ export function PageHero({
   return (
     <section
       aria-label={eyebrow}
-      className="ink-grain relative isolate overflow-hidden bg-ink pt-32 pb-16 md:pt-40 md:pb-24"
+      className="ink-grain relative isolate overflow-hidden bg-ink pt-28 pb-12 md:pt-36 md:pb-20"
     >
       <div aria-hidden className="pointer-events-none absolute inset-0 -z-10">
+        <div className="page-orbit" />
         <div className="absolute -left-32 -top-56 h-[460px] w-[620px] rounded-full bg-flame/[0.09] blur-[130px]" />
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_65%_60%_at_32%_24%,transparent,var(--color-ink)_76%)]" />
         <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
