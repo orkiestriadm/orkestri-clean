@@ -8,7 +8,7 @@ A organização recém-criada não tinha AlertConfig. A implementação carregav
 
 Existiam dois efeitos relacionados: a janela de consulta podia ficar menor que os 60 minutos dos padrões se outras organizações tivessem apenas regras curtas; e uma organização com todas as regras desativadas podia receber os padrões quando o filtro global não retornava nenhuma regra ativa.
 
-## Correção preparada
+## Correção publicada
 
 - Carregar as regras, inclusive desativadas, e agrupá-las por organização.
 - Usar os padrões de 60, 15, 5 e 0 minutos somente quando a organização não possui regras próprias.
@@ -16,7 +16,7 @@ Existiam dois efeitos relacionados: a janela de consulta podia ficar menor que o
 - Incluir os 60 minutos padrão na janela global de consulta para que compromissos de organizações novas sejam encontrados.
 - Manter recibos duráveis e controle de duplicidade existentes. Corrigir os escapes de emoji dos padrões.
 
-Nenhum dado de produção, horário de compromisso ou configuração de cliente foi alterado. Nenhuma mensagem real foi disparada por esta investigação. A alteração ainda precisa de publicação separadamente autorizada; a autorização do deploy anterior era para o cadastro.
+Nenhum dado de produção, horário de compromisso ou configuração de cliente foi alterado. Nenhuma mensagem foi disparada manualmente durante a investigação; a entrega automática após a publicação foi verificada e registrada no documento do deploy. A publicação foi autorizada separadamente e concluída; ver DEPLOY_LEMBRETES_AGENDA_2026-10-28.md.
 
 ## Validação
 
