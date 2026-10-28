@@ -24,7 +24,7 @@ const FAQS = [
   },
   {
     q: 'Como funciona o suporte ao cliente?',
-    a: 'Todos os planos incluem suporte especializado. Os planos Business e Enterprise têm SLA garantido e acesso a um gerente de conta dedicado. O suporte é realizado via chat, e-mail e WhatsApp em horário comercial estendido, com times técnicos que conhecem profundamente o produto.',
+    a: 'Suporte por chat, e-mail e WhatsApp, em horário comercial estendido, com gente que conhece o produto por dentro. Já vem com a sua conta — não existe plano de suporte à parte nem nível de atendimento que se compre.',
   },
   {
     q: 'É possível personalizar o Orkiestri para o nosso negócio?',

@@ -16,7 +16,6 @@ const LINKS = {
   Plataforma: [
     { label: 'Visão geral', href: '#plataforma' },
     { label: 'Módulos', href: '#modulos' },
-    { label: 'Análise Econômica', href: '#analise-economica' },
     { label: 'Diferenciais', href: '#beneficios' },
   ],
   Empresa: [

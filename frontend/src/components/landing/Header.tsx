@@ -10,7 +10,6 @@ import { useTheme } from '@/lib/theme'
 const NAV_LINKS = [
   { label: 'Plataforma', href: '#plataforma' },
   { label: 'Módulos', href: '#modulos' },
-  { label: 'Análise Econômica', href: '#analise-economica' },
   { label: 'Preços', href: '#planos' },
   { label: 'Contato', href: '#contato' },
 ]

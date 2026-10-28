@@ -9,11 +9,18 @@ import { X } from 'lucide-react'
   Substitua WHATSAPP_NUMBER pelo número comercial real (apenas dígitos, com DDI):
   Ex.: 5511900000000 → Brasil, DDD 11, número 9 0000-0000
 */
-const WHATSAPP_NUMBER = '5514991661688'
-const WHATSAPP_MESSAGE = encodeURIComponent(
+export const WHATSAPP_NUMBER = '5514991661688'
+
+/** Uma única porta de entrada pelo WhatsApp: quem precisa de outro texto de
+ *  abertura (o teste de 7 dias dos preços, por exemplo) chama isto em vez de
+ *  montar outro link à mão e deixar o número duplicado no código. */
+export function whatsappUrl(mensagem: string) {
+  return `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(mensagem)}`
+}
+
+const WHATSAPP_URL = whatsappUrl(
   'Olá! Vi o Orkiestri e gostaria de saber mais sobre a plataforma. Podem me ajudar?'
 )
-const WHATSAPP_URL = `https://wa.me/${WHATSAPP_NUMBER}?text=${WHATSAPP_MESSAGE}`
 
 export default function WhatsAppButton() {
   const [visible, setVisible] = useState(false)
