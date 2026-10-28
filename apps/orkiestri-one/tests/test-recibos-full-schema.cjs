@@ -1,0 +1,38 @@
+const assert=require('node:assert/strict'); const Module=require('node:module');
+const {PrismaClient}=require('@prisma/client'); const {randomUUID}=require('node:crypto');
+const url=new URL(process.env.DATABASE_URL); url.pathname='/audit_whatsapp_20261024_cadastro';
+const p=new PrismaClient({datasources:{db:{url:url.toString()}}});
+function load(code,file,overrides={}){ const m=new Module(file,module);m.filename=file;m.paths=Module._nodeModulePaths(require('path').dirname(file));const req=m.require.bind(m);m.require=n=>overrides[n]||req(n);m._compile(Buffer.from(code,'base64').toString('utf8'),file);return m.exports; }
+const helper=load(RECIBOS_CODE,'/app/dist/modules/agenda/whatsapp-recibos.js');
+const {WhatsappInboundService,WhatsappInboundController}=load(INBOUND_CODE,'/app/dist/modules/agenda/audit-receipts.js',{'./whatsapp-recibos':helper});
+const sent=[];
+const wa={sendMessage:async(...args)=>{sent.push(args);return true;},sendToJid:async(...args)=>{sent.push(args);return true;}};
+const svc=new WhatsappInboundService(p,wa,{resolvePermissions:async()=>['*']},{},{conversaAberta:async()=>null,iniciarPeloChat:async()=>false});
+const message=(id,text)=>({key:{id,remoteJid:'5500000000000@s.whatsapp.net',fromMe:false},message:{conversation:text}});
+const receive=data=>svc.processar({instance:'isolated-test',data});
+(async()=>{
+  assert.equal((await p.$queryRawUnsafe('SELECT current_database() AS db'))[0].db,'audit_whatsapp_20261024_cadastro');
+  for(const statement of Buffer.from(MIGRATION_CODE,'base64').toString('utf8').split(';').map(s=>s.trim()).filter(Boolean))await p.$executeRawUnsafe(statement);
+  const id=randomUUID(), data=message(id,'Evento: Auditoria duplicidade amanhã 14h');
+  await Promise.all(Array.from({length:6},()=>receive(data)));
+  assert.equal(await p.event.count(),1);assert.equal(sent.length,1);
+  const again=new WhatsappInboundService(p,wa,{resolvePermissions:async()=>['*']},{},{conversaAberta:async()=>null});
+  await again.processar({instance:'isolated-test',data});assert.equal(await p.event.count(),1);
+  console.log('PASS duplicidade simultânea e nova instância do serviço: uma gravação e uma confirmação');
+  await receive([message(randomUUID(),'Evento: Lote A amanhã 15h'),message(randomUUID(),'Evento: Lote B amanhã 16h')]);
+  assert.equal(await p.event.count(),3);console.log('PASS todos os itens do lote processados');
+  await receive(message(undefined,'Evento: Sem identificador amanhã 17h'));assert.equal(await p.event.count(),3);
+  const badId=randomUUID();let runs=0;
+  const identity={instancia:'isolated-test',conversa:'isolated-chat',mensagemId:badId};
+  assert.equal(await helper.executarMensagemUmaVez(p,identity,async()=>{runs++;throw new Error('Falha injetada');}),'revisar');
+  await helper.executarMensagemUmaVez(p,identity,async()=>{runs++;});assert.equal(runs,1);
+  const row=await p.$queryRawUnsafe('SELECT estado FROM whatsapp_recibos WHERE mensagem_id=$1',badId);assert.equal(row[0].estado,'REVISAR');
+  console.log('PASS falha registrada para revisão sem repetir operação possivelmente parcial');
+  const crashId=randomUUID();await p.$executeRawUnsafe("INSERT INTO whatsapp_recibos(instancia,conversa,mensagem_id,criado_em) VALUES ('isolated-test','isolated-chat',$1,CURRENT_TIMESTAMP - INTERVAL '11 minutes')",crashId);
+  await helper.executarMensagemUmaVez(p,{...identity,mensagemId:crashId},async()=>{throw new Error('Não deve executar');});
+  assert.equal((await p.$queryRawUnsafe('SELECT estado FROM whatsapp_recibos WHERE mensagem_id=$1',crashId))[0].estado,'REVISAR');
+  const controller=new WhatsappInboundController({processar:async()=>{throw new Error('Banco indisponível');}});
+  await assert.rejects(()=>controller.inbound({},process.env.WHATSAPP_INBOUND_SECRET),e=>e.getStatus()===503);
+  console.log('PASS interrupção encaminhada para revisão; indisponibilidade de persistência retorna 503');
+  console.log('RESULTADO: eventos reais no banco isolado; WhatsApp simulado; nenhuma alteração em dados de clientes.');
+})().catch(e=>{console.error(e);process.exitCode=1}).finally(()=>p.$disconnect());

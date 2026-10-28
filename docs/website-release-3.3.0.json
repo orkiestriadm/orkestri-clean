@@ -1,0 +1,121 @@
+{
+  "version": "3.3.0",
+  "previous": "3.2.0",
+  "files": [
+    {
+      "path": "src/app/blog/page.tsx",
+      "baseline": "4eee3642e1a8c2fb3defb148c4d49628c3e998fafe1cabc2fb61b08e055c797f",
+      "sha256": "97d027628690fea0a796603323364561dd1a3feb3badc075878d9cdf8e08ebe9"
+    },
+    {
+      "path": "src/app/cases/page.tsx",
+      "baseline": "0072075eef4748a085e64a2610d4a6552de2582d5ee2b047dcaa54c74fa6c1b0",
+      "sha256": "d7e78dee1cccaedbf0fdef6c5c3bcf061445804fe9d87e0596f46ab0aa717769"
+    },
+    {
+      "path": "src/app/globals.css",
+      "baseline": "c5a7aa27c3788545027c664bd120d993cd0c65fc98096a5a4352c35f48e4c8bd",
+      "sha256": "87d00e80444bd9ac0e678fa25592a8a496cd12c796f6e8799ca4435248dadb0a"
+    },
+    {
+      "path": "src/app/layout.tsx",
+      "baseline": "71676601b0b056ae8d4de67b7c00b63609ec8785a4819243463575908fa4b158",
+      "sha256": "5a70bc439124dbfb2eee6e3f9057f88cbfb3a3e9ca249b3dc3f35646b1eac27a"
+    },
+    {
+      "path": "src/app/page.tsx",
+      "baseline": "6c639a3d63dd5b20c6abcf97aef60174519372f1974cf0d9ba6ca6dc95ebfb77",
+      "sha256": "c9e3eec19a075a9c677f52073e25f9f4db58682817993791691b28142ff5e1cb"
+    },
+    {
+      "path": "src/components/animations/reveal.tsx",
+      "baseline": "e223eaded27c888fe998d60260014083f9342a4dc799a4fa05c5db31f11a2f51",
+      "sha256": "219008b3268668af0931a3eb8983324dcb711ca18550bb4c17491c623de4e4d9"
+    },
+    {
+      "path": "src/components/cards/product-card.tsx",
+      "baseline": "6ab2c232eb606e29330a85605c558747d6f01021acfabbf9c72a4749e6229e93",
+      "sha256": "5f83d00b3dc5ada53bad20f094dc2139d1329f89e1c73385defb25b2de7770db"
+    },
+    {
+      "path": "src/components/cards/service-card.tsx",
+      "baseline": "5e9faf63a1c4c312758e3d4bcd18142689a02abd2b154560d97b844df3a3362b",
+      "sha256": "c95d64477f4070988e926b75ef8053240653614a699042f4db6a56a64914f074"
+    },
+    {
+      "path": "src/components/home/perguntas.tsx",
+      "baseline": "e9ff1634e36cdd79c1ce41f999f93eb96dd549b2a5958f6b56cb34c7b7888c28",
+      "sha256": "4c52c11f757c4a67e5d5c87cf8ac556ac204ced90cd25f7158189a2890724fe7"
+    },
+    {
+      "path": "src/components/home/plataforma.tsx",
+      "baseline": "d26345df33116334f4bbe00ad09c3f9ce539e9073ccb3a609c9d4009041b909e",
+      "sha256": "e73e5642de36a43122584e818fceac079a9ee23eac2ea87eb1b9c518e78d0a71"
+    },
+    {
+      "path": "src/components/home/ui.tsx",
+      "baseline": "6ef4ddfdb6b248b0c3a15581829d67676f3160f73c883aad46db705b4b3eae05",
+      "sha256": "9f36f11855f597881a1538c48cd5b5ed0cbb42ae5439e57501a22de9c28d28a9"
+    },
+    {
+      "path": "src/components/layout/footer.tsx",
+      "baseline": "983c04e33b71ca6b425926b98ad2e3bcffd63dca0017b6d2f7f850f18c772ac7",
+      "sha256": "09721a6310165af00e65c9e0e0032a21bd860d970d88cc9b37fa25935e995464"
+    },
+    {
+      "path": "src/components/layout/navbar.tsx",
+      "baseline": "04bdac825551d318914671ea9660b1ca6c4d4f7d821af92b56580b72048ecabb",
+      "sha256": "108ed830f86e3b0bdf4a88d6adf00ce71d9dd745069aa6679a4a2932ea7b3068"
+    },
+    {
+      "path": "src/components/sections/hero.tsx",
+      "baseline": "8b6746704dbcbf71e09b3e3a8d4e820b5774d83a997c5f0a38d54b8696ad67f7",
+      "sha256": "1cdaf114ffaa4fdd23d0ced6eb2674037e2a987f93fd1dc207f24dd727483b86"
+    },
+    {
+      "path": "src/components/sections/page-hero.tsx",
+      "baseline": "036c2632be867995c34bdd8649b7c4255acd24e2750092d60ec3e7892debd441",
+      "sha256": "1697a97d26823481f501ffc3f4272f291cc83895b438e43d9bee54c27d11a657"
+    },
+    {
+      "path": "src/config/navigation.ts",
+      "baseline": "7f523c87fac17158c0a27926f864aa472c272f0ee7b1b78a3e047ab0a190ac02",
+      "sha256": "241e0d8f469213dc7ff4ac290144f23fb092972d17b112a9f390aeec5721a1b6"
+    },
+    {
+      "path": "src/lib/version.ts",
+      "baseline": "6cb96a3333cb06e42cf4a1299b382b965c7e01df990862c420febd2a224818e6",
+      "sha256": "c09cdaa6fcb8d7c4c971efc310d15d52e87839a8874133cd2e695e2546d63897"
+    },
+    {
+      "path": "src/components/home/agenda-spotlight.tsx",
+      "baseline": null,
+      "sha256": "11ccf17097dfe944a17397e8278c3bb4411c3cf360b2cc2e7432dd27e0857ed6"
+    },
+    {
+      "path": "src/components/home/aurelia-demo.tsx",
+      "baseline": "d0d20c75a3c7c4ec910998bfa30a33f8fe3f4136f252fda8d69dd23a493add1c",
+      "sha256": "2344f154169f1f4d73adfa342e220bbb76d0e7c377b6642b4e5d79252635590b"
+    },
+    {
+      "path": "src/components/home/aurelia-showcase.tsx",
+      "baseline": null,
+      "sha256": "960aaed68fb5d0fee59a1f3c2fa211c615fb05393e0dfea44801db90d4424cce"
+    },
+    {
+      "path": "src/components/home/aurelia-signature.tsx",
+      "baseline": null,
+      "sha256": "e9b34262bb67a28606c152ae776c52cff7aec06ff82e424094e91f4ebd4325d5"
+    },
+    {
+      "path": "src/components/layout/experience-effects.tsx",
+      "baseline": null,
+      "sha256": "7dff6a15ffa1ae2b00437acbd5b86bd9b438cf8612ea40f64f362ab79435f7ff"
+    },
+    {
+      "path": "src/components/ui/copy-command.tsx",
+      "baseline": null,
+      "sha256": "39244750e072ff860a0933ec065254950e5b85c7eabeb20ce8f7dd7f0c9a1fe3"
+    }
+  ]
+}

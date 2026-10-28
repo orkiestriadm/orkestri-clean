@@ -1,0 +1,176 @@
+"use client";
+import { useState } from "react";
+import { usePathname } from "next/navigation";
+import { Menu, Search, Focus, CalendarClock, HelpCircle } from "lucide-react";
+import ThemeToggle from "@/components/ui/ThemeToggle";
+import PasswordRequests from "@/components/ui/PasswordRequests";
+import NotificationBell from "@/components/ui/NotificationBell";
+import FocusMode from "@/components/ui/FocusMode";
+import HelpModal from "@/components/ui/HelpModal";
+import { useAuthStore } from "@/lib/store";
+import { api } from "@/lib/api";
+import { NAV } from "@/lib/modules";
+import { MARCA } from "@/lib/marca";
+
+/**
+ * Nome de cada rota, vindo do menu.
+ *
+ * `TITLES` abaixo é mantido à mão e envelheceu: de 68 rotas do menu, 27 não
+ * tinham entrada — People, Compliance e financeiro inteiros caíam no texto
+ * padrão. E o padrão era a marca do PRODUTO escrita no código, então no
+ * servidor white-label o cabeçalho anunciava "Orkiestri" para o cliente.
+ *
+ * O menu já sabe o nome de toda rota que ele mesmo exibe. Usar essa fonte faz
+ * a barra acompanhar sozinha cada página nova, em vez de depender de alguém
+ * lembrar de editar dois arquivos.
+ */
+const ROTULOS_DO_MENU: Record<string, string> = Object.fromEntries(
+  NAV.flatMap(g => g.items).map(i => [i.href, i.label]),
+);
+
+/**
+ * Título da rota, do mais específico para o mais genérico.
+ *
+ * O prefixo mais longo cobre as telas de detalhe: `/dashboard/chamados/42` não
+ * está em lugar nenhum, e sem isso mostraria a marca em vez de "Chamados".
+ */
+function tituloDaRota(path: string): { label: string; desc: string } {
+  if (TITLES[path]) return TITLES[path];
+  if (ROTULOS_DO_MENU[path]) return { label: ROTULOS_DO_MENU[path], desc: "" };
+
+  const prefixo = Object.keys(ROTULOS_DO_MENU)
+    .filter(href => href !== "/dashboard" && path.startsWith(`${href}/`))
+    .sort((a, b) => b.length - a.length)[0];
+  if (prefixo) return { label: ROTULOS_DO_MENU[prefixo], desc: "" };
+
+  // Último recurso: a marca DO AMBIENTE, nunca a do produto escrita à mão.
+  return { label: MARCA, desc: "" };
+}
+
+const TITLES: Record<string, { label: string; desc: string }> = {
+  "/dashboard":                        { label: "Visão Geral",    desc: "Resumo operacional" },
+  "/dashboard/executivo":              { label: "Executivo",      desc: "KPIs consolidados" },
+  "/dashboard/agenda":                 { label: "Agenda",         desc: "Eventos e compromissos" },
+  "/dashboard/projetos":               { label: "Projetos",       desc: "Planner e Kanban" },
+  "/dashboard/projetos/concluidos":    { label: "Projetos Concluídos", desc: "Projetos que chegaram a 100%" },
+  "/dashboard/keep":                   { label: "Keep",           desc: "Tasks e notas diárias" },
+  "/dashboard/relatorios":             { label: "Relatórios",     desc: "Analytics e métricas" },
+  "/dashboard/gantt":                  { label: "Linha do Tempo", desc: "Visualização de projetos" },
+  "/dashboard/chamados":               { label: "Chamados",       desc: "Service Desk" },
+  "/dashboard/apontamentos":           { label: "Horas",          desc: "Apontamento de horas" },
+  "/dashboard/csat":                   { label: "CSAT",           desc: "Pesquisa de satisfação" },
+  "/dashboard/conhecimento":           { label: "Conhecimento",   desc: "Base de artigos" },
+  "/dashboard/ativos":                 { label: "Ativos",         desc: "Gestão de equipamentos" },
+  "/dashboard/frota":                  { label: "Frota",          desc: "Visão geral da gestão de frotas" },
+  "/dashboard/frota/veiculos":         { label: "Veículos",       desc: "Cadastro de veículos da frota" },
+  "/dashboard/frota/motoristas":       { label: "Motoristas",     desc: "Cadastro e CNH dos motoristas" },
+  "/dashboard/frota/pneus":            { label: "Pneus",          desc: "Controle de pneus" },
+  "/dashboard/frota/revisoes":         { label: "Revisões",       desc: "Revisões programadas" },
+  "/dashboard/frota/manutencoes":      { label: "Manutenções",    desc: "Manutenções preventivas e corretivas" },
+  "/dashboard/frota/documentacoes":    { label: "Documentações",  desc: "CRLV, seguro, IPVA e licenciamentos" },
+  "/dashboard/frota/abastecimentos":   { label: "Abastecimentos", desc: "Abastecimentos e consumo" },
+  "/dashboard/frota/relatorios":       { label: "Relatórios da Frota", desc: "Custos por veículo e período" },
+  "/dashboard/frota/configuracoes":    { label: "Configurações da Frota", desc: "Categorias e parâmetros" },
+  "/dashboard/clientes":               { label: "Clientes",       desc: "CRM" },
+  "/dashboard/contratos":              { label: "Contratos",      desc: "Gestão comercial" },
+  "/dashboard/faturas":                { label: "Faturas",        desc: "Cobranças e pagamentos" },
+  "/dashboard/orcamento":              { label: "Orçamento",      desc: "CAPEX / OPEX" },
+  "/dashboard/workforce":              { label: "Workforce",      desc: "Visão consolidada da gestão operacional de pessoas" },
+  "/dashboard/capacity":               { label: "Capacidade",     desc: "Consumo operacional vs capacidade nominal" },
+  "/dashboard/aprovacoes":             { label: "Aprovações",     desc: "Workflows de aprovação hierárquica" },
+  "/dashboard/automacoes":             { label: "Automações",     desc: "Regras e integrações" },
+  "/dashboard/cadastros":              { label: "Cadastros",      desc: "Usuários, clientes e organizações" },
+  "/dashboard/cadastros/fornecedores": { label: "Fornecedores",   desc: "Gestão de fornecedores" },
+  "/dashboard/configuracoes":          { label: "Configurações",  desc: "Preferências do sistema" },
+  "/dashboard/configuracoes/integracoes": { label: "Integrações", desc: "Microsoft 365 / Outlook e outros serviços" },
+  "/dashboard/whatsapp-config":        { label: "WhatsApp",       desc: "Notificações via WhatsApp" },
+  "/dashboard/catalogo":               { label: "Catálogo",       desc: "Portal de serviços corporativos" },
+  "/dashboard/processos":              { label: "Processos",      desc: "Construtor visual de fluxos" },
+  "/dashboard/cmdb":                   { label: "CMDB",           desc: "Mapa de dependências e ativos" },
+  "/dashboard/ia":                     { label: "IA Operacional", desc: "Análises preditivas e insights" },
+  "/dashboard/historico":              { label: "Histórico",      desc: "Auditoria de atividades" },
+  "/dashboard/perfil":                 { label: "Meu Perfil",     desc: "Configurações pessoais" },
+};
+
+export default function Topbar({ children }: { children?: React.ReactNode }) {
+  const path = usePathname();
+  const { user } = useAuthStore();
+  const meta = tituloDaRota(path);
+  const [focusOpen, setFocusOpen] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
+  const [exitingImpersonation, setExitingImpersonation] = useState(false);
+
+  const exitImpersonation = async () => {
+    setExitingImpersonation(true);
+    try {
+      await api.post("/superadmin/exit-impersonation");
+      window.location.href = "/dashboard/superadmin";
+    } catch { setExitingImpersonation(false); }
+  };
+
+  return (
+    <>
+      {user?.impersonating && (
+        <div className="flex items-center justify-between px-5 py-2 text-[12px] font-mono border-b shrink-0 bg-amber-500/[0.04] border-amber-500/20 text-amber-600">
+          <span>Administrando: <strong className="font-semibold">{user.impersonatingOrgName}</strong></span>
+          <button onClick={exitImpersonation} disabled={exitingImpersonation}
+            className="text-[11px] px-3 py-1 rounded-md border border-amber-500/30 transition-colors hover:bg-amber-500/10">
+            {exitingImpersonation ? "Saindo..." : "Sair da organização"}
+          </button>
+        </div>
+      )}
+
+      <header className="app-topbar h-[60px] min-h-[60px] flex items-center justify-between px-6 border-b border-[var(--border-subtle)] bg-[var(--bg-primary)]/80 backdrop-blur-xl relative z-40 shrink-0 transition-colors duration-300">
+        <div className="flex items-center gap-4">
+          <button className="mobile-menu-btn" onClick={() => window.dispatchEvent(new Event('toggle-sidebar'))} aria-label="Menu">
+            <Menu size={16} />
+          </button>
+          <div>
+            <h1 className="font-display text-[16px] font-bold text-[var(--text-primary)] leading-tight tracking-tight">{meta.label}</h1>
+            {meta.desc && <p className="text-[11px] text-[var(--text-muted)] font-mono leading-none mt-1 tracking-wide">{meta.desc}</p>}
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          {children}
+          <button
+            className="hidden sm:flex items-center gap-2 h-[34px] px-3 rounded-[10px] border border-[var(--border-subtle)] bg-[var(--bg-secondary)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--border-medium)] transition-all duration-200 text-[12px] font-medium group"
+            onClick={() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", ctrlKey: true, bubbles: true }))}>
+            <Search size={13} className="text-[var(--text-muted)] group-hover:text-[var(--text-primary)] transition-colors" />
+            <span>Buscar</span>
+            <kbd className="ml-2 text-[9px] px-1.5 py-0.5 rounded border border-[var(--border-subtle)] font-mono bg-[var(--bg-hover)] hidden md:inline text-[var(--text-muted)]">⌘K</kbd>
+          </button>
+          
+          <div className="w-[1px] h-4 bg-[var(--border-subtle)] mx-1 hidden sm:block" />
+
+          <button
+            onClick={() => setHelpOpen(true)}
+            title="Fale Conosco"
+            className="inline-flex items-center gap-1.5 h-[34px] px-2.5 sm:px-3 rounded-[10px] border border-[var(--accent-violet,#f97316)]/60 text-[var(--accent-violet,#f97316)] text-[13px] font-medium transition-colors hover:bg-[var(--accent-violet,#f97316)]/10">
+            <HelpCircle size={15} />
+            <span className="hidden sm:inline">Ajuda</span>
+          </button>
+
+          <button
+            className="btn-icon"
+            title="Modo Foco" onClick={() => setFocusOpen(true)}>
+            <Focus size={15} />
+          </button>
+          <PasswordRequests />
+          <NotificationBell />
+          <ThemeToggle />
+
+          <div className="hidden sm:flex items-center gap-2 h-[34px] px-3 rounded-[10px] border border-[var(--border-subtle)] bg-[var(--bg-secondary)] ml-1">
+            <CalendarClock size={13} className="text-[var(--accent-green)]" />
+            <span className="text-[11px] font-mono text-[var(--text-secondary)] font-medium">
+              {new Date().toLocaleDateString("pt-BR", { weekday: "short", day: "numeric", month: "short" })}
+            </span>
+          </div>
+        </div>
+      </header>
+
+      {focusOpen && <FocusMode onClose={() => setFocusOpen(false)} />}
+      <HelpModal open={helpOpen} onClose={() => setHelpOpen(false)} />
+    </>
+  );
+}

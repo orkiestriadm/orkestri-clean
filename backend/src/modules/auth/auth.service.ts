@@ -623,6 +623,7 @@ export class AuthService implements OnModuleInit {
     if (user.userRoles.some(ur => ur.role.isMaster)) {
       result = ["*"];
     } else if ((user as any).isTrial) {
+      if (!(user as any).assinaturaEm && (user as any).trialExpiraEm && new Date((user as any).trialExpiraEm).getTime() <= Date.now()) return [];
       // Acesso de teste: enxerga SÓ o módulo que escolheu na landing page —
       // nada mais. NÃO ganha a Visão Geral (dashboard:ver): aquela tela consulta
       // relatórios/aprovações/orçamento de módulos que o trial não tem e por isso
@@ -671,12 +672,22 @@ export class AuthService implements OnModuleInit {
       result = Array.from(perms);
     }
 
-    await this.cache.set(cacheKey, result, 300);
+    const validadeTeste = (user as any).isTrial && !(user as any).assinaturaEm && (user as any).trialExpiraEm ? Math.max(1, Math.floor((new Date((user as any).trialExpiraEm).getTime() - Date.now()) / 1000)) : 300;
+    await this.cache.set(cacheKey, result, Math.min(300, validadeTeste));
     return result;
   }
 
   async invalidatePermissionsCache(userId: string): Promise<void> {
     await this.cache.del(`cache:permissions:${userId}`);
+  }
+
+  // Só credenciais válidas do SA podem superar a espera longa por IP.
+  async canBypassLoginCooldown(email: string, senha: string): Promise<boolean> {
+    const saEmail = this.config.get<string>("SUPER_ADMIN_EMAIL", "administrator@orkiestri.com").trim().toLowerCase();
+    if (email.trim().toLowerCase() !== saEmail) return false;
+    const user = await this.prisma.user.findFirst({ where: { email: saEmail } });
+    if (!user || !user.ativo || (user as any).bloqueado) return false;
+    return bcrypt.compare(senha, user.senhaHash);
   }
 
   async login(email: string, senha: string) {
@@ -1364,13 +1375,24 @@ export class AuthService implements OnModuleInit {
    * no controller. Se algum dia este código servir a um cadastro aberto ao
    * público, reavaliar: lá o custo da enumeração é bem maior que aqui.
    */
+  private async perfilRecuperacaoWhatsApp(whatsapp: string) {
+    const numero=(whatsapp || "").replace(/\D/g, "");
+    let variantes: string[];
+    if (numero.length === 10 || numero.length === 11) variantes=[numero,"55"+numero];
+    else if ((numero.length === 12 || numero.length === 13) && numero.startsWith("55")) variantes=[numero,numero.slice(2)];
+    else return null;
+    const perfis=await this.prisma.userProfile.findMany({where:{whatsapp:{in:variantes}},take:2});
+    if(perfis.length > 1) throw new BadRequestException("Este número está associado a mais de uma conta. Use a recuperação por e-mail.");
+    return perfis[0] || null;
+  }
+
   async sendPasswordOtp(whatsapp: string) {
     const semCadastro = {
       message: "Não encontramos este número cadastrado.",
       semCadastro: true,
     };
 
-    const profile = await this.prisma.userProfile.findFirst({ where: { whatsapp } });
+    const profile = await this.perfilRecuperacaoWhatsApp(whatsapp);
     if (!profile) return semCadastro;
     const user = await this.prisma.user.findUnique({ where: { id: profile.userId } });
     if (!user || !user.ativo) return semCadastro;
@@ -1403,7 +1425,7 @@ export class AuthService implements OnModuleInit {
     // resposta ao cliente continua genérica (não revela se o número existe),
     // mas a falha agora aparece no log.
     this.wa
-      .sendOtpForOrg(user.organizationId, whatsapp, code)
+      .sendOtpForOrg(user.organizationId, (() => { const n=whatsapp.replace(/\D/g, ""); return n.length <= 11 ? "55"+n : n; })(), code)
       .then((enviado) => {
         if (!enviado) {
           this.logger.error(
@@ -1419,7 +1441,7 @@ export class AuthService implements OnModuleInit {
   }
 
   async verifyPasswordOtp(whatsapp: string, code: string) {
-    const profile = await this.prisma.userProfile.findFirst({ where: { whatsapp } });
+    const profile = await this.perfilRecuperacaoWhatsApp(whatsapp);
     if (!profile) throw new UnauthorizedException("Código inválido ou expirado.");
     const user = await this.prisma.user.findUnique({ where: { id: profile.userId } });
     if (!user || !user.ativo || (user as any).bloqueado) throw new UnauthorizedException("Conta bloqueada. Contate o Administrador.");

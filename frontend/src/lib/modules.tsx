@@ -248,6 +248,7 @@ export const NAV: NavGroup[] = [
   {
     id: "platform", produto: "Plataforma", descritor: "Super Admin", icon: ShieldCheck, access: "sa",
     items: [
+      { href: "/dashboard/leads", label: "Gestão de leads", icon: Users, permission: null },
       { href: "/dashboard/plataforma", label: "Saúde da Plataforma", icon: HeartPulse, permission: null },
       { href: "/dashboard/superadmin", label: "Organizações",        icon: Building2,  permission: null },
     ],
@@ -333,6 +334,8 @@ export function canAccessModule(user: any, permission: string | string[] | null)
 export function homeRoute(user: any): string {
   if (!user) return "/dashboard";
   if (user.isMaster || user.isSuperAdmin || canAccessModule(user, "dashboard:ver")) return "/dashboard";
+  const perms: string[] = user.permissions ?? [];
+  if (perms.includes('agenda:ver') && perms.every(p => p.startsWith('agenda:'))) return '/dashboard/agenda';
   for (const g of NAV) {
     if (!canAccessGroup(user, g)) continue;
     for (const it of g.items) {

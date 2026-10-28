@@ -1,0 +1,113 @@
+// Apenas imagem candidata: mensagens e sincronização externa simuladas.
+// DDL e fixtures são SEMPRE revertidos na mesma transação.
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const { randomUUID } = require('node:crypto');
+const { PrismaClient } = require('@prisma/client');
+const { Logger } = require('@nestjs/common');
+const { EventoAlertaService } = require('./dist/modules/notifications/evento-alerta.service');
+const { WhatsappInboundService } = require('./dist/modules/agenda/whatsapp-inbound.module');
+Logger.overrideLogger(false);
+const prisma = new PrismaClient();
+const rollback = new Error('ROLLBACK_EVENT_ALERT_PROBE');
+const slug = 'probe-evento-' + randomUUID();
+let checks = 0;
+let tabelaTemporaria = false;
+const check = (value, why) => { assert.ok(value, why); checks++; };
+(async () => {
+  try {
+    await prisma.$transaction(async transaction => {
+      await transaction.$executeRawUnsafe("SET LOCAL lock_timeout='3s'");
+      await transaction.$executeRawUnsafe("SET LOCAL statement_timeout='20s'");
+      const tx = new Proxy(transaction, { get(target, key) {
+        if (key === '$transaction') return async fn => fn(tx);
+        const value = Reflect.get(target, key); return typeof value === 'function' ? value.bind(target) : value;
+      }});
+      const exists = await tx.$queryRaw`SELECT to_regclass('public.whatsapp_evento_alertas')::text AS name`;
+      if (!exists[0].name) {
+        tabelaTemporaria = true;
+        const sql = fs.readFileSync('/app/prisma/migrations/20261027090000_whatsapp_evento_confirmacao/migration.sql', 'utf8');
+        for (const statement of sql.split(';').filter(s => s.trim())) await tx.$executeRawUnsafe(statement);
+      }
+      const org = await tx.organization.create({ data: { nome: 'Verificação isolada', slug } });
+      const user = await tx.user.create({ data: { organizationId: org.id, nome: 'Pessoa Verificação', email: slug+'@example.invalid', senhaHash: 'probe-inutilizavel' } });
+      const owner = { id: user.id, organizationId: org.id };
+      const messages = [];
+      const wa = { sendToJid: async (...args) => { messages.push(args); return true; } };
+      const writes = [];
+      const wb = { onEventUpdated: async id => { writes.push(id); } };
+      let svc = new EventoAlertaService(tx, wa, wb);
+      const perms = async () => ['agenda:editar'];
+      const create = titulo => tx.event.create({ data: { organizationId: org.id, userId: user.id, criadoPorId: user.id, titulo, inicio: new Date(Date.now()-60000), fim: new Date(Date.now()+3540000) } });
+      const state = async event => (await tx.$queryRaw`SELECT * FROM whatsapp_evento_alertas WHERE event_id=${event.id} AND inicio=${event.inicio}`)[0];
+      const first = await create('Compromisso confirmação');
+      const code = await svc.prepararEnvio(first, 0, 'probe');
+      check(!!code, 'first reminder not reserved');
+      await svc.registrarEnvio(first, 0, true);
+      check((await state(first)).estado === 'MENU', 'menu not active');
+      check(await svc.prepararEnvio(first, 0, 'probe') === null, 'duplicate reminder reserved');
+      // Passa pelo handler real, com identidade simulada e envio simulado.
+      const inbound = new WhatsappInboundService(tx, wa, { resolvePermissions: perms }, {}, {}, {}, {}, { obter: async () => 'PESSOAL' }, {}, {}, { tratar: async () => ({}) }, svc);
+      inbound.identificar = async () => ({ ...owner, nome: user.nome, telefone: '5511999990001' });
+      await tx.$executeRaw`INSERT INTO whatsapp_previas(user_id,instancia,conversa,comando) VALUES (${user.id},'probe','990000000000001@lid','Evento: Rascunho amanhã 14h')`;
+      await inbound.processarMensagem({ instance: 'probe', data: { key: { remoteJid: '990000000000001@lid', id: 'probe-conflito', fromMe: false }, message: { conversation: '1' } } });
+      check((await state(first)).estado === 'MENU', 'numeric reply stole another confirmation');
+      check(messages.at(-1)[1].includes('registro em andamento'), 'other flow not disambiguated');
+      await tx.$executeRaw`DELETE FROM whatsapp_previas WHERE user_id=${user.id}`;
+      await inbound.processarMensagem({ instance: 'probe', data: { key: { remoteJid: '990000000000001@lid', id: 'probe', fromMe: false }, message: { conversation: '1' } } });
+      check((await state(first)).estado === 'CONFIRMADO', 'real handler did not confirm');
+      check(messages.at(-1)[1].includes('Participação confirmada'), 'confirmation response missing');
+      svc = new EventoAlertaService(tx, wa, wb);
+      check(await svc.prepararEnvio(first, 15, 'probe') === null, 'confirmation lost on service restart');
+      const second = await create('Compromisso adiamento');
+      await svc.prepararEnvio(second, 0, 'probe'); await svc.registrarEnvio(second, 0, true);
+      await svc.tratar(owner, '2', 'chat', 'probe', perms);
+      check((await state(second)).estado === 'AGUARDANDO_DATA', 'missing date prompt state');
+      await svc.tratar(owner, '31/02/2027 14h', 'chat', 'probe', perms);
+      check((await tx.event.findUnique({ where: { id: second.id } })).inicio.getTime() === second.inicio.getTime(), 'invalid date changed event');
+      await svc.tratar(owner, 'amanhã às 14h', 'chat', 'probe', perms);
+      const updated = await tx.event.findUnique({ where: { id: second.id } });
+      check(updated.inicio > new Date(), 'postponed event not in future');
+      check(updated.fim.getTime()-updated.inicio.getTime() === second.fim.getTime()-second.inicio.getTime(), 'duration changed');
+      check((await state(second)).estado === 'ADIADO', 'old reminder not closed');
+      check(writes.includes(second.id), 'external calendar update not invoked');
+      check(await svc.prepararEnvio(updated, 15, 'probe'), 'new date did not rearm reminders');
+      const a = await create('Simultâneo A'), b = await create('Simultâneo B');
+      const ca = await svc.prepararEnvio(a, 0, 'probe'); await svc.registrarEnvio(a, 0, true);
+      const cb = await svc.prepararEnvio(b, 0, 'probe'); await svc.registrarEnvio(b, 0, true);
+      await svc.tratar(owner, '1', 'chat', 'probe', perms);
+      check(messages.at(-1)[1].includes('mais de um compromisso'), 'ambiguous choice not handled');
+      check((await state(a)).estado === 'MENU' && (await state(b)).estado === 'MENU', 'ambiguous choice changed state');
+      await svc.tratar({ id: randomUUID(), organizationId: org.id }, '1 '+ca, 'chat', 'probe', perms);
+      check((await state(a)).estado === 'MENU', 'other user changed event');
+      await svc.tratar({ id: user.id, organizationId: randomUUID() }, '1 '+ca, 'chat', 'probe', perms);
+      check((await state(a)).estado === 'MENU', 'other org changed event');
+      await svc.tratar(owner, '1 '+ca, 'chat', 'other-instance', perms);
+      check((await state(a)).estado === 'MENU', 'other instance changed event');
+      await svc.tratar(owner, '1 '+ca, 'chat', 'probe', async () => []);
+      check((await state(a)).estado === 'MENU', 'missing permission changed event');
+      await svc.tratar(owner, '1 '+ca, 'chat', 'probe', perms);
+      check((await state(a)).estado === 'CONFIRMADO', 'explicit selection failed');
+      check((await state(b)).estado === 'MENU', 'explicit selection affected another event');
+      await svc.tratar(owner, 'menu', 'chat', 'probe', perms);
+      check((await state(b)).estado === 'SUSPENSO', 'menu navigation not suspended');
+      check(await svc.tratar(owner, '1', 'chat', 'probe', perms) === false, 'suspended reminder stole numeric menu');
+      await svc.tratar(owner, '2 '+cb, 'chat', 'probe', perms);
+      await svc.tratar(owner, 'cancelar', 'chat', 'probe', perms);
+      check((await state(b)).estado === 'MENU', 'cancel did not restore reminder');
+      await tx.$executeRaw`UPDATE whatsapp_evento_alertas SET expira_em=CURRENT_TIMESTAMP-INTERVAL '1 minute' WHERE event_id=${b.id}`;
+      check(await svc.tratar(owner, '2', 'chat', 'probe', perms) === false, 'expired reminder accepted');
+      const gone = await create('Alterado pelo site');
+      const cg = await svc.prepararEnvio(gone, 0, 'probe'); await svc.registrarEnvio(gone, 0, true);
+      await tx.event.update({ where: { id: gone.id }, data: { inicio: new Date(Date.now()+86400000) } });
+      await svc.tratar(owner, '1 '+cg, 'chat', 'probe', perms);
+      check((await state(gone)).estado === 'MENU', 'stale reminder changed edited event');
+      throw rollback;
+    }, { timeout: 60000 });
+    throw new Error('transaction committed unexpectedly');
+  } catch (error) { if (error.message !== rollback.message) throw error; }
+  check(await prisma.organization.count({ where: { slug } }) === 0, 'fixture organization persisted');
+  check(await prisma.user.count({ where: { email: slug+'@example.invalid' } }) === 0, 'fixture user persisted');
+  if (tabelaTemporaria) check((await prisma.$queryRaw`SELECT to_regclass('public.whatsapp_evento_alertas')::text AS name`)[0].name === null, 'probe DDL persisted');
+  console.log(JSON.stringify({ checks, database: 'passed', rollback: 'confirmed', real_messages_sent: 0, external_calendar_calls: 0 }));
+})().catch(error => { console.error(error.message); process.exitCode=1; }).finally(() => prisma.$disconnect());

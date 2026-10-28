@@ -141,9 +141,15 @@ export class AuthController {
     const rlKey = `ratelimit:login:${ip}`;
     const count = await this.cache.rateLimitIncr(rlKey, RATE_LIMIT_WINDOW);
     if (count > RATE_LIMIT_MAX) {
+      // Permite ao SA com senha correta entrar mesmo com o IP em cooldown.
+      // A verificação extra é limitada a uma por segundo por IP.
+      const probe = await this.cache.rateLimitIncr(`ratelimit:login-probe:${ip}`, 1);
+      const saValid = probe <= 1 && await this.auth.canBypassLoginCooldown(dto.email, dto.senha);
+      if (!saValid) {
       const remaining = await this.cache.ttl(rlKey);
       const mins = Math.max(1, Math.ceil(remaining / 60));
       throw new HttpException(`Muitas tentativas. Aguarde ${mins} minuto(s).`, HttpStatus.TOO_MANY_REQUESTS);
+      }
     }
     const result = await this.auth.login(dto.email, dto.senha);
     await this.cache.del(rlKey);

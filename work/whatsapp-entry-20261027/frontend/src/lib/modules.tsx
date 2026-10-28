@@ -1,0 +1,347 @@
+// Fonte única dos módulos do sistema.
+// Usado pelo Sidebar (navegação) e pelo Command Center (launcher "Módulos").
+// Manter aqui evita que as duas telas saiam de sincronia.
+import {
+  LayoutDashboard, CalendarDays, Layers, StickyNote, MessageCircle,
+  Building2, GanttChart, BarChart2, Users, History, Settings,
+  Headphones, PiggyBank, Truck, BookOpen, Package, Zap, Clock, FileText, Activity, CheckSquare,
+  SmilePlus, TrendingUp, Receipt, LayoutGrid, CreditCard, Brain,
+  GitBranch, Network, ShoppingBag, Radio, Wallet, FileSpreadsheet, Wrench,
+  ClipboardCheck, FolderKanban, Boxes, ShieldCheck, HeartPulse, Bell,
+  Briefcase, CalendarClock, Library, BarChart3, CalendarX, UsersRound, Inbox, Info, Route,
+  UserCircle, Scale, Target, Landmark, ClipboardList, UserCheck, Lightbulb, Presentation, CheckCircle2,
+  MessagesSquare,
+} from "lucide-react";
+
+// `permission` como lista significa OU — ver canAccessModule.
+//
+// `access` restringe o ITEM por nível de conta, e não por permissão concedida.
+// Existe porque nem toda restrição cabe no catálogo de permissões: "só quem
+// administra a plataforma" não é algo que se conceda a um papel — é o que a
+// conta é. Sem isto, esconder um único item exigiria movê-lo para um grupo
+// inteiro só dele.
+export type NavItem  = {
+  href: string;
+  label: string;
+  icon: any;
+  permission: string | string[] | null;
+  access?: ItemAccess;
+};
+
+/** "master" = master da organização ou Super Admin global. */
+export type ItemAccess = "master";
+// access controla a visibilidade do grupo INTEIRO (além das permissões por item):
+//   undefined  → visível a todos (respeitando a permissão de cada item)
+//   "sa"       → só Super Admin global (infra/plataforma)
+//   "adminOrg" → só master ou papel "administrador" (área administrativa da empresa)
+export type GroupAccess = "sa" | "adminOrg";
+// Cada grupo é um "produto": nome de marca (produto) + descritor em português + um
+// ícone que representa o produto (usado no cabeçalho do menu e no launcher).
+export type NavGroup = { id: string; produto: string | null; descritor: string | null; icon: any; access?: GroupAccess; items: NavItem[] };
+
+export const NAV: NavGroup[] = [
+  {
+    id: "pinned", produto: null, descritor: null, icon: LayoutDashboard,
+    items: [
+      { href: "/dashboard",            label: "Visão Geral", icon: LayoutDashboard, permission: "dashboard:ver" }, // dashboard is available to all
+      { href: "/dashboard/executivo",  label: "Executivo",   icon: TrendingUp,      permission: "relatorios:ver" },
+      { href: "/dashboard/ia",         label: "IA Operacional", icon: Brain,        permission: "relatorios:ver" },
+      { href: "/dashboard/relatorios", label: "Relatórios",  icon: BarChart2,       permission: "relatorios:ver" },
+      { href: "/dashboard/workforce",  label: "Workforce",   icon: LayoutGrid,      permission: "colaboradores:ver" },
+      // Restrito ao master/SA por decisão do produto.
+      //
+      // Era aberto a todos com um motivo: quem relata um problema precisa saber
+      // informar a versão. Esse motivo não desapareceu — quem for atender um
+      // chamado agora precisa pedir a versão a um master, ou consultá-la em
+      // `GET /api/health`, que continua público.
+      { href: "/dashboard/sobre", label: "Sobre", icon: Info, permission: "dashboard:ver", access: "master" },
+    ],
+  },
+  {
+    // Orkiestri People — gestão de pessoas. As abas de colaboradores, ausências,
+    // skills e organograma saem de Cadastros e passam a viver aqui (Fase 3).
+    // Permissão legada `colaboradores:ver` continua valendo: o guard do backend
+    // a traduz para `people.employee.view`.
+    id: "people", produto: "People", descritor: "Pessoas", icon: Users,
+    items: [
+      // Primeiro item e SEM permissão: é a única tela do módulo construída para
+      // o colaborador, e não para quem cuida dele. Exigir concessão do RH para
+      // alguém ver o próprio saldo de férias inverteria o controle de acesso.
+      { href: "/dashboard/meu-rh",             label: "Meu RH",        icon: UserCircle,    permission: "meurh:ver" },
+      { href: "/dashboard/people",             label: "Colaboradores", icon: Users,         permission: "colaboradores:ver" },
+      // Submódulo com o Feedback como primeira aba, logo abaixo de
+      // Colaboradores a pedido do usuário (18/09/2026): é tela de uso
+      // frequente do gestor e ficava no fim do grupo. O RH entra também por
+      // `aprovar_exclusao`: é quem decide os pedidos de exclusão, mesmo sem
+      // acompanhar o dia a dia dos feedbacks.
+      { href: "/dashboard/people/avaliacao-desempenho", label: "Feedback", icon: MessagesSquare, permission: ["people.feedback_desempenho:ver", "people.feedback_desempenho:aprovar_exclusao"] },
+      { href: "/dashboard/people/cargos",      label: "Cargos",        icon: Briefcase,     permission: "people.cargo:ver" },
+      { href: "/dashboard/people/ausencias",   label: "Ausências",     icon: CalendarX,     permission: "colaboradores:ver" },
+      { href: "/dashboard/people/organograma", label: "Organograma",   icon: Network,       permission: "colaboradores:ver" },
+      { href: "/dashboard/people/equipes",     label: "Equipes",       icon: UsersRound,    permission: "colaboradores:ver" },
+      // Autosserviço: qualquer pessoa com login abre solicitação ao RH.
+      { href: "/dashboard/people/solicitacoes", label: "Solicitações", icon: Inbox,        permission: "solicitacoes:ver" },
+      // O passivo é visão do quadro inteiro: o backend o protege com
+      // relatorio:ver, não com ferias:ver. Espelhar evita um link que dá 403.
+      { href: "/dashboard/people/ferias",      label: "Férias",        icon: CalendarClock, permission: "people.relatorio:ver" },
+      { href: "/dashboard/people/carreira",    label: "Carreira",      icon: Route,         permission: "people.carreira:ver" },
+      { href: "/dashboard/people/catalogos",   label: "Catálogos",     icon: Library,       permission: ["people.beneficio:ver", "people.treinamento:ver"] },
+      { href: "/dashboard/people/indicadores", label: "Indicadores",   icon: BarChart3,     permission: "people.relatorio:ver" },
+      // `avaliacao:ver` e não `relatorio:ver`: a tela mostra nota de
+      // desempenho, que é dado de carreira — quem vê indicador de quadro não
+      // necessariamente pode ler a nota que cada gestor deu.
+      { href: "/dashboard/people/calibracao",  label: "Calibração",    icon: Scale,         permission: "people.avaliacao:ver" },
+      // Permissão própria, fora de qualquer perfil padrão: eliminar dado
+      // pessoal é irreversível, ao contrário de excluir colaborador.
+      { href: "/dashboard/people/privacidade", label: "Privacidade",   icon: ShieldCheck,   permission: "people.privacidade:gerenciar" },
+    ],
+  },
+  {
+    // Orkiestri Compliance — gestão de obrigações. Substitui o controle de
+    // licenças em planilha: prazos derivados das datas, alertas escalonados e
+    // trilha de auditoria. Ver docs/architecture/gestaodeobrigacoes.md.
+    id: "compliance", produto: "Compliance", descritor: "Obrigações", icon: ShieldCheck,
+    items: [
+      { href: "/dashboard/compliance",             label: "Painel",      icon: LayoutDashboard, permission: "compliance.relatorio:ver" },
+      { href: "/dashboard/compliance/obrigacoes",  label: "Obrigações",  icon: ClipboardCheck,  permission: "compliance.obrigacao:ver" },
+      // Exige a mesma permissão das demais telas do módulo, e não `null`.
+      //
+      // O motivo de ser aberta era legítimo — é a tela de quem responde pela
+      // licença, e o backend só devolve aquilo em que a pessoa está nomeada.
+      // Só que item sem permissão nenhuma coloca o GRUPO INTEIRO no menu: um
+      // usuário recém-criado, sem nada de Compliance, abria o sistema com
+      // "Compliance / Obrigações" na lateral. Era o único grupo que ainda
+      // vazava depois de Visão Geral e Meu RH passarem a exigir concessão.
+      //
+      // Quem for nomeado responsável recebe `compliance.obrigacao:ver` pelo
+      // papel; a tela continua mostrando só o que é dele.
+      { href: "/dashboard/compliance/minhas",      label: "Minhas",      icon: UserCircle,      permission: "compliance.obrigacao:ver" },
+      { href: "/dashboard/compliance/calendario",  label: "Calendário",  icon: CalendarClock,   permission: "compliance.obrigacao:ver" },
+      { href: "/dashboard/compliance/relatorios",  label: "Relatórios",  icon: BarChart3,       permission: "compliance.relatorio:ver" },
+      { href: "/dashboard/compliance/categorias",  label: "Categorias",  icon: Library,         permission: "compliance.categoria:ver" },
+      { href: "/dashboard/compliance/alertas",     label: "Alertas",     icon: Bell,            permission: "compliance.notificacao:ver" },
+      // Cadastro de quem emite os documentos. Fica com a permissão de
+      // administrar o módulo porque é ela que a API exige para criar e editar —
+      // tela que só mostra a lista sem deixar mexer é armadilha.
+      { href: "/dashboard/compliance/orgaos",      label: "Órgãos",      icon: Landmark,        permission: "compliance.admin:gerenciar" },
+    ],
+  },
+  {
+    // Orkiestri Strategy — Gestão Estratégica. Substitui a planilha de
+    // acompanhamento estratégico da Diretoria: farol calculado, próxima ação
+    // com prazo, timeline, reunião estratégica. Confidencial: nenhum papel
+    // padrão além do administrador recebe as permissões. Ver docs/estrategico/.
+    id: "strategy", produto: "Strategy", descritor: "Gestão Estratégica", icon: Target,
+    items: [
+      { href: "/dashboard/estrategico",               label: "Painel",        icon: LayoutDashboard, permission: "estrategico.relatorio:ver" },
+      { href: "/dashboard/estrategico/assuntos",      label: "Assuntos",      icon: ClipboardList,   permission: "estrategico.caso:ver" },
+      { href: "/dashboard/estrategico/minhas",        label: "Minhas ações",  icon: UserCheck,       permission: "estrategico.caso:ver" },
+      { href: "/dashboard/estrategico/oportunidades", label: "Oportunidades", icon: Lightbulb,       permission: "estrategico.caso:ver" },
+      { href: "/dashboard/estrategico/reunioes",      label: "Reuniões",      icon: Presentation,    permission: "estrategico.reuniao:ver" },
+      { href: "/dashboard/estrategico/relatorios",    label: "Relatórios",    icon: BarChart3,       permission: "estrategico.relatorio:ver" },
+      { href: "/dashboard/estrategico/configuracoes", label: "Configurações", icon: Settings,        permission: "estrategico.admin:gerenciar" },
+    ],
+  },
+  {
+    id: "service", produto: "Service", descritor: "Chamados", icon: Headphones,
+    items: [
+      { href: "/dashboard/catalogo",      label: "Catálogo",     icon: ShoppingBag,  permission: "chamados:criar" },
+      { href: "/dashboard/chamados",     label: "Chamados",     icon: Headphones,   permission: "chamados:ver" },
+      { href: "/dashboard/apontamentos", label: "Horas",        icon: Clock,        permission: "chamados:ver" },
+      { href: "/dashboard/csat",         label: "CSAT",         icon: SmilePlus,    permission: "chamados:ver" },
+      { href: "/dashboard/automacoes",   label: "Automações",   icon: Zap,          permission: "automacoes:ver" },
+    ],
+  },
+  {
+    id: "quality", produto: "Quality", descritor: "Procedimentos", icon: ClipboardCheck,
+    items: [
+      { href: "/dashboard/conhecimento", label: "Conhecimento", icon: BookOpen,     permission: "conhecimento:ver" },
+      { href: "/dashboard/processos",    label: "Processos",    icon: GitBranch,    permission: "processos:ver" },
+      { href: "/dashboard/capacity",     label: "Capacidade",   icon: Activity,     permission: "capacidade:ver" },
+    ],
+  },
+  {
+    id: "projects", produto: "Projects", descritor: "Projetos", icon: FolderKanban,
+    items: [
+      { href: "/dashboard/projetos",  label: "Projetos",       icon: Layers,       permission: "projetos:ver" },
+      { href: "/dashboard/projetos/concluidos", label: "Concluídos", icon: CheckCircle2, permission: "projetos:ver" },
+      { href: "/dashboard/gantt",     label: "Linha do Tempo", icon: GanttChart,   permission: "gantt:ver" },
+    ],
+  },
+  {
+    id: "space", produto: "Space", descritor: "Agenda", icon: CalendarDays,
+    items: [
+      { href: "/dashboard/agenda",    label: "Agenda",         icon: CalendarDays, permission: "agenda:ver" },
+      { href: "/dashboard/keep",      label: "Keep",           icon: StickyNote,   permission: "keep:ver" },
+    ],
+  },
+  {
+    id: "approvals", produto: "Approvals", descritor: "Aprovações", icon: CheckSquare,
+    items: [
+      { href: "/dashboard/aprovacoes",label: "Aprovações",     icon: CheckSquare,  permission: "solicitacoes:aprovar" },
+    ],
+  },
+  {
+    id: "assets", produto: "Assets", descritor: "Ativos", icon: Package,
+    items: [
+      { href: "/dashboard/ativos",    label: "Ativos",         icon: Package,      permission: "ativos:ver" },
+      { href: "/dashboard/cmdb",      label: "CMDB",           icon: Network,      permission: "ativos:ver" },
+      { href: "/dashboard/monitoramento", label: "Monitoramento", icon: Radio,     permission: "monitoramento:ver" },
+    ],
+  },
+  {
+    id: "finance", produto: "Finance", descritor: "Financeiro", icon: Wallet,
+    items: [
+      { href: "/dashboard/financeiro",                  label: "Dashboard",      icon: Wallet,          permission: "financeiro:ver" },
+      { href: "/dashboard/financeiro/gastos",           label: "Meus Gastos",    icon: Receipt,          permission: "gastos:ver" },
+      { href: "/dashboard/financeiro/contas-a-pagar",   label: "Contas a Pagar", icon: FileSpreadsheet,  permission: "financeiro:ver" },
+    ],
+  },
+  {
+    id: "budget", produto: "Budget", descritor: "Orçamento", icon: PiggyBank,
+    items: [
+      { href: "/dashboard/orcamento",                   label: "Orçamento",      icon: PiggyBank,        permission: "orcamento:ver" },
+    ],
+  },
+  {
+    id: "fleet", produto: "Fleet", descritor: "Frotas", icon: Truck,
+    items: [
+      { href: "/dashboard/frota",                label: "Dashboard",      icon: LayoutDashboard, permission: "frota:ver" },
+      { href: "/dashboard/frota/status",         label: "Farol da Frota", icon: Activity,        permission: "frota:ver" },
+      { href: "/dashboard/frota/veiculos",       label: "Veículos",       icon: Truck,           permission: "frota:ver" },
+      { href: "/dashboard/frota/motoristas",     label: "Motoristas",     icon: Users,           permission: "frota:ver" },
+      { href: "/dashboard/frota/pneus",          label: "Pneus",          icon: Package,         permission: "frota:ver" },
+      { href: "/dashboard/frota/revisoes",       label: "Revisões",       icon: CalendarDays,    permission: "frota:ver" },
+      { href: "/dashboard/frota/manutencoes",    label: "Manutenções",    icon: Wrench,          permission: "frota:ver" },
+      { href: "/dashboard/frota/documentacoes",  label: "Documentações",  icon: FileText,        permission: "frota:ver" },
+      { href: "/dashboard/frota/abastecimentos", label: "Abastecimentos", icon: Zap,             permission: "frota:ver" },
+      { href: "/reservas",                       label: "Reserva de Carros", icon: CalendarDays, permission: "reservas:ver" },
+      { href: "/dashboard/frota/relatorios",     label: "Relatórios",     icon: BarChart2,       permission: "frota:relatorios" },
+      { href: "/dashboard/frota/configuracoes",  label: "Configurações",  icon: Settings,        permission: "frota:configurar" },
+    ],
+  },
+  {
+    id: "relations", produto: "Relations", descritor: "Clientes", icon: Building2,
+    items: [
+      { href: "/dashboard/clientes",  label: "Clientes",  icon: Building2, permission: "crm:ver" },
+      { href: "/dashboard/contratos", label: "Contratos", icon: FileText,  permission: "crm:ver" },
+      { href: "/dashboard/faturas",   label: "Faturas",   icon: Receipt,   permission: "crm:ver" },
+    ],
+  },
+  {
+    id: "supply", produto: "Supply", descritor: "Suprimentos", icon: Boxes,
+    items: [
+      { href: "/dashboard/cadastros/fornecedores", label: "Fornecedores",  icon: Truck,         permission: "fornecedores:ver" },
+    ],
+  },
+  {
+    id: "core", produto: "Core", descritor: "Administração", icon: Settings, access: "adminOrg",
+    items: [
+      { href: "/dashboard/cadastros",              label: "Cadastros",         icon: Users,         permission: "usuarios:ver" },
+      { href: "/dashboard/alertas",                label: "Regras de Alertas", icon: Bell,          permission: null },
+      { href: "/dashboard/whatsapp-config",        label: "WhatsApp",          icon: MessageCircle, permission: "whatsapp:ver" },
+      { href: "/dashboard/historico",              label: "Histórico",     icon: History,       permission: "historico:ver" },
+      { href: "/dashboard/configuracoes",          label: "Configurações", icon: Settings,      permission: "configuracoes:ver" },
+      { href: "/dashboard/billing/me",             label: "Assinatura",    icon: CreditCard,    permission: "configuracoes:ver" },
+    ],
+  },
+  {
+    id: "platform", produto: "Plataforma", descritor: "Super Admin", icon: ShieldCheck, access: "sa",
+    items: [
+      { href: "/dashboard/leads", label: "Gestão de leads", icon: Users, permission: null },
+      { href: "/dashboard/plataforma", label: "Saúde da Plataforma", icon: HeartPulse, permission: null },
+      { href: "/dashboard/superadmin", label: "Organizações",        icon: Building2,  permission: null },
+    ],
+  },
+];
+
+// Um grupo é acessível se o access bater com o nível do usuário.
+export function canAccessGroup(user: any, group: NavGroup): boolean {
+  if (!group.access) return true;
+  if (group.access === "sa") return !!user?.isSuperAdmin;
+  if (group.access === "adminOrg") {
+    return !!user?.isMaster || (user?.roles ?? []).includes("administrador");
+  }
+  return true;
+}
+
+/**
+ * Nível de conta exigido pelo item, quando há um.
+ *
+ * Separado de `canAccessModule` de propósito: aquele responde "concederam isto
+ * a você?", este responde "você é isto?". Misturar os dois faria uma permissão
+ * concedida por engano abrir uma tela que nunca deveria depender de concessão.
+ */
+export function canAccessItemLevel(user: any, item: { access?: ItemAccess }): boolean {
+  if (!item.access) return true;
+  if (item.access === "master") return !!user?.isMaster || !!user?.isSuperAdmin;
+  return true;
+}
+
+/**
+ * Espelho de `backend/src/common/permission-aliases.ts` — manter os dois iguais.
+ *
+ * Permissão antiga → as novas que ela concede. Serve nos dois sentidos: quem
+ * tem a antiga passa na exigência nova, e quem tem TODAS as novas passa na
+ * exigência antiga. O segundo sentido faltava, e o papel "Gestor de RH" do Hub
+ * (criado já no formato novo) não via Colaboradores, Ausências, Organograma,
+ * Equipes nem Workforce no menu — itens ainda guardados por `colaboradores:ver`.
+ */
+const LEGADO_PARA_NOVO: Readonly<Record<string, readonly string[]>> = {
+  "colaboradores:ver":     ["people.colaborador:ver", "people.cargo:ver"],
+  "colaboradores:criar":   ["people.colaborador:criar"],
+  "colaboradores:editar":  ["people.colaborador:editar", "people.colaborador:mudar_situacao"],
+  "colaboradores:excluir": ["people.colaborador:excluir"],
+};
+
+/** A permissão exigida está atendida pelas do usuário? Considera o coringa e os dois sentidos da tradução. */
+export function temPermissao(perms: readonly string[], exigida: string): boolean {
+  if (perms.includes("*") || perms.includes(exigida)) return true;
+  // Tenho a antiga que concede a exigida?
+  for (const [antiga, novas] of Object.entries(LEGADO_PARA_NOVO)) {
+    if (novas.includes(exigida) && perms.includes(antiga)) return true;
+  }
+  // Tenho todas as novas que a antiga exigida concedia?
+  const novas = LEGADO_PARA_NOVO[exigida];
+  return !!novas && novas.every(n => perms.includes(n));
+}
+
+// Um item é acessível se não exige permissão, se o usuário é master,
+// ou se possui o coringa "*" ou a permissão específica.
+/**
+ * Uma lista de permissões vale como OU: basta uma para o item aparecer.
+ *
+ * Existe porque há telas que reúnem assuntos com concessões distintas —
+ * Catálogos junta benefícios e cursos. Exigir as duas esconderia a tela de
+ * quem legitimamente administra só uma metade, e a própria tela já resolve o
+ * resto: abre na aba que a pessoa pode ver.
+ */
+export function canAccessModule(user: any, permission: string | string[] | null): boolean {
+  if (!permission) return true;
+  if (user?.isMaster) return true;
+  const perms: string[] = user?.permissions ?? [];
+  if (perms.includes("*")) return true;
+  const exigidas = Array.isArray(permission) ? permission : [permission];
+  return exigidas.some(p => temPermissao(perms, p));
+}
+
+/**
+ * Rota inicial pós-login. Quem tem a Visão Geral (dashboard:ver) vai para
+ * /dashboard; quem NÃO tem (ex.: acesso de teste) é levado para a 1ª tela que
+ * consegue abrir. Sem isso, o trial cai na Visão Geral — que consulta dados de
+ * módulos que ele não tem — e a página entra em loop de erro.
+ */
+export function homeRoute(user: any): string {
+  if (!user) return "/dashboard";
+  if (user.isMaster || user.isSuperAdmin || canAccessModule(user, "dashboard:ver")) return "/dashboard";
+  const perms: string[] = user.permissions ?? [];
+  if (perms.includes('agenda:ver') && perms.every(p => p.startsWith('agenda:'))) return '/dashboard/agenda';
+  for (const g of NAV) {
+    if (!canAccessGroup(user, g)) continue;
+    for (const it of g.items) {
+      if (it.href === "/dashboard") continue;
+      if (canAccessItemLevel(user, it) && canAccessModule(user, it.permission)) return it.href;
+    }
+  }
+  return "/dashboard/perfil"; // sempre acessível
+}

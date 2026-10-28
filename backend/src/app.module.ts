@@ -1,4 +1,5 @@
 import { Module } from "@nestjs/common";
+import { ProspectsModule } from './modules/prospects/prospects.module';
 import { ConfigModule } from "@nestjs/config";
 import { PrismaModule } from "./prisma/prisma.module";
 import { AuthModule } from "./modules/auth/auth.module";
@@ -62,6 +63,7 @@ import { JwtModule } from '@nestjs/jwt';
 
 @Module({
   imports: [
+    ProspectsModule,
     ConfigModule.forRoot({ isGlobal: true }),
     CacheModule,
     PrismaModule, HealthModule, LoginNoticiasModule, AuthModule, UsersModule,

@@ -1,0 +1,1189 @@
+import {
+  Module, Controller, Get, Post, Put, Patch, Delete,
+  Body, Param, Query, UseGuards, Req,
+  NotFoundException, BadRequestException, ForbiddenException,
+} from "@nestjs/common";
+import { AuthGuard } from "@nestjs/passport";
+import { Allow, IsArray, IsBoolean, IsIn, IsNumber, IsOptional, IsString, Max, Min } from "class-validator";
+import { PrismaService } from "../../prisma/prisma.service";
+import { Permissions } from "../auth/permissions.decorator";
+import { PermissionsGuard } from "../auth/permissions.guard";
+import { acharNaOrganizacao } from "../../common/escopo-organizacao";
+
+// ── DTOs ──────────────────────────────────────────────────────────────────────
+
+class CreateCicloDto {
+  @IsNumber() ano: number;
+  @IsOptional() @IsString() descricao?: string;
+}
+
+class CreateCicloPessoalDto {
+  @IsNumber() ano: number;
+  @IsOptional() @IsString() descricao?: string;
+}
+
+class CompartilharDto {
+  @IsArray() @IsString({ each: true }) userIds: string[];
+  /// Nulo/ausente = acesso ao ciclo inteiro. Preenchido = so os itens desse
+  /// centro de custo (o "orcamento de TI").
+  @IsOptional() @IsString() centroCustoId?: string;
+  @IsOptional() @IsIn(["leitor", "editor"]) papel?: string;
+}
+
+class CreateCentroCustoDto {
+  @IsString() codigo: string;
+  @IsString() nome: string;
+  @IsOptional() @IsString() descricao?: string;
+  @IsOptional() @IsString() cor?: string;
+  @IsOptional() @IsString() responsavelId?: string;
+}
+class UpdateCentroCustoDto {
+  @IsOptional() @IsString() codigo?: string;
+  @IsOptional() @IsString() nome?: string;
+  @IsOptional() @IsString() descricao?: string;
+  @IsOptional() @IsString() cor?: string;
+  @IsOptional() @IsBoolean() ativo?: boolean;
+  @IsOptional() @IsString() responsavelId?: string;
+}
+
+class CreateCategoriaDto {
+  @IsString() @IsIn(["CAPEX","OPEX"]) tipo: string;
+  @IsString() codigo: string;
+  @IsString() nome: string;
+  @IsOptional() @IsString() cor?: string;
+  @IsOptional() @IsString() icone?: string;
+  @IsOptional() @IsString() paiId?: string;
+}
+class UpdateCategoriaDto {
+  @IsOptional() @IsString() nome?: string;
+  @IsOptional() @IsString() cor?: string;
+  @IsOptional() @IsString() icone?: string;
+}
+
+class CreateFornecedorDto {
+  @IsString() nome: string;
+  @IsOptional() @IsString() cnpj?: string;
+  @IsOptional() @IsString() email?: string;
+  @IsOptional() @IsString() telefone?: string;
+  @IsOptional() @IsString() segmento?: string;
+}
+class UpdateFornecedorDto {
+  @IsOptional() @IsString() nome?: string;
+  @IsOptional() @IsString() cnpj?: string;
+  @IsOptional() @IsString() email?: string;
+  @IsOptional() @IsString() telefone?: string;
+  @IsOptional() @IsString() segmento?: string;
+  @IsOptional() @IsBoolean() ativo?: boolean;
+}
+
+class CreateItemDto {
+  @IsString() cicloId: string;
+  @IsString() @IsIn(["OPEX","CAPEX"]) tipo: string;
+  @IsOptional() @IsString() centroCustoId?: string;
+  @IsString() categoriaId: string;
+  @IsString() nome: string;
+  @IsOptional() @IsString() descricao?: string;
+  @IsOptional() @IsString() fornecedorId?: string;
+  @IsOptional() @IsBoolean() recorrente?: boolean;
+  @IsOptional() @IsString() periodicidade?: string;
+  @IsOptional() @IsString() observacoes?: string;
+  @IsOptional() valoresMensais?: Record<number, number>; // { 1: 1000, 2: 1000, ... }
+}
+class UpdateItemDto {
+  @IsOptional() @IsString() nome?: string;
+  @IsOptional() @IsString() descricao?: string;
+  @IsOptional() @IsString() centroCustoId?: string;
+  @IsOptional() @IsString() fornecedorId?: string;
+  @IsOptional() @IsBoolean() recorrente?: boolean;
+  @IsOptional() @IsString() periodicidade?: string;
+  @IsOptional() @IsString() status?: string;
+  @IsOptional() @IsString() observacoes?: string;
+}
+
+class LancarValorDto {
+  @IsNumber() @Min(1) @Max(12) mes: number;
+  @IsNumber() @Min(0) valorRealizado: number;
+  @IsOptional() @IsString() observacoes?: string;
+}
+class UpdatePrevistoDto {
+  @IsNumber() @Min(1) @Max(12) mes: number;
+  @IsNumber() @Min(0) valorPrevisto: number;
+}
+
+class ResolverAprovacaoDto {
+  @IsString() @IsIn(["aprovado","rejeitado"]) decisao: string;
+  @IsOptional() @IsString() observacoes?: string;
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+const MESES = [1,2,3,4,5,6,7,8,9,10,11,12];
+
+function uuid() { return require("crypto").randomUUID(); }
+
+function fmtMes(m: number) {
+  return ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"][m-1];
+}
+
+function calcExecucao(previsto: number, realizado: number) {
+  if (!previsto) return realizado > 0 ? 999 : 0;
+  return Math.round((realizado / previsto) * 100);
+}
+
+async function addOrcTimeline(
+  prisma: PrismaService,
+  itemId: string, tipo: string, titulo: string,
+  descricao?: string, userId?: string,
+) {
+  try {
+    await (prisma as any).orcamentoTimeline.create({
+      data: { id: uuid(), itemId, tipo, titulo, descricao: descricao || null, userId: userId || null },
+    });
+  } catch {}
+}
+
+function mapItem(item: any) {
+  const previsto  = item.meses?.reduce((s: number, m: any) => s + (m.valorPrevisto  || 0), 0) ?? 0;
+  const realizado = item.meses?.reduce((s: number, m: any) => s + (m.valorRealizado || 0), 0) ?? 0;
+  return {
+    id: item.id,
+    cicloId: item.cicloId,
+    tipo: item.tipo,
+    nome: item.nome,
+    descricao: item.descricao,
+    recorrente: item.recorrente,
+    periodicidade: item.periodicidade,
+    status: item.status,
+    observacoes: item.observacoes,
+    categoria: item.categoria ? { id: item.categoria.id, nome: item.categoria.nome, cor: item.categoria.cor, tipo: item.categoria.tipo, paiId: item.categoria.paiId } : null,
+    centroCusto: item.centroCusto ? { id: item.centroCusto.id, codigo: item.centroCusto.codigo, nome: item.centroCusto.nome, cor: item.centroCusto.cor } : null,
+    fornecedor: item.fornecedor ? { id: item.fornecedor.id, nome: item.fornecedor.nome } : null,
+    criadoPor: item.criadoPor ? { id: item.criadoPor.id, nome: item.criadoPor.nome } : null,
+    criadoEm: item.criadoEm,
+    meses: item.meses?.map((m: any) => ({
+      id: m.id, mes: m.mes, mesLabel: fmtMes(m.mes),
+      valorPrevisto: m.valorPrevisto, valorRealizado: m.valorRealizado,
+      status: m.status, observacoes: m.observacoes,
+      lancadoEm: m.lancadoEm,
+      lancadoPor: m.lancadoPor ? { id: m.lancadoPor.id, nome: m.lancadoPor.nome } : null,
+    })) ?? [],
+    totais: { previsto, realizado, execucao: calcExecucao(previsto, realizado) },
+  };
+}
+
+// ── Controller ────────────────────────────────────────────────────────────────
+
+// ── DTOs de corpo antes tipado como `any`.
+//    Campos descobertos pelo uso no handler; todos opcionais e com tipo
+//    afirmado só onde o código o torna inequívoco. O ganho é a lista
+//    fechada de campos aceitos — antes qualquer JSON passava.
+class ImportarOpexOrcamentoDto {
+  @IsOptional() @Allow() ciclos?: any;
+}
+
+@Controller("orcamento")
+@UseGuards(AuthGuard("jwt"), PermissionsGuard)
+class OrcamentoController {
+  constructor(private prisma: PrismaService) {}
+
+  // ── Acesso a orçamentos (corporativo / pessoal / compartilhado) ──────────────
+  //
+  // Regra: um ciclo com ownerId null é o orçamento CORPORATIVO da organização
+  // (visível a todos com orcamento:ver, editável conforme orcamento:planejar).
+  // Um ciclo com ownerId preenchido é PESSOAL: visível e editável apenas pelo
+  // dono e por quem ele compartilhar (presença em OrcamentoCompartilhamento).
+
+  private async ciclosPessoaisIds(userId: string, orgId?: string): Promise<string[]> {
+    const orgWhere = orgId ? { organizationId: orgId } : {};
+    const [proprios, compart] = await Promise.all([
+      (this.prisma as any).orcamentoCiclo.findMany({ where: { ownerId: userId, ...orgWhere }, select: { id: true } }),
+      (this.prisma as any).orcamentoCompartilhamento.findMany({ where: { userId, ciclo: { is: orgWhere } }, select: { cicloId: true } }),
+    ]);
+    return Array.from(new Set([
+      ...proprios.map((c: any) => c.id),
+      ...compart.map((c: any) => c.cicloId),
+    ]));
+  }
+
+  // Carrega o ciclo garantindo que o usuário PODE VÊ-LO. Não vaza existência de
+  // orçamentos pessoais de terceiros (responde como inexistente).
+  private async assertPodeVerCiclo(cicloId: string, user: any) {
+    const ciclo = await (this.prisma as any).orcamentoCiclo.findUnique({
+      where: { id: cicloId },
+      select: { id: true, ownerId: true, organizationId: true, ano: true, status: true },
+    });
+    if (!ciclo) throw new NotFoundException("Orçamento não encontrado");
+    if (user?.organizationId && ciclo.organizationId !== user.organizationId) throw new NotFoundException("Orçamento não encontrado");
+    if (ciclo.ownerId == null) return ciclo;             // corporativo
+    if (ciclo.ownerId === user.id) return ciclo;         // dono
+    const shared = await (this.prisma as any).orcamentoCompartilhamento.findFirst({ where: { cicloId, userId: user.id } });
+    if (shared) return ciclo;                            // compartilhado
+    throw new NotFoundException("Orçamento não encontrado");
+  }
+
+  // Carrega o ciclo garantindo que o usuário PODE EDITÁ-LO, e devolve junto o
+  // ESCOPO da edição:
+  //
+  //   escoposCentroCusto === null  -> pode mexer em qualquer item do ciclo
+  //   escoposCentroCusto === [...] -> só nos itens desses centros de custo
+  //
+  // É o que permite compartilhar "o orçamento de TI" sem abrir o corporativo
+  // inteiro. Quem consome precisa chamar assertNoEscopo() com o centro de custo
+  // do item — só este método não basta.
+  private async assertPodeEditarCiclo(cicloId: string, user: any, permCorporativa = "orcamento:planejar") {
+    const ciclo = await (this.prisma as any).orcamentoCiclo.findUnique({
+      where: { id: cicloId },
+      select: { id: true, ownerId: true, organizationId: true },
+    });
+    if (!ciclo) throw new NotFoundException("Orçamento não encontrado");
+    if (user?.organizationId && ciclo.organizationId !== user.organizationId) throw new NotFoundException("Orçamento não encontrado");
+
+    const perms: string[] = user?.permissions || [];
+    const irrestrito = user?.isMaster || perms.includes("*") || perms.includes(permCorporativa);
+    if (ciclo.ownerId == null && irrestrito) return { ...ciclo, escoposCentroCusto: null as string[] | null };
+    if (ciclo.ownerId === user.id) return { ...ciclo, escoposCentroCusto: null as string[] | null };
+
+    // Sem poder próprio sobre o ciclo: só entra por compartilhamento de edição.
+    const shares = await (this.prisma as any).orcamentoCompartilhamento.findMany({
+      where: { cicloId, userId: user.id, papel: "editor" },
+      select: { centroCustoId: true },
+    });
+    if (!shares.length) {
+      throw new ForbiddenException(
+        ciclo.ownerId == null
+          ? "Sem permissão para editar o orçamento corporativo"
+          : "Você não tem acesso a este orçamento",
+      );
+    }
+    // Um compartilhamento sem centro de custo vale pelo ciclo inteiro.
+    if (shares.some((x: any) => x.centroCustoId == null)) return { ...ciclo, escoposCentroCusto: null as string[] | null };
+    return { ...ciclo, escoposCentroCusto: shares.map((x: any) => x.centroCustoId) as string[] };
+  }
+
+  // Barra a edição de um item fora do escopo compartilhado. Item sem centro de
+  // custo é inalcançável por quem tem acesso limitado — não há como provar que
+  // ele pertence à área.
+  private assertNoEscopo(acesso: any, centroCustoId?: string | null) {
+    const escopos: string[] | null = acesso?.escoposCentroCusto ?? null;
+    if (escopos == null) return;
+    if (!centroCustoId || !escopos.includes(centroCustoId)) {
+      throw new ForbiddenException("Seu acesso a este orçamento é limitado ao seu centro de custo");
+    }
+  }
+
+  // Quem pode compartilhar: no orçamento pessoal, só o dono. No corporativo,
+  // quem administra o orçamento OU o responsável pelo centro de custo em
+  // questão — é isso que deixa o dono da área convidar sem virar admin.
+  private async assertPodeCompartilhar(ciclo: any, user: any, centroCustoId?: string | null) {
+    const perms: string[] = user?.permissions || [];
+    const admin = user?.isMaster || perms.includes("*") || perms.includes("orcamento:admin") || perms.includes("orcamento:planejar");
+
+    if (ciclo.ownerId != null) {
+      if (ciclo.ownerId !== user.id) throw new ForbiddenException("Apenas o dono pode compartilhar este orçamento");
+      return;
+    }
+    if (admin) return;
+    if (!centroCustoId) {
+      throw new ForbiddenException("O orçamento corporativo só pode ser compartilhado com um centro de custo definido");
+    }
+    const cc = await (this.prisma as any).centroCusto.findUnique({
+      where: { id: centroCustoId },
+      select: { responsavelId: true, organizationId: true },
+    });
+    if (!cc || (user?.organizationId && cc.organizationId !== user.organizationId)) {
+      throw new NotFoundException("Centro de custo não encontrado");
+    }
+    if (cc.responsavelId !== user.id) {
+      throw new ForbiddenException("Apenas o responsável pelo centro de custo pode compartilhá-lo");
+    }
+  }
+
+  // Resolve o cicloId a usar num endpoint de leitura: se veio explícito, valida
+  // visibilidade; se veio só o ano, resolve para o CORPORATIVO (ownerId null).
+  private async resolveCicloIdLeitura(cicloId: string | undefined, ano: number | undefined, user: any): Promise<string | null> {
+    if (cicloId) { await this.assertPodeVerCiclo(cicloId, user); return cicloId; }
+    const orgWhere = user?.organizationId ? { organizationId: user.organizationId } : {};
+    const anoAlvo = ano || new Date().getFullYear();
+    const c = await (this.prisma as any).orcamentoCiclo.findFirst({ where: { ano: anoAlvo, ownerId: null, ...orgWhere } });
+    return c?.id ?? null;
+  }
+
+  // ── Dashboard ──────────────────────────────────────────────────────────────
+
+  @Get("dashboard")
+  @Permissions("orcamento:ver")
+  async dashboard(
+    @Req() req: any, @Query("ano") anoQ?: string, @Query("cicloId") cicloId?: string,
+    @Query("centroCustoId") centroCustoId?: string, @Query("categoriaId") categoriaId?: string,
+    @Query("mesIni") mesIniQ?: string, @Query("mesFim") mesFimQ?: string,
+  ) {
+    const resolvedId = await this.resolveCicloIdLeitura(cicloId, anoQ ? parseInt(anoQ) : undefined, req.user);
+    const ciclo = resolvedId
+      ? await (this.prisma as any).orcamentoCiclo.findUnique({ where: { id: resolvedId } })
+      : null;
+    if (!ciclo) return { ciclo: null, kpis: null, evolucaoMensal: [], topItens: [], alertas: [], distribuicao: [], distribuicaoCategoria: [], distribuicaoCentroCusto: [], capexOpex: [] };
+
+    const mesIni = Math.max(1, Math.min(12, parseInt(mesIniQ || "1") || 1));
+    const mesFim = Math.max(mesIni, Math.min(12, parseInt(mesFimQ || "12") || 12));
+    const inRange = (m: number) => m >= mesIni && m <= mesFim;
+
+    const itemWhere: any = { cicloId: ciclo.id, status: { not: "cancelado" } };
+    if (centroCustoId) itemWhere.centroCustoId = centroCustoId;
+    if (categoriaId)   itemWhere.categoriaId   = categoriaId;
+
+    const itens = await (this.prisma as any).itemOrcamento.findMany({
+      where: itemWhere,
+      include: { meses: true, categoria: true, centroCusto: true },
+    });
+
+    const sumPrev = (i: any) => i.meses.reduce((s: number, m: any) => s + (inRange(m.mes) ? (m.valorPrevisto  || 0) : 0), 0);
+    const sumReal = (i: any) => i.meses.reduce((s: number, m: any) => s + (inRange(m.mes) ? (m.valorRealizado || 0) : 0), 0);
+    const mesAtual = new Date().getMonth() + 1;
+
+    let prevOpex = 0, realOpex = 0, prevCap = 0, realCap = 0;
+    const centrosSet = new Set<string>();
+    const distCat: Record<string, number> = {};
+    const distCC: Record<string, number> = {};
+
+    for (const item of itens) {
+      const prev = sumPrev(item), real = sumReal(item);
+      if (item.tipo === "OPEX") { prevOpex += prev; realOpex += real; }
+      else                      { prevCap  += prev; realCap  += real; }
+      if (item.centroCusto?.id) centrosSet.add(item.centroCusto.id);
+      const base = real || prev; // realizado, ou previsto se ainda sem realizado
+      const cat = item.categoria?.nome || "Outros";
+      distCat[cat] = (distCat[cat] || 0) + base;
+      const cc = item.centroCusto?.nome || "Sem centro de custo";
+      distCC[cc] = (distCC[cc] || 0) + base;
+    }
+
+    const totalPrevisto  = prevOpex + prevCap;
+    const totalRealizado = realOpex + realCap;
+    const desvio = totalRealizado - totalPrevisto;
+    const desvioPct = totalPrevisto ? Math.round((desvio / totalPrevisto) * 1000) / 10 : 0;
+
+    // Evolução mensal (Jan–Dez, ano todo)
+    const evolucaoMensal = MESES.map(mes => ({
+      mes, label: fmtMes(mes),
+      previsto:  itens.reduce((s: number, i: any) => s + (i.meses.find((m: any) => m.mes === mes)?.valorPrevisto  || 0), 0),
+      realizado: itens.reduce((s: number, i: any) => s + (i.meses.find((m: any) => m.mes === mes)?.valorRealizado || 0), 0),
+    }));
+
+    // Ranking dos maiores (por realizado, ou previsto se sem realizado)
+    const topItens = itens
+      .map((i: any) => ({ id: i.id, nome: i.nome, tipo: i.tipo, categoria: i.categoria?.nome, previsto: sumPrev(i), realizado: sumReal(i) }))
+      .sort((a: any, b: any) => (b.realizado || b.previsto) - (a.realizado || a.previsto))
+      .slice(0, 8)
+      .map((i: any) => ({ ...i, execucao: calcExecucao(i.previsto, i.realizado) }));
+
+    // Alertas de estouro (mês atual)
+    const alertasNorm: any[] = [];
+    for (const item of itens) {
+      const mesObj = item.meses.find((m: any) => m.mes === mesAtual);
+      if (!mesObj) continue;
+      const exec = calcExecucao(mesObj.valorPrevisto, mesObj.valorRealizado || 0);
+      if (exec >= 90) alertasNorm.push({
+        tipo: exec > 100 ? "estouro" : "alerta",
+        mensagem: `${item.nome}: ${exec}% executado em ${fmtMes(mesAtual)} (Prev R$${(mesObj.valorPrevisto||0).toFixed(0)} / Real R$${(mesObj.valorRealizado||0).toFixed(0)})`,
+        itemId: item.id, execucao: exec,
+      });
+    }
+    alertasNorm.sort((a, b) => b.execucao - a.execucao);
+
+    const toArr = (obj: Record<string, number>) => {
+      const tot = Object.values(obj).reduce((s, v) => s + v, 0) || 1;
+      return Object.entries(obj).map(([nome, valor]) => ({ nome, valor, percentual: Math.round((valor / tot) * 100) }))
+        .sort((a, b) => b.valor - a.valor);
+    };
+    const distribuicaoCategoria   = toArr(distCat).slice(0, 12);
+    const distribuicaoCentroCusto = toArr(distCC).slice(0, 12);
+
+    return {
+      ciclo: { id: ciclo.id, ano: ciclo.ano, status: ciclo.status },
+      filtro: { mesIni, mesFim, centroCustoId: centroCustoId || null, categoriaId: categoriaId || null },
+      kpis: {
+        totalPrevisto, totalRealizado,
+        execucao: calcExecucao(totalPrevisto, totalRealizado),
+        desvio, desvioPct,
+        previstoOpex: prevOpex, realizadoOpex: realOpex,
+        previstoCapex: prevCap, realizadoCapex: realCap,
+        qtdCentrosCusto: centrosSet.size, qtdItens: itens.length,
+        estouros: alertasNorm.filter(a => a.execucao > 100).length,
+        alertas: alertasNorm.length,
+      },
+      evolucaoMensal,
+      topItens,
+      alertas: alertasNorm.slice(0, 8),
+      distribuicaoCategoria,
+      distribuicaoCentroCusto,
+      capexOpex: [
+        { tipo: "OPEX",  previsto: prevOpex, realizado: realOpex },
+        { tipo: "CAPEX", previsto: prevCap,  realizado: realCap },
+      ],
+      // compat com o frontend antigo
+      distribuicao: distribuicaoCategoria.slice(0, 8).map(d => ({ categoria: d.nome, cor: "#a78bfa", previsto: d.valor, percentual: d.percentual })),
+    };
+  }
+
+  // Comparação entre dois ciclos (anos/versões), por dimensão (categoria/centro de custo/item).
+  @Get("comparacao")
+  @Permissions("orcamento:ver")
+  async comparacao(
+    @Req() req: any,
+    @Query("cicloA") cicloAId?: string, @Query("cicloB") cicloBId?: string,
+    @Query("dimensao") dimQ?: string, @Query("base") baseQ?: string,
+  ) {
+    if (!cicloAId || !cicloBId) throw new BadRequestException("Selecione dois ciclos para comparar");
+    const dim  = ["categoria", "centroCusto", "item"].includes(dimQ || "") ? dimQ! : "categoria";
+    const base = baseQ === "previsto" ? "previsto" : "realizado";
+
+    await Promise.all([this.assertPodeVerCiclo(cicloAId, req.user), this.assertPodeVerCiclo(cicloBId, req.user)]);
+    const [ca, cb] = await Promise.all([
+      (this.prisma as any).orcamentoCiclo.findUnique({ where: { id: cicloAId } }),
+      (this.prisma as any).orcamentoCiclo.findUnique({ where: { id: cicloBId } }),
+    ]);
+    if (!ca || !cb) throw new BadRequestException("Ciclo não encontrado");
+
+    const loadItens = (cicloId: string) => (this.prisma as any).itemOrcamento.findMany({
+      where: { cicloId, status: { not: "cancelado" } },
+      include: { meses: true, categoria: true, centroCusto: true },
+    });
+    const [itensA, itensB] = await Promise.all([loadItens(ca.id), loadItens(cb.id)]);
+
+    const mesVal = (m: any) => (base === "previsto" ? (m.valorPrevisto || 0) : (m.valorRealizado || 0));
+    const valorItem = (i: any) => i.meses.reduce((s: number, m: any) => s + mesVal(m), 0);
+    const grupo = (i: any) => dim === "centroCusto" ? (i.centroCusto?.nome || "Sem centro de custo")
+      : dim === "item" ? i.nome : (i.categoria?.nome || "Outros");
+
+    const aggr = (itens: any[]) => {
+      const g: Record<string, number> = {};
+      for (const i of itens) { const n = grupo(i); g[n] = (g[n] || 0) + valorItem(i); }
+      return g;
+    };
+    const gA = aggr(itensA), gB = aggr(itensB);
+    const nomes = Array.from(new Set([...Object.keys(gA), ...Object.keys(gB)]));
+    const linhas = nomes.map(nome => {
+      const valorA = gA[nome] || 0, valorB = gB[nome] || 0;
+      const variacao = valorB - valorA;
+      const variacaoPct = valorA ? Math.round((variacao / valorA) * 1000) / 10 : (valorB ? 100 : 0);
+      return { nome, valorA, valorB, variacao, variacaoPct };
+    }).sort((a, b) => Math.abs(b.variacao) - Math.abs(a.variacao));
+
+    const totA = Object.values(gA).reduce((s, v) => s + v, 0);
+    const totB = Object.values(gB).reduce((s, v) => s + v, 0);
+    const mensalDe = (itens: any[]) => MESES.map(mes =>
+      itens.reduce((s: number, i: any) => { const m = i.meses.find((x: any) => x.mes === mes); return s + (m ? mesVal(m) : 0); }, 0));
+    const mensalA = mensalDe(itensA), mensalB = mensalDe(itensB);
+    const evolucaoMensal = MESES.map((mes, i) => ({ mes, label: fmtMes(mes), valorA: mensalA[i], valorB: mensalB[i] }));
+
+    return {
+      cicloA: { id: ca.id, ano: ca.ano, descricao: ca.descricao },
+      cicloB: { id: cb.id, ano: cb.ano, descricao: cb.descricao },
+      dimensao: dim, base,
+      totais: { valorA: totA, valorB: totB, variacao: totB - totA, variacaoPct: totA ? Math.round(((totB - totA) / totA) * 1000) / 10 : 0 },
+      linhas,
+      evolucaoMensal,
+    };
+  }
+
+  // ── Ciclos ─────────────────────────────────────────────────────────────────
+
+  @Get("ciclos")
+  @Permissions("orcamento:ver")
+  async listCiclos(@Req() req: any) {
+    const user = req.user;
+    const orgId = user?.organizationId;
+    const orgWhere = orgId ? { organizationId: orgId } as any : {};
+    const pessoaisIds = await this.ciclosPessoaisIds(user.id, orgId);
+    const ciclos = await (this.prisma as any).orcamentoCiclo.findMany({
+      where: { ...orgWhere, OR: [{ ownerId: null }, { id: { in: pessoaisIds } }] },
+      include: { owner: { select: { id: true, nome: true } }, _count: { select: { compartilhamentos: true } } },
+      orderBy: [{ ano: "desc" }, { criadoEm: "asc" }],
+    });
+    const perms: string[] = user?.permissions || [];
+    const podePlanejarCorp = user?.isMaster || perms.includes("*") || perms.includes("orcamento:planejar");
+    // Responder por um centro de custo já habilita compartilhar a própria área
+    // do orçamento corporativo, sem precisar de orcamento:admin.
+    const respondePorCentro = await (this.prisma as any).centroCusto.count({
+      where: { responsavelId: user.id, ativo: true, ...orgWhere },
+    });
+    return ciclos.map((c: any) => {
+      const escopo = c.ownerId == null ? "corporativo" : (c.ownerId === user.id ? "proprio" : "compartilhado");
+      return {
+        id: c.id, ano: c.ano, descricao: c.descricao, status: c.status,
+        escopo, ownerId: c.ownerId,
+        owner: c.owner ? { id: c.owner.id, nome: c.owner.nome } : null,
+        podeEditar: escopo === "corporativo" ? podePlanejarCorp : true,
+        podeCompartilhar: escopo === "proprio" || (escopo === "corporativo" && (podePlanejarCorp || respondePorCentro > 0)),
+        qtdCompartilhado: c._count?.compartilhamentos ?? 0,
+        criadoEm: c.criadoEm,
+      };
+    });
+  }
+
+  @Post("ciclos")
+  @Permissions("orcamento:admin")
+  async createCiclo(@Body() dto: CreateCicloDto, @Req() req: any) {
+    const orgId = req.user?.organizationId;
+    const orgWhere = orgId ? { organizationId: orgId } as any : {};
+    const exists = await (this.prisma as any).orcamentoCiclo.findFirst({ where: { ano: dto.ano, ownerId: null, ...orgWhere } });
+    if (exists) throw new BadRequestException(`Ciclo ${dto.ano} já existe`);
+    return (this.prisma as any).orcamentoCiclo.create({
+      data: { id: uuid(), ano: dto.ano, descricao: dto.descricao || null, ownerId: null, ...(orgId ? { organizationId: orgId } : {}) } as any,
+    });
+  }
+
+  // ── Orçamentos pessoais + compartilhamento ───────────────────────────────────
+
+  // Qualquer usuário com acesso ao módulo cria o SEU próprio orçamento.
+  @Post("ciclos/pessoal")
+  @Permissions("orcamento:ver")
+  async createCicloPessoal(@Body() dto: CreateCicloPessoalDto, @Req() req: any) {
+    const orgId = req.user?.organizationId;
+    const orgWhere = orgId ? { organizationId: orgId } as any : {};
+    const exists = await (this.prisma as any).orcamentoCiclo.findFirst({ where: { ano: dto.ano, ownerId: req.user.id, ...orgWhere } });
+    if (exists) throw new BadRequestException(`Você já tem um orçamento para ${dto.ano}`);
+    return (this.prisma as any).orcamentoCiclo.create({
+      data: {
+        id: uuid(), ano: dto.ano,
+        descricao: dto.descricao || `Meu orçamento ${dto.ano}`,
+        ownerId: req.user.id,
+        ...(orgId ? { organizationId: orgId } : {}),
+      } as any,
+    });
+  }
+
+  // Lista de usuários da organização para escolher com quem compartilhar.
+  @Get("usuarios-disponiveis")
+  @Permissions("orcamento:ver")
+  async usuariosDisponiveis(@Req() req: any, @Query("q") q?: string) {
+    const orgId = req.user?.organizationId;
+    const where: any = { ativo: true, ...(orgId ? { organizationId: orgId } : {}), id: { not: req.user.id } };
+    if (q && q.trim()) {
+      where.OR = [
+        { nome: { contains: q, mode: "insensitive" } },
+        { email: { contains: q, mode: "insensitive" } },
+      ];
+    }
+    const users = await (this.prisma as any).user.findMany({
+      where, select: { id: true, nome: true, email: true }, orderBy: { nome: "asc" }, take: 30,
+    });
+    return users;
+  }
+
+  // Quem tem acesso a um orçamento. No corporativo, quem não administra vê
+  // apenas os acessos dos centros de custo pelos quais responde.
+  @Get("ciclos/:id/compartilhamentos")
+  @Permissions("orcamento:ver")
+  async listCompartilhamentos(@Param("id") id: string, @Req() req: any) {
+    const ciclo = await this.assertPodeVerCiclo(id, req.user);
+    const user = req.user;
+    const perms: string[] = user?.permissions || [];
+    const admin = user?.isMaster || perms.includes("*") || perms.includes("orcamento:admin") || perms.includes("orcamento:planejar");
+    const tudo = ciclo.ownerId === user.id || (ciclo.ownerId == null && admin);
+
+    const where: any = { cicloId: id };
+    if (!tudo) {
+      const meus = await (this.prisma as any).centroCusto.findMany({
+        where: { responsavelId: user.id, ...(user?.organizationId ? { organizationId: user.organizationId } : {}) },
+        select: { id: true },
+      });
+      if (!meus.length) return [];
+      where.centroCustoId = { in: meus.map((c: any) => c.id) };
+    }
+
+    const shares = await (this.prisma as any).orcamentoCompartilhamento.findMany({
+      where,
+      include: {
+        user: { select: { id: true, nome: true, email: true } },
+        centroCusto: { select: { id: true, codigo: true, nome: true, cor: true } },
+      },
+      orderBy: { criadoEm: "asc" },
+    });
+    return shares.map((x: any) => ({
+      id: x.id, user: x.user, papel: x.papel,
+      centroCusto: x.centroCusto, criadoEm: x.criadoEm,
+    }));
+  }
+
+  // Compartilha o orçamento. O corporativo exige escopo (centro de custo),
+  // salvo para quem administra o módulo.
+  @Post("ciclos/:id/compartilhar")
+  @Permissions("orcamento:ver")
+  async compartilhar(@Param("id") id: string, @Body() dto: CompartilharDto, @Req() req: any) {
+    const ciclo = await this.assertPodeVerCiclo(id, req.user);
+    const centroCustoId = dto.centroCustoId || null;
+    const papel = dto.papel === "leitor" ? "leitor" : "editor";
+    await this.assertPodeCompartilhar(ciclo, req.user, centroCustoId);
+
+    const orgId = req.user?.organizationId;
+    if (centroCustoId) {
+      const cc = await (this.prisma as any).centroCusto.findFirst({
+        where: { id: centroCustoId, ...(orgId ? { organizationId: orgId } : {}) },
+        select: { id: true },
+      });
+      if (!cc) throw new NotFoundException("Centro de custo não encontrado");
+    }
+
+    const ids = Array.from(new Set((dto.userIds || []).filter(Boolean)))
+      .filter((x) => x !== ciclo.ownerId && x !== req.user.id);
+    if (!ids.length) throw new BadRequestException("Selecione ao menos uma pessoa");
+
+    const validos = await (this.prisma as any).user.findMany({
+      where: { id: { in: ids }, ...(orgId ? { organizationId: orgId } : {}) },
+      select: { id: true },
+    });
+
+    let adicionados = 0;
+    for (const u of validos) {
+      // upsert composto não aceita null na chave: resolve na mão.
+      const existente = await (this.prisma as any).orcamentoCompartilhamento.findFirst({
+        where: { cicloId: id, userId: u.id, centroCustoId },
+        select: { id: true },
+      });
+      if (existente) {
+        await (this.prisma as any).orcamentoCompartilhamento.update({ where: { id: existente.id }, data: { papel } });
+      } else {
+        await (this.prisma as any).orcamentoCompartilhamento.create({
+          data: { id: uuid(), cicloId: id, userId: u.id, centroCustoId, papel, criadoPorId: req.user.id },
+        });
+      }
+      adicionados++;
+    }
+    return { ok: true, adicionados };
+  }
+
+  // Remove o acesso de uma pessoa. Sem `centroCustoId`, remove todos os acessos
+  // dela neste ciclo.
+  @Delete("ciclos/:id/compartilhar/:userId")
+  @Permissions("orcamento:ver")
+  async descompartilhar(
+    @Param("id") id: string, @Param("userId") userId: string,
+    @Req() req: any, @Query("centroCustoId") centroCustoId?: string,
+  ) {
+    const ciclo = await this.assertPodeVerCiclo(id, req.user);
+    await this.assertPodeCompartilhar(ciclo, req.user, centroCustoId || null);
+    const where: any = { cicloId: id, userId };
+    if (centroCustoId) where.centroCustoId = centroCustoId;
+    const r = await (this.prisma as any).orcamentoCompartilhamento.deleteMany({ where });
+    return { ok: true, removidos: r.count };
+  }
+
+  // Exclui um orçamento pessoal inteiro (itens em cascata). Só o dono.
+  @Delete("ciclos/:id")
+  @Permissions("orcamento:ver")
+  async deleteCicloPessoal(@Param("id") id: string, @Req() req: any) {
+    const ciclo = await this.assertPodeVerCiclo(id, req.user);
+    if (ciclo.ownerId == null) throw new ForbiddenException("O orçamento corporativo não pode ser excluído aqui");
+    if (ciclo.ownerId !== req.user.id) throw new ForbiddenException("Apenas o dono pode excluir");
+    await (this.prisma as any).itemOrcamento.deleteMany({ where: { cicloId: id } });
+    await (this.prisma as any).orcamentoCiclo.delete({ where: { id } });
+    return { ok: true };
+  }
+
+  @Patch("ciclos/:id/ativar")
+  @Permissions("orcamento:admin")
+  async ativarCiclo(@Param("id") id: string, @Req() req: any) {
+    const orgId = req.user?.organizationId;
+    const ciclo = await (this.prisma as any).orcamentoCiclo.findFirst({
+      where: { id, ...(orgId ? { organizationId: orgId } : {}) },
+    });
+    if (!ciclo) throw new NotFoundException("Ciclo não encontrado");
+    // Desativa apenas ciclos da mesma organização
+    await (this.prisma as any).orcamentoCiclo.updateMany({
+      where: { status: "ativo", ...(orgId ? { organizationId: orgId } : {}) },
+      data: { status: "rascunho" },
+    });
+    return (this.prisma as any).orcamentoCiclo.update({ where: { id }, data: { status: "ativo" } });
+  }
+
+  @Patch("ciclos/:id/fechar")
+  @Permissions("orcamento:admin")
+  async fecharCiclo(@Param("id") id: string, @Req() req: any) {
+    await acharNaOrganizacao((this.prisma as any).orcamentoCiclo, id, req, "Ciclo não encontrado");
+    return (this.prisma as any).orcamentoCiclo.update({ where: { id }, data: { status: "fechado" } });
+  }
+
+  // ── Categorias ─────────────────────────────────────────────────────────────
+
+  @Get("categorias")
+  @Permissions("orcamento:ver")
+  async listCategorias(@Req() req: any, @Query("tipo") tipo?: string) {
+    const orgId = req.user?.organizationId;
+    const where: any = tipo ? { tipo, paiId: null } : { paiId: null };
+    if (orgId) where.organizationId = orgId;
+    const raizes = await (this.prisma as any).categoriaOrcamento.findMany({
+      where,
+      include: { filhas: { orderBy: { nome: "asc" } } },
+      orderBy: { nome: "asc" },
+    });
+    return raizes;
+  }
+
+  @Post("categorias")
+  @Permissions("orcamento:admin")
+  async createCategoria(@Body() dto: CreateCategoriaDto, @Req() req: any) {
+    return (this.prisma as any).categoriaOrcamento.create({
+      data: {
+        id: uuid(), organizationId: req.user?.organizationId,
+        tipo: dto.tipo, codigo: dto.codigo, nome: dto.nome,
+        cor: dto.cor || "#a78bfa", icone: dto.icone || null, paiId: dto.paiId || null,
+      },
+    });
+  }
+
+  @Put("categorias/:id")
+  @Permissions("orcamento:admin")
+  async updateCategoria(@Param("id") id: string, @Body() dto: UpdateCategoriaDto) {
+    return (this.prisma as any).categoriaOrcamento.update({ where: { id }, data: dto });
+  }
+
+  @Delete("categorias/:id")
+  @Permissions("orcamento:admin")
+  async deleteCategoria(@Param("id") id: string) {
+    const itens = await (this.prisma as any).itemOrcamento.count({ where: { categoriaId: id } });
+    if (itens > 0) throw new BadRequestException("Categoria possui itens vinculados");
+    await (this.prisma as any).categoriaOrcamento.delete({ where: { id } });
+    return { message: "Removida" };
+  }
+
+  // ── Centros de Custo ───────────────────────────────────────────────────────
+
+  @Get("centros-custo")
+  @Permissions("orcamento:ver")
+  async listCentros(@Req() req: any) {
+    const orgId = req.user?.organizationId;
+    return (this.prisma as any).centroCusto.findMany({
+      where: orgId ? { organizationId: orgId } as any : {},
+      include: { responsavel: { select: { id: true, nome: true } } },
+      orderBy: { codigo: "asc" },
+    });
+  }
+
+  @Post("centros-custo")
+  @Permissions("orcamento:admin")
+  async createCentro(@Body() dto: CreateCentroCustoDto, @Req() req: any) {
+    const orgId = req.user?.organizationId;
+    const exists = await (this.prisma as any).centroCusto.findFirst({ where: { codigo: dto.codigo, ...(orgId ? { organizationId: orgId } as any : {}) } });
+    if (exists) throw new BadRequestException(`Código ${dto.codigo} já existe`);
+    const { responsavelId, ...rest } = dto;
+    return (this.prisma as any).centroCusto.create({
+      data: { id: uuid(), ...rest, responsavelId: responsavelId || null, ...(orgId ? { organizationId: orgId } : {}) } as any,
+      include: { responsavel: { select: { id: true, nome: true } } },
+    });
+  }
+
+  @Put("centros-custo/:id")
+  @Permissions("orcamento:admin")
+  async updateCentro(@Param("id") id: string, @Body() dto: UpdateCentroCustoDto) {
+    const { responsavelId, ...rest } = dto;
+    return (this.prisma as any).centroCusto.update({
+      where: { id },
+      data: { ...rest, ...(responsavelId !== undefined ? { responsavelId } : {}) },
+      include: { responsavel: { select: { id: true, nome: true } } },
+    });
+  }
+
+  // ── Fornecedores ───────────────────────────────────────────────────────────
+
+  @Get("fornecedores")
+  @Permissions("orcamento:ver")
+  async listFornecedores(@Req() req: any, @Query("q") q?: string) {
+    const orgId = req.user?.organizationId;
+    const where: any = { status: "ativo", ...(orgId ? { organizationId: orgId } as any : {}) };
+    if (q) {
+      where.OR = [
+        { razaoSocial: { contains: q, mode: "insensitive" } },
+        { nomeFantasia: { contains: q, mode: "insensitive" } },
+        { cnpj: { contains: q.replace(/\D/g,"") } },
+      ];
+    }
+    const suppliers = await (this.prisma as any).supplier.findMany({
+      where,
+      select: { id: true, razaoSocial: true, nomeFantasia: true, cnpj: true, categorias: true,
+        contatoNome: true, contatoEmail: true, contatoTelefone: true, cidade: true, estado: true, condicaoPagamento: true },
+      orderBy: { razaoSocial: "asc" },
+      take: 50,
+    });
+    return suppliers.map((s: any) => ({
+      id: s.id, nome: s.nomeFantasia || s.razaoSocial, razaoSocial: s.razaoSocial,
+      nomeFantasia: s.nomeFantasia, cnpj: s.cnpj, segmento: s.categorias?.[0] || null,
+      email: s.contatoEmail, telefone: s.contatoTelefone, cidade: s.cidade, estado: s.estado,
+      condicaoPagamento: s.condicaoPagamento, ativo: true,
+    }));
+  }
+
+  @Post("fornecedores")
+  @Permissions("orcamento:admin")
+  async createFornecedor(@Body() dto: CreateFornecedorDto, @Req() req: any) {
+    return (this.prisma as any).fornecedorOrcamento.create({ data: { id: uuid(), organizationId: req.user?.organizationId, ...dto } });
+  }
+
+  @Put("fornecedores/:id")
+  @Permissions("orcamento:admin")
+  async updateFornecedor(@Param("id") id: string, @Body() dto: UpdateFornecedorDto) {
+    return (this.prisma as any).fornecedorOrcamento.update({ where: { id }, data: dto });
+  }
+
+  // ── Itens ──────────────────────────────────────────────────────────────────
+
+  @Get("itens")
+  @Permissions("orcamento:ver")
+  async listItens(
+    @Req() req: any,
+    @Query("cicloId") cicloId?: string,
+    @Query("tipo") tipo?: string,
+    @Query("centroCustoId") centroCustoId?: string,
+    @Query("categoriaId") categoriaId?: string,
+    @Query("ano") anoQ?: string,
+  ) {
+    let resolvedCicloId = await this.resolveCicloIdLeitura(cicloId, anoQ ? parseInt(anoQ) : undefined, req.user);
+    if (!resolvedCicloId && !cicloId) {
+      // fallback: ciclo corporativo ativo mais recente
+      const orgWhere = req.user?.organizationId ? { organizationId: req.user.organizationId } as any : {};
+      const cicloAtivo = await (this.prisma as any).orcamentoCiclo.findFirst({ where: { status: "ativo", ownerId: null, ...orgWhere }, orderBy: { ano: "desc" } });
+      resolvedCicloId = cicloAtivo?.id ?? null;
+    }
+    if (!resolvedCicloId) return [];
+
+    const itens = await (this.prisma as any).itemOrcamento.findMany({
+      where: {
+        cicloId: resolvedCicloId,
+        ...(tipo ? { tipo } : {}),
+        ...(centroCustoId ? { centroCustoId } : {}),
+        ...(categoriaId ? { OR: [{ categoriaId }, { categoria: { paiId: categoriaId } }] } : {}),
+        status: { not: "cancelado" },
+      },
+      include: {
+        meses: { orderBy: { mes: "asc" } },
+        categoria: true,
+        centroCusto: true,
+        fornecedor: true,
+        criadoPor: { select: { id: true, nome: true } },
+      },
+      orderBy: [{ categoria: { nome: "asc" } }, { nome: "asc" }],
+    });
+
+    return itens.map((i: any) => mapItem(i));
+  }
+
+  @Get("itens/:id")
+  @Permissions("orcamento:ver")
+  async getItem(@Param("id") id: string, @Req() req: any) {
+    const item = await (this.prisma as any).itemOrcamento.findUnique({
+      where: { id },
+      include: {
+        meses: { orderBy: { mes: "asc" }, include: { lancadoPor: { select: { id: true, nome: true } } } },
+        categoria: true, centroCusto: true, fornecedor: true,
+        criadoPor: { select: { id: true, nome: true } },
+        timeline: { orderBy: { criadoEm: "desc" }, include: { user: { select: { id: true, nome: true } } }, take: 20 },
+        aprovacoes: { orderBy: { criadoEm: "desc" }, take: 5 },
+      },
+    });
+    if (!item) throw new NotFoundException("Item não encontrado");
+    await this.assertPodeVerCiclo(item.cicloId, req.user); // isola pessoal/tenant
+    return { ...mapItem(item), timeline: item.timeline, aprovacoes: item.aprovacoes };
+  }
+
+  @Post("itens")
+  @Permissions("orcamento:ver")
+  async createItem(@Body() dto: CreateItemDto, @Req() req: any) {
+    if (!dto.nome?.trim()) throw new BadRequestException("Nome obrigatório");
+    // Corporativo exige orcamento:planejar; pessoal exige ser dono ou compartilhado.
+    const ciclo = await this.assertPodeEditarCiclo(dto.cicloId, req.user);
+    this.assertNoEscopo(ciclo, dto.centroCustoId);
+    const categoria = await (this.prisma as any).categoriaOrcamento.findUnique({ where: { id: dto.categoriaId } });
+    if (!categoria) throw new NotFoundException("Categoria não encontrada");
+
+    const { valoresMensais, centroCustoId, fornecedorId, ...rest } = dto;
+
+    const item = await (this.prisma as any).itemOrcamento.create({
+      data: {
+        id: uuid(),
+        ...rest,
+        tipo: categoria.tipo,
+        centroCustoId: centroCustoId || null,
+        fornecedorId: fornecedorId || null,
+        criadoPorId: req.user.id,
+        meses: {
+          create: MESES.map(mes => ({
+            id: uuid(), mes,
+            valorPrevisto: valoresMensais?.[mes] ?? 0,
+          })),
+        },
+      },
+      include: { meses: true, categoria: true, centroCusto: true, fornecedor: true, criadoPor: { select: { id: true, nome: true } } },
+    });
+
+    await addOrcTimeline(this.prisma, item.id, "criado", `Item "${item.nome}" criado`, undefined, req.user.id);
+    return mapItem(item);
+  }
+
+  // Importação em lote (planilha OPEX): cria ciclos, categorias, itens e meses.
+  // Re-importável: se o ciclo do ano já existe, substitui os itens dele.
+  @Post("importar-opex")
+  @Permissions("orcamento:planejar")
+  async importarOpex(@Body() body: ImportarOpexOrcamentoDto, @Req() req: any) {
+    const orgId = req.user?.organizationId;
+    const userId = req.user.id;
+    const ciclos = Array.isArray(body?.ciclos) ? body.ciclos : [];
+    if (!ciclos.length) throw new BadRequestException("Nada para importar");
+    const orgWhere = orgId ? { organizationId: orgId } : {};
+    const resumo: any[] = [];
+
+    for (const c of ciclos) {
+      const ano = Number(c.ano);
+      if (!ano) continue;
+
+      let ciclo = await (this.prisma as any).orcamentoCiclo.findFirst({ where: { ano, ...orgWhere } });
+      if (ciclo) {
+        await (this.prisma as any).itemOrcamento.deleteMany({ where: { cicloId: ciclo.id } });
+        if (c.descricao) await (this.prisma as any).orcamentoCiclo.update({ where: { id: ciclo.id }, data: { descricao: c.descricao } });
+      } else {
+        ciclo = await (this.prisma as any).orcamentoCiclo.create({
+          data: { id: uuid(), organizationId: orgId, ano, descricao: c.descricao || `OPEX ${ano}` },
+        });
+      }
+
+      // categorias (cria se faltar), em cache por nome
+      const catCache: Record<string, any> = {};
+      const getCat = async (nome: string) => {
+        const key = (nome || "SEM CATEGORIA").trim().toUpperCase();
+        if (catCache[key]) return catCache[key];
+        let cat = await (this.prisma as any).categoriaOrcamento.findFirst({ where: { nome: key, ...orgWhere } });
+        if (!cat) cat = await (this.prisma as any).categoriaOrcamento.create({
+          data: { id: uuid(), organizationId: orgId, tipo: "OPEX", codigo: (key.replace(/[^A-Z0-9]/g, "").slice(0, 14) || "OPEX"), nome: key },
+        });
+        catCache[key] = cat;
+        return cat;
+      };
+
+      let nItens = 0;
+      for (const it of (c.itens || [])) {
+        const cat = await getCat(it.categoria);
+        const prev = it.previsto || {};
+        const real = it.realizado || {};
+        await (this.prisma as any).itemOrcamento.create({
+          data: {
+            id: uuid(), cicloId: ciclo.id, categoriaId: cat.id, tipo: "OPEX",
+            nome: String(it.despesa || "—").trim() || "—",
+            observacoes: it.observacoes || null,
+            criadoPorId: userId,
+            meses: {
+              create: MESES.map((mes) => {
+                const vr = real[mes];
+                const temReal = vr != null && vr !== "" && !Number.isNaN(Number(vr));
+                return {
+                  id: uuid(), mes,
+                  valorPrevisto: Number(prev[mes] || 0),
+                  valorRealizado: temReal ? Number(vr) : null,
+                  status: temReal ? "lancado" : "pendente",
+                  lancadoPorId: temReal ? userId : null,
+                  lancadoEm: temReal ? new Date() : null,
+                };
+              }),
+            },
+          },
+        });
+        nItens++;
+      }
+      resumo.push({ ano, descricao: c.descricao || ciclo.descricao, itens: nItens });
+    }
+    return { ok: true, ciclos: resumo };
+  }
+
+  @Put("itens/:id")
+  @Permissions("orcamento:ver")
+  async updateItem(@Param("id") id: string, @Body() dto: UpdateItemDto, @Req() req: any) {
+    const exists = await (this.prisma as any).itemOrcamento.findUnique({ where: { id }, select: { id: true, cicloId: true, centroCustoId: true } });
+    if (!exists) throw new NotFoundException("Item não encontrado");
+    const acesso = await this.assertPodeEditarCiclo(exists.cicloId, req.user);
+    // Vale para onde o item está E para onde ele iria: quem tem acesso limitado
+    // não puxa item de outra área para a sua, nem empurra a sua para fora.
+    this.assertNoEscopo(acesso, exists.centroCustoId);
+    if (dto.centroCustoId !== undefined) this.assertNoEscopo(acesso, dto.centroCustoId);
+    const { centroCustoId, fornecedorId, ...rest } = dto;
+    const updated = await (this.prisma as any).itemOrcamento.update({
+      where: { id },
+      data: {
+        ...rest,
+        ...(centroCustoId !== undefined ? { centroCustoId } : {}),
+        ...(fornecedorId  !== undefined ? { fornecedorId  } : {}),
+      },
+      include: { meses: true, categoria: true, centroCusto: true, fornecedor: true, criadoPor: { select: { id: true, nome: true } } },
+    });
+    await addOrcTimeline(this.prisma, id, "editado", "Item atualizado", undefined, req.user.id);
+    return mapItem(updated);
+  }
+
+  @Delete("itens/:id")
+  @Permissions("orcamento:ver")
+  async deleteItem(@Param("id") id: string, @Req() req: any) {
+    const item = await (this.prisma as any).itemOrcamento.findUnique({ where: { id }, select: { id: true, nome: true, cicloId: true, centroCustoId: true } });
+    if (!item) throw new NotFoundException("Item não encontrado");
+    this.assertNoEscopo(await this.assertPodeEditarCiclo(item.cicloId, req.user), item.centroCustoId);
+    // meses e timeline têm onDelete cascade — o item é removido inteiro.
+    await (this.prisma as any).itemOrcamento.delete({ where: { id } });
+    return { ok: true, nome: item.nome };
+  }
+
+  @Patch("itens/:id/previsto")
+  @Permissions("orcamento:ver")
+  async updatePrevisto(@Param("id") id: string, @Body() dto: UpdatePrevistoDto, @Req() req: any) {
+    const item = await (this.prisma as any).itemOrcamento.findUnique({ where: { id }, select: { cicloId: true, centroCustoId: true } });
+    if (!item) throw new NotFoundException("Item não encontrado");
+    this.assertNoEscopo(await this.assertPodeEditarCiclo(item.cicloId, req.user), item.centroCustoId);
+    const mes = await (this.prisma as any).itemOrcamentoMes.findFirst({ where: { itemId: id, mes: dto.mes } });
+    if (!mes) throw new NotFoundException("Mês não encontrado");
+    const updated = await (this.prisma as any).itemOrcamentoMes.update({
+      where: { id: mes.id },
+      data: { valorPrevisto: dto.valorPrevisto },
+    });
+    await addOrcTimeline(this.prisma, id, "editado", `Previsto de ${fmtMes(dto.mes)} atualizado para R$ ${dto.valorPrevisto.toLocaleString("pt-BR")}`, undefined, req.user.id);
+    return updated;
+  }
+
+  @Patch("itens/:id/lancar")
+  @Permissions("orcamento:ver")
+  async lancarRealizado(@Param("id") id: string, @Body() dto: LancarValorDto, @Req() req: any) {
+    const item = await (this.prisma as any).itemOrcamento.findUnique({ where: { id }, select: { cicloId: true, centroCustoId: true } });
+    if (!item) throw new NotFoundException("Item não encontrado");
+    const ciclo = await this.assertPodeEditarCiclo(item.cicloId, req.user, "orcamento:lancar");
+    this.assertNoEscopo(ciclo, item.centroCustoId);
+    const mes = await (this.prisma as any).itemOrcamentoMes.findFirst({ where: { itemId: id, mes: dto.mes } });
+    if (!mes) throw new NotFoundException("Mês não encontrado");
+
+    const updated = await (this.prisma as any).itemOrcamentoMes.update({
+      where: { id: mes.id },
+      data: {
+        valorRealizado: dto.valorRealizado,
+        status: "lancado",
+        observacoes: dto.observacoes || null,
+        lancadoPorId: req.user.id,
+        lancadoEm: new Date(),
+      },
+    });
+
+    // Estouro gera aprovação apenas no orçamento corporativo (fluxo de gestão).
+    // Orçamentos pessoais não abrem aprovação — são do próprio dono.
+    if (ciclo.ownerId == null && mes.valorPrevisto > 0) {
+      const exec = calcExecucao(mes.valorPrevisto, dto.valorRealizado);
+      if (exec > 100) {
+        await (this.prisma as any).aprovacaoOrcamento.create({
+          data: {
+            id: uuid(), itemId: id, tipo: "lancamento",
+            status: "pendente", solicitadoPorId: req.user.id,
+            observacoes: `Estouro de ${exec - 100}% em ${fmtMes(dto.mes)} — previsto R$${mes.valorPrevisto.toLocaleString("pt-BR")}, lançado R$${dto.valorRealizado.toLocaleString("pt-BR")}`,
+          },
+        });
+      }
+    }
+
+    await addOrcTimeline(this.prisma, id, "lancamento", `Realizado de ${fmtMes(dto.mes)}: R$ ${dto.valorRealizado.toLocaleString("pt-BR")}`, dto.observacoes, req.user.id);
+    return updated;
+  }
+
+  @Get("itens/:id/timeline")
+  @Permissions("orcamento:ver")
+  async getTimeline(@Param("id") id: string, @Req() req: any) {
+    const item = await (this.prisma as any).itemOrcamento.findUnique({ where: { id }, select: { cicloId: true } });
+    if (!item) throw new NotFoundException("Item não encontrado");
+    await this.assertPodeVerCiclo(item.cicloId, req.user);
+    return (this.prisma as any).orcamentoTimeline.findMany({
+      where: { itemId: id },
+      include: { user: { select: { id: true, nome: true } } },
+      orderBy: { criadoEm: "desc" },
+      take: 30,
+    });
+  }
+
+  // ── Aprovações ─────────────────────────────────────────────────────────────
+
+  @Get("aprovacoes")
+  @Permissions("orcamento:aprovar")
+  async listAprovacoes(@Req() req: any, @Query("status") status = "pendente") {
+    const orgId = req.user?.organizationId;
+    // AprovacaoOrcamento não tem organizationId direto — isolamento de tenant
+    // é feito via a cadeia item → ciclo → organizationId.
+    return (this.prisma as any).aprovacaoOrcamento.findMany({
+      where: {
+        status,
+        ...(orgId ? { item: { is: { ciclo: { is: { organizationId: orgId } } } } } : {}),
+      },
+      include: {
+        item: { select: { id: true, nome: true, tipo: true, categoria: { select: { nome: true } } } },
+        solicitadoPor: { select: { id: true, nome: true } },
+        aprovadoPor: { select: { id: true, nome: true } },
+      },
+      orderBy: { criadoEm: "desc" },
+    });
+  }
+
+  @Patch("aprovacoes/:id")
+  @Permissions("orcamento:aprovar")
+  async resolverAprovacao(@Param("id") id: string, @Body() dto: ResolverAprovacaoDto, @Req() req: any) {
+    const aprov = await (this.prisma as any).aprovacaoOrcamento.findUnique({
+      where: { id },
+      include: { item: { select: { ciclo: { select: { organizationId: true } } } } },
+    });
+    if (!aprov) throw new NotFoundException("Aprovação não encontrada");
+    // Isolamento multi-tenant: aprovação de outro tenant responde como inexistente
+    const orgId = req.user?.organizationId;
+    const aprovOrg = aprov?.item?.ciclo?.organizationId;
+    if (orgId && aprovOrg && aprovOrg !== orgId) {
+      throw new NotFoundException("Aprovação não encontrada");
+    }
+    if (aprov.status !== "pendente") throw new BadRequestException("Aprovação já resolvida");
+
+    const updated = await (this.prisma as any).aprovacaoOrcamento.update({
+      where: { id },
+      data: {
+        status: dto.decisao,
+        aprovadoPorId: req.user.id,
+        observacoes: dto.observacoes || aprov.observacoes,
+        resolvidoEm: new Date(),
+      },
+    });
+
+    if (aprov.itemId) {
+      await addOrcTimeline(
+        this.prisma, aprov.itemId,
+        dto.decisao === "aprovado" ? "aprovado" : "rejeitado",
+        `Lançamento ${dto.decisao} por ${req.user.nome || "gestor"}`,
+        dto.observacoes, req.user.id,
+      );
+    }
+    return updated;
+  }
+
+  // ── Relatório previsto × realizado ────────────────────────────────────────
+
+  @Get("relatorios/previsto-realizado")
+  @Permissions("orcamento:ver")
+  async relatorioPrevReal(@Req() req: any, @Query("ano") anoQ?: string, @Query("tipo") tipo?: string) {
+    const ano = anoQ ? parseInt(anoQ) : new Date().getFullYear();
+    const orgId = req.user?.organizationId;
+    const ciclo = await (this.prisma as any).orcamentoCiclo.findFirst({ where: { ano, ownerId: null, ...(orgId ? { organizationId: orgId } as any : {}) } });
+    if (!ciclo) return { ciclo: null, itens: [] };
+
+    const itens = await (this.prisma as any).itemOrcamento.findMany({
+      where: { cicloId: ciclo.id, ...(tipo ? { tipo } : {}), status: { not: "cancelado" } },
+      include: {
+        meses: { orderBy: { mes: "asc" } },
+        categoria: { include: { pai: true } },
+        centroCusto: true,
+        fornecedor: true,
+      },
+      orderBy: [{ categoria: { nome: "asc" } }, { nome: "asc" }],
+    });
+
+    return { ciclo: { id: ciclo.id, ano: ciclo.ano, status: ciclo.status }, itens: itens.map((i: any) => mapItem(i)) };
+  }
+}
+
+// ── Module ────────────────────────────────────────────────────────────────────
+
+@Module({
+  controllers: [OrcamentoController],
+})
+export class OrcamentoModule {}

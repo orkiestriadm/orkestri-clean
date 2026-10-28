@@ -1,0 +1,1664 @@
+import { MARCA } from "../../common/marca";
+import { Injectable, UnauthorizedException, OnModuleInit, Logger, NotFoundException, ForbiddenException, BadRequestException } from "@nestjs/common";
+import { JwtService } from "@nestjs/jwt";
+import { ConfigService } from "@nestjs/config";
+import { PrismaService } from "../../prisma/prisma.service";
+import { CacheService } from "../cache/cache.service";
+import { registrarIndicacao, montarMensagemAtivacao, codigoIndicacao } from "../referral/referral.helpers";
+import { LEMBRETE_ANTECEDENCIA_MS, precisaLembrete, montarLembrete, codigoRenovacao, faseDaConta, acessoVencido } from "./trial-renovacao";
+import { WhatsAppService } from "../notifications/whatsapp.service";
+import { EmailService } from "../notifications/email.service";
+import { AutomacaoService } from "../automacoes/automacoes.module";
+import * as bcrypt from "bcryptjs";
+
+// Todas as permissões do sistema no formato "recurso:acao"
+const ALL_PERMISSIONS: { recurso: string; acao: string; descricao: string }[] = [
+  { recurso: "agenda",        acao: "ver",        descricao: "Ver agenda" },
+  { recurso: "agenda",        acao: "criar",       descricao: "Criar eventos" },
+  { recurso: "agenda",        acao: "editar",      descricao: "Editar eventos" },
+  { recurso: "agenda",        acao: "deletar",     descricao: "Deletar eventos" },
+  { recurso: "integracoes",   acao: "conectar",    descricao: "Conectar a própria conta de calendário externo (Microsoft 365)" },
+  { recurso: "integracoes",   acao: "configurar",  descricao: "Configurar as credenciais da integração de calendário (App Registration)" },
+  { recurso: "projetos",      acao: "ver",         descricao: "Ver projetos" },
+  { recurso: "projetos",      acao: "criar",       descricao: "Criar projetos" },
+  { recurso: "projetos",      acao: "editar",      descricao: "Editar projetos" },
+  { recurso: "projetos",      acao: "deletar",     descricao: "Deletar projetos" },
+  { recurso: "projetos",      acao: "gerenciar",   descricao: "Gerenciar membros e configurações do projeto" },
+  { recurso: "keep",          acao: "ver",         descricao: "Ver notas" },
+  { recurso: "keep",          acao: "criar",       descricao: "Criar notas" },
+  { recurso: "keep",          acao: "editar",      descricao: "Editar notas" },
+  { recurso: "keep",          acao: "deletar",     descricao: "Deletar notas" },
+  { recurso: "gantt",         acao: "ver",         descricao: "Ver linha do tempo" },
+  { recurso: "chamados",      acao: "ver",         descricao: "Ver chamados" },
+  { recurso: "chamados",      acao: "criar",       descricao: "Abrir chamados" },
+  { recurso: "chamados",      acao: "editar",      descricao: "Editar chamados" },
+  { recurso: "chamados",      acao: "fechar",      descricao: "Fechar/resolver chamados" },
+  { recurso: "chamados",      acao: "atribuir",    descricao: "Atribuir chamados a atendentes" },
+  // Exigida por chamados.module.ts e ausente do catalogo: sem ela a rota de
+  // exclusao so funcionava para master.
+  { recurso: "chamados",      acao: "excluir",     descricao: "Excluir chamados" },
+  { recurso: "whatsapp",      acao: "ver",         descricao: "Ver configurações WhatsApp" },
+  { recurso: "whatsapp",      acao: "configurar",  descricao: "Configurar integração WhatsApp" },
+  { recurso: "usuarios",      acao: "ver",         descricao: "Ver usuários" },
+  { recurso: "usuarios",      acao: "criar",       descricao: "Criar usuários" },
+  { recurso: "usuarios",      acao: "editar",      descricao: "Editar usuários" },
+  { recurso: "usuarios",      acao: "desativar",   descricao: "Ativar/desativar usuários" },
+  { recurso: "usuarios",      acao: "permissoes",  descricao: "Gerenciar permissões de usuários" },
+  { recurso: "usuarios",      acao: "excluir",     descricao: "Excluir usuários" },
+  { recurso: "configuracoes", acao: "ver",         descricao: "Ver configurações do sistema" },
+  { recurso: "configuracoes", acao: "editar",      descricao: "Editar configurações do sistema" },
+  { recurso: "historico",     acao: "ver",         descricao: "Ver histórico de auditoria" },
+  { recurso: "orcamento",     acao: "ver",         descricao: "Ver orçamentos" },
+  { recurso: "orcamento",     acao: "planejar",    descricao: "Planejar orçamentos (CAPEX/OPEX)" },
+  { recurso: "orcamento",     acao: "lancar",      descricao: "Lançar valores realizados" },
+  { recurso: "orcamento",     acao: "aprovar",     descricao: "Aprovar orçamentos" },
+  { recurso: "orcamento",     acao: "admin",       descricao: "Administrar ciclos e configurações" },
+  // Solicitações corporativas
+  { recurso: "solicitacoes",  acao: "ver",         descricao: "Ver solicitações corporativas" },
+  { recurso: "solicitacoes",  acao: "criar",       descricao: "Abrir solicitações" },
+  { recurso: "solicitacoes",  acao: "editar",      descricao: "Editar solicitações" },
+  { recurso: "solicitacoes",  acao: "aprovar",     descricao: "Aprovar/rejeitar solicitações" },
+  // Base de conhecimento
+  { recurso: "conhecimento",  acao: "ver",         descricao: "Ver base de conhecimento" },
+  { recurso: "conhecimento",  acao: "criar",       descricao: "Criar artigos" },
+  { recurso: "conhecimento",  acao: "editar",      descricao: "Editar artigos" },
+  { recurso: "conhecimento",  acao: "excluir",     descricao: "Excluir artigos" },
+  { recurso: "conhecimento",  acao: "publicar",    descricao: "Publicar artigos na base" },
+  // SLA
+  { recurso: "sla",           acao: "ver",         descricao: "Ver configurações SLA" },
+  { recurso: "sla",           acao: "gerenciar",   descricao: "Gerenciar regras e acordos SLA" },
+  // Automações
+  { recurso: "automacoes",    acao: "ver",         descricao: "Ver automações configuradas" },
+  { recurso: "automacoes",    acao: "criar",       descricao: "Criar automações" },
+  { recurso: "automacoes",    acao: "editar",      descricao: "Editar automações" },
+  { recurso: "automacoes",    acao: "excluir",     descricao: "Excluir automações" },
+  // A tela inicial checa dashboard:ver; sem a permissao no catalogo ela nunca
+  // poderia ser concedida.
+  { recurso: "dashboard",     acao: "ver",         descricao: "Ver a tela inicial" },
+  // Financeiro
+  { recurso: "financeiro",    acao: "ver",         descricao: "Ver módulo financeiro (contas a pagar, dashboard)" },
+  { recurso: "financeiro",    acao: "gerenciar",   descricao: "Criar, editar e excluir títulos financeiros" },
+  // Gastos pessoais (por usuário — cada um só vê o seu)
+  { recurso: "gastos",        acao: "ver",         descricao: "Ver os próprios gastos" },
+  { recurso: "gastos",        acao: "registrar",   descricao: "Anotar, editar e excluir os próprios gastos" },
+];
+
+// Permissões base — todo usuário recebe automaticamente, independente do papel.
+//
+// Agenda e Keep são os dois módulos que acompanham a conta: ferramenta pessoal,
+// sem dado de terceiro dentro, que não faz sentido alguém ter de pedir ao
+// administrador. Qualquer outra tela — inclusive a Visão Geral — exige
+// permissão explícita, vinda de papel ou de concessão direta.
+//
+// O WhatsApp do menu NÃO entra aqui, e a razão não é obvia pelo nome: aquela
+// tela não é conversa, é o console de pareamento da organização. Quem a abre vê
+// o QR Code e pode desconectar o número da empresa, o que para o envio de
+// mensagem de todo mundo. Isso é ato de administrador, não item de boas-vindas.
+const BASE_PERMISSIONS = [
+  "agenda:ver", "agenda:criar", "agenda:editar", "agenda:deletar",
+  "keep:ver", "keep:criar", "keep:editar", "keep:deletar",
+  // Gastos é uma ferramenta pessoal (só o próprio usuário vê os seus), como
+  // agenda e keep — por isso acompanha a conta, não depende de papel.
+  "gastos:ver", "gastos:registrar",
+  // Conectar o PRÓPRIO calendário externo é ferramenta de conta pessoal (só
+  // afeta a agenda do próprio usuário), então acompanha a conta como agenda/keep.
+  "integracoes:conectar",
+];
+
+/**
+ * Garante os papéis padrão DE UMA ORGANIZAÇÃO.
+ *
+ * Função de módulo, e não método de serviço, porque TODA criação de
+ * organização precisa chamá-la — billing, cadastro-request e organizations —
+ * e nenhum desses módulos importa o AuthModule. Como função solta, eles usam
+ * sem fiação de módulo e sem risco de dependência circular.
+ *
+ * Por que passou a ser necessária: enquanto os papéis eram globais, o tenant
+ * novo simplesmente reusava os de todo mundo — que era o defeito. Agora cada
+ * organização tem os seus, e sem esta chamada o tenant novo nasceria SEM
+ * papel nenhum, deixando seus usuários sem permissão alguma.
+ *
+ * Idempotente: cria o que falta, atualiza nível, não duplica.
+ */
+export async function semearPapeisDaOrganizacao(
+  prisma: any,
+  organizationId: string,
+  permMap: Record<string, string>,
+  logger?: { log: (m: string) => void },
+) {
+  // Nomes legados → nomes atuais, DENTRO da organização.
+  const legacyMap: Record<string, string> = {
+    admin: "administrador", gerente: "gestor",
+    colaborador: "analista", atendente: "tecnico",
+  };
+  for (const [old, novo] of Object.entries(legacyMap)) {
+    const existing = await prisma.role.findFirst({ where: { nome: old, organizationId } });
+    const conflict = await prisma.role.findFirst({ where: { nome: novo, organizationId } });
+    if (existing && !conflict) {
+      await prisma.role.update({ where: { id: existing.id }, data: { nome: novo } });
+      logger?.log(`Role '${old}' renomeada para '${novo}' (org ${organizationId})`);
+    }
+  }
+
+  // Papel master da organização.
+  let masterRole = await prisma.role.findFirst({ where: { nome: "master", organizationId } });
+  if (!masterRole) {
+    masterRole = await prisma.role.create({
+      data: {
+        id: require("crypto").randomUUID(), organizationId,
+        nome: "master", descricao: "Acesso total ao sistema", isMaster: true, nivel: 100,
+      },
+    });
+    logger?.log(`Role master criada (org ${organizationId})`);
+  } else if (masterRole.nivel !== 100) {
+    await prisma.role.update({ where: { id: masterRole.id }, data: { nivel: 100 } });
+  }
+
+  // Demais papéis padrão + sincronia de permissões.
+  for (const [nome, cfg] of Object.entries(ROLE_DEFAULTS)) {
+    let role = await prisma.role.findFirst({ where: { nome, organizationId } });
+    if (!role) {
+      role = await prisma.role.create({
+        data: {
+          id: require("crypto").randomUUID(), organizationId,
+          nome, descricao: (ROLE_DEFAULTS[nome] as any)?.descricao || nome,
+          isMaster: false, nivel: cfg.nivel,
+        },
+      });
+      logger?.log(`Role '${nome}' criada (org ${organizationId})`);
+    } else {
+      await prisma.role.update({ where: { id: role.id }, data: { nivel: cfg.nivel } });
+    }
+
+    const existingPerms = await prisma.rolePermission.findMany({ where: { roleId: role.id } });
+    const existingIds = new Set(existingPerms.map((rp: any) => rp.permissionId));
+    const desiredIds = new Set(cfg.permissoes.map(p => permMap[p]).filter(Boolean));
+
+    for (const permId of desiredIds) {
+      if (!existingIds.has(permId)) {
+        await prisma.rolePermission.create({ data: { roleId: role.id, permissionId: permId } });
+      }
+    }
+  }
+
+  return masterRole;
+}
+
+/**
+ * Catálogo de permissões — global, e chamável de fora para quem precisa do
+ * `permMap` antes de semear os papéis de uma organização nova.
+ */
+export async function semearPermissoes(prisma: any): Promise<Record<string, string>> {
+  const permMap: Record<string, string> = {};
+  for (const p of ALL_PERMISSIONS) {
+    const perm = await prisma.permission.upsert({
+      where: { recurso_acao: { recurso: p.recurso, acao: p.acao } },
+      create: { id: require("crypto").randomUUID(), recurso: p.recurso, acao: p.acao, descricao: p.descricao },
+      update: { descricao: p.descricao },
+    });
+    permMap[`${p.recurso}:${p.acao}`] = perm.id;
+  }
+  return permMap;
+}
+
+// Permissões por papel padrão (master ignora — tem acesso total via isMaster)
+// As BASE_PERMISSIONS são adicionadas automaticamente no resolvePermissions()
+// e NÃO precisam ser repetidas aqui, mas estão inclusas para clareza na UI
+
+/**
+ * Permissoes que o usuario comum NAO recebe.
+ *
+ * Sao as do grupo Core (Administracao) do menu: Cadastros, Historico,
+ * Configuracoes, Assinatura e WhatsApp. Decisao do usuario em 20/10/2026 ao
+ * simplificar o Core: "somente o usuario administrador fica com acesso master,
+ * o resto dos usuarios sao usuarios comuns e nao terao acesso ao modulo core".
+ *
+ * Esconder o grupo no menu nao bastaria -- menu nao e autorizacao. O grupo Core
+ * ja tem `access: "adminOrg"` em lib/modules.tsx, que o oculta de quem nao e
+ * master nem administrador; esta lista e o que faz o BACKEND recusar.
+ */
+const PERMISSOES_DE_ADMINISTRACAO = new Set<string>([
+  "usuarios:ver", "usuarios:criar", "usuarios:editar",
+  "usuarios:desativar", "usuarios:permissoes", "usuarios:excluir",
+  "configuracoes:ver", "configuracoes:editar",
+  "historico:ver",
+  "whatsapp:ver", "whatsapp:configurar",
+]);
+
+const ROLE_DEFAULTS: Record<string, { nivel: number; descricao: string; permissoes: string[] }> = {
+  administrador: {
+    nivel: 90,
+    descricao: "Acesso total ao sistema, gerenciamento de usuários e configurações",
+    permissoes: ALL_PERMISSIONS.map(p => `${p.recurso}:${p.acao}`),
+  },
+  gestor: {
+    nivel: 60,
+    descricao: "Gestão de projetos, equipes, relatórios e chamados",
+    permissoes: [
+      "dashboard:ver", "agenda:ver","agenda:criar","agenda:editar","agenda:deletar",
+      "projetos:ver","projetos:criar","projetos:editar","projetos:deletar","projetos:gerenciar",
+      "keep:ver","keep:criar","keep:editar",
+      "gantt:ver",
+      "chamados:ver","chamados:criar","chamados:editar","chamados:fechar","chamados:atribuir",
+      "whatsapp:ver",
+      "usuarios:ver",
+      "orcamento:ver","orcamento:planejar","orcamento:lancar","orcamento:aprovar","orcamento:admin",
+      "solicitacoes:ver","solicitacoes:criar","solicitacoes:editar","solicitacoes:aprovar",
+      "conhecimento:ver","conhecimento:criar","conhecimento:editar","conhecimento:publicar",
+      "sla:ver","sla:gerenciar",
+      "automacoes:ver","automacoes:criar","automacoes:editar","automacoes:excluir",
+      "financeiro:ver","financeiro:gerenciar",
+    ],
+  },
+  analista: {
+    nivel: 30,
+    descricao: "Perfil operacional padrão — agenda, KEEP, projetos e tarefas",
+    permissoes: [
+      "dashboard:ver", "agenda:ver","agenda:criar","agenda:editar","agenda:deletar",
+      "projetos:ver","projetos:criar","projetos:editar",
+      "keep:ver","keep:criar","keep:editar","keep:deletar",
+      "gantt:ver",
+      "chamados:ver","chamados:criar",
+      "whatsapp:ver",
+      "solicitacoes:ver","solicitacoes:criar",
+      "conhecimento:ver","conhecimento:criar",
+      "financeiro:ver",
+    ],
+  },
+  tecnico: {
+    nivel: 20,
+    descricao: "Foco em chamados e execução operacional",
+    permissoes: [
+      "dashboard:ver", "agenda:ver","agenda:criar","agenda:editar","agenda:deletar",
+      "chamados:ver","chamados:criar","chamados:editar","chamados:fechar",
+      "whatsapp:ver",
+      "solicitacoes:ver","solicitacoes:criar",
+      "conhecimento:ver",
+    ],
+  },
+  visualizador: {
+    nivel: 10,
+    descricao: "Somente leitura em todos os módulos",
+    permissoes: [
+      "dashboard:ver", ...ALL_PERMISSIONS.filter(p => p.acao === "ver").map(p => `${p.recurso}:${p.acao}`),
+      "whatsapp:ver",
+    ],
+  },
+  supervisor: {
+    nivel: 50,
+    descricao: "Supervisiona equipes e monitora operações — visão ampla com edição limitada",
+    permissoes: [
+      "dashboard:ver", "agenda:ver","agenda:criar","agenda:editar","agenda:deletar",
+      "projetos:ver","projetos:criar","projetos:editar",
+      "keep:ver","keep:criar","keep:editar","keep:deletar",
+      "gantt:ver",
+      "chamados:ver","chamados:criar","chamados:editar","chamados:fechar","chamados:atribuir",
+      "whatsapp:ver",
+      "usuarios:ver",
+      "orcamento:ver",
+      "solicitacoes:ver","solicitacoes:criar","solicitacoes:editar","solicitacoes:aprovar",
+      "conhecimento:ver","conhecimento:criar","conhecimento:editar",
+      "sla:ver",
+    ],
+  },
+  operador: {
+    nivel: 15,
+    descricao: "Perfil operacional básico — executa tarefas atribuídas em chamados e projetos",
+    permissoes: [
+      "dashboard:ver", "agenda:ver","agenda:criar","agenda:editar",
+      "projetos:ver",
+      "keep:ver","keep:criar",
+      "chamados:ver","chamados:criar","chamados:editar",
+      "whatsapp:ver",
+      "solicitacoes:ver","solicitacoes:criar",
+      "conhecimento:ver",
+    ],
+  },
+  auditor: {
+    nivel: 40,
+    descricao: "Acesso somente-leitura a todos os módulos incluindo trilha de auditoria",
+    permissoes: [
+      "dashboard:ver", ...ALL_PERMISSIONS.filter(p => p.acao === "ver").map(p => `${p.recurso}:${p.acao}`),
+    ],
+  },
+  /**
+   * O papel de todo mundo.
+   *
+   * Desde 20/10/2026 o cadastro do Core e um so e nao escolhe perfil: quem e
+   * criado nasce com este papel e enxerga TODOS os produtos da versao reduzida
+   * -- Space (Agenda, Keep), Projects (Projetos, Concluidos, Linha do Tempo),
+   * Finance (Financeiro, Meus Gastos, Contas a Pagar, Orcamento) e as
+   * integracoes -- menos o grupo Core.
+   *
+   * Os papeis acima (gestor, analista, tecnico, supervisor, operador, auditor,
+   * visualizador) FICAM no catalogo de proposito: o Hub Transbrasiliana roda do
+   * mesmo repositorio e usa esses perfis de verdade. O Orkiestri parou de
+   * atribui-los; apagar a semente os tiraria do Hub junto.
+   */
+  usuario: {
+    nivel: 25,
+    descricao: `Acesso a todos os produtos do ${MARCA}, menos a administracao`,
+    permissoes: ALL_PERMISSIONS
+      .map(p => `${p.recurso}:${p.acao}`)
+      .filter(p => !PERMISSOES_DE_ADMINISTRACAO.has(p)),
+  },
+};
+
+@Injectable()
+export class AuthService implements OnModuleInit {
+  private readonly logger = new Logger(AuthService.name);
+  constructor(
+    private prisma: PrismaService,
+    private jwt: JwtService,
+    private config: ConfigService,
+    private cache: CacheService,
+    private wa: WhatsAppService,
+    private email: EmailService,
+    private automacao: AutomacaoService,
+  ) {}
+
+  async onModuleInit() {
+    try {
+      await this.seedMaster();
+    } catch (e) {
+      this.logger.warn("Seed master erro: " + e.message);
+    }
+  }
+
+  private async seedMaster() {
+    const masterEmail = this.config.get<string>("MASTER_EMAIL");
+    const masterPassword = this.config.get<string>("MASTER_PASSWORD");
+    const masterNome = this.config.get<string>("MASTER_NOME", "Administrator");
+
+    if (!masterEmail || !masterPassword) {
+      throw new Error("MASTER_EMAIL e MASTER_PASSWORD são obrigatórios no ambiente. A API não pode inicializar sem essas variáveis.");
+    }
+
+    await this.seedPermissionsAndRoles();
+
+    const DEFAULT_ORG = "00000000-0000-0000-0000-000000000001";
+
+    // O papel master e DA ORGANIZACAO do usuario master. Buscar por nome
+    // global aqui devolveria o master de outro tenant no dia em que existisse
+    // mais de um — e era exatamente esse compartilhamento o defeito.
+    //
+    // `seedRolesDaOrganizacao` cria o que faltar e devolve o master, entao
+    // cobre tambem a instalacao nova, em que a org padrao ainda nao tem papeis.
+    const masterRole = await this.seedRolesDaOrganizacao(DEFAULT_ORG);
+    const exists = await this.prisma.user.findFirst({ where: { email: masterEmail } });
+    if (!exists) {
+      const hash = await bcrypt.hash(masterPassword, 12);
+      await this.prisma.user.create({
+        data: {
+          nome: masterNome,
+          email: masterEmail,
+          senhaHash: hash,
+          ativo: true,
+          organizationId: DEFAULT_ORG,
+          userRoles: { create: { roleId: masterRole.id } },
+        } as any,
+      });
+      this.logger.log("Usuario master criado: " + masterEmail);
+    } else {
+      // NÃO reescreve a senha.
+      //
+      // Isto sincronizava o hash com MASTER_PASSWORD a cada inicialização da
+      // API — ou seja, o administrador nunca conseguia trocar a própria senha:
+      // a troca era desfeita no deploy seguinte, sem aviso e sem log. Custou um
+      // dia inteiro de "a senha parou de funcionar" em 29/07/2026, com o
+      // sintoma aparecendo horas depois da causa.
+      //
+      // O boot continua garantindo que a conta está utilizável — ativa e
+      // desbloqueada, para ninguém ficar trancado fora do próprio sistema —
+      // mas a senha passa a pertencer ao usuário. Para redefinir existe a
+      // recuperação por e-mail e por WhatsApp.
+      await this.prisma.user.update({
+        where: { id: exists.id },
+        data: { bloqueado: false, tentativasFalhas: 0, ativo: true } as any,
+      });
+      const hasRole = await this.prisma.userRole.findUnique({
+        where: { userId_roleId: { userId: exists.id, roleId: masterRole.id } }
+      });
+      if (!hasRole) {
+        await this.prisma.userRole.create({ data: { userId: exists.id, roleId: masterRole.id } });
+        this.logger.log("Role master atribuida ao usuario: " + masterEmail);
+      }
+      this.logger.log("Usuario master verificado: " + masterEmail);
+    }
+  }
+
+  /**
+   * Catálogo de permissões — GLOBAL de propósito.
+   *
+   * Permissão é capacidade do sistema (`chamados:criar`), não dado de cliente.
+   * O que passou a ser por organização é o AMARRADO entre papel e permissão.
+   */
+  private async seedPermissions(): Promise<Record<string, string>> {
+    const permMap: Record<string, string> = {};
+    for (const p of ALL_PERMISSIONS) {
+      const perm = await this.prisma.permission.upsert({
+        where: { recurso_acao: { recurso: p.recurso, acao: p.acao } },
+        create: { id: require("crypto").randomUUID(), recurso: p.recurso, acao: p.acao, descricao: p.descricao },
+        update: { descricao: p.descricao },
+      });
+      permMap[`${p.recurso}:${p.acao}`] = perm.id;
+    }
+    return permMap;
+  }
+
+  /** Ver `semearPapeisDaOrganizacao` — a lógica é módulo-nível para poder ser
+   *  usada por quem cria organização sem precisar importar o AuthModule. */
+  async seedRolesDaOrganizacao(organizationId: string, permMapExterno?: Record<string, string>) {
+    const permMap = permMapExterno ?? (await this.seedPermissions());
+    return semearPapeisDaOrganizacao(this.prisma, organizationId, permMap, this.logger);
+  }
+
+  /** No boot: permissões uma vez, papéis para CADA organização existente. */
+  private async seedPermissionsAndRoles() {
+    const permMap = await this.seedPermissions();
+
+    const orgs = await this.prisma.organization.findMany({ select: { id: true } });
+    for (const org of orgs) {
+      await this.seedRolesDaOrganizacao(org.id, permMap);
+    }
+
+    this.logger.log(`Permissões e papéis padrão verificados (${orgs.length} organização(ões))`);
+  }
+
+  private roleDesc(nome: string) {
+    return (ROLE_DEFAULTS[nome] as any)?.descricao || nome;
+  }
+
+  // Resolve as permissões efetivas de um usuário (base + papéis + overrides)
+  // Sempre busca do cache/banco — nunca do JWT — para que mudanças de papel sejam imediatas
+  async resolvePermissions(userId: string): Promise<string[]> {
+    const cacheKey = `cache:permissions:${userId}`;
+    const cached = await this.cache.get<string[]>(cacheKey);
+    if (cached) return cached;
+
+    const user = await (this.prisma.user.findUnique as any)({
+      where: { id: userId },
+      include: {
+        userRoles: {
+          include: {
+            role: {
+              include: { rolePermissions: { include: { permission: true } } }
+            }
+          }
+        },
+        permissionOverrides: { include: { permission: true } },
+      },
+    }) as {
+      userRoles: { role: { isMaster: boolean; rolePermissions: { permission: { recurso: string; acao: string } }[] } }[];
+      permissionOverrides: { conceder: boolean; permission: { recurso: string; acao: string } }[];
+    } | null;
+
+    if (!user) return [];
+
+    let result: string[];
+
+    if (user.userRoles.some(ur => ur.role.isMaster)) {
+      result = ["*"];
+    } else if ((user as any).isTrial) {
+      // Acesso de teste: enxerga SÓ o módulo que escolheu na landing page —
+      // nada mais. NÃO ganha a Visão Geral (dashboard:ver): aquela tela consulta
+      // relatórios/aprovações/orçamento de módulos que o trial não tem e por isso
+      // vinha dando erro; sem a permissão, o pós-login redireciona direto para o
+      // módulo (o /dashboard já manda quem não tem dashboard:ver para a 1ª rota
+      // acessível). NÃO herda BASE_PERMISSIONS nem papel — este é o único ponto
+      // que decide o que o trial vê, no menu e na autorização do backend.
+      const recursos = this.TRIAL_PRODUTO_RECURSOS[(user as any).trialModulo || ""] || [];
+      const perms = new Set<string>();
+      if (recursos.length) {
+        const permsDb = await this.prisma.permission.findMany({ where: { recurso: { in: recursos } } });
+        for (const p of permsDb) perms.add(`${p.recurso}:${p.acao}`);
+      }
+      result = Array.from(perms);
+    } else {
+      const perms = new Set<string>(BASE_PERMISSIONS);
+      for (const ur of user.userRoles) {
+        for (const rp of ur.role.rolePermissions) {
+          perms.add(`${rp.permission.recurso}:${rp.permission.acao}`);
+        }
+      }
+      for (const ov of user.permissionOverrides) {
+        const key = `${ov.permission.recurso}:${ov.permission.acao}`;
+        if (ov.conceder) perms.add(key);
+        else perms.delete(key);
+      }
+      result = Array.from(perms);
+    }
+
+    await this.cache.set(cacheKey, result, 300);
+    return result;
+  }
+
+  async invalidatePermissionsCache(userId: string): Promise<void> {
+    await this.cache.del(`cache:permissions:${userId}`);
+  }
+
+  async login(email: string, senha: string) {
+    const user = await this.prisma.user.findFirst({
+      where: { email },
+      include: { userRoles: { include: { role: true } } },
+    });
+    if (!user || !user.ativo) throw new UnauthorizedException("Credenciais inválidas");
+    const isMasterUser = user.userRoles.some(ur => ur.role.isMaster);
+    if ((user as any).bloqueado) {
+      throw new UnauthorizedException("Conta bloqueada. Contate o Administrador.");
+    }
+    const valid = await bcrypt.compare(senha, user.senhaHash);
+    if (!valid) {
+      // Registra tentativa falha para todos os usuários, incluindo master
+      const novasTentativas = ((user as any).tentativasFalhas || 0) + 1;
+      const bloquear = !isMasterUser && novasTentativas >= 5;
+      await this.prisma.user.update({
+        where: { id: user.id },
+        data: { tentativasFalhas: novasTentativas, ...(bloquear ? { bloqueado: true } : {}) } as any,
+      });
+      if (bloquear) throw new UnauthorizedException("Conta bloqueada após múltiplas tentativas. Contate o Administrador.");
+      throw new UnauthorizedException("Credenciais inválidas");
+    }
+    // Acesso vencido: a senha está certa, mas acabou o teste de 7 dias (sem
+    // efetivar) ou o mês pago (sem renovar). Bloqueia aqui (não desativa a conta)
+    // para o suporte ainda ver o registro e fazer o contato. Responder "1" no
+    // WhatsApp em até 15 dias libera de novo.
+    if (acessoVencido(user as any, new Date())) {
+      throw new UnauthorizedException((user as any).assinaturaEm
+        ? "Sua mensalidade venceu. Responda 1 no aviso que enviamos no WhatsApp para renovar, ou fale com a nossa equipe."
+        : "Seu teste de 7 dias expirou. Responda 1 no aviso que enviamos no WhatsApp para continuar, ou fale com a nossa equipe.");
+    }
+    // ── Primeiro acesso: a senha provisória NÃO abre sessão ────────────────
+    //
+    // A senha está certa, mas ela foi gerada pelo sistema e trafegou por
+    // WhatsApp ou e-mail. Até ser trocada, ela vale como prova de que a pessoa
+    // recebeu a mensagem — não como credencial de uso.
+    //
+    // Antes a sessão era criada e o frontend REDIRECIONAVA para trocar a senha.
+    // Quem ignorasse o redirecionamento (ou chamasse a API direto) já estava
+    // dentro com a senha provisória. Agora nenhum token é emitido: mandamos um
+    // código para o e-mail CADASTRADO e só devolvemos sessão em
+    // `confirmarPrimeiroAcesso`, depois de código conferido e senha trocada.
+    //
+    // O código vai para o e-mail de propósito: a senha provisória chegou pelo
+    // WhatsApp, então exigir o e-mail confirma um segundo canal, e de quebra
+    // prova que o e-mail digitado no cadastro existe e é da pessoa.
+    if ((user as any).primeiroAcesso) {
+      await this.enviarCodigoPrimeiroAcesso(user as any);
+      return {
+        precisaTrocarSenha: true,
+        email: user.email,
+        mensagem: "Enviamos um código para o seu e-mail. Use-o para criar a sua senha.",
+      } as any;
+    }
+
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: { ultimoLogin: new Date(), tentativasFalhas: 0 } as any,
+    });
+    this.logAudit(user.id, "auth", "users", user.id, "LOGIN", `Login bem-sucedido: ${user.email}`, (user as any).organizationId).catch(() => {});
+    const roles = user.userRoles.map(ur => ur.role.nome);
+    const isMaster = user.userRoles.some(ur => ur.role.isMaster);
+    const isSuperAdmin = await this.checkGlobalSuperAdmin(user.id, user.email);
+    const permissions = await this.resolvePermissions(user.id);
+    const primeiroAcesso = (user as any).primeiroAcesso ?? true;
+    const organizationId = (user as any).organizationId;
+    // `permissions` NÃO entra no token, de propósito.
+    //
+    // O token vai num cookie, e navegador descarta silenciosamente cookie acima
+    // de 4096 bytes. Com 144 permissões o JWT dava 4531 bytes e o cookie 4596:
+    // o login respondia 200, o navegador jogava o cookie fora, o middleware não
+    // achava sessão e devolvia todo mundo para a tela de entrada. Ninguém
+    // conseguia usar o sistema, e o log da API não acusava nada — porque do
+    // lado do servidor estava tudo certo.
+    //
+    // Carregar a lista aqui também era peso morto: `JwtStrategy.validate` já
+    // chama `resolvePermissions(sub)` e IGNORA o que vem assinado — de
+    // propósito, para que revogar permissão tenha efeito imediato em vez de
+    // esperar as 8h de validade do token. O frontend recebe as permissões pelo
+    // CORPO da resposta (`user.permissions`), que não tem limite de tamanho.
+    //
+    // Sem elas o token fica em ~500 bytes. Não voltar a colocá-las aqui.
+    const payload = { sub: user.id, email: user.email, organizationId, roles, isMaster, isSuperAdmin };
+    const accessToken = this.jwt.sign(payload, { secret: this.config.get("JWT_SECRET"), expiresIn: "8h" });
+    const refreshToken = this.jwt.sign({ sub: user.id }, { secret: this.config.get("JWT_REFRESH_SECRET"), expiresIn: "7d" });
+    return {
+      accessToken, refreshToken, primeiroAcesso,
+      user: { id: user.id, nome: user.nome, email: user.email, avatar: user.avatar, organizationId, roles, isMaster, isSuperAdmin, permissions, primeiroAcesso },
+    };
+  }
+
+  // ── Primeiro acesso: código por e-mail, antes de haver sessão ─────────────
+
+  /**
+   * Manda para o e-mail cadastrado o código de 6 dígitos do primeiro acesso.
+   *
+   * Reaproveita `password_reset_otps`, que já existia para a recuperação por
+   * WhatsApp: é a mesma coisa — um código curto, de uso único e com validade.
+   * Criar uma segunda tabela só mudaria o nome do problema.
+   *
+   * Invalida os códigos anteriores da pessoa antes de gravar o novo, senão
+   * pedir de novo deixaria dois códigos válidos ao mesmo tempo.
+   */
+  private async enviarCodigoPrimeiroAcesso(user: { id: string; nome: string; email: string }) {
+    const codigo = String(require("crypto").randomInt(0, 1_000_000)).padStart(6, "0");
+    await (this.prisma as any).passwordResetOtp.updateMany({
+      where: { userId: user.id, used: false },
+      data: { used: true },
+    });
+    await (this.prisma as any).passwordResetOtp.create({
+      data: {
+        id: require("crypto").randomUUID(),
+        userId: user.id,
+        otpCode: codigo,
+        // 15 minutos: tempo de abrir o e-mail sem deixar o código vivo à toa.
+        otpExpiresAt: new Date(Date.now() + 15 * 60_000),
+      },
+    });
+    await this.email
+      .enviarNotificacao(
+        user.email,
+        "Seu código para criar a senha",
+        this.htmlCodigoPrimeiroAcesso(user.nome, codigo),
+      )
+      .catch((e: any) => this.logger.warn(`codigo de primeiro acesso nao enviado: ${e?.message || e}`));
+    this.logger.log(`Codigo de primeiro acesso enviado para ${user.email}`);
+  }
+
+  /**
+   * Confere o código, troca a senha e SÓ ENTÃO devolve a sessão.
+   *
+   * Pede a senha provisória de novo junto com o código. São duas provas de
+   * coisas diferentes: a senha prova que a pessoa recebeu a mensagem do
+   * WhatsApp, o código prova que ela tem o e-mail. Uma só não basta — foi por
+   * isso que o fluxo saiu de dentro da sessão.
+   */
+  async confirmarPrimeiroAcesso(email: string, senhaProvisoria: string, codigo: string, novaSenha: string) {
+    if (!novaSenha || novaSenha.length < 8) {
+      throw new BadRequestException("A nova senha precisa de pelo menos 8 caracteres.");
+    }
+    const user = await (this.prisma.user.findFirst as any)({
+      where: { email: (email || "").trim().toLowerCase() },
+      include: { userRoles: { include: { role: true } } },
+    });
+    // Mensagem única para usuário inexistente, senha errada ou código errado:
+    // quem está tentando adivinhar não descobre em qual dos três errou.
+    const generico = "Código ou senha inválidos.";
+    if (!user) throw new UnauthorizedException(generico);
+    if (!(await bcrypt.compare(senhaProvisoria, user.senhaHash))) throw new UnauthorizedException(generico);
+
+    const otp = await (this.prisma as any).passwordResetOtp.findFirst({
+      where: { userId: user.id, used: false, otpExpiresAt: { gt: new Date() } },
+      orderBy: { criadoEm: "desc" },
+    });
+    if (!otp) throw new UnauthorizedException("Código expirado. Entre de novo para receber outro.");
+
+    if (otp.otpCode !== (codigo || "").trim()) {
+      const tentativas = (otp.otpAttempts || 0) + 1;
+      // Queima o código no quinto erro: sem isso, seis dígitos caem em pouco
+      // tempo para quem tentar em sequência.
+      await (this.prisma as any).passwordResetOtp.update({
+        where: { id: otp.id },
+        data: { otpAttempts: tentativas, ...(tentativas >= 5 ? { used: true } : {}) },
+      });
+      throw new UnauthorizedException(
+        tentativas >= 5 ? "Código inválido demais vezes. Entre de novo para receber outro." : generico,
+      );
+    }
+
+    await (this.prisma as any).passwordResetOtp.update({ where: { id: otp.id }, data: { used: true } });
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        senhaHash: await bcrypt.hash(novaSenha, 12),
+        primeiroAcesso: false,
+        tentativasFalhas: 0,
+        ultimoLogin: new Date(),
+      } as any,
+    });
+    this.logAudit(user.id, "auth", "users", user.id, "UPDATE", `Senha criada no primeiro acesso: ${user.email}`, user.organizationId).catch(() => {});
+
+    // A sessão nasce aqui, com a senha JÁ trocada.
+    const roles = user.userRoles.map((ur: any) => ur.role.nome);
+    const isMaster = user.userRoles.some((ur: any) => ur.role.isMaster);
+    const isSuperAdmin = await this.checkGlobalSuperAdmin(user.id, user.email);
+    const permissions = await this.resolvePermissions(user.id);
+    const organizationId = user.organizationId;
+    const payload = { sub: user.id, email: user.email, organizationId, roles, isMaster, isSuperAdmin };
+    return {
+      accessToken: this.jwt.sign(payload, { secret: this.config.get("JWT_SECRET"), expiresIn: "8h" }),
+      refreshToken: this.jwt.sign({ sub: user.id }, { secret: this.config.get("JWT_REFRESH_SECRET"), expiresIn: "7d" }),
+      primeiroAcesso: false,
+      user: { id: user.id, nome: user.nome, email: user.email, avatar: user.avatar, organizationId, roles, isMaster, isSuperAdmin, permissions, primeiroAcesso: false },
+    };
+  }
+
+  /** Reenvia o código, exigindo a senha provisória para não virar disparador. */
+  async reenviarCodigoPrimeiroAcesso(email: string, senhaProvisoria: string) {
+    const user = await (this.prisma.user.findFirst as any)({
+      where: { email: (email || "").trim().toLowerCase() },
+    });
+    // Resposta igual com ou sem conta, para a rota não dizer quem existe.
+    const resposta = { ok: true, mensagem: "Se os dados estiverem certos, enviamos um código novo." };
+    if (!user || !(user as any).primeiroAcesso) return resposta;
+    if (!(await bcrypt.compare(senhaProvisoria, user.senhaHash))) return resposta;
+    await this.enviarCodigoPrimeiroAcesso(user as any);
+    return resposta;
+  }
+
+  private htmlCodigoPrimeiroAcesso(nome: string, codigo: string): string {
+    const nm = (nome || "").trim().split(/\s+/)[0] || "";
+    return `
+      <div style="font-family:system-ui,-apple-system,Segoe UI,sans-serif;max-width:520px;margin:0 auto;color:#111">
+        <h2 style="font-size:20px;margin:0 0 12px">Olá${nm ? ", " + nm : ""}!</h2>
+        <p style="font-size:15px;line-height:1.6;color:#444;margin:0 0 20px">
+          Use o código abaixo para criar a sua senha e entrar no ${MARCA}.
+        </p>
+        <div style="font-size:34px;font-weight:700;letter-spacing:10px;text-align:center;
+                    padding:18px;background:#f5f5f5;border-radius:12px;margin:0 0 20px">${codigo}</div>
+        <p style="font-size:13px;line-height:1.6;color:#777;margin:0">
+          O código vale por 15 minutos. Se não foi você que pediu, ignore este e-mail —
+          sua conta continua protegida, porque sem a senha provisória o código não serve.
+        </p>
+      </div>`;
+  }
+
+  /**
+   * Super Admin GLOBAL — único usuário com visão de todas as organizações.
+   * NÃO confundir com "master" (papel administrativo dentro de um tenant).
+   * Determinado por: e-mail do SA global OU registro em super_admins.
+   */
+  async checkGlobalSuperAdmin(userId: string, email: string): Promise<boolean> {
+    const saEmail = (this.config.get<string>("SUPER_ADMIN_EMAIL", "administrator@orkiestri.com") || "").toLowerCase();
+    if (email && email.toLowerCase() === saEmail) return true;
+    try {
+      const sa = await (this.prisma as any).superAdmin.findUnique({ where: { userId } });
+      return !!sa;
+    } catch { return false; }
+  }
+
+  async me(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      include: { userRoles: { include: { role: true } }, profile: true },
+    });
+    if (!user) throw new UnauthorizedException();
+    const isMaster = user.userRoles.some(ur => ur.role.isMaster);
+    const isSuperAdmin = await this.checkGlobalSuperAdmin(user.id, user.email);
+    let modulos: string[];
+    try { modulos = JSON.parse((user.profile as any)?.modulos || "[]"); } catch { modulos = []; }
+    const permissions = await this.resolvePermissions(userId);
+    return {
+      id: user.id, nome: user.nome, email: user.email, avatar: user.avatar,
+      organizationId: (user as any).organizationId,
+      roles: user.userRoles.map(ur => ur.role.nome),
+      isMaster,
+      isSuperAdmin,
+      modulos,
+      permissions,
+    };
+  }
+
+  async logout(userId: string, iat?: number, exp?: number) {
+    if (iat && exp) {
+      const now = Math.floor(Date.now() / 1000);
+      const ttl = exp - now;
+      if (ttl > 0) {
+        await this.cache.set(`blacklist:jwt:${userId}:${iat}`, 1, ttl);
+      }
+    }
+    return { message: "Logout realizado" };
+  }
+
+  async isTokenBlacklisted(userId: string, iat: number): Promise<boolean> {
+    const val = await this.cache.get<number>(`blacklist:jwt:${userId}:${iat}`);
+    return val !== null;
+  }
+
+  private async logAudit(userId: string | null, modulo: string, tabela: string, registroId: string, acao: string, descricao: string, organizationId?: string) {
+    try {
+      await (this.prisma.auditLog.create as any)({
+        data: {
+          id: require("crypto").randomUUID(),
+          userId, modulo, tabela, registroId, acao, descricao,
+          ...(organizationId ? { organizationId } : {}),
+        },
+      });
+    } catch {}
+  }
+
+  async forgotPassword(email: string) {
+    const user = await this.prisma.user.findFirst({ where: { email } });
+    if (!user) return { message: "Se o e-mail existir, o master sera notificado" };
+    const master = await this.prisma.user.findFirst({
+      where: { ativo: true, userRoles: { some: { role: { isMaster: true } } } },
+      orderBy: { criadoEm: "asc" },
+    });
+    if (master) {
+      await this.prisma.notification.create({
+        data: {
+          userId: master.id,
+          tipo: "reset_senha",
+          titulo: "Solicitacao de reset de senha",
+          mensagem: user.nome + " (" + user.email + ") solicitou redefinicao de senha.",
+          referenciaTipo: "user",
+          referenciaId: user.id,
+        },
+      });
+      this.email.sendPasswordResetRequest(user.email, user.nome, master.nome, master.email).catch(() => {});
+    }
+    return { message: "Solicitacao enviada. O administrador sera notificado." };
+  }
+
+  private async getMasterUserId(): Promise<string> {
+    const master = await this.prisma.user.findFirst({
+      where: { ativo: true, userRoles: { some: { role: { isMaster: true } } } },
+      orderBy: { criadoEm: "asc" },
+    });
+    if (!master) throw new NotFoundException("Master nao encontrado");
+    return master.id;
+  }
+
+  async getPasswordRequests(requestUser: any) {
+    if (!requestUser.isMaster) throw new ForbiddenException("Apenas masters");
+    return this.prisma.notification.findMany({
+      where: { tipo: "reset_senha", lida: false },
+      orderBy: { criadoEm: "desc" },
+    });
+  }
+
+  async resolvePasswordRequest(notificationId: string, requestUser: any) {
+    if (!requestUser.isMaster) throw new ForbiddenException("Apenas masters");
+    await this.prisma.notification.update({ where: { id: notificationId }, data: { lida: true } });
+    return { message: "Solicitacao resolvida" };
+  }
+
+  // ── Solicitações de acesso ─────────────────────────────────────────────────────
+
+  async createUserRequest(dto: {
+    nome: string; email: string; whatsapp?: string; cargo?: string;
+    departamento?: string; empresa?: string; motivacao?: string; organizationId?: string;
+    produtos?: string[];
+  }) {
+    // Validate organizationId if provided
+    if (dto.organizationId) {
+      const org = await this.prisma.organization.findFirst({
+        where: { id: dto.organizationId, ativo: true } as any,
+      });
+      if (!org) throw new BadRequestException("Organização não encontrada ou inativa.");
+    }
+    const existing = await this.prisma.user.findFirst({ where: { email: dto.email } });
+    if (existing) throw new BadRequestException("Este e-mail já possui cadastro no sistema.");
+    const pending = await (this.prisma as any).userRequest.findFirst({
+      where: { email: dto.email, status: "PENDENTE" },
+    });
+    if (pending) throw new BadRequestException("Já existe uma solicitação pendente para este e-mail.");
+    const req = await (this.prisma as any).userRequest.create({
+      data: { id: require("crypto").randomUUID(), ...dto },
+    });
+    // Notificar master e todos os administradores — sino no painel E e-mail.
+    const produtos = Array.isArray(dto.produtos) ? dto.produtos : [];
+    const resumoProdutos = produtos.length
+      ? ` Produtos de interesse: ${produtos.join(", ")}.`
+      : "";
+    try {
+      const adminUsers = await this.prisma.user.findMany({
+        where: {
+          ativo: true,
+          userRoles: { some: { role: { OR: [{ isMaster: true }, { nome: "administrador" }] } } },
+        },
+        select: { id: true, email: true, nome: true },
+      });
+      for (const admin of adminUsers) {
+        await this.prisma.notification.create({
+          data: {
+            id: require("crypto").randomUUID(),
+            userId: admin.id,
+            tipo: "solicitacao_acesso",
+            titulo: "Nova solicitação de acesso",
+            mensagem: `${dto.nome} (${dto.email}) solicitou criação de acesso.${resumoProdutos}`,
+            referenciaTipo: "user_request",
+            referenciaId: req.id,
+          },
+        });
+        // E-mail real ao admin. Não deixa a solicitação falhar se o envio cair:
+        // o registro e o sino já garantem que o pedido não se perde.
+        this.email
+          .sendAccessRequestToAdmin(admin.email, admin.nome || "administrador", {
+            nome: dto.nome,
+            email: dto.email,
+            empresa: dto.empresa,
+            whatsapp: dto.whatsapp,
+            cargo: dto.cargo,
+            departamento: dto.departamento,
+            motivacao: dto.motivacao,
+            produtos,
+          })
+          .catch(() => {});
+      }
+    } catch {}
+    return { message: "Solicitação enviada. Aguarde aprovação do administrador." };
+  }
+
+  private canManageRequests(requestUser: any): boolean {
+    return requestUser.isMaster ||
+      (Array.isArray(requestUser.permissions) && (
+        requestUser.permissions.includes("*") ||
+        requestUser.permissions.includes("usuarios:criar")
+      ));
+  }
+
+  async listUserRequests(requestUser: any) {
+    if (!this.canManageRequests(requestUser)) throw new ForbiddenException("Acesso negado.");
+    // Isolamento multi-tenant: master de tenant só vê solicitações da
+    // própria organização. Apenas o Super Admin global vê todas.
+    const where = requestUser.isSuperAdmin
+      ? {}
+      : { organizationId: requestUser.organizationId };
+    return (this.prisma as any).userRequest.findMany({
+      where,
+      orderBy: { criadoEm: "desc" },
+    });
+  }
+
+  /**
+   * Lista os acessos de teste (trials) para o painel do suporte: pipeline de
+   * conversão, com o WhatsApp para o contato humano. Ordena pelo vencimento
+   * (os que vencem antes primeiro). Master de tenant só vê os da própria org.
+   */
+  async listTrials(requestUser: any) {
+    if (!this.canManageRequests(requestUser)) throw new ForbiddenException("Acesso negado.");
+    const where: any = { isTrial: true };
+    if (!requestUser.isSuperAdmin) where.organizationId = requestUser.organizationId;
+    const users = await this.prisma.user.findMany({
+      where, orderBy: { trialExpiraEm: "asc" } as any, include: { profile: true },
+    });
+    return users.map((u: any) => ({
+      id: u.id,
+      nome: u.nome,
+      email: u.email,
+      whatsapp: u.profile?.whatsapp || null,
+      produto: u.trialModulo || null,
+      trialExpiraEm: u.trialExpiraEm,
+      avisado: u.trialAvisadoSuporte,
+      criadoEm: u.criadoEm,
+    }));
+  }
+
+  /**
+   * "Fale Conosco": um usuário logado manda uma dúvida, que vai por e-mail
+   * (assunto HELP) para master + administradores. Reaproveita o padrão de
+   * destinatários do fluxo de solicitação de acesso.
+   */
+  async enviarAjuda(requestUser: any, mensagem: string) {
+    const msg = (mensagem || "").trim();
+    if (msg.length < 3) throw new BadRequestException("Escreva sua dúvida ou mensagem.");
+    if (msg.length > 2000) throw new BadRequestException("Mensagem muito longa (máximo 2000 caracteres).");
+    const remetente = await this.prisma.user.findUnique({
+      where: { id: requestUser.id }, select: { email: true, nome: true },
+    });
+    const admins = await this.prisma.user.findMany({
+      where: {
+        ativo: true,
+        userRoles: { some: { role: { OR: [{ isMaster: true }, { nome: "administrador" }] } } },
+      },
+      select: { email: true, nome: true },
+    });
+    for (const admin of admins) {
+      this.email
+        .sendHelpToAdmin(admin.email, admin.nome || "administrador", remetente?.email || "", remetente?.nome || "", msg)
+        .catch(() => {});
+    }
+    return { message: "Sua mensagem foi enviada. Em breve entraremos em contato." };
+  }
+
+  async approveUserRequest(id: string, dto: {
+    nome?: string; email?: string; whatsapp?: string;
+    cargo?: string; departamento?: string; empresa?: string;
+    // Workforce: provisionamento estrutural do colaborador.
+    //
+    // `setorId` saiu em 20/10/2026, junto com a tabela `setores`. Era gravado
+    // em user_profiles e em collaborators, e as duas colunas foram derrubadas.
+    // Preferi TIRAR o campo a mantê-lo aceito e ignorado: campo que o cliente
+    // manda e o servidor joga fora é pior do que campo que não existe — ele
+    // some sem erro e ninguém descobre por que o setor "não salvou".
+    //
+    // A coluna `user_requests.setor_id` continua no banco (é TEXT solta, sem
+    // FK) porque o Workforce do Hub a escreve pelo caminho dele.
+    gestorId?: string | null;
+    jornadaHorasDia?: number;
+    squad?: string;
+    senioridade?: string;
+    tipoVinculo?: string;
+    perfilRoleId?: string | null;
+    matricula?: string;
+    // Aprovação rápida (notificação): senha padrão 123@mudar em vez de aleatória.
+    senhaPadrao?: boolean;
+  }, requestUser: any) {
+    if (!this.canManageRequests(requestUser)) throw new ForbiddenException("Acesso negado.");
+    const req = await (this.prisma as any).userRequest.findUnique({ where: { id } });
+    if (!req) throw new NotFoundException("Solicitação não encontrada.");
+    if (req.status !== "PENDENTE") throw new BadRequestException("Solicitação já processada.");
+    // Isolamento: master de tenant só aprova solicitações da própria org
+    if (!requestUser.isSuperAdmin && req.organizationId && req.organizationId !== requestUser.organizationId) {
+      throw new ForbiddenException("Solicitação pertence a outra organização.");
+    }
+
+    // Senha: padrão fixa (123@mudar) na aprovação rápida pela notificação, ou
+    // aleatória no fluxo detalhado de Cadastros. O `primeiroAcesso: true` abaixo
+    // obriga a troca no primeiro login nos dois casos, então a fixa não fica no ar.
+    let tempPassword: string;
+    if (dto.senhaPadrao) {
+      tempPassword = "123@mudar";
+    } else {
+      const chars = "abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789!@#$";
+      tempPassword = Array.from({ length: 12 }, () => chars[Math.floor(Math.random() * chars.length)]).join("") + "A1!";
+    }
+    const senhaHash = await bcrypt.hash(tempPassword, 12);
+
+    // Usa dados editados pelo admin (fallback para os dados originais)
+    const nome = dto.nome?.trim() || req.nome;
+    const email = dto.email?.trim() || req.email;
+    const whatsapp = dto.whatsapp?.trim() || req.whatsapp || null;
+    const cargo = dto.cargo?.trim() || req.cargo || null;
+    const departamento = dto.departamento?.trim() || req.departamento || null;
+    const empresa = dto.empresa?.trim() || req.empresa || null;
+
+    const organizationId = req.organizationId || requestUser.organizationId || "00000000-0000-0000-0000-000000000001";
+
+    // Papel a aplicar: o que o admin escolheu ou, por padrao, `usuario` -- o
+    // papel unico do Orkiestri desde 20/10/2026, que abre todos os produtos e
+    // fecha a administracao. Antes caia em tecnico/analista, perfis que o
+    // Orkiestri parou de atribuir (o Hub ainda os usa de verdade).
+    //
+    // Resolvido DEPOIS de `organizationId` e filtrado por ele de proposito:
+    // papel e dado de cliente, nao catalogo global, e um findFirst sem escopo
+    // pegava o papel do primeiro tenant que tivesse o nome.
+    let chosenRole: any = null;
+    if (dto.perfilRoleId) {
+      chosenRole = await this.prisma.role.findFirst({
+        where: { id: dto.perfilRoleId, organizationId } as any,
+      });
+    }
+    if (!chosenRole) {
+      chosenRole = await this.prisma.role.findFirst({
+        where: { nome: "usuario", isMaster: false, organizationId } as any,
+      });
+    }
+    const userId = require("crypto").randomUUID();
+    await this.prisma.user.create({
+      data: {
+        id: userId,
+        nome,
+        email,
+        senhaHash,
+        ativo: true,
+        primeiroAcesso: true,
+        bloqueado: false,
+        tentativasFalhas: 0,
+        organizationId,
+      } as any,
+    });
+    await this.prisma.userProfile.create({
+      data: {
+        id: require("crypto").randomUUID(),
+        userId,
+        whatsapp,
+        cargo,
+      } as any,
+    });
+    if (chosenRole) {
+      await this.prisma.userRole.create({
+        data: { userId, roleId: chosenRole.id, atribuidoPorId: requestUser.id, atribuidoEm: new Date() } as any,
+      });
+    }
+    // ── Workforce: cria Collaborator vinculado ao novo User ──────────
+    try {
+      await (this.prisma as any).collaborator.create({
+        data: {
+          organizationId,
+          userId,
+          matricula:        dto.matricula || null,
+          emailCorporativo: email,
+          telefone:         whatsapp,
+          cargo,
+          departamento,          squad:            dto.squad || null,
+          senioridade:      dto.senioridade || req.senioridade || null,
+          gestorId:         dto.gestorId || null,
+          jornadaHorasDia:  dto.jornadaHorasDia ?? req.jornadaHorasDia ?? 8,
+          jornadaHorasMes:  (dto.jornadaHorasDia ?? req.jornadaHorasDia ?? 8) * 22,
+          tipoVinculo:      dto.tipoVinculo || req.tipoVinculo || null,
+          ativo:            true,
+        },
+      });
+    } catch (e) {
+      // Não bloqueia aprovação se Collaborator falhar (ex: matrícula duplicada)
+      console.error("[approveUserRequest] failed to create Collaborator:", e);
+    }
+    await (this.prisma as any).userRequest.update({
+      where: { id },
+      data: { status: "APROVADO", approvedById: requestUser.id, approvedAt: new Date() },
+    });
+    const appUrl = this.config.get("APP_URL", "http://localhost");
+    let entregaWhatsapp = false;
+    if (whatsapp) {
+      try {
+        const inst = await this.wa.resolveInstance(organizationId);
+        entregaWhatsapp = await this.wa.sendAccountApproved(whatsapp, nome, email, tempPassword, appUrl, inst);
+      } catch { entregaWhatsapp = false; }
+    }
+    let entregaEmail = false;
+    try {
+      await this.email.sendAccountApproved(email, nome, tempPassword);
+      entregaEmail = true;
+    } catch { entregaEmail = false; }
+    this.logAudit(requestUser.id, "usuarios", "users", userId, "CREATE", `Conta aprovada via solicitação: ${email}`).catch(() => {});
+    this.automacao.executar("usuario_criado", { id: userId, nome, email, organizationId }).catch(() => {});
+    return {
+      message: "Usuário aprovado com sucesso.",
+      userId,
+      email,
+      senhaTemporaria: tempPassword,
+      entregaWhatsapp,
+      entregaEmail,
+    };
+  }
+
+  async rejectUserRequest(id: string, reason: string | undefined, requestUser: any) {
+    if (!this.canManageRequests(requestUser)) throw new ForbiddenException("Acesso negado.");
+    const req = await (this.prisma as any).userRequest.findUnique({ where: { id } });
+    if (!req) throw new NotFoundException("Solicitação não encontrada.");
+    if (req.status !== "PENDENTE") throw new BadRequestException("Solicitação já processada.");
+    if (!requestUser.isSuperAdmin && req.organizationId && req.organizationId !== requestUser.organizationId) {
+      throw new ForbiddenException("Solicitação pertence a outra organização.");
+    }
+    await (this.prisma as any).userRequest.update({
+      where: { id },
+      data: { status: "REJEITADO", approvedById: requestUser.id, approvedAt: new Date(), rejectionReason: reason || null },
+    });
+    if (req.whatsapp) {
+      this.wa.sendAccountRejected(req.whatsapp, req.nome).catch(() => {});
+    }
+    this.email.sendAccountRejected(req.email, req.nome, reason).catch(() => {});
+    return { message: "Solicitação rejeitada." };
+  }
+
+  // ── Acesso de teste (trial de 7 dias, criado pela landing page) ─────────────────
+
+  private readonly TRIAL_DIAS = 7;
+  private readonly TRIAL_ORG = "00000000-0000-0000-0000-000000000001";
+
+  // Produto Orkiestri One escolhido no modal -> RECURSOS de permissão que o
+  // trial ganha (todas as ações desses recursos). É o que `resolvePermissions`
+  // usa para liberar SÓ o módulo escolhido — sem Visão Geral nem qualquer outro
+  // módulo. Produto fora do mapa não libera nada (não deve ocorrer: o modal só
+  // oferece produtos válidos).
+  private readonly TRIAL_PRODUTO_RECURSOS: Record<string, string[]> = {
+    "one-desk":     ["chamados", "conhecimento"],
+    "one-projects": ["projetos", "gantt"],
+    "one-space":    ["agenda"],
+    "one-fleet":    ["frota"],
+    "one-assets":   ["ativos"],
+    "one-finance":  ["financeiro", "gastos"],
+    "one-budget":   ["orcamento"],
+    "one-crm":      ["crm", "clientes"],
+    "one-observe":  ["monitoramento"],
+    "one-flow":     ["automacoes"],
+    "one-core":     ["configuracoes"],
+  };
+
+  /**
+   * Passo 1: valida e-mail/WhatsApp, gera um código e envia por WhatsApp. A
+   * pendência (e-mail + produto + código) fica no cache por 10 min — nada é
+   * criado no banco até a confirmação do código.
+   */
+  async iniciarTrial(dto: { email: string; whatsapp: string; produto: string; codigoIndicacao?: string }) {
+    const email = dto.email.trim().toLowerCase();
+    const whatsapp = dto.whatsapp.trim();
+    const digits = whatsapp.replace(/\D/g, "");
+    if (digits.length < 10) throw new BadRequestException("Informe um WhatsApp válido com DDD.");
+
+    const existing = await this.prisma.user.findFirst({ where: { email } });
+    if (existing) throw new BadRequestException("Já existe um acesso com esse e-mail. Faça login ou fale com a nossa equipe.");
+
+    // Um teste ativo por número.
+    const trialAtivo = await this.prisma.user.findFirst({
+      where: { isTrial: true, trialExpiraEm: { gt: new Date() }, profile: { whatsapp } } as any,
+    });
+    if (trialAtivo) throw new BadRequestException("Já existe um teste ativo para este WhatsApp.");
+
+    const code = String(Math.floor(100000 + Math.random() * 900000));
+    await this.cache.set(`trial:otp:${digits}`, { email, produto: dto.produto, code, tentativas: 0, codigoIndicacao: (dto.codigoIndicacao || "").trim() || undefined }, 600);
+
+    const inst = await this.wa.resolveInstance(this.TRIAL_ORG).catch(() => undefined);
+    const enviado = await this.wa.sendTrialOtp(whatsapp, code, inst).catch(() => false);
+    if (!enviado) {
+      await this.cache.del(`trial:otp:${digits}`);
+      throw new BadRequestException("Não conseguimos enviar o código no WhatsApp. Confira o número e tente novamente.");
+    }
+    return { message: "Enviamos um código no seu WhatsApp." };
+  }
+
+  /**
+   * Passo 2: confere o código e, se bater, cria o acesso de teste (7 dias, só o
+   * módulo escolhido, senha padrão) e manda as credenciais + boas-vindas por
+   * WhatsApp.
+   */
+  async confirmarTrial(dto: { whatsapp: string; codigo: string }) {
+    const whatsapp = dto.whatsapp.trim();
+    const digits = whatsapp.replace(/\D/g, "");
+    const chave = `trial:otp:${digits}`;
+    const pend: any = await this.cache.get(chave);
+    if (!pend) throw new BadRequestException("Código expirado. Peça um novo.");
+    if ((pend.tentativas || 0) >= 5) {
+      await this.cache.del(chave);
+      throw new BadRequestException("Muitas tentativas. Peça um novo código.");
+    }
+    if (pend.code !== dto.codigo.trim()) {
+      await this.cache.set(chave, { ...pend, tentativas: (pend.tentativas || 0) + 1 }, 600);
+      throw new BadRequestException("Código inválido.");
+    }
+    await this.cache.del(chave);
+
+    const email = pend.email;
+    const existing = await this.prisma.user.findFirst({ where: { email } });
+    if (existing) throw new BadRequestException("Já existe um acesso com esse e-mail.");
+
+    const tempPassword = "123@mudar";
+    const senhaHash = await bcrypt.hash(tempPassword, 12);
+    const role = await this.prisma.role.findFirst({
+      where: { organizationId: this.TRIAL_ORG, nome: "visualizador", isMaster: false },
+    });
+    // Informativo (o gate real é resolvePermissions pelo trialModulo). Guarda os
+    // recursos do produto para a tela refletir o que o trial enxerga.
+    const modulos = this.TRIAL_PRODUTO_RECURSOS[pend.produto] || [];
+    const nome = String(email).split("@")[0];
+    const userId = require("crypto").randomUUID();
+    const expira = new Date(Date.now() + this.TRIAL_DIAS * 24 * 60 * 60 * 1000);
+
+    await this.prisma.user.create({
+      data: {
+        id: userId, nome, email, senhaHash, ativo: true, primeiroAcesso: true,
+        bloqueado: false, tentativasFalhas: 0, organizationId: this.TRIAL_ORG,
+        isTrial: true, trialExpiraEm: expira, trialModulo: pend.produto,
+      } as any,
+    });
+    await this.prisma.userProfile.create({
+      data: {
+        id: require("crypto").randomUUID(), userId, whatsapp,
+        modulos: JSON.stringify(modulos),
+      } as any,
+    });
+    if (role) {
+      await this.prisma.userRole.create({ data: { userId, roleId: role.id } as any });
+    }
+
+    // Indicação (referral) — best-effort, nunca quebra o cadastro.
+    const indicadorNome = pend.codigoIndicacao
+      ? await registrarIndicacao(this.prisma, pend.codigoIndicacao, userId).catch(() => null)
+      : null;
+
+    const appUrl = this.config.get("APP_URL", "http://localhost");
+    const inst = await this.wa.resolveInstance(this.TRIAL_ORG).catch(() => undefined);
+    this.wa.sendTrialWelcome(whatsapp, email, tempPassword, appUrl, this.TRIAL_DIAS, inst).catch(() => {});
+    // Mensagem de ativação da indicação (confirma o vínculo + convida a indicar).
+    if (indicadorNome) {
+      this.wa.sendMessage(whatsapp, montarMensagemAtivacao(indicadorNome, codigoIndicacao(userId)), inst).catch(() => {});
+    }
+    this.email.sendAccountApproved(email, nome, tempPassword).catch(() => {});
+    this.logAudit(userId, "usuarios", "users", userId, "CREATE", `Acesso de teste criado: ${email}`, this.TRIAL_ORG).catch(() => {});
+
+    return { message: "Acesso de teste criado! Enviamos suas credenciais no WhatsApp." };
+  }
+
+  /**
+   * Chamado pelo cron diário: para cada acesso vencido ainda não avisado — teste
+   * sem efetivar ou mensalidade sem renovar — cria uma notificação para
+   * master+administradores (com o WhatsApp) para o contato, e marca como avisado
+   * para não repetir (renovar zera a marca). O bloqueio do login já acontece em
+   * `login()`.
+   */
+  async processarTrialsVencidos(): Promise<number> {
+    const agora = new Date();
+    const vencidos = await this.prisma.user.findMany({
+      where: {
+        isTrial: true, trialAvisadoSuporte: false,
+        OR: [
+          { assinaturaEm: null, trialExpiraEm: { lt: agora } },
+          { assinaturaEm: { not: null }, assinaturaValidaAte: { lt: agora } },
+        ],
+      } as any,
+      include: { profile: true },
+    });
+    if (vencidos.length === 0) return 0;
+    const admins = await this.prisma.user.findMany({
+      where: {
+        ativo: true,
+        userRoles: { some: { role: { OR: [{ isMaster: true }, { nome: "administrador" }] } } },
+      },
+      select: { id: true },
+    });
+    for (const u of vencidos) {
+      const zap = (u as any).profile?.whatsapp || "(sem número)";
+      const mensal = !!(u as any).assinaturaEm;
+      for (const admin of admins) {
+        await this.prisma.notification.create({
+          data: {
+            id: require("crypto").randomUUID(), userId: admin.id,
+            tipo: mensal ? "assinatura_vencida" : "trial_expirado",
+            titulo: mensal ? "Mensalidade vencida sem renovação" : "Teste expirado — contato de conversão",
+            mensagem: mensal
+              ? `A mensalidade de ${u.email} venceu e não foi renovada. Fale pelo WhatsApp ${zap}.`
+              : `O teste de ${u.email} expirou. Fale pelo WhatsApp ${zap} para efetivar o acesso.`,
+            referenciaTipo: "user", referenciaId: u.id,
+          } as any,
+        });
+      }
+      await this.prisma.user.update({ where: { id: u.id }, data: { trialAvisadoSuporte: true } as any });
+    }
+    return vencidos.length;
+  }
+
+  /**
+   * Chamado de hora em hora (horário comercial): manda no WhatsApp o aviso de
+   * que o acesso vence em menos de 24 h — fim do teste ou fim do mês pago — com
+   * a opção de renovar respondendo "1". Uma vez por ciclo: `trialLembreteEm` é
+   * reservado ANTES do envio (para duas rodadas não mandarem em dobro) e volta
+   * ao valor anterior se o envio falhar, para tentar de novo na hora seguinte.
+   */
+  async enviarLembretesTrial(agora = new Date()): Promise<number> {
+    const janela = { gt: agora, lte: new Date(agora.getTime() + LEMBRETE_ANTECEDENCIA_MS) };
+    const candidatos = await this.prisma.user.findMany({
+      where: {
+        isTrial: true, ativo: true,
+        OR: [
+          { assinaturaEm: null, trialExpiraEm: janela },
+          { assinaturaEm: { not: null }, assinaturaValidaAte: janela },
+        ],
+        profile: { whatsapp: { not: null } },
+      } as any,
+      select: {
+        id: true, nome: true, organizationId: true, isTrial: true, trialExpiraEm: true, trialModulo: true,
+        assinaturaEm: true, assinaturaValidaAte: true, trialLembreteEm: true,
+        profile: { select: { whatsapp: true } },
+      } as any,
+    });
+    let enviados = 0;
+    for (const u of candidatos as any[]) {
+      const f = faseDaConta(u);
+      if (!f || !precisaLembrete(u, agora) || !u.profile?.whatsapp) continue;
+      const anterior: Date | null = u.trialLembreteEm ?? null;
+      const reserva = await this.prisma.user.updateMany({
+        where: { id: u.id, trialLembreteEm: anterior } as any,
+        data: { trialLembreteEm: agora } as any,
+      });
+      if (reserva.count === 0) continue;
+      const msg = montarLembrete({ fase: f.fase, nome: u.nome, modulo: u.trialModulo, limite: f.limite, codigo: codigoRenovacao(u.id) });
+      const inst = await this.wa.resolveInstance(u.organizationId || this.TRIAL_ORG).catch(() => undefined);
+      const ok = await this.wa.sendMessage(u.profile.whatsapp, msg, inst).catch(() => false);
+      if (!ok) {
+        await this.prisma.user.update({ where: { id: u.id }, data: { trialLembreteEm: anterior } as any }).catch(() => {});
+        this.logger.warn(`Aviso de vencimento (${f.fase}) não saiu para user=${u.id}; tenta de novo na próxima rodada.`);
+        continue;
+      }
+      enviados++;
+    }
+    return enviados;
+  }
+
+  /**
+   * Notificação (sino) para master + administradores da organização default
+   * sobre um acesso de teste — usada quando a pessoa responde ao aviso de
+   * renovação pelo WhatsApp.
+   */
+  async notificarEquipeTrial(userId: string, tipo: string, titulo: string, mensagem: string): Promise<void> {
+    const admins = await this.prisma.user.findMany({
+      where: {
+        ativo: true, organizationId: this.TRIAL_ORG,
+        userRoles: { some: { role: { OR: [{ isMaster: true }, { nome: "administrador" }] } } },
+      } as any,
+      select: { id: true },
+    });
+    for (const admin of admins) {
+      await this.prisma.notification.create({
+        data: {
+          id: require("crypto").randomUUID(), userId: admin.id, tipo, titulo, mensagem,
+          referenciaTipo: "user", referenciaId: userId,
+        } as any,
+      }).catch(() => {});
+    }
+  }
+
+  // ── Reset de senha via Email ───────────────────────────────────────────────────
+
+  async sendPasswordResetEmail(email: string) {
+    const user = await this.prisma.user.findFirst({ where: { email } });
+    if (!user) return { message: "Se o e-mail estiver cadastrado, você receberá o link de redefinição." };
+    if (!user.ativo || (user as any).bloqueado) return { message: "Se o e-mail estiver cadastrado, você receberá o link de redefinição." };
+
+    const jti = require("crypto").randomUUID(); // ID único do token — permite revogação
+    const resetToken = this.jwt.sign(
+      { sub: user.id, type: "email_reset", jti },
+      { secret: this.config.get("JWT_SECRET"), expiresIn: "30m" },
+    );
+    // Registra JTI válido no Redis com TTL de 30min (single-use)
+    await this.cache.set(`reset:token:${jti}`, "1", 1800);
+    const appUrl = this.config.get("APP_URL", "http://localhost");
+    const resetUrl = `${appUrl}/recuperar-senha?token=${resetToken}`;
+    // Mesmo motivo do OTP: sem log, um SMTP ausente vira "verifique seu
+    // e-mail" para uma mensagem que nunca sai, e ninguém descobre.
+    this.email
+      .sendPasswordResetLink(user.email, user.nome, resetUrl)
+      .catch((erro) =>
+        this.logger.error(`Falha ao enviar e-mail de redefinição para ${user.id}`, erro as Error),
+      );
+    return { message: "Se o e-mail estiver cadastrado, você receberá o link de redefinição." };
+  }
+
+  // ── OTP via WhatsApp ───────────────────────────────────────────────────────────
+
+  /**
+   * OTP de recuperação por WhatsApp.
+   *
+   * `semCadastro: true` diz à tela que aquele número não leva a lugar nenhum,
+   * para ela poder mandar a pessoa procurar o administrador em vez de deixá-la
+   * esperando um código que nunca vem. Sete das doze contas desta organização
+   * não têm WhatsApp cadastrado — sem esse retorno, sete pessoas ficam sem
+   * saída e sem explicação.
+   *
+   * ATENÇÃO — isto é uma troca consciente: informar "este número não tem conta"
+   * permite descobrir, por tentativa, quais números estão cadastrados. O que
+   * limita o estrago é o teto de 5 tentativas a cada 15 minutos por IP, aplicado
+   * no controller. Se algum dia este código servir a um cadastro aberto ao
+   * público, reavaliar: lá o custo da enumeração é bem maior que aqui.
+   */
+  private async perfilRecuperacaoWhatsApp(whatsapp: string) {
+    const numero=(whatsapp || "").replace(/\D/g, "");
+    let variantes: string[];
+    if (numero.length === 10 || numero.length === 11) variantes=[numero,"55"+numero];
+    else if ((numero.length === 12 || numero.length === 13) && numero.startsWith("55")) variantes=[numero,numero.slice(2)];
+    else return null;
+    const perfis=await this.prisma.userProfile.findMany({where:{whatsapp:{in:variantes}},take:2});
+    if(perfis.length > 1) throw new BadRequestException("Este número está associado a mais de uma conta. Use a recuperação por e-mail.");
+    return perfis[0] || null;
+  }
+
+  async sendPasswordOtp(whatsapp: string) {
+    const semCadastro = {
+      message: "Não encontramos este número cadastrado.",
+      semCadastro: true,
+    };
+
+    const profile = await this.perfilRecuperacaoWhatsApp(whatsapp);
+    if (!profile) return semCadastro;
+    const user = await this.prisma.user.findUnique({ where: { id: profile.userId } });
+    if (!user || !user.ativo) return semCadastro;
+    if ((user as any).bloqueado) throw new UnauthorizedException("Conta bloqueada. Contate o Administrador.");
+
+    // Invalida OTPs anteriores
+    await (this.prisma as any).passwordResetOtp.updateMany({
+      where: { userId: user.id, used: false },
+      data: { used: true },
+    });
+
+    const code = String(require("crypto").randomInt(100000, 1000000));
+    const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
+    await (this.prisma as any).passwordResetOtp.create({
+      data: {
+        id: require("crypto").randomUUID(),
+        userId: user.id,
+        otpCode: code,
+        otpExpiresAt: expiresAt,
+        otpAttempts: 0,
+        used: false,
+      },
+    });
+    // Instância da organização do usuário, não a default fixa: usar a default
+    // fazia o OTP sair por uma instância inexistente e falhar sempre.
+    //
+    // O `catch` engolia o erro sem log nenhum. Resultado em produção: OTP
+    // gravado no banco, mensagem nunca entregue, e nada em lugar algum
+    // indicando o motivo — a conta ficava sem saída e sem diagnóstico. A
+    // resposta ao cliente continua genérica (não revela se o número existe),
+    // mas a falha agora aparece no log.
+    this.wa
+      .sendOtpForOrg(user.organizationId, (() => { const n=whatsapp.replace(/\D/g, ""); return n.length <= 11 ? "55"+n : n; })(), code)
+      .then((enviado) => {
+        if (!enviado) {
+          this.logger.error(
+            `OTP gerado mas NÃO entregue para o usuário ${user.id} — verifique a instância WhatsApp da organização ${user.organizationId}.`,
+          );
+        }
+      })
+      .catch((erro) =>
+        this.logger.error(`Falha ao enviar OTP para o usuário ${user.id}`, erro as Error),
+      );
+
+    return { message: "Código enviado para o seu WhatsApp.", semCadastro: false };
+  }
+
+  async verifyPasswordOtp(whatsapp: string, code: string) {
+    const profile = await this.perfilRecuperacaoWhatsApp(whatsapp);
+    if (!profile) throw new UnauthorizedException("Código inválido ou expirado.");
+    const user = await this.prisma.user.findUnique({ where: { id: profile.userId } });
+    if (!user || !user.ativo || (user as any).bloqueado) throw new UnauthorizedException("Conta bloqueada. Contate o Administrador.");
+
+    const otp = await (this.prisma as any).passwordResetOtp.findFirst({
+      where: { userId: user.id, used: false },
+      orderBy: { criadoEm: "desc" },
+    });
+    if (!otp || otp.otpExpiresAt < new Date()) throw new UnauthorizedException("Código inválido ou expirado.");
+
+    if (otp.otpCode !== code) {
+      const newAttempts = otp.otpAttempts + 1;
+      const MAX_OTP_ATTEMPTS = 7;
+      await (this.prisma as any).passwordResetOtp.update({
+        where: { id: otp.id },
+        data: { otpAttempts: newAttempts },
+      });
+      if (newAttempts >= MAX_OTP_ATTEMPTS) {
+        // Invalida o OTP — usuário deve solicitar novo código
+        await (this.prisma as any).passwordResetOtp.update({ where: { id: otp.id }, data: { used: true } });
+        throw new UnauthorizedException("Muitas tentativas incorretas. Solicite um novo código.");
+      }
+      throw new UnauthorizedException(`Código incorreto. ${MAX_OTP_ATTEMPTS - newAttempts} tentativa(s) restante(s).`);
+    }
+
+    await (this.prisma as any).passwordResetOtp.update({ where: { id: otp.id }, data: { used: true } });
+    // Token temporário de redefinição (3 min)
+    const resetToken = this.jwt.sign(
+      { sub: user.id, type: "reset" },
+      { secret: this.config.get("JWT_SECRET"), expiresIn: "3m" },
+    );
+    return { resetToken };
+  }
+
+  async resetPasswordWithToken(resetToken: string, novaSenha: string) {
+    let payload: any;
+    try {
+      payload = this.jwt.verify(resetToken, { secret: this.config.get("JWT_SECRET") });
+    } catch {
+      throw new UnauthorizedException("Token inválido ou expirado.");
+    }
+    if (payload.type !== "reset" && payload.type !== "email_reset") throw new UnauthorizedException("Token inválido.");
+
+    // Valida single-use: tokens email_reset precisam ter JTI válido no Redis
+    if (payload.type === "email_reset") {
+      if (!payload.jti) throw new UnauthorizedException("Token inválido.");
+      const valid = await this.cache.get(`reset:token:${payload.jti}`);
+      if (!valid) throw new UnauthorizedException("Token já utilizado ou expirado.");
+      // Consome o token — impede reutilização
+      await this.cache.del(`reset:token:${payload.jti}`);
+    }
+
+    this.validatePasswordStrength(novaSenha);
+    const hash = await bcrypt.hash(novaSenha, 12);
+    await this.prisma.user.update({
+      where: { id: payload.sub },
+      data: { senhaHash: hash, tentativasFalhas: 0, bloqueado: false } as any,
+    });
+    return { message: "Senha redefinida com sucesso." };
+  }
+
+  // ── Primeiro acesso ────────────────────────────────────────────────────────────
+
+  async changeFirstPassword(userId: string, novaSenha: string) {
+    this.validatePasswordStrength(novaSenha);
+    const hash = await bcrypt.hash(novaSenha, 12);
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { senhaHash: hash, primeiroAcesso: false } as any,
+    });
+    await this.invalidatePermissionsCache(userId);
+    return { message: "Senha definida com sucesso." };
+  }
+
+  async unblockUser(targetId: string, requestUser: any) {
+    if (!requestUser.isMaster) throw new ForbiddenException("Acesso negado.");
+    await this.prisma.user.update({
+      where: { id: targetId },
+      data: { bloqueado: false, tentativasFalhas: 0 } as any,
+    });
+    return { message: "Usuário desbloqueado." };
+  }
+
+  async alertNewIpLogin(userId: string, email: string, ip: string) {
+    try {
+      const agora = new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" });
+      await this.prisma.notification.create({
+        data: {
+          id: require("crypto").randomUUID(),
+          userId,
+          tipo: "seguranca",
+          titulo: "Novo acesso detectado",
+          mensagem: `Login realizado de um IP não reconhecido: ${ip} em ${agora}. Se não foi você, troque sua senha imediatamente.`,
+        },
+      });
+      // Notificação por e-mail opcional — usa sendNewIpAlert se disponível
+      if (typeof (this.email as any).sendNewIpAlert === "function") {
+        (this.email as any).sendNewIpAlert(email, ip, agora).catch(() => {});
+      }
+    } catch { /* não bloqueia o login por falha de alerta */ }
+  }
+
+  getTenantInfo() {
+    return { nome: this.config.get("TENANT_NOME", MARCA) };
+  }
+
+  async getPublicOrganizations() {
+    const orgs = await this.prisma.organization.findMany({
+      where: { ativo: true } as any,
+      select: { id: true, nome: true } as any,
+      orderBy: { nome: "asc" } as any,
+    });
+    return orgs;
+  }
+
+  private validatePasswordStrength(senha: string) {
+    if (senha.length < 8) throw new BadRequestException("A senha deve ter no mínimo 8 caracteres.");
+    if (!/[A-Z]/.test(senha)) throw new BadRequestException("A senha deve conter ao menos uma letra maiúscula.");
+    if (!/[a-z]/.test(senha)) throw new BadRequestException("A senha deve conter ao menos uma letra minúscula.");
+    if (!/[0-9]/.test(senha)) throw new BadRequestException("A senha deve conter ao menos um número.");
+    if (!/[^A-Za-z0-9]/.test(senha)) throw new BadRequestException("A senha deve conter ao menos um caractere especial (!@#$%^&* etc).");
+  }
+}

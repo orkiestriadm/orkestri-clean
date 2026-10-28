@@ -1,5 +1,9 @@
+import { WhatsappRotinaService, comandoRotina } from "./whatsapp-rotina.service";
+import { CadastroWhatsappModule, CadastroWhatsappService, pareceInteresseEmCadastro } from "../cadastro-whatsapp/cadastro-whatsapp.module";
+import { WhatsappInicioService } from "../cadastro-whatsapp/whatsapp-inicio.service";
+import { executarMensagemUmaVez } from "./whatsapp-recibos";
 import {
-  Module, Controller, Post, Body, Query, Headers, HttpCode, HttpStatus, Logger, Injectable,
+  Module, Controller, Post, Body, Query, Headers, HttpCode, HttpStatus, Logger, Injectable, ServiceUnavailableException,
 } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
 import { WhatsAppService } from "../notifications/whatsapp.service";
@@ -84,6 +88,7 @@ function montarMenuAjuda(temAgenda: boolean, temGastos: boolean, nome: string): 
   if (temGastos) m += "💸 Para *Financeiro*: responda *1*\n";
   if (temAgenda) m += "🗓️ Para *Agenda*: responda *2*\n";
   m += "👋 Para encerrar nossa conversa: responda *0*";
+  m += "\n\n☀️ Para consultar seu dia: *meu dia*. Para escolher o resumo automático: *rotina*.\n📝 Para criar tarefa: *tarefa: comprar material amanhã*.";
   return m;
 }
 
@@ -214,6 +219,10 @@ export function parseComandoEvento(texto: string, agora: Date): Parsed | "sem_da
   } else if (/\bhoje\b/.test(low)) {
     temData = true;
     resto = resto.replace(/\bhoje\b/i, " ");
+  } else if (/\bontem\b/.test(low)) {
+    const d = new Date(agora); d.setDate(d.getDate() - 1);
+    ano = d.getFullYear(); mes = d.getMonth(); dia = d.getDate(); temData = true;
+    resto = resto.replace(/\bontem\b/i, " ");
   } else {
     const mData = resto.match(/\b(\d{1,2})[\/\-.](\d{1,2})(?:[\/\-.](\d{2,4}))?\b/); // 27/08 ou 27/08/2026
     if (mData) {
@@ -237,7 +246,7 @@ export function parseComandoEvento(texto: string, agora: Date): Parsed | "sem_da
   const inicio = diaTodo
     ? new Date(ano, mes, dia, 0, 0, 0, 0)
     : new Date(ano, mes, dia, hora!, minuto, 0, 0);
-  if (isNaN(inicio.getTime())) return "sem_data_hora";
+  if (isNaN(inicio.getTime()) || inicio.getFullYear() !== ano || inicio.getMonth() !== mes || inicio.getDate() !== dia) return "sem_data_hora";
   const fim = diaTodo ? null : new Date(inicio.getTime() + 60 * 60 * 1000);
 
   // Fim da recorrência: "até <data>" > "por N <unidade>" > padrão 3 meses.
@@ -539,7 +548,7 @@ export class WhatsappInboundService {
   }
   private fecharMenu(jid: string) { this.menuAte.delete(jid); }
 
-  constructor(private prisma: PrismaService, private wa: WhatsAppService, private auth: AuthService) {}
+  constructor(private prisma: PrismaService, private wa: WhatsAppService, private auth: AuthService, private inicio: WhatsappInicioService, private rotina: WhatsappRotinaService, private cadastroWhats?: CadastroWhatsappService) {}
 
   private fmtData(d: Date): string {
     return d.toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
@@ -548,20 +557,24 @@ export class WhatsappInboundService {
   // Identifica o usuário DONO daquele chat: primeiro pelo LID vinculado, depois
   // (só quando o chat é @s.whatsapp.net) pelo telefone cadastrado — assim o
   // caso "mandar para si mesmo" com número próprio ainda funciona sem vínculo.
-  private async identificar(remoteJid: string): Promise<{ id: string; organizationId: string; nome: string; telefone: string | null } | null> {
+  private async identificar(remoteJid: string, jidAlternativo?: string): Promise<{ id: string; organizationId: string; nome: string; telefone: string | null } | null> {
     const idPart = remoteJid.split("@")[0];
     const byLid = await this.prisma.userProfile.findFirst({
       where: { whatsappLid: idPart } as any,
       select: { whatsapp: true, user: { select: { id: true, organizationId: true, ativo: true, nome: true } } },
     });
     if (byLid?.user?.ativo) return { ...byLid.user, telefone: byLid.whatsapp };
-    if (remoteJid.endsWith("@s.whatsapp.net")) {
+    const jidTelefone = remoteJid.endsWith('@s.whatsapp.net') ? remoteJid : jidAlternativo?.endsWith('@s.whatsapp.net') ? jidAlternativo : null;
+    if (jidTelefone) {
       const perfis = await this.prisma.userProfile.findMany({
         where: { NOT: { whatsapp: null } },
         select: { whatsapp: true, user: { select: { id: true, organizationId: true, ativo: true, nome: true } } },
       });
-      const p = perfis.find(x => x.user?.ativo && telefoneBate(idPart, x.whatsapp));
-      if (p?.user) return { ...p.user, telefone: p.whatsapp };
+      const p = perfis.find(x => x.user?.ativo && telefoneBate(jidTelefone.split('@')[0], x.whatsapp));
+      if (p?.user) {
+        if (remoteJid.endsWith('@lid')) await this.prisma.userProfile.update({ where: { userId: p.user.id }, data: { whatsappLid: idPart } } as any);
+        return { ...p.user, telefone: p.whatsapp };
+      }
     }
     return null;
   }
@@ -570,7 +583,8 @@ export class WhatsappInboundService {
   // então respondemos pelo TELEFONE cadastrado (chega na mesma conversa). Sem
   // telefone, caímos no jid cru (best-effort, pode falhar em @lid).
   private async responder(remoteJid: string, telefone: string | null, orgId: string | null, inst: string, msg: string) {
-    if (telefone && orgId) { await this.wa.sendMessageForOrg(orgId, telefone, msg).catch(() => {}); return; }
+    // A resposta pertence à instância que recebeu a conversa. A configuração da
+    // organização pode estar ausente ou apontar para outro número.
     if (telefone) { await this.wa.sendMessage(telefone, msg, inst).catch(() => {}); return; }
     await this.wa.sendToJid(remoteJid, msg, inst).catch(() => {});
   }
@@ -695,7 +709,7 @@ export class WhatsappInboundService {
     }
     // Número que ela não pode usar / inválido — mantém o menu aberto e reexplica.
     await this.responder(remoteJid, user.telefone, user.organizationId, inst,
-      "🤖 Não entendi. Responda *1* para Financeiro, *2* para Agenda ou *0* para encerrar.");
+      "🤖 Opção indisponível.\n\n" + montarMenuAjuda(ag, ga, user.nome));
   }
 
   // Valor em R$ formatado (1250.5 → "1.250,50").
@@ -916,7 +930,62 @@ export class WhatsappInboundService {
     await this.responder(remoteJid, user.telefone, user.organizationId, inst, msg);
   }
 
+  private async tratarInicio(remoteJid: string, inst: string, texto: string): Promise<boolean> {
+    const normal=texto.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
+    const acesso=/^(acesso|recuperar acesso|minha conta)$/.test(normal);
+    const abrir=/^(comecar|primeiros passos|organizar)$/.test(normal);
+    if (!acesso && !abrir && !await this.inicio.temFluxo(remoteJid,inst)) return false;
+    const user=await this.identificar(remoteJid);
+    if (!user) {
+      await this.wa.sendToJid(remoteJid,"Para começar, envie *cadastro*. Se já tem conta, vincule seu WhatsApp pelo código do seu Perfil.",inst);
+      return true;
+    }
+    if (acesso) { await this.inicio.enviarAcesso(user.id,inst); return true; }
+    const perms=await this.auth.resolvePermissions(user.id).catch(()=>[] as string[]);
+    return this.inicio.fluxo(user,remoteJid,inst,texto,perms,(tipo,dados)=>{
+      if(tipo === "evento") {
+        const p=parseComandoEvento("Evento: Compromisso "+dados.resposta,new Date());
+        if(!p || p === "sem_data_hora" || p.recorrencia) return null;
+        const registro={titulo:dados.titulo,inicio:p.inicio.toISOString(),fim:p.fim?.toISOString()||null,diaTodo:p.diaTodo};
+        const quando=p.diaTodo?p.inicio.toLocaleDateString("pt-BR")+" (dia todo)":p.inicio.toLocaleString("pt-BR");
+        return {tipo,resumo:"🗓️ *"+dados.titulo+"*\n"+quando,registro};
+      }
+      const p=parseComandoGasto("Gasto: "+dados.valor+" "+dados.resposta,new Date());
+      if(!p || p === "sem_valor") return null;
+      return {tipo,resumo:"💸 *"+dados.titulo+"*\nR$ "+this.fmtValor(p.valor)+" · "+FORMA_LABEL[p.formaPagamento]+"\n"+p.dataGasto.toLocaleDateString("pt-BR"),
+        registro:{...p,descricao:dados.titulo,dataGasto:p.dataGasto.toISOString()}};
+    },async acao=>{
+      const atuais=await this.auth.resolvePermissions(user.id).catch(()=>[] as string[]);
+      if(acao.tipo === "gasto") {
+        await this.criarGasto(user,{...acao.registro,dataGasto:new Date(acao.registro.dataGasto)},"Passo a passo pelo WhatsApp",remoteJid,inst);
+        return;
+      }
+      if(!podeAgenda(atuais)) { await this.responder(remoteJid,user.telefone,user.organizationId,inst,"Seu acesso à Agenda mudou. Envie *menu* para continuar.");return; }
+      const p=acao.registro;
+      await this.prisma.event.create({data:{...p,tipo:"COMPROMISSO" as any,cor:"#22d3ee",userId:user.id,criadoPorId:user.id,organizationId:user.organizationId} as any});
+      await this.responder(remoteJid,user.telefone,user.organizationId,inst,"✅ Compromisso criado: *"+p.titulo+"*\n"+new Date(p.inicio).toLocaleString("pt-BR")+"\nEnvie *compromissos* para consultar ou *começar* para organizar outro item.");
+    });
+  }
+
   async processar(body: any): Promise<void> {
+    const mensagens = Array.isArray(body?.data) ? body.data : [body?.data];
+    for (const data of mensagens) {
+      const key = data?.key;
+      if (typeof key?.id !== "string" || !key.id || typeof key?.remoteJid !== "string" || !key.remoteJid) {
+        this.logger.warn("Mensagem ignorada: identificador ausente.");
+        continue;
+      }
+      if (key.fromMe || key.remoteJid.includes("@g.us")) continue;
+      const instancia = data?.owner || body?.instance || "orkestri-default";
+      if (typeof instancia !== "string") continue;
+      const resultado = await executarMensagemUmaVez(this.prisma,
+        { instancia, conversa: key.remoteJid, mensagemId: key.id },
+        () => this.processarMensagem({ ...body, data }));
+      if (resultado === "revisar") this.logger.error("Mensagem requer revisão: " + key.id);
+    }
+  }
+
+  private async processarMensagem(body: any): Promise<void> {
     // Evolution v1.8.2 — evento messages.upsert
     const data = Array.isArray(body?.data) ? body.data[0] : body?.data;
     const key = data?.key || {};
@@ -932,12 +1001,33 @@ export class WhatsappInboundService {
       data?.message?.ephemeralMessage?.message?.extendedTextMessage?.text || ""
     ).trim();
 
-    this.logger.log(`inbound jid=${remoteJid} fromMe=${key?.fromMe} texto="${texto.slice(0, 50)}"`);
+    this.logger.log(`inbound fromMe=${!!key?.fromMe} caracteres=${texto.length}`);
     if (!texto) return;
+
+    if (key.remoteJidAlt || key.senderPn) await this.identificar(remoteJid, key.remoteJidAlt || key.senderPn);
+
+    if (!key?.fromMe && this.cadastroWhats) {
+      const jidCadastro = remoteJid.endsWith('@s.whatsapp.net') ? remoteJid : (key.remoteJidAlt || key.senderPn || '');
+      const numero = jidCadastro.endsWith('@s.whatsapp.net') ? jidCadastro.split('@')[0] : '';
+      if (!numero && pareceInteresseEmCadastro(texto)) { await this.wa.sendToJid(remoteJid, 'Não consegui confirmar seu número de telefone nesta mensagem. Envie *cadastro agenda* novamente ou fale com nossa equipe para continuar.', inst); return; }
+      const cadastro = await this.cadastroWhats.conversaAberta(numero, remoteJid);
+      if (cadastro) { if (await this.cadastroWhats.tratarResposta(cadastro, texto, inst)) return; }
+      else if (numero && await this.cadastroWhats.tratarConvite(numero, texto, inst, remoteJid)) return;
+      else if (numero && pareceInteresseEmCadastro(texto) && await this.cadastroWhats.iniciarPeloChat(numero, inst, texto, remoteJid)) return;
+    }
+
+    if (comandoRotina(texto)) {
+      const user=await this.identificar(remoteJid);
+      if (!user) { await this.wa.sendToJid(remoteJid,"Primeiro envie *cadastro* ou vincule sua conta pelo Perfil para usar sua rotina.",inst); return; }
+      await this.rotina.tratar(user.id,inst,texto);
+      return;
+    }
+
+    if (!key?.fromMe && await this.tratarInicio(remoteJid,inst,texto)) return;
 
     // ── Ajuda? "ajuda"/"menu"/"voltar (ao menu)" — a Aurélia abre o menu de módulos.
     //    "voltar"/"menu" funcionam mesmo depois do estado expirar. ──
-    if (/^\/?(ajuda|help|menu(?: principal)?|voltar(?: ao menu(?: principal)?)?)\s*[?!.]*$/i.test(texto)) {
+    if (/^\/?(oi|ol[aá]|bom dia|boa tarde|boa noite|ajuda|help|menu(?: principal)?|voltar(?: ao menu(?: principal)?)?)\s*[?!.]*$/i.test(texto)) {
       await this.enviarAjuda(remoteJid, inst);
       return;
     }
@@ -945,7 +1035,7 @@ export class WhatsappInboundService {
     // ── Resposta ao menu da Aurélia (1/2/9/0)? Só interpretamos como escolha quando
     //    o menu está aberto para esta conversa — senão um "1" solto seria roubado.
     //    9 = voltar ao menu principal; 0 = encerrar. ──
-    if (this.noMenu(remoteJid) && /^\/?[0129]\s*[?!.]*$/.test(texto)) {
+    if (this.noMenu(remoteJid) && /^\/?\d\s*[?!.]*$/.test(texto)) {
       await this.responderMenu(remoteJid, texto.replace(/\D/g, ""), inst);
       return;
     }
@@ -996,6 +1086,13 @@ export class WhatsappInboundService {
       if (parsed === "sem_data_hora") {
         await this.responder(remoteJid, user.telefone, user.organizationId, inst,
           "🤖 Não consegui identificar a data/hora. Envie assim:\n\n*Evento: Reunião com cliente 27/08 14:00*\n\nTambém vale _hoje_, _amanhã_ e horários como _9h_ ou _14:30_.");
+        return;
+      }
+
+      const perms = await this.auth.resolvePermissions(user.id).catch(() => [] as string[]);
+      if (!podeAgenda(perms)) {
+        await this.responder(remoteJid, user.telefone, user.organizationId, inst,
+          "🔒 Sua conta não tem permissão para criar eventos. Peça ao administrador acesso à *Agenda*.");
         return;
       }
 
@@ -1078,14 +1175,14 @@ export class WhatsappInboundController {
     // Sem segredo configurado, o recurso fica DESLIGADO (evita spoofing de número).
     if (!esperado) { this.logger.warn("WHATSAPP_INBOUND_SECRET não configurado — inbound ignorado."); return { received: true }; }
     if (secretQuery !== esperado && secretHeader !== esperado) return { received: true };
-    try { await this.svc.processar(body); } catch (e: any) { this.logger.error("inbound erro: " + e.message); }
+    try { await this.svc.processar(body); } catch { this.logger.error("Persistência de entrada indisponível."); throw new ServiceUnavailableException("Tente novamente"); }
     return { received: true };
   }
 }
 
 @Module({
-  imports: [NotificationsModule, AuthModule],
+  imports: [NotificationsModule, AuthModule, CadastroWhatsappModule],
   controllers: [WhatsappInboundController],
-  providers: [WhatsappInboundService],
+  providers: [WhatsappInboundService, WhatsappRotinaService],
 })
 export class WhatsappInboundModule {}

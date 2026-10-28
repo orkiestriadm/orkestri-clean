@@ -5,6 +5,7 @@ import { ConfigService } from "@nestjs/config";
 import { Request } from "express";
 import { PrismaService } from "../../prisma/prisma.service";
 import { AuthService } from "./auth.service";
+import { testeAgendaExpirado } from '../prospects/lead-onboarding';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
@@ -29,6 +30,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     const user = await this.prisma.user.findUnique({ where: { id: payload.sub } });
     if (!user || !user.ativo) throw new UnauthorizedException();
     if ((user as any).bloqueado) throw new UnauthorizedException("Conta bloqueada. Contate o Administrador.");
+    if (testeAgendaExpirado(user)) throw new UnauthorizedException('Seu teste de 7 dias da agenda terminou. Fale com nossa equipe pelo WhatsApp para continuar.');
 
     // Impersonation: super-admin operating within another org's context.
     // Dentro da impersonação ele atua como master DAQUELE tenant —

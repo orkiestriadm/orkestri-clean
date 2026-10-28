@@ -35,7 +35,7 @@ export class WhatsAppService {
   private async callApi(method: string, path: string, body?: any) {
     const res = await fetch(`${this.apiUrl}${path}`, {
       method,
-      headers: this.headers,
+      headers: this.headers, signal: AbortSignal.timeout(15000),
       ...(body ? { body: JSON.stringify(body) } : {}),
     });
     try { return await res.json(); } catch { return {}; }
@@ -61,7 +61,7 @@ export class WhatsAppService {
       const atual = await this.getStatus(instanceName);
       if (atual.connected) return { instanceName, jaConectada: true, status: atual.status };
       if (atual.status !== "not_found" && atual.status !== "error") {
-        await fetch(`${this.apiUrl}/instance/logout/${instanceName}`, { method: "DELETE", headers: this.headers }).catch(() => {});
+        await fetch(`${this.apiUrl}/instance/logout/${instanceName}`, { method: "DELETE", headers: this.headers, signal: AbortSignal.timeout(15000) }).catch(() => {});
         this.logger.log(`Instância reiniciada (logout) [${instanceName}] estado anterior: ${atual.status}`);
         return { instanceName, reiniciada: true, status: atual.status };
       }
@@ -109,7 +109,7 @@ export class WhatsAppService {
    */
   async restartInstance(instanceName: string) {
     try {
-      const r = await fetch(`${this.apiUrl}/instance/restart/${instanceName}`, { method: "PUT", headers: this.headers });
+      const r = await fetch(`${this.apiUrl}/instance/restart/${instanceName}`, { method: "PUT", headers: this.headers, signal: AbortSignal.timeout(15000) });
       this.logger.log(`restartInstance [${instanceName}] status=${r.status}`);
       return { instance: instanceName, ok: r.ok, status: r.status };
     } catch (e: any) {
@@ -147,7 +147,7 @@ export class WhatsAppService {
 
   async getStatus(instanceName: string = this.defaultInstance) {
     try {
-      const r1 = await fetch(`${this.apiUrl}/instance/connectionState/${instanceName}`, { headers: this.headers });
+      const r1 = await fetch(`${this.apiUrl}/instance/connectionState/${instanceName}`, { headers: this.headers, signal: AbortSignal.timeout(15000) });
       if (r1.ok) {
         const d1 = await r1.json();
         const state = d1?.instance?.state || d1?.state || "";
@@ -167,7 +167,7 @@ export class WhatsAppService {
 
   async disconnect(instanceName: string = this.defaultInstance) {
     try {
-      await fetch(`${this.apiUrl}/instance/logout/${instanceName}`, { method: "DELETE", headers: this.headers });
+      await fetch(`${this.apiUrl}/instance/logout/${instanceName}`, { method: "DELETE", headers: this.headers, signal: AbortSignal.timeout(15000) });
     } catch {}
     return { ok: true };
   }
@@ -178,19 +178,19 @@ export class WhatsAppService {
     try {
       const status = await this.getStatus(instanceName);
       if (!status.connected) {
-        this.logger.warn(`WA desconectado [${instanceName}] (${status.status}) - msg nao enviada para ${phone}`);
+        this.logger.warn(`WA desconectado [${instanceName}] (${status.status}) - msg nao enviada para ...${phone.slice(-4)}`);
         return false;
       }
       const digits = phone.replace(/\D/g, "");
       const number = digits.startsWith("55") ? digits : "55" + digits;
-      this.logger.log(`Enviando WA [${instanceName}] para: ${number}`);
+      this.logger.log(`Enviando WA [${instanceName}] para: ...${number.slice(-4)}`);
       const res = await fetch(`${this.apiUrl}/message/sendText/${instanceName}`, {
         method: "POST",
-        headers: this.headers,
+        headers: this.headers, signal: AbortSignal.timeout(15000),
         body: JSON.stringify({ number, text: message, delay: 1200 }),
       });
       const raw = await res.text();
-      this.logger.log(`WA send [${instanceName}][${res.status}]: ${raw.slice(0, 300)}`);
+      this.logger.log(`WA send [${instanceName}][${res.status}]`);
       try {
         const d = JSON.parse(raw);
         return !!(d?.key?.id || d?.id || res.ok);
@@ -222,11 +222,11 @@ export class WhatsAppService {
     try {
       const res = await fetch(`${this.apiUrl}/message/sendText/${instanceName}`, {
         method: "POST",
-        headers: this.headers,
+        headers: this.headers, signal: AbortSignal.timeout(15000),
         body: JSON.stringify({ number: jid, text: message, delay: 1200 }),
       });
       const raw = await res.text();
-      this.logger.log(`WA sendToJid [${instanceName}][${res.status}] -> ${jid}: ${raw.slice(0, 160)}`);
+      this.logger.log(`WA sendToJid [${instanceName}][${res.status}]`);
       try { const d = JSON.parse(raw); return !!(d?.key?.id || d?.id || res.ok); } catch { return res.ok; }
     } catch (e) {
       this.logger.error("sendToJid error: " + e.message);
@@ -247,11 +247,11 @@ export class WhatsAppService {
       const media = require("fs").readFileSync(filePath).toString("base64");
       const res = await fetch(`${this.apiUrl}/message/sendMedia/${instanceName}`, {
         method: "POST",
-        headers: this.headers,
+        headers: this.headers, signal: AbortSignal.timeout(15000),
         body: JSON.stringify({ number, mediatype: "document", mimetype: "application/pdf", media, fileName, caption }),
       });
       const raw = await res.text();
-      this.logger.log(`WA sendDocument [${instanceName}][${res.status}] ${fileName} -> ${number}: ${raw.slice(0, 120)}`);
+      this.logger.log(`WA sendDocument [${instanceName}][${res.status}] ${fileName}`);
       return res.ok;
     } catch (e: any) {
       this.logger.error("sendDocumentFile error: " + e.message);
@@ -302,7 +302,9 @@ export class WhatsAppService {
 
   async getOrgStatus(orgId: string) {
     const cfg = await this.getOrgInstance(orgId);
-    if (!cfg) return { connected: false, status: "not_configured" };
+    // Organizações sem instância própria usam o mesmo remetente compartilhado
+    // que resolveInstance seleciona para o envio.
+    if (!cfg) return this.getStatus(await this.resolveInstance(orgId));
     const status = await this.getStatus(cfg.instanceName);
     if (this.prisma) {
       await (this.prisma as any).orgWhatsappConfig.update({

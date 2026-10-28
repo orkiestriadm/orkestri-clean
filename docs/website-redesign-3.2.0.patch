@@ -1,0 +1,1689 @@
+diff --git a/website/next.config.ts b/website/next.config.ts
+index ff999c8..38cd1dc 100644
+--- a/website/next.config.ts
++++ b/website/next.config.ts
+@@ -9,6 +9,7 @@ const nextConfig: NextConfig = {
+   // /_next/). nginx routes /_site/ to this container.
+   assetPrefix: "/_site",
+   images: {
++    qualities: [75, 92, 95],
+     formats: ["image/avif", "image/webp"],
+     // O assetPrefix NÃO se aplica ao endpoint do otimizador. Sem isto o
+     // <img> pede /_next/image, que o nginx entrega à plataforma (dona de
+@@ -34,11 +35,11 @@ const nextConfig: NextConfig = {
+       "one-budget",
+       "one-flow",
+     ];
+-    return descontinuados.map((slug) => ({
++    return [{ source: "/entrar", destination: "/login", permanent: false }, ...descontinuados.map((slug) => ({
+       source: `/products/${slug}`,
+       destination: "/products",
+       permanent: false,
+-    }));
++    }))];
+   },
+ 
+   async headers() {
+diff --git a/website/src/app/api/contact/route.ts b/website/src/app/api/contact/route.ts
+index 25ca2c6..e98100e 100644
+--- a/website/src/app/api/contact/route.ts
++++ b/website/src/app/api/contact/route.ts
+@@ -21,16 +21,9 @@ export async function POST(request: Request) {
+       );
+     }
+ 
+-    // TODO(integration): forward parsed.data to CRM / email service.
++    // Ainda não há destino de entrega integrado. Não simular recebimento.
++    return NextResponse.json({ success: false, message: "Envio indisponível. Entre em contato pelo e-mail publicado no site." }, { status: 503 });
+ 
+-    return NextResponse.json(
+-      {
+-        success: true,
+-        message: "Recebemos sua solicitação. Nossa equipe entrará em contato.",
+-        data: null,
+-      },
+-      { status: 200 }
+-    );
+   } catch {
+     return NextResponse.json(
+       { success: false, message: "Erro ao processar a solicitação." },
+diff --git a/website/src/app/contact/page.tsx b/website/src/app/contact/page.tsx
+index e34f806..fb85ce5 100644
+--- a/website/src/app/contact/page.tsx
++++ b/website/src/app/contact/page.tsx
+@@ -5,6 +5,7 @@ import { Container } from "@/components/ui/container";
+ import { ContactForm } from "@/components/forms/contact-form";
+ import { buildMetadata } from "@/lib/seo";
+ import { siteConfig } from "@/config/site";
++import { getService } from "@/config/services";
+ 
+ export const metadata = buildMetadata({
+   title: "Contato",
+@@ -13,16 +14,19 @@ export const metadata = buildMetadata({
+   path: "/contact",
+ });
+ 
+-export default function ContactPage() {
++export default async function ContactPage({ searchParams }: { searchParams: Promise<{ service?: string; interest?: string }> }) {
++  const query = await searchParams;
++  const service = query.service ? getService(query.service) : undefined;
++  const project = Boolean(service) || query.interest === "project";
+   return (
+     <>
+       <PageHero
+         eyebrow="Contato"
+-        title="Vamos construir algo extraordinário juntos."
+-        description="Nossa equipe está pronta para entender seus desafios e apresentar a melhor solução para sua empresa."
++        title={project ? "Vamos conversar sobre seu projeto." : "O que você precisa resolver?"}
++        description={service ? `Conte o que você precisa em ${service.name.toLowerCase()}. Sua solicitação já vai com esse contexto.` : "Tire uma dúvida sobre o produto, peça ajuda com sua conta ou conte sua ideia de software sob medida."}
+         breadcrumb={[{ label: "Contato", href: "/contact" }]}
+       />
+-      <Container className="pb-24">
++      <Container className="scroll-mt-24 pb-24" id="contato">
+         <div className="grid gap-10 lg:grid-cols-[1fr_1.4fr]">
+           <div className="flex flex-col gap-6">
+             <div>
+@@ -59,7 +63,7 @@ export default function ContactPage() {
+             </a>
+           </div>
+ 
+-          <ContactForm endpoint="/api/contact" />
++          <ContactForm initialInterest={project ? "project" : "product"} service={service?.name} />
+         </div>
+       </Container>
+     </>
+diff --git a/website/src/app/demo/page.tsx b/website/src/app/demo/page.tsx
+index 6859bf2..419d348 100644
+--- a/website/src/app/demo/page.tsx
++++ b/website/src/app/demo/page.tsx
+@@ -1,145 +1,27 @@
++import Link from "next/link";
+ import { PageHero } from "@/components/sections/page-hero";
+-import { Section } from "@/components/ui/section";
+-import { DemoForm } from "@/components/forms/demo-form";
++import { Section, SectionHeader } from "@/components/ui/section";
+ import { WhatsAppButton } from "@/components/ui/whatsapp-button";
++import { AureliaDemo } from "@/components/home/aurelia-demo";
+ import { buildMetadata } from "@/lib/seo";
+ 
+ export const metadata = buildMetadata({
+-  title: "Como começar",
+-  description:
+-    "O que acontece depois que você manda a primeira mensagem: o cadastro na conversa, o menu da Aurélia e os comandos de cada módulo.",
++  title: "Como funciona o teste da agenda",
++  description: "Conheça a Aurélia, faça seu cadastro pelo WhatsApp e experimente a agenda por 7 dias. Sem cartão e sem cobrança automática.",
+   path: "/demo",
+ });
+ 
+-/**
+- * Como começar.
+- *
+- * Era "Solicitar Demonstração", com um formulário e quatro promessas
+- * genéricas ("demonstração guiada", "sem compromisso"). Não fazia sentido:
+- * desde 26/10/2026 o cadastro acontece numa conversa de WhatsApp, e quem
+- * chega aqui quer saber o que vai acontecer nessa conversa — não marcar
+- * reunião.
+- *
+- * ⚠️ O menu abaixo é o texto REAL que a Aurélia envia, copiado de
+- * `montarMenuAjuda()` em
+- * `backend/src/modules/agenda/whatsapp-inbound.module.ts`. Os emojis fazem
+- * parte da mensagem, não são ícones de interface — por isso ficam. Se o menu
+- * mudar lá, muda aqui.
+- *
+- * Os números são FIXOS por módulo: quem não tem acesso ao Financeiro não vê
+- * o "1", mas o "3" continua sendo o Keep. Quem decorou um número continua
+- * certo.
+- */
+-
+-const menuAurelia = `😊 Oi, Guilherme! Eu sou a Aurélia, sua ajudante do Orkiestri aqui no WhatsApp.
+-Com qual módulo você quer a minha ajuda? É só responder o número:
+-
+-💸 Para Financeiro: responda 1
+-🗓️ Para Agenda: responda 2
+-📝 Para Keep: responda 3
+-📁 Para Projetos: responda 4
+-🎧 Para Chamados: responda 5
+-📚 Para Conhecimento: responda 6
+-📖 Para ver TUDO de uma vez: responda 7
+-👋 Para encerrar nossa conversa: responda 0`;
+-
+-const passos = [
+-  {
+-    n: "01",
+-    titulo: "Você manda a primeira mensagem",
+-    texto:
+-      "Diga que quer criar sua conta. A Aurélia faz as perguntas do cadastro ali mesmo, na conversa.",
+-  },
+-  {
+-    n: "02",
+-    titulo: "A conta nasce pronta",
+-    texto:
+-      "Com os módulos já ligados e uma senha que você troca por um código enviado ao seu e-mail, antes do primeiro login.",
+-  },
+-  {
+-    n: "03",
+-    titulo: "Você manda “ajuda” quando quiser",
+-    texto:
+-      "Ela responde com o menu ao lado e ensina o passo a passo do módulo que você escolher. Também vai um guia em PDF logo depois do cadastro.",
+-  },
+-  {
+-    n: "04",
+-    titulo: "A partir daí, ela te procura",
+-    texto:
+-      "Lembrete de compromisso, resumo de gastos no domingo, aviso de prazo. Você não precisa lembrar de abrir nada.",
+-  },
+-];
+-
+ export default function DemoPage() {
+-  return (
+-    <>
+-      <PageHero
+-        eyebrow="Como começar"
+-        title="O que acontece depois da primeira mensagem."
+-        description="Não há formulário para preencher nem reunião para marcar. O cadastro inteiro acontece numa conversa de WhatsApp, e em poucos minutos a conta está de pé."
+-        breadcrumb={[{ label: "Como começar", href: "/demo" }]}
+-      >
+-        <WhatsAppButton />
+-      </PageHero>
+-
+-      <Section>
+-        <div className="grid gap-14 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.95fr)] lg:gap-20">
+-          {/* Os quatro passos. A numeração se justifica: é sequência de
+-              verdade, nesta ordem. */}
+-          <ol className="flex flex-col">
+-            {passos.map((p) => (
+-              <li
+-                key={p.n}
+-                className="relative border-t border-white/[0.09] py-6 first:border-t-0 first:pt-0"
+-              >
+-                <span className="font-mono text-[0.8125rem] tabular-nums text-flame-soft">
+-                  {p.n}
+-                </span>
+-                <h2 className="mt-2 font-semibold text-chalk">{p.titulo}</h2>
+-                <p className="mt-1.5 max-w-[52ch] text-[0.9375rem] leading-relaxed text-chalk-dim">
+-                  {p.texto}
+-                </p>
+-              </li>
+-            ))}
+-          </ol>
+-
+-          {/* O menu, reproduzido como chega. */}
+-          <div>
+-            <p className="text-[0.8125rem] font-medium text-chalk-faint">
+-              O menu que ela manda quando você escreve “ajuda”
+-            </p>
+-            <div className="hairline edge-light mt-4 rounded-(--radius-card) border bg-panel p-5">
+-              <pre className="whitespace-pre-wrap font-sans text-[0.9375rem] leading-relaxed text-chalk-dim">
+-                {menuAurelia}
+-              </pre>
+-            </div>
+-            <p className="mt-4 text-sm leading-relaxed text-chalk-faint">
+-              Aparece só o que você pode usar: quem não tem acesso ao
+-              Financeiro não vê o <span className="font-mono">1</span>. Os
+-              números não se renumeram — o <span className="font-mono">3</span>{" "}
+-              é sempre o Keep.
+-            </p>
+-          </div>
+-        </div>
+-      </Section>
+-
+-      {/* O formulário continua, mas como SEGUNDA opção: quem prefere falar
+-          com uma pessoa antes de criar a conta. */}
+-      <Section muted>
+-        <div className="grid gap-10 lg:grid-cols-[1fr_1.4fr] lg:gap-16">
+-          <div>
+-            <h2 className="font-display text-[1.75rem] font-bold tracking-[-0.03em] text-chalk md:text-[2.25rem]">
+-              Prefere que alguém te mostre?
+-            </h2>
+-            <p className="mt-4 max-w-[46ch] text-[1.0625rem] leading-[1.65] text-chalk-dim">
+-              Se você quer ver as telas com alguém do lado antes de criar a
+-              conta, deixe seu contato. Respondemos em até um dia útil.
+-            </p>
+-          </div>
+-          <DemoForm />
+-        </div>
+-      </Section>
+-
+-    </>
+-  );
++  return <>
++    <PageHero eyebrow="Como funciona" title="Uma conversa para começar. Uma agenda para sua rotina." description="Experimente a agenda por 7 dias. O botão prepara a mensagem CADASTRO AGENDA: abra o WhatsApp, envie e responda às perguntas da Aurélia." breadcrumb={[{ label: "Como funciona", href: "/demo" }]}><WhatsAppButton /></PageHero>
++    <AureliaDemo />
++    <Section>
++      <SectionHeader align="left" title="Você também pode entrar pelo site." description="Depois do cadastro confirmado, escolha como prefere acompanhar sua agenda." />
++      <div className="mt-8 grid gap-5 md:grid-cols-2">
++        <article className="rounded-2xl border border-white/10 bg-panel p-6"><h3 className="text-xl font-semibold text-chalk">Seu primeiro acesso</h3><p className="mt-3 leading-relaxed text-chalk-dim">Abra a recuperação de senha, escolha receber o código pelo WhatsApp e informe o mesmo número usado no cadastro. Confira o código na página, crie sua senha e entre na agenda.</p><a className="mt-5 inline-flex min-h-11 items-center font-medium text-flame-soft underline underline-offset-4" href="/recuperar-senha">Definir minha senha →</a></article>
++        <article className="rounded-2xl border border-white/10 bg-panel p-6"><h3 className="text-xl font-semibold text-chalk">O teste é da agenda</h3><p className="mt-3 leading-relaxed text-chalk-dim">São 7 dias a partir da criação da conta, sem cartão e sem cobrança automática. Após esse prazo, é necessário contratar um plano para continuar. Outros módulos dependem do plano e das permissões da conta.</p><Link className="mt-5 inline-flex min-h-11 items-center font-medium text-flame-soft underline underline-offset-4" href="/contact">Tirar uma dúvida →</Link></article>
++      </div>
++      <p className="mt-8 text-sm leading-relaxed text-chalk-dim">Já tem uma conta? <a href="/login" className="text-chalk underline underline-offset-4">Entre diretamente.</a> Convites recebidos por WhatsApp têm suas próprias opções: responda 1 para iniciar o cadastro ou 2 para finalizar. No site, o comando CADASTRO AGENDA permite começar sem um convite pendente.</p>
++    </Section>
++  </>;
+ }
+diff --git a/website/src/app/entrar/page.tsx b/website/src/app/entrar/page.tsx
+index d7fb326..f8b6a40 100644
+--- a/website/src/app/entrar/page.tsx
++++ b/website/src/app/entrar/page.tsx
+@@ -1,159 +1,7 @@
+-"use client";
++import { redirect } from "next/navigation";
+ 
+-import { useCallback, useEffect, useRef, useState } from "react";
+-import { ArrowRight } from "lucide-react";
+-import { Logo } from "@/components/layout/logo";
++export const dynamic = "force-dynamic";
+ 
+-const DESTINO = "/login";
+-/** Marca que a abertura já rolou nesta aba — quem entra todo dia não repete. */
+-const CHAVE_SESSAO = "orkiestri:intro-vista";
+-/** Espera máxima por buffer. Passou disso, o login vale mais que a animação. */
+-const PACIENCIA_BUFFER_MS = 2500;
+-/** Folga sobre a duração do vídeo, caso o evento "ended" não dispare. */
+-const FOLGA_APOS_FIM_MS = 1200;
+-/**
+- * O vídeo tem 10 segundos — tempo demais para quem só quer entrar no sistema.
+- *
+- * Acelerar em vez de cortar: o corte terminaria no meio da aproximação, e o
+- * login usa justamente o ÚLTIMO quadro como plano de fundo. Assim a animação
+- * inteira acontece em ~4s e ainda congela exatamente onde o fundo do login
+- * começa, que é o efeito pretendido.
+- */
+-const VELOCIDADE = 2.4;
+-
+-/**
+- * Abertura em vídeo antes da tela de login.
+- *
+- * A animação é passagem, não pedágio: erro, autoplay barrado, buffer lento ou
+- * `prefers-reduced-motion` levam direto ao login, e o botão de pular fica
+- * sempre à mão. O /login é pré-carregado enquanto o vídeo roda.
+- *
+- * Só toca quando há buffer suficiente (`canplaythrough`) — começar antes disso
+- * fazia a animação engasgar. E aparece uma vez por sessão: encanta na primeira
+- * visita sem virar pedágio para quem usa o sistema todo dia.
+- */
+ export default function EntrarPage() {
+-  const video = useRef<HTMLVideoElement>(null);
+-  const jaSeguiu = useRef(false);
+-  const temporizadores = useRef<number[]>([]);
+-  const comecou = useRef(false);
+-  const [tocando, setTocando] = useState(false);
+-
+-  const seguir = useCallback(() => {
+-    if (jaSeguiu.current) return;
+-    jaSeguiu.current = true;
+-    temporizadores.current.forEach(window.clearTimeout);
+-    window.location.assign(DESTINO);
+-  }, []);
+-
+-  useEffect(() => {
+-    const reduzir = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+-    let jaViu = false;
+-    try {
+-      jaViu = sessionStorage.getItem(CHAVE_SESSAO) === "1";
+-      sessionStorage.setItem(CHAVE_SESSAO, "1");
+-    } catch {
+-      /* modo privado/armazenamento bloqueado: apenas exibe a abertura */
+-    }
+-
+-    if (reduzir || jaViu) {
+-      seguir();
+-      return;
+-    }
+-
+-    const el = video.current;
+-    if (!el) return;
+-
+-    // Só toca com buffer suficiente para ir até o fim sem engasgar.
+-    const tocarQuandoPronto = () => {
+-      el.playbackRate = VELOCIDADE;
+-      el.play().catch(seguir); // autoplay barrado: não faz sentido segurar
+-    };
+-    if (el.readyState >= 4) tocarQuandoPronto();
+-    else el.addEventListener("canplaythrough", tocarQuandoPronto, { once: true });
+-
+-    // Rede 1: buffer demorou demais.
+-    temporizadores.current.push(
+-      window.setTimeout(() => {
+-        if (!comecou.current) seguir();
+-      }, PACIENCIA_BUFFER_MS)
+-    );
+-
+-    // Rede 2: teto pela duração real, medida quando os metadados chegam.
+-    const agendarTeto = () => {
+-      // Dividido pela velocidade: sem isso o teto seria de 11s para uma
+-      // animação que agora dura 4, e a rede de segurança nunca alcançaria uma
+-      // falha do evento "ended".
+-      const ms = ((el.duration || 10) / VELOCIDADE) * 1000 + FOLGA_APOS_FIM_MS;
+-      temporizadores.current.push(window.setTimeout(seguir, ms));
+-    };
+-    if (el.readyState >= 1) agendarTeto();
+-    else el.addEventListener("loadedmetadata", agendarTeto, { once: true });
+-
+-    const limpar = temporizadores.current;
+-    return () => {
+-      limpar.forEach(window.clearTimeout);
+-      el.removeEventListener("canplaythrough", tocarQuandoPronto);
+-      el.removeEventListener("loadedmetadata", agendarTeto);
+-    };
+-  }, [seguir]);
+-
+-  return (
+-    <div className="fixed inset-0 z-50 flex flex-col overflow-hidden bg-[#08090c] text-white">
+-      {/* Aquece o destino enquanto a animação roda */}
+-      <link rel="prefetch" href={DESTINO} as="document" />
+-      {/* O login usa o último quadro deste vídeo como fundo; carregá-lo aqui
+-          faz a passagem parecer que a animação apenas congelou. */}
+-      <link rel="prefetch" href="/branding/planeta.jpg" as="image" />
+-      {/* Última rede: avança mesmo que o JavaScript não execute, para ninguém
+-          ficar preso na abertura a caminho do login. */}
+-      <meta httpEquiv="refresh" content="7;url=/login" />
+-
+-      <video
+-        ref={video}
+-        src="/media/globe-intro.mp4"
+-        muted
+-        playsInline
+-        preload="auto"
+-        aria-hidden
+-        onPlaying={() => {
+-          comecou.current = true;
+-          setTocando(true);
+-        }}
+-        onEnded={seguir}
+-        onError={seguir}
+-        className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-700 ${
+-          tocando ? "opacity-100" : "opacity-0"
+-        }`}
+-      />
+-
+-      {/* Véu: mantém o texto legível sobre qualquer quadro do vídeo */}
+-      <div
+-        aria-hidden
+-        className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,transparent_35%,rgba(8,9,12,0.75)_100%)]"
+-      />
+-
+-      {/* Topo — marca e pular */}
+-      <div className="relative flex items-center justify-between p-6 md:p-8">
+-        <Logo tone="light" />
+-        {/* Link de verdade: se o JavaScript falhar, o acesso continua saindo. */}
+-        <a
+-          href={DESTINO}
+-          className="inline-flex h-10 items-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 text-sm font-medium text-white backdrop-blur-sm transition-colors hover:bg-white/20 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flame"
+-        >
+-          Pular
+-          <ArrowRight className="h-4 w-4" aria-hidden />
+-        </a>
+-      </div>
+-
+-      <div className="relative mt-auto p-8 text-center md:p-12">
+-        <p className="text-sm text-white/50">Preparando seu acesso…</p>
+-      </div>
+-
+-      {/* Rota acessível sem JavaScript */}
+-      <noscript>
+-        <a href={DESTINO} className="absolute inset-0 z-10" aria-label="Ir para o login" />
+-      </noscript>
+-    </div>
+-  );
++  redirect("/login");
+ }
+diff --git a/website/src/app/globals.css b/website/src/app/globals.css
+index e488e69..00c3952 100644
+--- a/website/src/app/globals.css
++++ b/website/src/app/globals.css
+@@ -432,6 +432,33 @@
+   }
+ }
+ 
++/* Modernização: luz e transições leves, sem vídeos ou rolagem controlada. */
++.hero-aurora {
++  background: radial-gradient(ellipse at 18% 15%, rgba(255,106,26,.16), transparent 48%), radial-gradient(ellipse at 90% 55%, rgba(255,163,96,.06), transparent 46%);
++}
++.hero-highlight {
++  background: linear-gradient(110deg, #fff4e9, #ffab72 55%, #ff6a1a);
++  background-clip: text;
++  -webkit-background-clip: text;
++  color: transparent;
++}
++.chat-grid {
++  background-image: radial-gradient(rgba(255,255,255,.035) 1px, transparent 1px);
++  background-size: 18px 18px;
++}
++.journey-step { cursor: pointer; transition: border-color .2s, background-color .2s, transform .2s; }
++@media (hover: hover) and (prefers-reduced-motion: no-preference) {
++  .journey-step:hover { transform: translateX(4px); }
++}
++@keyframes aurora-drift { from { transform: translate3d(-2%, -1%, 0); } to { transform: translate3d(2%, 2%, 0); } }
++@keyframes chat-arrive { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
++@media (prefers-reduced-motion: no-preference) {
++  .hero-aurora { animation: aurora-drift 16s ease-in-out infinite alternate; }
++  .chat-enter { animation: chat-arrive .25s ease-out both; }
++  .hero-enter { animation: chat-arrive .6s ease-out both; }
++}
++section[id] { scroll-margin-top: 6rem; }
++
+ /* ---------- Reduced motion (doc 08) ---------- */
+ @media (prefers-reduced-motion: reduce) {
+   html {
+diff --git a/website/src/app/page.tsx b/website/src/app/page.tsx
+index 65b45a8..35a2729 100644
+--- a/website/src/app/page.tsx
++++ b/website/src/app/page.tsx
+@@ -3,8 +3,7 @@ import { Hero } from "@/components/sections/hero";
+ import { Plataforma } from "@/components/home/plataforma";
+ import { Avisos } from "@/components/home/avisos";
+ import { Comandos } from "@/components/home/comandos";
+-import { Engenharia } from "@/components/home/engenharia";
+-import { Tecnologias } from "@/components/home/tecnologias";
++import { AureliaDemo } from "@/components/home/aurelia-demo";
+ import { Perguntas } from "@/components/home/perguntas";
+ import { Fechamento } from "@/components/home/fechamento";
+ import { homeFaq } from "@/config/content";
+@@ -23,21 +22,14 @@ export const metadata = buildMetadata({
+ });
+ 
+ /**
+- * Home — única página escura do site (26/10/2026).
++ * Home: teste da agenda → demonstração → benefícios → outros módulos → dúvidas.
+  *
+  * A página tinha catorze seções e quase 12.000px de altura; a maior parte
+  * repetia o mesmo argumento em formatos diferentes, e três blocos inteiros
+  * (números, depoimentos e logos de clientes) eram conteúdo inventado. Agora
+- * são oito seções, nesta ordem, cada uma com um trabalho só:
++ * A demonstração da Aurélia precede os demais módulos para explicar o teste.
+  *
+- *   1. Hero ......... o que é, e a porta de entrada
+- *   2. Plataforma ... as aplicações e o que compartilham
+- *   3. Avisos ...... o que o sistema MANDA no WhatsApp
+- *   4. Comandos .... o que VOCÊ manda de volta
+- *   5. Engenharia .. quem constrói, e como
+- *   6. Tecnologias . com o quê
+- *   7. Perguntas ... as objeções
+- *   8. Fechamento .. a mesma porta, de novo
++ * Serviços e tecnologias têm páginas próprias, acessíveis pelo menu.
+  *
+  * O cadastro acontece pelo WhatsApp e SÓ por lá. Se algum dia voltar um
+  * segundo caminho de cadastro à página, ele tira força deste — foi o que
+@@ -55,11 +47,10 @@ export default function HomePage() {
+       />
+ 
+       <Hero />
+-      <Plataforma />
++      <AureliaDemo />
+       <Avisos />
+       <Comandos />
+-      <Engenharia />
+-      <Tecnologias />
++      <Plataforma />
+       <Perguntas items={homeFaq} />
+       <Fechamento />
+     </>
+diff --git a/website/src/app/products/[slug]/page.tsx b/website/src/app/products/[slug]/page.tsx
+index 5df639c..c256986 100644
+--- a/website/src/app/products/[slug]/page.tsx
++++ b/website/src/app/products/[slug]/page.tsx
+@@ -114,7 +114,7 @@ export default async function ProductPage({
+         <SectionHeader
+           align="left"
+           eyebrow="Recursos"
+-          title={`Tudo o que o ${product.name} entrega.`}
++          title="O que você pode fazer."
+         />
+         <div className="mt-10 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+           {product.features.map((f, i) => (
+@@ -133,7 +133,7 @@ export default async function ProductPage({
+       {/* AI + Integrations */}
+       <Section muted>
+         <div className="grid gap-8 lg:grid-cols-2">
+-          <div className="rounded-(--radius-card) border border-white/[0.08] bg-panel p-8">
++          {product.ai.length > 0 && <div className="rounded-(--radius-card) border border-white/[0.08] bg-panel p-8">
+             <IconTile icon={Sparkles} />
+             <h3 className="mt-5 text-xl font-semibold text-chalk">
+               Inteligência Artificial
+@@ -150,6 +150,7 @@ export default async function ProductPage({
+             </ul>
+           </div>
+ 
++          }
+           {product.integrations && product.integrations.length > 0 && (
+             <div className="rounded-(--radius-card) border border-white/[0.08] bg-panel p-8">
+               <IconTile icon={Plug} tone="dark" />
+diff --git a/website/src/app/products/orkiestri-one/page.tsx b/website/src/app/products/orkiestri-one/page.tsx
+index 3f863d3..5c1b231 100644
+--- a/website/src/app/products/orkiestri-one/page.tsx
++++ b/website/src/app/products/orkiestri-one/page.tsx
+@@ -157,7 +157,7 @@ export default function OrkiestriOnePage() {
+ 
+       <CTA
+         title="Comece pela agenda. O resto vem quando precisar."
+-        text="A conta nasce numa conversa de WhatsApp, com os módulos já ligados."
++        text="Experimente a agenda por 7 dias com a Aurélia no WhatsApp. Outros módulos dependem do plano contratado e das permissões da conta."
+       />
+     </>
+   );
+diff --git a/website/src/app/services/[slug]/page.tsx b/website/src/app/services/[slug]/page.tsx
+index 2598907..15657e5 100644
+--- a/website/src/app/services/[slug]/page.tsx
++++ b/website/src/app/services/[slug]/page.tsx
+@@ -68,7 +68,7 @@ export default async function ServicePage({
+         ]}
+       >
+         <Button asChild size="lg">
+-          <Link href="/demo">Solicitar um projeto</Link>
++          <Link href={`/contact?service=${service.slug}#contato`}>Conversar sobre meu projeto</Link>
+         </Button>
+       </PageHero>
+ 
+@@ -109,7 +109,7 @@ export default async function ServicePage({
+         </div>
+       </Section>
+ 
+-      <CTA />
++      <CTA intent="project" />
+     </>
+   );
+ }
+diff --git a/website/src/app/services/page.tsx b/website/src/app/services/page.tsx
+index 6c99465..ebfb974 100644
+--- a/website/src/app/services/page.tsx
++++ b/website/src/app/services/page.tsx
+@@ -25,7 +25,7 @@ export default function ServicesPage() {
+         <ServicesGrid />
+       </Section>
+       <SoftwareFactory />
+-      <CTA />
++      <CTA intent="project" />
+     </>
+   );
+ }
+diff --git a/website/src/components/forms/contact-form.tsx b/website/src/components/forms/contact-form.tsx
+index c968b81..bc523d8 100644
+--- a/website/src/components/forms/contact-form.tsx
++++ b/website/src/components/forms/contact-form.tsx
+@@ -3,55 +3,48 @@
+ import { useState } from "react";
+ import { useForm } from "react-hook-form";
+ import { zodResolver } from "@hookform/resolvers/zod";
+-import { CheckCircle2, Loader2 } from "lucide-react";
++import { Mail } from "lucide-react";
+ import { Button } from "@/components/ui/button";
+ import { Input, Textarea, Label } from "@/components/ui/input";
+ import { contactSchema, type ContactInput } from "@/schemas/contact";
++import { siteConfig } from "@/config/site";
+ 
+-type Status = "idle" | "submitting" | "success" | "error";
++type Status = "idle" | "prepared";
+ 
+-/** Contact / demo form — RHF + Zod, inline validation, submit feedback. */
+-export function ContactForm({ endpoint = "/api/contact" }: { endpoint?: string }) {
++/** Prepara um e-mail para envio explícito pelo visitante. */
++export function ContactForm({ initialInterest = "product", service = "" }: { initialInterest?: ContactInput["interest"]; service?: string }) {
+   const [status, setStatus] = useState<Status>("idle");
++  const [draft, setDraft] = useState("");
+   const {
+     register,
+     handleSubmit,
+-    reset,
+     formState: { errors },
+   } = useForm<ContactInput>({
+     resolver: zodResolver(contactSchema),
+     mode: "onBlur",
++    defaultValues: { interest: initialInterest, service },
+   });
+ 
+-  async function onSubmit(data: ContactInput) {
+-    setStatus("submitting");
+-    try {
+-      const res = await fetch(endpoint, {
+-        method: "POST",
+-        headers: { "Content-Type": "application/json" },
+-        body: JSON.stringify(data),
+-      });
+-      if (!res.ok) throw new Error("request failed");
+-      setStatus("success");
+-      reset();
+-    } catch {
+-      setStatus("error");
+-    }
++  function onSubmit(data: ContactInput) {
++    const interests = { product: "Produto", project: "Software sob medida", support: "Ajuda com minha conta" };
++    const subject = `Contato Orkiestri — ${interests[data.interest]}`;
++    const body = [`Nome: ${data.name}`, `Empresa: ${data.company || "Pessoal"}`, `E-mail: ${data.email}`, `Telefone: ${data.phone || "Não informado"}`, `Interesse: ${interests[data.interest]}`, ...(service ? [`Serviço: ${service}`] : []), "", data.message].join("\n");
++    setDraft(`mailto:${siteConfig.contact.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`);
++    setStatus("prepared");
+   }
+ 
+-  if (status === "success") {
++  if (status === "prepared") {
+     return (
+       <div className="flex flex-col items-center gap-4 rounded-(--radius-card) border border-white/[0.08] bg-panel p-10 text-center">
+-        <CheckCircle2 className="h-12 w-12 text-success" aria-hidden />
++        <Mail className="h-12 w-12 text-flame-soft" aria-hidden />
+         <h3 className="text-xl font-semibold text-chalk">
+-          Recebemos sua solicitação
++          Sua mensagem está pronta
+         </h3>
+         <p className="text-chalk-dim">
+-          Nossa equipe entrará em contato em breve.
++          Abra seu aplicativo de e-mail, confira o conteúdo e confirme o envio para {siteConfig.contact.email}. A mensagem ainda não foi enviada.
+         </p>
+-        <Button variant="secondary" onClick={() => setStatus("idle")}>
+-          Enviar outra mensagem
+-        </Button>
++        <Button asChild><a href={draft}>Abrir e-mail para enviar</a></Button>
++        <Button variant="secondary" onClick={() => setStatus("idle")}>Voltar e editar</Button>
+       </div>
+     );
+   }
+@@ -62,6 +55,14 @@ export function ContactForm({ endpoint = "/api/contact" }: { endpoint?: string }
+       noValidate
+       className="flex flex-col gap-5 rounded-(--radius-card) border border-white/[0.08] bg-panel p-6 md:p-8"
+     >
++      <Field id="interest" label="Como podemos ajudar?" required>
++        <select id="interest" className="min-h-12 rounded-xl border border-white/15 bg-panel px-4 text-chalk" {...register("interest")}>
++          <option value="product">Quero conhecer ou contratar o produto</option>
++          <option value="project">Preciso de software sob medida</option>
++          <option value="support">Preciso de ajuda com minha conta</option>
++        </select>
++      </Field>
++      {service && <p className="text-sm text-chalk-dim">Serviço de interesse: {service}</p>}
+       <div className="grid gap-5 sm:grid-cols-2">
+         <Field id="name" label="Nome" error={errors.name?.message} required>
+           <Input
+@@ -73,9 +74,8 @@ export function ContactForm({ endpoint = "/api/contact" }: { endpoint?: string }
+         </Field>
+         <Field
+           id="company"
+-          label="Empresa"
++          label="Empresa (opcional)"
+           error={errors.company?.message}
+-          required
+         >
+           <Input
+             id="company"
+@@ -114,27 +114,13 @@ export function ContactForm({ endpoint = "/api/contact" }: { endpoint?: string }
+         />
+       </Field>
+ 
+-      {status === "error" && (
+-        <p role="alert" className="text-sm text-error">
+-          Não foi possível enviar sua mensagem. Tente novamente em alguns
+-          instantes.
+-        </p>
+-      )}
+-
++      <p className="text-xs leading-relaxed text-chalk-faint">Este formulário prepara um e-mail. Você confere e envia pelo seu aplicativo; os dados não são enviados automaticamente pelo site. <a href="/privacy" className="underline underline-offset-4">Política de privacidade.</a></p>
+       <Button
+         type="submit"
+         size="lg"
+-        disabled={status === "submitting"}
+         className="w-full sm:w-auto"
+       >
+-        {status === "submitting" ? (
+-          <>
+-            <Loader2 className="h-5 w-5 animate-spin" aria-hidden />
+-            Enviando…
+-          </>
+-        ) : (
+-          "Enviar solicitação"
+-        )}
++        Preparar mensagem por e-mail
+       </Button>
+     </form>
+   );
+diff --git a/website/src/components/home/fechamento.tsx b/website/src/components/home/fechamento.tsx
+index ee84c03..b0704e2 100644
+--- a/website/src/components/home/fechamento.tsx
++++ b/website/src/components/home/fechamento.tsx
+@@ -23,15 +23,15 @@ export function Fechamento() {
+       <Container className="relative">
+         <div className="mx-auto flex max-w-2xl flex-col items-center text-center">
+           <h2 className="font-display text-[2rem] font-bold leading-[1.08] tracking-[-0.03em] text-chalk [font-stretch:110%] md:text-[2.75rem]">
+-            A sua conta começa com uma mensagem.
++            Sua próxima semana pode ser mais leve.
+           </h2>
+           <p className="mt-5 max-w-[46ch] text-[1.0625rem] leading-[1.65] text-chalk-dim">
+-            Você manda, a Aurélia faz as perguntas e devolve a conta pronta, com
+-            os módulos ligados. Daí em diante é ela quem te lembra do que
+-            você ia esquecer.
++            Experimente a agenda por 7 dias. A Aurélia guia o cadastro e o
++            primeiro compromisso pelo WhatsApp. Sem cartão e sem cobrança automática.
+           </p>
+ 
+           <WhatsAppButton className="mt-10" />
++          <p className="mt-4 max-w-lg text-sm leading-relaxed text-chalk-dim">Ao fim do teste, você escolhe se quer contratar um plano para continuar. Outros módulos dependem do plano e das permissões da sua conta.</p>
+ 
+           <p className="mt-6 text-sm text-chalk-faint">
+             Prefere conversar antes?{" "}
+diff --git a/website/src/components/home/plataforma.tsx b/website/src/components/home/plataforma.tsx
+index b054cbe..93a454f 100644
+--- a/website/src/components/home/plataforma.tsx
++++ b/website/src/components/home/plataforma.tsx
+@@ -42,7 +42,7 @@ const comoFunciona = [
+     icone: Smartphone,
+     titulo: "Começa numa conversa",
+     texto:
+-      "A conta nasce pelo WhatsApp, com os módulos já ligados. Depois você entra pelo navegador se quiser.",
++      "A Aurélia cria seu teste da agenda pelo WhatsApp. Outros módulos dependem do plano e das permissões da sua conta.",
+   },
+ ];
+ 
+@@ -50,8 +50,8 @@ export function Plataforma() {
+   return (
+     <Faixa id="organiza" tom="raise">
+       <Cabecalho
+-        titulo="Seis coisas que você não devia ter que lembrar sozinho."
+-        texto="Agenda, contas, projetos, pedidos, procedimentos e acessos. Tudo no mesmo lugar, com o mesmo login — e cada um deles sabe te achar no WhatsApp."
++        titulo="Comece pela agenda. Conheça o que vem além."
++        texto="Agenda, contas, projetos, pedidos, conhecimento e acessos no mesmo lugar. O teste de 7 dias libera a agenda; os demais módulos dependem do plano e das permissões contratadas."
+         acao={
+           <LinkTexto href="/products/orkiestri-one">
+             Ver como se encaixam
+diff --git a/website/src/components/layout/mobile-nav.tsx b/website/src/components/layout/mobile-nav.tsx
+index c23181e..d16e193 100644
+--- a/website/src/components/layout/mobile-nav.tsx
++++ b/website/src/components/layout/mobile-nav.tsx
+@@ -1,8 +1,9 @@
+ "use client";
+ 
+-import { useEffect, useState } from "react";
++import { useEffect, useRef, useState } from "react";
++import { createPortal } from "react-dom";
+ import Link from "next/link";
+-import { motion } from "framer-motion";
++import { motion, useReducedMotion } from "framer-motion";
+ import { X, ChevronDown, MessageCircle } from "lucide-react";
+ import { Logo } from "./logo";
+ import { WHATSAPP_CADASTRO } from "@/config/site";
+@@ -14,24 +15,29 @@ import { EASE_OUT } from "@/lib/motion";
+ const staticLinks = [
+   { label: "Empresa", href: "/company" },
+   { label: "Tecnologia", href: "/technology" },
+-  { label: "Cases", href: "/cases" },
+-  { label: "Blog", href: "/blog" },
++  { label: "Como funciona", href: "/demo" },
+   { label: "Contato", href: "/contact" },
+ ];
+ 
+ /** Mobile drawer — slides from the right (doc 08 — drawer). */
+ export function MobileNav({ onClose }: { onClose: () => void }) {
+   const [section, setSection] = useState<"products" | "services" | null>(null);
++  const panel = useRef<HTMLElement>(null);
++  const reduceMotion = useReducedMotion();
+ 
+   useEffect(() => {
++    const previousOverflow = document.body.style.overflow;
++    const previousFocus = document.activeElement as HTMLElement | null;
+     document.body.style.overflow = "hidden";
++    panel.current?.querySelector<HTMLButtonElement>('button[aria-label="Fechar menu"]')?.focus();
+     return () => {
+-      document.body.style.overflow = "";
++      document.body.style.overflow = previousOverflow;
++      previousFocus?.focus();
+     };
+   }, []);
+ 
+-  return (
+-    <div className="fixed inset-0 z-50 lg:hidden">
++  return createPortal(
++    <div className="fixed inset-0 z-50 xl:hidden">
+       <motion.div
+         className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+         initial={{ opacity: 0 }}
+@@ -40,14 +46,28 @@ export function MobileNav({ onClose }: { onClose: () => void }) {
+         onClick={onClose}
+       />
+       <motion.aside
++        ref={panel}
++        role="dialog"
++        aria-modal="true"
++        aria-label="Menu principal"
++        onKeyDown={(event) => {
++          if (event.key === "Escape") { event.stopPropagation(); onClose(); }
++          if (event.key !== "Tab") return;
++          const items = panel.current?.querySelectorAll<HTMLElement>('a[href], button:not([disabled])');
++          if (!items?.length) return;
++          const first = items[0];
++          const last = items[items.length - 1];
++          if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
++          else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
++        }}
+         /* Gaveta escura: a home é escura e abrir o menu nela devolvia um
+            clarão branco. Sob as páginas claras ela continua legível, como
+            qualquer folha escura sobre fundo claro. */
+         className="absolute right-0 top-0 flex h-full w-[min(88vw,380px)] flex-col border-l border-white/[0.08] bg-ink"
+-        initial={{ x: "100%" }}
++        initial={reduceMotion ? false : { x: "100%" }}
+         animate={{ x: 0 }}
+-        exit={{ x: "100%" }}
+-        transition={{ duration: 0.3, ease: EASE_OUT }}
++        exit={reduceMotion ? { opacity: 0 } : { x: "100%" }}
++        transition={{ duration: reduceMotion ? 0 : 0.3, ease: EASE_OUT }}
+       >
+         <div className="flex h-20 items-center justify-between border-b border-white/[0.08] px-6">
+           <Logo tone="light" />
+@@ -129,10 +149,10 @@ export function MobileNav({ onClose }: { onClose: () => void }) {
+             className="inline-flex h-[52px] w-full items-center justify-center gap-2 rounded-(--radius-button) bg-signal font-semibold text-[#06281A] transition-colors hover:bg-signal-hover"
+           >
+             <MessageCircle className="h-5 w-5" aria-hidden />
+-            Criar minha conta no WhatsApp
++            Cadastre-se é gratuito!
+           </a>
+           <a
+-            href="/entrar"
++            href="/login"
+             onClick={onClose}
+             className="inline-flex h-[52px] w-full items-center justify-center rounded-(--radius-button) border border-white/[0.12] font-medium text-chalk transition-colors hover:bg-white/[0.05]"
+           >
+@@ -140,7 +160,8 @@ export function MobileNav({ onClose }: { onClose: () => void }) {
+           </a>
+         </div>
+       </motion.aside>
+-    </div>
++    </div>,
++    document.body,
+   );
+ }
+ 
+diff --git a/website/src/components/layout/navbar.tsx b/website/src/components/layout/navbar.tsx
+index 4820ff7..e3644d4 100644
+--- a/website/src/components/layout/navbar.tsx
++++ b/website/src/components/layout/navbar.tsx
+@@ -14,8 +14,7 @@ import { cn } from "@/lib/utils";
+ const simpleLinks = [
+   { label: "Empresa", href: "/company" },
+   { label: "Tecnologia", href: "/technology" },
+-  { label: "Cases", href: "/cases" },
+-  { label: "Blog", href: "/blog" },
++  { label: "Como funciona", href: "/demo" },
+ ];
+ 
+ /**
+@@ -37,24 +36,19 @@ export function Navbar() {
+   const [mobileOpen, setMobileOpen] = useState(false);
+ 
+   useEffect(() => {
+-    /* Na home o cabeçalho só vira sólido depois que o botão verde do hero
+-       sai de vista: enquanto ele está na tela, repetir o CTA aqui em cima
+-       seria o mesmo verde duas vezes na mesma dobra. Nas outras páginas não
+-       há hero verde, então o cabeçalho reage ao primeiro pixel de rolagem. */
++    /* A home abre transparente; as páginas internas usam a superfície sólida. */
+     const onScroll = () => setScrolled(window.scrollY > (naHome ? 420 : 12));
+     onScroll();
+     window.addEventListener("scroll", onScroll, { passive: true });
+     return () => window.removeEventListener("scroll", onScroll);
+   }, [naHome]);
+ 
+-  /* O CTA de cadastro só se esconde na home, e só antes da rolagem. */
+-  const ctaOculto = naHome && !scrolled;
+-
+   const linkDeTexto =
+-    "rounded-lg px-3.5 py-2 text-[0.9375rem] font-medium text-chalk-dim transition-colors hover:text-chalk";
++    "whitespace-nowrap rounded-lg px-3.5 py-2 text-[0.9375rem] font-medium text-chalk-dim transition-colors hover:text-chalk";
+ 
+   return (
+     <header
++      onKeyDown={(event) => { if (event.key === "Escape") setOpenMenu(null); }}
+       className={cn(
+         "fixed inset-x-0 top-0 z-40 transition-all duration-300",
+         scrolled
+@@ -66,13 +60,15 @@ export function Navbar() {
+         <Logo tone="light" />
+ 
+         <nav
+-          className="hidden items-center gap-1 lg:flex"
++          aria-label="Navegação principal"
++          className="hidden items-center gap-1 xl:flex"
+           onMouseLeave={() => setOpenMenu(null)}
+         >
+           <MenuTrigger
+             label="Produtos"
+             open={openMenu === "products"}
+             onOpen={() => setOpenMenu("products")}
++            onToggle={() => setOpenMenu(openMenu === "products" ? null : "products")}
+           >
+             <ProductsMenu onNavigate={() => setOpenMenu(null)} />
+           </MenuTrigger>
+@@ -80,6 +76,7 @@ export function Navbar() {
+             label="Soluções"
+             open={openMenu === "services"}
+             onOpen={() => setOpenMenu("services")}
++            onToggle={() => setOpenMenu(openMenu === "services" ? null : "services")}
+           >
+             <ServicesMenu onNavigate={() => setOpenMenu(null)} />
+           </MenuTrigger>
+@@ -95,8 +92,8 @@ export function Navbar() {
+           ))}
+         </nav>
+ 
+-        <div className="hidden items-center gap-2 lg:flex">
+-          <a href="/entrar" className={linkDeTexto}>
++        <div className="hidden shrink-0 items-center gap-2 xl:flex">
++          <a href="/login" className={linkDeTexto}>
+             Entrar
+           </a>
+           {/* O cadastro do site inteiro passa por aqui. */}
+@@ -105,23 +102,20 @@ export function Navbar() {
+             target="_blank"
+             rel="noopener noreferrer"
+             className={cn(
+-              "inline-flex h-10 items-center gap-2 rounded-(--radius-button) bg-signal px-4",
++              "inline-flex h-10 items-center gap-2 whitespace-nowrap rounded-(--radius-button) bg-signal px-4",
+               "text-[0.9375rem] font-semibold text-[#06281A]",
+               "transition-all duration-200 ease-(--ease-out-quart) hover:bg-signal-hover",
+               "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal",
+-              ctaOculto && "pointer-events-none opacity-0",
+             )}
+-            aria-hidden={ctaOculto}
+-            tabIndex={ctaOculto ? -1 : undefined}
+           >
+             <MessageCircle className="h-[18px] w-[18px]" aria-hidden />
+-            Criar conta
++            Cadastre-se é gratuito!
+           </a>
+         </div>
+ 
+         <button
+           type="button"
+-          className="inline-flex h-10 w-10 cursor-pointer items-center justify-center rounded-lg text-chalk lg:hidden"
++          className="inline-flex h-10 w-10 cursor-pointer items-center justify-center rounded-lg text-chalk xl:hidden"
+           aria-label="Abrir menu"
+           aria-expanded={mobileOpen}
+           onClick={() => setMobileOpen(true)}
+@@ -141,11 +135,13 @@ function MenuTrigger({
+   label,
+   open,
+   onOpen,
++  onToggle,
+   children,
+ }: {
+   label: string;
+   open: boolean;
+   onOpen: () => void;
++  onToggle: () => void;
+   children: React.ReactNode;
+ }) {
+   return (
+@@ -157,6 +153,8 @@ function MenuTrigger({
+           open ? "text-chalk" : "text-chalk-dim hover:text-chalk",
+         )}
+         aria-expanded={open}
++        onClick={onOpen}
++        onKeyDown={(event) => { if (event.key === "Escape" && open) onToggle(); }}
+       >
+         {label}
+         <ChevronDown
+diff --git a/website/src/components/sections/cta.tsx b/website/src/components/sections/cta.tsx
+index 15e2344..8e9a015 100644
+--- a/website/src/components/sections/cta.tsx
++++ b/website/src/components/sections/cta.tsx
+@@ -7,11 +7,13 @@ import { Reveal } from "@/components/animations/reveal";
+ 
+ /** Final CTA — reused across pages (doc 05). */
+ export function CTA({
+-  title = "Pronto para parar de lembrar sozinho?",
+-  text = "A conta nasce numa conversa de WhatsApp e, a partir dali, é o sistema que te procura.",
++  title,
++  text,
++  intent = "trial",
+ }: {
+   title?: string;
+   text?: string;
++  intent?: "trial" | "project";
+ }) {
+   return (
+     <section className="py-20 md:py-28">
+@@ -29,11 +31,11 @@ export function CTA({
+           />
+           <div className="relative mx-auto flex max-w-2xl flex-col items-center">
+             <h2 className="text-[2rem] font-bold text-white md:text-[2.75rem]">
+-              {title}
++              {title ?? (intent === "project" ? "Qual problema seu próximo software precisa resolver?" : "Comece pela agenda. Experimente por 7 dias.")}
+             </h2>
+-            <p className="mt-4 text-lg text-chalk-faint">{text}</p>
++            <p className="mt-4 text-lg text-chalk-dim">{text ?? (intent === "project" ? "Conte o contexto, as pessoas envolvidas e o que você quer melhorar. Vamos conversar sobre o caminho para construir." : "A Aurélia guia seu cadastro pelo WhatsApp. Sem cartão e sem cobrança automática. Outros módulos dependem do plano contratado.")}</p>
+             <div className="mt-8 flex flex-wrap justify-center gap-3">
+-              <WhatsAppButton />
++              {intent === "trial" ? <WhatsAppButton /> : <Button asChild size="lg"><Link href="/contact?interest=project#contato">Conversar sobre meu projeto</Link></Button>}
+               <Button
+                 asChild
+                 size="lg"
+diff --git a/website/src/components/sections/hero.tsx b/website/src/components/sections/hero.tsx
+index 21df332..95d9347 100644
+--- a/website/src/components/sections/hero.tsx
++++ b/website/src/components/sections/hero.tsx
+@@ -1,251 +1,43 @@
+-"use client";
+-
+-import { useState } from "react";
+-import Image from "next/image";
+-import { motion, useReducedMotion } from "framer-motion";
++import Link from "next/link";
++import { ArrowDown, BellRing, CalendarDays, Check } from "lucide-react";
+ import { Container } from "@/components/ui/container";
+ import { WhatsAppButton } from "@/components/ui/whatsapp-button";
+-import { Holofote } from "@/components/ui/holofote";
++import { Screenshot } from "@/components/ui/screenshot";
+ import { products } from "@/config/products";
+-import { cn } from "@/lib/utils";
+-import { EASE_OUT } from "@/lib/motion";
+-
+-/**
+- * Hero da home — escuro, com as telas reais do sistema.
+- *
+- * Três decisões sustentam esta seção e não devem ser afrouxadas:
+- *
+- *   1. UM botão. O cadastro acontece pelo WhatsApp e só por lá (decisão do
+- *      cliente, 26/10/2026). Qualquer outro botão aqui disputa com ele e o
+- *      enfraquece — era o que acontecia antes, com três lado a lado.
+- *   2. O verde aparece UMA vez na página inteira. Não é enfeite: diz que o
+- *      clique sai do site e abre uma conversa. Usá-lo em outro lugar
+- *      destrói essa leitura.
+- *   3. A trilha de módulos embaixo é o convite a vasculhar. Ela troca a tela
+- *      sem sair da dobra — quem chega descobre o tamanho do sistema antes de
+- *      rolar um pixel.
+- *
+- * O número do WhatsApp é o mesmo a que a instância do Evolution está
+- * conectada em produção; apontando para outro, a Aurélia nunca vê a mensagem.
+- */
+-
+-/* Só os módulos com captura real entram na trilha. Anunciar um módulo e
+-   mostrar um retângulo vazio é pior do que não anunciar. */
+-const modulos = products.filter((p) => p.screenshot);
+ 
+ export function Hero() {
+-  const reduce = useReducedMotion();
+-  const [ativo, setAtivo] = useState(0);
+-  const tela = modulos[ativo];
+-
+-  /* Entrada orquestrada: a manchete, o texto, o botão e a tela chegam em
+-     cascata uma única vez. É o ÚNICO movimento não pedido da página — as
+-     seções abaixo não repetem fade-up, que é o que faz uma página parecer
+-     gerada. */
+-  const entrada = (i: number) => ({
+-    initial: reduce ? { opacity: 0 } : { opacity: 0, y: 14 },
+-    animate: { opacity: 1, y: 0 },
+-    transition: { duration: 0.5, ease: EASE_OUT, delay: 0.06 * i },
+-  });
+-
++  const agenda = products.find((product) => product.slug === "one-space");
+   return (
+-    <section className="ink-grain relative isolate overflow-hidden bg-ink pt-28 pb-16 md:pt-32 lg:pt-36 lg:pb-20">
+-      {/* A luz.
+-          Uma fonte só, assimétrica, alta e à esquerda — a de duas fontes
+-          largas que havia aqui tingia a página inteira de marrom: laranja
+-          difuso sobre preto neutro vira ocre, e o "quase preto" desaparece.
+-          Agora o glow é menor, mais fraco e fica contido no alto; a vinheta
+-          abaixo devolve o preto às bordas, que é o que faz o laranja ler
+-          como LUZ em vez de tinta de fundo. */}
+-      <div aria-hidden className="pointer-events-none absolute inset-0 -z-10">
+-        {/* Malha técnica, só perto da fonte de luz. */}
+-        <div className="malha absolute inset-0" />
+-        <div className="absolute -left-24 -top-64 h-[560px] w-[680px] rounded-full bg-flame/[0.10] blur-[130px]" />
+-        {/* Vinheta: escurece as quatro bordas por cima do glow. */}
+-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_70%_60%_at_38%_28%,transparent,var(--color-ink)_78%)]" />
+-        {/* A luz que segue o ponteiro. Fica ACIMA da vinheta, senão o preto
+-            das bordas a apagaria justamente onde ela deve aparecer. */}
+-        <Holofote />
+-        {/* Fio de horizonte: separa o hero do que vem abaixo sem borda dura. */}
+-        <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+-      </div>
+-
+-      <Container className="relative z-10">
+-        <div className="grid items-center gap-12 lg:grid-cols-[minmax(0,0.88fr)_minmax(0,1.12fr)] lg:gap-16">
+-          {/* ── Texto ─────────────────────────────────────────────────── */}
+-          <div className="flex flex-col items-start">
+-            <motion.h1
+-              {...entrada(0)}
+-              className="font-display text-[2.25rem] font-bold leading-[1.04] tracking-[-0.035em] text-chalk [font-stretch:112%] sm:text-[2.75rem] lg:text-[3rem] xl:text-[3.5rem]"
+-            >
+-              Anote por mensagem. Seja lembrado por mensagem.
+-            </motion.h1>
+-
+-            <motion.p
+-              {...entrada(1)}
+-              className="mt-7 max-w-[52ch] text-[1.0625rem] leading-[1.65] text-chalk-dim"
+-            >
+-              {/* Cada promessa daqui é verificável no backend: os lembretes
+-                  em `alert.scheduler.ts`, os comandos em
+-                  `whatsapp-inbound.module.ts`. Não acrescentar nada sem
+-                  conferir lá. */}
+-              Agenda, contas, gastos e projetos num lugar só. Você escreve no
+-              WhatsApp para anotar, e o Orkiestri te procura lá quando chega a
+-              hora: uma hora antes do compromisso, no domingo com o resumo da
+-              semana.
+-            </motion.p>
+-
+-            <motion.div {...entrada(2)} className="mt-9">
++    <section className="hero-modern relative isolate overflow-hidden bg-ink pb-16 pt-32 md:pb-24 md:pt-40">
++      <div aria-hidden className="hero-aurora pointer-events-none absolute inset-0 -z-10" />
++      <Container>
++        <div className="grid items-center gap-14 lg:grid-cols-[1fr_1.05fr] lg:gap-16">
++          <div className="hero-enter">
++            <p className="mb-6 inline-flex items-center gap-2 rounded-full border border-flame/30 bg-flame/[0.07] px-4 py-2 text-sm font-medium text-flame-soft"><CalendarDays className="h-4 w-4" aria-hidden /> Sua agenda. Sua rotina. Mais leve.</p>
++            <h1 className="max-w-[14ch] font-display text-[clamp(2.5rem,4.7vw,4.5rem)] font-bold leading-[1.04] tracking-[-0.04em] text-chalk">Sua agenda organizada <span className="hero-highlight">pelo WhatsApp.</span></h1>
++            <p className="mt-7 max-w-[46ch] text-lg leading-relaxed text-chalk-dim">Cadastre-se com a Aurélia, registre compromissos por mensagem e receba lembretes na hora certa. Comece com <strong className="font-medium text-chalk">7 dias grátis de agenda.</strong></p>
++            <div className="mt-8 flex flex-col items-start gap-5">
+               <WhatsAppButton />
+-              <p className="mt-4 text-sm leading-relaxed text-chalk-faint">
+-                A conversa cria a conta e liga os módulos. Sem formulário.
+-              </p>
+-            </motion.div>
++              <a href="#como-funciona" className="inline-flex min-h-11 items-center gap-2 text-sm font-medium text-chalk-dim transition-colors hover:text-chalk">Veja como funciona <ArrowDown className="h-4 w-4" aria-hidden /></a>
++            </div>
++            <ul className="mt-5 flex flex-wrap gap-x-5 gap-y-3 text-sm text-chalk-dim">
++              {["Sem cartão", "Sem cobrança automática", "Cadastro na conversa"].map((text) => <li key={text} className="flex items-center gap-2"><Check className="h-4 w-4 text-flame-soft" aria-hidden />{text}</li>)}
++            </ul>
++          </div>
++          <div className="hero-enter relative min-w-0">
++            <div className="relative rounded-[28px] border border-white/10 bg-panel/80 p-3 shadow-[0_30px_100px_-30px_rgba(255,106,26,0.2)] sm:p-5">
++              <div className="mb-4 flex items-center justify-between gap-3 px-1"><span className="text-sm font-medium text-chalk">Sua semana, com espaço para você.</span><span className="hidden rounded-full bg-flame/10 px-3 py-1 text-xs text-flame-soft sm:block">Agenda</span></div>
++              {agenda?.screenshot && <Screenshot {...agenda.screenshot} priority zoomOnHover={false} reflection={false} />}
++              <p className="mt-4 px-1 text-xs leading-relaxed text-chalk-faint">Tela real do Orkiestri. Toque na imagem para ampliar.</p>
++            </div>
++            <div className="reminder-card relative mx-4 -mt-1 flex items-center gap-3 rounded-2xl border border-white/15 bg-ink-raise p-4 shadow-xl sm:mx-8 sm:-mt-3">
++              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-flame/10 text-flame-soft"><BellRing className="h-5 w-5" aria-hidden /></span>
++              <div><p className="text-sm font-semibold text-chalk">Menos preocupação com o horário.</p><p className="mt-1 text-xs leading-relaxed text-chalk-dim">Lembretes de compromissos chegam no WhatsApp.</p></div>
++            </div>
+           </div>
+-
+-          {/* ── Tela ──────────────────────────────────────────────────── */}
+-          <motion.div
+-            initial={reduce ? { opacity: 0 } : { opacity: 0, y: 28 }}
+-            animate={{ opacity: 1, y: 0 }}
+-            transition={{ duration: 0.7, ease: EASE_OUT, delay: 0.22 }}
+-            /* A tela ultrapassa a margem direita e sai da janela. Não é
+-               descuido: contida, ela virava uma figura educada ao lado do
+-               texto; sangrando, diz que há mais sistema do que cabe na tela —
+-               que é exatamente o convite a ir ver. */
+-            className="relative lg:-mr-12 xl:-mr-24 2xl:-mr-40"
+-          >
+-            {/* Brilho SOB a moldura, não atrás dela: atrás, o laranja vazava
+-                por cima da captura e a deixava amarelada e sem contraste.
+-                Embaixo, lê como a luz que a tela joga na mesa. */}
+-            <div
+-              aria-hidden
+-              className="pointer-events-none absolute inset-x-8 -bottom-6 -z-10 h-40 rounded-full bg-flame/20 blur-[60px]"
+-            />
+-            <Moldura tela={tela} />
+-          </motion.div>
+         </div>
+-
+-        {/* ── Trilha de módulos ──────────────────────────────────────── */}
+-        <motion.div {...entrada(4)} className="mt-14 lg:mt-16">
+-          <Trilha ativo={ativo} onEscolher={setAtivo} />
+-        </motion.div>
++        <div className="mt-12 border-t border-white/10 pt-6 text-sm text-chalk-faint">Precisa de uma solução para sua empresa? <Link href="/services" className="inline-flex min-h-11 items-center font-medium text-chalk underline decoration-white/25 underline-offset-4 transition-colors hover:text-flame-soft">Conheça o desenvolvimento sob medida →</Link></div>
+       </Container>
+     </section>
+   );
+ }
+-
+-/** Moldura da captura: fio de luz e respiro de 8px em volta da tela. */
+-function Moldura({ tela }: { tela: (typeof modulos)[number] }) {
+-  /* As capturas não têm o mesmo tamanho: vão de 920px a 2200px de largura.
+-     Ampliar todas no mesmo fator deixaria as pequenas borradas — a de Frota
+-     (920px) já entra quase no tamanho natural. Só as grandes sobram pixel
+-     para recortar, e são essas que ganham o zoom. */
+-  const grande = (tela.screenshot!.width ?? 0) >= 1600;
+-
+-  return (
+-    <div className="borda-viva hairline edge-light relative isolate rounded-[22px] border bg-panel p-2">
+-      <div className="relative aspect-[16/10] w-full overflow-hidden rounded-[15px] bg-ink-raise lg:aspect-[16/11]">
+-        {/* `key` força o cruzamento de imagens na troca: sem ele o React
+-            reaproveita o nó e a tela nova aparece de estalo. */}
+-        <Image
+-          key={tela.slug}
+-          src={tela.screenshot!.src}
+-          alt={tela.screenshot!.alt}
+-          fill
+-          priority
+-          /* Captura de interface é densa em texto miúdo; o padrão (q=75)
+-             borra as letras e a tela passa a parecer de baixa qualidade. */
+-          quality={92}
+-          sizes="(max-width: 1024px) 100vw, 1100px"
+-          /* A tela inteira reduzida a 600px fica ilegível e lê como borrão
+-             cinza — pior do que não mostrar. Ampliada e ancorada no canto
+-             superior esquerdo, aparece um PEDAÇO em tamanho legível: dá para
+-             ler os rótulos, e é isso que prova que o sistema existe. */
+-          className={cn(
+-            "animate-[fade-in_.45s_ease-out] object-cover object-left-top",
+-            grande && "origin-top-left scale-[1.45]",
+-          )}
+-        />
+-        {/* O corte à direita e embaixo fica duro; este véu dissolve a aresta
+-            para dentro do painel. */}
+-        <div
+-          aria-hidden
+-          className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_right,transparent_72%,rgba(7,8,11,0.55)),linear-gradient(to_bottom,transparent_74%,rgba(7,8,11,0.5))]"
+-        />
+-      </div>
+-    </div>
+-  );
+-}
+-
+-/** Seletor de módulo. Tabs de verdade: setas do teclado navegam. */
+-function Trilha({
+-  ativo,
+-  onEscolher,
+-}: {
+-  ativo: number;
+-  onEscolher: (i: number) => void;
+-}) {
+-  const mover = (e: React.KeyboardEvent, i: number) => {
+-    const destino =
+-      e.key === "ArrowRight"
+-        ? (i + 1) % modulos.length
+-        : e.key === "ArrowLeft"
+-          ? (i - 1 + modulos.length) % modulos.length
+-          : null;
+-    if (destino === null) return;
+-    e.preventDefault();
+-    onEscolher(destino);
+-    (
+-      document.getElementById(`modulo-${destino}`) as HTMLButtonElement | null
+-    )?.focus();
+-  };
+-
+-  return (
+-    <div className="border-t border-white/[0.07] pt-6">
+-      <p className="text-sm text-chalk-faint">
+-        As telas são do sistema rodando. Escolha o que quer ver:
+-      </p>
+-      <div
+-        role="tablist"
+-        aria-label="Módulos do Orkiestri One"
+-        /* Rola na horizontal no celular; a barra fica escondida porque a
+-           própria lista já indica que há mais à direita pelo corte. */
+-        className="mt-4 flex gap-x-7 gap-y-3 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] lg:flex-wrap lg:overflow-visible [&::-webkit-scrollbar]:hidden"
+-      >
+-        {modulos.map((p, i) => {
+-          const selecionado = i === ativo;
+-          return (
+-            <button
+-              key={p.slug}
+-              id={`modulo-${i}`}
+-              type="button"
+-              role="tab"
+-              aria-selected={selecionado}
+-              tabIndex={selecionado ? 0 : -1}
+-              onClick={() => onEscolher(i)}
+-              onKeyDown={(e) => mover(e, i)}
+-              className={cn(
+-                "relative shrink-0 cursor-pointer whitespace-nowrap pb-2 text-[0.9375rem] font-medium transition-colors duration-200",
+-                "focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-flame",
+-                selecionado
+-                  ? "text-chalk"
+-                  : "text-chalk-faint hover:text-chalk-dim",
+-              )}
+-            >
+-              {/* O nome da marca se repete em todos os módulos; na trilha só
+-                  o que distingue um módulo do outro ajuda a escolher. */}
+-              {p.short ?? p.name}
+-              {selecionado && (
+-                <motion.span
+-                  layoutId="modulo-ativo"
+-                  className="absolute inset-x-0 -bottom-px h-px bg-flame shadow-[0_0_12px_2px_rgba(255,106,26,0.6)]"
+-                  transition={{ duration: 0.25, ease: EASE_OUT }}
+-                />
+-              )}
+-            </button>
+-          );
+-        })}
+-      </div>
+-    </div>
+-  );
+-}
+diff --git a/website/src/components/ui/container.tsx b/website/src/components/ui/container.tsx
+index 53f6d38..8555780 100644
+--- a/website/src/components/ui/container.tsx
++++ b/website/src/components/ui/container.tsx
+@@ -4,9 +4,11 @@ import { cn } from "@/lib/utils";
+ export function Container({
+   className,
+   children,
++  id,
+ }: {
+   className?: string;
+   children: React.ReactNode;
++  id?: string;
+ }) {
+-  return <div className={cn("container-content", className)}>{children}</div>;
++  return <div id={id} className={cn("container-content", className)}>{children}</div>;
+ }
+diff --git a/website/src/components/ui/screenshot.tsx b/website/src/components/ui/screenshot.tsx
+index c41d2e6..c362294 100644
+--- a/website/src/components/ui/screenshot.tsx
++++ b/website/src/components/ui/screenshot.tsx
+@@ -33,6 +33,7 @@ export function Screenshot({
+   zoomOnHover = true,
+   uniform = false,
+   bordered = true,
++  reflection = true,
+   className,
+ }: {
+   src: string;
+@@ -55,6 +56,7 @@ export function Screenshot({
+    * com a própria tela do produto.
+    */
+   bordered?: boolean;
++  reflection?: boolean;
+   className?: string;
+ }) {
+   const surface = useRef<HTMLDivElement>(null);
+@@ -203,7 +205,7 @@ export function Screenshot({
+                 className={cn(
+                   "pointer-events-none absolute bottom-4 right-4 z-20 inline-flex items-center gap-1.5",
+                   "rounded-full border border-white/15 bg-ink/75 px-3 py-1.5 text-xs font-medium text-white",
+-                  "opacity-0 backdrop-blur-sm transition-opacity duration-200 group-hover:opacity-100"
++                  "opacity-100 backdrop-blur-sm transition-opacity duration-200 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100"
+                 )}
+               >
+                 <ZoomIn className="h-3.5 w-3.5" />
+@@ -214,6 +216,7 @@ export function Screenshot({
+         </Dialog.Trigger>
+ 
+         {/* 5. Reflexo — assenta o card no fundo */}
++        {reflection && (
+         <div
+           aria-hidden
+           className={cn(
+@@ -222,6 +225,7 @@ export function Screenshot({
+             "transition-all duration-[280ms] group-hover:w-[92%] group-hover:opacity-80"
+           )}
+         />
++        )}
+       </figure>
+ 
+       {/* ── Galeria em tela cheia ─────────────────────────────────────────── */}
+@@ -234,6 +238,7 @@ export function Screenshot({
+           )}
+         >
+           <Dialog.Title className="sr-only">{alt}</Dialog.Title>
++          <Dialog.Description className="sr-only">Captura de tela do produto em tamanho ampliado. Role para ver os detalhes ou pressione Escape para fechar.</Dialog.Description>
+ 
+           {/* Barra de ações — só o fechar. A imagem já abre grande, então o
+               alternador de tamanho virava um passo extra sem ganho. */}
+diff --git a/website/src/components/ui/whatsapp-button.tsx b/website/src/components/ui/whatsapp-button.tsx
+index d63c08b..c63f6f2 100644
+--- a/website/src/components/ui/whatsapp-button.tsx
++++ b/website/src/components/ui/whatsapp-button.tsx
+@@ -15,7 +15,7 @@ import { cn } from "@/lib/utils";
+  * clique; o do WhatsApp era o que o produto realmente atende.
+  */
+ export function WhatsAppButton({
+-  children = "Criar minha conta no WhatsApp",
++  children = "Cadastre-se é gratuito!",
+   tamanho = "lg",
+   className,
+ }: {
+@@ -29,7 +29,7 @@ export function WhatsAppButton({
+       target="_blank"
+       rel="noopener noreferrer"
+       className={cn(
+-        "inline-flex items-center justify-center whitespace-nowrap rounded-(--radius-button) bg-signal font-semibold text-[#06281A]",
++        "inline-flex max-w-full items-center justify-center rounded-(--radius-button) bg-signal font-semibold text-[#06281A]",
+         "transition-all duration-200 ease-(--ease-out-quart)",
+         "shadow-[0_0_0_1px_rgba(37,211,102,0.45),0_14px_40px_-12px_rgba(37,211,102,0.5)]",
+         "hover:bg-signal-hover hover:shadow-[0_0_0_1px_rgba(37,211,102,0.6),0_18px_50px_-10px_rgba(37,211,102,0.65)]",
+diff --git a/website/src/config/content.ts b/website/src/config/content.ts
+index d142295..788cf52 100644
+--- a/website/src/config/content.ts
++++ b/website/src/config/content.ts
+@@ -32,6 +32,14 @@ export const softwareFactoryProcess: ProcessStep[] = [
+ 
+ /** Home / plataforma FAQ (doc 07 — FAQ accordion). */
+ export const homeFaq: FaqItem[] = [
++  {
++    question: 'O que está incluído nos 7 dias grátis?',
++    answer: 'O teste libera a agenda por 7 dias a partir da criação da conta: cadastre compromissos, consulte seus eventos e receba lembretes pelo WhatsApp. Outros módulos não fazem parte deste teste e dependem do plano e das permissões da conta.',
++  },
++  {
++    question: 'O que acontece depois do teste?',
++    answer: 'O acesso de teste à agenda termina após 7 dias. Para continuar, você escolhe contratar um plano. Não pedimos cartão no cadastro e não há cobrança automática. Consulte as condições e os valores disponíveis antes de contratar.',
++  },
+   {
+     question: 'Preciso instalar alguma coisa?',
+     answer:
+@@ -40,7 +48,7 @@ export const homeFaq: FaqItem[] = [
+   {
+     question: 'Por que o cadastro é pelo WhatsApp?',
+     answer:
+-      'Porque é onde a conversa já acontece. Você manda uma mensagem, responde as perguntas do cadastro ali mesmo e recebe a conta pronta, com os módulos ligados — sem formulário e sem esperar aprovação. Se preferir falar com uma pessoa antes, use a página de contato.',
++      'A Aurélia guia o cadastro na própria conversa. Envie CADASTRO AGENDA, informe nome, CPF, e-mail e empresa (ou Pessoal), confira os dados e confirme. Esse caminho cria seu teste da agenda sem aprovação manual. O botão do site já prepara o comando; você só precisa enviá-lo no WhatsApp.',
+   },
+   {
+     question: 'Que avisos eu recebo, e quando?',
+diff --git a/website/src/config/navigation.ts b/website/src/config/navigation.ts
+index 8417139..680c909 100644
+--- a/website/src/config/navigation.ts
++++ b/website/src/config/navigation.ts
+@@ -10,8 +10,7 @@ export const mainNav: NavItem[] = [
+   { label: "Produtos", href: "/products" },
+   { label: "Soluções", href: "/services" },
+   { label: "Tecnologia", href: "/technology" },
+-  { label: "Cases", href: "/cases" },
+-  { label: "Blog", href: "/blog" },
++  { label: "Como funciona", href: "/demo" },
+   { label: "Contato", href: "/contact" },
+ ];
+ 
+@@ -20,19 +19,20 @@ export const footerNav: { title: string; items: NavItem[] }[] = [
+     title: "Produtos",
+     items: [
+       { label: "Orkiestri One", href: "/products/orkiestri-one" },
+-      { label: "Orkiestri Service", href: "/products/one-desk" },
+-      { label: "Orkiestri Projects", href: "/products/one-projects" },
++      { label: "Agenda e anotações", href: "/products/one-space" },
++      { label: "Pedidos e chamados", href: "/products/one-desk" },
++      { label: "Projetos e tarefas", href: "/products/one-projects" },
+       /* Era "Orkiestri Fleet", removido do sistema em 19/10/2026. */
+-      { label: "Orkiestri Finance", href: "/products/one-finance" },
++      { label: "Contas e gastos", href: "/products/one-finance" },
+       { label: "Ver todos", href: "/products" },
+     ],
+   },
+   {
+     title: "Soluções",
+     items: [
+-      { label: "Software Factory", href: "/services/software-factory" },
+-      { label: "AI Solutions", href: "/services/ai-solutions" },
+-      { label: "Cloud Solutions", href: "/services/cloud-solutions" },
++      { label: "Software sob medida", href: "/services/software-factory" },
++      { label: "Inteligência artificial", href: "/services/ai-solutions" },
++      { label: "Soluções em nuvem", href: "/services/cloud-solutions" },
+       { label: "Consultoria", href: "/services/consulting" },
+     ],
+   },
+@@ -41,9 +41,7 @@ export const footerNav: { title: string; items: NavItem[] }[] = [
+     items: [
+       { label: "Quem Somos", href: "/company" },
+       { label: "Tecnologia", href: "/technology" },
+-      { label: "Cases", href: "/cases" },
+       { label: "Carreiras", href: "/company/careers" },
+-      { label: "Blog", href: "/blog" },
+     ],
+   },
+   {
+@@ -53,7 +51,8 @@ export const footerNav: { title: string; items: NavItem[] }[] = [
+       /* "Solicitar demonstração" saiu daqui em 26/10/2026: o cadastro passou
+          a ser só pelo WhatsApp, e o rodapé era o último lugar do site que
+          ainda oferecia o caminho antigo. */
+-      { label: "Criar conta no WhatsApp", href: WHATSAPP_CADASTRO },
++      { label: "Cadastre-se é gratuito!", href: WHATSAPP_CADASTRO },
++      { label: "Como funciona", href: "/demo" },
+       { label: "Política de Privacidade", href: "/privacy" },
+       { label: "Termos de Uso", href: "/terms" },
+     ],
+diff --git a/website/src/config/products.ts b/website/src/config/products.ts
+index 90c4c9b..ee8ca0a 100644
+--- a/website/src/config/products.ts
++++ b/website/src/config/products.ts
+@@ -134,7 +134,7 @@ export const products: Product[] = [
+       width: 1690,
+       height: 1030,
+     },
+-    name: "O que você não quer repetir",
++    name: "Base de conhecimento",
+     short: "Conhecimento",
+     category: "Quality",
+     tagline: "Escreveu uma vez, para de ser perguntado.",
+diff --git a/website/src/config/services.ts b/website/src/config/services.ts
+index 2de049d..7de04ca 100644
+--- a/website/src/config/services.ts
++++ b/website/src/config/services.ts
+@@ -15,7 +15,7 @@ import type { Service } from "@/types";
+ export const services: Service[] = [
+   {
+     slug: "software-factory",
+-    name: "Software Factory",
++    name: "Desenvolvimento sob medida",
+     tagline: "Software desenvolvido para o seu negócio.",
+     description:
+       "Projetos personalizados para empresas que precisam de soluções exclusivas, integradas ao seu ambiente tecnológico.",
+@@ -29,7 +29,7 @@ export const services: Service[] = [
+   },
+   {
+     slug: "ai-solutions",
+-    name: "Artificial Intelligence",
++    name: "Inteligência artificial",
+     tagline: "Inteligência Artificial aplicada ao seu negócio.",
+     description:
+       "Automação inteligente, agentes de IA, OCR, análise de documentos e assistentes corporativos que apoiam decisões.",
+@@ -43,7 +43,7 @@ export const services: Service[] = [
+   },
+   {
+     slug: "cloud-solutions",
+-    name: "Cloud Solutions",
++    name: "Soluções em nuvem",
+     tagline: "Infraestrutura pronta para escalar.",
+     description:
+       "Migração, infraestrutura, observabilidade, DevOps e alta disponibilidade sobre AWS, Azure e Google Cloud.",
+@@ -57,7 +57,7 @@ export const services: Service[] = [
+   },
+   {
+     slug: "consulting",
+-    name: "Consulting",
++    name: "Consultoria em tecnologia",
+     tagline: "Da estratégia à execução.",
+     description:
+       "Arquitetura, transformação digital, governança e modernização tecnológica conduzidas por um time especializado.",
+@@ -71,7 +71,7 @@ export const services: Service[] = [
+   },
+   {
+     slug: "outsourcing",
+-    name: "Outsourcing",
++    name: "Times de desenvolvimento",
+     tagline: "Especialistas para acelerar suas entregas.",
+     description:
+       "Profissionais preparados para integrar sua equipe, sustentar sistemas e acelerar a evolução dos seus produtos.",
+@@ -85,7 +85,7 @@ export const services: Service[] = [
+   },
+   {
+     slug: "integrations",
+-    name: "Integrations",
++    name: "Integrações de sistemas",
+     tagline: "Conecte tudo. Elimine retrabalho.",
+     description:
+       "Conectamos sistemas, APIs e plataformas para centralizar informações e eliminar processos manuais.",
+diff --git a/website/src/config/site.ts b/website/src/config/site.ts
+index 4b54db9..d9f303d 100644
+--- a/website/src/config/site.ts
++++ b/website/src/config/site.ts
+@@ -47,5 +47,5 @@ export type SiteConfig = typeof siteConfig;
+ export const WHATSAPP_NUMERO = "5514991661688";
+ 
+ export const WHATSAPP_CADASTRO = `https://wa.me/${WHATSAPP_NUMERO}?text=${encodeURIComponent(
+-  "Quero fazer meu cadastro no Orkiestri",
++  "CADASTRO AGENDA",
+ )}`;
+diff --git a/website/src/lib/version.ts b/website/src/lib/version.ts
+index 8880601..2a85081 100644
+--- a/website/src/lib/version.ts
++++ b/website/src/lib/version.ts
+@@ -6,5 +6,5 @@
+  * ter mudado. Aparece pequeno no rodapé para servir de referência ao reportar
+  * problema — "quebrou na 1.1.0" localiza o deploy; "quebrou hoje" não.
+  */
+-export const VERSAO_SITE = "3.1.0";
++export const VERSAO_SITE = "3.2.0";
+ export const VERSAO_SITE_DATA = "2026-10-26";
+diff --git a/website/src/schemas/contact.ts b/website/src/schemas/contact.ts
+index 8f8bb2a..1dbcf29 100644
+--- a/website/src/schemas/contact.ts
++++ b/website/src/schemas/contact.ts
+@@ -3,7 +3,9 @@ import { z } from "zod";
+ /** Contact / demo form schema (doc 07 / 09 — RHF + Zod). */
+ export const contactSchema = z.object({
+   name: z.string().min(2, "Informe seu nome."),
+-  company: z.string().min(2, "Informe a empresa."),
++  company: z.string().max(160, "Use até 160 caracteres.").optional().or(z.literal("")),
++  interest: z.enum(["product", "project", "support"]).default("product"),
++  service: z.string().max(120).optional(),
+   email: z.string().email("Informe um e-mail válido."),
+   phone: z
+     .string()
+diff --git a/website/src/components/home/aurelia-demo.tsx b/website/src/components/home/aurelia-demo.tsx
+new file mode 100644
+index 0000000..7e7552f
+--- /dev/null
++++ b/website/src/components/home/aurelia-demo.tsx
+@@ -0,0 +1,58 @@
++"use client";
++
++import { useState } from "react";
++import { ArrowRight, CalendarDays, CheckCheck, MessageCircle } from "lucide-react";
++import { Container } from "@/components/ui/container";
++
++const steps = [
++  { title: "Comece a conversa", description: "O botão abre o WhatsApp com o comando do teste pronto para enviar.", user: "CADASTRO AGENDA", reply: "Vamos começar seu cadastro para testar a agenda por 7 dias. Qual é o seu nome completo?", note: "A Aurélia pede nome, CPF, e-mail e empresa. Para uso pessoal, informe Pessoal." },
++  { title: "Confira seus dados", description: "Responda às perguntas e confirme os dados na própria conversa.", user: "Confirmo meus dados.", reply: "Seu teste da agenda está pronto. Envie começar para receber as orientações do primeiro compromisso.", note: "O teste começa após a criação da conta. Sem cartão e sem cobrança automática." },
++  { title: "Organize seu primeiro dia", description: "A Aurélia guia você para registrar e confirmar um compromisso.", user: "começar", reply: "Vamos registrar seu primeiro compromisso? Escolha 1 — compromisso e informe o título, o dia e o horário. Você confere a prévia antes de salvar.", note: "Para consultar os eventos, envie compromissos. Para rever as instruções de acesso, envie acesso." },
++];
++
++/** Demonstração local: não envia mensagens nem cria cadastros. */
++export function AureliaDemo() {
++  const [active, setActive] = useState(0);
++  const step = steps[active];
++  return (
++    <section id="como-funciona" className="relative scroll-mt-24 overflow-hidden bg-ink-raise py-20 md:py-28">
++      <Container>
++        <div className="grid items-center gap-12 lg:grid-cols-2 lg:gap-20">
++          <div>
++            <span className="text-sm font-medium text-flame-soft">Conheça a Aurélia</span>
++            <h2 className="mt-4 font-display text-[2rem] font-bold leading-tight text-chalk md:text-[2.75rem]">Da primeira mensagem ao primeiro compromisso.</h2>
++            <p className="mt-5 max-w-lg leading-relaxed text-chalk-dim">Seu cadastro acontece na conversa. Veja uma demonstração das etapas para começar a usar a agenda.</p>
++            <div className="mt-8 flex flex-col gap-3" aria-label="Etapas da demonstração">
++              {steps.map((item, index) => (
++                <button key={item.title} type="button" aria-pressed={active === index} aria-controls="aurelia-preview" onClick={() => setActive(index)} className={`journey-step flex min-h-20 items-start gap-4 rounded-2xl border p-4 text-left ${active === index ? "border-flame/50 bg-flame/[0.07]" : "border-white/[0.08] bg-panel hover:border-white/25"}`}>
++                  <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm ${active === index ? "bg-flame text-ink" : "bg-white/[0.06] text-chalk-faint"}`}>{index + 1}</span>
++                  <span><span className="block font-semibold text-chalk">{item.title}</span><span className="mt-1 block text-sm leading-relaxed text-chalk-dim">{item.description}</span></span>
++                  <ArrowRight className="ml-auto mt-2 h-4 w-4 shrink-0 text-flame-soft" aria-hidden />
++                </button>
++              ))}
++            </div>
++          </div>
++          <div className="relative min-w-0">
++            <div aria-hidden className="pointer-events-none absolute -inset-6 rounded-full bg-flame/[0.08] blur-3xl" />
++            <div className="relative overflow-hidden rounded-[28px] border border-white/15 bg-panel shadow-2xl">
++              <div className="flex items-center gap-3 border-b border-white/10 p-5">
++                <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-flame/15 text-flame-soft"><MessageCircle className="h-6 w-6" aria-hidden /></span>
++                <div><p className="font-semibold text-chalk">Aurélia</p><p className="text-xs text-chalk-faint">Assistente do Orkiestri · demonstração</p></div>
++              </div>
++              <div id="aurelia-preview" aria-live="polite" aria-atomic="true" className="chat-grid min-h-[350px] space-y-6 p-5 sm:p-7">
++                <div key={`user-${active}`} className="chat-enter ml-6 rounded-2xl rounded-tr-sm border border-white/10 bg-white/[0.07] p-4">
++                  <p className="mb-2 text-xs text-chalk-faint">Você</p><p className="text-sm leading-relaxed text-chalk">{step.user}</p><CheckCheck className="ml-auto mt-2 h-4 w-4 text-flame-soft" aria-hidden />
++                </div>
++                <div key={`reply-${active}`} className="chat-enter mr-4 rounded-2xl rounded-tl-sm border border-flame/20 bg-ink-raise p-4">
++                  <p className="mb-2 text-xs font-medium text-flame-soft">Aurélia</p><p className="text-sm leading-relaxed text-chalk">{step.reply}</p>
++                </div>
++                <p className="text-xs leading-relaxed text-chalk-dim">{step.note}</p>
++              </div>
++              <div className="flex items-center gap-2 border-t border-white/10 px-5 py-4 text-xs text-chalk-faint"><CalendarDays className="h-4 w-4 shrink-0" aria-hidden /> Exemplo ilustrativo. Inicie seu cadastro no WhatsApp.</div>
++            </div>
++          </div>
++        </div>
++      </Container>
++    </section>
++  );
++}
+

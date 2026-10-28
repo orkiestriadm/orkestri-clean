@@ -1,0 +1,30 @@
+{
+  "release": "leads-gratuito-20261027",
+  "files": [
+    {
+      "path": "backend/src/modules/prospects/lead-onboarding.ts",
+      "baseline": "b294f0b8c59c5748718af50f921f725675c5f864d5cc26a2d2dd8c444d70790e",
+      "sha256": "83e60ca24507352b2a2b9b7c7aa869da1c3442afdc3bc49050f2ce311fac4f3e"
+    },
+    {
+      "path": "backend/src/modules/prospects/lead-onboarding.spec.ts",
+      "baseline": "e54b2d44758ce92f5efe65d9bba9e952cb63b4cbf8636a53bd8f53efdb9c4004",
+      "sha256": "14782d657507dd04dec5cf4343ce54f6a29ef7e5d416fae908b7f1b52ebf56a1"
+    },
+    {
+      "path": "backend/src/modules/cadastro-whatsapp/cadastro-whatsapp.module.ts",
+      "baseline": "25de1a85f92b4961f5a016611176da11d2aa9980030a07e6bcfc26e3f58084dc",
+      "sha256": "b5418a674753095d3faabd71b00120bc351431c3d732e6924a72637de3f48a20"
+    },
+    {
+      "path": "backend/src/modules/cadastro-whatsapp/whatsapp-entrada.spec.ts",
+      "baseline": "d1567401039ab0c658ee4dae0790e27e7e14e819c7baa51a392fe73b3c972456",
+      "sha256": "71316694f70251524e78e505c08d6d2d1ceebfb292c03d536da69a7c94ad7f7d"
+    },
+    {
+      "path": "frontend/src/app/dashboard/leads/LeadManager.tsx",
+      "baseline": "13869f56285a8ef81336bba549984457c97164f0bc6c2e9f09211004a45ffca6",
+      "sha256": "270c671301f8efd026e94af7ff17e5808116bf5405afa77f6a3b1ba364793a75"
+    }
+  ]
+}

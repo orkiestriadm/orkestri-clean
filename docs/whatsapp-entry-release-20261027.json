@@ -1,0 +1,91 @@
+{
+  "release": "whatsapp-entry-20261027",
+  "websiteVersion": "3.3.1",
+  "files": [
+    {
+      "path": "backend/src/modules/agenda/whatsapp-inbound.module.ts",
+      "baseline": "d73eb5c8e255fe60560be07aad243663eba8121a99af22ad34b92f31c2a297fc",
+      "sha256": "f0e5fc543167238020d875c04636836d4bef3ab6c82c58216dd1306929948b5e"
+    },
+    {
+      "path": "backend/src/modules/cadastro-whatsapp/cadastro-whatsapp.module.ts",
+      "baseline": "d0ecd3f2042361698aa2d7be0622b8808e4845496abadba98cb196fcba7dfa84",
+      "sha256": "25de1a85f92b4961f5a016611176da11d2aa9980030a07e6bcfc26e3f58084dc"
+    },
+    {
+      "path": "backend/src/modules/cadastro-whatsapp/whatsapp-entrada.ts",
+      "baseline": null,
+      "sha256": "46cf82d26cee040222d9b118746f684503d06f8b6d3f565d086baf330ad7a9f6"
+    },
+    {
+      "path": "backend/src/modules/cadastro-whatsapp/whatsapp-entrada.spec.ts",
+      "baseline": null,
+      "sha256": "d1567401039ab0c658ee4dae0790e27e7e14e819c7baa51a392fe73b3c972456"
+    },
+    {
+      "path": "backend/src/modules/prospects/lead-onboarding.spec.ts",
+      "baseline": "2ec5cbe4eee8d7fbdb40961cbd924aafaff7403a37f7df1785db309e8500d15d",
+      "sha256": "e54b2d44758ce92f5efe65d9bba9e952cb63b4cbf8636a53bd8f53efdb9c4004"
+    },
+    {
+      "path": "website/src/config/site.ts",
+      "baseline": "a4944a9b0ee99e113a7feb730ca5c77fb7f07e7afa69e4f2df8d06599759ecda",
+      "sha256": "76ebab856c7ce12a393ca255782b0e86d860c1607b4c44d78fd5f52541082e8f"
+    },
+    {
+      "path": "website/src/config/content.ts",
+      "baseline": "d8f1715c990c494343b514c61b288aa11105fb89f41c696ec4e64cd5c0e5e8e4",
+      "sha256": "109d4001de489340cd53bc384c055d14026ea5984866d3d851f87fa61465620e"
+    },
+    {
+      "path": "website/src/components/home/aurelia-demo.tsx",
+      "baseline": "2344f154169f1f4d73adfa342e220bbb76d0e7c377b6642b4e5d79252635590b",
+      "sha256": "a7949394580f8676bf6b14cb771c29581fd9d344f45ede67edbc37c5f07a19e1"
+    },
+    {
+      "path": "website/src/components/home/aurelia-showcase.tsx",
+      "baseline": "960aaed68fb5d0fee59a1f3c2fa211c615fb05393e0dfea44801db90d4424cce",
+      "sha256": "659c8321f4d7e5a564d2349604970c89193f0845e6024dacd68f37a035a82f64"
+    },
+    {
+      "path": "website/src/components/home/plataforma.tsx",
+      "baseline": "e73e5642de36a43122584e818fceac079a9ee23eac2ea87eb1b9c518e78d0a71",
+      "sha256": "8b1dfa6791bbd3a1cd3ea2058176a510e1addfeccfa7b37dea83636d1d51c4b5"
+    },
+    {
+      "path": "website/src/components/home/fechamento.tsx",
+      "baseline": "bf988da76a42c58e728e8d4e4d0344cc7ba2ec2b8f7fe85bd66ca0a90dbd8347",
+      "sha256": "c2af86123149578fec08e0df07b72fdfaffa702229c5c0af69350030408f1fe6"
+    },
+    {
+      "path": "website/src/components/sections/hero.tsx",
+      "baseline": "1cdaf114ffaa4fdd23d0ced6eb2674037e2a987f93fd1dc207f24dd727483b86",
+      "sha256": "e08f26ad4e55f1c57a9d5898f9a5dbe4550f3e134d2dbcdd58612ef4fca320f0"
+    },
+    {
+      "path": "website/src/components/sections/cta.tsx",
+      "baseline": "2d0e92827d4736eaafa687d3f16000efe6922de7c63a503cf1633ad19a7c92fb",
+      "sha256": "9000281f8d7d93427f05bdb298c6c88ba26b2a26b3ab8bf13f02a835fc166e6b"
+    },
+    {
+      "path": "website/src/app/demo/page.tsx",
+      "baseline": "e5f2ceecc36e5ec9ea1056da6423bc3e00ed847feff59e81feb2369ba4505c83",
+      "sha256": "8fac344745ee096c8921034750f335a219d1bc05465279fe7171642d5e883f71"
+    },
+    {
+      "path": "website/src/app/blog/page.tsx",
+      "baseline": "97d027628690fea0a796603323364561dd1a3feb3badc075878d9cdf8e08ebe9",
+      "sha256": "385a1b35236873643a5e3f201c0d51d6d426c830a51e7213339f10565b75c390"
+    },
+    {
+      "path": "website/src/app/products/orkiestri-one/page.tsx",
+      "baseline": "0e922e33cf3645f58f9c7b143bea72d719c5ecf81bcec6375e06613654c18ea1",
+      "sha256": "5a714765a0d2435c4b87bb4b6206633caab95384eabe8a7eadce3cf5eaa1f2d9"
+    },
+    {
+      "path": "website/src/lib/version.ts",
+      "baseline": "c09cdaa6fcb8d7c4c971efc310d15d52e87839a8874133cd2e695e2546d63897",
+      "sha256": "fc3b3f552e4d987fe85f8fbeb196d9a7f0c37b7bbcfd31ee463431f5df95e759"
+    }
+  ]
+}

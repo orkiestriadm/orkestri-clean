@@ -1,0 +1,47 @@
+{
+  "release": "evento-alerta-20261027",
+  "files": [
+    {
+      "path": "backend/src/modules/notifications/alert.scheduler.ts",
+      "sha256": "b8e9a70bbb83899d508c5d04128ccbd9eafc8b2f45de63b23695f9c851a10679",
+      "baseline": "ed09c6ad4cb40ba23800a5a385bee5a8f4851685bff25dd14eb3797e46254b53"
+    },
+    {
+      "path": "backend/src/modules/notifications/notifications.module.ts",
+      "sha256": "db7a012676e07f73ae7c072c4dfe62924266870a39f734dce284d99ec5767e2f",
+      "baseline": "9f710b670b45056a65de05991d731a83841c2c373754d69dc46e49453f16c784"
+    },
+    {
+      "path": "backend/src/modules/agenda/whatsapp-inbound.module.ts",
+      "sha256": "d9974f3c6bb122b2222cb9eea10744721c76048cd8c546d11440ed2b27d2d899",
+      "baseline": "f0e5fc543167238020d875c04636836d4bef3ab6c82c58216dd1306929948b5e"
+    },
+    {
+      "path": "backend/prisma/schema.prisma",
+      "sha256": "b4d9f5e4e99e696aca1f5f3c75ef8c4df41bd6b8c4fde2c66c2c3004f417b295",
+      "baseline": "fc11bffe5a9ba1ec97876b38ed90d17f3ec7f24a626ba64d10eda0b578916ceb"
+    },
+    {
+      "path": "backend/src/modules/notifications/evento-alerta.service.ts",
+      "sha256": "bc03fe9c3760243dccf0ffea627a440cab5544f5f5dae93f8925b421cf3a0794",
+      "baseline": null,
+      "previous": "86d61a525d2ffff9f07dd7b393ef1837e4613edff475f0b65a89f38aca80725a"
+    },
+    {
+      "path": "backend/src/modules/notifications/evento-alerta-datas.ts",
+      "sha256": "d79ce538e39b384795279e5e3e22f9882f68b0ec2df49af1e88d77c0227ac52a",
+      "baseline": null
+    },
+    {
+      "path": "backend/src/modules/notifications/evento-alerta.spec.ts",
+      "sha256": "1f9b95bbb590a49b9390dfc458f40bc59d73c8e226a20d5b75d95e215c3d6802",
+      "baseline": null,
+      "previous": "dda35e4ab13684676d71f5202f3cf081bae1e619f54d2194d004646d85f9a375"
+    },
+    {
+      "path": "backend/prisma/migrations/20261027090000_whatsapp_evento_confirmacao/migration.sql",
+      "sha256": "6d0964d09ce4aecb179d6c1dfa1fd171773a6ff102e9eed8e7f1036aa20354d5",
+      "baseline": null
+    }
+  ]
+}

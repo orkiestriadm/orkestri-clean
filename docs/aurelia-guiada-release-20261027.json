@@ -1,0 +1,74 @@
+{
+  "release": "aurelia-guiada-20261027",
+  "files": [
+    {
+      "path": "backend/src/modules/agenda/whatsapp-inbound.module.ts",
+      "baseline": "d9974f3c6bb122b2222cb9eea10744721c76048cd8c546d11440ed2b27d2d899",
+      "sha256": "76ad0715932c43bc21315276e8e8787b568dc440f462cf39d9727346e3686cb7"
+    },
+    {
+      "path": "backend/src/modules/agenda/whatsapp-equipe.service.ts",
+      "baseline": "ef4a61dad4519f98019d8fd77e24765e0da3d965d6dc3c3124004776905efbf0",
+      "sha256": "cff576eb6a6bb3c4bae6eb3fbe818f770cb0f6fcd37530f94ecf381665e48284"
+    },
+    {
+      "path": "backend/src/modules/cadastro-whatsapp/cadastro-whatsapp.module.ts",
+      "baseline": "b5418a674753095d3faabd71b00120bc351431c3d732e6924a72637de3f48a20",
+      "sha256": "2f888a12c8b2b680e44100ef557de706720769e46521527843376e90c01f519f",
+      "previous": "f2d04a5ca6f81516ca83ccd769644aee8d3be9ec8692177765938408ca21b9c3"
+    },
+    {
+      "path": "backend/src/modules/cadastro-whatsapp/whatsapp-entrada.ts",
+      "baseline": "46cf82d26cee040222d9b118746f684503d06f8b6d3f565d086baf330ad7a9f6",
+      "sha256": "400042d154968f134129e965d31cd4462ab89a709538aea99ac9b4284fa30b08"
+    },
+    {
+      "path": "backend/src/modules/cadastro-whatsapp/whatsapp-inicio.service.ts",
+      "baseline": "abf9601110f0410f99c6e9be4a96f693d1867d996682c8292f69acf3a9f8846e",
+      "sha256": "2091216797edd8cb671e97d61ae5429d90505c7983083273da8545b46a2437c7"
+    },
+    {
+      "path": "backend/src/modules/prospects/lead-onboarding.spec.ts",
+      "baseline": "14782d657507dd04dec5cf4343ce54f6a29ef7e5d416fae908b7f1b52ebf56a1",
+      "sha256": "36d79958e856eeb68e8d3dd37f2365a1378ea5c49e6e1d2e6c832ae1b4d5f2ef",
+      "previous": "f3428cf9a42911d95dddd03bae1d486d4b22cd3efc641c9c7f20f2a4e7aa7c1c"
+    },
+    {
+      "path": "backend/src/modules/cadastro-whatsapp/whatsapp-entrada.spec.ts",
+      "baseline": "71316694f70251524e78e505c08d6d2d1ceebfb292c03d536da69a7c94ad7f7d",
+      "sha256": "2e423745fb9e014438859d5fdc85f9c1431f340a78c344f029c462b7e2eefc6c"
+    },
+    {
+      "path": "website/src/components/home/aurelia-demo.tsx",
+      "baseline": "a7949394580f8676bf6b14cb771c29581fd9d344f45ede67edbc37c5f07a19e1",
+      "sha256": "c5620b0cc7f377ece8e63cdd8382b2f25b22e76a75ec3026278793a6a11c9ef3"
+    },
+    {
+      "path": "website/src/lib/version.ts",
+      "baseline": "fc3b3f552e4d987fe85f8fbeb196d9a7f0c37b7bbcfd31ee463431f5df95e759",
+      "sha256": "eec54ff2d9e91847ccecddd2b3bc41a9814c06c587700d0a5e214e1e0dbb6951"
+    },
+    {
+      "path": "backend/src/modules/prospects/lead-onboarding.ts",
+      "baseline": "83e60ca24507352b2a2b9b7c7aa869da1c3442afdc3bc49050f2ce311fac4f3e",
+      "sha256": "36aae563ec446a90593e5774e8945eb7db2f3efac905043aa65c73d3d5e3f1b3"
+    },
+    {
+      "path": "backend/src/modules/agenda/whatsapp-guiado.service.ts",
+      "baseline": null,
+      "sha256": "0f32bc3d60b299ca8df780dcee2f12a56206fcead789319564c6bff6586fd7fc",
+      "previous": "4b4fc1e07ab8c2b1e1c727f2ef69d1936fb8767f18c4fcf1d960c0ee8f5ea4e5"
+    },
+    {
+      "path": "backend/src/modules/agenda/whatsapp-guiado-formularios.ts",
+      "baseline": null,
+      "sha256": "e25bb6f141f189c22315a565dd64ee5052bc91d9714b38bde398839efb7b0937"
+    },
+    {
+      "path": "backend/src/modules/agenda/whatsapp-guiado.spec.ts",
+      "baseline": null,
+      "sha256": "29b8e481072b53e2976f26f8d741a3faaaa557aa7fc7f6937070e643f42cc391",
+      "previous": "de7c9fe836beb5dac3fcc5ab0a39b10a4c5f177b7f5667c03d615c7f36a3cebd"
+    }
+  ]
+}

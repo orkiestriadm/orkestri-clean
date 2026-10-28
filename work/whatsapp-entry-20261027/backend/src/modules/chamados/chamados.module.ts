@@ -1,0 +1,1458 @@
+import { Res, Module, Controller, Get, Post, Put, Patch, Delete, Body, Param, Query, UseGuards, Req, NotFoundException, BadRequestException, ForbiddenException, ConflictException, UseInterceptors, UploadedFile } from "@nestjs/common";
+import { FileInterceptor } from "@nestjs/platform-express";
+import { diskStorage } from "multer";
+import { filtroDeTipo, nomeSeguroParaMulter, validarArquivoGravado } from "../../common/arquivo-seguro";
+import { responderComAnexo } from "../../common/download-anexo";
+import * as path from "path";
+import * as fs from "fs";
+import { AuthGuard } from "@nestjs/passport";
+import { IsArray, IsBoolean, IsIn, IsInt, IsOptional, IsString, Max, Min } from "class-validator";
+import { Type } from "class-transformer";
+import { ConfigService } from "@nestjs/config";
+import { PrismaService } from "../../prisma/prisma.service";
+import { WhatsAppService } from "../notifications/whatsapp.service";
+import { EmailService } from "../notifications/email.service";
+import { Permissions } from "../auth/permissions.decorator";
+import { PermissionsGuard } from "../auth/permissions.guard";
+import { acharNaOrganizacao } from "../../common/escopo-organizacao";
+import { SlaService } from "../sla/sla.module";
+import { AutomacaoService } from "../automacoes/automacoes.module";
+import { WebhookService } from "../automacoes/webhooks.module";
+import { NotificacaoDispatcher } from "../notifications/notificacao-dispatcher.service";
+
+const SLA_HORAS: Record<string, number> = { baixa: 72, media: 24, alta: 8, critica: 2 };
+
+class CreateChamadoDto {
+  @IsString() titulo: string;
+  @IsString() descricao: string;
+  @IsOptional() @IsString() prioridade?: string;
+  @IsOptional() @IsString() categoria?: string;
+  @IsOptional() @IsString() tags?: string;
+  @IsOptional() @IsString() clienteId?: string;
+  @IsOptional() @IsString() atendenteId?: string;
+  /// Preenchido = chamado de frota, elegível a virar ordem de serviço.
+  @IsOptional() @IsString() veiculoId?: string;
+  /// "inoperante" ou "operando_com_avaria". Relato de quem abriu — NAO altera
+  /// o farol do veiculo em Frotas.
+  @IsOptional() @IsIn(["inoperante", "operando_com_avaria"]) condicaoVeiculo?: string;
+}
+
+class UpdateChamadoDto {
+  @IsOptional() @IsString() titulo?: string;
+  @IsOptional() @IsString() descricao?: string;
+  @IsOptional() @IsString() prioridade?: string;
+  @IsOptional() @IsString() categoria?: string;
+  @IsOptional() @IsString() tags?: string;
+  @IsOptional() @IsString() clienteId?: string;
+  @IsOptional() @IsString() atendenteId?: string;
+  @IsOptional() @IsString() status?: string;
+}
+
+class AddComentarioDto {
+  @IsString() texto: string;
+  @IsOptional() interno?: boolean;
+}
+
+class AvaliarDto {
+  @IsInt() @Min(1) @Max(5) @Type(() => Number) avaliacao: number;
+  @IsOptional() @IsString() avaliacaoNota?: string;
+}
+
+const STATUS_VALID = ["aberto", "em_atendimento", "aguardando", "resolvido", "fechado"];
+const PRIORIDADE_VALID = ["baixa", "media", "alta", "critica"];
+
+function mapChamado(c: any) {
+  const now = new Date();
+  const fechado = ["resolvido", "fechado"].includes(c.status);
+
+  // Resolution SLA
+  let slaDeadline: Date | null = c.slaResolucaoAt ? new Date(c.slaResolucaoAt)
+    : c.slaHoras ? new Date(new Date(c.criadoEm).getTime() + c.slaHoras * 3600000)
+    : null;
+  let slaStatus = "ok";
+  if (slaDeadline && !fechado) {
+    if (now > slaDeadline) slaStatus = "violado";
+    else if (now > new Date(slaDeadline.getTime() - 2 * 3600000)) slaStatus = "risco";
+  }
+
+  // Response SLA
+  let slaRespostaStatus = "pendente";
+  if (c.slaRespostaAt) {
+    if (c.primeiraRespostaEm) {
+      slaRespostaStatus = new Date(c.primeiraRespostaEm) <= new Date(c.slaRespostaAt) ? "cumprido" : "violado";
+    } else if (now > new Date(c.slaRespostaAt)) {
+      slaRespostaStatus = "violado";
+    } else if (now > new Date(new Date(c.slaRespostaAt).getTime() - 3600000)) {
+      slaRespostaStatus = "risco";
+    } else {
+      slaRespostaStatus = "ok";
+    }
+  }
+
+  return {
+    id: c.id, numero: c.numero, titulo: c.titulo, descricao: c.descricao,
+    status: c.status, prioridade: c.prioridade, categoria: c.categoria, tags: c.tags,
+    solicitanteId: c.solicitanteId, atendenteId: c.atendenteId, clienteId: c.clienteId,
+    slaHoras: c.slaHoras, slaDeadline, slaStatus,
+    slaRespostaAt: c.slaRespostaAt || null,
+    slaResolucaoAt: c.slaResolucaoAt || null,
+    primeiraRespostaEm: c.primeiraRespostaEm || null,
+    slaRespostaStatus,
+    avaliacao: c.avaliacao, avaliacaoNota: c.avaliacaoNota,
+    resolvidoEm: c.resolvidoEm, fechadoEm: c.fechadoEm,
+    aguardandoMotivo: c.aguardandoMotivo ?? null,
+    aguardandoDesde: c.aguardandoDesde ?? null,
+    atribuidoPorId: c.atribuidoPorId ?? null,
+    atribuidoPor: c.atribuidoPor ?? null,
+    veiculoId: c.veiculoId ?? null,
+    veiculo: c.veiculo ?? null,
+    manutencoes: c.manutencoes ?? [],
+    criadoEm: c.criadoEm, atualizadoEm: c.atualizadoEm,
+    solicitante: c.solicitante ? { id: c.solicitante.id, nome: c.solicitante.nome, email: c.solicitante.email, avatar: c.solicitante.avatar } : null,
+    atendente: c.atendente ? { id: c.atendente.id, nome: c.atendente.nome, email: c.atendente.email, avatar: c.atendente.avatar } : null,
+    cliente: c.cliente ? { id: c.cliente.id, nome: c.cliente.nome, empresa: c.cliente.empresa } : null,
+    totalComentarios: c._count?.comentarios ?? c.comentarios?.length ?? 0,
+    comentarios: c.comentarios?.map((cm: any) => ({
+      id: cm.id, texto: cm.texto, interno: cm.interno, criadoEm: cm.criadoEm,
+      user: { id: cm.user.id, nome: cm.user.nome, avatar: cm.user.avatar },
+    })),
+  };
+}
+
+const INCLUDE_LIST = {
+  solicitante: { select: { id: true, nome: true, email: true, avatar: true } },
+  atendente:   { select: { id: true, nome: true, email: true, avatar: true } },
+  cliente:     { select: { id: true, nome: true, empresa: true } },
+  _count:      { select: { comentarios: true } },
+};
+const INCLUDE_DETAIL = {
+  ...INCLUDE_LIST,
+  atribuidoPor: { select: { id: true, nome: true, email: true } },
+  veiculo: { select: { id: true, placa: true, identificacao: true, marca: true, modelo: true } },
+  // As OS que este chamado gerou — é o que a tela mostra para não abrir duas.
+  manutencoes: {
+    select: {
+      id: true, numeroOs: true, status: true, tipo: true, imobiliza: true,
+      dataAbertura: true, dataFechamento: true,
+    },
+    orderBy: { criadoEm: "desc" as const },
+  },
+  comentarios: {
+    include: { user: { select: { id: true, nome: true, avatar: true } } },
+    orderBy: { criadoEm: "asc" as const },
+  },
+};
+
+// ── DTOs gerados: sem classe, o ValidationPipe global nao tem metadata e a
+//    rota aceita qualquer JSON. Campos derivados do tipo inline anterior.
+class BulkStatusChamadosDto {
+  @IsArray() @IsString({ each: true }) ids: string[];
+  @IsString() status: string;
+}
+
+class BulkAtribuirChamadosDto {
+  @IsArray() @IsString({ each: true }) ids: string[];
+  @IsOptional() @IsString() atendenteId: string | null;
+}
+
+class ChangeStatusChamadosDto {
+  @IsString() status: string;
+  /// O que trava o chamado. Só gravado ao entrar em aguardando.
+  @IsOptional() @IsString() aguardandoMotivo?: string;
+}
+
+class DevolverChamadosDto {
+  @IsOptional() @IsString() motivo?: string;
+}
+
+class AbrirManutencaoChamadosDto {
+  @IsOptional() @IsBoolean() imobiliza?: boolean;
+  @IsOptional() @IsString() tipo?: string;
+  @IsOptional() @IsString() localizacao?: string;
+  @IsOptional() @IsString() previsaoLiberacao?: string;
+}
+
+class AtribuirChamadosDto {
+  @IsOptional() @IsString() atendenteId: string | null;
+}
+
+@Controller("chamados")
+@UseGuards(AuthGuard("jwt"), PermissionsGuard)
+class ChamadosController {
+  constructor(
+    private prisma: PrismaService,
+    private wa: WhatsAppService,
+    private email: EmailService,
+    private config: ConfigService,
+    private sla: SlaService,
+    private automacao: AutomacaoService,
+    private webhook: WebhookService,
+    private dispatcher: NotificacaoDispatcher,
+  ) {}
+
+  private get appUrl() { return this.config.get("APP_URL", "http://localhost"); }
+
+  /**
+   * Telefone para o qual PODE ser enviada mensagem de chamado.
+   *
+   * Ponto único por onde os quatro envios de chamado decidem se mandam
+   * WhatsApp. Antes bastava ter número e o interruptor global ligado — o que
+   * fazia alguém de Frotas receber notificação de chamado, exatamente o
+   * vazamento entre módulos que o modelo de permissão veio resolver.
+   *
+   * Agora exige três coisas:
+   *  1. número cadastrado;
+   *  2. número VERIFICADO (dígito errado não vira mensagem para estranho);
+   *  3. preferência explícita para o módulo `service` no canal WhatsApp.
+   */
+  private async getUserPhone(userId: string): Promise<string | null> {
+    const p = await this.prisma.userProfile.findUnique({ where: { userId } });
+    if (!p?.whatsapp || !(p as any)?.whatsappVerificado) return null;
+
+    const pref = await (this.prisma as any).notificacaoPreferencia.findUnique({
+      where: { userId_modulo: { userId, modulo: "service" } },
+    }).catch(() => null);
+    if (!pref?.whatsapp) return null;
+
+    return p.whatsapp;
+  }
+
+  private prioLabel(v: string): string {
+    return ({ baixa: "Baixa", media: "Media", alta: "Alta", critica: "CRITICA", urgente: "URGENTE" } as any)[v] || v;
+  }
+
+  /**
+   * Enfileira uma mensagem de chamado já formatada.
+   *
+   * Antes ia direto para `wa.sendChamadoXxx(...)`, o que a deixava fora da
+   * outbox: WhatsApp fora do ar no instante da atribuição = mensagem perdida
+   * para sempre, mesmo que a conexão voltasse um minuto depois. E chegava às
+   * 3h da manhã, porque não havia horário de silêncio.
+   *
+   * O texto é montado AQUI, e não no serviço de WhatsApp, porque é texto de
+   * negócio (assunto, prioridade, prazo). A permissão por módulo já foi
+   * aplicada antes, em `getUserPhone`.
+   */
+  private async filaChamado(
+    orgId: string, userId: string | null, phone: string,
+    tipo: string, texto: string,
+    severidade: "info" | "aviso" | "critico" = "info", chave?: string,
+  ): Promise<boolean> {
+    return this.dispatcher.enfileirarDireto({
+      organizationId: orgId, canal: "whatsapp", destino: phone, userId,
+      modulo: "service", tipo, titulo: "Chamado", mensagem: texto, severidade, chave,
+    }).catch(() => false);
+  }
+
+  /** Resolve a instância WhatsApp da organização — garante que notificações usem a instância correta */
+  private async getWaInstance(orgId: string): Promise<string> {
+    return this.wa.resolveInstance(orgId);
+  }
+
+  private deadlineFor(criadoEm: Date, slaHoras: number | null): Date | null {
+    if (!slaHoras) return null;
+    return new Date(criadoEm.getTime() + slaHoras * 3600000);
+  }
+
+  // ── Helpers de escopo & visibilidade ───────────────────────────────────────
+  //
+  // Modelo híbrido (fila pública + atribuição individual):
+  //  • "fila"   → status=aberto E atendenteId=null  (qualquer um com chamados:ver)
+  //  • "meus"   → solicitante=eu OU atendente=eu
+  //  • "todos"  → master vê tudo do tenant; não-master cai automaticamente em meus∪fila
+  //  • default  → "meus" + "fila" combinados (compatível com a tela antiga)
+  //
+  // Sempre escopado por organizationId — multi-tenant intransponível.
+  /** Quem pode ver o histórico da organização inteira: master ou quem
+   *  distribui trabalho (atribuir é o sinal de supervisão que já existe). */
+  private podeVerTudo(req: any): boolean {
+    const perms: string[] = req.user?.permissions || [];
+    return !!req.user?.isMaster || perms.includes("*") || perms.includes("chamados:atribuir");
+  }
+
+  /* "Minha equipe" saiu em 20/10/2026.
+   *
+   * O recorte vinha de `UserProfile.setorId`: equipe era quem dividia o setor.
+   * Com a tabela `setores` derrubada não sobrou de que derivar equipe — nem
+   * cargo, nem gestor, nem projeto responderiam a mesma pergunta. Em vez de
+   * mapear "equipe" para outro recorte parecido e devolver uma lista que
+   * responde outra coisa, o escopo deixou de existir: `buildWhere` não conhece
+   * mais "equipe" e cai no padrão (meus + fila), e a Carga passou a ser da
+   * organização para quem distribui trabalho. */
+
+  private async buildWhere(req: any, scope: string | undefined): Promise<any> {
+    const userId   = req.user.id;
+    const isMaster = !!req.user.isMaster;
+    const orgId    = req.user?.organizationId;
+    const base: any = { ...(orgId ? { organizationId: orgId } : {}) };
+
+    const filaCond  = { status: "aberto", atendenteId: null };
+    const meusCond  = { OR: [{ solicitanteId: userId }, { atendenteId: userId }] };
+
+    if (scope === "fila") return { ...base, ...filaCond };
+    if (scope === "meus") return { ...base, ...meusCond };
+    if (scope === "todos" && this.podeVerTudo(req)) return base;
+    // default: o que o usuário pode ver = seus + fila pública
+    if (isMaster) return base;
+    return { ...base, OR: [...meusCond.OR, filaCond] };
+  }
+
+  /** Carga por pessoa do time.
+   *
+   *  O quadro pessoal responde "o que eu tenho para fazer". Isto responde a
+   *  outra pergunta, que não tinha tela: quem está afogado, quem tem chamado
+   *  apodrecendo, e o que ninguém pegou.
+   *
+   *  Conta só o que está VIVO — resolvido e fechado não são carga. */
+  @Get("carga-equipe")
+  @Permissions("chamados:ver")
+  async cargaEquipe(@Req() req: any, @Query("escopo") escopo?: string) {
+    const orgId = req.user?.organizationId;
+    // Sem "equipe", a Carga é da organização para quem distribui trabalho e o
+    // quadro próprio para os demais — em vez de um recorte de setor que não
+    // existe mais. O parâmetro `escopo` segue aceito e ignorado, para não
+    // quebrar link salvo da tela.
+    const alcance = this.podeVerTudo(req) ? "todos" : "meus";
+    const where = await this.buildWhere(req, alcance);
+
+    const ativos = await this.prisma.chamado.findMany({
+      where: { ...where, status: { notIn: ["resolvido", "fechado"] } },
+      select: {
+        id: true, numero: true, status: true, prioridade: true, criadoEm: true,
+        slaHoras: true, atendenteId: true, aguardandoDesde: true,
+        atendente: { select: { id: true, nome: true, avatar: true } },
+      },
+    });
+
+    const agora = Date.now();
+    const venceu = (c: any) => !!c.slaHoras && agora > new Date(c.criadoEm).getTime() + c.slaHoras * 3600000;
+
+    // Chave nula agrupa a fila: "ninguém" também é uma linha da carga, e é
+    // justamente a que o gestor precisa ver primeiro.
+    const porPessoa = new Map<string, any>();
+    for (const c of ativos) {
+      const chave = c.atendenteId || "__fila__";
+      if (!porPessoa.has(chave)) {
+        porPessoa.set(chave, {
+          userId: c.atendenteId || null,
+          nome: c.atendente?.nome || "Sem responsável",
+          avatar: c.atendente?.avatar || null,
+          total: 0, emAtendimento: 0, aguardando: 0, abertos: 0,
+          slaViolado: 0, criticos: 0,
+          maisAntigoDias: 0, esperaMaisLongaDias: 0,
+        });
+      }
+      const p = porPessoa.get(chave);
+      p.total++;
+      if (c.status === "em_atendimento") p.emAtendimento++;
+      else if (c.status === "aguardando") p.aguardando++;
+      else if (c.status === "aberto") p.abertos++;
+      if (venceu(c)) p.slaViolado++;
+      if (c.prioridade === "critica") p.criticos++;
+      const dias = Math.floor((agora - new Date(c.criadoEm).getTime()) / 86400000);
+      if (dias > p.maisAntigoDias) p.maisAntigoDias = dias;
+      if (c.aguardandoDesde) {
+        const parado = Math.floor((agora - new Date(c.aguardandoDesde).getTime()) / 86400000);
+        if (parado > p.esperaMaisLongaDias) p.esperaMaisLongaDias = parado;
+      }
+    }
+
+    // Fila primeiro (é o que precisa de ação), depois quem tem mais SLA
+    // estourado, depois quem tem mais volume.
+    const linhas = [...porPessoa.values()].sort((a, b) => {
+      if (!a.userId) return -1;
+      if (!b.userId) return 1;
+      return b.slaViolado - a.slaViolado || b.total - a.total;
+    });
+
+    return {
+      escopo: alcance,
+      totalAtivos: ativos.length,
+      pessoas: linhas,
+    };
+  }
+
+  @Get("stats")
+  @Permissions("chamados:ver")
+  async getStats(@Req() req: any, @Query("scope") scope?: string) {
+    const where = await this.buildWhere(req, scope);
+    const userId   = req.user.id;
+    const isMaster = !!req.user.isMaster;
+    const orgId    = req.user?.organizationId;
+    const orgBase  = orgId ? { organizationId: orgId } : {};
+
+    const [total, porStatus, porPrioridade, todos, filaCount, meusCount] = await Promise.all([
+      this.prisma.chamado.count({ where }),
+      this.prisma.chamado.groupBy({ by: ["status"], where, _count: true }),
+      this.prisma.chamado.groupBy({ by: ["prioridade"], where, _count: true }),
+      this.prisma.chamado.findMany({ where, select: { status: true, prioridade: true, slaHoras: true, criadoEm: true } }),
+      // Contagem da fila pública (sempre visível com chamados:ver)
+      this.prisma.chamado.count({ where: { ...orgBase, status: "aberto", atendenteId: null } }),
+      // "Meus" = só os que o usuário criou ou atende (não vale para master sem tenant)
+      this.prisma.chamado.count({
+        where: { ...orgBase, OR: [{ solicitanteId: userId }, { atendenteId: userId }] },
+      }),
+    ]);
+    const now = new Date();
+    let slaViolados = 0, slaEmRisco = 0;
+    for (const c of todos) {
+      if (["resolvido", "fechado"].includes(c.status)) continue;
+      if (!c.slaHoras) continue;
+      const deadline = new Date(c.criadoEm.getTime() + c.slaHoras * 3600000);
+      if (now > deadline) slaViolados++;
+      else if (now > new Date(deadline.getTime() - 7200000)) slaEmRisco++;
+    }
+    const byStatus = Object.fromEntries(porStatus.map(s => [s.status, s._count]));
+    return {
+      total,
+      aberto:         byStatus["aberto"]         ?? 0,
+      em_atendimento: byStatus["em_atendimento"] ?? 0,
+      aguardando:     byStatus["aguardando"]     ?? 0,
+      resolvido:      byStatus["resolvido"]      ?? 0,
+      fechado:        byStatus["fechado"]        ?? 0,
+      slaViolados, slaEmRisco,
+      // contadores extras de escopo (UI usa pra pintar os badges das abas)
+      fila:           filaCount,
+      meus:           meusCount,
+      porPrioridade: Object.fromEntries(porPrioridade.map(p => [p.prioridade, p._count])),
+    };
+  }
+
+  @Get()
+  @Permissions("chamados:ver")
+  async findAll(
+    @Req() req: any,
+    @Query("status") status?: string,
+    @Query("prioridade") prioridade?: string,
+    @Query("categoria") categoria?: string,
+    @Query("atendenteId") atendenteId?: string,
+    @Query("clienteId") clienteId?: string,
+    @Query("q") q?: string,
+    @Query("scope") scope?: string,
+    @Query("desde") desde?: string,
+    @Query("ate") ate?: string,
+    @Query("limit") limitQ?: string,
+  ) {
+    // Base scope (fila / meus / equipe / todos) já aplica organizationId e as
+    // regras de visibilidade.
+    const where: any = await this.buildWhere(req, scope);
+    // Período pelo fechamento quando houver, senão pela abertura: no histórico
+    // o que interessa é quando o caso terminou, não quando começou.
+    if (desde || ate) {
+      const faixa: any = {};
+      if (desde) faixa.gte = new Date(desde + "T00:00:00");
+      if (ate) faixa.lte = new Date(ate + "T23:59:59");
+      where.AND = [...(where.AND || []), { OR: [{ fechadoEm: faixa }, { fechadoEm: null, criadoEm: faixa }] }];
+    }
+    if (status)     where.status = status;
+    if (prioridade) where.prioridade = prioridade;
+    if (categoria)  where.categoria = categoria;
+    if (atendenteId) where.atendenteId = atendenteId;
+    if (clienteId)   where.clienteId = clienteId;
+    // Busca textual: usamos AND para preservar o OR de visibilidade já no `where`
+    // Só dígitos = número do chamado. Procurar "38" como texto não acha o #38,
+    // e é a primeira coisa que se digita quando alguém cita um chamado.
+    if (q && /^#?\d+$/.test(q.trim())) {
+      where.AND = [...(where.AND || []), { numero: parseInt(q.trim().replace("#", ""), 10) }];
+    } else if (q) {
+      where.AND = [
+        ...(where.AND || []),
+        { OR: [
+          { titulo:    { contains: q, mode: "insensitive" } },
+          { descricao: { contains: q, mode: "insensitive" } },
+        ] },
+      ];
+    }
+    const chamados = await this.prisma.chamado.findMany({
+      where, include: INCLUDE_LIST, orderBy: [{ prioridade: "asc" }, { criadoEm: "desc" }],
+      take: Math.min(Number(limitQ) || 500, 2000),
+    });
+    return chamados.map(c => mapChamado(c));
+  }
+
+  // ── Bulk actions ─────────────────────────────────────────────────────────────
+
+  @Patch("bulk/status")
+  @Permissions("chamados:editar")
+  async bulkStatus(@Body() body: BulkStatusChamadosDto) {
+    if (!body.ids?.length) throw new BadRequestException("Nenhum chamado selecionado");
+    if (!STATUS_VALID.includes(body.status)) throw new BadRequestException("Status inválido");
+    const data: any = { status: body.status };
+    if (body.status === "resolvido") data.resolvidoEm = new Date();
+    if (body.status === "fechado")   data.fechadoEm   = new Date();
+    await (this.prisma as any).chamado.updateMany({ where: { id: { in: body.ids } }, data });
+    return { updated: body.ids.length };
+  }
+
+  @Patch("bulk/atribuir")
+  @Permissions("chamados:editar")
+  async bulkAtribuir(@Body() body: BulkAtribuirChamadosDto) {
+    if (!body.ids?.length) throw new BadRequestException("Nenhum chamado selecionado");
+    await (this.prisma as any).chamado.updateMany({
+      where: { id: { in: body.ids } },
+      data: { atendenteId: body.atendenteId || null },
+    });
+    return { updated: body.ids.length };
+  }
+
+  @Get(":id")
+  @Permissions("chamados:ver")
+  async findOne(@Param("id") id: string, @Req() req: any) {
+    const c = await this.prisma.chamado.findUnique({ where: { id }, include: INCLUDE_DETAIL });
+    if (!c) throw new NotFoundException("Chamado nao encontrado");
+    // Isolamento multi-tenant: chamado de outro tenant é como se não existisse
+    const orgId = req.user?.organizationId;
+    if (orgId && (c as any).organizationId && (c as any).organizationId !== orgId) {
+      throw new NotFoundException("Chamado nao encontrado");
+    }
+    const userId = req.user.id;
+    const inPublicQueue = c.status === "aberto" && !c.atendenteId;
+    const canView =
+      req.user.isMaster ||
+      c.solicitanteId === userId ||
+      c.atendenteId   === userId ||
+      inPublicQueue; // fila pública: qualquer um com chamados:ver enxerga
+    if (!canView) throw new ForbiddenException("Acesso negado");
+    return mapChamado(c);
+  }
+
+  // ── Histórico/auditoria ────────────────────────────────────────────────────
+  @Get(":id/auditoria")
+  @Permissions("chamados:ver")
+  async listAuditoria(@Param("id") id: string, @Req() req: any) {
+    const c: any = await (this.prisma as any).chamado.findUnique({
+      where: { id },
+      select: { id: true, organizationId: true, status: true, atendenteId: true, solicitanteId: true },
+    });
+    if (!c) throw new NotFoundException("Chamado nao encontrado");
+    const orgId = req.user?.organizationId;
+    if (orgId && c.organizationId && c.organizationId !== orgId) {
+      throw new NotFoundException("Chamado nao encontrado");
+    }
+    const userId = req.user.id;
+    const inPublicQueue = c.status === "aberto" && !c.atendenteId;
+    const canView =
+      req.user.isMaster ||
+      c.solicitanteId === userId ||
+      c.atendenteId   === userId ||
+      inPublicQueue;
+    if (!canView) throw new ForbiddenException("Acesso negado");
+
+    const rows = await (this.prisma as any).chamadoAuditoria.findMany({
+      where: { chamadoId: id },
+      include: { user: { select: { id: true, nome: true, avatar: true } } },
+      orderBy: { criadoEm: "desc" },
+      take: 200,
+    });
+    return rows.map((r: any) => ({
+      id: r.id, acao: r.acao, de: r.de, para: r.para,
+      metadata: r.metadata, criadoEm: r.criadoEm,
+      user: r.user ? { id: r.user.id, nome: r.user.nome, avatar: r.user.avatar } : null,
+    }));
+  }
+
+  /** Registra uma entrada de auditoria. Tolerante a falhas: nunca quebra o fluxo. */
+  private async recordAudit(chamadoId: string, userId: string | null, acao: string, de?: string | null, para?: string | null, metadata?: any) {
+    try {
+      await (this.prisma as any).chamadoAuditoria.create({
+        data: { chamadoId, userId: userId || null, acao, de: de ?? null, para: para ?? null, metadata: metadata ?? null },
+      });
+    } catch {}
+  }
+
+  @Post()
+  @Permissions("chamados:criar")
+  async create(@Body() dto: CreateChamadoDto, @Req() req: any) {
+    if (!dto.titulo?.trim()) throw new BadRequestException("Titulo obrigatorio");
+    if (!dto.descricao?.trim()) throw new BadRequestException("Descricao obrigatoria");
+    const prioridade = PRIORIDADE_VALID.includes(dto.prioridade || "") ? dto.prioridade! : "media";
+    const slaHoras = SLA_HORAS[prioridade];
+    const orgId = req.user?.organizationId;
+    const stripHtml = (s: string) => s.replace(/<[^>]*>/g, "").trim();
+    const chamado = await this.prisma.chamado.create({
+      data: {
+        titulo: stripHtml(dto.titulo),
+        descricao: stripHtml(dto.descricao),
+        prioridade,
+        categoria: dto.categoria,
+        tags: dto.tags,
+        solicitanteId: req.user.id,
+        atendenteId: dto.atendenteId || null,
+        clienteId: dto.clienteId || null,
+        status: dto.atendenteId ? "em_atendimento" : "aberto",
+        veiculoId: dto.veiculoId || null,
+        // Só grava a condição quando há veículo: sem ele o campo não descreve
+        // nada, e guardar assim sujaria o registro com dado que não se aplica.
+        condicaoVeiculo: dto.veiculoId ? (dto.condicaoVeiculo || null) : null,
+        atribuidoPorId: dto.atendenteId && dto.atendenteId !== req.user.id ? req.user.id : null,
+        slaHoras,
+        ...(orgId ? { organizationId: orgId } : {}),
+      } as any,
+      include: INCLUDE_DETAIL,
+    });
+    // Apply SLA rule
+    const regra = await this.sla.findRegra(prioridade, dto.categoria || null, orgId);
+    if (regra) {
+      const { slaRespostaAt, slaResolucaoAt } = this.sla.computeDeadlines(chamado.criadoEm, regra);
+      await (this.prisma.chamado as any).update({
+        where: { id: chamado.id },
+        data: { slaRegraId: regra.id, slaRespostaAt, slaResolucaoAt },
+      });
+      (chamado as any).slaRegraId    = regra.id;
+      (chamado as any).slaRespostaAt = slaRespostaAt;
+      (chamado as any).slaResolucaoAt = slaResolucaoAt;
+    }
+
+    const waInst = await this.getWaInstance(req.user.organizationId);
+    if (dto.atendenteId && dto.atendenteId !== req.user.id) {
+      await this.notificarAtendente(dto.atendenteId, chamado, "atribuido");
+      const atendente = await this.prisma.user.findUnique({ where: { id: dto.atendenteId }, select: { email: true, nome: true } });
+      const phone = await this.getUserPhone(dto.atendenteId);
+      if (phone) await this.filaChamado((chamado as any).organizationId, dto.atendenteId, phone, "chamado_atribuido",
+        `*${MARCA} - Chamado #${chamado.numero} atribuido a voce*\n\n*Assunto:* ${chamado.titulo}\n*Prioridade:* ${this.prioLabel(chamado.prioridade)}\n\nAcesse: ${this.appUrl}/dashboard/chamados`,
+        "aviso", `ch-atrib::${chamado.id}::${dto.atendenteId}`);
+      if (atendente?.email) this.email.sendChamadoAtribuido(atendente.email, atendente.nome, chamado.numero, chamado.titulo, chamado.prioridade, chamado.solicitante?.nome || "").catch(() => {});
+    }
+    // Notifica solicitante da abertura
+    const solicitante = await this.prisma.user.findUnique({ where: { id: chamado.solicitanteId }, select: { email: true, nome: true } });
+    const solPhone = await this.getUserPhone(chamado.solicitanteId);
+    if (solPhone) await this.filaChamado((chamado as any).organizationId, chamado.solicitanteId, solPhone, "chamado_aberto",
+      `*${MARCA} - Chamado #${chamado.numero} aberto*\n\nSeu chamado foi registrado.\n*Assunto:* ${chamado.titulo}\n*Prioridade:* ${this.prioLabel(chamado.prioridade)}\n\nAcompanhe: ${this.appUrl}/dashboard/chamados`,
+      "info", `ch-aberto::${chamado.id}`);
+    if (solicitante?.email) this.email.sendChamadoAberto(solicitante.email, solicitante.nome, chamado.numero, chamado.titulo, chamado.prioridade, chamado.slaHoras).catch(() => {});
+
+    // Chamado de frota sem dono não pode ficar só na fila genérica: quem cuida
+    // de frota precisa saber que chegou. O despachante resolve os destinatários
+    // pelo acesso ao módulo e respeita a preferência de cada um — não existe
+    // cadastro de equipe, e inventar um aqui seria pior que reusar isto.
+    if (!dto.atendenteId && dto.veiculoId) {
+      this.dispatcher.despachar({
+        organizationId: (chamado as any).organizationId,
+        modulo: "fleet",
+        tipo: "chamado_frota_aberto",
+        titulo: `Chamado #${chamado.numero} de frota aguardando atendimento`,
+        mensagem: `${chamado.titulo}\n\nAberto por ${req.user?.nome || "um usuário"}.`,
+        severidade: chamado.prioridade === "critica" ? "critico" : (chamado.prioridade === "alta" ? "aviso" : "info"),
+        referenciaTipo: "chamado",
+        referenciaId: chamado.id,
+        chave: `ch-frota-aberto::${chamado.id}`,
+      }).catch(() => {});
+    }
+
+    // Fire automations async (non-blocking)
+    this.automacao.executar("chamado_criado", { id: chamado.id, numero: chamado.numero, titulo: chamado.titulo, prioridade, status: chamado.status, categoria: dto.categoria || null, solicitanteId: chamado.solicitanteId, atendenteId: chamado.atendenteId || null, clienteId: chamado.clienteId || null, organizationId: orgId, tags: chamado.tags || "" }).catch(() => {});
+    this.webhook.fire("chamado.criado", { id: chamado.id, numero: chamado.numero, titulo: chamado.titulo, prioridade, status: chamado.status, clienteId: chamado.clienteId || null, criadoEm: chamado.criadoEm }, orgId).catch(() => {});
+
+    // Auditoria — criação (+ atribuição inicial se houver)
+    await this.recordAudit(chamado.id, req.user.id, "criado", null, chamado.status, { numero: chamado.numero, prioridade });
+    if (chamado.atendenteId) {
+      await this.recordAudit(chamado.id, req.user.id, "atribuicao", null, chamado.atendenteId);
+    }
+
+    return mapChamado(chamado);
+  }
+
+  @Put(":id")
+  @Permissions("chamados:editar")
+  async update(@Param("id") id: string, @Body() dto: UpdateChamadoDto, @Req() req: any) {
+    const existing = await acharNaOrganizacao(this.prisma.chamado, id, req, "Chamado nao encontrado");
+    const canEdit = req.user.isMaster || existing.solicitanteId === req.user.id || existing.atendenteId === req.user.id;
+    if (!canEdit) throw new ForbiddenException("Sem permissao para editar este chamado");
+    if (dto.status && !STATUS_VALID.includes(dto.status)) throw new BadRequestException("Status invalido");
+    const resolvidoEm = dto.status === "resolvido" && existing.status !== "resolvido" ? new Date() : undefined;
+    const fechadoEm   = dto.status === "fechado"   && existing.status !== "fechado"   ? new Date() : undefined;
+    const stripHtml = (s: string) => s.replace(/<[^>]*>/g, "").trim();
+    const updated = await this.prisma.chamado.update({
+      where: { id },
+      data: {
+        ...(dto.titulo     && { titulo: stripHtml(dto.titulo) }),
+        ...(dto.descricao  && { descricao: stripHtml(dto.descricao) }),
+        ...(dto.prioridade && { prioridade: dto.prioridade, slaHoras: SLA_HORAS[dto.prioridade] }),
+        ...(dto.categoria  !== undefined && { categoria: dto.categoria || null }),
+        ...(dto.tags       !== undefined && { tags: dto.tags || null }),
+        ...(dto.clienteId  !== undefined && { clienteId: dto.clienteId || null }),
+        ...(dto.atendenteId !== undefined && { atendenteId: dto.atendenteId || null }),
+        ...(dto.status     && { status: dto.status }),
+        ...(resolvidoEm    && { resolvidoEm }),
+        ...(fechadoEm      && { fechadoEm }),
+      },
+      include: INCLUDE_DETAIL,
+    });
+    // Recalculate SLA if priority changed
+    if (dto.prioridade && dto.prioridade !== existing.prioridade) {
+      const regra = await this.sla.findRegra(dto.prioridade, updated.categoria || null, req.user?.organizationId);
+      if (regra) {
+        const { slaRespostaAt, slaResolucaoAt } = this.sla.computeDeadlines(updated.criadoEm, regra);
+        await (this.prisma.chamado as any).update({
+          where: { id },
+          data: { slaRegraId: regra.id, slaRespostaAt, slaResolucaoAt },
+        });
+      }
+    }
+
+    const waInstUpd = await this.getWaInstance(req.user.organizationId);
+    if (dto.atendenteId && dto.atendenteId !== existing.atendenteId && dto.atendenteId !== req.user.id) {
+      await this.notificarAtendente(dto.atendenteId, updated, "atribuido");
+      const atendente = await this.prisma.user.findUnique({ where: { id: dto.atendenteId }, select: { email: true, nome: true } });
+      const phone = await this.getUserPhone(dto.atendenteId);
+      if (phone) await this.filaChamado((updated as any).organizationId, dto.atendenteId, phone, "chamado_atribuido",
+        `*${MARCA} - Chamado #${updated.numero} atribuido a voce*\n\n*Assunto:* ${updated.titulo}\n*Prioridade:* ${this.prioLabel(updated.prioridade)}\n\nAcesse: ${this.appUrl}/dashboard/chamados`,
+        "aviso", `ch-atrib::${updated.id}::${dto.atendenteId}`);
+      if (atendente?.email) this.email.sendChamadoAtribuido(atendente.email, atendente.nome, updated.numero, updated.titulo, updated.prioridade, updated.solicitante?.nome || "").catch(() => {});
+    }
+    if (dto.status && dto.status !== existing.status && existing.solicitanteId !== req.user.id) {
+      await this.notificarSolicitante(existing.solicitanteId, updated, dto.status);
+      const solicitante = await this.prisma.user.findUnique({ where: { id: existing.solicitanteId }, select: { email: true, nome: true } });
+      const phone = await this.getUserPhone(existing.solicitanteId);
+      if (phone) {
+        if (dto.status === "resolvido") {
+          await this.filaChamado((updated as any).organizationId, existing.solicitanteId, phone, "chamado_resolvido",
+            `*${MARCA} - Chamado #${updated.numero} resolvido*\n\n*Assunto:* ${updated.titulo}\n\nAvalie o atendimento:\n${this.appUrl}/dashboard/chamados`,
+            "info", `ch-resolv::${updated.id}`);
+        } else {
+          await this.filaChamado((updated as any).organizationId, existing.solicitanteId, phone, "chamado_status",
+            `*${MARCA} - Chamado #${updated.numero} atualizado*\n\nNovo status: *${dto.status}*\n*Assunto:* ${updated.titulo}\n\nAcompanhe: ${this.appUrl}/dashboard/chamados`,
+            "info", `ch-status::${updated.id}::${dto.status}`);
+        }
+      }
+      if (solicitante?.email) {
+        if (dto.status === "resolvido") {
+          this.email.sendChamadoResolvido(solicitante.email, solicitante.nome, updated.numero, updated.titulo).catch(() => {});
+        } else {
+          this.email.sendChamadoStatus(solicitante.email, solicitante.nome, updated.numero, updated.titulo, dto.status).catch(() => {});
+        }
+      }
+    }
+    if (dto.status && ["resolvido", "fechado"].includes(dto.status) && dto.status !== existing.status) {
+      const evtName = dto.status === "fechado" ? "chamado.fechado" : "chamado.resolvido";
+      const autoTrigger = dto.status === "fechado" ? "chamado_fechado" : "chamado_resolvido";
+      this.automacao.executar(autoTrigger, { id: updated.id, numero: updated.numero, titulo: updated.titulo, prioridade: updated.prioridade, status: dto.status, categoria: updated.categoria || null, solicitanteId: updated.solicitanteId, atendenteId: updated.atendenteId || null, clienteId: updated.clienteId || null, organizationId: req.user?.organizationId, tags: (updated as any).tags || "" }).catch(() => {});
+      this.webhook.fire(evtName, { id: updated.id, numero: updated.numero, titulo: updated.titulo, status: updated.status, clienteId: updated.clienteId || null, resolvidoEm: (updated as any).resolvidoEm || new Date() }, req.user?.organizationId).catch(() => {});
+    }
+    // Fire chamado_atualizado for all updates
+    this.automacao.executar("chamado_atualizado", { id: updated.id, numero: updated.numero, titulo: updated.titulo, prioridade: updated.prioridade, status: updated.status, categoria: updated.categoria || null, solicitanteId: updated.solicitanteId, atendenteId: updated.atendenteId || null, clienteId: updated.clienteId || null, organizationId: req.user?.organizationId, tags: (updated as any).tags || "" }).catch(() => {});
+    this.webhook.fire("chamado.atualizado", { id: updated.id, numero: updated.numero, titulo: updated.titulo, prioridade: updated.prioridade, status: updated.status, clienteId: updated.clienteId || null }, req.user?.organizationId).catch(() => {});
+    // Auditoria — registra mudanças relevantes
+    if (dto.status && dto.status !== existing.status) {
+      await this.recordAudit(id, req.user.id, "status", existing.status, dto.status);
+    }
+    if (dto.atendenteId !== undefined && (dto.atendenteId || null) !== (existing.atendenteId || null)) {
+      let acao = "atribuicao";
+      if (existing.atendenteId && dto.atendenteId && existing.atendenteId !== dto.atendenteId) acao = "transferencia";
+      else if (existing.atendenteId && !dto.atendenteId) acao = "atribuicao_removida";
+      await this.recordAudit(id, req.user.id, acao, existing.atendenteId || null, dto.atendenteId || null);
+    }
+    if (dto.prioridade && dto.prioridade !== existing.prioridade) {
+      await this.recordAudit(id, req.user.id, "prioridade", existing.prioridade, dto.prioridade);
+    }
+    return mapChamado(updated);
+  }
+
+  @Patch(":id/status")
+  @Permissions("chamados:editar")
+  async changeStatus(@Param("id") id: string, @Body() body: ChangeStatusChamadosDto, @Req() req: any) {
+    if (!STATUS_VALID.includes(body.status)) throw new BadRequestException("Status invalido");
+    const existing = await acharNaOrganizacao(this.prisma.chamado, id, req, "Chamado nao encontrado");
+    const canEdit = req.user.isMaster || existing.solicitanteId === req.user.id || existing.atendenteId === req.user.id;
+    if (!canEdit) throw new ForbiddenException("Sem permissao");
+    // Fechar é o único estado sem volta (NEXT_STATUS.fechado = []), então tem
+    // permissão própria — quem edita não necessariamente encerra.
+    if (body.status === "fechado" && existing.status !== "fechado") {
+      const perms: string[] = req.user?.permissions || [];
+      if (!req.user?.isMaster && !perms.includes("*") && !perms.includes("chamados:fechar")) {
+        throw new ForbiddenException("Sem permissão para fechar chamados");
+      }
+    }
+    const resolvidoEm = body.status === "resolvido" && existing.status !== "resolvido" ? new Date() : undefined;
+    const fechadoEm   = body.status === "fechado"   && existing.status !== "fechado"   ? new Date() : undefined;
+    // Entrar em "aguardando" carimba a data; sair limpa. Sem isso o contador
+    // mediria a idade do chamado, não a da espera — que é o que importa aqui.
+    const entrouEmEspera = body.status === "aguardando" && existing.status !== "aguardando";
+    const saiuDaEspera = body.status !== "aguardando" && existing.status === "aguardando";
+    const espera: any = {};
+    if (entrouEmEspera) {
+      espera.aguardandoDesde = new Date();
+      espera.aguardandoMotivo = (body.aguardandoMotivo || "").trim() || null;
+    } else if (saiuDaEspera) {
+      espera.aguardandoDesde = null;
+      espera.aguardandoMotivo = null;
+    } else if (body.status === "aguardando" && body.aguardandoMotivo !== undefined) {
+      // Corrigir o motivo sem sair do estado não reinicia o relógio.
+      espera.aguardandoMotivo = (body.aguardandoMotivo || "").trim() || null;
+    }
+
+    const updated = await this.prisma.chamado.update({
+      where: { id },
+      data: { ...espera, status: body.status, ...(resolvidoEm && { resolvidoEm }), ...(fechadoEm && { fechadoEm }) },
+      include: INCLUDE_DETAIL,
+    });
+    if (existing.solicitanteId !== req.user.id) {
+      await this.notificarSolicitante(existing.solicitanteId, updated, body.status);
+      const solicitante = await this.prisma.user.findUnique({ where: { id: existing.solicitanteId }, select: { email: true, nome: true } });
+      const phone = await this.getUserPhone(existing.solicitanteId);
+      const waInstStatus = await this.getWaInstance(req.user.organizationId);
+      if (phone) {
+        if (body.status === "resolvido") {
+          await this.filaChamado((updated as any).organizationId, existing.solicitanteId, phone, "chamado_resolvido",
+            `*${MARCA} - Chamado #${updated.numero} resolvido*\n\n*Assunto:* ${updated.titulo}\n\nAvalie o atendimento:\n${this.appUrl}/dashboard/chamados`,
+            "info", `ch-resolv::${updated.id}`);
+        } else {
+          await this.filaChamado((updated as any).organizationId, existing.solicitanteId, phone, "chamado_status",
+            `*${MARCA} - Chamado #${updated.numero} atualizado*\n\nNovo status: *${body.status}*\n*Assunto:* ${updated.titulo}\n\nAcompanhe: ${this.appUrl}/dashboard/chamados`,
+            "info", `ch-status::${updated.id}::${body.status}`);
+        }
+      }
+      if (solicitante?.email) {
+        if (body.status === "resolvido") {
+          this.email.sendChamadoResolvido(solicitante.email, solicitante.nome, updated.numero, updated.titulo).catch(() => {});
+        } else {
+          this.email.sendChamadoStatus(solicitante.email, solicitante.nome, updated.numero, updated.titulo, body.status).catch(() => {});
+        }
+      }
+    }
+    // Fire automations async
+    const orgIdStatus = req.user?.organizationId;
+    const baseCtx = { id: updated.id, numero: updated.numero, titulo: updated.titulo, prioridade: updated.prioridade, status: body.status, categoria: updated.categoria || null, solicitanteId: updated.solicitanteId, atendenteId: updated.atendenteId || null, organizationId: orgIdStatus, tags: (updated as any).tags || "" };
+    this.automacao.executar("chamado_atualizado", baseCtx).catch(() => {});
+    if (["resolvido", "fechado"].includes(body.status) && body.status !== existing.status) {
+      const evtStatus = body.status === "fechado" ? "chamado.fechado" : "chamado.resolvido";
+      const trigStatus = body.status === "fechado" ? "chamado_fechado" : "chamado_resolvido";
+      this.automacao.executar(trigStatus, baseCtx).catch(() => {});
+      this.webhook.fire(evtStatus, { id: updated.id, numero: updated.numero, titulo: updated.titulo, status: updated.status, clienteId: updated.clienteId || null, resolvidoEm: (updated as any).resolvidoEm || new Date() }, orgIdStatus).catch(() => {});
+    }
+    // Frotas: encerrar o chamado encerra a OS que ele gerou. Sem isso o veículo
+    // fica vermelho no farol para sempre, mesmo com o problema já resolvido —
+    // era exatamente o vício da planilha, OS que ninguém lembrava de baixar.
+    if (["resolvido", "fechado"].includes(body.status) && body.status !== existing.status) {
+      const encerradas = await (this.prisma as any).manutencaoVeiculo.updateMany({
+        where: { chamadoId: id, deletedAt: null, status: { notIn: ["finalizada", "cancelada"] } },
+        data: { status: "finalizada", dataFechamento: new Date(), atualizadoPorId: req.user.id },
+      });
+      if (encerradas.count) {
+        await (this.prisma as any).chamadoComentario.create({
+          data: {
+            chamadoId: id, userId: req.user.id, interno: true,
+            texto: `${encerradas.count} manutenção(ões) finalizada(s) no módulo de Frotas junto com o chamado.`,
+          },
+        }).catch(() => {});
+      }
+    }
+
+    // Auditoria
+    if (body.status !== existing.status) {
+      await this.recordAudit(id, req.user.id, "status", existing.status, body.status);
+    }
+    return mapChamado(updated);
+  }
+
+  /** Devolve um chamado a quem o atribuiu.
+   *
+   *  A atribuição vale na hora — não há "pendente de aceite", que criaria um
+   *  chamado sem dono, fora da fila pública e com o SLA correndo. Em vez de
+   *  travar a entrada, aqui existe a saída: recusar depois, com motivo.
+   *
+   *  Volta para QUEM ATRIBUIU, nunca para a fila pública: quem empurrou o
+   *  trabalho responde por ele de volta. Chamado que a pessoa pegou sozinha na
+   *  fila não é devolvível — não há remetente. */
+  @Patch(":id/devolver")
+  @Permissions("chamados:editar")
+  async devolver(@Param("id") id: string, @Body() body: DevolverChamadosDto, @Req() req: any) {
+    const motivo = (body?.motivo || "").trim();
+    if (motivo.length < 5) throw new BadRequestException("Explique o motivo da devolução");
+
+    const chamado: any = await this.prisma.chamado.findUnique({ where: { id } });
+    if (!chamado) throw new NotFoundException("Chamado não encontrado");
+    if (req.user?.organizationId && chamado.organizationId !== req.user.organizationId) {
+      throw new NotFoundException("Chamado não encontrado");
+    }
+    if (chamado.atendenteId !== req.user.id) {
+      throw new ForbiddenException("Só quem está com o chamado pode devolvê-lo");
+    }
+    if (!chamado.atribuidoPorId) {
+      throw new BadRequestException("Este chamado não foi atribuído por ninguém — você o assumiu da fila");
+    }
+    if (["resolvido", "fechado"].includes(chamado.status)) {
+      throw new BadRequestException("Chamado já encerrado não pode ser devolvido");
+    }
+
+    const destino = chamado.atribuidoPorId;
+    const updated = await this.prisma.chamado.update({
+      where: { id },
+      data: {
+        atendenteId: destino,
+        // Zera a origem: o chamado não fica quicando entre duas pessoas.
+        atribuidoPorId: null,
+        status: "em_atendimento",
+      },
+      include: INCLUDE_DETAIL,
+    });
+
+    const quem = await this.prisma.user.findUnique({ where: { id: req.user.id }, select: { nome: true } });
+    await (this.prisma as any).chamadoComentario.create({
+      data: {
+        chamadoId: id, userId: req.user.id, interno: false,
+        texto: `Chamado devolvido por ${quem?.nome || "o atendente"}. Motivo: ${motivo}`,
+      },
+    }).catch(() => {});
+    await this.recordAudit(id, req.user.id, "devolucao", req.user.id, destino);
+
+    // Quem atribuiu precisa saber que voltou — senão o chamado some do radar
+    // dele e reaparece na conta de outro dia.
+    await this.notificarAtendente(destino, updated, "devolvido").catch(() => {});
+    await (this.prisma as any).notification.create({
+      data: {
+        userId: destino, tipo: "chamado_devolvido", modulo: "service",
+        titulo: `Chamado #${updated.numero} devolvido a você`,
+        mensagem: `${quem?.nome || "O atendente"} devolveu: ${motivo}`,
+        referenciaTipo: "chamado", referenciaId: id,
+      },
+    }).catch(() => {});
+    const phone = await this.getUserPhone(destino);
+    if (phone) {
+      await this.filaChamado((updated as any).organizationId, destino, phone, "chamado_devolvido",
+        `*${MARCA} - Chamado #${updated.numero} devolvido*\n\n*Assunto:* ${updated.titulo}\n*Motivo:* ${motivo}\n\nAcesse: ${this.appUrl}/dashboard/chamados`,
+        "aviso", `ch-devol::${id}::${destino}`);
+    }
+
+    return mapChamado(updated);
+  }
+
+  // ── Integração com Frotas ──────────────────────────────────────────────────
+
+  /** Abre a ordem de serviço do chamado no módulo de Frotas.
+   *
+   *  Copia o relato para a OS em vez de pedir redigitação, põe o chamado em
+   *  atendimento e deixa a origem rastreável dos dois lados. Idempotente: dois
+   *  cliques não geram duas OS. */
+  @Post(":id/abrir-manutencao")
+  @Permissions("chamados:editar")
+  async abrirManutencao(
+    @Param("id") id: string,
+    @Body() body: AbrirManutencaoChamadosDto,
+    @Req() req: any,
+  ) {
+    const chamado: any = await this.prisma.chamado.findUnique({ where: { id } });
+    if (!chamado) throw new NotFoundException("Chamado não encontrado");
+    if (req.user?.organizationId && chamado.organizationId !== req.user.organizationId) {
+      throw new NotFoundException("Chamado não encontrado");
+    }
+    if (!chamado.veiculoId) {
+      throw new BadRequestException("Selecione o veículo no chamado antes de abrir a manutenção");
+    }
+
+    const orgId = chamado.organizationId;
+    const aberta = await (this.prisma as any).manutencaoVeiculo.findFirst({
+      where: { chamadoId: id, deletedAt: null, status: { notIn: ["finalizada", "cancelada"] } },
+      select: { id: true, numeroOs: true, status: true, imobiliza: true },
+    });
+    if (aberta) return { jaExistia: true, manutencao: aberta };
+
+    // Mesma numeração do módulo de Frotas, para as OS não saírem de duas séries.
+    const ultima = await (this.prisma as any).manutencaoVeiculo.findFirst({
+      where: { organizationId: orgId, numeroOs: { startsWith: "OS-" } },
+      orderBy: { numeroOs: "desc" }, select: { numeroOs: true },
+    });
+    let seq = ultima?.numeroOs ? (parseInt(String(ultima.numeroOs).replace("OS-", ""), 10) || 0) : 0;
+    let numeroOs = `OS-${String(++seq).padStart(5, "0")}`;
+    while (await (this.prisma as any).manutencaoVeiculo.findFirst({ where: { organizationId: orgId, numeroOs } })) {
+      numeroOs = `OS-${String(++seq).padStart(5, "0")}`;
+    }
+
+    const agora = new Date();
+    // `imobiliza` decide a cor do veículo no farol: parado (vermelho) ou
+    // operando com avaria (amarelo).
+    //
+    // A DECISÃO É DE QUEM ATENDE, na Manutenção — quem abriu o chamado relatou
+    // o que viu, não determina o estado da frota. Mas o relato é a melhor
+    // informação disponível no momento da abertura da OS, então vira o VALOR
+    // SUGERIDO. Antes o default era "imobiliza" fixo: um chamado aberto como
+    // "operando com avaria" nascia OS imobilizante e pintava de vermelho um
+    // veículo que estava rodando.
+    const imobiliza = body.imobiliza != null
+      ? body.imobiliza !== false
+      : chamado.condicaoVeiculo !== "operando_com_avaria";
+    const manutencao = await (this.prisma as any).manutencaoVeiculo.create({
+      data: {
+        organizationId: orgId,
+        veiculoId: chamado.veiculoId,
+        chamadoId: id,
+        numeroOs,
+        tipo: body.tipo || "corretiva",
+        descricao: `[Chamado #${chamado.numero}] ${chamado.titulo}\n\n${chamado.descricao}`,
+        solicitanteId: chamado.solicitanteId,
+        imobiliza,
+        localizacao: body.localizacao || null,
+        previsaoLiberacao: body.previsaoLiberacao ? new Date(body.previsaoLiberacao) : null,
+        status: "aberta",
+        data: agora,
+        dataAbertura: agora,
+        criadoPorId: req.user.id,
+      },
+      select: { id: true, numeroOs: true, status: true, imobiliza: true },
+    });
+
+    // O chamado deixa a fila: existe trabalho em campo a partir de agora.
+    if (chamado.status === "aberto") {
+      await this.prisma.chamado.update({ where: { id }, data: { status: "em_atendimento" } });
+      await this.recordAudit(id, req.user.id, "status", chamado.status, "em_atendimento");
+    }
+    await (this.prisma as any).chamadoComentario.create({
+      data: {
+        chamadoId: id, userId: req.user.id, interno: true,
+        texto: `Manutenção ${numeroOs} aberta no módulo de Frotas — veículo ${imobiliza ? "parado" : "operando com avaria"}.`,
+      },
+    }).catch(() => {});
+
+    return { jaExistia: false, manutencao };
+  }
+
+  @Patch(":id/atribuir")
+  @Permissions("chamados:editar")
+  async atribuir(@Param("id") id: string, @Body() body: AtribuirChamadosDto, @Req() req: any) {
+    const existing = await acharNaOrganizacao(this.prisma.chamado, id, req, "Chamado nao encontrado");
+    // Antes a regra era só "master ou solicitante" — escrita aqui dentro, e por
+    // isso invisível para a matriz de permissões: marcar as 90 caixinhas não
+    // dava esse acesso. Agora existe o caminho pela matriz, sem tirar o do
+    // solicitante, que continua podendo direcionar o próprio chamado.
+    const podeAtribuir = req.user.isMaster
+      || (req.user.permissions || []).includes("*")
+      || (req.user.permissions || []).includes("chamados:atribuir")
+      || existing.solicitanteId === req.user.id;
+    if (!podeAtribuir) throw new ForbiddenException("Sem permissão para atribuir este chamado");
+    const orgId = req.user?.organizationId;
+    if (orgId && (existing as any).organizationId && (existing as any).organizationId !== orgId) {
+      throw new NotFoundException("Chamado nao encontrado");
+    }
+    const updated = await this.prisma.chamado.update({
+      where: { id },
+      data: {
+        atendenteId: body.atendenteId || null,
+        status: body.atendenteId ? "em_atendimento" : "aberto",
+        // Guarda o remetente: é para ele que a devolução volta. Assumir da
+        // fila limpa isto — quem se serviu não tem a quem devolver.
+        atribuidoPorId: body.atendenteId && body.atendenteId !== req.user.id ? req.user.id : null,
+      },
+      include: INCLUDE_DETAIL,
+    });
+    if (body.atendenteId && body.atendenteId !== req.user.id) {
+      await this.notificarAtendente(body.atendenteId, updated, "atribuido");
+      const phone = await this.getUserPhone(body.atendenteId);
+      const waInstAtrib = await this.getWaInstance(req.user.organizationId);
+      if (phone) await this.filaChamado((updated as any).organizationId, body.atendenteId, phone, "chamado_atribuido",
+        `*${MARCA} - Chamado #${updated.numero} atribuido a voce*\n\n*Assunto:* ${updated.titulo}\n*Prioridade:* ${this.prioLabel(updated.prioridade)}\n\nAcesse: ${this.appUrl}/dashboard/chamados`,
+        "aviso", `ch-atrib::${updated.id}::${body.atendenteId}`);
+    }
+    // Auditoria — diferencia atribuição inicial / transferência / remoção
+    let acao = "atribuicao";
+    if (existing.atendenteId && body.atendenteId && existing.atendenteId !== body.atendenteId) acao = "transferencia";
+    else if (existing.atendenteId && !body.atendenteId) acao = "atribuicao_removida";
+    await this.recordAudit(id, req.user.id, acao, existing.atendenteId || null, body.atendenteId || null);
+    return mapChamado(updated);
+  }
+
+  // ── ASSUMIR CHAMADO (fila pública → atribuição individual) ─────────────────
+  //
+  // Operação ATÔMICA: usa updateMany com condição (atendenteId IS NULL AND
+  // status='aberto'). Se outro usuário já assumiu, updateMany retorna count=0
+  // e devolvemos 409 Conflict. Sem race condition mesmo com 2 cliques
+  // simultâneos.
+  @Patch(":id/assumir")
+  @Permissions("chamados:editar")
+  async assumir(@Param("id") id: string, @Req() req: any) {
+    const userId = req.user.id;
+    const orgId  = req.user?.organizationId;
+
+    const existing = await acharNaOrganizacao(this.prisma.chamado, id, req, "Chamado nao encontrado");
+    // Isolamento multi-tenant
+    if (orgId && (existing as any).organizationId && (existing as any).organizationId !== orgId) {
+      throw new NotFoundException("Chamado nao encontrado");
+    }
+
+    // UPDATE atômico — apenas se ainda estiver na fila pública
+    const result = await (this.prisma as any).chamado.updateMany({
+      where: {
+        id,
+        atendenteId: null,
+        status: "aberto",
+        ...(orgId ? { organizationId: orgId } : {}),
+      },
+      data: {
+        atendenteId: userId,
+        status: "em_atendimento",
+        // Quem se serviu da fila nao tem a quem devolver.
+        atribuidoPorId: null,
+      },
+    });
+
+    if (result.count === 0) {
+      // Conflito: outro usuário assumiu primeiro, ou chamado mudou de estado
+      const fresh = await this.prisma.chamado.findUnique({
+        where: { id },
+        include: { atendente: { select: { nome: true } } } as any,
+      });
+      const quem = (fresh as any)?.atendente?.nome;
+      throw new ConflictException(
+        quem ? `Chamado ja foi assumido por ${quem}.` : "Chamado nao esta mais disponivel na fila.",
+      );
+    }
+
+    const updated = await this.prisma.chamado.findUnique({ where: { id }, include: INCLUDE_DETAIL });
+
+    // Auditoria
+    await this.recordAudit(id, userId, "assumido", null, userId, { numero: existing.numero });
+
+    // Notificações ao solicitante (alguém assumiu o chamado dele)
+    if (existing.solicitanteId !== userId && updated) {
+      await this.notificarSolicitante(existing.solicitanteId, updated, "em_atendimento");
+      const sol = await this.prisma.user.findUnique({ where: { id: existing.solicitanteId }, select: { email: true, nome: true } });
+      const phone = await this.getUserPhone(existing.solicitanteId);
+      const waInstAssumir = await this.getWaInstance(req.user.organizationId);
+      if (phone) await this.filaChamado((updated as any).organizationId, existing.solicitanteId, phone, "chamado_status",
+        `*${MARCA} - Chamado #${updated.numero} atualizado*\n\nNovo status: *em atendimento*\n*Assunto:* ${updated.titulo}\n\nAcompanhe: ${this.appUrl}/dashboard/chamados`,
+        "info", `ch-status::${updated.id}::em_atendimento`);
+      if (sol?.email) this.email.sendChamadoStatus(sol.email, sol.nome, updated.numero, updated.titulo, "em_atendimento").catch(() => {});
+    }
+
+    // Automações & webhooks (não bloqueantes)
+    if (updated) {
+      this.automacao.executar("chamado_atualizado", {
+        id: updated.id, numero: updated.numero, titulo: updated.titulo,
+        prioridade: updated.prioridade, status: "em_atendimento",
+        categoria: updated.categoria || null,
+        solicitanteId: updated.solicitanteId, atendenteId: userId,
+      }).catch(() => {});
+    }
+
+    return mapChamado(updated);
+  }
+
+  @Post(":id/comentarios")
+  @Permissions("chamados:editar")
+  async addComentario(@Param("id") id: string, @Body() dto: AddComentarioDto, @Req() req: any) {
+    if (!dto.texto?.trim()) throw new BadRequestException("Texto obrigatorio");
+    const chamado = await acharNaOrganizacao(this.prisma.chamado, id, req, "Chamado nao encontrado");
+    const canComment = req.user.isMaster || chamado.solicitanteId === req.user.id || chamado.atendenteId === req.user.id;
+    if (!canComment) throw new ForbiddenException("Sem permissao");
+    const comentario = await this.prisma.chamadoComentario.create({
+      data: { chamadoId: id, userId: req.user.id, texto: dto.texto.trim(), interno: dto.interno ?? false },
+      include: { user: { select: { id: true, nome: true, avatar: true } } },
+    });
+    // Track primeira resposta do atendente (SLA response time)
+    if (!dto.interno && req.user.id === chamado.atendenteId) {
+      const slaData = await (this.prisma as any).chamado.findUnique({ where: { id }, select: { primeiraRespostaEm: true } });
+      if (!slaData?.primeiraRespostaEm) {
+        await (this.prisma as any).chamado.update({ where: { id }, data: { primeiraRespostaEm: new Date() } });
+      }
+    }
+
+    // Notifica a outra parte
+    if (!dto.interno) {
+      const notifyId = req.user.id === chamado.solicitanteId ? chamado.atendenteId : chamado.solicitanteId;
+      if (notifyId && notifyId !== req.user.id) {
+        const me = await this.prisma.user.findUnique({ where: { id: req.user.id }, select: { nome: true } });
+        await this.prisma.notification.create({
+          data: {
+            userId: notifyId, tipo: "chamado_comentario",
+            titulo: `Novo comentario no chamado #${chamado.numero}`,
+            mensagem: `${me?.nome}: ${dto.texto.slice(0, 80)}`,
+            referenciaTipo: "chamado", referenciaId: id,
+          },
+        });
+      }
+    }
+    return {
+      id: comentario.id, texto: comentario.texto, interno: comentario.interno,
+      criadoEm: comentario.criadoEm,
+      user: comentario.user,
+    };
+  }
+
+  @Delete(":id/comentarios/:comentId")
+  @Permissions("chamados:editar")
+  async deleteComentario(@Param("id") id: string, @Param("comentId") comentId: string, @Req() req: any) {
+    const coment = await this.prisma.chamadoComentario.findUnique({ where: { id: comentId } });
+    if (!coment || coment.chamadoId !== id) throw new NotFoundException("Comentario nao encontrado");
+    if (coment.userId !== req.user.id && !req.user.isMaster) throw new ForbiddenException("Sem permissao");
+    await this.prisma.chamadoComentario.delete({ where: { id: comentId } });
+    return { message: "Comentario removido" };
+  }
+
+  @Patch(":id/avaliar")
+  @Permissions("chamados:editar")
+  async avaliar(@Param("id") id: string, @Body() dto: AvaliarDto, @Req() req: any) {
+    const chamado = await acharNaOrganizacao(this.prisma.chamado, id, req, "Chamado nao encontrado");
+    if (chamado.solicitanteId !== req.user.id) throw new ForbiddenException("Apenas o solicitante pode avaliar");
+    if (!["resolvido", "fechado"].includes(chamado.status)) throw new BadRequestException("Chamado precisa estar resolvido para avaliar");
+    const updated = await this.prisma.chamado.update({
+      where: { id },
+      data: { avaliacao: dto.avaliacao, avaliacaoNota: dto.avaliacaoNota, status: "fechado", fechadoEm: new Date() },
+      include: INCLUDE_DETAIL,
+    });
+    return mapChamado(updated);
+  }
+
+  @Delete(":id")
+  @Permissions("chamados:excluir")
+  async remove(@Param("id") id: string, @Req() req: any) {
+    if (!req.user.isMaster) throw new ForbiddenException("Apenas masters podem remover chamados");
+    const chamado = await acharNaOrganizacao(this.prisma.chamado, id, req, "Chamado nao encontrado");
+    await this.prisma.chamado.delete({ where: { id } });
+    return { message: "Chamado removido" };
+  }
+
+  private async notificarAtendente(atendenteId: string, chamado: any, tipo: string) {
+    try {
+      await this.prisma.notification.create({
+        data: {
+          userId: atendenteId, tipo: "chamado_atribuido",
+          titulo: `Chamado #${chamado.numero} atribuido a voce`,
+          mensagem: chamado.titulo,
+          referenciaTipo: "chamado", referenciaId: chamado.id,
+        },
+      });
+    } catch {}
+  }
+
+  private async notificarSolicitante(solicitanteId: string, chamado: any, status: string) {
+    const labels: Record<string, string> = {
+      em_atendimento: "em atendimento",
+      aguardando: "aguardando sua resposta",
+      resolvido: "marcado como resolvido",
+      fechado: "fechado",
+    };
+    const label = labels[status];
+    if (!label) return;
+    try {
+      await this.prisma.notification.create({
+        data: {
+          userId: solicitanteId, tipo: "chamado_status",
+          titulo: `Chamado #${chamado.numero} ${label}`,
+          mensagem: chamado.titulo,
+          referenciaTipo: "chamado", referenciaId: chamado.id,
+        },
+      });
+    } catch {}
+  }
+}
+
+import { SlaModule } from "../sla/sla.module";
+import { AutomacoesModule } from "../automacoes/automacoes.module";
+import { WebhooksModule } from "../automacoes/webhooks.module";
+import { NotificationsModule } from "../notifications/notifications.module";
+import { Injectable, OnModuleInit, Logger } from "@nestjs/common";
+import { MARCA } from "../../common/marca";
+
+// ── SLA Escalation Scheduler ─────────────────────────────────────────────────
+// Verifica a cada 30min chamados com SLA violado e notifica os masters da org.
+// Evita spam: só notifica se já passou 1h desde o último alerta neste chamado.
+@Injectable()
+class SlaEscalationScheduler implements OnModuleInit {
+  private readonly logger = new Logger("SlaEscalationScheduler");
+
+  constructor(private prisma: PrismaService, private wa: WhatsAppService, private automacao: AutomacaoService) {}
+
+  onModuleInit() {
+    // Primeiro tick após 2min (aguarda boot); depois a cada 30min
+    setTimeout(() => this.tick().catch(() => {}), 2 * 60_000);
+    setInterval(() => this.tick().catch(() => {}), 30 * 60_000);
+    this.logger.log("SlaEscalationScheduler iniciado (30min interval)");
+  }
+
+  async tick() {
+    const now = new Date();
+    const db = this.prisma as any;
+
+    // Busca chamados abertos com SLA de resolução violado
+    const violados = await db.chamado.findMany({
+      where: {
+        status: { notIn: ["resolvido", "fechado", "cancelado"] },
+        slaResolucaoAt: { lt: now },
+      },
+      include: {
+        solicitante: { select: { id: true, nome: true } },
+        atendente: { select: { id: true, nome: true } },
+        organization: {
+          select: {
+            id: true,
+            nome: true,
+            users: { where: { isMaster: true, ativo: true }, select: { id: true, nome: true, email: true } },
+          },
+        },
+      },
+    });
+
+    if (violados.length === 0) return;
+    this.logger.log(`SLA: ${violados.length} chamado(s) violado(s) — checando escalações...`);
+
+    for (const chamado of violados) {
+      const org = chamado.organization;
+      if (!org?.users?.length) continue;
+
+      const horasAtraso = Math.round((now.getTime() - new Date(chamado.slaResolucaoAt).getTime()) / 3600000);
+
+      // Só escalar se atraso ≥ 1h (evita ruído de chamados recém-violados)
+      if (horasAtraso < 1) continue;
+
+      // Verifica se já foi escalado recentemente (último comentário interno de escalação < 1h)
+      const ultimaEscalacao = await db.chamadoComentario.findFirst({
+        where: {
+          chamadoId: chamado.id,
+          interno: true,
+          texto: { startsWith: "[SLA_ESCALACAO]" },
+          criadoEm: { gt: new Date(now.getTime() - 60 * 60_000) },
+        },
+      });
+      if (ultimaEscalacao) continue;
+
+      // Registra escalação como comentário interno (audit trail)
+      await db.chamadoComentario.create({
+        data: {
+          id: require("uuid").v4(),
+          chamadoId: chamado.id,
+          userId: org.users[0].id,
+          texto: `[SLA_ESCALACAO] Chamado #${chamado.numero} com SLA violado há ${horasAtraso}h. Escalado automaticamente para os masters.`,
+          interno: true,
+        },
+      });
+
+      // Notifica cada master via in-app + WhatsApp
+      for (const master of org.users) {
+        try {
+          await db.notificacao.create({
+            data: {
+              id: require("uuid").v4(),
+              userId: master.id,
+              tipo: "sla_violado",
+              titulo: `⚠️ SLA Violado — Chamado #${chamado.numero}`,
+              mensagem: `Chamado "${chamado.titulo}" está ${horasAtraso}h acima do SLA de resolução.${chamado.atendente ? ` Atendente: ${chamado.atendente.nome}.` : " Sem atendente atribuído."}`,
+              referenciaId: chamado.id,
+              referenciaTipo: "chamado",
+            },
+          });
+        } catch {}
+
+        // WhatsApp (best-effort)
+        try {
+          const waConfig = await db.orgWhatsappConfig.findUnique({
+            where: { organizationId: org.id },
+          });
+          if (waConfig?.conectado) {
+            const userWa = await db.userWhatsapp.findUnique({ where: { userId: master.id } });
+            if (userWa?.phoneNumber) {
+              const msg =
+                `⚠️ *SLA Violado — Chamado #${chamado.numero}*\n\n` +
+                `*Título:* ${chamado.titulo}\n` +
+                `*Atraso:* ${horasAtraso}h acima do prazo\n` +
+                (chamado.atendente ? `*Atendente:* ${chamado.atendente.nome}\n` : "*Sem atendente*\n") +
+                `\nAcesse para tomar ação imediata.`;
+              this.wa.sendMessageForOrg(org.id, userWa.phoneNumber, msg).catch(() => {});
+            }
+          }
+        } catch {}
+      }
+
+      this.automacao.executar("chamado_sla_risco", {
+        id: chamado.id, numero: chamado.numero, titulo: chamado.titulo,
+        prioridade: chamado.prioridade, status: chamado.status,
+        solicitanteId: chamado.solicitanteId, atendenteId: chamado.atendenteId || null,
+        organizationId: org.id, horasAtraso,
+      }).catch(() => {});
+
+      this.logger.warn(`Escalado: #${chamado.numero} (${horasAtraso}h de atraso) → ${org.users.length} master(s)`);
+    }
+
+    // Dispara automação para chamados em risco (dentro de 2h do prazo)
+    const emRisco = await db.chamado.findMany({
+      where: {
+        status: { notIn: ["resolvido", "fechado", "cancelado"] },
+        slaResolucaoAt: { gt: now, lt: new Date(now.getTime() + 2 * 3600000) },
+      },
+      select: { id: true, numero: true, titulo: true, prioridade: true, status: true, solicitanteId: true, atendenteId: true, organizationId: true },
+    });
+    for (const c of emRisco) {
+      this.automacao.executar("chamado_sla_risco", {
+        id: c.id, numero: c.numero, titulo: c.titulo, prioridade: c.prioridade,
+        status: c.status, solicitanteId: c.solicitanteId, atendenteId: c.atendenteId || null,
+        organizationId: c.organizationId, emRisco: true,
+      }).catch(() => {});
+    }
+  }
+}
+
+// ── Upload Controller ────────────────────────────────────────────────────────
+const UPLOAD_DIR = process.env.UPLOAD_DIR || "/app/uploads";
+const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20 MB
+const ALLOWED_MIMES = ["image/jpeg","image/png","image/gif","image/webp","application/pdf","text/plain","application/vnd.ms-excel","application/vnd.openxmlformats-officedocument.spreadsheetml.sheet","application/msword","application/vnd.openxmlformats-officedocument.wordprocessingml.document","application/zip","video/mp4","text/csv"];
+
+@Controller("chamados")
+@UseGuards(AuthGuard("jwt"))
+class ChamadoUploadController {
+  constructor(private prisma: PrismaService) {}
+
+  @Post(":id/anexos")
+  @UseInterceptors(FileInterceptor("file", {
+    storage: diskStorage({
+      destination: (req: any, _file, cb) => {
+        const dir = path.join(UPLOAD_DIR, req.params.id);
+        fs.mkdirSync(dir, { recursive: true });
+        cb(null, dir);
+      },
+      // Nome e extensao saem da lista de tipos aceitos, NUNCA de
+      // `originalname`. Era dali que vinha o `.html` que o nginx depois servia
+      // como pagina, na origem da aplicacao.
+      filename: nomeSeguroParaMulter,
+    }),
+    limits: { fileSize: MAX_FILE_SIZE },
+    fileFilter: filtroDeTipo,
+  }))
+  async upload(@Req() req: any, @Param("id") id: string, @UploadedFile() file: any) {
+    if (!file) throw new BadRequestException("Arquivo obrigatório");
+    // Confere os primeiros bytes e apaga o arquivo se nao corresponderem ao
+    // tipo declarado. O `fileFilter` so enxerga cabecalho — conteudo so da
+    // para olhar depois que o multer gravou.
+    validarArquivoGravado(file.path, file.mimetype);
+    const chamado = await acharNaOrganizacao((this.prisma as any).chamado, id, req, "Chamado não encontrado");
+    const anexo = await (this.prisma as any).chamadoAnexo.create({
+      data: { id: require("uuid").v4(), chamadoId: id, uploaderId: req.user.id, nomeOriginal: file.originalname, nomeArquivo: file.filename, mimeType: file.mimetype, tamanhoBytes: file.size },
+    });
+    // URL de download AUTENTICADO. Antes apontava para `/uploads/...`, que o
+    // nginx servia sem sessao nenhuma: quem tivesse a URL baixava o anexo.
+    return { ...anexo, url: `/api/chamados/${id}/anexos/${anexo.id}/download` };
+  }
+
+  @Get(":id/anexos")
+  async listAnexos(@Req() req: any, @Param("id") id: string) {
+    // A listagem tambem escapava do escopo: entregava as URLs exatas dos
+    // anexos de QUALQUER chamado, e o download nem exigia sessao.
+    await acharNaOrganizacao((this.prisma as any).chamado, id, req, "Chamado não encontrado");
+    const anexos = await (this.prisma as any).chamadoAnexo.findMany({ where: { chamadoId: id }, include: { uploader: { select: { id: true, nome: true } } }, orderBy: { criadoEm: "asc" } });
+    return anexos.map((a: any) => ({ ...a, url: `/api/chamados/${id}/anexos/${a.id}/download` }));
+  }
+
+  @Get(":id/anexos/:anexoId/download")
+  async baixarAnexo(@Req() req: any, @Res({ passthrough: true }) res: any, @Param("id") id: string, @Param("anexoId") anexoId: string) {
+    await acharNaOrganizacao((this.prisma as any).chamado, id, req, "Chamado não encontrado");
+    const anexo = await (this.prisma as any).chamadoAnexo.findFirst({ where: { id: anexoId, chamadoId: id } });
+    if (!anexo) throw new NotFoundException("Anexo não encontrado");
+    return responderComAnexo(res, { subdir: id, nomeArquivo: anexo.nomeArquivo, nomeOriginal: anexo.nomeOriginal, mimeType: anexo.mimeType });
+  }
+
+  @Delete(":id/anexos/:anexoId")
+  async deleteAnexo(@Req() req: any, @Param("id") id: string, @Param("anexoId") anexoId: string) {
+    await acharNaOrganizacao((this.prisma as any).chamado, id, req, "Chamado não encontrado");
+    const anexo = await (this.prisma as any).chamadoAnexo.findFirst({ where: { id: anexoId, chamadoId: id } });
+    if (!anexo) throw new NotFoundException("Anexo não encontrado");
+    if (anexo.uploaderId !== req.user.id && !req.user.isMaster) throw new ForbiddenException("Sem permissão");
+    try { fs.unlinkSync(path.join(UPLOAD_DIR, id, anexo.nomeArquivo)); } catch {}
+    return (this.prisma as any).chamadoAnexo.delete({ where: { id: anexoId } });
+  }
+}
+
+@Module({
+  imports:     [SlaModule, AutomacoesModule, WebhooksModule, NotificationsModule],
+  controllers: [ChamadosController, ChamadoUploadController],
+  // WhatsAppService/EmailService vem via NotificationsModule (re-exportado);
+  // AutomacaoService via AutomacoesModule. Manter apenas o scheduler local.
+  providers:   [SlaEscalationScheduler],
+})
+export class ChamadosModule {}

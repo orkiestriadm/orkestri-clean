@@ -1,0 +1,1274 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&family=JetBrains+Mono:wght@300;400;500&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── Design Tokens — Light Mode (default) ──────────────────── */
+:root {
+  color-scheme: light;
+
+  /* shadcn/ui base tokens */
+  /* Precisa valer o mesmo que --bg-primary (#f4f4f7), o fundo pintado por
+     .app-shell. Os dois descrevem a mesma superfície por sistemas diferentes:
+     páginas escritas em Tailwind usam `bg-background`, e as escritas no CSS
+     próprio herdam a casca. Enquanto este token valia 0 0% 98% (#fafafa), a
+     mesma tela mudava de cor conforme o sistema em que foi escrita — Chamados
+     e Contratos saíam quase brancos, Ativos e Agenda cinza. No modo escuro os
+     dois já coincidiam; só o claro estava fora. */
+  --background: 240 16% 96.3%;
+  --foreground: 240 10% 4%;
+  --card: 0 0% 100%;
+  --card-foreground: 240 10% 4%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 240 10% 4%;
+  --primary: 25 95% 53%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 0 0% 96%;
+  --secondary-foreground: 0 0% 10%;
+  --muted: 0 0% 96%;
+  --muted-foreground: 240 5% 40%;
+  --accent: 0 0% 96%;
+  --accent-foreground: 0 0% 10%;
+  --destructive: 0 72% 51%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 0 0% 92%;
+  --input: 0 0% 92%;
+  --ring: 25 95% 53%;
+  --radius: 0.75rem;
+
+  /* Font stacks */
+  --font-display: "Inter", sans-serif;
+  --font-body: "Inter", "DM Sans", sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
+  --sidebar-w: 240px;
+
+  /* Premium Surfaces */
+  /* Deriva de --background em vez de repetir o valor: são a mesma superfície
+     descrita por dois sistemas (Tailwind e o CSS próprio), e enquanto eram
+     dois números soltos divergiram — #f4f4f7 aqui contra #fafafa lá. */
+  --bg-primary:   hsl(var(--background));
+  --bg-secondary: #ffffff;
+  --bg-card:      #ffffff;
+  --bg-glass:     rgba(255, 255, 255, 0.75);
+  --bg-hover:     rgba(0, 0, 0, 0.03);
+  --bg-active:    rgba(249, 115, 22, 0.05);
+  --modal-bg:     var(--bg-card);
+
+  /* Borders (Ultrafine, subtle) */
+  --border-subtle: rgba(0, 0, 0, 0.04);
+  --border-medium: rgba(0, 0, 0, 0.08);
+  --border-strong: rgba(0, 0, 0, 0.12);
+
+  /* Typography */
+  --text-primary:   #111113;
+  --text-secondary: #57575e;
+  --text-muted:     #8a8a93;
+  --text-faint:     #c1c1ca;
+
+  /* Brand accents */
+  --accent-violet:     #f97316;
+  --accent-violet-dim: rgba(249, 115, 22, 0.05);
+  --accent-cyan:       #0284c7;
+  --accent-green:      #059669;
+  --accent-amber:      #d97706;
+  --accent-red:        #dc2626;
+
+  /* ── Estado operacional (monitoramento) ─────────────────────────────────
+     Camada semântica sobre os acentos da marca: as telas dizem "está no ar"
+     ou "caiu", nunca "#22c55e".
+
+     Existe porque o módulo de monitoramento cravava hex direto no componente,
+     repetido em três páginas — o mesmo verde escrito à mão em dezenas de
+     lugares, sem variante para o tema escuro. Como estes tokens derivam de
+     `--accent-*`, que já muda por tema, a adaptação vem de graça.
+
+     As variantes `-soft` e `-line` saem por `color-mix` do próprio acento, em
+     vez de um rgba fixo: mudar o acento reajusta fundo e borda junto. */
+  --mon-ok:        var(--accent-green);
+  --mon-ok-soft:   color-mix(in srgb, var(--accent-green) 12%, transparent);
+  --mon-ok-line:   color-mix(in srgb, var(--accent-green) 30%, transparent);
+  --mon-down:      var(--accent-red);
+  --mon-down-soft: color-mix(in srgb, var(--accent-red) 12%, transparent);
+  --mon-down-line: color-mix(in srgb, var(--accent-red) 32%, transparent);
+  /* Atenção tem amarelo PRÓPRIO, e não `--accent-amber`.
+     O acento âmbar (#d97706) é quase o mesmo tom do laranja da marca
+     (#f97316). Ao derivar o estado dele, "atenção" virou a cor da marca: no
+     Dashboard Executivo as barras de disponibilidade ficaram todas laranja —
+     96,2%, 94,2%, 98,4% e 98,9% pintadas igual — e o painel perdeu contraste.
+     Amarelo se separa do laranja mesmo em tela de telão e a distância. */
+  --mon-warn:      #ca8a04;
+  --mon-warn-soft: color-mix(in srgb, #ca8a04 14%, transparent);
+  --mon-warn-line: color-mix(in srgb, #ca8a04 32%, transparent);
+  --mon-idle:      var(--text-muted);
+  --mon-idle-soft: color-mix(in srgb, var(--text-muted) 12%, transparent);
+  --mon-idle-line: color-mix(in srgb, var(--text-muted) 25%, transparent);
+
+  /* Shadows (Multi-layered physical blur) */
+  --shadow-card:     0 1px 2px rgba(0,0,0,0.02), 0 4px 16px rgba(0,0,0,0.02);
+  --shadow-elevated: 0 1px 2px rgba(0,0,0,0.02), 0 8px 24px rgba(0,0,0,0.04), 0 16px 40px rgba(0,0,0,0.03);
+  --shadow-input:    0 0 0 3px rgba(249, 115, 22, 0.1);
+
+  /* Sidebar (Adaptive - Light) */
+  --sidebar-bg:          #ffffff;
+  --sidebar-border:      rgba(0, 0, 0, 0.04);
+  --sidebar-text:        #57575e;
+  --sidebar-text-hi:     #111113;
+  --sidebar-hover:       rgba(0, 0, 0, 0.03);
+  --sidebar-active-bg:   rgba(249, 115, 22, 0.08);
+  --sidebar-active-text: #f97316;
+}
+
+/* ── Design Tokens — Dark Mode ──────────────────────────────── */
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  /* shadcn/ui tokens */
+  --background: 240 10% 4%;
+  --foreground: 0 0% 98%;
+  --card: 240 10% 6%;
+  --card-foreground: 0 0% 98%;
+  --popover: 240 10% 6%;
+  --popover-foreground: 0 0% 98%;
+  --primary: 25 95% 60%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 240 5% 12%;
+  --secondary-foreground: 0 0% 90%;
+  --muted: 240 5% 12%;
+  --muted-foreground: 240 5% 50%;
+  --accent: 240 5% 12%;
+  --accent-foreground: 0 0% 90%;
+  --destructive: 0 62% 48%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 240 5% 14%;
+  --input: 240 5% 14%;
+  --ring: 25 95% 60%;
+
+  /* Premium Surfaces (Linear/Vercel inspired, deep contrast) */
+  /* Deriva de --background, como no modo claro — aqui os dois já valiam o
+     mesmo (#09090b), e derivar impede que voltem a divergir. */
+  --bg-primary:   hsl(var(--background));
+  --bg-secondary: #0f0f12;
+  --bg-card:      #141417;
+  --bg-glass:     rgba(20, 20, 23, 0.75);
+  --bg-hover:     rgba(255, 255, 255, 0.03);
+  --bg-active:    rgba(255, 255, 255, 0.05);
+  --modal-bg:     var(--bg-card);
+
+  /* Borders (Subtle glass lines) */
+  --border-subtle: rgba(255, 255, 255, 0.04);
+  --border-medium: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.12);
+
+  /* Typography */
+  --text-primary:   #f4f4f7;
+  --text-secondary: rgba(240, 240, 245, 0.65);
+  --text-muted:     rgba(240, 240, 245, 0.40);
+  --text-faint:     rgba(240, 240, 245, 0.15);
+
+  /* Brand accents (Softer for dark mode) */
+  --accent-violet:     #fb923c;
+  --accent-violet-dim: rgba(251, 146, 60, 0.10);
+  --accent-cyan:       #38bdf8;
+  --accent-green:      #34d399;
+  --accent-amber:      #fbbf24;
+  --accent-red:        #f87171;
+
+  /* Shadows (Inset top lighting line + soft projection) */
+  --shadow-card:     0 2px 8px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.03);
+  --shadow-elevated: 0 16px 48px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.04);
+  --shadow-input:    0 0 0 3px rgba(239, 68, 68, 0.15);
+
+  /* Sidebar (Adaptive - Dark) */
+  --sidebar-bg:          #0f0f12;
+  --sidebar-border:      rgba(255, 255, 255, 0.03);
+  --sidebar-text:        rgba(240, 240, 245, 0.5);
+  --sidebar-text-hi:     rgba(255, 255, 255, 0.9);
+  --sidebar-hover:       rgba(255, 255, 255, 0.03);
+  --sidebar-active-bg:   rgba(251, 146, 60, 0.10);
+  --sidebar-active-text: #fb923c;
+}
+
+/* ── Base ──────────────────────────────────────────────────── */
+@layer base {
+  * { @apply border-border; box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    @apply bg-background text-foreground;
+    font-family: var(--font-body);
+    font-size: 14px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    background-color: var(--bg-primary);
+  }
+}
+
+/* ── Theme transition ───────────── */
+.theme-transitioning,
+.theme-transitioning * {
+  transition: background-color 0.3s ease, border-color 0.3s ease, color 0.2s ease, box-shadow 0.3s ease !important;
+}
+
+/* ── Scrollbars ────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border-medium); border-radius: 6px; border: 2px solid transparent; background-clip: padding-box; }
+::-webkit-scrollbar-thumb:hover { background-color: var(--text-muted); }
+::selection { background: var(--accent-violet-dim); color: inherit; }
+
+/* ── Typography ────────────────────────────────────────────── */
+.font-display { font-family: var(--font-display); letter-spacing: -0.02em; }
+.font-mono    { font-family: var(--font-mono); }
+
+/* ── Layout ────────────────────────────────────────────────── */
+.app-shell {
+  display: flex;
+  height: 100dvh;
+  overflow: hidden;
+  background: var(--bg-primary);
+}
+
+.sidebar {
+  width: var(--sidebar-w);
+  min-width: var(--sidebar-w);
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  background: var(--sidebar-bg);
+  border-right: 1px solid var(--sidebar-border);
+  position: relative;
+  z-index: 20;
+  flex-shrink: 0;
+  transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+
+.main-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-width: 0;
+  background: var(--bg-primary);
+}
+
+.page-content { flex: 1; overflow-y: auto; overflow-x: hidden; }
+
+/* ── Glass & Surface ─────────────────────────────── */
+.glass {
+  background: var(--bg-glass);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border: 1px solid var(--border-subtle);
+}
+
+.surface {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  box-shadow: var(--shadow-card);
+}
+
+.surface-elevated {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: 16px;
+  box-shadow: var(--shadow-elevated);
+}
+
+/* ── Premium Cards ─────────────────────────────────────────── */
+.card-premium {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: 14px;
+  box-shadow: var(--shadow-card);
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.card-premium:hover {
+  border-color: var(--border-medium);
+  box-shadow: var(--shadow-elevated);
+  transform: translateY(-2px);
+}
+
+/* ── Inputs ────────────────────────────────────────────────── */
+.input-o {
+  width: 100%;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  padding: 10px 14px;
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  font-size: 13px;
+  outline: none;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.01);
+}
+.input-o:hover {
+  border-color: var(--border-medium);
+}
+.input-o:focus {
+  border-color: var(--accent-violet);
+  background: var(--bg-secondary);
+  box-shadow: var(--shadow-input);
+}
+.input-o::placeholder { color: var(--text-muted); }
+.input-o:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ── Botões ───────────────────────────────────────────────── */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  gap: 8px; padding: 10px 20px; border-radius: 10px;
+  font-family: var(--font-body); font-size: 13px; font-weight: 600;
+  cursor: pointer; outline: none; border: 1px solid transparent;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1); white-space: nowrap;
+}
+
+/* Ação principal.
+   A borda acompanha o fundo em vez de escurecer a 5%, e o brilho interno saiu:
+   os dois juntos lavavam o laranja e faziam o botão parecer desbotado — foi a
+   queixa de "botão opaco" no modal de chamado. Agora a cor é sólida e a sombra
+   é quem dá o relevo. */
+.btn-primary,
+.btn-violet {
+  background: var(--accent-violet);
+  color: #fff;
+  border-color: var(--accent-violet);
+  box-shadow: 0 2px 8px rgba(249, 115, 22, 0.28);
+}
+.btn-primary:hover,
+.btn-violet:hover {
+  background: #ea580c;
+  border-color: #ea580c;
+  color: #fff;
+  box-shadow: 0 6px 16px rgba(249, 115, 22, 0.34);
+  transform: translateY(-1.5px);
+}
+.btn-primary:active,
+.btn-violet:active { transform: translateY(0); box-shadow: 0 2px 4px rgba(249, 115, 22, 0.2); }
+.btn-primary:disabled,
+.btn-violet:disabled { opacity: 0.55; cursor: not-allowed; transform: none; }
+
+.btn-ghost {
+  background: transparent;
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.01);
+}
+.btn-ghost:hover {
+  border-color: var(--border-medium);
+  color: var(--text-primary);
+  background: var(--bg-hover);
+  transform: translateY(-1px);
+}
+.btn-ghost:active { transform: translateY(0); }
+.btn-ghost:disabled { opacity: 0.55; cursor: not-allowed; }
+
+.btn-danger {
+  background: rgba(220, 38, 38, 0.05);
+  border-color: rgba(220, 38, 38, 0.12);
+  color: var(--accent-red);
+}
+.btn-danger:hover { background: rgba(220, 38, 38, 0.1); border-color: rgba(220, 38, 38, 0.2); transform: translateY(-1px); }
+.btn-danger:active { transform: translateY(0); }
+.btn-danger:disabled { opacity: 0.55; cursor: not-allowed; }
+
+.btn-icon {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 34px; height: 34px; border-radius: 10px; background: transparent;
+  border: 1px solid transparent; color: var(--text-muted);
+  cursor: pointer; transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.btn-icon:hover { color: var(--text-primary); border-color: var(--border-subtle); background: var(--bg-hover); transform: translateY(-1px); }
+.btn-icon:active { transform: translateY(0); }
+
+/* ── Mobile menu button (hambúrguer) ─── */
+.mobile-menu-btn {
+  display: none; /* oculto em desktop */
+}
+@media (max-width: 768px) {
+  .mobile-menu-btn {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 36px; height: 36px; border-radius: 8px;
+    border: 1px solid var(--border-subtle); background: var(--bg-secondary);
+    color: var(--text-secondary); cursor: pointer;
+    transition: all 0.15s ease; flex-shrink: 0;
+  }
+  .mobile-menu-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
+}
+
+/* ── Badges ────────────────────────────────────────────────── */
+.badge { 
+  display: inline-flex; align-items: center; padding: 4px 10px; border-radius: 24px; 
+  font-size: 11px; font-weight: 500; font-family: var(--font-body); letter-spacing: 0.02em; 
+  white-space: nowrap; border: 1px solid transparent;
+}
+/* ── Monitoramento: lista densa de equipamentos ────────────────────────────
+   Quatrocentos ativos saudáveis não precisam de quatro linhas cada um. O chip
+   responde "existe, está verde, onde acho" em 28px de altura; o resto vem no
+   title e a um clique. */
+.mon-chips {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(232px, 1fr));
+  gap: 4px;
+  margin-top: 6px;
+}
+.mon-chip {
+  display: flex; align-items: center; gap: 8px;
+  width: 100%; min-height: 30px; padding: 5px 10px;
+  border: 1px solid var(--border-subtle); border-radius: 8px;
+  background: var(--bg-secondary); color: var(--text-primary);
+  font-size: 12px; text-align: left;
+  transition: background 160ms ease, border-color 160ms ease, transform 160ms ease;
+}
+.mon-chip:hover  { background: var(--bg-hover); border-color: var(--border-medium); transform: translateX(2px); }
+/* Foco visível: o chip é um botão, e a lista inteira é navegável por teclado. */
+.mon-chip:focus-visible { outline: 2px solid var(--accent-violet); outline-offset: 1px; }
+.mon-chip__dot  { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+.mon-chip__nome {
+  flex: 1; min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+/* Tabular: a coluna de latência não pode dançar de linha para linha. */
+.mon-chip__lat {
+  font-family: var(--font-mono); font-size: 10.5px; font-weight: 600;
+  font-variant-numeric: tabular-nums; flex-shrink: 0;
+}
+
+/* ── Paleta de estado do monitoramento ────────────────────────────────────
+   Verde/vermelho/âmbar de disponibilidade. Vivem no :root, e NÃO dentro de um
+   escopo escuro: as telas de monitoramento usam estas variáveis 39 vezes, e
+   quando elas moravam em `.mon-console` bastava tirar a classe para as cores
+   sumirem.
+
+   Dois jogos, um por tema. O tom que separa bem sobre preto fica lavado sobre
+   branco, e vice-versa. */
+:root {
+  --mon-ok:   #16a34a; --mon-ok-soft:   rgba(22, 163, 74, 0.10);  --mon-ok-line:   rgba(22, 163, 74, 0.28);
+  --mon-down: #dc2626; --mon-down-soft: rgba(220, 38, 38, 0.09);  --mon-down-line: rgba(220, 38, 38, 0.26);
+  --mon-warn: #b45309; --mon-warn-soft: rgba(180, 83, 9, 0.10);   --mon-warn-line: rgba(180, 83, 9, 0.26);
+  --mon-idle: #6b7280; --mon-idle-soft: rgba(107, 114, 128, 0.10); --mon-idle-line: rgba(107, 114, 128, 0.24);
+}
+[data-theme="dark"] {
+  --mon-ok:   #2fbf6b; --mon-ok-soft:   rgba(47, 191, 107, 0.13); --mon-ok-line:   rgba(47, 191, 107, 0.30);
+  --mon-down: #f2555a; --mon-down-soft: rgba(242, 85, 90, 0.13);  --mon-down-line: rgba(242, 85, 90, 0.32);
+  --mon-warn: #e0b341; --mon-warn-soft: rgba(224, 179, 65, 0.13); --mon-warn-line: rgba(224, 179, 65, 0.32);
+  --mon-idle: #6e6e7a; --mon-idle-soft: rgba(110, 110, 122, 0.15); --mon-idle-line: rgba(110, 110, 122, 0.28);
+}
+
+/* ── Densidade do console ──────────────────────────────────────────────────
+   O que sobrou de `.mon-console` depois que o escuro saiu: densidade e
+   alinhamento de número. Nada de cor de fundo — o módulo segue o tema que o
+   usuário escolheu no topo, e a tela preta ficou onde o usuário pediu que
+   ficasse: só no Modo NOC, que tem escuro próprio e ocupa a tela inteira. */
+.mon-console .num,
+.mon-console .metric,
+.mon-console [class*="metric"] { font-variant-numeric: tabular-nums; }
+
+.mon-console .card { border-radius: 8px; }
+
+/* Modo NOC: telão de parede, sem a casca do sistema.
+   A página se anuncia pondo `noc-mode` no body; a barra lateral é quem sai. */
+body.noc-mode .sidebar { display: none; }
+
+/* Rótulo de faixa: hierarquia dentro do problema, sem virar outro cabeçalho. */
+.mon-faixa__rot {
+  font-family: var(--font-mono); font-size: 10px; font-weight: 600;
+  letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--text-muted); margin: 0 0 5px 2px;
+}
+.mon-antigos {
+  display: flex; align-items: center; gap: 7px; width: 100%;
+  padding: 9px 12px; border-radius: 10px;
+  border: 1px dashed var(--border-medium); background: transparent;
+  color: var(--text-secondary); font-size: 12px; cursor: pointer; text-align: left;
+  transition: background 160ms ease, border-color 160ms ease;
+}
+.mon-antigos:hover { background: var(--bg-hover); border-color: var(--border-strong); }
+.mon-antigos:focus-visible { outline: 2px solid var(--accent-violet); outline-offset: 1px; }
+
+.mon-grupo__head {
+  display: flex; align-items: center; gap: 8px; width: 100%;
+  padding: 4px 2px; background: transparent; border: 0; cursor: pointer;
+  color: var(--text-secondary); text-align: left;
+}
+.mon-grupo__head:hover { color: var(--text-primary); }
+.mon-grupo__nome {
+  font-size: 11px; font-weight: 700; letter-spacing: 0.08em;
+  text-transform: uppercase; font-family: var(--font-mono);
+}
+.mon-grupo__contagem {
+  font-family: var(--font-mono); font-size: 11px; color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.mon-grupo__linha { flex: 1; height: 1px; background: var(--border-subtle); }
+
+.badge-violet { background: var(--accent-violet-dim); color: var(--accent-violet); border-color: rgba(249, 115, 22, 0.15); }
+
+/* ── Acento por ambiente ────────────────────────────────────────────────────
+   O padrão acima é o laranja do produto (produção). `NEXT_PUBLIC_ACENTO=vermelho`
+   no build (compose de homologação) marca o <html data-acento="vermelho"> e liga
+   o vermelho de antes de 26/07/2026 — os mesmos tons, claro e escuro.
+
+   Fica aqui, versionado, de propósito: até 11/09/2026 o vermelho de homologação
+   morava só no disco do servidor, e um deploy pelo git o trocou pelo laranja sem
+   nenhum erro. O seletor com `html` ganha do `:root`, e o com `[data-theme]`
+   ganha do bloco escuro — sem isso o tema escuro herdaria o vermelho claro. */
+html[data-acento="vermelho"] {
+  --bg-active:           rgba(220, 38, 38, 0.05);
+  --accent-violet:       #dc2626;
+  --accent-violet-dim:   rgba(220, 38, 38, 0.05);
+  --shadow-input:        0 0 0 3px rgba(220, 38, 38, 0.1);
+  --sidebar-active-bg:   rgba(220, 38, 38, 0.06);
+  --sidebar-active-text: #dc2626;
+  /* Tokens do shadcn (`bg-primary`, `text-primary`, `ring`): o Perfil e as
+     telas em Tailwind usam estes, não o --accent-violet, e seguiam laranja
+     em homologação (14/09/2026). Mesmos tons do vermelho acima, em HSL. */
+  --primary:             0 72% 51%;
+  --ring:                0 72% 51%;
+}
+html[data-acento="vermelho"][data-theme="dark"] {
+  --bg-active:           rgba(255, 255, 255, 0.05);
+  --accent-violet:       #ef4444;
+  --accent-violet-dim:   rgba(239, 68, 68, 0.08);
+  --shadow-input:        0 0 0 3px rgba(239, 68, 68, 0.15);
+  --sidebar-active-bg:   rgba(239, 68, 68, 0.08);
+  --sidebar-active-text: #ef4444;
+  --primary:             0 84% 60%;
+  --ring:                0 84% 60%;
+}
+html[data-acento="vermelho"] .btn-violet { box-shadow: 0 2px 8px rgba(220, 38, 38, 0.2); }
+html[data-acento="vermelho"] .btn-primary:hover,
+html[data-acento="vermelho"] .btn-violet:hover { background: #b91c1c; border-color: #b91c1c; box-shadow: 0 6px 16px rgba(220, 38, 38, 0.28); }
+html[data-acento="vermelho"] .btn-primary:active,
+html[data-acento="vermelho"] .btn-violet:active { box-shadow: 0 2px 4px rgba(220, 38, 38, 0.15); }
+html[data-acento="vermelho"] .badge-violet { border-color: rgba(220, 38, 38, 0.15); }
+
+/* Cor da marca para as telas de fora do sistema (login, recuperar senha,
+   solicitar acesso). Elas têm fundo escuro fixo, que não segue o tema claro ou
+   escuro — por isso não usam `--accent-violet`, que muda com o tema. Em canais
+   RGB para o Tailwind aplicar transparência: `bg-marca/15`
+   (ver `colors.marca` no tailwind.config.js). */
+:root {
+  --marca-rgb:       249 115 22;  /* #f97316 */
+  --marca-forte-rgb: 234 88 12;   /* #ea580c */
+  --marca-clara-rgb: 251 146 60;  /* #fb923c */
+}
+html[data-acento="vermelho"] {
+  --marca-rgb:       220 38 38;   /* #dc2626 */
+  --marca-forte-rgb: 185 28 28;   /* #b91c1c */
+  --marca-clara-rgb: 239 68 68;   /* #ef4444 */
+}
+.badge-cyan   { background: rgba(2, 132, 199, 0.1); color: var(--accent-cyan); border-color: rgba(2, 132, 199, 0.15); }
+.badge-green  { background: rgba(5, 150, 105, 0.1); color: var(--accent-green); border-color: rgba(5, 150, 105, 0.15); }
+.badge-amber  { background: rgba(217, 119, 6, 0.1); color: var(--accent-amber); border-color: rgba(217, 119, 6, 0.15); }
+.badge-red    { background: rgba(220, 38, 38, 0.1); color: var(--accent-red); border-color: rgba(220, 38, 38, 0.15); }
+.badge-gray   { background: var(--bg-hover); color: var(--text-secondary); border-color: var(--border-subtle); }
+
+/* ── Modals ─────────────────────────────────────────────────── */
+.modal-overlay { 
+  position: fixed; inset: 0; z-index: 1000; 
+  background: rgba(0,0,0,0.4); backdrop-filter: blur(4px); 
+  display: flex; align-items: center; justify-content: center; padding: 24px; 
+  animation: fadeIn 0.2s ease; 
+}
+.modal-box { 
+  background: var(--bg-card); 
+  border: 1px solid var(--border-medium); 
+  border-radius: 16px; width: 100%; max-width: 520px; max-height: 90vh; overflow-y: auto; padding: 28px; 
+  animation: scaleIn 0.2s cubic-bezier(0.16,1,0.3,1); 
+  box-shadow: var(--shadow-elevated); 
+  position: relative; z-index: 1001; 
+}
+
+/* ── Miscellaneous ─────────────────────────────────────────── */
+.dot-live { width: 8px; height: 8px; border-radius: 50%; background: var(--accent-green); box-shadow: 0 0 8px rgba(5, 150, 105, 0.5); }
+.divider { height: 1px; background: var(--border-subtle); width: 100%; }
+
+.skeleton {
+  background: linear-gradient(90deg, var(--bg-hover) 25%, var(--border-subtle) 50%, var(--bg-hover) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 6px;
+}
+@keyframes shimmer { 0% { background-position: 200% 0 } 100% { background-position: -200% 0 } }
+
+/* ── Animations ────────────────────────────────────────────── */
+@keyframes fadeIn    { from { opacity:0 } to { opacity:1 } }
+@keyframes scaleIn   { from { opacity:0; transform:scale(0.97) } to { opacity:1; transform:scale(1) } }
+
+/* ══════════════════════════════════════════════════════════════
+   Data UI — primitivas compartilhadas de painéis e listagens
+   ══════════════════════════════════════════════════════════════ */
+
+/* ── Números ──────────────────────────────────────────────────
+   Métrica é DADO: sempre com figuras tabulares, para as colunas não
+   "dançarem" ao atualizar e o alinhamento se manter em listagens. */
+.metric {
+  font-family: var(--font-body);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1, "lnum" 1;
+  font-weight: 700;
+  letter-spacing: -0.045em;
+  line-height: 0.95;
+}
+/* Figuras tabulares em qualquer número dentro de tabela/inline. */
+.num { font-variant-numeric: tabular-nums; font-feature-settings: "tnum" 1, "lnum" 1; }
+
+/* Rótulo micro em versalete mono — a "voz" de instrumentação do sistema. */
+.mono-cap {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+/* ── Cartão-métrica clicável (filtro) ───────────────────────── */
+.stat-card {
+  --sc: var(--accent-violet);
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  padding: 15px 17px 17px;
+  border-radius: 16px;
+  text-align: left;
+  cursor: pointer;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  box-shadow: var(--shadow-card);
+  transition: transform .22s cubic-bezier(.2,.7,.3,1), box-shadow .22s ease, border-color .22s ease;
+  animation: statIn .45s cubic-bezier(.2,.7,.3,1) both;
+}
+/* Véu de cor: some no repouso, acende no hover/ativo. */
+.stat-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: radial-gradient(120% 120% at 100% 0%, var(--sc), transparent 62%);
+  opacity: .07;
+  transition: opacity .22s ease;
+}
+/* Fio superior que corre da esquerda no hover/ativo. */
+.stat-card::after {
+  content: "";
+  position: absolute;
+  inset: 0 auto auto 0;
+  height: 2px;
+  width: 100%;
+  background: linear-gradient(90deg, var(--sc), transparent);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform .3s cubic-bezier(.2,.7,.3,1);
+}
+.stat-card:hover {
+  transform: translateY(-3px);
+  border-color: color-mix(in srgb, var(--sc) 40%, transparent);
+  box-shadow: var(--shadow-elevated), 0 16px 40px -28px var(--sc);
+}
+.stat-card:hover::before { opacity: .13; }
+.stat-card:hover::after  { transform: scaleX(1); }
+.stat-card:focus-visible {
+  outline: none;
+  border-color: var(--sc);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--sc) 22%, transparent);
+}
+.stat-card[data-active="true"] {
+  border-color: var(--sc);
+  box-shadow: 0 0 0 1px var(--sc), var(--shadow-elevated), 0 18px 44px -26px var(--sc);
+}
+.stat-card[data-active="true"]::before { opacity: .16; }
+.stat-card[data-active="true"]::after  { transform: scaleX(1); }
+.stat-card[data-critical="true"] { animation: statIn .45s cubic-bezier(.2,.7,.3,1) both, criticalGlow 2.8s ease-in-out 1s infinite; }
+
+.stat-card__head { display: flex; align-items: center; gap: 8px; }
+.stat-card__dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--sc);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--sc) 18%, transparent);
+  flex-shrink: 0;
+}
+.stat-card__value {
+  font-size: 34px;
+  color: var(--sc);
+  /* Sem text-shadow: no tema claro virava borrão colorido. */
+}
+.stat-card__foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 2px; }
+/* Barra de participação no total — dá contexto ao número. */
+.stat-card__bar { position: relative; height: 3px; flex: 1; border-radius: 3px; background: var(--bg-hover); overflow: hidden; }
+.stat-card__bar > i {
+  position: absolute; inset: 0 auto 0 0; display: block; border-radius: 3px;
+  background: var(--sc); opacity: .75;
+  transform-origin: left;
+  animation: barGrow .7s cubic-bezier(.2,.7,.3,1) .15s both;
+}
+.stat-card__hint {
+  font-family: var(--font-mono); font-size: 8.5px; letter-spacing: .09em;
+  text-transform: uppercase; color: var(--text-muted); white-space: nowrap;
+  transition: color .2s ease;
+}
+.stat-card:hover .stat-card__hint,
+.stat-card[data-active="true"] .stat-card__hint { color: var(--sc); }
+
+@keyframes statIn      { from { opacity: 0; transform: translateY(10px) } to { opacity: 1; transform: none } }
+@keyframes barGrow     { from { transform: scaleX(0) } }
+@keyframes criticalGlow{
+  0%, 100% { box-shadow: 0 0 0 1px color-mix(in srgb, var(--sc) 45%, transparent), var(--shadow-card); }
+  50%      { box-shadow: 0 0 0 1px var(--sc), 0 0 30px -8px var(--sc); }
+}
+
+/* ── Barra de ferramentas / busca ───────────────────────────── */
+.toolbar {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 10px;
+  padding: 10px;
+  border-radius: 16px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  box-shadow: var(--shadow-card);
+}
+.search-field { position: relative; flex: 1; min-width: 240px; display: flex; align-items: center; }
+.search-field > svg:first-child {
+  position: absolute; left: 12px; color: var(--text-muted);
+  pointer-events: none; transition: color .2s ease;
+}
+.search-field:focus-within > svg:first-child { color: var(--accent-violet); }
+.search-field input {
+  width: 100%;
+  padding: 10px 34px 10px 34px;
+  font-size: 13px;
+  color: var(--text-primary);
+  background: var(--bg-primary);
+  border: 1px solid transparent;
+  border-radius: 11px;
+  outline: none;
+  transition: border-color .2s ease, box-shadow .2s ease, background .2s ease;
+}
+.search-field input::placeholder { color: var(--text-muted); }
+.search-field input:focus {
+  background: var(--bg-card);
+  border-color: color-mix(in srgb, var(--accent-violet) 45%, transparent);
+  box-shadow: var(--shadow-input);
+}
+.search-field__clear {
+  position: absolute; right: 8px; display: grid; place-items: center;
+  width: 20px; height: 20px; border-radius: 6px; border: none;
+  background: transparent; color: var(--text-muted); cursor: pointer;
+  transition: color .15s ease, background .15s ease;
+}
+.search-field__clear:hover { color: var(--text-primary); background: var(--bg-hover); }
+
+.select-field {
+  padding: 10px 12px; font-size: 13px; min-width: 150px;
+  color: var(--text-primary); background: var(--bg-primary);
+  border: 1px solid transparent; border-radius: 11px; outline: none; cursor: pointer;
+  transition: border-color .2s ease, box-shadow .2s ease;
+}
+.select-field:focus { border-color: color-mix(in srgb, var(--accent-violet) 45%, transparent); box-shadow: var(--shadow-input); }
+
+/* ── Tabela de dados ────────────────────────────────────────── */
+.table-card {
+  border-radius: 16px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
+}
+/* O wrapper precisa de altura máxima para o `position: sticky` do cabeçalho ter
+   efeito — sem ela o contêiner cresce com o conteúdo, nunca rola por dentro e
+   a regra fica inerte. Em lista curta o max-height não é atingido e nada muda. */
+.table-card > .table-scroll-wrapper {
+  max-height: calc(100dvh - 320px);
+  min-height: 120px;
+  overflow: auto;
+}
+.data-table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 13px; text-align: left; }
+
+/*
+ * Colunas congeladas (Farol da Frota).
+ *
+ * A tabela do Farol e larga: sem congelar Status e Placa, rolar para ver as
+ * ultimas colunas faz perder de vista DE QUAL VEICULO se esta falando. O
+ * componente (TableCard) e a pagina ja marcavam as celulas com .col-fixa e
+ * emitiam a classe .rolou -- faltava so esta folha, e sem `position: sticky`
+ * o `left` das celulas nao fazia nada: as colunas simplesmente rolavam junto.
+ *
+ * O FUNDO PRECISA SER OPACO. `--bg-hover` e rgba() translucido; usado aqui, o
+ * conteudo que rola por baixo aparece atraves da coluna congelada. Por isso o
+ * hover entra como camada de imagem SOBRE a cor opaca do card, em vez de
+ * substituir a cor.
+ */
+.data-table th.col-fixa,
+.data-table td.col-fixa {
+  position: sticky;
+  background-color: var(--bg-card);
+}
+/* O cabecalho e sticky nos DOIS eixos, entao precisa vencer o corpo. */
+.data-table thead th.col-fixa { z-index: 4; background-color: var(--bg-secondary); }
+.data-table tbody td.col-fixa { z-index: 1; }
+
+/* Hover sem perder a opacidade: camada translucida por cima da cor solida. */
+.data-table tbody tr:hover td.col-fixa {
+  background-image: linear-gradient(var(--bg-hover), var(--bg-hover));
+}
+
+/*
+ * A costura so aparece quando ha conteudo escondido a esquerda -- e o que a
+ * classe .rolou informa. Parada no inicio, a tabela nao mostra emenda.
+ */
+.table-scroll-wrapper.rolou .col-fixa-fim::after {
+  content: "";
+  position: absolute;
+  top: 0; right: 0; bottom: -1px;
+  width: 10px;
+  transform: translateX(100%);
+  pointer-events: none;
+  background: linear-gradient(to right, rgba(0, 0, 0, .10), transparent);
+}
+/*
+ * Variante de linha compacta, para tabela LARGA que rola na horizontal.
+ *
+ * O padrao da casa e a celula QUEBRAR o texto, e para tabela estreita isso e
+ * certo. Mas o Farol tem 12 colunas e 1622px num visor de 680: com quebra
+ * livre as linhas iam de 87 a 191px de altura, e ao rolar para o lado a tela
+ * virava um campo de retangulos vazios de alturas diferentes -- impossivel de
+ * varrer com o olho e sem alinhamento entre o inicio e o fim da linha.
+ *
+ * Aqui cada celula ocupa UMA linha e corta com reticencias. O texto inteiro
+ * continua alcancavel pelo `title` do navegador, e a coluna que precisa de
+ * mais de uma linha se marca com .celula-livre (o Problema, que ja tem o seu
+ * proprio corte em 2 linhas e o botao "Problema completo").
+ */
+.data-table.linha-unica tbody td:not(.celula-livre) {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* Altura previsivel: sem isto uma celula vazia encolhe e desalinha a faixa. */
+.data-table.linha-unica tbody td { height: 46px; }
+
+.data-table th.col-fixa-fim,
+.data-table td.col-fixa-fim { position: sticky; }
+
+
+/*
+ * O conteúdo da célula QUEBRA em vez de empurrar a tabela.
+ *
+ * Antes havia `white-space: nowrap` no `.data-table` inteiro. Uma célula com
+ * lista — "90, 60, 30, 15, 7, 3, 1, 0" ou três canais e quatro destinatários —
+ * esticava a tabela além da tela, e a última coluna só aparecia rolando na
+ * horizontal. Quem abria a tela via a informação cortada e nem sempre percebia
+ * que havia mais.
+ *
+ * A rolagem horizontal continua existindo no wrapper como último recurso (tela
+ * estreita, tabela com muitas colunas), mas deixa de ser o caminho normal.
+ */
+.data-table tbody td { white-space: normal; overflow-wrap: anywhere; }
+
+/* Cabeçalho fica em uma linha: são rótulos curtos, e quebrá-los desalinharia
+   a leitura das colunas. */
+.data-table thead th { white-space: nowrap; }
+
+/*
+ * Exceções — conteúdo que perde sentido quebrado no meio:
+ *   .num       valores monetários e datas, que se leem de uma vez
+ *   selo/ação  já são curtos; quebrar só aumentaria a altura da linha
+ * Listas de números separadas por vírgula NÃO entram aqui de propósito: são
+ * justamente as que precisam quebrar.
+ */
+.data-table td.num:not(.num--lista),
+.data-table td:has(> .status-badge),
+.data-table td:has(> .row-actions) { white-space: nowrap; }
+
+.data-table thead th {
+  position: sticky; top: 0; z-index: 2;
+  padding: 12px 16px;
+  font-family: var(--font-mono);
+  font-size: 9.5px; font-weight: 500; letter-spacing: .12em; text-transform: uppercase;
+  color: var(--text-muted);
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-subtle);
+  user-select: none;
+}
+.data-table tbody td {
+  padding: 12px 16px;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border-subtle);
+  transition: background .16s ease;
+}
+.data-table tbody tr { position: relative; }
+.data-table tbody tr:last-child td { border-bottom: none; }
+.data-table tbody tr:hover td { background: var(--bg-hover); }
+/* Marcador de leitura na borda esquerda da linha sob o cursor. */
+.data-table tbody tr td:first-child { box-shadow: inset 2px 0 0 transparent; transition: box-shadow .16s ease, background .16s ease; }
+.data-table tbody tr:hover td:first-child { box-shadow: inset 2px 0 0 var(--accent-violet); }
+
+/* Ações da linha: discretas em repouso, nítidas no hover. */
+.row-actions { display: flex; gap: 2px; justify-content: flex-end; opacity: .45; transition: opacity .18s ease; }
+.data-table tbody tr:hover .row-actions,
+.row-actions:focus-within { opacity: 1; }
+.row-action {
+  display: grid; place-items: center;
+  width: 28px; height: 28px; border-radius: 8px;
+  border: none; background: transparent; color: var(--text-muted); cursor: pointer;
+  transition: color .15s ease, background .15s ease, transform .15s ease;
+}
+.row-action:hover { transform: translateY(-1px); background: var(--bg-hover); }
+.row-action[data-tone="view"]   :where(svg) { }
+.row-action[data-tone="view"]:hover   { color: var(--accent-cyan);   background: rgba(2,132,199,.1); }
+.row-action[data-tone="edit"]:hover   { color: var(--accent-green);  background: rgba(5,150,105,.1); }
+.row-action[data-tone="danger"]:hover { color: var(--accent-red);    background: rgba(220,38,38,.1); }
+.row-action[data-tone="hist"]:hover   { color: var(--accent-amber);  background: rgba(217,119,6,.1); }
+
+/* ── Cabeçalho de página ────────────────────────────────────── */
+.page-head { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-bottom: 22px; }
+.page-head__icon {
+  position: relative;
+  width: 46px; height: 46px; border-radius: 14px;
+  display: grid; place-items: center; flex-shrink: 0;
+  color: #fff;
+  background: linear-gradient(145deg, color-mix(in srgb, var(--sc, var(--accent-violet)) 88%, #fff), var(--sc, var(--accent-violet)));
+  /* O brilho acompanha a cor do ícone (antes era um halo índigo fixo sob um ícone vermelho). */
+  box-shadow: 0 8px 22px -10px var(--sc, var(--accent-violet)), inset 0 1px 0 rgba(255,255,255,.25);
+}
+.page-head__title { font-family: var(--font-display); font-size: 23px; font-weight: 800; letter-spacing: -0.025em; margin: 0; }
+.page-head__sub { margin: 3px 0 0; font-size: 12.5px; color: var(--text-muted); }
+
+.back-link {
+  display: inline-flex; align-items: center; gap: 5px; margin-bottom: 14px;
+  font-family: var(--font-mono); font-size: 10.5px; letter-spacing: .06em; text-transform: uppercase;
+  color: var(--text-muted); transition: color .18s ease, gap .18s ease;
+}
+.back-link:hover { color: var(--accent-violet); gap: 9px; }
+
+/* ── Utilitários de superfície ───────────────────────────────
+   Substituem os pares `bg-white dark:bg-slate-950` espalhados pelas telas.
+   O problema não era estético e sim de tema: slate-950 é #020617, enquanto
+   o token de card no escuro é #141417 — telas lado a lado não batiam. */
+.surface-card   { background: var(--bg-card); }
+.surface-sunken { background: var(--bg-primary); }
+.surface-raised { background: var(--bg-secondary); }
+.border-subtle-o { border-color: var(--border-subtle); }
+.divide-subtle-o > * + * { border-color: var(--border-subtle); }
+.text-primary-o { color: var(--text-primary); }
+.text-secondary-o { color: var(--text-secondary); }
+.text-muted-o   { color: var(--text-muted); }
+.text-faint-o   { color: var(--text-faint); }
+.hover-surface:hover { background: var(--bg-hover); }
+.card-o {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: 16px;
+  box-shadow: var(--shadow-card);
+}
+/* Foco no acento da marca — substitui os `focus:ring-indigo-500/50` herdados. */
+.focus-accent:focus {
+  outline: none;
+  border-color: color-mix(in srgb, var(--accent-violet) 45%, transparent);
+  box-shadow: var(--shadow-input);
+}
+/* Acento da marca. O sistema é vermelho (#dc2626); havia índigo espalhado por
+   várias telas, de outra paleta — botão primário e link ficavam de cores
+   diferentes dependendo do módulo. */
+.accent-text   { color: var(--accent-violet); }
+.accent-soft   { background: var(--accent-violet-dim); }
+.border-accent-o { border-color: color-mix(in srgb, var(--accent-violet) 22%, transparent); }
+.accent-solid  { background: var(--accent-violet); color: #fff; }
+.accent-solid:hover { filter: brightness(1.08); }
+.hover\:accent-text:hover { color: var(--accent-violet); }
+.hover\:accent-soft:hover { background: var(--accent-violet-dim); }
+
+/* Variantes de estado das classes acima.
+   O prefixo `hover:` do Tailwind só gera CSS para utilitários do próprio
+   Tailwind — em classe custom ele não produz nada e o estado some em silêncio.
+   Por isso cada variante precisa existir escrita. */
+.hover\:text-primary-o:hover   { color: var(--text-primary); }
+.hover\:text-secondary-o:hover { color: var(--text-secondary); }
+.hover\:text-muted-o:hover     { color: var(--text-muted); }
+.hover\:surface-card:hover     { background: var(--bg-card); }
+.hover\:surface-sunken:hover   { background: var(--bg-primary); }
+.hover\:border-subtle-o:hover  { border-color: var(--border-subtle); }
+.group:hover .group-hover\:accent-text   { color: var(--accent-violet); }
+.group:hover .group-hover\:accent-soft   { background: var(--accent-violet-dim); }
+.group:hover .group-hover\:border-accent-o { border-color: color-mix(in srgb, var(--accent-violet) 22%, transparent); }
+
+/* ── Cartão de KPI (leitura, não clicável) ──────────────────── */
+.kpi-card {
+  --sc: var(--accent-violet);
+  position: relative;
+  overflow: hidden;
+  padding: 15px 16px;
+  border-radius: 16px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  box-shadow: var(--shadow-card);
+  transition: transform .22s cubic-bezier(.2,.7,.3,1), box-shadow .22s ease, border-color .22s ease;
+  animation: statIn .45s cubic-bezier(.2,.7,.3,1) both;
+}
+.kpi-card__halo {
+  position: absolute; right: -26px; top: -26px;
+  width: 96px; height: 96px; border-radius: 50%;
+  background: var(--sc); filter: blur(30px); opacity: .10;
+  transition: opacity .25s ease, transform .25s ease;
+  pointer-events: none;
+}
+.kpi-card:hover {
+  transform: translateY(-3px);
+  border-color: color-mix(in srgb, var(--sc) 35%, transparent);
+  box-shadow: var(--shadow-elevated), 0 16px 40px -30px var(--sc);
+}
+.kpi-card:hover .kpi-card__halo { opacity: .2; transform: scale(1.12); }
+/* Variante clicável (usada como filtro em alguns módulos). */
+.kpi-card[data-active="true"] {
+  border-color: var(--sc);
+  box-shadow: 0 0 0 1px var(--sc), var(--shadow-elevated), 0 18px 44px -26px var(--sc);
+}
+.kpi-card[data-active="true"] .kpi-card__halo { opacity: .22; }
+.kpi-card:focus-visible {
+  outline: none;
+  border-color: var(--sc);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--sc) 22%, transparent);
+}
+.kpi-card__icon {
+  display: grid; place-items: center; flex-shrink: 0;
+  width: 40px; height: 40px; border-radius: 12px;
+  color: var(--sc);
+  background: color-mix(in srgb, var(--sc) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--sc) 16%, transparent);
+}
+.kpi-card__value { font-size: 23px; color: var(--sc); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.kpi-card__label { margin-top: 3px; font-size: 11.5px; font-weight: 500; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+@media (prefers-reduced-motion: reduce) {
+  .kpi-card { animation: none !important; }
+  .kpi-card:hover { transform: none; }
+}
+
+/* ── Abas ───────────────────────────────────────────────────── */
+/* O perfil 360 do People tem 12 abas: 1173px de conteúdo em ~713px de área.
+   Sem rolagem, as quatro últimas renderizavam fora da tela e NÃO eram
+   clicáveis — existiam no DOM sem dar acesso a nada.
+   `flex-shrink: 0` no botão impede o navegador de comprimir os rótulos até
+   ficarem ilegíveis em vez de rolar. */
+.tab-bar {
+  display: flex;
+  gap: 2px;
+  margin-bottom: 18px;
+  border-bottom: 1px solid var(--border-subtle);
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+}
+.tab-bar::-webkit-scrollbar { height: 3px; }
+.tab-bar::-webkit-scrollbar-thumb { background: var(--border-medium); border-radius: 2px; }
+.tab-bar > .tab-btn { flex-shrink: 0; }
+.tab-btn {
+  position: relative;
+  padding: 9px 16px;
+  font-size: 13px; font-weight: 500;
+  color: var(--text-muted);
+  background: none; border: none; cursor: pointer;
+  border-radius: 9px 9px 0 0;
+  transition: color .18s ease, background .18s ease;
+}
+.tab-btn::after {
+  content: ""; position: absolute; left: 12px; right: 12px; bottom: -1px; height: 2px;
+  border-radius: 2px; background: var(--accent-violet);
+  transform: scaleX(0); transform-origin: center;
+  transition: transform .25s cubic-bezier(.2,.7,.3,1);
+}
+.tab-btn:hover { color: var(--text-secondary); background: var(--bg-hover); }
+.tab-btn[data-active="true"] { color: var(--text-primary); font-weight: 700; }
+.tab-btn[data-active="true"]::after { transform: scaleX(1); }
+
+/* ── Estados vazios / carregando ────────────────────────────── */
+.empty-state { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 56px 20px; color: var(--text-muted); }
+.empty-state__icon {
+  display: grid; place-items: center; width: 46px; height: 46px; border-radius: 14px;
+  background: var(--bg-hover); color: var(--text-faint);
+}
+.empty-state__title { font-size: 13px; font-weight: 600; color: var(--text-secondary); }
+.empty-state__hint { font-size: 12px; }
+
+/* ── Estados de erro e sem-permissão ─────────────────────────
+   Mesma casca do empty-state, tom pela semântica. Erro e "sem acesso"
+   não podem parecer "lista vazia": um pede ação, o outro é definitivo. */
+.state-block {
+  --sc: var(--text-faint);
+  display: flex; flex-direction: column; align-items: center; gap: 10px;
+  padding: 52px 20px; color: var(--text-muted); text-align: center;
+}
+.state-block[data-tone="error"]  { --sc: var(--accent-red); }
+.state-block[data-tone="denied"] { --sc: var(--accent-amber); }
+.state-block__icon {
+  display: grid; place-items: center; width: 46px; height: 46px; border-radius: 14px;
+  background: color-mix(in srgb, var(--sc) 10%, transparent);
+  color: var(--sc);
+}
+.state-block__title { font-size: 13px; font-weight: 600; color: var(--text-secondary); }
+.state-block__hint  { font-size: 12px; max-width: 42ch; line-height: 1.5; }
+.state-block__action {
+  display: inline-flex; align-items: center; gap: 6px; margin-top: 4px;
+  padding: 7px 13px; border-radius: 9px; cursor: pointer;
+  font-size: 12px; font-weight: 600;
+  background: var(--bg-hover); color: var(--text-primary);
+  border: 1px solid var(--border-medium);
+  transition: border-color .2s ease, background .2s ease;
+}
+.state-block__action:hover { border-color: var(--sc); background: color-mix(in srgb, var(--sc) 8%, transparent); }
+.state-block__action:focus-visible { outline: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--sc) 22%, transparent); }
+
+/* ── Paginação ───────────────────────────────────────────────── */
+.pagination {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  flex-wrap: wrap; padding: 12px 4px 0;
+}
+.pagination__info { font-size: 11.5px; color: var(--text-muted); }
+.pagination__controls { display: flex; gap: 6px; }
+.pagination__btn {
+  display: grid; place-items: center; width: 30px; height: 30px; border-radius: 9px;
+  cursor: pointer; color: var(--text-secondary);
+  background: var(--bg-card); border: 1px solid var(--border-subtle);
+  transition: border-color .2s ease, color .2s ease;
+}
+.pagination__btn:hover:not(:disabled) { border-color: var(--accent-violet); color: var(--accent-violet); }
+.pagination__btn:disabled { opacity: .38; cursor: default; }
+.pagination__btn:focus-visible { outline: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-violet) 20%, transparent); }
+
+/* ── Selo de situação ────────────────────────────────────────── */
+.status-badge {
+  --sc: var(--text-muted);
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 3px 9px 3px 7px; border-radius: 999px;
+  font-size: 11px; font-weight: 600; white-space: nowrap;
+  color: var(--sc);
+  background: color-mix(in srgb, var(--sc) 11%, transparent);
+  border: 1px solid color-mix(in srgb, var(--sc) 26%, transparent);
+}
+.status-badge__dot { width: 6px; height: 6px; border-radius: 50%; background: var(--sc); flex-shrink: 0; }
+
+/* ── Página de detalhe ───────────────────────────────────────── */
+.detail-head {
+  display: flex; align-items: flex-start; gap: 16px; flex-wrap: wrap;
+  padding-bottom: 18px; margin-bottom: 20px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.detail-head__avatar {
+  display: grid; place-items: center; width: 58px; height: 58px; border-radius: 18px;
+  overflow: hidden; flex-shrink: 0;
+  background: var(--bg-hover); color: var(--text-muted);
+  border: 1px solid var(--border-subtle);
+  font-family: var(--font-display); font-size: 20px; font-weight: 700;
+}
+.detail-head__avatar img { width: 100%; height: 100%; object-fit: cover; }
+.detail-head__title { font-family: var(--font-display); font-size: 22px; font-weight: 800; letter-spacing: -0.025em; margin: 0; }
+.detail-head__sub  { margin: 4px 0 0; font-size: 12.5px; color: var(--text-muted); }
+.detail-head__meta { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 8px; font-size: 11.5px; color: var(--text-muted); }
+
+/* ── Campo de leitura ────────────────────────────────────────── */
+.field { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.field__label { display: block; }
+.field__value { font-size: 13px; color: var(--text-primary); word-break: break-word; }
+.field__value[data-empty="true"] { color: var(--text-faint); }
+
+/* ── Painel ──────────────────────────────────────────────────── */
+.panel {
+  background: var(--bg-card); border: 1px solid var(--border-subtle);
+  border-radius: 16px; box-shadow: var(--shadow-card); overflow: hidden;
+}
+.panel__head {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 13px 18px; border-bottom: 1px solid var(--border-subtle);
+}
+.panel__title { display: block; }
+.panel__body { padding: 18px; }
+
+/* ── Modal: cabeçalho ────────────────────────────────────────── */
+.modal-box__head {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;
+  margin: -4px 0 18px;
+}
+.modal-box__title { font-family: var(--font-display); font-size: 17px; font-weight: 700; letter-spacing: -0.02em; margin: 0; }
+.modal-box__sub   { margin: 4px 0 0; font-size: 12px; color: var(--text-muted); }
+
+/* ── Campo de formulário ─────────────────────────────────────── */
+.form-field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.form-field__label { font-size: 11.5px; font-weight: 600; color: var(--text-secondary); }
+.form-field__req   { color: var(--accent-red); }
+.form-field__dica  { font-size: 11px; color: var(--text-muted); line-height: 1.45; }
+.form-field__erro  { font-size: 11px; color: var(--accent-red); line-height: 1.45; }
+/* O campo inválido precisa se distinguir sem depender só da mensagem. */
+.form-field:has(.form-field__erro) .input-o { border-color: var(--accent-red); }
+
+.form-actions {
+  display: flex; align-items: center; justify-content: flex-end; gap: 8px;
+  margin-top: 22px; padding-top: 16px; border-top: 1px solid var(--border-subtle);
+}
+
+/* ── Linha do tempo ──────────────────────────────────────────── */
+.timeline { list-style: none; margin: 0; padding: 0 0 0 6px; }
+.timeline__item {
+  --sc: var(--accent-cyan);
+  position: relative; display: flex; gap: 14px;
+  padding: 0 0 20px 20px;
+  border-left: 1px solid var(--border-subtle);
+}
+.timeline__item:last-child { border-left-color: transparent; padding-bottom: 0; }
+.timeline__dot {
+  position: absolute; left: -4.5px; top: 3px;
+  width: 9px; height: 9px; border-radius: 50%;
+  background: var(--sc);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--sc) 18%, transparent), 0 0 0 5px var(--bg-card);
+}
+.timeline__title { font-size: 13px; font-weight: 600; color: var(--text-primary); }
+.timeline__desc  { margin-top: 2px; font-size: 12px; color: var(--text-secondary); line-height: 1.5; }
+.timeline__date  { display: block; margin-top: 4px; font-size: 10.5px; color: var(--text-muted); }
+
+/* Entrada escalonada das linhas/cartões. */
+.stagger > * { animation: statIn .4s cubic-bezier(.2,.7,.3,1) both; }
+
+@media (prefers-reduced-motion: reduce) {
+  .stat-card, .stat-card__bar > i, .stagger > * { animation: none !important; }
+  .stat-card:hover { transform: none; }
+  .row-action:hover { transform: none; }
+}
+
+/* ── Responsive ────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  :root { --sidebar-w: 0px; }
+  .sidebar-desktop { display: none !important; }
+  .sidebar-mobile-overlay { position: fixed; inset: 0; z-index: 100; background: rgba(0,0,0,0.6); backdrop-filter: blur(6px); animation: fadeIn 0.2s ease; }
+  .sidebar-mobile { position: fixed; left: 0; top: 0; bottom: 0; width: 280px; z-index: 101; background: var(--bg-card); border-right: 1px solid var(--border-subtle); box-shadow: 4px 0 24px rgba(0,0,0,0.4); }
+  /* O .sidebar usa width: var(--sidebar-w), que é 0px no mobile (para o menu
+     fixo sumir). Dentro do drawer mobile ele precisa preencher os 280px —
+     sem isto o menu colapsa e os itens não aparecem. */
+  .sidebar-mobile .sidebar { width: 100%; min-width: 100%; }
+  .modal-box { padding: 20px; }
+
+  /* Tabelas — scroll horizontal em vez de comprimir colunas */
+  .page-content { overflow-x: auto; }
+  .table-scroll-wrapper { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+}
+@media (min-width: 769px) and (max-width: 1024px) {
+  :root { --sidebar-w: 220px; }
+}
+
+/* ── Landing page (isolada) ───────── */
+.landing-dark {
+  --bg-primary: #08080a;
+  --bg-secondary: #0c0c0e;
+  --bg-card: #121214;
+  --text-primary: #ffffff;
+  --text-secondary: rgba(255,255,255,0.7);
+  --border-subtle: rgba(255,255,255,0.1);
+  --accent-violet: #8B5CF6;
+}
+
+/* ── Strategy: fatia clicável da barra de participação ───────── */
+.participacao__fatia { cursor: pointer; }
+.participacao__fatia:hover,
+.participacao__fatia:focus-visible { filter: brightness(1.18) saturate(1.1); outline: none; }

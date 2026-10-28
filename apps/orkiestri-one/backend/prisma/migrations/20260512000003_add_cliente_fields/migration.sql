@@ -1,0 +1,8 @@
+ALTER TABLE "clientes"
+  ADD COLUMN IF NOT EXISTS "cnpj"        TEXT,
+  ADD COLUMN IF NOT EXISTS "site"        TEXT,
+  ADD COLUMN IF NOT EXISTS "cidade"      TEXT,
+  ADD COLUMN IF NOT EXISTS "estado"      TEXT,
+  ADD COLUMN IF NOT EXISTS "segmento"    TEXT,
+  ADD COLUMN IF NOT EXISTS "origem"      TEXT,
+  ADD COLUMN IF NOT EXISTS "status_lead" TEXT NOT NULL DEFAULT 'prospecto';

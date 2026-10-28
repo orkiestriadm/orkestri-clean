@@ -1,0 +1,108 @@
+import { NestFactory, Reflector } from "@nestjs/core";
+import { ValidationPipe, Logger } from "@nestjs/common";
+import { AppModule } from "./app.module";
+import helmet from "helmet";
+import * as cookieParser from "cookie-parser";
+import { NestExpressApplication } from "@nestjs/platform-express";
+import * as path from "path";
+import * as fs from "fs";
+import { randomBytes } from "crypto";
+import { Request, Response, NextFunction, json, urlencoded } from "express";
+import { FirstAccessGuard } from "./modules/auth/first-access.guard";
+
+async function bootstrap() {
+  const logger = new Logger("Bootstrap");
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+
+  // Limite de corpo de requisição elevado — import de planilhas (ex.: contas a pagar,
+  // 500+ linhas ~ 200KB+) estoura o padrao de 100kb do Express e retorna 413.
+  app.use(json({ limit: "50mb" }));
+  app.use(urlencoded({ extended: true, limit: "50mb" }));
+
+  // O diretório de uploads NÃO é mais publicado estaticamente.
+  //
+  // Enquanto era, `/uploads/<id>/<arquivo>` respondia a qualquer um que
+  // soubesse a URL — sem sessão, sem escopo de organização. E a URL não era
+  // segredo: a listagem de anexos a entregava pronta, inclusive para anexo de
+  // outro tenant, porque a listagem também não escopava.
+  //
+  // Agora cada anexo sai por uma rota autenticada do seu módulo
+  // (`/api/chamados/:id/anexos/:anexoId/download` e equivalentes em contratos
+  // e frota), que exige sessão, permissão e organização do registro dono. É o
+  // que o Compliance e o People já faziam com seus diretórios `secure/`.
+  //
+  // O diretório continua sendo criado: os uploads seguem gravando nele, só
+  // deixa de haver porta pública para ele.
+  const uploadsDir = process.env.UPLOAD_DIR || "/app/uploads";
+  if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
+
+  // Cookie parsing (required for HttpOnly JWT cookies)
+  app.use(cookieParser());
+  
+  // Set global prefix so it expects /api
+  app.setGlobalPrefix('api');
+
+  // Security headers
+  app.use(helmet({
+    crossOriginResourcePolicy: { policy: "same-site" },
+    contentSecurityPolicy: false, // gerenciado pelo Nginx
+  }));
+
+  // CSRF — Double Submit Cookie pattern
+  // O frontend lê o cookie csrf_token (não-HttpOnly) e envia como header X-CSRF-Token
+  const CSRF_SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
+  const CSRF_EXEMPT_PATHS = ["/api/auth/login", "/api/auth/solicitar-acesso", "/api/auth/esqueci-senha",
+    "/api/auth/trial/iniciar", "/api/auth/trial/confirmar",
+    "/api/auth/enviar-otp", "/api/auth/verificar-otp", "/api/auth/redefinir-senha",
+    "/api/auth/tenant-info", "/api/auth/organizations", "/api/billing/webhook/mp",
+    // Primeiro acesso: a troca de senha acontece ANTES de existir sessao, e
+    // portanto antes de haver cookie CSRF util. Quem protege e a senha
+    // provisoria + o codigo do e-mail, com teto de tentativas no controller.
+    "/api/auth/primeiro-acesso/confirmar", "/api/auth/primeiro-acesso/reenviar",
+    "/api/billing/public/signup", "/health",
+    // Webhook do Microsoft Graph: chamado pela Microsoft, sem cookie CSRF. A
+    // autenticidade vem do clientState verificado no controller.
+    "/api/integracoes/microsoft/webhook",
+    // Webhook de ENTRADA do WhatsApp (Evolution): POST de máquina, sem cookie
+    // CSRF. A autenticidade vem do ?secret= validado no controller.
+    "/api/whatsapp/inbound"];
+
+  app.use((req: Request, res: Response, next: NextFunction) => {
+    // Emite cookie CSRF a cada request (token rotativo por sessão)
+    if (!req.cookies?.csrf_token) {
+      const token = randomBytes(32).toString("hex");
+      res.cookie("csrf_token", token, { httpOnly: false, sameSite: "strict", secure: req.headers["x-forwarded-proto"] === "https", path: "/" });
+    }
+    if (CSRF_SAFE_METHODS.has(req.method) || CSRF_EXEMPT_PATHS.includes(req.path)) return next();
+    const headerToken = req.headers["x-csrf-token"] as string;
+    const cookieToken = req.cookies?.csrf_token;
+    if (!headerToken || !cookieToken || headerToken !== cookieToken) {
+      res.status(403).json({ message: "CSRF token inválido." });
+      return;
+    }
+    next();
+  });
+
+  // CORS — origins controladas via env
+  const origins = process.env.CORS_ORIGINS
+    ? process.env.CORS_ORIGINS.split(",").map(o => o.trim())
+    : ["http://localhost"];
+  app.enableCors({
+    origin: origins,
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Authorization", "Content-Type", "X-CSRF-Token"],
+    credentials: true,
+  });
+
+  // Validação global de DTOs
+  app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true, forbidNonWhitelisted: true }));
+
+  // Guard global: bloqueia endpoints quando usuário ainda não trocou senha temporária
+  app.useGlobalGuards(new FirstAccessGuard(app.get(Reflector)));
+
+  const port = process.env.PORT || 3000;
+  await app.listen(port, "0.0.0.0");
+  logger.log(`Orkestri API running on port ${port}`);
+  logger.log(`CORS origins: ${origins.join(", ")}`);
+}
+bootstrap();

@@ -1,0 +1,243 @@
+import {
+  Module, Controller, Get, Post, Body, Param, Req, UseGuards,
+  ForbiddenException, NotFoundException, BadRequestException, HttpCode, HttpStatus, Injectable,
+} from "@nestjs/common";
+import { AuthGuard } from "@nestjs/passport";
+import { PrismaService } from "../../prisma/prisma.service";
+import { WhatsAppService } from "../notifications/whatsapp.service";
+import { NotificationsModule } from "../notifications/notifications.module";
+import { registrarIndicacao, codigoIndicacao, montarMensagemAtivacao } from "./referral.helpers";
+import { proximaValidade } from "../auth/trial-renovacao";
+import { IsOptional, IsString } from "class-validator";
+
+// Tipo inline (`@Body() body: DefinirIndicadorDto`) PARECE validação, mas não
+// é: o tipo do TypeScript some na compilação e o ValidationPipe fica sem
+// metadata — qualquer JSON passava. Classe é o que o pipe consegue ler.
+class DefinirIndicadorDto {
+  @IsString() codigo: string;
+}
+
+class ComissaoPagaDto {
+  @IsOptional() @IsString() notas?: string;
+}
+
+// Valores fixos do MVP (centavos). Configuráveis depois.
+const VALOR_ASSINATURA = 2700; // R$ 27,00
+const VALOR_COMISSAO = 500;    // R$ 5,00
+
+function requireSuperAdmin(req: any) {
+  if (!req.user?.isSuperAdmin) throw new ForbiddenException("Acesso restrito a super-admins.");
+}
+
+@Injectable()
+export class ReferralService {
+  constructor(private prisma: PrismaService, private wa: WhatsAppService) {}
+
+  // Painel: usuários em trial (dias/vencimento), quem indicou, efetivação e comissão.
+  async painel() {
+    const now = Date.now();
+    const usuarios = await this.prisma.user.findMany({
+      where: { isTrial: true } as any,
+      orderBy: { trialExpiraEm: "asc" } as any,
+      select: {
+        id: true, nome: true, email: true, criadoEm: true, ativo: true,
+        trialExpiraEm: true, trialModulo: true, assinaturaEm: true,
+        trialLembreteEm: true, trialRenovacaoResposta: true, trialRenovacaoRespostaEm: true, assinaturaValidaAte: true,
+        profile: { select: { whatsapp: true } },
+        indicacaoRecebida: {
+          select: { id: true, status: true, comissaoValor: true, comissaoStatus: true, indicador: { select: { nome: true } } },
+        },
+      } as any,
+    });
+
+    const linhas = (usuarios as any[]).map((u) => {
+      const expira: Date | null = u.trialExpiraEm ? new Date(u.trialExpiraEm) : null;
+      const diasRestantes = expira ? Math.ceil((expira.getTime() - now) / 86400000) : null;
+      const vencido = expira ? expira.getTime() < now : false;
+      const r = u.indicacaoRecebida;
+      return {
+        id: u.id, nome: u.nome, email: u.email, whatsapp: u.profile?.whatsapp || null,
+        codigo: codigoIndicacao(u.id), // código que ELE compartilha para indicar
+        modulo: u.trialModulo, inicio: u.criadoEm, expira,
+        diasRestantes, vencido,
+        efetivado: !!u.assinaturaEm, assinaturaEm: u.assinaturaEm,
+        // Mensalidade (R$ 27/mês): até quando vale o mês pago e se já venceu sem renovar.
+        validaAte: u.assinaturaValidaAte,
+        mensalidadeVencida: !!u.assinaturaEm && !!u.assinaturaValidaAte && new Date(u.assinaturaValidaAte).getTime() < now,
+        // Aviso de fim do teste no WhatsApp e a resposta (RENOVOU / RECUSOU).
+        lembreteEm: u.trialLembreteEm, respostaWhats: u.trialRenovacaoResposta, respostaWhatsEm: u.trialRenovacaoRespostaEm,
+        indicadoPor: r?.indicador?.nome || null,
+        referralId: r?.id || null,
+        comissao: r ? { valor: r.comissaoValor, status: r.comissaoStatus } : null,
+      };
+    });
+
+    const emTrial = linhas.filter((l) => !l.vencido && !l.efetivado).length;
+    const vencidos = linhas.filter((l) => l.vencido && !l.efetivado).length;
+    const efetivados = linhas.filter((l) => l.efetivado).length;
+
+    const comissoes = await this.prisma.referral.findMany({
+      where: { comissaoValor: { not: null } } as any,
+      select: { comissaoValor: true, comissaoStatus: true } as any,
+    });
+    const soma = (f: (c: any) => boolean) =>
+      (comissoes as any[]).filter(f).reduce((s, c) => s + (c.comissaoValor || 0), 0);
+    const qtd = (f: (c: any) => boolean) => (comissoes as any[]).filter(f).length;
+    const pend = (c: any) => c.comissaoStatus === "PENDENTE";
+    const paga = (c: any) => c.comissaoStatus === "PAGA";
+
+    return {
+      stats: {
+        emTrial, vencidos, efetivados,
+        comissaoPendente: { qtd: qtd(pend), total: soma(pend) },
+        comissaoPaga: { qtd: qtd(paga), total: soma(paga) },
+      },
+      usuarios: linhas,
+    };
+  }
+
+  // Marca a assinatura (R$27/mês). Se o usuário foi indicado, cria a comissão (R$5).
+  // Sem mês pago ainda, abre o primeiro — a partir do fim do teste se ele não
+  // acabou. Quem chama já com a validade gravada (o "1" do WhatsApp) mantém a dela.
+  async efetivar(userId: string) {
+    const u = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, trialExpiraEm: true, assinaturaValidaAte: true, indicacaoRecebida: { select: { id: true } } } as any,
+    });
+    if (!u) throw new NotFoundException("Usuário não encontrado.");
+    const agora = new Date();
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        assinaturaEm: agora, assinaturaValor: VALOR_ASSINATURA,
+        ...((u as any).assinaturaValidaAte ? {} : { assinaturaValidaAte: proximaValidade((u as any).trialExpiraEm, agora) }),
+      } as any,
+    });
+    const r = (u as any).indicacaoRecebida;
+    if (r) {
+      await this.prisma.referral.update({
+        where: { id: r.id },
+        data: {
+          status: "EFETIVADO", efetivadoEm: new Date(), assinaturaValor: VALOR_ASSINATURA,
+          comissaoValor: VALOR_COMISSAO, comissaoStatus: "PENDENTE",
+        } as any,
+      });
+    }
+    return { ok: true };
+  }
+
+  // Desfaz a efetivação (correção manual).
+  async desfazerEfetivacao(userId: string) {
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { assinaturaEm: null, assinaturaValor: null, assinaturaValidaAte: null } as any,
+    });
+    const r = await this.prisma.referral.findUnique({ where: { indicadoUserId: userId } as any });
+    if (r && (r as any).comissaoStatus !== "PAGA") {
+      await this.prisma.referral.update({
+        where: { id: (r as any).id },
+        data: { status: "PENDENTE", efetivadoEm: null, comissaoValor: null, comissaoStatus: null } as any,
+      });
+    }
+    return { ok: true };
+  }
+
+  async comissaoPaga(referralId: string, notas?: string) {
+    const r = await this.prisma.referral.findUnique({ where: { id: referralId } });
+    if (!r) throw new NotFoundException("Indicação não encontrada.");
+    await this.prisma.referral.update({
+      where: { id: referralId },
+      data: { comissaoStatus: "PAGA", comissaoPagaEm: new Date(), notas: notas ?? (r as any).notas } as any,
+    });
+    return { ok: true };
+  }
+
+  // Define o indicador à mão (quando não veio código no cadastro).
+  async definirIndicador(indicadoUserId: string, codigo: string) {
+    const nome = await registrarIndicacao(this.prisma, codigo, indicadoUserId);
+    if (!nome) throw new BadRequestException("Código inválido, autoindicação, ou o usuário já tem indicador.");
+    // Mensagem de ativação ao indicado (mesma do cadastro por indicação).
+    const u = await this.prisma.user.findUnique({
+      where: { id: indicadoUserId },
+      select: { organizationId: true, profile: { select: { whatsapp: true } } },
+    });
+    const tel = (u as any)?.profile?.whatsapp;
+    if (tel) {
+      const inst = await this.wa.resolveInstance((u as any)?.organizationId).catch(() => undefined);
+      this.wa.sendMessage(tel, montarMensagemAtivacao(nome, codigoIndicacao(indicadoUserId)), inst).catch(() => {});
+    }
+    return { ok: true };
+  }
+
+  // Código de indicação de um usuário (para o admin compartilhar/consultar).
+  codigoDoUsuario(userId: string) {
+    return { codigo: codigoIndicacao(userId) };
+  }
+
+  // Card "Indique e Ganhe" do próprio usuário (Perfil): código + ganhos.
+  async meuCodigo(userId: string) {
+    const refs = await this.prisma.referral.findMany({
+      where: { indicadorUserId: userId },
+      select: { comissaoValor: true, comissaoStatus: true, status: true } as any,
+    });
+    const soma = (st: string) =>
+      (refs as any[]).filter((r) => r.comissaoStatus === st).reduce((s, r) => s + (r.comissaoValor || 0), 0);
+    return {
+      codigo: codigoIndicacao(userId),
+      indicados: refs.length,
+      efetivados: (refs as any[]).filter((r) => r.status === "EFETIVADO").length,
+      aReceber: soma("PENDENTE"),
+      recebida: soma("PAGA"),
+    };
+  }
+}
+
+// Endpoint do PRÓPRIO usuário (qualquer autenticado) — sem gate de super-admin.
+@Controller("referral")
+@UseGuards(AuthGuard("jwt"))
+export class ReferralMeController {
+  constructor(private svc: ReferralService) {}
+
+  @Get("meu-codigo")
+  async meuCodigo(@Req() req: any) { return this.svc.meuCodigo(req.user.id); }
+}
+
+@Controller("referral/admin")
+@UseGuards(AuthGuard("jwt"))
+export class ReferralAdminController {
+  constructor(private svc: ReferralService) {}
+
+  @Get("painel")
+  async painel(@Req() req: any) { requireSuperAdmin(req); return this.svc.painel(); }
+
+  @Get(":userId/codigo")
+  async codigo(@Req() req: any, @Param("userId") userId: string) { requireSuperAdmin(req); return this.svc.codigoDoUsuario(userId); }
+
+  @Post(":userId/efetivar")
+  @HttpCode(HttpStatus.OK)
+  async efetivar(@Req() req: any, @Param("userId") userId: string) { requireSuperAdmin(req); return this.svc.efetivar(userId); }
+
+  @Post(":userId/desfazer-efetivacao")
+  @HttpCode(HttpStatus.OK)
+  async desfazer(@Req() req: any, @Param("userId") userId: string) { requireSuperAdmin(req); return this.svc.desfazerEfetivacao(userId); }
+
+  @Post(":userId/indicador")
+  @HttpCode(HttpStatus.OK)
+  async indicador(@Req() req: any, @Param("userId") userId: string, @Body() body: DefinirIndicadorDto) {
+    requireSuperAdmin(req); return this.svc.definirIndicador(userId, body?.codigo || "");
+  }
+
+  @Post("comissao/:referralId/paga")
+  @HttpCode(HttpStatus.OK)
+  async pagar(@Req() req: any, @Param("referralId") referralId: string, @Body() body: ComissaoPagaDto) {
+    requireSuperAdmin(req); return this.svc.comissaoPaga(referralId, body?.notas);
+  }
+}
+
+@Module({
+  imports: [NotificationsModule],
+  controllers: [ReferralAdminController, ReferralMeController],
+  providers: [ReferralService],
+  exports: [ReferralService],
+})
+export class ReferralModule {}

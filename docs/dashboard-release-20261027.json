@@ -1,0 +1,25 @@
+{
+  "release": "dashboard-session-20261027",
+  "files": [
+    {
+      "path": "frontend/src/middleware.ts",
+      "baseline": "a3e790810151b4ec46c137b6b18841f8a6d46e76678b54f5fc775364acc4845e",
+      "sha256": "cdf93b5ca2e90456c12142f3a15c147c47668b37f2266bb5266c5ef979acc7c6"
+    },
+    {
+      "path": "frontend/src/lib/api.ts",
+      "baseline": "ac7e9d2610bd912b69abccb7b4e07a565759499f5400a2c8d081f9516c2a6048",
+      "sha256": "f9bec0d152a1e92ef74fe4c965d4e450a4f25f259360b5820244238bc3054c45"
+    },
+    {
+      "path": "frontend/src/app/dashboard/layout.tsx",
+      "baseline": "edba76674ad560df9391738b7c2eda422057bacb46cecf56f2d8b0d43f98ee93",
+      "sha256": "4d6d5d32b21ff6b683c797b659989b6c0b5f168ca69a51d7ad1b1e7e56b06086"
+    },
+    {
+      "path": "frontend/src/lib/session-redirect.ts",
+      "baseline": null,
+      "sha256": "7ad3c5c0648e1373b9fceaeda7c950e6703a9f5627060f5a232db835a0add239"
+    }
+  ]
+}

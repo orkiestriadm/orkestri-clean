@@ -1,0 +1,77 @@
+/**
+ * Identidade da marca exibida ao usuário — lado do cliente.
+ *
+ * Espelha `backend/src/common/marca.ts`. Ver lá o motivo completo; em resumo:
+ * o nome do produto estava escrito à mão em 175 lugares, e o servidor de
+ * homologação é white-label de um cliente. Com a marca vindo do ambiente, o
+ * código fica idêntico em todos os servidores e a diferença mora na
+ * configuração — que o deploy não sobrescreve.
+ *
+ * `NEXT_PUBLIC_` é obrigatório: sem o prefixo, o Next não expõe a variável ao
+ * bundle do navegador e o valor chegaria vazio na tela.
+ *
+ * ⚠️ SÓ TEXTO VISÍVEL. Chave de localStorage (`orkestri-auth`,
+ * `orkestri-favorites`, `orkestri-sidebar-expanded`) é identificador: trocar
+ * desloga o usuário e apaga as preferências dele.
+ */
+
+export const MARCA = process.env.NEXT_PUBLIC_MARCA?.trim() || "Orkiestri";
+
+/** Endereço de acesso mostrado em texto. Verdade, não identidade. */
+export const APP_DOMINIO = process.env.NEXT_PUBLIC_APP_DOMINIO?.trim() || "app.orkiestri.com";
+
+/**
+ * Plano de fundo da tela de login.
+ *
+ * Homologação exibia a rodovia da Triunfo Transbrasiliana, e conseguia isso
+ * SUBSTITUINDO O CONTEÚDO de `planeta.jpg` pela foto — mesmo nome de arquivo,
+ * imagem diferente. Funcionava até alguém trazer `frontend/public` do git, que
+ * devolvia o planeta sem nenhum erro: o build passava e a tela mudava sozinha.
+ *
+ * Com o caminho vindo do ambiente, os dois arquivos convivem no repositório e
+ * cada servidor escolhe o seu — que é o que faz a escolha sobreviver ao deploy.
+ */
+export const LOGIN_FUNDO =
+  process.env.NEXT_PUBLIC_LOGIN_FUNDO?.trim() || "/branding/planeta.jpg";
+
+/**
+ * Arquivo de logotipo no lugar do símbolo vetorial.
+ *
+ * Vazio (padrão) mantém o símbolo em SVG do produto, que é nítido em qualquer
+ * DPI. Um ambiente white-label aponta para a marca do cliente — em homologação,
+ * `/branding/logo-ttbr-branca.png`, que já vinha no repositório e não tinha
+ * nenhum código a referenciando.
+ */
+export const LOGO_ARQUIVO = process.env.NEXT_PUBLIC_LOGO_ARQUIVO?.trim() || "";
+
+/**
+ * Variante do logotipo para FUNDO CLARO.
+ *
+ * Existe porque o menu lateral acompanha o tema: no claro, um logotipo branco
+ * fica invisível. Onde o fundo é sempre escuro — a tela de login, sobre a foto
+ * — `LOGO_ARQUIVO` basta e esta variante nem é consultada.
+ *
+ * O padrão cai em `LOGO_ARQUIVO` de propósito: um ambiente que só tenha uma
+ * versão da marca continua funcionando, e quem tiver as duas configura as duas.
+ */
+export const LOGO_ARQUIVO_CLARO =
+  process.env.NEXT_PUBLIC_LOGO_ARQUIVO_CLARO?.trim() || LOGO_ARQUIVO;
+
+/**
+ * Recursos comerciais do produto Orkiestri no Perfil — "Criar evento pelo
+ * WhatsApp" e "Indique e Ganhe". Existem só em produção: em homologação (o Hub
+ * da Triunfo) o usuário pediu para não aparecerem (14/09/2026).
+ *
+ * Mesmo mecanismo da marca: build arg `NEXT_PUBLIC_AMBIENTE` no compose do
+ * servidor. O padrão é produção, então esquecer o arg num servidor novo mostra
+ * os cartões — nunca some com eles em produção.
+ */
+export const RECURSOS_COMERCIAIS = process.env.NEXT_PUBLIC_AMBIENTE?.trim() !== "homologacao";
+
+/**
+ * Tela de login com as últimas notícias do site do cliente no lugar do texto de
+ * apresentação do produto (Hub da Triunfo, 14/09/2026). A lista vem da API
+ * (`/login-noticias`, que só tem fonte onde `LOGIN_NOTICIAS_WP_URL` existe);
+ * se vier vazia, a tela volta ao texto de sempre.
+ */
+export const NOTICIAS_NO_LOGIN = process.env.NEXT_PUBLIC_AMBIENTE?.trim() === "homologacao";

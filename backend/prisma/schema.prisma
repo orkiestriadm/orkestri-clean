@@ -8,6 +8,44 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// Prospecção global, acessível somente ao Super Admin.
+model ProspectLead {
+  id String @id @default(uuid())
+  nome String
+  telefone String @unique
+  email String @default("")
+  empresa String @default("")
+  lista String
+  etapa String @default("NOVO")
+  observacoes String @default("")
+  bloqueado Boolean @default(false)
+  revisado Boolean @default(false)
+  arquivado Boolean @default(false)
+  proximoContato DateTime?
+  criadoEm DateTime @default(now())
+  atualizadoEm DateTime @updatedAt
+  mensagens ProspectMessage[]
+  @@index([etapa, lista])
+}
+
+model ProspectMessage {
+  id String @id @default(uuid())
+  leadId String
+  lead ProspectLead @relation(fields: [leadId], references: [id])
+  campanha String
+  texto String
+  status String @default("PENDENTE")
+  erro String?
+  criadoEm DateTime @default(now())
+  enviadoEm DateTime?
+  instancia String?
+  conviteTelefone String?
+  conviteEstado String?
+  conviteRespondidoEm DateTime?
+  @@index([status, criadoEm])
+  @@index([conviteTelefone, instancia, conviteEstado])
+}
+
 // ── Enums ──────────────────────────────────
 
 enum ProjectStatus {
@@ -5474,4 +5512,72 @@ model EstrategicoAlertaEnvio {
   @@unique([organizationId, chave])
   @@index([organizationId, criadoEm])
   @@map("estrategico_alerta_envios")
+}
+
+
+model WhatsappRecibo {
+  instancia    String
+  conversa     String
+  mensagemId   String   @map("mensagem_id")
+  estado       String   @default("PROCESSANDO")
+  criadoEm     DateTime @default(now()) @map("criado_em") @db.Timestamptz(6)
+  atualizadoEm DateTime @default(now()) @map("atualizado_em") @db.Timestamptz(6)
+
+  @@id([instancia, conversa, mensagemId])
+  @@index([estado, criadoEm], map: "whatsapp_recibos_estado_criado_idx")
+  @@map("whatsapp_recibos")
+}
+
+
+model WhatsappBoasVindas {
+  userId           String   @id @map("user_id")
+  cadastroId       String   @unique @map("cadastro_id")
+  telefone         String
+  instancia        String
+  estado           String   @default("PENDENTE")
+  tentativas       Int      @default(0)
+  tentativaId      String?  @map("tentativa_id")
+  proximaTentativa DateTime @default(now()) @map("proxima_tentativa") @db.Timestamptz(6)
+  expiraEm         DateTime @default(dbgenerated("(CURRENT_TIMESTAMP + '24:00:00'::interval)")) @map("expira_em") @db.Timestamptz(6)
+  criadoEm         DateTime @default(now()) @map("criado_em") @db.Timestamptz(6)
+  atualizadoEm     DateTime @default(now()) @map("atualizado_em") @db.Timestamptz(6)
+  @@index([estado, proximaTentativa], map:"whatsapp_boas_vindas_pendentes_idx")
+  @@map("whatsapp_boas_vindas")
+}
+model WhatsappInicio {
+  userId    String @map("user_id")
+  instancia String
+  conversa  String
+  etapa     String
+  dados     Json @default("{}")
+  expiraEm  DateTime @default(dbgenerated("(CURRENT_TIMESTAMP + '00:30:00'::interval)")) @map("expira_em") @db.Timestamptz(6)
+  @@id([userId,instancia,conversa])
+  @@index([expiraEm],map:"whatsapp_inicio_expira_idx")
+  @@index([instancia,conversa],map:"whatsapp_inicio_conversa_idx")
+  @@map("whatsapp_inicio")
+}
+
+
+model WhatsappRotina {
+  userId String @id @map("user_id")
+  ativo Boolean @default(false)
+  horario String @default("08:00")
+  diasUteis Boolean @default(false) @map("dias_uteis")
+  telefone String
+  instancia String
+  revisao String
+  atualizadoEm DateTime @default(now()) @map("atualizado_em") @db.Timestamptz(6)
+  @@index([ativo,horario],map:"whatsapp_rotina_ativos_idx")
+  @@map("whatsapp_rotina")
+}
+model WhatsappRotinaEnvio {
+  userId String @map("user_id")
+  dia DateTime @db.Date
+  revisao String
+  estado String @default("ENVIANDO")
+  criadoEm DateTime @default(now()) @map("criado_em") @db.Timestamptz(6)
+  atualizadoEm DateTime @default(now()) @map("atualizado_em") @db.Timestamptz(6)
+  @@id([userId,dia])
+  @@index([estado,criadoEm],map:"whatsapp_rotina_envios_estado_idx")
+  @@map("whatsapp_rotina_envios")
 }

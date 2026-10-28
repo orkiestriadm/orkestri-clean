@@ -1,0 +1,63 @@
+{
+  "release": "orkiestri-one-20261025",
+  "status": "published_and_verified",
+  "production": "https://orkiestri.com",
+  "sourceDirectory": "apps/orkiestri-one",
+  "sourceArchiveSha256": "9c28b5d25a51d7145434ddf0090f572cff17e4ee8dfabf09837522a784c7a225",
+  "images": {
+    "api": "sha256:b721a7480907b165b32a79787e315ccde64793a4870955b74a7e50bdbffa7a90",
+    "frontend": "sha256:ef1c6966d7c3434a9f3fff65debd8e7d188dbd51f870ca87d5edb2f98f838b10",
+    "mediaWorker": "sha256:abf739426f28c213b4d51b906d3db8eac5b1abfc65ead4e7fb9b1b0530a90baa"
+  },
+  "buildBases": {
+    "nodeAlpine": "node:20-alpine@sha256:fb4cd12c85ee03686f6af5362a0b0d56d50c58a04632e6c0fb8363f609372293",
+    "nodeDebian": "node:20-bookworm-slim@sha256:2cf067cfed83d5ea958367df9f966191a942351a2df77d6f0193e162b5febfc0",
+    "debian": "debian:bookworm-slim@sha256:7ff6ba31527b9e336162fa061746c366c4b2032f4d2cff2078bea43f78efe3f8"
+  },
+  "lockfilesSha256": {
+    "backend": "aa7dcf1beb1189a8af43f138e7b85eb7a420d5f672d3dd3c415f85aae2cf453a",
+    "frontend": "98f879b723dd4f82199c734d738cc5313a88f32d1ac541aacb899d51a72a4587"
+  },
+  "asr": {
+    "commit": "231638a0717b7822784297e5980965ffcec05810",
+    "model": "ggml-base.bin",
+    "modelSha1": "465707469ff3a37a2b9b8d8f89f2f99de7299dac",
+    "maxSeconds": 30,
+    "confirmationRequired": true
+  },
+  "verification": {
+    "verifiedAt": "2026-10-25T04:57:11.474Z",
+    "appliedMigrations": 111,
+    "unfinishedMigrations": 0,
+    "apiHealth": 200,
+    "anonymousDashboard": 307,
+    "anonymousPrivateApi": 401,
+    "workerHealthy": true,
+    "unexpectedContainerRestarts": 0,
+    "testEventsRemaining": 0,
+    "testAttachmentsRemaining": 0,
+    "technicalMetricsRemaining": 0,
+    "temporaryTestResources": "removed"
+  },
+  "tests": [
+    "isolated_postgresql_redis_and_migrations",
+    "authenticated_http_signup_projects_tasks_and_private_media",
+    "concurrency_rollback_receipts_welcome_recovery_daily_routine",
+    "cohort_activation_and_complete_return_windows",
+    "browser_authenticated_review_mobile_scroll_and_anonymous_login",
+    "production_local_asr_and_real_provider_pdf_transfer",
+    "screenshot_menu_sequence_and_finance_only_number_refusal",
+    "production_menu_sequence_without_financial_writes"
+  ],
+  "rollbackDirectories": [
+    "/opt/orkestri/.backups/one-20261025",
+    "/opt/orkestri/.backups/menu-20261025"
+  ],
+  "limits": [
+    "Production inbound test payloads were injected through the authenticated webhook for the authorized phone; sends and media transfer used the real provider. Delivery/read receipts were not asserted.",
+    "Natural language supports documented finite intents and confirmation; audio transcription must be reviewed.",
+    "Retention cohorts require future real data and complete observation windows.",
+    "Next.js received a compatible patch; migration to a currently supported major framework line remains separate maintenance work."
+  ],
+  "untouched": ["10.192.4.123", "root_enterprise_edition"]
+}
