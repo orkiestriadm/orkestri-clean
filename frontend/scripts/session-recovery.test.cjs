@@ -60,4 +60,3 @@ test('recovery opens login even if cleanup failed and an expired cookie remains'
 test('recovery does not bypass dashboard authentication', () => {
   const r = middleware(request('/dashboard?reauth=1', false)); assert.equal(new URL(r.headers.get('location')).pathname, '/login');
 });
-

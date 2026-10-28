@@ -38,3 +38,7 @@ A recuperação agora envia o token CSRF, reúne chamadas concorrentes numa úni
 - Antes do push: nenhum workflow GitHub Actions ou webhook de repositório configurado; main não recebe push/merge.
 
 Produção foi consultada apenas para diagnóstico de respostas públicas e contagens anônimas de logs. Não houve publicação, migration, modificação de contas reais ou envio de mensagens nesta tarefa. Publicar exige autorização expressa separada, conforme AGENTS.md.
+
+## Revisão no GitHub
+
+PR em rascunho: https://github.com/orkiestriadm/orkestri-clean/pull/18. Commit de implementação: bde33e25cb6481047d8e27b9219e461d8a54d7e5. A branch preserva a base publicada do PR #17; main permanece intacta. Publicação do frontend e do site segue pendente de autorização expressa.
