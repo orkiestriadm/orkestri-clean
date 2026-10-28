@@ -114,7 +114,7 @@ export default async function ProductPage({
         <SectionHeader
           align="left"
           eyebrow="Recursos"
-          title={`Tudo o que o ${product.name} entrega.`}
+          title="O que você pode fazer."
         />
         <div className="mt-10 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {product.features.map((f, i) => (
@@ -133,7 +133,7 @@ export default async function ProductPage({
       {/* AI + Integrations */}
       <Section muted>
         <div className="grid gap-8 lg:grid-cols-2">
-          <div className="rounded-(--radius-card) border border-white/[0.08] bg-panel p-8">
+          {product.ai.length > 0 && <div className="rounded-(--radius-card) border border-white/[0.08] bg-panel p-8">
             <IconTile icon={Sparkles} />
             <h3 className="mt-5 text-xl font-semibold text-chalk">
               Inteligência Artificial
@@ -150,6 +150,7 @@ export default async function ProductPage({
             </ul>
           </div>
 
+          }
           {product.integrations && product.integrations.length > 0 && (
             <div className="rounded-(--radius-card) border border-white/[0.08] bg-panel p-8">
               <IconTile icon={Plug} tone="dark" />

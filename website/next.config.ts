@@ -9,6 +9,7 @@ const nextConfig: NextConfig = {
   // /_next/). nginx routes /_site/ to this container.
   assetPrefix: "/_site",
   images: {
+    qualities: [75, 92, 95],
     formats: ["image/avif", "image/webp"],
     // O assetPrefix NÃO se aplica ao endpoint do otimizador. Sem isto o
     // <img> pede /_next/image, que o nginx entrega à plataforma (dona de
@@ -34,11 +35,11 @@ const nextConfig: NextConfig = {
       "one-budget",
       "one-flow",
     ];
-    return descontinuados.map((slug) => ({
+    return [{ source: "/entrar", destination: "/login", permanent: false }, ...descontinuados.map((slug) => ({
       source: `/products/${slug}`,
       destination: "/products",
       permanent: false,
-    }));
+    }))];
   },
 
   async headers() {

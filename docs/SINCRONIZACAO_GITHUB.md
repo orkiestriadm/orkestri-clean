@@ -1,35 +1,20 @@
-# Sincronização entre IAs sem alterar produção
+# Fluxo compartilhado de Git
 
-Estado em 28/10/2026. Repositório: https://github.com/orkiestriadm/orkestri-clean
+A base de produção observada em 28/10/2026 foi sincronizada para `codex/sync-20261028/coordination`, sem deploy. Enquanto o PR #15 estiver aberto, esta é a referência para Codex e Claude. Após a integração revisada, a referência passa a ser main atualizada. Nenhum merge na main está autorizado nesta tarefa.
 
-## Qual versão usar
+Leia `AGENTS.md`, `CLAUDE.md` e `PARIDADE_PRODUCAO_2026-10-28.md`. O inventário das versões históricas está em `INVENTARIO_SINCRONIZACAO_2026-10-28.md`.
 
-A main remota em 3859c35e2502907a4346f60c77b9eba5325ba84d recebeu o resgate de fontes de produção nos PRs 12 e 13. Isso descreve o histórico Git consultado; esta tarefa não acessou o servidor para atestar equivalência com o processo em execução.
+1. Conferir status e preservar pendências. Não partir de uma pasta antiga apenas porque ela já está aberta.
+2. Fazer `git fetch origin`. Na branch correta e limpa, atualizar com `git pull --ff-only`.
+3. Criar branch de tarefa a partir da referência compartilhada. Para trabalho simultâneo, usar pastas separadas com a mesma base.
+4. Implementar e executar testes locais isolados. Conferir arquivos novos e diff antes de adicionar ao commit.
+5. Salvar commits, fazer push da branch autorizada e registrar SHA, testes, decisões e pendências.
+6. Abrir PR para revisão quando necessário. Não usar auto-merge e não executar deploy como parte da sincronização.
 
-A pasta local C:/orkestri-clean estava na branch localhost/hub-1.49.2, baseada em 2f1618954000c4e29b9c875b52b311c42839dcdd. Ela pertence à linha Hub e difere substancialmente da main. As cópias apps/orkiestri-one e work/whatsapp-entry-20261027 são fontes de entregas anteriores; não sobrescrever a main com essas árvores.
+O repositório é público. Credenciais, dados de clientes, uploads, arquivos de ambiente, caches e builds ficam fora do Git. Código, migrations como arquivos e documentação técnica podem ser versionados após revisão.
 
-Para continuar o sistema da main, começar pela branch codex/sync-20261028/coordination enquanto seu PR estiver aberto; após a integração revisada desse PR, usar main atualizada. Para retomar uma alteração específica ainda não integrada, consultar a branch de preservação no inventário e criar uma branch própria a partir da base apropriada.
+A pasta antiga `C:/orkestri-clean`, as antigas worktrees do Claude e as branches históricas preservam outras linhas do produto, inclusive Hub. Não copiar essas árvores sobre a versão atual. Para recuperar algo antigo, revisar seletivamente contra a base compartilhada.
 
-## Rotina
+O retrato de 530 hashes em `baselines/production-20261028.json` pode ser conferido com `node scripts/verify-source-baseline.cjs`. A verificação não conecta ao servidor. Divergências depois de mudanças intencionais devem ser explicadas e revisadas.
 
-1. Ler AGENTS.md, este documento e o inventário.
-2. Conferir git status e a branch atual; preservar pendências.
-3. Executar git fetch origin. Em uma árvore limpa da branch correta, atualizar com git pull --ff-only.
-4. Criar uma branch de trabalho. Para trabalhar em paralelo, usar uma pasta separada.
-5. Implementar, validar localmente, revisar arquivos e salvar commits.
-6. Fazer push da branch e abrir PR em rascunho quando necessário. Não habilitar auto-merge.
-7. Registrar branch, SHA, testes, decisões e pendências para a próxima IA.
-
-## Produção
-
-Nenhum deploy é autorizado por esta sincronização. Não executar scripts de deploy/activate/stage, comandos remotos de escrita, migrations, seeds ou testes contra produção. Push, PR e deploy são operações diferentes. Uma futura integração deve conferir novamente se há automações externas antes de modificar main.
-
-Na auditoria local não foram encontrados workflows em .github na main consultada nem hooks Git ativos nesta pasta. Os scripts de deploy consultados exigem execução separada. Isso não comprova ausência de integrações externas configuradas fora do repositório.
-
-## O que acompanha o Git
-
-Código, migrations como arquivos, documentação técnica e branches publicadas. Banco, arquivos de clientes, credenciais, configuração dos servidores e histórico dos chats permanecem separados. Caches e builds são regenerados. Documentos internos e binários não revisados permanecem locais e constam como excluídos no inventário local.
-
-## Limites das cópias preservadas
-
-As branches de preservação guardam versões divergentes e não são aprovadas para deploy. Não houve tentativa de juntar todos os recursos antigos em uma única versão: isso poderia desfazer correções e misturar produtos diferentes. A integração funcional precisa selecionar diferenças contra a base correta e validar seu comportamento.
+Sincronizar código do servidor para o GitHub não muda o sistema ativo. Aplicar migrations, copiar arquivos para o servidor, construir/substituir imagens, reiniciar serviços e alterar configuração de produção são operações separadas e exigem autorização expressa. Conferir novamente workflows e integrações antes de qualquer futura publicação ou integração na main.

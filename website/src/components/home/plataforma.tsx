@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { BellRing, MessageSquareText, Lock, Smartphone } from "lucide-react";
 import { Faixa, Cabecalho, LinkTexto } from "./ui";
 import { products } from "@/config/products";
 import { cn } from "@/lib/utils";
@@ -19,39 +18,12 @@ import { cn } from "@/lib/utils";
  * - o cadastro pelo WhatsApp é o `cadastro-whatsapp.module.ts`.
  */
 
-const comoFunciona = [
-  {
-    icone: BellRing,
-    titulo: "Avisa antes",
-    texto:
-      "Uma hora antes do compromisso, de novo aos quinze minutos e na hora que começa.",
-  },
-  {
-    icone: MessageSquareText,
-    titulo: "Entende o que você escreve",
-    texto:
-      "“Gasto: mercado 182 no crédito” basta. Sem formulário, sem campo obrigatório.",
-  },
-  {
-    icone: Lock,
-    titulo: "O que é seu é só seu",
-    texto:
-      "Gasto pessoal fica no seu usuário. Nem o administrador da conta vê o seu lançamento.",
-  },
-  {
-    icone: Smartphone,
-    titulo: "Começa numa conversa",
-    texto:
-      "A conta nasce pelo WhatsApp, com os módulos já ligados. Depois você entra pelo navegador se quiser.",
-  },
-];
-
 export function Plataforma() {
   return (
     <Faixa id="organiza" tom="raise">
       <Cabecalho
-        titulo="Seis coisas que você não devia ter que lembrar sozinho."
-        texto="Agenda, contas, projetos, pedidos, procedimentos e acessos. Tudo no mesmo lugar, com o mesmo login — e cada um deles sabe te achar no WhatsApp."
+        titulo="Comece pela agenda. Conheça o que vem além."
+        texto="Agenda, contas, projetos, pedidos, conhecimento e acessos no mesmo lugar. Seu cadastro é no Orkiestri; os recursos disponíveis seguem o plano e as permissões da conta."
         acao={
           <LinkTexto href="/products/orkiestri-one">
             Ver como se encaixam
@@ -61,15 +33,16 @@ export function Plataforma() {
 
       {/* Grade de fios: cada célula se separa das vizinhas por uma linha de
           1px, como uma tabela. Desenho de engenharia, não de catálogo. */}
-      <ul className="mt-14 grid gap-px overflow-hidden rounded-(--radius-card) bg-white/[0.07] sm:grid-cols-2 lg:grid-cols-3">
+      <ul className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {products.map((p) => {
           const Icone = p.icon;
           return (
-            <li key={p.slug} className="bg-ink-raise">
+            <li key={p.slug} className="min-w-0">
               <Link
+                data-spotlight
                 href={`/products/${p.slug}`}
                 className={cn(
-                  "group flex h-full items-start gap-4 p-6 transition-colors duration-200",
+                  "premium-surface group flex h-full items-start gap-4 rounded-2xl p-6 transition-colors duration-200",
                   "hover:bg-panel focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-flame",
                 )}
               >
@@ -89,23 +62,6 @@ export function Plataforma() {
           );
         })}
       </ul>
-
-      {/* Sem cartão: um fio em cima de cada bloco já diz que são quatro itens
-          de um mesmo conjunto. A borda completa só acrescentaria desenho. */}
-      <div className="mt-16 grid gap-x-10 gap-y-10 sm:grid-cols-2 lg:grid-cols-4">
-        {comoFunciona.map((c) => {
-          const Icone = c.icone;
-          return (
-            <div key={c.titulo} className="border-t border-white/[0.09] pt-5">
-              <Icone className="h-5 w-5 text-flame-soft" aria-hidden />
-              <h3 className="mt-4 font-semibold text-chalk">{c.titulo}</h3>
-              <p className="mt-2 text-[0.9375rem] leading-relaxed text-chalk-dim">
-                {c.texto}
-              </p>
-            </div>
-          );
-        })}
-      </div>
     </Faixa>
   );
 }

@@ -124,7 +124,13 @@ describe('Convite → cadastro Aurélia → agenda', () => {
     await responder('Pessoa Teste'); await responder('52998224725'); await responder('geral@example.invalid'); await responder('Pessoal'); await responder('1');
     const user = p.user.create.mock.calls[0][0].data;
     expect(user.organizationId).toBe('org-isolada');
-    expect(user).not.toHaveProperty('trialModulo');
+    // Desde 28/10/2026 o cadastro geral nasce com a gratuidade CORRENDO: a
+    // Aurélia virou a única porta de entrada, e quem entra por ela passou a
+    // ter 7 dias. Antes esta conta ficava fora do ciclo de cobrança para
+    // sempre. O convite gratuito segue sem prazo — ver o teste dele abaixo.
+    expect(user.isTrial).toBe(true);
+    expect(user.trialModulo).toBe('one-space');
+    expect(user.trialExpiraEm).toBeInstanceOf(Date);
     expect(user).not.toHaveProperty('assinaturaEm');
     expect(p.userRole.create.mock.calls[0][0].data.roleId).toBe('master-nao-atribuido');
     expect(JSON.parse(p.userProfile.create.mock.calls[0][0].data.modulos)).toEqual(expect.arrayContaining(['agenda', 'keep', 'projetos', 'financeiro', 'gastos', 'chamados', 'conhecimento']));

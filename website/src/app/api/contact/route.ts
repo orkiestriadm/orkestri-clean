@@ -21,16 +21,9 @@ export async function POST(request: Request) {
       );
     }
 
-    // TODO(integration): forward parsed.data to CRM / email service.
+    // Ainda não há destino de entrega integrado. Não simular recebimento.
+    return NextResponse.json({ success: false, message: "Envio indisponível. Entre em contato pelo e-mail publicado no site." }, { status: 503 });
 
-    return NextResponse.json(
-      {
-        success: true,
-        message: "Recebemos sua solicitação. Nossa equipe entrará em contato.",
-        data: null,
-      },
-      { status: 200 }
-    );
   } catch {
     return NextResponse.json(
       { success: false, message: "Erro ao processar a solicitação." },

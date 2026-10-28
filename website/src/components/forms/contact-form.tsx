@@ -3,55 +3,48 @@
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { CheckCircle2, Loader2 } from "lucide-react";
+import { Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input, Textarea, Label } from "@/components/ui/input";
 import { contactSchema, type ContactInput } from "@/schemas/contact";
+import { siteConfig } from "@/config/site";
 
-type Status = "idle" | "submitting" | "success" | "error";
+type Status = "idle" | "prepared";
 
-/** Contact / demo form — RHF + Zod, inline validation, submit feedback. */
-export function ContactForm({ endpoint = "/api/contact" }: { endpoint?: string }) {
+/** Prepara um e-mail para envio explícito pelo visitante. */
+export function ContactForm({ initialInterest = "product", service = "" }: { initialInterest?: ContactInput["interest"]; service?: string }) {
   const [status, setStatus] = useState<Status>("idle");
+  const [draft, setDraft] = useState("");
   const {
     register,
     handleSubmit,
-    reset,
     formState: { errors },
   } = useForm<ContactInput>({
     resolver: zodResolver(contactSchema),
     mode: "onBlur",
+    defaultValues: { interest: initialInterest, service },
   });
 
-  async function onSubmit(data: ContactInput) {
-    setStatus("submitting");
-    try {
-      const res = await fetch(endpoint, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
-      if (!res.ok) throw new Error("request failed");
-      setStatus("success");
-      reset();
-    } catch {
-      setStatus("error");
-    }
+  function onSubmit(data: ContactInput) {
+    const interests = { product: "Produto", project: "Software sob medida", support: "Ajuda com minha conta" };
+    const subject = `Contato Orkiestri — ${interests[data.interest]}`;
+    const body = [`Nome: ${data.name}`, `Empresa: ${data.company || "Pessoal"}`, `E-mail: ${data.email}`, `Telefone: ${data.phone || "Não informado"}`, `Interesse: ${interests[data.interest]}`, ...(service ? [`Serviço: ${service}`] : []), "", data.message].join("\n");
+    setDraft(`mailto:${siteConfig.contact.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`);
+    setStatus("prepared");
   }
 
-  if (status === "success") {
+  if (status === "prepared") {
     return (
       <div className="flex flex-col items-center gap-4 rounded-(--radius-card) border border-white/[0.08] bg-panel p-10 text-center">
-        <CheckCircle2 className="h-12 w-12 text-success" aria-hidden />
+        <Mail className="h-12 w-12 text-flame-soft" aria-hidden />
         <h3 className="text-xl font-semibold text-chalk">
-          Recebemos sua solicitação
+          Sua mensagem está pronta
         </h3>
         <p className="text-chalk-dim">
-          Nossa equipe entrará em contato em breve.
+          Abra seu aplicativo de e-mail, confira o conteúdo e confirme o envio para {siteConfig.contact.email}. A mensagem ainda não foi enviada.
         </p>
-        <Button variant="secondary" onClick={() => setStatus("idle")}>
-          Enviar outra mensagem
-        </Button>
+        <Button asChild><a href={draft}>Abrir e-mail para enviar</a></Button>
+        <Button variant="secondary" onClick={() => setStatus("idle")}>Voltar e editar</Button>
       </div>
     );
   }
@@ -62,6 +55,14 @@ export function ContactForm({ endpoint = "/api/contact" }: { endpoint?: string }
       noValidate
       className="flex flex-col gap-5 rounded-(--radius-card) border border-white/[0.08] bg-panel p-6 md:p-8"
     >
+      <Field id="interest" label="Como podemos ajudar?" required>
+        <select id="interest" className="min-h-12 rounded-xl border border-white/15 bg-panel px-4 text-chalk" {...register("interest")}>
+          <option value="product">Quero conhecer ou contratar o produto</option>
+          <option value="project">Preciso de software sob medida</option>
+          <option value="support">Preciso de ajuda com minha conta</option>
+        </select>
+      </Field>
+      {service && <p className="text-sm text-chalk-dim">Serviço de interesse: {service}</p>}
       <div className="grid gap-5 sm:grid-cols-2">
         <Field id="name" label="Nome" error={errors.name?.message} required>
           <Input
@@ -73,9 +74,8 @@ export function ContactForm({ endpoint = "/api/contact" }: { endpoint?: string }
         </Field>
         <Field
           id="company"
-          label="Empresa"
+          label="Empresa (opcional)"
           error={errors.company?.message}
-          required
         >
           <Input
             id="company"
@@ -114,27 +114,13 @@ export function ContactForm({ endpoint = "/api/contact" }: { endpoint?: string }
         />
       </Field>
 
-      {status === "error" && (
-        <p role="alert" className="text-sm text-error">
-          Não foi possível enviar sua mensagem. Tente novamente em alguns
-          instantes.
-        </p>
-      )}
-
+      <p className="text-xs leading-relaxed text-chalk-faint">Este formulário prepara um e-mail. Você confere e envia pelo seu aplicativo; os dados não são enviados automaticamente pelo site. <a href="/privacy" className="underline underline-offset-4">Política de privacidade.</a></p>
       <Button
         type="submit"
         size="lg"
-        disabled={status === "submitting"}
         className="w-full sm:w-auto"
       >
-        {status === "submitting" ? (
-          <>
-            <Loader2 className="h-5 w-5 animate-spin" aria-hidden />
-            Enviando…
-          </>
-        ) : (
-          "Enviar solicitação"
-        )}
+        Preparar mensagem por e-mail
       </Button>
     </form>
   );

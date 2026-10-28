@@ -15,7 +15,7 @@ import type { Service } from "@/types";
 export const services: Service[] = [
   {
     slug: "software-factory",
-    name: "Software Factory",
+    name: "Desenvolvimento sob medida",
     tagline: "Software desenvolvido para o seu negócio.",
     description:
       "Projetos personalizados para empresas que precisam de soluções exclusivas, integradas ao seu ambiente tecnológico.",
@@ -29,7 +29,7 @@ export const services: Service[] = [
   },
   {
     slug: "ai-solutions",
-    name: "Artificial Intelligence",
+    name: "Inteligência artificial",
     tagline: "Inteligência Artificial aplicada ao seu negócio.",
     description:
       "Automação inteligente, agentes de IA, OCR, análise de documentos e assistentes corporativos que apoiam decisões.",
@@ -43,7 +43,7 @@ export const services: Service[] = [
   },
   {
     slug: "cloud-solutions",
-    name: "Cloud Solutions",
+    name: "Soluções em nuvem",
     tagline: "Infraestrutura pronta para escalar.",
     description:
       "Migração, infraestrutura, observabilidade, DevOps e alta disponibilidade sobre AWS, Azure e Google Cloud.",
@@ -57,7 +57,7 @@ export const services: Service[] = [
   },
   {
     slug: "consulting",
-    name: "Consulting",
+    name: "Consultoria em tecnologia",
     tagline: "Da estratégia à execução.",
     description:
       "Arquitetura, transformação digital, governança e modernização tecnológica conduzidas por um time especializado.",
@@ -71,7 +71,7 @@ export const services: Service[] = [
   },
   {
     slug: "outsourcing",
-    name: "Outsourcing",
+    name: "Times de desenvolvimento",
     tagline: "Especialistas para acelerar suas entregas.",
     description:
       "Profissionais preparados para integrar sua equipe, sustentar sistemas e acelerar a evolução dos seus produtos.",
@@ -85,7 +85,7 @@ export const services: Service[] = [
   },
   {
     slug: "integrations",
-    name: "Integrations",
+    name: "Integrações de sistemas",
     tagline: "Conecte tudo. Elimine retrabalho.",
     description:
       "Conectamos sistemas, APIs e plataformas para centralizar informações e eliminar processos manuais.",

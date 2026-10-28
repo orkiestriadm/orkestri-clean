@@ -72,19 +72,20 @@
 
   /* ---------- Texto sobre o escuro ---------- */
   --color-chalk: #f4f6f9;
-  --color-chalk-dim: #99a0ad;
+  --color-chalk-dim: #adb4c2;
   /* #6a7280 dava 3,4:1 sobre o ink — reprova no AA para texto pequeno, que é
      justamente onde este tom é usado (legendas, microcópia). */
   --color-chalk-faint: #868e9d;
 
   /* ---------- Typography ---------- */
-  --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system,
-    "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-sans:
+    var(--font-inter), ui-sans-serif, system-ui, -apple-system, "Segoe UI",
+    Roboto, Helvetica, Arial, sans-serif;
   /* Archivo em largura expandida para as manchetes. Inter e Archivo são as
      duas grotescas, mas o eixo `wdth` as separa à primeira vista: a manchete
      fica larga e de engenharia, o texto corrido segue estreito e neutro. */
-  --font-display: var(--font-archivo), var(--font-inter), ui-sans-serif,
-    system-ui, sans-serif;
+  --font-display:
+    var(--font-archivo), var(--font-inter), ui-sans-serif, system-ui, sans-serif;
 
   /* Type scale (doc 06 — hierarchy) */
   --text-caption: 0.875rem; /* 14px */
@@ -206,8 +207,16 @@
      perto da fonte de luz e sumir antes de virar papel quadriculado. */
   .malha {
     background-image:
-      linear-gradient(to right, rgba(255, 255, 255, 0.045) 1px, transparent 1px),
-      linear-gradient(to bottom, rgba(255, 255, 255, 0.045) 1px, transparent 1px);
+      linear-gradient(
+        to right,
+        rgba(255, 255, 255, 0.045) 1px,
+        transparent 1px
+      ),
+      linear-gradient(
+        to bottom,
+        rgba(255, 255, 255, 0.045) 1px,
+        transparent 1px
+      );
     background-size: 64px 64px;
     -webkit-mask-image: radial-gradient(
       ellipse 58% 52% at 28% 0%,
@@ -293,7 +302,8 @@
      o retângulo aparece como um bloco — mesmo sem borda alguma. A máscara
      apaga os pixels das extremidades, e o cinza se desfaz no branco. */
   .screen-feather {
-    -webkit-mask-image: linear-gradient(
+    -webkit-mask-image:
+      linear-gradient(
         to right,
         transparent 0%,
         #000 5%,
@@ -308,7 +318,8 @@
         transparent 100%
       );
     -webkit-mask-composite: source-in;
-    mask-image: linear-gradient(
+    mask-image:
+      linear-gradient(
         to right,
         transparent 0%,
         #000 5%,
@@ -429,6 +440,576 @@
       animation-range: entry 5% exit 95%;
       will-change: transform;
     }
+  }
+}
+
+/* Modernização: luz e transições leves, sem vídeos ou rolagem controlada. */
+.hero-aurora {
+  background:
+    radial-gradient(
+      ellipse at 18% 15%,
+      rgba(255, 106, 26, 0.16),
+      transparent 48%
+    ),
+    radial-gradient(
+      ellipse at 90% 55%,
+      rgba(255, 163, 96, 0.06),
+      transparent 46%
+    );
+}
+.hero-highlight {
+  background: linear-gradient(110deg, #fff4e9, #ffab72 55%, #ff6a1a);
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+}
+.chat-grid {
+  background-image: radial-gradient(
+    rgba(255, 255, 255, 0.035) 1px,
+    transparent 1px
+  );
+  background-size: 18px 18px;
+}
+.journey-step {
+  cursor: pointer;
+  transition:
+    border-color 0.2s,
+    background-color 0.2s,
+    transform 0.2s;
+}
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+  .journey-step:hover {
+    transform: translateX(4px);
+  }
+}
+@keyframes aurora-drift {
+  from {
+    transform: translate3d(-2%, -1%, 0);
+  }
+  to {
+    transform: translate3d(2%, 2%, 0);
+  }
+}
+@keyframes chat-arrive {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .hero-aurora {
+    animation: aurora-drift 16s ease-in-out infinite alternate;
+  }
+  .chat-enter {
+    animation: chat-arrive 0.25s ease-out both;
+  }
+  .hero-enter {
+    animation: chat-arrive 0.6s ease-out both;
+  }
+}
+section[id] {
+  scroll-margin-top: 6rem;
+}
+
+/* Aurélia — linguagem visual: órbitas, vidro, profundidade e ritmo editorial. */
+.section-kicker {
+  color: #ffad77;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+.premium-surface {
+  position: relative;
+  isolation: isolate;
+  border: 1px solid rgba(255, 255, 255, 0.11);
+  background: linear-gradient(
+    145deg,
+    rgba(34, 38, 48, 0.94),
+    rgba(14, 16, 22, 0.98)
+  );
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.05) inset,
+    0 22px 60px -28px rgba(0, 0, 0, 0.8);
+}
+.premium-surface::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  pointer-events: none;
+  background: radial-gradient(
+    380px circle at var(--spot-x, 50%) var(--spot-y, 0%),
+    rgba(255, 160, 95, 0.13),
+    transparent 70%
+  );
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+.premium-surface:hover::before,
+.premium-surface:focus-within::before {
+  opacity: 1;
+}
+.reading-progress {
+  position: fixed;
+  inset: 0 auto auto 0;
+  z-index: 60;
+  height: 2px;
+  width: 100%;
+  background: linear-gradient(90deg, #ff6a1a, #ffd9b4);
+  transform: scaleX(0);
+  transform-origin: left;
+  pointer-events: none;
+}
+@keyframes page-progress {
+  to {
+    transform: scaleX(1);
+  }
+}
+@supports (animation-timeline: scroll()) {
+  .reading-progress {
+    animation: page-progress linear both;
+    animation-timeline: scroll();
+  }
+}
+.aurelia-stage {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-width: 0;
+  height: clamp(320px, 37vw, 530px);
+  isolation: isolate;
+}
+.aurelia-stage-grid {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  opacity: 0.28;
+  background: radial-gradient(circle, #8994ac 1px, transparent 1px);
+  background-size: 26px 26px;
+  mask-image: radial-gradient(ellipse, #000, transparent 70%);
+}
+.aurelia-orbits {
+  position: absolute;
+  width: min(100%, 520px);
+  height: 100%;
+  overflow: visible;
+}
+.aurelia-core {
+  display: grid;
+  place-items: center;
+  width: clamp(132px, 16vw, 218px);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  padding: 1px;
+  background: conic-gradient(
+    from 30deg,
+    #ffbe91,
+    #4b251b,
+    #f17e3b,
+    #5774a3,
+    #ffbe91
+  );
+  box-shadow:
+    0 0 80px -10px rgba(255, 106, 26, 0.24),
+    0 0 140px 30px rgba(102, 130, 192, 0.08);
+}
+.aurelia-core-inner {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  background: radial-gradient(
+    ellipse at 30% 20%,
+    #593a31,
+    #1c171d 45%,
+    #0b0c13 80%
+  );
+  box-shadow: 0 1px 28px rgba(255, 202, 164, 0.18) inset;
+  overflow: hidden;
+}
+.aurelia-core-inner > span {
+  font-family: Georgia, serif;
+  font-style: italic;
+  font-size: clamp(92px, 11vw, 152px);
+  line-height: 1;
+  color: #ffdcc2;
+  transform: translateY(-7%);
+  text-shadow: 0 0 30px rgba(255, 163, 104, 0.5);
+}
+.aurelia-core-inner > i {
+  position: absolute;
+  inset: 13%;
+  border: 1px solid rgba(255, 208, 170, 0.13);
+  border-radius: 45% 55% 55% 45%;
+  transform: rotate(35deg);
+}
+.aurelia-core-inner > i:nth-of-type(2) {
+  transform: rotate(95deg);
+  inset: 8%;
+}
+.aurelia-core-inner > i:nth-of-type(3) {
+  transform: rotate(-25deg);
+  inset: 19%;
+}
+.aurelia-float {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 17px;
+  border-radius: 17px;
+  backdrop-filter: blur(16px);
+  max-width: 91%;
+}
+.aurelia-float-top {
+  top: 8%;
+  left: 0;
+}
+.aurelia-float-bottom {
+  bottom: 9%;
+  right: 0;
+}
+.aurelia-float-icon {
+  display: grid;
+  place-items: center;
+  width: 35px;
+  height: 35px;
+  flex: 0 0 auto;
+  border-radius: 11px;
+  background: rgba(255, 139, 63, 0.12);
+  color: #ffc196;
+}
+.aurelia-float small {
+  display: block;
+  color: #a8b1c2;
+  font-size: 11px;
+  margin-bottom: 4px;
+}
+.aurelia-float strong {
+  display: block;
+  color: #f4f6f9;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.5;
+}
+.aurelia-orbit-label {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  bottom: -7px;
+  font-size: 11px;
+  letter-spacing: 0.02em;
+  color: #a8b1c2;
+}
+.aurelia-showcase {
+  background:
+    radial-gradient(
+      ellipse at 90% 50%,
+      rgba(94, 116, 165, 0.06),
+      transparent 55%
+    ),
+    #0e1016;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+.scenario-switch {
+  display: inline-grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  padding: 5px;
+  gap: 5px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 18px;
+  background: #080a10;
+}
+.scenario-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  padding: 12px 20px;
+  min-height: 46px;
+  border-radius: 13px;
+  color: #adb4c2;
+  font-size: 14px;
+  cursor: pointer;
+  transition:
+    color 0.2s,
+    background 0.2s,
+    box-shadow 0.2s;
+}
+.scenario-button:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.04);
+}
+.scenario-button.is-active {
+  color: #ffd6b6;
+  background: linear-gradient(135deg, #40271e, #241b19);
+  box-shadow:
+    0 1px 0 rgba(255, 199, 150, 0.18) inset,
+    0 5px 15px rgba(0, 0, 0, 0.2);
+}
+.conversation-window {
+  overflow: hidden;
+  border-radius: 25px;
+}
+.conversation-heading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 20px 24px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+.assistant-avatar {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 43px;
+  height: 43px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 30% 20%, #805039, #221920);
+  border: 1px solid #9c6444;
+  color: #ffdfc6;
+  font:
+    italic 34px/1 Georgia,
+    serif;
+  padding-bottom: 4px;
+}
+.conversation-context {
+  margin-left: auto;
+  padding: 5px 9px;
+  border-radius: 100px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  font-size: 10px;
+  color: #bbc3d0;
+}
+.conversation-body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-height: 330px;
+  padding: 22px 24px;
+  background: radial-gradient(
+    ellipse at 100% 0%,
+    rgba(255, 139, 60, 0.04),
+    transparent 70%
+  );
+}
+.conversation-caption {
+  text-align: center;
+  color: #9da7b8;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  margin-bottom: 5px;
+}
+.bubble {
+  max-width: 89%;
+  padding: 14px 17px;
+  font-size: 14px;
+  line-height: 1.65;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+.bubble-out {
+  align-self: flex-end;
+  border-radius: 17px 5px 17px 17px;
+  background: #27342f;
+  color: #eff7f1;
+}
+.bubble-out > svg {
+  margin: 7px 0 0 auto;
+  color: #b9cde9;
+}
+.bubble-in {
+  align-self: flex-start;
+  border-radius: 5px 17px 17px 17px;
+  background: #1c2029;
+  color: #dbe0e8;
+}
+.bubble-in > span {
+  display: block;
+  color: #ffc399;
+  font-size: 11px;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+.conversation-actions {
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+  padding: 16px 24px;
+}
+.conversation-command {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  min-height: 43px;
+  gap: 10px;
+  border-radius: 12px;
+  padding: 10px 13px;
+  text-align: left;
+  font-size: 12px;
+  color: #ffd4b5;
+  border: 1px solid rgba(255, 164, 104, 0.2);
+  background: rgba(255, 141, 61, 0.05);
+  cursor: pointer;
+}
+.conversation-command:hover {
+  background: rgba(255, 141, 61, 0.11);
+}
+.agenda-editorial {
+  background: #edeae5;
+  color: #484b52;
+  position: relative;
+  overflow: hidden;
+}
+.agenda-editorial h2,
+.agenda-editorial h3 {
+  color: #202329;
+}
+.agenda-editorial .section-kicker {
+  color: #9c451c;
+}
+.agenda-frame {
+  padding: 10px;
+  border-radius: 25px;
+  background: #15181f;
+  box-shadow:
+    0 22px 60px -25px rgba(17, 24, 39, 0.45),
+    0 1px 1px #fff inset;
+}
+.agenda-frame figure::before {
+  display: none;
+}
+.editorial-benefit {
+  display: flex;
+  gap: 12px;
+  padding-top: 18px;
+  border-top: 1px solid #d2d0cd;
+}
+.editorial-benefit > svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: #a44f23;
+}
+.editorial-benefit h3 {
+  font-size: 14px;
+  font-weight: 650;
+}
+.editorial-benefit p {
+  font-size: 13px;
+  line-height: 1.6;
+  margin-top: 5px;
+}
+.nav-active {
+  background: rgba(255, 255, 255, 0.055);
+  color: #fff;
+  box-shadow: 0 -1px 0 #ff8a3d inset;
+}
+.page-orbit {
+  position: absolute;
+  width: 460px;
+  height: 460px;
+  right: -130px;
+  top: -130px;
+  border: 1px solid rgba(255, 184, 130, 0.12);
+  border-radius: 50%;
+  box-shadow:
+    0 0 0 65px rgba(255, 255, 255, 0.015),
+    0 0 0 130px rgba(255, 255, 255, 0.01);
+  transform: rotate(-25deg) scaleY(0.65);
+}
+@keyframes surface-arrive {
+  from {
+    transform: translateY(14px);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+@supports (animation-timeline: view()) {
+  @media (prefers-reduced-motion: no-preference) {
+    .scroll-reveal {
+      animation: surface-arrive linear both;
+      animation-timeline: view();
+      animation-range: entry 0% entry 30%;
+    }
+  }
+}
+@keyframes orbit-turn {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes aurelia-breathe {
+  50% {
+    transform: scale(1.035);
+  }
+}
+@keyframes gentle-float {
+  50% {
+    transform: translateY(-7px);
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .aurelia-orbit-motion {
+    transform-origin: 260px 260px;
+    animation: orbit-turn 45s linear infinite;
+  }
+  .aurelia-core {
+    animation: aurelia-breathe 7s ease-in-out infinite;
+  }
+  .aurelia-float-top {
+    animation: gentle-float 8s ease-in-out infinite;
+  }
+  .aurelia-float-bottom {
+    animation: gentle-float 8s ease-in-out -4s infinite;
+  }
+  .scenario-copy {
+    animation: chat-arrive 0.3s ease-out both;
+  }
+}
+@media (max-width: 639px) {
+  .aurelia-stage {
+    height: 310px;
+  }
+  .scenario-switch {
+    width: 100%;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .scenario-button {
+    padding: 12px 9px;
+    font-size: 13px;
+  }
+  .scenario-button:last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+  }
+  .conversation-heading {
+    padding: 17px;
+    flex-wrap: wrap;
+  }
+  .conversation-context {
+    margin-left: 55px;
+    margin-top: -3px;
+  }
+  .conversation-body {
+    padding: 20px 16px;
+  }
+  .conversation-actions {
+    padding: 14px 16px;
+  }
+  .bubble {
+    max-width: 94%;
+  }
+  .agenda-frame {
+    padding: 5px;
+    border-radius: 18px;
   }
 }
 

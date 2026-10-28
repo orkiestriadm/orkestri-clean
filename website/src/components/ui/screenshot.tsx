@@ -33,6 +33,7 @@ export function Screenshot({
   zoomOnHover = true,
   uniform = false,
   bordered = true,
+  reflection = true,
   className,
 }: {
   src: string;
@@ -55,6 +56,7 @@ export function Screenshot({
    * com a própria tela do produto.
    */
   bordered?: boolean;
+  reflection?: boolean;
   className?: string;
 }) {
   const surface = useRef<HTMLDivElement>(null);
@@ -203,7 +205,7 @@ export function Screenshot({
                 className={cn(
                   "pointer-events-none absolute bottom-4 right-4 z-20 inline-flex items-center gap-1.5",
                   "rounded-full border border-white/15 bg-ink/75 px-3 py-1.5 text-xs font-medium text-white",
-                  "opacity-0 backdrop-blur-sm transition-opacity duration-200 group-hover:opacity-100"
+                  "opacity-100 backdrop-blur-sm transition-opacity duration-200 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100"
                 )}
               >
                 <ZoomIn className="h-3.5 w-3.5" />
@@ -214,6 +216,7 @@ export function Screenshot({
         </Dialog.Trigger>
 
         {/* 5. Reflexo — assenta o card no fundo */}
+        {reflection && (
         <div
           aria-hidden
           className={cn(
@@ -222,6 +225,7 @@ export function Screenshot({
             "transition-all duration-[280ms] group-hover:w-[92%] group-hover:opacity-80"
           )}
         />
+        )}
       </figure>
 
       {/* ── Galeria em tela cheia ─────────────────────────────────────────── */}
@@ -234,6 +238,7 @@ export function Screenshot({
           )}
         >
           <Dialog.Title className="sr-only">{alt}</Dialog.Title>
+          <Dialog.Description className="sr-only">Captura de tela do produto em tamanho ampliado. Role para ver os detalhes ou pressione Escape para fechar.</Dialog.Description>
 
           {/* Barra de ações — só o fechar. A imagem já abre grande, então o
               alternador de tamanho virava um passo extra sem ganho. */}

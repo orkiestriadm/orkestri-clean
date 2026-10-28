@@ -1,22 +1,27 @@
-# Trabalho compartilhado entre IAs
+# Base compartilhada entre Codex e Claude
 
-## Proteção da produção
-- Sincronizar com o GitHub não autoriza publicar em produção.
-- Não executar deploy, SSH de escrita, rsync/scp, migrations, seeds, testes contra serviços reais, reinício de containers ou alteração de configuração de produção sem autorização expressa para essa operação.
-- Não fazer push direto, force-push ou merge na main nesta tarefa de sincronização. Usar branches codex/ e PRs em rascunho, sem auto-merge.
-- Antes de publicar uma branch ou abrir PR, verificar workflows e integrações de deploy. Se puderem afetar produção, interromper essa etapa e explicar o bloqueio.
+## Referência atual
+- Usar a branch remota `codex/sync-20261028/coordination` enquanto o PR #15 estiver aberto. Depois de sua integração revisada, usar `main` atualizada.
+- A base de código foi copiada dos fontes observados em produção em 28/10/2026: API e frontend 4.3.0; site 3.3.2. Os hashes dos 530 arquivos auditados constam em `docs/baselines/production-20261028.json`.
+- Ler `docs/SINCRONIZACAO_GITHUB.md` e `docs/PARIDADE_PRODUCAO_2026-10-28.md` antes de trabalhar.
+- A pasta antiga `C:/orkestri-clean` e as antigas pastas do Claude contêm linhas históricas/Hub preservadas. Não usá-las como fonte de uma nova alteração da versão atual nem copiá-las sobre esta base.
 
-## Começo de cada trabalho
-1. Ler docs/SINCRONIZACAO_GITHUB.md e docs/INVENTARIO_SINCRONIZACAO_2026-10-28.md.
-2. Conferir git status, branch e git worktree list. Preservar alterações existentes, inclusive de outras IAs.
-3. Executar git fetch origin e escolher a base pelo produto. main é a referência compartilhada do código resgatado de produção; a raiz desta pasta local está na linha Hub e não equivale à main.
-4. Criar uma branch de trabalho a partir da referência escolhida. Se houver trabalho local pendente, preservá-lo antes de trocar de branch; preferir uma pasta de trabalho separada.
-5. Não substituir backend/frontend da main por cópias de apps/, work/ ou branches Hub. Essas árvores são versões divergentes para consulta e revisão.
+## Produção
+- Sincronização Git não autoriza deploy. Não executar deploy, SSH de escrita, rsync/scp para servidor, migrations, seeds, testes com serviços reais ou reinício de containers sem autorização expressa para essa operação.
+- Nesta sincronização, não fazer push direto, force-push ou merge na main. Usar branches codex/ e PRs em rascunho, sem auto-merge.
+- Conferir workflows e integrações antes de push/PR. Se puderem afetar produção, interromper essa etapa e explicar.
+- Nunca alterar produção para fazê-la coincidir com o Git. Nesta base, a direção autorizada foi produção para código local/GitHub.
 
-## Final de cada trabalho
-- Revisar git diff e os arquivos novos; nunca usar git add . sem revisão.
-- Não publicar .env, chaves, tokens, dumps, dados de clientes, sessões, caches ou artefatos de build. Este repositório é público.
-- Executar apenas validações locais isoladas pertinentes. Testes de integração podem escrever em banco ou enviar mensagens; conferir antes de rodar.
-- Salvar código e documentação em commits e fazer push da branch autorizada. Informar branch e SHA, verificações realizadas e pendências.
-- Registrar decisões e estado do trabalho em documentação versionada. Histórico de chat e configurações privadas não acompanham o clone.
-- Branches codex/sync-20261028/* são cópias de preservação, não releases validadas. Integrar diferenças seletivamente, com testes e revisão.
+## Fluxo obrigatório para ambas as IAs
+1. Ler este arquivo, `CLAUDE.md` e os documentos de paridade/sincronização.
+2. Conferir status, branch e worktrees. Preservar trabalho pendente de outras sessões; não usar reset --hard ou clean para trocar de versão.
+3. Executar `git fetch origin`. Em árvore limpa da base correta, atualizar com `git pull --ff-only`. Partir da mesma referência remota indicada acima.
+4. Criar uma branch de tarefa. Para trabalhos simultâneos, usar pastas separadas com a mesma base; não exigir que duas IAs editem a mesma árvore ao mesmo tempo.
+5. Implementar e executar validações locais isoladas pertinentes. `node scripts/verify-source-baseline.cjs` confere o retrato inicial de produção; diferenças depois de uma tarefa são esperadas e precisam ser explicadas, sem reescrever o manifesto para esconder mudanças.
+6. Revisar diff e arquivos novos, salvar commits e fazer push da branch autorizada. Nunca usar `git add .` sem revisar os arquivos.
+7. Informar branch, SHA, testes e pendências. Registrar decisões e a nova referência compartilhada em documentação; o histórico do chat não acompanha o clone.
+
+## Privacidade e histórico
+- O repositório é público. Não publicar .env, tokens, chaves, dumps, dados de clientes, sessões, caches ou builds.
+- Branches históricas `codex/sync-20261028/*` exceto `coordination` preservam trabalhos divergentes; não são a base atual nem releases aprovadas.
+- Não substituir esta árvore pelas cópias apps/, work/ ou por fontes da linha Hub. Consultar o inventário para recuperar trabalho antigo seletivamente.

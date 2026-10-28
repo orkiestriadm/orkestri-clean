@@ -18,6 +18,21 @@ import { MARCA } from "../../common/marca";
 // Aqui ficam só as regras e os textos, sem banco nem WhatsApp, para serem
 // testáveis.
 
+/**
+ * Duração da gratuidade. Única porta de entrada é o cadastro pela Aurélia, no
+ * WhatsApp, e toda conta nova nasce com este prazo — antes disso, quem entrava
+ * por ali ficava com acesso permanente e de graça, fora de qualquer cobrança.
+ */
+export const DIAS_DE_TESTE = 7;
+
+/** O módulo do teste. "one-space" é o produto único de R$ 11,90 com tudo. */
+export const PRODUTO_PADRAO = "one-space";
+
+/** Quando o teste de uma conta criada agora termina. */
+export function fimDoTeste(agora = new Date()): Date {
+  return new Date(agora.getTime() + DIAS_DE_TESTE * 24 * 60 * 60 * 1000);
+}
+
 /** Antecedência do primeiro aviso, em dias de calendário. */
 export const MARCOS_AVISO = [3, 1, 0] as const;
 

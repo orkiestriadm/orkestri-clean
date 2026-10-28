@@ -1,4 +1,4 @@
-import { Module, Controller, Get, Post, Patch, Param, Body, UseGuards, Injectable, CanActivate, ExecutionContext, ForbiddenException, BadRequestException, NotFoundException, OnModuleInit, OnModuleDestroy, Logger } from '@nestjs/common';
+import { Module, Controller, Get, Post, Patch, Delete, Param, Body, UseGuards, Injectable, CanActivate, ExecutionContext, ForbiddenException, BadRequestException, NotFoundException, OnModuleInit, OnModuleDestroy, Logger } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { IsString, IsOptional, IsBoolean, IsIn, IsArray, ArrayMaxSize, ArrayMinSize, MaxLength, IsDateString, ValidateNested, MinLength } from 'class-validator';
 import { Type } from 'class-transformer';
@@ -56,6 +56,9 @@ class BulkDto {
   @IsIn(['LIBERAR', 'REVISAR', 'ARQUIVAR', 'RESTAURAR', 'BLOQUEAR', 'DESBLOQUEAR', 'ETAPA', 'LISTA']) acao: string;
   @IsOptional() @IsString() @MaxLength(100) valor?: string;
 }
+class DeleteManyDto {
+  @IsArray() @ArrayMinSize(1) @ArrayMaxSize(5000) @IsString({ each: true }) ids: string[];
+}
 class SendDto {
   @IsArray() @ArrayMinSize(1) @ArrayMaxSize(1000) @IsString({ each: true }) ids: string[];
   @IsString() @MaxLength(4000) texto: string;
@@ -97,6 +100,7 @@ export class ProspectsWorker implements OnModuleInit, OnModuleDestroy {
 @UseGuards(AuthGuard('jwt'), ProspectSaGuard)
 export class ProspectsController {
   constructor(private prisma: PrismaService) {}
+  private logger = new Logger(ProspectsController.name);
   private get db(): any { return this.prisma; }
   @Get()
   list() { return this.db.prospectLead.findMany({ orderBy: { criadoEm: 'desc' }, include: { mensagens: { orderBy: { criadoEm: 'desc' }, take: 20 } } }); }
@@ -156,6 +160,40 @@ export class ProspectsController {
     }
     try { return await this.db.prospectLead.update({ where: { id }, data }); }
     catch (e) { if (e.code === 'P2002') throw new BadRequestException('Este telefone já pertence a outro contato'); throw e; }
+  }
+  /**
+   * Exclusão DEFINITIVA — não é o `arquivado`, que esconde e pode ser
+   * restaurado. Existe porque a base veio de importação de agenda e tem
+   * contato que não deveria estar aqui: arquivar deixa o telefone guardado,
+   * e para esses o certo é sumir.
+   *
+   * O histórico vai junto, na MESMA transação. `ProspectMessage.lead` é uma
+   * relação obrigatória sem cascade, então apagar o lead com mensagens falha
+   * na FK — e apagar as mensagens fora da transação deixaria o histórico
+   * perdido se o lead não fosse embora.
+   */
+  private async excluir(ids: string[]) {
+    const unicos = [...new Set(ids)];
+    return this.prisma.$transaction(async (tx: any) => {
+      const alvos = await tx.prospectLead.findMany({ where: { id: { in: unicos } }, select: { id: true } });
+      if (!alvos.length) throw new NotFoundException('Nenhum contato encontrado para excluir');
+      const encontrados = alvos.map((l: any) => l.id);
+      const mensagens = await tx.prospectMessage.deleteMany({ where: { leadId: { in: encontrados } } });
+      const leads = await tx.prospectLead.deleteMany({ where: { id: { in: encontrados } } });
+      return { excluidos: leads.count, mensagensRemovidas: mensagens.count, naoEncontrados: unicos.length - encontrados.length };
+    });
+  }
+  @Delete(':id')
+  async remover(@Param('id') id: string) {
+    const r = await this.excluir([id]);
+    this.logger.warn(`Lead ${id} excluído definitivamente (${r.mensagensRemovidas} mensagens).`);
+    return r;
+  }
+  @Post('excluir')
+  async removerVarios(@Body() body: DeleteManyDto) {
+    const r = await this.excluir(body.ids);
+    this.logger.warn(`${r.excluidos} leads excluídos definitivamente (${r.mensagensRemovidas} mensagens).`);
+    return r;
   }
   @Post('enviar')
   async enviar(@Body() body: SendDto) {

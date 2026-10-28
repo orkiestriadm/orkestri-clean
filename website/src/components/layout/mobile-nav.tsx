@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import { X, ChevronDown, MessageCircle } from "lucide-react";
 import { Logo } from "./logo";
 import { WHATSAPP_CADASTRO } from "@/config/site";
@@ -14,24 +15,29 @@ import { EASE_OUT } from "@/lib/motion";
 const staticLinks = [
   { label: "Empresa", href: "/company" },
   { label: "Tecnologia", href: "/technology" },
-  { label: "Cases", href: "/cases" },
-  { label: "Blog", href: "/blog" },
+  { label: "Como funciona", href: "/demo" },
   { label: "Contato", href: "/contact" },
 ];
 
 /** Mobile drawer — slides from the right (doc 08 — drawer). */
 export function MobileNav({ onClose }: { onClose: () => void }) {
   const [section, setSection] = useState<"products" | "services" | null>(null);
+  const panel = useRef<HTMLElement>(null);
+  const reduceMotion = useReducedMotion();
 
   useEffect(() => {
+    const previousOverflow = document.body.style.overflow;
+    const previousFocus = document.activeElement as HTMLElement | null;
     document.body.style.overflow = "hidden";
+    panel.current?.querySelector<HTMLButtonElement>('button[aria-label="Fechar menu"]')?.focus();
     return () => {
-      document.body.style.overflow = "";
+      document.body.style.overflow = previousOverflow;
+      previousFocus?.focus();
     };
   }, []);
 
-  return (
-    <div className="fixed inset-0 z-50 lg:hidden">
+  return createPortal(
+    <div className="fixed inset-0 z-50 xl:hidden">
       <motion.div
         className="absolute inset-0 bg-black/60 backdrop-blur-sm"
         initial={{ opacity: 0 }}
@@ -40,14 +46,28 @@ export function MobileNav({ onClose }: { onClose: () => void }) {
         onClick={onClose}
       />
       <motion.aside
+        ref={panel}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Menu principal"
+        onKeyDown={(event) => {
+          if (event.key === "Escape") { event.stopPropagation(); onClose(); }
+          if (event.key !== "Tab") return;
+          const items = panel.current?.querySelectorAll<HTMLElement>('a[href], button:not([disabled])');
+          if (!items?.length) return;
+          const first = items[0];
+          const last = items[items.length - 1];
+          if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+          else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+        }}
         /* Gaveta escura: a home é escura e abrir o menu nela devolvia um
            clarão branco. Sob as páginas claras ela continua legível, como
            qualquer folha escura sobre fundo claro. */
         className="absolute right-0 top-0 flex h-full w-[min(88vw,380px)] flex-col border-l border-white/[0.08] bg-ink"
-        initial={{ x: "100%" }}
+        initial={reduceMotion ? false : { x: "100%" }}
         animate={{ x: 0 }}
-        exit={{ x: "100%" }}
-        transition={{ duration: 0.3, ease: EASE_OUT }}
+        exit={reduceMotion ? { opacity: 0 } : { x: "100%" }}
+        transition={{ duration: reduceMotion ? 0 : 0.3, ease: EASE_OUT }}
       >
         <div className="flex h-20 items-center justify-between border-b border-white/[0.08] px-6">
           <Logo tone="light" />
@@ -129,10 +149,10 @@ export function MobileNav({ onClose }: { onClose: () => void }) {
             className="inline-flex h-[52px] w-full items-center justify-center gap-2 rounded-(--radius-button) bg-signal font-semibold text-[#06281A] transition-colors hover:bg-signal-hover"
           >
             <MessageCircle className="h-5 w-5" aria-hidden />
-            Criar minha conta no WhatsApp
+            Cadastre-se é gratuito!
           </a>
           <a
-            href="/entrar"
+            href="/login"
             onClick={onClose}
             className="inline-flex h-[52px] w-full items-center justify-center rounded-(--radius-button) border border-white/[0.12] font-medium text-chalk transition-colors hover:bg-white/[0.05]"
           >
@@ -140,7 +160,8 @@ export function MobileNav({ onClose }: { onClose: () => void }) {
           </a>
         </div>
       </motion.aside>
-    </div>
+    </div>,
+    document.body,
   );
 }
 
