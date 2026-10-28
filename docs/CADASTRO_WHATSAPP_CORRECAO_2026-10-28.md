@@ -1,6 +1,6 @@
 # Cadastro único pelo WhatsApp — correção e testes
 
-Estado: 28/10/2026. Alteração preparada na branch `codex/fix-whatsapp-signup-flow`, a partir da base compartilhada `df9f908`. Não houve deploy, escrita em produção ou envio de mensagem real.
+Estado: publicado em 28/10/2026, após autorização expressa. A correção parte da base compartilhada df9f908 e está na branch codex/fix-whatsapp-signup-flow. Evidências em DEPLOY_CADASTRO_WHATSAPP_2026-10-28.md.
 
 ## Problema reproduzido
 
@@ -44,4 +44,4 @@ npm run test:signup
 
 O comando recusa um endpoint Docker remoto, cria um container com nome e label únicos, publica somente em 127.0.0.1 e porta aleatória, prepara exclusivamente o banco `codex_signup_audit`, executa os testes e remove o próprio container. Não lê a DATABASE_URL do ambiente como destino e não regenera o cliente Prisma compartilhado.
 
-A produção continuará com o comportamento anterior até uma publicação expressamente autorizada. Não executar deploy como consequência do push ou da criação do PR.
+A publicação autorizada foi concluída; consulte o registro de deploy. Futuras publicações continuam exigindo autorização separada.
