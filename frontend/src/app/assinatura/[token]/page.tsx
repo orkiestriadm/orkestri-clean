@@ -46,12 +46,41 @@ type Estado = {
   renovacaoAuto: boolean;
   proximoPeriodoAte: string | null;
   pix: { copiaECola: string; expiraEm: string | null } | null;
+  ultimoPagamento: Pagamento | null;
+};
+
+type Pagamento = {
+  pagoEm: string | null;
+  valorCentavos: number;
+  meio: string | null;
+  liberouAte: string | null;
 };
 
 type Pix = { copiaECola: string; qrCodeBase64: string | null; expiraEm: string | null };
 
+/**
+ * Por quanto tempo o pagamento é a notícia da tela.
+ *
+ * Dentro da janela, quem abre o link vê "pagamento confirmado" em vez dos
+ * botões: é a pessoa que acabou de pagar e voltou para conferir. Depois disso
+ * a tela volta a ser a de pagar, com o último pagamento numa linha de apoio.
+ */
+const JANELA_CONFIRMACAO_MS = 24 * 60 * 60 * 1000;
+
 const dia = (iso: string | null) =>
   iso ? new Date(iso).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" }) : "";
+
+const reais = (centavos: number) =>
+  (centavos / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+
+const comoPagou = (meio: string | null) => (meio === "pix" ? " no Pix" : meio === "cartao" ? " no cartão" : "");
+
+/** O pagamento ainda sustenta o acesso? É o que torna um novo pagamento desnecessário. */
+const aindaVale = (p: Pagamento | null, agora = Date.now()) =>
+  !!p?.liberouAte && new Date(p.liberouAte).getTime() > agora;
+
+const recemPago = (p: Pagamento | null, agora = Date.now()) =>
+  !!p?.pagoEm && agora - new Date(p.pagoEm).getTime() < JANELA_CONFIRMACAO_MS;
 
 export default function AssinaturaPage() {
   const params = useParams<{ token: string }>();
@@ -84,7 +113,13 @@ export default function AssinaturaPage() {
   useEffect(() => {
     if (!token) return;
     carregar()
-      .then((d) => { if (d?.pix) { setPix({ ...d.pix, qrCodeBase64: null }); venceEmNoPix.current = d.venceEm; } })
+      .then((d) => {
+        if (!d) return;
+        // Quem pagou e recarregou cai aqui. Sem isto, a tela volta a pedir
+        // pagamento e o passo natural de quem acha que falhou é pagar de novo.
+        if (recemPago(d.ultimoPagamento)) { setPago(true); return; }
+        if (d.pix) { setPix({ ...d.pix, qrCodeBase64: null }); venceEmNoPix.current = d.venceEm; }
+      })
       .finally(() => setCarregando(false));
   }, [token, carregar]);
 
@@ -154,7 +189,10 @@ export default function AssinaturaPage() {
               <p className="text-sm" style={{ color: "var(--text-secondary)" }}>Carregando…</p>
             </div>
           ) : pago ? (
-            <Confirmado estado={estado} />
+            <Confirmado
+              estado={estado}
+              onAdiantar={estado?.podeRenovar && !estado?.renovacaoAuto ? () => setPago(false) : undefined}
+            />
           ) : !estado ? (
             <Aviso titulo="Link indisponível" texto={erro || "Não conseguimos abrir esta página."} />
           ) : estado.renovacaoAuto && !pix ? (
@@ -190,6 +228,10 @@ export default function AssinaturaPage() {
                 <div className="rounded-xl p-3 mb-4 text-xs" style={{ background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.2)", color: "#f59e0b" }}>
                   {erro}
                 </div>
+              )}
+
+              {!pix && aindaVale(estado.ultimoPagamento) && (
+                <JaPago pagamento={estado.ultimoPagamento!} />
               )}
 
               {pix ? (
@@ -281,7 +323,8 @@ function PixAberto({ pix, copiado, onCopiar }: { pix: Pix; copiado: boolean; onC
   );
 }
 
-function Confirmado({ estado }: { estado: Estado | null }) {
+function Confirmado({ estado, onAdiantar }: { estado: Estado | null; onAdiantar?: () => void }) {
+  const p = estado?.ultimoPagamento ?? null;
   return (
     <div className="text-center">
       <div className="mx-auto mb-6 w-20 h-20 rounded-full flex items-center justify-center" style={{ background: "rgba(34,197,94,0.1)", border: "2px solid rgba(34,197,94,0.3)" }}>
@@ -289,6 +332,11 @@ function Confirmado({ estado }: { estado: Estado | null }) {
       </div>
       <h1 className="text-2xl font-bold mb-2" style={{ color: "var(--text-primary)" }}>Pagamento confirmado!</h1>
       <p className="text-sm mb-6 leading-relaxed" style={{ color: "var(--text-secondary)" }}>
+        {p?.pagoEm && (
+          <>
+            Recebemos {reais(p.valorCentavos)}{comoPagou(p.meio)} em {dia(p.pagoEm)}.{" "}
+          </>
+        )}
         Seu acesso está liberado{estado?.venceEm ? ` até ${dia(estado.venceEm)}` : ""}. Já pode entrar.
       </p>
       <Link
@@ -298,6 +346,37 @@ function Confirmado({ estado }: { estado: Estado | null }) {
       >
         Entrar no sistema →
       </Link>
+
+      {onAdiantar && (
+        <button
+          onClick={onAdiantar}
+          className="mt-4 text-xs underline underline-offset-2 transition-opacity hover:opacity-80"
+          style={{ color: "var(--text-muted)" }}
+        >
+          Quero adiantar o próximo mês
+        </button>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Linha de apoio quando o pagamento já saiu da janela de notícia mas ainda
+ * sustenta o acesso. Existe para quem volta ao link dias depois não achar que
+ * o pagamento se perdeu — e pagar o mesmo mês outra vez.
+ */
+function JaPago({ pagamento }: { pagamento: Pagamento }) {
+  return (
+    <div
+      className="rounded-xl p-3 mb-4 text-xs flex items-start gap-2"
+      style={{ background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.2)", color: "#22c55e" }}
+    >
+      <CheckCircle2 size={14} className="mt-0.5 shrink-0" />
+      <span>
+        Seu pagamento de {reais(pagamento.valorCentavos)}
+        {comoPagou(pagamento.meio)} entrou{pagamento.pagoEm ? ` em ${dia(pagamento.pagoEm)}` : ""} e liberou o
+        acesso até {dia(pagamento.liberouAte)}. Só pague de novo se quiser adiantar o mês seguinte.
+      </span>
     </div>
   );
 }

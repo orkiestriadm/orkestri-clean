@@ -5,7 +5,8 @@ import { ConfigService } from "@nestjs/config";
 import { PrismaService } from "../../prisma/prisma.service";
 import { CacheService } from "../cache/cache.service";
 import { registrarIndicacao, montarMensagemAtivacao, codigoIndicacao } from "../referral/referral.helpers";
-import { LEMBRETE_ANTECEDENCIA_MS, marcoDoAviso, montarLembrete, codigoRenovacao, faseDaConta, acessoVencido } from "./trial-renovacao";
+import { LEMBRETE_ANTECEDENCIA_MS, marcoDoAviso, montarLembrete, codigoRenovacao, faseDaConta, acessoVencido, DIAS_DE_TESTE } from "./trial-renovacao";
+import { linkCadastroWhatsapp } from "../cadastro-whatsapp/whatsapp-entrada";
 import { urlCheckout } from "../assinatura/checkout-token";
 import { WhatsAppService } from "../notifications/whatsapp.service";
 import { EmailService } from "../notifications/email.service";
@@ -1190,7 +1191,6 @@ export class AuthService implements OnModuleInit {
 
   // ── Acesso de teste (trial de 7 dias, criado pela landing page) ─────────────────
 
-  private readonly TRIAL_DIAS = 7;
   private readonly TRIAL_ORG = "00000000-0000-0000-0000-000000000001";
 
   // Produto Orkiestri One escolhido no modal -> RECURSOS de permissão que o
@@ -1217,103 +1217,29 @@ export class AuthService implements OnModuleInit {
    * pendência (e-mail + produto + código) fica no cache por 10 min — nada é
    * criado no banco até a confirmação do código.
    */
-  async iniciarTrial(dto: { email: string; whatsapp: string; produto: string; codigoIndicacao?: string }) {
-    const email = dto.email.trim().toLowerCase();
-    const whatsapp = dto.whatsapp.trim();
-    const digits = whatsapp.replace(/\D/g, "");
-    if (digits.length < 10) throw new BadRequestException("Informe um WhatsApp válido com DDD.");
-
-    const existing = await this.prisma.user.findFirst({ where: { email } });
-    if (existing) throw new BadRequestException("Já existe um acesso com esse e-mail. Faça login ou fale com a nossa equipe.");
-
-    // Um teste ativo por número.
-    const trialAtivo = await this.prisma.user.findFirst({
-      where: { isTrial: true, trialExpiraEm: { gt: new Date() }, profile: { whatsapp } } as any,
-    });
-    if (trialAtivo) throw new BadRequestException("Já existe um teste ativo para este WhatsApp.");
-
-    const code = String(Math.floor(100000 + Math.random() * 900000));
-    await this.cache.set(`trial:otp:${digits}`, { email, produto: dto.produto, code, tentativas: 0, codigoIndicacao: (dto.codigoIndicacao || "").trim() || undefined }, 600);
-
-    const inst = await this.wa.resolveInstance(this.TRIAL_ORG).catch(() => undefined);
-    const enviado = await this.wa.sendTrialOtp(whatsapp, code, inst).catch(() => false);
-    if (!enviado) {
-      await this.cache.del(`trial:otp:${digits}`);
-      throw new BadRequestException("Não conseguimos enviar o código no WhatsApp. Confira o número e tente novamente.");
-    }
-    return { message: "Enviamos um código no seu WhatsApp." };
+  /**
+   * FECHADA. A conta de teste nascia aqui, pelo modal do site, e este era o
+   * único caminho que colocava alguém no ciclo de cobrança — quem entrava pela
+   * Aurélia ficava de graça para sempre. A entrada agora é só pelo WhatsApp, e
+   * é lá que os 7 dias começam a contar.
+   *
+   * Responde com o caminho novo em vez de 410 porque o modal do site mostra
+   * esta mensagem para a pessoa: um erro seco deixaria o visitante sem saída.
+   */
+  private portaFechada(): never {
+    throw new BadRequestException(
+      `O cadastro agora é pelo WhatsApp, com a Aurélia: ${linkCadastroWhatsapp()} — ` +
+        `são ${DIAS_DE_TESTE} dias para testar, sem pagar nada.`,
+    );
   }
 
-  /**
-   * Passo 2: confere o código e, se bater, cria o acesso de teste (7 dias, só o
-   * módulo escolhido, senha padrão) e manda as credenciais + boas-vindas por
-   * WhatsApp.
-   */
-  async confirmarTrial(dto: { whatsapp: string; codigo: string }) {
-    const whatsapp = dto.whatsapp.trim();
-    const digits = whatsapp.replace(/\D/g, "");
-    const chave = `trial:otp:${digits}`;
-    const pend: any = await this.cache.get(chave);
-    if (!pend) throw new BadRequestException("Código expirado. Peça um novo.");
-    if ((pend.tentativas || 0) >= 5) {
-      await this.cache.del(chave);
-      throw new BadRequestException("Muitas tentativas. Peça um novo código.");
-    }
-    if (pend.code !== dto.codigo.trim()) {
-      await this.cache.set(chave, { ...pend, tentativas: (pend.tentativas || 0) + 1 }, 600);
-      throw new BadRequestException("Código inválido.");
-    }
-    await this.cache.del(chave);
+  async iniciarTrial(_dto: { email: string; whatsapp: string; produto: string; codigoIndicacao?: string }) {
+    this.portaFechada();
+  }
 
-    const email = pend.email;
-    const existing = await this.prisma.user.findFirst({ where: { email } });
-    if (existing) throw new BadRequestException("Já existe um acesso com esse e-mail.");
-
-    const tempPassword = "123@mudar";
-    const senhaHash = await bcrypt.hash(tempPassword, 12);
-    const role = await this.prisma.role.findFirst({
-      where: { organizationId: this.TRIAL_ORG, nome: "visualizador", isMaster: false },
-    });
-    // Informativo (o gate real é resolvePermissions pelo trialModulo). Guarda os
-    // recursos do produto para a tela refletir o que o trial enxerga.
-    const modulos = this.TRIAL_PRODUTO_RECURSOS[pend.produto] || [];
-    const nome = String(email).split("@")[0];
-    const userId = require("crypto").randomUUID();
-    const expira = new Date(Date.now() + this.TRIAL_DIAS * 24 * 60 * 60 * 1000);
-
-    await this.prisma.user.create({
-      data: {
-        id: userId, nome, email, senhaHash, ativo: true, primeiroAcesso: true,
-        bloqueado: false, tentativasFalhas: 0, organizationId: this.TRIAL_ORG,
-        isTrial: true, trialExpiraEm: expira, trialModulo: pend.produto,
-      } as any,
-    });
-    await this.prisma.userProfile.create({
-      data: {
-        id: require("crypto").randomUUID(), userId, whatsapp,
-        modulos: JSON.stringify(modulos),
-      } as any,
-    });
-    if (role) {
-      await this.prisma.userRole.create({ data: { userId, roleId: role.id } as any });
-    }
-
-    // Indicação (referral) — best-effort, nunca quebra o cadastro.
-    const indicadorNome = pend.codigoIndicacao
-      ? await registrarIndicacao(this.prisma, pend.codigoIndicacao, userId).catch(() => null)
-      : null;
-
-    const appUrl = this.config.get("APP_URL", "http://localhost");
-    const inst = await this.wa.resolveInstance(this.TRIAL_ORG).catch(() => undefined);
-    this.wa.sendTrialWelcome(whatsapp, email, tempPassword, appUrl, this.TRIAL_DIAS, inst).catch(() => {});
-    // Mensagem de ativação da indicação (confirma o vínculo + convida a indicar).
-    if (indicadorNome) {
-      this.wa.sendMessage(whatsapp, montarMensagemAtivacao(indicadorNome, codigoIndicacao(userId)), inst).catch(() => {});
-    }
-    this.email.sendAccountApproved(email, nome, tempPassword).catch(() => {});
-    this.logAudit(userId, "usuarios", "users", userId, "CREATE", `Acesso de teste criado: ${email}`, this.TRIAL_ORG).catch(() => {});
-
-    return { message: "Acesso de teste criado! Enviamos suas credenciais no WhatsApp." };
+  /** FECHADA junto com `iniciarTrial` — ver o porquê lá. */
+  async confirmarTrial(_dto: { whatsapp: string; codigo: string }) {
+    this.portaFechada();
   }
 
   /**

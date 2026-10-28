@@ -110,3 +110,57 @@ describe('Prospecção exclusiva do SA', () => {
     expect(db.prospectMessage.update).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ status: 'FALHOU', enviadoEm: null }) }));
   });
 });
+
+/**
+ * Exclusão definitiva.
+ *
+ * Diferente de `arquivado`, que só esconde: aqui o contato some. O que estes
+ * testes travam é a ordem dentro da transação — `ProspectMessage.lead` é uma
+ * relação obrigatória sem cascade, então apagar o lead antes das mensagens
+ * estoura na chave estrangeira.
+ */
+describe('Excluir contatos', () => {
+  function banco(existentes: string[]) {
+    const chamadas: string[] = [];
+    const tx: any = {
+      prospectLead: {
+        findMany: jest.fn(async ({ where }: any) => existentes.filter(id => where.id.in.includes(id)).map(id => ({ id }))),
+        deleteMany: jest.fn(async ({ where }: any) => { chamadas.push('leads'); return { count: where.id.in.length }; }),
+      },
+      prospectMessage: {
+        deleteMany: jest.fn(async () => { chamadas.push('mensagens'); return { count: 3 }; }),
+      },
+    };
+    return { db: { $transaction: jest.fn(async (fn: any) => fn(tx)) } as any, tx, chamadas };
+  }
+
+  it('apaga o contato e o histórico dele', async () => {
+    const { db, chamadas } = banco(['lead-1']);
+    const r = await new ProspectsController(db).remover('lead-1');
+    expect(r).toMatchObject({ excluidos: 1, mensagensRemovidas: 3, naoEncontrados: 0 });
+    expect(chamadas).toEqual(['mensagens', 'leads']); // a ordem é o que salva da FK
+  });
+
+  it('apaga vários de uma vez, sem contar id repetido duas vezes', async () => {
+    const { db } = banco(['a', 'b']);
+    const r = await new ProspectsController(db).removerVarios({ ids: ['a', 'b', 'a'] });
+    expect(r.excluidos).toBe(2);
+  });
+
+  it('id que não existe não é excluído em silêncio — vem na conta', async () => {
+    const { db } = banco(['a']);
+    const r = await new ProspectsController(db).removerVarios({ ids: ['a', 'sumido'] });
+    expect(r).toMatchObject({ excluidos: 1, naoEncontrados: 1 });
+  });
+
+  it('quando nada existe, avisa em vez de dizer que apagou', async () => {
+    const { db } = banco([]);
+    await expect(new ProspectsController(db).remover('fantasma')).rejects.toThrow('Nenhum contato encontrado');
+  });
+
+  it('tudo acontece numa transação só', async () => {
+    const { db } = banco(['a']);
+    await new ProspectsController(db).remover('a');
+    expect(db.$transaction).toHaveBeenCalledTimes(1);
+  });
+});
