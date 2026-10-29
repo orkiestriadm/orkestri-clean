@@ -1,6 +1,6 @@
 # Aurélia: data e horário em etapas — 29/10/2026
 
-Branch: codex/aurelia-date-followup. Base: origin/codex/site-whatsapp-orbit-dots em eea0758. Alteração ainda não publicada na API.
+Branch: codex/aurelia-date-followup. Base: origin/codex/site-whatsapp-orbit-dots em eea0758. Correção publicada na API no commit e4b11d3; testes reais de WhatsApp pendentes por restrição do número oficial. Ver DEPLOY_AURELIA_DATAS_2026-10-29.md.
 
 ## Falha reproduzida
 

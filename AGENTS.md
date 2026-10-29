@@ -1,11 +1,11 @@
 ## Referência após publicação autorizada em 29/10/2026
 
-A base atual é `origin/codex/site-whatsapp-orbit-dots`. Site publicado em fa60e89 com pontos orbitando a captura do WhatsApp, sem monograma, e fundo laranja contínuo. Frontend mantém o login corrigido em b790e15; cadastro e lembretes já estão publicados na API. Partir dessa referência enquanto o PR #22 estiver aberto. Main continua protegida. Ver `docs/DEPLOY_PONTOS_ORBITAIS_2026-10-29.md`. Esta autorização não autoriza futuras publicações.
+A base atual é `origin/codex/aurelia-date-followup`. API publicada em e4b11d3: data e horário em mensagens separadas e meses por extenso. Site mantém pontos orbitais publicados em fa60e89 e frontend mantém o login corrigido em b790e15. Testes locais e do runtime aprovados; testes reais de WhatsApp pendentes por restrição do número oficial informada pelo usuário. Partir dessa referência enquanto o PR #23 estiver aberto. Main continua protegida. Ver `docs/DEPLOY_AURELIA_DATAS_2026-10-29.md`. Esta autorização não autoriza futuras publicações.
 
 # Base compartilhada entre Codex e Claude
 
 ## Referência atual
-- Usar a branch remota `codex/site-whatsapp-orbit-dots` enquanto o PR #22 estiver aberto; seguir a referência atualizada acima após integração.
+- Usar a branch remota `codex/aurelia-date-followup` enquanto o PR #23 estiver aberto; seguir a referência atualizada acima após integração.
 - A base de código foi copiada dos fontes observados em produção em 28/10/2026: API e frontend 4.3.0; site 3.3.2. Os hashes dos 530 arquivos auditados constam em `docs/baselines/production-20261028.json`.
 - Ler `docs/SINCRONIZACAO_GITHUB.md` e `docs/PARIDADE_PRODUCAO_2026-10-28.md` antes de trabalhar.
 - A pasta antiga `C:/orkestri-clean` e as antigas pastas do Claude contêm linhas históricas/Hub preservadas. Não usá-las como fonte de uma nova alteração da versão atual nem copiá-las sobre esta base.
