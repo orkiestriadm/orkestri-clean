@@ -29,10 +29,10 @@ export const products: Product[] = [
   {
     slug: "one-space",
     screenshot: {
-      src: "/screenshots/orkiestrispace.png",
-      alt: "Agenda da semana no Orkiestri, com os compromissos e seus horários",
-      width: 1690,
-      height: 1030,
+      src: "/screenshots/real-dark/agenda.webp",
+      alt: "Agenda real do Orkiestri em modo escuro, com compromissos de demonstração",
+      width: 1440,
+      height: 960,
     },
     name: "Agenda e anotações",
     short: "Agenda",
@@ -54,10 +54,10 @@ export const products: Product[] = [
   {
     slug: "one-finance",
     screenshot: {
-      src: "/screenshots/orcamento-dashboard.png",
-      alt: "Painel de orçamento do Orkiestri mostrando previsto, realizado e desvio por período",
-      width: 1755,
-      height: 999,
+      src: "/screenshots/real-dark/gastos.webp",
+      alt: "Tela real de Meus Gastos em modo escuro, com totais e gráficos de demonstração",
+      width: 1440,
+      height: 960,
     },
     name: "Contas e gastos",
     short: "Contas",
@@ -79,10 +79,10 @@ export const products: Product[] = [
   {
     slug: "one-projects",
     screenshot: {
-      src: "/screenshots/projetos.png",
+      src: "/screenshots/real-dark/projetos.webp",
       alt: "Quadro de um projeto no Orkiestri, com tarefas, responsáveis e progresso",
-      width: 2200,
-      height: 1332,
+      width: 1440,
+      height: 960,
     },
     name: "Projetos e tarefas",
     short: "Projetos",
@@ -103,10 +103,10 @@ export const products: Product[] = [
   {
     slug: "one-desk",
     screenshot: {
-      src: "/screenshots/orkiestridesk.png",
+      src: "/screenshots/real-dark/chamados.webp",
       alt: "Fila de chamados no Orkiestri, com status, prioridade e indicadores de SLA",
-      width: 2200,
-      height: 1086,
+      width: 1440,
+      height: 960,
     },
     name: "Pedidos e chamados",
     short: "Chamados",
@@ -129,10 +129,10 @@ export const products: Product[] = [
   {
     slug: "one-quality",
     screenshot: {
-      src: "/screenshots/conhecimento.png",
+      src: "/screenshots/real-dark/conhecimento.webp",
       alt: "Base de conhecimento do Orkiestri com artigos organizados por categoria",
-      width: 1690,
-      height: 1030,
+      width: 1440,
+      height: 960,
     },
     name: "Base de conhecimento",
     short: "Conhecimento",

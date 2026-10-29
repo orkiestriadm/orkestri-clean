@@ -39,6 +39,7 @@ export function AgendaSpotlight() {
             />
           )}
         </div>
+        <p className="mt-4 text-xs">Tela real do sistema em modo escuro, com dados fictícios de demonstração.</p>
         <div className="mt-8 grid gap-5 sm:grid-cols-3">
           {[
             {

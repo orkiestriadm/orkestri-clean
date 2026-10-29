@@ -46,8 +46,7 @@ export function Screenshot({
   /**
    * Enquadra em 16:9, como pede o image-style.md. As capturas variam de 1,5 a
    * 2,9 de proporção; sem isto, cada uma teria uma altura, e lado a lado o
-   * conjunto fica desalinhado. O fundo branco esconde as faixas, porque as
-   * telas do produto também são brancas.
+   * conjunto fica desalinhado. O fundo escuro acompanha o tema real do produto.
    */
   uniform?: boolean;
   /**
@@ -145,7 +144,7 @@ export function Screenshot({
                     Ela existe por causa da máscara: as telas variam de 1,5 a
                     2,9 de proporção, então dentro da moldura 16:9 o `<img>`
                     ocupa a caixa inteira mas os pixels ficam num retângulo
-                    menor, com faixas brancas em volta. Uma máscara no `<img>`
+                    menor, com faixas escuras em volta. Uma máscara no `<img>`
                     dissolveria a borda das faixas — invisíveis — e passaria
                     longe das arestas de verdade. Aqui ela cai sobre o
                     conteúdo. */}
@@ -178,16 +177,6 @@ export function Screenshot({
                   />
                 </div>
               </div>
-
-              {/* Com moldura, a base ganha um degradê para não cortar reto
-                  contra a seção. Sem moldura, a máscara da imagem já cuida
-                  das quatro bordas. */}
-              {bordered && (
-                <div
-                  aria-hidden
-                  className="pointer-events-none absolute inset-x-0 bottom-0 z-20 h-16 bg-gradient-to-t from-white via-white/70 to-transparent"
-                />
-              )}
 
               {/* Holofote seguindo o cursor */}
               <div

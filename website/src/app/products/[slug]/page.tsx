@@ -105,6 +105,7 @@ export default async function ProductPage({
         <Container className="pb-4">
           <Reveal>
             <Screenshot {...product.screenshot} />
+            <p className="mt-4 text-xs text-chalk-dim">Tela real em modo escuro, com dados fictícios de demonstração.</p>
           </Reveal>
         </Container>
       )}

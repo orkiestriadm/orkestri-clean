@@ -59,7 +59,7 @@ const inicioMes = () => { const d = new Date(); return isoDay(new Date(d.getFull
 const fimMes = () => { const d = new Date(); return isoDay(new Date(d.getFullYear(), d.getMonth() + 1, 0)); };
 
 const card: CSSProperties = {
-  background: "var(--surface, #fff)", border: "1px solid var(--border, #e5e7eb)",
+  background: "var(--bg-card)", border: "1px solid var(--border-subtle)",
   borderRadius: 14, padding: 18,
 };
 
@@ -256,7 +256,7 @@ export default function GastosPage() {
                 {per && per.porDia.length > 0 ? (
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={per.porDia} margin={{ top: 6, right: 6, left: -18, bottom: 0 }} barCategoryGap={per.porDia.length > 12 ? 2 : "28%"}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="var(--border,#eef0f3)" vertical={false} />
+                      <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle)" vertical={false} />
                       <XAxis dataKey="label" tick={{ fontSize: 11 }} interval="preserveStartEnd" />
                       <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => R0(v)} width={64} />
                       <Tooltip cursor={{ fill: "rgba(99,102,241,0.06)" }} formatter={(v: any) => R(Number(v))} labelFormatter={(l) => `Dia ${l}`} />
@@ -284,7 +284,7 @@ export default function GastosPage() {
                   <div style={{ flex: 1, display: "grid", gap: 4 }}>
                     {(per?.porForma || []).map(f => (
                       <button key={f.forma} onClick={() => setForma(forma === f.forma ? "" : f.forma)} title="Filtrar a lista por esta forma"
-                        style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, background: forma === f.forma ? "var(--bg,#f1f2f4)" : "transparent", border: "none", borderRadius: 8, padding: "6px 8px", cursor: "pointer", textAlign: "left", width: "100%", color: "inherit" }}>
+                        style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, background: forma === f.forma ? "var(--bg-primary)" : "transparent", border: "none", borderRadius: 8, padding: "6px 8px", cursor: "pointer", textAlign: "left", width: "100%", color: "inherit" }}>
                         <span style={{ width: 10, height: 10, borderRadius: 3, background: FORMA_COR[f.forma] || "#94a3b8" }} />
                         <span style={{ flex: 1 }}>{f.label}</span>
                         <b>{R(f.valor)}</b>
@@ -306,12 +306,12 @@ export default function GastosPage() {
                   const on = categoria === c.categoria;
                   return (
                     <button key={c.categoria} onClick={() => setCategoria(on ? "" : c.categoria)} title="Filtrar a lista por esta categoria"
-                      style={{ display: "flex", alignItems: "center", gap: 10, background: on ? "var(--bg,#f1f2f4)" : "transparent", border: "none", borderRadius: 8, padding: "6px 8px", cursor: "pointer", width: "100%", color: "inherit" }}>
+                      style={{ display: "flex", alignItems: "center", gap: 10, background: on ? "var(--bg-primary)" : "transparent", border: "none", borderRadius: 8, padding: "6px 8px", cursor: "pointer", width: "100%", color: "inherit" }}>
                       <span style={{ display: "inline-flex", alignItems: "center", gap: 7, width: 130, fontSize: 13, fontWeight: 600, textAlign: "left" }}>
                         <span style={{ width: 10, height: 10, borderRadius: 3, background: corCat(c.categoria), flexShrink: 0 }} />
                         <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.categoria}</span>
                       </span>
-                      <div style={{ flex: 1, height: 10, background: "var(--bg,#f1f2f4)", borderRadius: 999 }}>
+                      <div style={{ flex: 1, height: 10, background: "var(--bg-primary)", borderRadius: 999 }}>
                         <div style={{ width: `${pct}%`, height: "100%", background: corCat(c.categoria), opacity: on ? 1 : 0.85, borderRadius: 999 }} />
                       </div>
                       <span style={{ width: 110, textAlign: "right", fontSize: 13 }}><b>{R(c.valor)}</b></span>
@@ -347,7 +347,7 @@ export default function GastosPage() {
                           <button onClick={definirMetaEconomia} style={{ ...iconBtn, padding: 2 }} title="Editar meta"><Pencil size={12} /></button>
                         </span>
                       </div>
-                      <div style={{ height: 10, background: "var(--bg,#f1f2f4)", borderRadius: 999, overflow: "hidden" }}>
+                      <div style={{ height: 10, background: "var(--bg-primary)", borderRadius: 999, overflow: "hidden" }}>
                         <div style={{ width: `${pct}%`, height: "100%", background: ok ? "#16a34a" : "#6366f1", borderRadius: 999, transition: "width .3s" }} />
                       </div>
                     </>
@@ -359,7 +359,7 @@ export default function GastosPage() {
 
               <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
                 {gami.conquistas.map(c => (
-                  <div key={c.id} title={c.desc} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", borderRadius: 10, border: "1px solid var(--border,#eef0f3)", opacity: c.ganha ? 1 : 0.5, background: c.ganha ? "rgba(99,102,241,0.06)" : "transparent" }}>
+                  <div key={c.id} title={c.desc} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", borderRadius: 10, border: "1px solid var(--border-subtle)", opacity: c.ganha ? 1 : 0.5, background: c.ganha ? "rgba(99,102,241,0.06)" : "transparent" }}>
                     <span style={{ fontSize: 18, filter: c.ganha ? "none" : "grayscale(1)" }}>{c.ganha ? "🏆" : "🔒"}</span>
                     <div>
                       <div style={{ fontSize: 13, fontWeight: 700 }}>{c.nome}</div>
@@ -393,7 +393,7 @@ export default function GastosPage() {
                           <button onClick={() => excluirMeta(m)} style={{ ...iconBtn, padding: 2, color: "#dc2626" }} title="Remover meta"><Trash2 size={13} /></button>
                         </span>
                       </div>
-                      <div style={{ height: 10, background: "var(--bg,#f1f2f4)", borderRadius: 999, overflow: "hidden" }}>
+                      <div style={{ height: 10, background: "var(--bg-primary)", borderRadius: 999, overflow: "hidden" }}>
                         <div style={{ width: `${Math.min(100, pct * 100)}%`, height: "100%", background: cor, borderRadius: 999, transition: "width .3s" }} />
                       </div>
                       {pct >= 0.8 && <div style={{ fontSize: 11, color: cor, marginTop: 4, fontWeight: 700 }}>{pct >= 1 ? "⚠️ Estourou o orçamento" : `${Math.round(pct * 100)}% do limite`}</div>}
@@ -415,7 +415,7 @@ export default function GastosPage() {
             ) : (
               <div style={{ display: "grid", gap: 8 }}>
                 {recorrentes.map(r => (
-                  <div key={r.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 10px", border: "1px solid var(--border,#eef0f3)", borderRadius: 10, opacity: r.ativo ? 1 : 0.55 }}>
+                  <div key={r.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 10px", border: "1px solid var(--border-subtle)", borderRadius: 10, opacity: r.ativo ? 1 : 0.55 }}>
                     <span style={{ fontSize: 18 }}>🔁</span>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontWeight: 600, fontSize: 14 }}>{r.descricao} {r.categoria && <span style={{ color: "var(--text-muted,#9ca3af)", fontWeight: 400, fontSize: 12 }}>· {r.categoria}</span>}</div>
@@ -440,7 +440,7 @@ export default function GastosPage() {
               </div>
               <div style={{ display: "grid", gap: 8 }}>
                 {receitas.map(rc => (
-                  <div key={rc.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 10px", border: "1px solid var(--border,#eef0f3)", borderRadius: 10 }}>
+                  <div key={rc.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 10px", border: "1px solid var(--border-subtle)", borderRadius: 10 }}>
                     <span style={{ fontSize: 16 }}>💰</span>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontWeight: 600, fontSize: 14 }}>{rc.descricao} {rc.recorrente && <span style={{ color: "#16a34a", fontWeight: 400, fontSize: 12 }}>· fixa/mês</span>}</div>
@@ -495,11 +495,11 @@ export default function GastosPage() {
                     <p style={{ margin: 0, color: "var(--text-muted,#6b7280)", fontSize: 14 }}>É rápido, e só você vê. Dá pra fazer de dois jeitos:</p>
                   </div>
                   <div style={{ display: "grid", gap: 10, width: "100%", maxWidth: 440, textAlign: "left" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", border: "1px solid var(--border,#e5e7eb)", borderRadius: 12 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", border: "1px solid var(--border-subtle)", borderRadius: 12 }}>
                       <MessageCircle size={20} color="#25D366" style={{ flexShrink: 0 }} />
                       <div style={{ fontSize: 13 }}>Pelo WhatsApp, mande: <b>Gasto: Mercado 150 no crédito</b></div>
                     </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", border: "1px solid var(--border,#e5e7eb)", borderRadius: 12 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", border: "1px solid var(--border-subtle)", borderRadius: 12 }}>
                       <Plus size={20} color="#6366f1" style={{ flexShrink: 0 }} />
                       <div style={{ fontSize: 13 }}>Aqui na tela, toque em <b>Novo gasto</b> e preencha.</div>
                     </div>
@@ -513,14 +513,14 @@ export default function GastosPage() {
               <div style={{ overflowX: "auto" }}>
                 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
                   <thead>
-                    <tr style={{ background: "var(--bg,#f7f8fa)", textAlign: "left" }}>
+                    <tr style={{ background: "var(--bg-primary)", textAlign: "left" }}>
                       <th style={th}>Data</th><th style={th}>Descrição</th><th style={th}>Categoria</th>
                       <th style={th}>Forma</th><th style={{ ...th, textAlign: "right" }}>Valor</th><th style={{ ...th, width: 80 }}></th>
                     </tr>
                   </thead>
                   <tbody>
                     {rows.map(g => (
-                      <tr key={g.id} style={{ borderTop: "1px solid var(--border,#eef0f3)" }}>
+                      <tr key={g.id} style={{ borderTop: "1px solid var(--border-subtle)" }}>
                         <td style={td}>{fmtD(g.dataGasto)}</td>
                         <td style={{ ...td, fontWeight: 600 }}>
                           {g.descricao}
@@ -570,7 +570,7 @@ function ResumoCard({ titulo, valor, qtd, cor, icon, ativo, onClick }: { titulo:
   return (
     <button onClick={onClick} style={{
       ...card, display: "flex", alignItems: "center", gap: 12, cursor: "pointer", textAlign: "left", width: "100%", color: "inherit",
-      borderColor: ativo ? cor : "var(--border,#e5e7eb)",
+      borderColor: ativo ? cor : "var(--border-subtle)",
       boxShadow: ativo ? `0 0 0 2px ${cor}33` : "none", transition: "box-shadow .15s, border-color .15s",
     }}>
       <div style={{ width: 40, height: 40, borderRadius: 10, background: cor + "1f", display: "grid", placeItems: "center" }}>{icon}</div>
@@ -644,7 +644,7 @@ function GastoModal({ gasto, sugestoes, onClose, onSaved }: { gasto?: Gasto; sug
 
   return (
     <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", display: "grid", placeItems: "center", zIndex: 50, padding: 16 }}>
-      <div onClick={e => e.stopPropagation()} style={{ background: "var(--surface,#fff)", borderRadius: 16, width: "100%", maxWidth: 420, padding: 22 }}>
+      <div onClick={e => e.stopPropagation()} style={{ background: "var(--bg-card)", borderRadius: 16, width: "100%", maxWidth: 420, padding: 22 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
           <h3 style={{ margin: 0, fontSize: 18, fontWeight: 800 }}>{gasto ? "Editar gasto" : "Novo gasto"}</h3>
           <button onClick={onClose} style={{ ...iconBtn }}><X size={18} /></button>
@@ -670,7 +670,7 @@ function GastoModal({ gasto, sugestoes, onClose, onSaved }: { gasto?: Gasto; sug
           {erro && <div style={{ color: "#dc2626", fontSize: 13 }}>{erro}</div>}
         </div>
         <div style={{ display: "flex", gap: 8, marginTop: 18 }}>
-          <button onClick={onClose} style={{ flex: 1, padding: "11px", borderRadius: 10, border: "1px solid var(--border,#e5e7eb)", background: "var(--surface,#fff)", fontWeight: 700, cursor: "pointer" }}>Cancelar</button>
+          <button onClick={onClose} style={{ flex: 1, padding: "11px", borderRadius: 10, border: "1px solid var(--border-subtle)", background: "var(--bg-card)", fontWeight: 700, cursor: "pointer" }}>Cancelar</button>
           <button onClick={salvar} disabled={saving} style={{ flex: 1, padding: "11px", borderRadius: 10, border: "none", background: "#6366f1", color: "#fff", fontWeight: 700, cursor: "pointer", display: "inline-flex", justifyContent: "center", alignItems: "center", gap: 6 }}>
             {saving && <Loader2 className="spin" size={15} />} Salvar
           </button>
@@ -697,14 +697,14 @@ function CategoriasModal({ categorias, onClose, onChanged }: { categorias: Categ
 
   return (
     <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", display: "grid", placeItems: "center", zIndex: 50, padding: 16 }}>
-      <div onClick={e => e.stopPropagation()} style={{ background: "var(--surface,#fff)", borderRadius: 16, width: "100%", maxWidth: 460, maxHeight: "88vh", overflowY: "auto", padding: 22 }}>
+      <div onClick={e => e.stopPropagation()} style={{ background: "var(--bg-card)", borderRadius: 16, width: "100%", maxWidth: 460, maxHeight: "88vh", overflowY: "auto", padding: 22 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
           <h3 style={{ margin: 0, fontSize: 18, fontWeight: 800 }}>Categorias</h3>
           <button onClick={onClose} style={iconBtn}><X size={18} /></button>
         </div>
 
         <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
-          <input type="color" value={novaCor} onChange={e => setNovaCor(e.target.value)} style={{ width: 42, height: 40, border: "1px solid var(--border,#e5e7eb)", borderRadius: 8, background: "none", cursor: "pointer", padding: 2 }} />
+          <input type="color" value={novaCor} onChange={e => setNovaCor(e.target.value)} style={{ width: 42, height: 40, border: "1px solid var(--border-subtle)", borderRadius: 8, background: "none", cursor: "pointer", padding: 2 }} />
           <input value={novoNome} onChange={e => setNovoNome(e.target.value)} onKeyDown={e => { if (e.key === "Enter") adicionar(); }} placeholder="Nova categoria" style={{ ...inpFull, flex: 1 }} />
           <button onClick={adicionar} disabled={busy} style={{ background: "#6366f1", color: "#fff", border: "none", borderRadius: 10, padding: "0 16px", fontWeight: 700, cursor: "pointer" }}>Adicionar</button>
         </div>
@@ -712,7 +712,7 @@ function CategoriasModal({ categorias, onClose, onChanged }: { categorias: Categ
         <div style={{ display: "grid", gap: 6 }}>
           {categorias.map(c => (
             <div key={c.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "6px 4px" }}>
-              <input type="color" value={c.cor} onChange={e => mudarCor(c, e.target.value)} title="Cor" style={{ width: 30, height: 30, border: "1px solid var(--border,#e5e7eb)", borderRadius: 7, background: "none", cursor: "pointer", padding: 2, flexShrink: 0 }} />
+              <input type="color" value={c.cor} onChange={e => mudarCor(c, e.target.value)} title="Cor" style={{ width: 30, height: 30, border: "1px solid var(--border-subtle)", borderRadius: 7, background: "none", cursor: "pointer", padding: 2, flexShrink: 0 }} />
               <input defaultValue={c.nome} onBlur={e => renomear(c, e.target.value)} style={{ ...inpFull, flex: 1 }} />
               <button onClick={() => remover(c)} style={{ ...iconBtn, color: "#dc2626" }} title="Remover"><Trash2 size={15} /></button>
             </div>
@@ -745,7 +745,7 @@ function MetaModal({ sugestoes, onClose, onSaved }: { sugestoes: string[]; onClo
 
   return (
     <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", display: "grid", placeItems: "center", zIndex: 50, padding: 16 }}>
-      <div onClick={e => e.stopPropagation()} style={{ background: "var(--surface,#fff)", borderRadius: 16, width: "100%", maxWidth: 400, padding: 22 }}>
+      <div onClick={e => e.stopPropagation()} style={{ background: "var(--bg-card)", borderRadius: 16, width: "100%", maxWidth: 400, padding: 22 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
           <h3 style={{ margin: 0, fontSize: 18, fontWeight: 800 }}>Nova meta do mês</h3>
           <button onClick={onClose} style={iconBtn}><X size={18} /></button>
@@ -759,7 +759,7 @@ function MetaModal({ sugestoes, onClose, onSaved }: { sugestoes: string[]; onClo
           {erro && <div style={{ color: "#dc2626", fontSize: 13 }}>{erro}</div>}
         </div>
         <div style={{ display: "flex", gap: 8, marginTop: 18 }}>
-          <button onClick={onClose} style={{ flex: 1, padding: "11px", borderRadius: 10, border: "1px solid var(--border,#e5e7eb)", background: "var(--surface,#fff)", fontWeight: 700, cursor: "pointer" }}>Cancelar</button>
+          <button onClick={onClose} style={{ flex: 1, padding: "11px", borderRadius: 10, border: "1px solid var(--border-subtle)", background: "var(--bg-card)", fontWeight: 700, cursor: "pointer" }}>Cancelar</button>
           <button onClick={salvar} disabled={saving} style={{ flex: 1, padding: "11px", borderRadius: 10, border: "none", background: "#6366f1", color: "#fff", fontWeight: 700, cursor: "pointer", display: "inline-flex", justifyContent: "center", alignItems: "center", gap: 6 }}>
             {saving && <Loader2 className="spin" size={15} />} Salvar
           </button>
@@ -793,7 +793,7 @@ function ReceitaModal({ receita, onClose, onSaved }: { receita?: Receita; onClos
 
   return (
     <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", display: "grid", placeItems: "center", zIndex: 50, padding: 16 }}>
-      <div onClick={e => e.stopPropagation()} style={{ background: "var(--surface,#fff)", borderRadius: 16, width: "100%", maxWidth: 400, padding: 22 }}>
+      <div onClick={e => e.stopPropagation()} style={{ background: "var(--bg-card)", borderRadius: 16, width: "100%", maxWidth: 400, padding: 22 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
           <h3 style={{ margin: 0, fontSize: 18, fontWeight: 800 }}>{receita ? "Editar receita" : "Nova receita"}</h3>
           <button onClick={onClose} style={iconBtn}><X size={18} /></button>
@@ -811,7 +811,7 @@ function ReceitaModal({ receita, onClose, onSaved }: { receita?: Receita; onClos
           {erro && <div style={{ color: "#dc2626", fontSize: 13 }}>{erro}</div>}
         </div>
         <div style={{ display: "flex", gap: 8, marginTop: 18 }}>
-          <button onClick={onClose} style={{ flex: 1, padding: "11px", borderRadius: 10, border: "1px solid var(--border,#e5e7eb)", background: "var(--surface,#fff)", fontWeight: 700, cursor: "pointer" }}>Cancelar</button>
+          <button onClick={onClose} style={{ flex: 1, padding: "11px", borderRadius: 10, border: "1px solid var(--border-subtle)", background: "var(--bg-card)", fontWeight: 700, cursor: "pointer" }}>Cancelar</button>
           <button onClick={salvar} disabled={saving} style={{ flex: 1, padding: "11px", borderRadius: 10, border: "none", background: "#16a34a", color: "#fff", fontWeight: 700, cursor: "pointer", display: "inline-flex", justifyContent: "center", alignItems: "center", gap: 6 }}>
             {saving && <Loader2 className="spin" size={15} />} Salvar
           </button>
@@ -849,7 +849,7 @@ function RecorrenteModal({ rec, sugestoes, onClose, onSaved }: { rec?: Recorrent
 
   return (
     <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", display: "grid", placeItems: "center", zIndex: 50, padding: 16 }}>
-      <div onClick={e => e.stopPropagation()} style={{ background: "var(--surface,#fff)", borderRadius: 16, width: "100%", maxWidth: 420, padding: 22 }}>
+      <div onClick={e => e.stopPropagation()} style={{ background: "var(--bg-card)", borderRadius: 16, width: "100%", maxWidth: 420, padding: 22 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
           <h3 style={{ margin: 0, fontSize: 18, fontWeight: 800 }}>{rec ? "Editar gasto fixo" : "Novo gasto fixo"}</h3>
           <button onClick={onClose} style={iconBtn}><X size={18} /></button>
@@ -875,7 +875,7 @@ function RecorrenteModal({ rec, sugestoes, onClose, onSaved }: { rec?: Recorrent
           {erro && <div style={{ color: "#dc2626", fontSize: 13 }}>{erro}</div>}
         </div>
         <div style={{ display: "flex", gap: 8, marginTop: 18 }}>
-          <button onClick={onClose} style={{ flex: 1, padding: "11px", borderRadius: 10, border: "1px solid var(--border,#e5e7eb)", background: "var(--surface,#fff)", fontWeight: 700, cursor: "pointer" }}>Cancelar</button>
+          <button onClick={onClose} style={{ flex: 1, padding: "11px", borderRadius: 10, border: "1px solid var(--border-subtle)", background: "var(--bg-card)", fontWeight: 700, cursor: "pointer" }}>Cancelar</button>
           <button onClick={salvar} disabled={saving} style={{ flex: 1, padding: "11px", borderRadius: 10, border: "none", background: "#6366f1", color: "#fff", fontWeight: 700, cursor: "pointer", display: "inline-flex", justifyContent: "center", alignItems: "center", gap: 6 }}>
             {saving && <Loader2 className="spin" size={15} />} Salvar
           </button>
@@ -895,14 +895,14 @@ function Campo({ label, children }: { label: string; children: ReactNode }) {
 }
 
 // ── Estilos ─────────────────────────────────────────────────────────────────
-const inp: CSSProperties = { padding: "8px 10px", borderRadius: 8, border: "1px solid var(--border,#e5e7eb)", background: "var(--surface,#fff)", fontSize: 13, color: "inherit" };
+const inp: CSSProperties = { padding: "8px 10px", borderRadius: 8, border: "1px solid var(--border-subtle)", background: "var(--bg-card)", fontSize: 13, color: "inherit" };
 const inpFull: CSSProperties = { ...inp, width: "100%" };
 const th: CSSProperties = { padding: "11px 14px", fontSize: 12, fontWeight: 700, color: "var(--text-muted,#6b7280)", textTransform: "uppercase", letterSpacing: 0.3 };
 const td: CSSProperties = { padding: "11px 14px" };
 const iconBtn: CSSProperties = { background: "transparent", border: "none", cursor: "pointer", padding: 6, borderRadius: 6, color: "inherit" };
 const saldoLbl: CSSProperties = { fontSize: 11, fontWeight: 700, letterSpacing: 0.3, textTransform: "uppercase", color: "var(--text-muted,#9ca3af)", marginBottom: 3 };
 const chip = (on: boolean): CSSProperties => ({
-  padding: "7px 12px", borderRadius: 8, border: `1px solid ${on ? "#6366f1" : "var(--border,#e5e7eb)"}`,
-  background: on ? "rgba(99,102,241,0.10)" : "var(--surface,#fff)", color: on ? "#4f46e5" : "inherit",
+  padding: "7px 12px", borderRadius: 8, border: `1px solid ${on ? "#6366f1" : "var(--border-subtle)"}`,
+  background: on ? "rgba(99,102,241,0.10)" : "var(--bg-card)", color: on ? "#4f46e5" : "inherit",
   cursor: "pointer", fontWeight: 600, fontSize: 13,
 });

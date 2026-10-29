@@ -1,4 +1,5 @@
 import axios, { AxiosError } from "axios";
+import { recoverSession } from "./session-recovery";
 import { useToastStore } from "./toast";
 
 /**
@@ -91,10 +92,7 @@ api.interceptors.response.use(
     if (status === 401) {
       if (!window.location.pathname.includes("/login")) {
         useToastStore.getState().warning("Sessao expirada", "Faca login novamente.");
-        // Clear the cookie server-side so middleware won't loop back to /dashboard
-        fetch("/api/auth/clear", { method: "POST", credentials: "include" }).finally(() => {
-          window.location.href = "/login";
-        });
+        void recoverSession();
       }
       return Promise.reject(err);
     }

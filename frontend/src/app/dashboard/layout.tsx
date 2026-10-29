@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/lib/store";
 import { authApi } from "@/lib/api";
+import { recoverSession } from "@/lib/session-recovery";
 import Sidebar from "@/components/layout/Sidebar";
 import AlertBanner from "@/components/ui/AlertBanner";
 import { useNotifications } from "@/lib/useNotifications";
@@ -17,6 +18,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const router = useRouter();
   const { user } = useAuthStore();
   const [ready, setReady] = useState(false);
+  const [loadError, setLoadError] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [cmdOpen, setCmdOpen] = useState(false);
 
@@ -32,18 +34,27 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }, []);
 
   useEffect(() => {
+    const failed = (err: any) => {
+      const status = err?.response?.status;
+      const code = err?.response?.data?.code;
+      if (status === 401 && code !== "BILLING_SUSPENDED") {
+        void recoverSession();
+      } else if (code !== "BILLING_SUSPENDED" && code !== "PRIMEIRO_ACESSO") {
+        setLoadError(true);
+      }
+    };
     if (!user) {
-      const fallback = setTimeout(() => { router.replace("/login"); }, 12000);
+      const fallback = setTimeout(() => { setLoadError(true); }, 12000);
       authApi.me()
         .then(u => { clearTimeout(fallback); useAuthStore.setState({ user: u }); setReady(true); })
-        .catch(() => { clearTimeout(fallback); router.replace("/login"); });
+        .catch(err => { clearTimeout(fallback); failed(err); });
       return () => clearTimeout(fallback);
     } else {
       setReady(true);
       // Sempre atualiza permissões em background para evitar sidebar desatualizado
       authApi.me()
         .then(u => { useAuthStore.setState({ user: u }); })
-        .catch(() => { router.replace("/login"); });
+        .catch(failed);
     }
   }, []);
 
@@ -56,6 +67,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     window.addEventListener('toggle-sidebar', handler);
     return () => window.removeEventListener('toggle-sidebar', handler);
   }, []);
+
+  if (!ready && loadError) return (
+    <main className="flex min-h-screen flex-col items-center justify-center gap-4 bg-[var(--bg-primary)] px-6 text-center text-[var(--text-primary)]">
+      <p role="alert">Não foi possível carregar sua sessão. Tente novamente.</p>
+      <button className="rounded-lg border border-[var(--border-subtle)] px-4 py-2" onClick={() => window.location.reload()}>Tentar novamente</button>
+      <button className="underline" onClick={() => { void recoverSession(); }}>Voltar ao login</button>
+    </main>
+  );
 
   if (!ready) return (
     <div style={{ minHeight:"100vh", display:"flex", alignItems:"center", justifyContent:"center", background:"var(--bg-primary)" }}>
