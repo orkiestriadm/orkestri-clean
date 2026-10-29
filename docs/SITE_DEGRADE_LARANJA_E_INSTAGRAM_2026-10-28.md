@@ -1,6 +1,6 @@
 # Degradê laranja, Aurélia ao fundo e posts — 28/10/2026
 
-Branch de trabalho: codex/site-orange-gradients. Base: origin/codex/site-real-dark-captures em a8d4d67a6a22b0a44beee8da3ce434b3a2b7a6c6. O código anterior b790e15 já foi publicado; esta alteração visual permanece somente na prévia e não possui autorização de deploy.
+Branch de trabalho: codex/site-orange-gradients. Base: origin/codex/site-real-dark-captures em a8d4d67a6a22b0a44beee8da3ce434b3a2b7a6c6. O código anterior b790e15 já foi publicado; esta alteração visual foi posteriormente autorizada e publicada no commit 91b2292. Ver DEPLOY_DEGRADE_LARANJA_2026-10-28.md.
 
 ## Tratamento visual do site
 
