@@ -37,8 +37,8 @@ A recuperação agora envia o token CSRF, reúne chamadas concorrentes numa úni
 - Revisão visual em desktop 1440 px e celular 390 px: imagens carregadas, sem transbordamento horizontal; troca de etapas e ampliação funcionam. A legenda da seção clara teve o contraste corrigido.
 - Antes do push: nenhum workflow GitHub Actions ou webhook de repositório configurado; main não recebe push/merge.
 
-Produção foi consultada apenas para diagnóstico de respostas públicas e contagens anônimas de logs. Não houve publicação, migration, modificação de contas reais ou envio de mensagens nesta tarefa. Publicar exige autorização expressa separada, conforme AGENTS.md.
+Produção foi consultada apenas para diagnóstico de respostas públicas e contagens anônimas de logs. Na etapa de implementação não houve publicação, migration, modificação de contas reais ou envio de mensagens. O deploy foi autorizado depois e está registrado em DEPLOY_SITE_LOGIN_2026-10-28.md.
 
 ## Revisão no GitHub
 
-PR em rascunho: https://github.com/orkiestriadm/orkestri-clean/pull/18. Commit de implementação: bde33e25cb6481047d8e27b9219e461d8a54d7e5. A branch preserva a base publicada do PR #17; main permanece intacta. Publicação do frontend e do site segue pendente de autorização expressa.
+PR em rascunho: https://github.com/orkiestriadm/orkestri-clean/pull/18. Commit de implementação: bde33e25cb6481047d8e27b9219e461d8a54d7e5. A branch preserva a base publicada do PR #17; main permanece intacta. Publicação do frontend e do site autorizada e concluída; ver DEPLOY_SITE_LOGIN_2026-10-28.md.

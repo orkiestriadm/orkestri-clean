@@ -1,10 +1,10 @@
 ## Referência após publicação autorizada em 28/10/2026
 
-A base atual é `origin/codex/fix-agenda-reminders-by-organization`, com as correções do cadastro e dos lembretes já em produção no commit 011930d. Partir dessa referência enquanto o PR #17 estiver aberto. A branch coordination é a base anterior a essa correção. Depois das integrações revisadas, adotar a referência resultante registrada no GitHub. Main continua protegida nesta tarefa. Ver `docs/DEPLOY_LEMBRETES_AGENDA_2026-10-28.md`. A autorização deste deploy não autoriza futuras publicações.
+A base atual é `origin/codex/site-real-dark-captures`, com cadastro e lembretes já publicados na API e o frontend/site publicados no commit b790e15 (login recuperável e capturas reais em dark). Partir dessa referência enquanto o PR #18 estiver aberto. Main continua protegida. Ver `docs/DEPLOY_SITE_LOGIN_2026-10-28.md`. Esta autorização não autoriza futuras publicações.
 
 # Fluxo compartilhado de Git
 
-A referência compartilhada atual é `origin/codex/fix-agenda-reminders-by-organization`: fontes auditados da produção mais a correção do cadastro publicada em 28/10/2026 após autorização. Usar essa referência enquanto o PR #17 estiver aberto. A main permanece protegida nesta tarefa; futuras publicações exigem nova autorização.
+A referência compartilhada atual é `origin/codex/site-real-dark-captures`: fontes auditados da produção mais as correções de cadastro, lembretes e login e as capturas reais do site, publicadas em 28/10/2026 após autorização. Usar essa referência enquanto o PR #18 estiver aberto. A main permanece protegida nesta tarefa; futuras publicações exigem nova autorização.
 
 Leia `AGENTS.md`, `CLAUDE.md` e `PARIDADE_PRODUCAO_2026-10-28.md`. O inventário das versões históricas está em `INVENTARIO_SINCRONIZACAO_2026-10-28.md`.
 
