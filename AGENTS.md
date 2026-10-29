@@ -1,11 +1,11 @@
 ## Referência após publicação autorizada em 28/10/2026
 
-A base atual é `origin/codex/site-real-dark-captures`, com cadastro e lembretes já publicados na API e o frontend/site publicados no commit b790e15 (login recuperável e capturas reais em dark). Partir dessa referência enquanto o PR #18 estiver aberto. Main continua protegida. Ver `docs/DEPLOY_SITE_LOGIN_2026-10-28.md`. Esta autorização não autoriza futuras publicações.
+A base atual é `origin/codex/site-orange-gradients`. O frontend mantém a correção do login publicada em b790e15; o site foi publicado em 91b2292 com degradê laranja nos fundos escuros e o A girando atrás do WhatsApp. Cadastro e lembretes já estão publicados na API. Partir dessa referência enquanto o PR #19 estiver aberto. Main continua protegida. Ver `docs/DEPLOY_DEGRADE_LARANJA_2026-10-28.md`. Esta autorização não autoriza futuras publicações.
 
 # Base compartilhada entre Codex e Claude
 
 ## Referência atual
-- Usar a branch remota `codex/site-real-dark-captures` enquanto o PR #18 estiver aberto; seguir a referência atualizada acima após integração.
+- Usar a branch remota `codex/site-orange-gradients` enquanto o PR #19 estiver aberto; seguir a referência atualizada acima após integração.
 - A base de código foi copiada dos fontes observados em produção em 28/10/2026: API e frontend 4.3.0; site 3.3.2. Os hashes dos 530 arquivos auditados constam em `docs/baselines/production-20261028.json`.
 - Ler `docs/SINCRONIZACAO_GITHUB.md` e `docs/PARIDADE_PRODUCAO_2026-10-28.md` antes de trabalhar.
 - A pasta antiga `C:/orkestri-clean` e as antigas pastas do Claude contêm linhas históricas/Hub preservadas. Não usá-las como fonte de uma nova alteração da versão atual nem copiá-las sobre esta base.

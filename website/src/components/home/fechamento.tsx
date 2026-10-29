@@ -13,10 +13,6 @@ export function Fechamento() {
   return (
     <section className="ink-grain relative isolate overflow-hidden bg-ink py-24 md:py-32">
       <div aria-hidden className="pointer-events-none absolute inset-0 -z-10">
-        {/* A luz vem de baixo aqui, ao contrário do hero: a página abre com a
-            claridade no alto e fecha com ela subindo do rodapé. */}
-        <div className="absolute -bottom-56 left-1/2 h-[520px] w-[860px] -translate-x-1/2 rounded-full bg-flame/[0.12] blur-[140px]" />
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_60%_70%_at_50%_100%,transparent,var(--color-ink)_80%)]" />
         <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/[0.09] to-transparent" />
       </div>
 

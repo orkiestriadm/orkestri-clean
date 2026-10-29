@@ -27,7 +27,7 @@ export function CTA({
           />
           <div
             aria-hidden
-            className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(249,115,22,0.18),transparent_60%)]"
+            className="site-warm-surface pointer-events-none absolute inset-0"
           />
           <div className="relative mx-auto flex max-w-2xl flex-col items-center">
             <h2 className="text-[2rem] font-bold text-white md:text-[2.75rem]">

@@ -2,7 +2,7 @@ import { cn } from "@/lib/utils";
 import { Container } from "./container";
 
 /**
- * Section — alternates white / very-light-gray backgrounds (doc 06).
+ * Section — alterna superfícies escuras com o degradê laranja compartilhado.
  * Generous vertical rhythm.
  */
 export function Section({

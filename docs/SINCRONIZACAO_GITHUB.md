@@ -1,10 +1,10 @@
 ## Referência após publicação autorizada em 28/10/2026
 
-A base atual é `origin/codex/site-real-dark-captures`, com cadastro e lembretes já publicados na API e o frontend/site publicados no commit b790e15 (login recuperável e capturas reais em dark). Partir dessa referência enquanto o PR #18 estiver aberto. Main continua protegida. Ver `docs/DEPLOY_SITE_LOGIN_2026-10-28.md`. Esta autorização não autoriza futuras publicações.
+A base atual é `origin/codex/site-orange-gradients`. O frontend mantém a correção do login publicada em b790e15; o site foi publicado em 91b2292 com degradê laranja nos fundos escuros e o A girando atrás do WhatsApp. Cadastro e lembretes já estão publicados na API. Partir dessa referência enquanto o PR #19 estiver aberto. Main continua protegida. Ver `docs/DEPLOY_DEGRADE_LARANJA_2026-10-28.md`. Esta autorização não autoriza futuras publicações.
 
 # Fluxo compartilhado de Git
 
-A referência compartilhada atual é `origin/codex/site-real-dark-captures`: fontes auditados da produção mais as correções de cadastro, lembretes e login e as capturas reais do site, publicadas em 28/10/2026 após autorização. Usar essa referência enquanto o PR #18 estiver aberto. A main permanece protegida nesta tarefa; futuras publicações exigem nova autorização.
+A referência compartilhada atual é `origin/codex/site-orange-gradients`: fontes auditados da produção com as correções de cadastro, lembretes e login, capturas reais do site e o degradê laranja global com a Aurélia ao fundo, publicados em 28/10/2026 após autorização. Usar essa referência enquanto o PR #19 estiver aberto. A main permanece protegida nesta tarefa; futuras publicações exigem nova autorização.
 
 Leia `AGENTS.md`, `CLAUDE.md` e `PARIDADE_PRODUCAO_2026-10-28.md`. O inventário das versões históricas está em `INVENTARIO_SINCRONIZACAO_2026-10-28.md`.
 
