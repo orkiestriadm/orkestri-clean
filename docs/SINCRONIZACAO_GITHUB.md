@@ -1,10 +1,10 @@
 ## Referência após publicação autorizada em 29/10/2026
 
-A base atual é `origin/codex/site-whatsapp-orbit-dots`. Site publicado em fa60e89 com pontos orbitando a captura do WhatsApp, sem monograma, e fundo laranja contínuo. Frontend mantém o login corrigido em b790e15; cadastro e lembretes já estão publicados na API. Partir dessa referência enquanto o PR #22 estiver aberto. Main continua protegida. Ver `docs/DEPLOY_PONTOS_ORBITAIS_2026-10-29.md`. Esta autorização não autoriza futuras publicações.
+A base atual é `origin/codex/aurelia-date-followup`. API publicada em e4b11d3: data e horário em mensagens separadas e meses por extenso. Site mantém pontos orbitais publicados em fa60e89 e frontend mantém o login corrigido em b790e15. Testes locais e do runtime aprovados; testes reais de WhatsApp pendentes por restrição do número oficial informada pelo usuário. Partir dessa referência enquanto o PR #23 estiver aberto. Main continua protegida. Ver `docs/DEPLOY_AURELIA_DATAS_2026-10-29.md`. Esta autorização não autoriza futuras publicações.
 
 # Fluxo compartilhado de Git
 
-A referência compartilhada atual é `origin/codex/site-whatsapp-orbit-dots`: fontes auditados da produção com as correções de cadastro, lembretes e login, capturas reais do site e o fundo laranja contínuo com pontos orbitais ao redor do WhatsApp, publicados até 29/10/2026 após autorização. Usar essa referência enquanto o PR #22 estiver aberto. A main permanece protegida nesta tarefa; futuras publicações exigem nova autorização.
+A referência compartilhada atual é `origin/codex/aurelia-date-followup`: fontes auditados da produção com as correções de cadastro, lembretes e login, capturas reais do site e o fundo laranja contínuo com pontos orbitais ao redor do WhatsApp, publicados até 29/10/2026 após autorização. Usar essa referência enquanto o PR #23 estiver aberto. A main permanece protegida nesta tarefa; futuras publicações exigem nova autorização.
 
 Leia `AGENTS.md`, `CLAUDE.md` e `PARIDADE_PRODUCAO_2026-10-28.md`. O inventário das versões históricas está em `INVENTARIO_SINCRONIZACAO_2026-10-28.md`.
 

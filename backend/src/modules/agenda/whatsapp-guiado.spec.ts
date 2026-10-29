@@ -308,3 +308,53 @@ describe("Gateway de projetos guiados", () => {
     expect(svc.chamar).not.toHaveBeenCalled();
   });
 });
+
+
+describe("Data e horário do compromisso em mensagens separadas", () => {
+  beforeEach(() => { jest.useFakeTimers(); jest.setSystemTime(new Date("2026-10-29T11:28:00Z")); });
+  afterEach(() => jest.useRealTimers());
+  it.each(["10/12/2026", "10 de dezembro de 2026"])("preserva %s e pede somente o horário", async data => {
+    const s = setup();
+    for (const t of ["menu", "1", "1", "Consulta", data]) await s.say(t);
+    expect(s.text()).toContain("10/12/2026");
+    expect(s.text()).toContain("Qual é o horário");
+    expect(s.text()).not.toContain("data válida");
+    expect(s.db.event.create).not.toHaveBeenCalled();
+    // Nova instância comprova persistência entre mensagens/webhooks.
+    const resumed = new WhatsappGuiadoService(s.db, s.wa, s.auth, s.equipe, s.wb);
+    await resumed.tratar(user, "14:30", "chat", "inst", s.ports);
+    expect(s.text()).toContain("Quanto tempo");
+    for (const t of ["60", "1"]) await s.say(t);
+    expect(s.text()).toContain("10/12/2026");
+    expect(s.db.event.create).not.toHaveBeenCalled();
+    await s.say("1");
+    expect(s.db.event.create).toHaveBeenCalledWith({data: expect.objectContaining({inicio: new Date("2026-12-10T17:30:00Z"),titulo:"Consulta",organizationId:"org1",userId:"u1"})});
+  });
+  it.each(["09h", "9"])("interpreta %s como horário após receber a data", async hora => {
+    const s=setup();for(const t of ["menu","1","1","Consulta","10/12/2026",hora])await s.say(t);
+    expect(s.state().dados.v.quando).toBe("2026-12-10T12:00:00.000Z");
+  });
+  it("guarda o horário quando ele chega antes da data", async () => {
+    const s=setup();for(const t of ["menu","1","1","Consulta","às 14h30"]) await s.say(t);
+    expect(s.text()).toContain("Qual é o dia");
+    await s.say("10 de dezembro de 2026");
+    expect(s.text()).toContain("Quanto tempo");expect(s.state().dados.v.quando).toBe("2026-12-10T17:30:00.000Z");
+  });
+  it("mantém a data após horário inválido e aceita substituí-la", async () => {
+    const s=setup();for(const t of ["menu","1","1","Consulta","10/12/2026","25h"])await s.say(t);
+    expect(s.text()).toContain("10/12/2026");
+    await s.say("11 de dezembro de 2026");await s.say("14");
+    expect(s.state().dados.v.quando).toBe("2026-12-11T17:00:00.000Z");
+  });
+  it("voltar descarta a data parcial e cancelar não cria evento", async () => {
+    const s=setup();for(const t of ["menu","1","1","Consulta","10/12/2026","voltar","14h"])await s.say(t);
+    expect(s.text()).toContain("Qual é o dia");expect(s.db.event.create).not.toHaveBeenCalled();
+    await s.say("cancelar");expect(s.state().dados.v.quandoParcial).toBeUndefined();expect(s.db.event.create).not.toHaveBeenCalled();
+  });
+  it("recusa datas impossíveis e passadas sem inventar horário", async () => {
+    const s=setup();for(const t of ["menu","1","1","Consulta","31 de fevereiro de 2027","28/10/2026"])await s.say(t);
+    expect(s.state().dados.v.quando).toBeUndefined();expect(s.text()).toContain("passado");expect(s.db.event.create).not.toHaveBeenCalled();
+    await s.say("hoje");await s.say("08h");expect(s.text()).toContain("passou");expect(s.db.event.create).not.toHaveBeenCalled();
+    await s.say("14h");expect(s.text()).toContain("Quanto tempo");
+  });
+});
