@@ -12,9 +12,6 @@ import { WhatsAppButton } from "@/components/ui/whatsapp-button";
 export function Fechamento() {
   return (
     <section className="ink-grain relative isolate overflow-hidden bg-ink py-24 md:py-32">
-      <div aria-hidden className="pointer-events-none absolute inset-0 -z-10">
-        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/[0.09] to-transparent" />
-      </div>
 
       <Container className="relative">
         <div className="mx-auto flex max-w-2xl flex-col items-center text-center">

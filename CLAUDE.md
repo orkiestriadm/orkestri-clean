@@ -1,12 +1,12 @@
-## Referência após publicação autorizada em 28/10/2026
+## Referência após publicação autorizada em 29/10/2026
 
-A base atual é `origin/codex/site-orange-gradients`. O frontend mantém a correção do login publicada em b790e15; o site foi publicado em 91b2292 com degradê laranja nos fundos escuros e o A girando atrás do WhatsApp. Cadastro e lembretes já estão publicados na API. Partir dessa referência enquanto o PR #19 estiver aberto. Main continua protegida. Ver `docs/DEPLOY_DEGRADE_LARANJA_2026-10-28.md`. Esta autorização não autoriza futuras publicações.
+A base atual é `origin/codex/site-continuous-atmosphere`. Site publicado em fe3e61e com fundo laranja contínuo e monograma suave girando atrás do WhatsApp. Frontend mantém o login corrigido em b790e15; cadastro e lembretes já estão publicados na API. Partir dessa referência enquanto o PR #20 estiver aberto. Main continua protegida. Ver `docs/DEPLOY_FUNDO_CONTINUO_2026-10-29.md`. Esta autorização não autoriza futuras publicações.
 
 # Instruções para o Claude
 
 Leia e siga `AGENTS.md`, `docs/SINCRONIZACAO_GITHUB.md` e `docs/PARIDADE_PRODUCAO_2026-10-28.md` antes de alterar código.
 
-A base compartilhada atual é `origin/codex/site-orange-gradients` até a integração revisada do PR #19. Ela espelha os fontes de produção auditados em 28/10/2026: API/frontend 4.3.0 e site 3.3.2. Não partir das antigas branches Hub ou de uma worktree antiga só porque ela já está aberta.
+A base compartilhada atual é `origin/codex/site-continuous-atmosphere` até a integração revisada do PR #20. Ela espelha os fontes de produção auditados em 28/10/2026: API/frontend 4.3.0 e site 3.3.2. Não partir das antigas branches Hub ou de uma worktree antiga só porque ela já está aberta.
 
 Começar com status, fetch e atualização da base limpa. Criar branch de tarefa; terminar com testes locais, revisão, commit, push da branch e documentação do SHA. Nunca sobrescrever trabalho de outra sessão.
 

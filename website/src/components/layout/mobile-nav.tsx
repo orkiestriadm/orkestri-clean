@@ -63,7 +63,7 @@ export function MobileNav({ onClose }: { onClose: () => void }) {
         /* Gaveta escura: a home é escura e abrir o menu nela devolvia um
            clarão branco. Sob as páginas claras ela continua legível, como
            qualquer folha escura sobre fundo claro. */
-        className="absolute right-0 top-0 flex h-full w-[min(88vw,380px)] flex-col border-l border-white/[0.08] bg-ink"
+        className="site-menu-surface absolute right-0 top-0 flex h-full w-[min(88vw,380px)] flex-col border-l border-white/[0.08] bg-ink"
         initial={reduceMotion ? false : { x: "100%" }}
         animate={{ x: 0 }}
         exit={reduceMotion ? { opacity: 0 } : { x: "100%" }}

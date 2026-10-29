@@ -23,7 +23,7 @@ const socials = [
  */
 export function Footer() {
   return (
-    <footer className="border-t border-white/[0.08] bg-ink">
+    <footer className="bg-ink">
       <Container className="py-16">
         <div className="grid gap-12 lg:grid-cols-[1.4fr_repeat(4,1fr)]">
           <div className="flex flex-col gap-4">
@@ -70,7 +70,7 @@ export function Footer() {
           ))}
         </div>
 
-        <div className="mt-14 flex flex-col items-center justify-between gap-4 border-t border-white/[0.07] pt-8 text-sm text-chalk-faint sm:flex-row">
+        <div className="mt-14 flex flex-col items-center justify-between gap-4 pt-8 text-sm text-chalk-faint sm:flex-row">
           <p>
             © {new Date().getFullYear()} {siteConfig.legalName}. Todos os
             direitos reservados.

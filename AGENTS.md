@@ -1,11 +1,11 @@
-## Referência após publicação autorizada em 28/10/2026
+## Referência após publicação autorizada em 29/10/2026
 
-A base atual é `origin/codex/site-orange-gradients`. O frontend mantém a correção do login publicada em b790e15; o site foi publicado em 91b2292 com degradê laranja nos fundos escuros e o A girando atrás do WhatsApp. Cadastro e lembretes já estão publicados na API. Partir dessa referência enquanto o PR #19 estiver aberto. Main continua protegida. Ver `docs/DEPLOY_DEGRADE_LARANJA_2026-10-28.md`. Esta autorização não autoriza futuras publicações.
+A base atual é `origin/codex/site-continuous-atmosphere`. Site publicado em fe3e61e com fundo laranja contínuo e monograma suave girando atrás do WhatsApp. Frontend mantém o login corrigido em b790e15; cadastro e lembretes já estão publicados na API. Partir dessa referência enquanto o PR #20 estiver aberto. Main continua protegida. Ver `docs/DEPLOY_FUNDO_CONTINUO_2026-10-29.md`. Esta autorização não autoriza futuras publicações.
 
 # Base compartilhada entre Codex e Claude
 
 ## Referência atual
-- Usar a branch remota `codex/site-orange-gradients` enquanto o PR #19 estiver aberto; seguir a referência atualizada acima após integração.
+- Usar a branch remota `codex/site-continuous-atmosphere` enquanto o PR #20 estiver aberto; seguir a referência atualizada acima após integração.
 - A base de código foi copiada dos fontes observados em produção em 28/10/2026: API e frontend 4.3.0; site 3.3.2. Os hashes dos 530 arquivos auditados constam em `docs/baselines/production-20261028.json`.
 - Ler `docs/SINCRONIZACAO_GITHUB.md` e `docs/PARIDADE_PRODUCAO_2026-10-28.md` antes de trabalhar.
 - A pasta antiga `C:/orkestri-clean` e as antigas pastas do Claude contêm linhas históricas/Hub preservadas. Não usá-las como fonte de uma nova alteração da versão atual nem copiá-las sobre esta base.

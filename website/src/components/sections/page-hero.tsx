@@ -37,10 +37,6 @@ export function PageHero({
       aria-label={eyebrow}
       className="ink-grain relative isolate overflow-hidden bg-ink pt-28 pb-12 md:pt-36 md:pb-20"
     >
-      <div aria-hidden className="pointer-events-none absolute inset-0 -z-10">
-        <div className="page-orbit" />
-        <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
-      </div>
 
       <Container className="relative z-10">
         {breadcrumb && <Breadcrumb items={breadcrumb} className="mb-7" />}
