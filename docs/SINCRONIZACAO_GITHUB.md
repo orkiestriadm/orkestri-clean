@@ -1,10 +1,10 @@
-## Referência após publicação autorizada em 28/10/2026
+## Referência após publicação autorizada em 29/10/2026
 
-A base atual é `origin/codex/site-orange-gradients`. O frontend mantém a correção do login publicada em b790e15; o site foi publicado em 91b2292 com degradê laranja nos fundos escuros e o A girando atrás do WhatsApp. Cadastro e lembretes já estão publicados na API. Partir dessa referência enquanto o PR #19 estiver aberto. Main continua protegida. Ver `docs/DEPLOY_DEGRADE_LARANJA_2026-10-28.md`. Esta autorização não autoriza futuras publicações.
+A base atual é `origin/codex/site-continuous-atmosphere`. Site publicado em fe3e61e com fundo laranja contínuo e monograma suave girando atrás do WhatsApp. Frontend mantém o login corrigido em b790e15; cadastro e lembretes já estão publicados na API. Partir dessa referência enquanto o PR #20 estiver aberto. Main continua protegida. Ver `docs/DEPLOY_FUNDO_CONTINUO_2026-10-29.md`. Esta autorização não autoriza futuras publicações.
 
 # Fluxo compartilhado de Git
 
-A referência compartilhada atual é `origin/codex/site-orange-gradients`: fontes auditados da produção com as correções de cadastro, lembretes e login, capturas reais do site e o degradê laranja global com a Aurélia ao fundo, publicados em 28/10/2026 após autorização. Usar essa referência enquanto o PR #19 estiver aberto. A main permanece protegida nesta tarefa; futuras publicações exigem nova autorização.
+A referência compartilhada atual é `origin/codex/site-continuous-atmosphere`: fontes auditados da produção com as correções de cadastro, lembretes e login, capturas reais do site e o fundo laranja contínuo com a Aurélia ao fundo, publicados até 29/10/2026 após autorização. Usar essa referência enquanto o PR #20 estiver aberto. A main permanece protegida nesta tarefa; futuras publicações exigem nova autorização.
 
 Leia `AGENTS.md`, `CLAUDE.md` e `PARIDADE_PRODUCAO_2026-10-28.md`. O inventário das versões históricas está em `INVENTARIO_SINCRONIZACAO_2026-10-28.md`.
 

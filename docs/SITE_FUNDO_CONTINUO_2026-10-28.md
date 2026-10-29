@@ -19,3 +19,5 @@ A composição da Aurélia deixa de usar medalhão e órbitas. Um monograma ampl
 ## Publicação autorizada
 
 O usuário autorizou expressamente publicar esta correção sem nova confirmação. O escopo é exclusivamente o serviço website, com auditoria dos fontes, preservação dos demais containers, imagem anterior para rollback e verificações públicas após a troca. Não executar migrations, seeds ou mensagens reais. O resultado da publicação será registrado em documento próprio após a validação.
+
+Publicação concluída no commit fe3e61e em 29/10/2026. Ver DEPLOY_FUNDO_CONTINUO_2026-10-29.md.
