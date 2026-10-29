@@ -7,10 +7,6 @@ import { AureliaSignature } from "@/components/home/aurelia-signature";
 export function Hero() {
   return (
     <section className="hero-modern relative isolate overflow-hidden bg-ink pb-10 pt-28 md:pb-14 md:pt-36">
-      <div
-        aria-hidden
-        className="hero-aurora pointer-events-none absolute inset-0 -z-10"
-      />
       <Container>
         <div className="grid items-center gap-8 md:grid-cols-[1.05fr_.95fr] lg:gap-14">
           <div className="hero-enter relative z-10">
@@ -51,7 +47,7 @@ export function Hero() {
             <AureliaSignature />
           </div>
         </div>
-        <div className="mt-8 flex flex-col justify-between gap-5 border-t border-white/10 pt-6 md:mt-12 md:flex-row md:items-center">
+        <div className="mt-8 flex flex-col justify-between gap-5 pt-6 md:mt-12 md:flex-row md:items-center">
           <ul className="flex flex-wrap gap-x-6 gap-y-3 text-xs text-chalk-dim">
             {[
               "No WhatsApp que você já usa",

@@ -1,34 +1,23 @@
 import { AureliaCapture } from "./aurelia-capture";
 
-/** A marca animada fica atrás da conversa real, sem mover a tela do WhatsApp. */
+/** Um único monograma decorativo gira atrás da conversa real e estática. */
 export function AureliaSignature() {
   return (
     <div className="aurelia-signature">
       <div className="aurelia-signature-backdrop" aria-hidden="true">
-        <div className="aurelia-stage-grid" />
-        <svg className="aurelia-orbits" viewBox="0 0 520 520" fill="none">
+        <div className="aurelia-ambient-glow" />
+        <svg className="aurelia-background-spin" viewBox="0 0 640 640" fill="none">
           <defs>
-            <linearGradient id="aurelia-ring" x1="60" y1="40" x2="480" y2="500" gradientUnits="userSpaceOnUse">
-              <stop stopColor="#ffb787" />
-              <stop offset=".5" stopColor="#ff6a1a" stopOpacity=".1" />
-              <stop offset="1" stopColor="#ffc48a" stopOpacity=".6" />
+            <linearGradient id="aurelia-monogram-light" x1="120" y1="70" x2="530" y2="580" gradientUnits="userSpaceOnUse">
+              <stop stopColor="#ffc997" stopOpacity=".62" />
+              <stop offset=".5" stopColor="#ff8a3d" stopOpacity=".28" />
+              <stop offset="1" stopColor="#ff6a1a" stopOpacity=".03" />
             </linearGradient>
           </defs>
-          <circle cx="260" cy="260" r="210" stroke="url(#aurelia-ring)" />
-          <circle cx="260" cy="260" r="166" stroke="white" strokeOpacity=".07" strokeDasharray="2 10" />
-          <ellipse cx="260" cy="260" rx="228" ry="107" transform="rotate(-32 260 260)" stroke="url(#aurelia-ring)" />
-          <g className="aurelia-orbit-motion">
-            <circle cx="260" cy="50" r="5" fill="#ffad77" />
-            <circle cx="260" cy="470" r="3" fill="#ffc48a" />
-          </g>
+          <text x="320" y="446" textAnchor="middle" fontFamily="Georgia, serif" fontStyle="italic" fontSize="500" fill="url(#aurelia-monogram-light)" fillOpacity=".22" stroke="url(#aurelia-monogram-light)" strokeWidth="1.2">a</text>
         </svg>
-        <div className="aurelia-core aurelia-background-spin">
-          <div className="aurelia-core-inner"><span>a</span><i /><i /><i /></div>
-        </div>
       </div>
-      <div className="aurelia-whatsapp-layer site-warm-surface">
-        <AureliaCapture index={1} priority />
-      </div>
+      <div className="aurelia-whatsapp-layer"><AureliaCapture index={1} priority /></div>
     </div>
   );
 }
