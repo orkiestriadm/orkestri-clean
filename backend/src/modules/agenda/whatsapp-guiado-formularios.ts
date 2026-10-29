@@ -3,7 +3,7 @@ import {
   instanteSaoPaulo,
   somarDias,
 } from "./whatsapp-rotina-datas";
-import { novaDataCompromisso } from "../notifications/evento-alerta-datas";
+import { diaCompromisso, novaDataCompromisso } from "../notifications/evento-alerta-datas";
 
 export const simples = (t: string) =>
   t
@@ -198,19 +198,7 @@ export function diaGuia(t: string, agora = new Date()): string | null {
   if (n === "hoje") return hoje;
   if (n === "amanha") return somarDias(hoje, 1);
   if (n === "ontem") return somarDias(hoje, -1);
-  const m = n.match(/^(\d{1,2})\/(\d{1,2})(?:\/(\d{4}))?$/);
-  if (!m) return null;
-  const y = Number(m[3] || hoje.slice(0, 4)),
-    mo = Number(m[2]),
-    d = Number(m[1]),
-    test = new Date(Date.UTC(y, mo - 1, d));
-  return y >= 2000 &&
-    y <= 2199 &&
-    test.getUTCFullYear() === y &&
-    test.getUTCMonth() === mo - 1 &&
-    test.getUTCDate() === d
-    ? test.toISOString().slice(0, 10)
-    : null;
+  return diaCompromisso(t, agora);
 }
 export function validarCampo(
   c: CampoGuia,

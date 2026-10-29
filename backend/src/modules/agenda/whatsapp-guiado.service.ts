@@ -1,3 +1,4 @@
+import { coletarQuando, perguntaQuando } from "./whatsapp-guiado-quando";
 import { Injectable } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
 import { AuthService } from "../auth/auth.service";
@@ -358,10 +359,11 @@ export class WhatsappGuiadoService {
       return { estado: { fase: "CONFIRMAR", v }, mensagem: this.resumo(v) };
     if (campo.tipo === "pessoa")
       return this.lista(tx, u, { ...v, grupo: "pessoa", pagina: 0 });
+    if (campo.tipo === "quando" && v.quando) delete v.quandoParcial;
     return {
       estado: { fase: "FORM", v },
       mensagem:
-        campo.pergunta +
+        (campo.tipo === "quando" ? perguntaQuando(v.quandoParcial) : campo.pergunta) +
         (v[campo.key] != null
           ? "\nAtual: " +
             (campo.tipo === "quando"
@@ -457,7 +459,9 @@ export class WhatsappGuiadoService {
           }
           if (n === "cancelar" && state)
             return principal("Cancelei o que ainda não estava salvo.\n\n");
-          if ((n === "voltar" || n === "9") && state) {
+          const respondendoQuando = state?.fase === "FORM" &&
+            this.campos(state.v)[state.v.indice || 0]?.tipo === "quando";
+          if ((n === "voltar" || (n === "9" && !respondendoQuando)) && state) {
             const anterior = (state.historico || []).pop();
             if (!anterior) return principal();
             if (anterior.v?.acao && anterior.v.acao === state.v?.acao) {
@@ -993,12 +997,21 @@ export class WhatsappGuiadoService {
                 "Para remover o prazo de um projeto, abra o projeto no site. Por aqui você pode informar uma nova data ou enviar *manter*." +
                   NAV,
               );
-            const valid =
+            const valid: ReturnType<typeof coletarQuando> =
               n === "manter" && v[campo.key] != null
                 ? { valor: v[campo.key] }
-                : validarCampo(campo, t, portas.evento);
+                : campo.tipo === "quando"
+                  ? coletarQuando(t, v.quandoParcial)
+                  : validarCampo(campo, t, portas.evento);
             if (valid.erro)
-              return salvar(state, valid.erro + "\n\n" + campo.pergunta + NAV);
+              return salvar(state, valid.erro + "\n\n" +
+                (campo.tipo === "quando" ? perguntaQuando(v.quandoParcial) : campo.pergunta) + NAV);
+            if (valid.parcial)
+              return passo({
+                estado: { fase: "FORM", v: { ...v, quandoParcial: valid.parcial } },
+                mensagem: valid.mensagem + NAV,
+              });
+            if (campo.tipo === "quando") delete v.quandoParcial;
             if (
               campo.key === "recorrenciaFim" &&
               valid.valor &&
