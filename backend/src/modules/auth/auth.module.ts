@@ -8,7 +8,6 @@ import { AuthController } from "./auth.controller";
 import { JwtStrategy } from "./jwt.strategy";
 import { TrialScheduler } from "./trial.scheduler";
 import { NotificationsModule } from "../notifications/notifications.module";
-import { AutomacoesModule } from "../automacoes/automacoes.module";
 
 @Module({
   imports: [
@@ -20,12 +19,9 @@ import { AutomacoesModule } from "../automacoes/automacoes.module";
       inject: [ConfigService],
     }),
     NotificationsModule,
-    AutomacoesModule,
   ],
   providers: [AuthService, JwtStrategy, TrialScheduler],
   controllers: [AuthController],
-  // Re-export AutomacoesModule so any module importing AuthModule (Rbac, etc.)
-  // can instantiate AuthService without redeclaring AutomacaoService deps.
-  exports: [AuthService, AutomacoesModule],
+  exports: [AuthService],
 })
 export class AuthModule {}

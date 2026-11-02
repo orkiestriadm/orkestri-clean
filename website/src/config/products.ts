@@ -18,7 +18,14 @@ import type { Product } from "@/types";
  * aqui é um grupo de lá e cada `feature` é uma tela que existe. Até
  * 26/10/2026 o site anunciava DOZE aplicações; cinco tinham sido removidas
  * da produção em 19/10 e o hero ainda mostrava capturas delas.
- * **Não existe "contas a receber"** — só contas a pagar, gastos e orçamento.
+ * Em 02/11/2026 saiu CONTAS A PAGAR, e com ela a dashboard do Financeiro: o
+ * Finance virou "meus gastos" e só. Do Service saíram Catálogo, Horas, CSAT e
+ * Automações — sobrou o chamado. Não existe "contas a receber", e agora
+ * também não existe "contas a pagar": o dinheiro aqui é o GASTO de uma
+ * pessoa e o ORÇAMENTO da organização, que são produtos separados no menu.
+ *
+ * O Orçamento ainda não tem card próprio porque falta uma captura real da
+ * tela — e esta lista não enche espaço com imagem de outro módulo.
  *
  * **2. O texto fala com UMA PESSOA.**
  * A ordem começa pelo que é mais pessoal (agenda, dinheiro) e não pelo que é
@@ -59,16 +66,16 @@ export const products: Product[] = [
       width: 1440,
       height: 960,
     },
-    name: "Contas e gastos",
-    short: "Contas",
+    name: "Meus gastos",
+    short: "Gastos",
     category: "Finance",
     tagline: "Anota no crédito em 12x e o domingo te cobra.",
     description:
-      "Seus gastos, lançados por mensagem na hora em que acontecem, inclusive parcelados. As contas a pagar com data de vencimento, e o relatório que diz o total, o que já venceu e o que vence em trinta dias. Todo domingo às 20h chega um resumo do que você gastou na semana — e dá para desligar mandando \"parar resumo\".",
+      "Seus gastos, lançados por mensagem na hora em que acontecem, inclusive parcelados, e o relatório que diz quanto saiu no mês, por cartão ou no total. Todo domingo às 20h chega um resumo do que você gastou na semana — e dá para desligar mandando \"parar resumo\".",
     icon: Wallet,
     features: [
       "Meus gastos, com parcelamento",
-      "Contas a pagar e vencimentos",
+      "Metas por categoria e gastos que se repetem",
       "Orçamento: previsto × realizado",
       "Resumo semanal no WhatsApp, com opt-out",
     ],
@@ -116,11 +123,9 @@ export const products: Product[] = [
       "Quando alguém precisa de você — a impressora que não liga, o acesso que falta —, o pedido vira um chamado com número, prazo e responsável, em vez de ficar num grupo. Se o prazo começa a apertar, o sistema avisa antes de estourar; se estourou, avisa também.",
     icon: Headset,
     features: [
-      "Catálogo do que dá para pedir",
       "Fila com prazo e responsável",
       "Aviso de prazo em risco, estourado e escalado",
-      "Horas apontadas e pesquisa de satisfação",
-      "Automações",
+      "Comentários, anexos e histórico no chamado",
     ],
     ai: ["Abrir e acompanhar chamado por mensagem"],
     integrations: ["WhatsApp", "E-mail", "Microsoft 365"],

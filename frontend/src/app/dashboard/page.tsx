@@ -11,7 +11,7 @@ import {
   Headphones, FolderKanban, CheckSquare, Package, FileText,
   AlertTriangle, AlertCircle, ShieldAlert, Zap, Clock,
   TrendingUp, TrendingDown, Minus, ArrowRight, ArrowUpRight, ArrowDownRight,
-  CheckCircle2, XCircle, Check, Plus, Loader2, ChevronRight,
+  CheckCircle2, XCircle, Check, Plus, Loader2, ChevronRight, ChevronLeft,
   BarChart3, Users, Receipt, StickyNote, Calendar,
   Brain, Activity, CircleCheckBig, SmilePlus, Settings2, RefreshCw,
   LayoutDashboard, Building2, PiggyBank, Eye, EyeOff, LayoutGrid, X, Search,
@@ -30,14 +30,12 @@ type DashStats = {
   notas: { total: number };
   chamados?: { abertos: number; urgentes: number; slaRisco: number };
   contratos?: { vencendo30: number };
-  csat?: { media: number };
   chamadosPorDia?: { data: string; total: number }[];
   ativRecentes?: { id: string; numero: number; titulo: string; status: string; prioridade: string; atualizadoEm: string; cliente?: { nome: string; empresa?: string } }[];
 };
 type ExecStats = {
-  chamados: { abertos: number; urgentes: number; hoje: number; emAtendimento: number; resolvidosMes: number; slaViolados: number; slaCompliancePct: number; csatMedia: number; csatTotal: number };
+  chamados: { abertos: number; urgentes: number; hoje: number; emAtendimento: number; resolvidosMes: number; slaViolados: number; slaCompliancePct: number };
   projetos: { ativos: number; concluidosMes: number };
-  horas: { totalMinutos: number; totalRegistros: number };
   conhecimento: { artigos: number; visualizacoes: number };
 };
 type DailyTask = { id: string; titulo: string; concluido: boolean; tipo: string };
@@ -81,11 +79,6 @@ const SEV_COLORS: Record<AlertSeverity, { dot: string; text: string; bg: string;
   ok:       { dot: "bg-[var(--accent-green)]",  text: "text-[var(--accent-green)]",  bg: "bg-[var(--accent-green)]/[0.04]",  border: "border-[var(--accent-green)]/10" },
 };
 
-function fmtMinutes(m: number) {
-  if (!m) return "0h";
-  const h = Math.floor(m / 60), min = m % 60;
-  return min > 0 ? `${h}h ${min}m` : `${h}h`;
-}
 function Sk({ w = "100%", h = 16 }: { w?: string | number; h?: number }) {
   return <div className="skeleton rounded-md" style={{ width: w, height: h }} />;
 }
@@ -228,6 +221,227 @@ function ChartTooltip({ active, payload, label }: any) {
     <div className="px-3 py-2 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-glass)] backdrop-blur-md text-[12px] shadow-premium-md">
       <div className="text-[var(--text-muted)] font-mono mb-1">{label}</div>
       <div className="text-[var(--text-primary)] font-semibold">{payload[0].value} chamados</div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════
+   AGENDA DO SPACE — mini calendário + lista
+═══════════════════════════════════════════════ */
+/**
+ * Resumo da agenda na tela inicial.
+ *
+ * Por que existe: a Visão Geral abria falando de chamados e projetos, e o
+ * compromisso de hoje — a única coisa que TODA conta tem, porque o Space
+ * acompanha a conta — aparecia como um número solto ("Eventos Hoje: 3"), que
+ * não diz o que é nem a que horas.
+ *
+ * Mini de propósito: não repete o módulo. Aqui só se LÊ — ver o mês, saber
+ * quais dias têm coisa marcada e ler o que vem. Criar, editar e arrastar
+ * continuam na Agenda, a um clique.
+ *
+ * O dia vem de `diaLocal`, e não do prefixo do ISO: o backend grava em UTC,
+ * então um evento das 22h (BRT) é 01h UTC do dia seguinte. Comparar a string
+ * crua jogaria o compromisso da noite para o dia seguinte no calendário.
+ */
+type AgendaEvento = {
+  id: string; titulo: string; inicio: string; fim?: string;
+  tipo: string; cor: string; diaTodo: boolean; local?: string;
+};
+
+const DIAS_SEMANA = ["D", "S", "T", "Q", "Q", "S", "S"];
+
+function diaLocal(iso: string) {
+  const d = new Date(iso);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+function horaCurta(iso: string) {
+  return new Date(iso).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+}
+function rotuloDia(dia: string) {
+  const hoje = diaLocal(new Date().toISOString());
+  const amanha = new Date();
+  amanha.setDate(amanha.getDate() + 1);
+  if (dia === hoje) return "Hoje";
+  if (dia === diaLocal(amanha.toISOString())) return "Amanhã";
+  const [a, m, d] = dia.split("-").map(Number);
+  return new Date(a, m - 1, d).toLocaleDateString("pt-BR", { day: "2-digit", month: "short", weekday: "short" });
+}
+
+function AgendaWidget({ reloadKey }: { reloadKey: number }) {
+  const hojeStr = diaLocal(new Date().toISOString());
+  const [ref, setRef] = useState(() => { const d = new Date(); d.setDate(1); return d; });
+  const [eventos, setEventos] = useState<AgendaEvento[]>([]);
+  const [carregando, setCarregando] = useState(true);
+  const [diaSel, setDiaSel] = useState<string | null>(null);
+
+  const ano = ref.getFullYear(), mes = ref.getMonth();
+
+  useEffect(() => {
+    let vivo = true;
+    setCarregando(true);
+    api.get("/agenda", { params: { mes: mes + 1, ano } })
+      .then(({ data }) => { if (vivo) setEventos(Array.isArray(data) ? data : []); })
+      .catch(() => { if (vivo) setEventos([]); })
+      .finally(() => { if (vivo) setCarregando(false); });
+    return () => { vivo = false; };
+  }, [mes, ano, reloadKey]);
+
+  // Dia (AAAA-MM-DD) para os eventos daquele dia, já em ordem de hora.
+  const porDia = useMemo(() => {
+    const mapa: Record<string, AgendaEvento[]> = {};
+    for (const e of eventos) (mapa[diaLocal(e.inicio)] ||= []).push(e);
+    for (const dia of Object.keys(mapa)) {
+      mapa[dia].sort((a, b) => (a.diaTodo === b.diaTodo ? a.inicio.localeCompare(b.inicio) : a.diaTodo ? -1 : 1));
+    }
+    return mapa;
+  }, [eventos]);
+
+  // Grade do mês: começa no domingo da semana do dia 1 e fecha 6 linhas.
+  const celulas = useMemo(() => {
+    const inicio = new Date(ano, mes, 1);
+    inicio.setDate(inicio.getDate() - inicio.getDay());
+    return Array.from({ length: 42 }, (_, i) => {
+      const d = new Date(inicio);
+      d.setDate(d.getDate() + i);
+      return d;
+    });
+  }, [ano, mes]);
+
+  // Sem dia escolhido, a lista é "o que vem" — de hoje em diante, dentro do mês
+  // aberto. Num mês passado ela mostra o mês inteiro: filtrar por "de hoje em
+  // diante" ali deixaria a lista vazia sem explicar o motivo.
+  const lista = useMemo(() => {
+    if (diaSel) return (porDia[diaSel] || []).map(e => [diaSel, e] as const);
+    const dias = Object.keys(porDia).sort();
+    const daqui = dias.filter(d => d >= hojeStr);
+    const usar = daqui.length ? daqui : dias;
+    return usar.flatMap(d => (porDia[d] || []).map(e => [d, e] as const));
+  }, [porDia, diaSel, hojeStr]);
+
+  // Maiúscula só na PRIMEIRA letra, à mão: a classe `capitalize` do CSS põe
+  // maiúscula em toda palavra e escrevia "Novembro De 2026".
+  const mesAno = ref.toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+  const nomeMes = mesAno.charAt(0).toUpperCase() + mesAno.slice(1);
+  const mover = (n: number) => { setDiaSel(null); setRef(r => new Date(r.getFullYear(), r.getMonth() + n, 1)); };
+
+  return (
+    <div className="card-premium p-5">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2.5">
+          <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
+            style={{ background: "#f59e0b18", border: "1px solid #f59e0b25" }}>
+            <Calendar size={14} style={{ color: "#f59e0b" }} strokeWidth={2} />
+          </div>
+          <span className="text-[12px] font-bold text-[var(--text-primary)] tracking-wide uppercase">Agenda</span>
+        </div>
+        <Link href="/dashboard/agenda" className="text-[11px] text-[var(--accent-violet)] hover:opacity-80 transition-opacity flex items-center gap-1 no-underline">
+          Abrir agenda <ArrowRight size={11} />
+        </Link>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,258px)_1fr] gap-5">
+        <div>
+          <div className="flex items-center justify-between mb-2">
+            <button onClick={() => mover(-1)} aria-label="Mês anterior"
+              className="w-6 h-6 rounded-md flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors">
+              <ChevronLeft size={14} />
+            </button>
+            <span className="text-[12px] font-semibold text-[var(--text-primary)]">{nomeMes}</span>
+            <button onClick={() => mover(1)} aria-label="Próximo mês"
+              className="w-6 h-6 rounded-md flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors">
+              <ChevronRight size={14} />
+            </button>
+          </div>
+
+          <div className="grid grid-cols-7 gap-0.5 mb-1">
+            {DIAS_SEMANA.map((d, i) => (
+              <div key={i} className="text-[9px] text-[var(--text-muted)] font-mono text-center py-1">{d}</div>
+            ))}
+          </div>
+
+          <div className="grid grid-cols-7 gap-0.5">
+            {celulas.map((d, i) => {
+              const dia = diaLocal(d.toISOString());
+              const doMes = d.getMonth() === mes;
+              const ehHoje = dia === hojeStr;
+              const selecionado = dia === diaSel;
+              const qtd = (porDia[dia] || []).length;
+              return (
+                <button key={i} onClick={() => setDiaSel(selecionado ? null : dia)}
+                  title={qtd ? `${qtd} evento${qtd > 1 ? "s" : ""}` : undefined}
+                  className={cn(
+                    "relative aspect-square rounded-md text-[11px] font-medium transition-colors flex items-center justify-center",
+                    !doMes && "text-[var(--text-muted)] opacity-40",
+                    doMes && !selecionado && "text-[var(--text-primary)] hover:bg-[var(--bg-hover)]",
+                    ehHoje && !selecionado && "ring-1 ring-[var(--accent-violet)] text-[var(--accent-violet)]",
+                    selecionado && "bg-[var(--accent-violet)] text-white",
+                  )}>
+                  {d.getDate()}
+                  {qtd > 0 && (
+                    <span className={cn("absolute bottom-1 w-1 h-1 rounded-full",
+                      selecionado ? "bg-white" : "bg-[var(--accent-violet)]")} />
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="min-w-0 flex flex-col">
+          <div className="flex items-center justify-between mb-2 min-h-[24px]">
+            <span className="text-[10px] text-[var(--text-muted)] uppercase font-mono tracking-wide">
+              {diaSel ? rotuloDia(diaSel) : "Próximos eventos"}
+            </span>
+            {diaSel && (
+              <button onClick={() => setDiaSel(null)}
+                className="text-[11px] text-[var(--accent-violet)] hover:opacity-80 transition-opacity">
+                Ver todos
+              </button>
+            )}
+          </div>
+
+          <div className="space-y-1.5 overflow-y-auto pr-1" style={{ maxHeight: 248 }}>
+            {carregando ? (
+              Array(4).fill(0).map((_, i) => <div key={i} className="py-1"><Sk h={32} /></div>)
+            ) : lista.length === 0 ? (
+              <div className="h-[120px] flex flex-col items-center justify-center gap-1 text-center">
+                <Calendar size={18} className="text-[var(--text-muted)] opacity-40" />
+                <span className="text-[12px] text-[var(--text-muted)]">
+                  {diaSel ? "Nada marcado neste dia." : "Nenhum evento neste mês."}
+                </span>
+              </div>
+            ) : (
+              lista.map(([dia, e], i, todos) => {
+                const primeiroDoDia = i === 0 || todos[i - 1][0] !== dia;
+                return (
+                  <div key={`${e.id}-${dia}-${i}`}>
+                    {!diaSel && primeiroDoDia && (
+                      <div className={cn("text-[10px] font-mono uppercase tracking-wide mb-1",
+                        i > 0 && "mt-3",
+                        dia === hojeStr ? "text-[var(--accent-violet)]" : "text-[var(--text-muted)]")}>
+                        {rotuloDia(dia)}
+                      </div>
+                    )}
+                    <Link href="/dashboard/agenda"
+                      className="flex items-center gap-2.5 py-1.5 px-2 -mx-2 rounded-lg hover:bg-[var(--bg-hover)] transition-colors no-underline">
+                      <span className="w-0.5 h-7 rounded-full shrink-0" style={{ background: e.cor || "#a78bfa" }} />
+                      <span className="text-[11px] font-mono text-[var(--text-muted)] shrink-0 w-[42px]">
+                        {e.diaTodo ? "dia" : horaCurta(e.inicio)}
+                      </span>
+                      <span className="text-[13px] text-[var(--text-primary)] truncate flex-1 min-w-0">{e.titulo}</span>
+                      {e.local && (
+                        <span className="text-[11px] text-[var(--text-muted)] truncate max-w-[110px] hidden sm:inline">{e.local}</span>
+                      )}
+                    </Link>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -390,6 +604,7 @@ export default function CommandCenter() {
 
   /* ── Widget config ── */
   const WIDGETS = [
+    { id: "agenda",     label: "Agenda do Space" },
     { id: "chamados",   label: "Setor: Chamados" },
     { id: "projetos",   label: "Setor: Projetos" },
     { id: "insights",   label: "IA Insights" },
@@ -532,6 +747,12 @@ export default function CommandCenter() {
           {/* ── Status Bar ── */}
           <StatusBar status={sysStatus} alerts={alerts} lastUpdated={lastUpdated} onRefresh={loadAll} loading={loading} />
 
+          {/* ── Agenda do Space ── */}
+          {/* Vem ANTES dos setores de propósito: é o que toda conta tem, e é o
+              que a pessoa precisa saber ao abrir o sistema. Chamados e
+              projetos seguem logo abaixo. */}
+          {!hidden.agenda && <AgendaWidget reloadKey={lastUpdated ? lastUpdated.getTime() : 0} />}
+
           {/* ── Sector Widgets ── */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
 
@@ -547,13 +768,6 @@ export default function CommandCenter() {
                   { label: "Resolvidos/mês", value: exec?.chamados.resolvidosMes  ?? "—", color: "text-emerald-400" },
                   { label: "SLA Compliance", value: exec ? `${exec.chamados.slaCompliancePct}%` : "—", color: slaColor },
                 ]}
-                footer={exec && (
-                  <div className="flex items-center gap-2">
-                    <span className="text-[11px] text-[var(--text-muted)]">CSAT médio:</span>
-                    <span className="text-[13px] font-bold text-amber-400">{exec.chamados.csatMedia > 0 ? `${exec.chamados.csatMedia}★` : "—"}</span>
-                    {exec.chamados.csatTotal > 0 && <span className="text-[10px] text-[var(--text-muted)]">({exec.chamados.csatTotal} aval.)</span>}
-                  </div>
-                )}
               />
             )}
 
@@ -620,22 +834,6 @@ export default function CommandCenter() {
                     </div>
                   )}
 
-                  {/* Horas summary */}
-                  {exec && (
-                    <div className="mt-4 pt-4 border-t border-[var(--border-subtle)] flex items-center gap-6">
-                      <div>
-                        <div className="text-[10px] text-[var(--text-muted)] uppercase font-mono tracking-wide">Horas apontadas/mês</div>
-                        <div className="text-[15px] font-bold text-[var(--text-primary)]">{fmtMinutes(exec.horas.totalMinutos)}</div>
-                      </div>
-                      <div>
-                        <div className="text-[10px] text-[var(--text-muted)] uppercase font-mono tracking-wide">Registros</div>
-                        <div className="text-[15px] font-bold text-[var(--text-primary)]">{exec.horas.totalRegistros}</div>
-                      </div>
-                      <Link href="/dashboard/apontamentos" className="ml-auto text-[12px] text-[var(--accent-violet)] hover:opacity-80 transition-opacity flex items-center gap-1">
-                        Ver horas <ArrowRight size={12} />
-                      </Link>
-                    </div>
-                  )}
                 </div>
               </div>
             )}

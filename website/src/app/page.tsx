@@ -15,7 +15,7 @@ export const metadata = buildMetadata({
     "organizar agenda pelo whatsapp",
     "lembrete de compromisso no whatsapp",
     "controle de gastos por mensagem",
-    "contas a pagar whatsapp",
+    "controle de gastos whatsapp",
     "anotações e tarefas",
     "Orkiestri",
   ],

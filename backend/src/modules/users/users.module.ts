@@ -7,8 +7,6 @@ import { Permissions } from "../auth/permissions.decorator";
 import { PermissionsGuard } from "../auth/permissions.guard";
 import { acharNaOrganizacao } from "../../common/escopo-organizacao";
 import { CacheService } from "../cache/cache.service";
-import { WebhookService, WebhooksModule } from "../automacoes/webhooks.module";
-import { AutomacaoService, AutomacoesModule } from "../automacoes/automacoes.module";
 
 const CACHE_USERS_LIST = "cache:users:list";
 const CACHE_USER       = (id: string) => `cache:user:${id}`;
@@ -141,8 +139,6 @@ class UsersController {
   constructor(
     private prisma: PrismaService,
     private cache: CacheService,
-    private webhook: WebhookService,
-    private automacao: AutomacaoService,
   ) {}
 
   @Get()
@@ -345,13 +341,6 @@ class UsersController {
     });
 
     await this.cache.delPattern(`${CACHE_USERS_LIST}:*`);
-    this.webhook.fire("usuario.criado", {
-      id: user.id, nome: user.nome, email: user.email, criadoEm: user.criadoEm,
-    }, orgId).catch(() => {});
-    this.automacao.executar("usuario_criado", {
-      id: user.id, nome: user.nome, email: user.email, organizationId: orgId,
-    }).catch(() => {});
-
     const criado = await this.prisma.user.findUnique({
       where: { id: user.id },
       include: { userRoles: { include: { role: true } }, profile: true },
@@ -571,7 +560,7 @@ class UsersCsvController {
 }
 
 @Module({
-  imports: [WebhooksModule, AutomacoesModule],
+  imports: [],
   controllers: [UsersController, UsersCsvController],
   providers: [CacheService],
 })

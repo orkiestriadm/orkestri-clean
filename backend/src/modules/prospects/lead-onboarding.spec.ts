@@ -113,7 +113,7 @@ describe('Convite → cadastro Aurélia → agenda', () => {
     expect(cadastro.status).toBe('CONCLUIDO');
     expect(inicio.enfileirar).toHaveBeenCalled(); expect(inicio.entregar).toHaveBeenCalledWith(user.id);
     const cache: any = { get: jest.fn().mockResolvedValue(null), set: jest.fn() };
-    const auth = new AuthService(p, null, null, cache, null, null, null);
+    const auth = new AuthService(p, null, null, cache, null, null);
     expect(await auth.resolvePermissions(user.id)).toEqual(expect.arrayContaining(['agenda:ver', 'agenda:criar']));
     expect(await auth.resolvePermissions(user.id)).not.toContain('*');
   });

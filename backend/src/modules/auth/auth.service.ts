@@ -11,7 +11,6 @@ import { urlCheckout } from "../assinatura/checkout-token";
 import { WhatsAppService } from "../notifications/whatsapp.service";
 import { EmailService } from "../notifications/email.service";
 import { mesmoTelefoneCadastro, numeroCadastro } from "../cadastro-whatsapp/whatsapp-entrada";
-import { AutomacaoService } from "../automacoes/automacoes.module";
 import * as bcrypt from "bcryptjs";
 
 // Todas as permissões do sistema no formato "recurso:acao"
@@ -70,17 +69,9 @@ const ALL_PERMISSIONS: { recurso: string; acao: string; descricao: string }[] = 
   // SLA
   { recurso: "sla",           acao: "ver",         descricao: "Ver configurações SLA" },
   { recurso: "sla",           acao: "gerenciar",   descricao: "Gerenciar regras e acordos SLA" },
-  // Automações
-  { recurso: "automacoes",    acao: "ver",         descricao: "Ver automações configuradas" },
-  { recurso: "automacoes",    acao: "criar",       descricao: "Criar automações" },
-  { recurso: "automacoes",    acao: "editar",      descricao: "Editar automações" },
-  { recurso: "automacoes",    acao: "excluir",     descricao: "Excluir automações" },
   // A tela inicial checa dashboard:ver; sem a permissao no catalogo ela nunca
   // poderia ser concedida.
   { recurso: "dashboard",     acao: "ver",         descricao: "Ver a tela inicial" },
-  // Financeiro
-  { recurso: "financeiro",    acao: "ver",         descricao: "Ver módulo financeiro (contas a pagar, dashboard)" },
-  { recurso: "financeiro",    acao: "gerenciar",   descricao: "Criar, editar e excluir títulos financeiros" },
   // Gastos pessoais (por usuário — cada um só vê o seu)
   { recurso: "gastos",        acao: "ver",         descricao: "Ver os próprios gastos" },
   { recurso: "gastos",        acao: "registrar",   descricao: "Anotar, editar e excluir os próprios gastos" },
@@ -249,8 +240,6 @@ const ROLE_DEFAULTS: Record<string, { nivel: number; descricao: string; permisso
       "solicitacoes:ver","solicitacoes:criar","solicitacoes:editar","solicitacoes:aprovar",
       "conhecimento:ver","conhecimento:criar","conhecimento:editar","conhecimento:publicar",
       "sla:ver","sla:gerenciar",
-      "automacoes:ver","automacoes:criar","automacoes:editar","automacoes:excluir",
-      "financeiro:ver","financeiro:gerenciar",
     ],
   },
   analista: {
@@ -265,7 +254,6 @@ const ROLE_DEFAULTS: Record<string, { nivel: number; descricao: string; permisso
       "whatsapp:ver",
       "solicitacoes:ver","solicitacoes:criar",
       "conhecimento:ver","conhecimento:criar",
-      "financeiro:ver",
     ],
   },
   tecnico: {
@@ -357,7 +345,6 @@ export class AuthService implements OnModuleInit {
     private cache: CacheService,
     private wa: WhatsAppService,
     private email: EmailService,
-    private automacao: AutomacaoService,
   ) {}
 
   async onModuleInit() {
@@ -1160,7 +1147,6 @@ export class AuthService implements OnModuleInit {
       entregaEmail = true;
     } catch { entregaEmail = false; }
     this.logAudit(requestUser.id, "usuarios", "users", userId, "CREATE", `Conta aprovada via solicitação: ${email}`).catch(() => {});
-    this.automacao.executar("usuario_criado", { id: userId, nome, email, organizationId }).catch(() => {});
     return {
       message: "Usuário aprovado com sucesso.",
       userId,
@@ -1205,11 +1191,10 @@ export class AuthService implements OnModuleInit {
     "one-space":    ["agenda"],
     "one-fleet":    ["frota"],
     "one-assets":   ["ativos"],
-    "one-finance":  ["financeiro", "gastos"],
+    "one-finance":  ["gastos"],
     "one-budget":   ["orcamento"],
     "one-crm":      ["crm", "clientes"],
     "one-observe":  ["monitoramento"],
-    "one-flow":     ["automacoes"],
     "one-core":     ["configuracoes"],
   };
 

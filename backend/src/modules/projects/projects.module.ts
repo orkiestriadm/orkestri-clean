@@ -10,8 +10,6 @@ import { Permissions } from "../auth/permissions.decorator";
 import { PermissionsGuard } from "../auth/permissions.guard";
 import { acharNaOrganizacao } from "../../common/escopo-organizacao";
 import { dataBR, diaLocal } from "../../common/datas";
-import { WebhookService, WebhooksModule } from "../automacoes/webhooks.module";
-import { AutomacaoService, AutomacoesModule } from "../automacoes/automacoes.module";
 import { AuditModule, AuditService } from "../audit/audit.module";
 import { NotificacaoDispatcher } from "../notifications/notificacao-dispatcher.service";
 import type { Severidade } from "../notifications/notificacao-modulos";
@@ -176,8 +174,6 @@ class EnviarAnexoProjectsDto {
 class ProjectsController {
   constructor(
     private prisma: PrismaService,
-    private webhook: WebhookService,
-    private automacao: AutomacaoService,
     private notificacoes: NotificacaoDispatcher,
     private anexos: ProjectAnexoStorageService,
     private audit: AuditService,
@@ -304,12 +300,6 @@ class ProjectsController {
         )
       : [];
 
-    // Trigger automacao + webhook
-    this.automacao.executar("projeto_criado", {
-      id: project.id, titulo: project.titulo, status: project.status,
-      organizationId: orgId, criadoPorId: req.user.id,
-    }).catch(() => {});
-
     return { ...project, avisosWhatsapp: { semWhatsapp } };
   }
 
@@ -353,15 +343,6 @@ class ProjectsController {
         // Sem a chave, salvar o formulario duas vezes mandaria o aviso duas vezes.
         chave: `projeto:${updated.id}:status:${updated.status}`,
       });
-    }
-
-    // Webhook quando projeto é marcado como concluído
-    if (dto.status === "CONCLUIDO" && existing.status !== "CONCLUIDO") {
-      this.webhook.fire("projeto.concluido", {
-        id: updated.id, titulo: updated.titulo, status: updated.status,
-        clienteId: updated.clienteId || null, progressoPct: updated.progressoPct,
-        concluidoEm: new Date(),
-      }, (updated as any).organizationId).catch(() => {});
     }
 
     // Se mudou o prazo, atualiza eventos existentes ou cria novos
@@ -480,17 +461,6 @@ class ProjectsController {
     // Tarefa nova num projeto concluído o devolve à fila.
     await this.atualizarProgresso(proj, req);
 
-    // Trigger automacao
-    const orgIdTask = (proj as any)?.organizationId;
-    this.automacao.executar("tarefa_criada", {
-      id: task.id, titulo: task.titulo, projectId, assigneeId: task.assigneeId, status: task.status, organizationId: orgIdTask,
-    }).catch(() => {});
-    if (task.assigneeId) {
-      this.automacao.executar("tarefa_atribuida", {
-        id: task.id, titulo: task.titulo, projectId, assigneeId: task.assigneeId, organizationId: orgIdTask,
-      }).catch(() => {});
-    }
-
     return task;
   }
 
@@ -537,12 +507,6 @@ class ProjectsController {
       // isto, mudar a data deixava o lembrete antigo apontando para o dia errado,
       // e trocar o responsável deixava o evento na agenda de quem saiu.
       await this.sincronizarEventoDaTask(projeto, task, before);
-    }
-
-    if (dto.assigneeId && before?.assigneeId !== task.assigneeId) {
-      this.automacao.executar("tarefa_atribuida", {
-        id: task.id, titulo: task.titulo, projectId, assigneeId: task.assigneeId, organizationId: projeto.organizationId,
-      }).catch(() => {});
     }
 
     return task;
@@ -677,12 +641,6 @@ class ProjectsController {
       chave: `tarefa:${task.id}:${para}:${new Date().toISOString().slice(0, 10)}`,
     });
 
-    if (para === "CONCLUIDA") {
-      this.automacao.executar("tarefa_concluida", {
-        id: task.id, titulo: task.titulo, projectId: projeto.id, assigneeId: task.assigneeId, organizationId: projeto.organizationId,
-      }).catch(() => {});
-    }
-
     return this.atualizarProgresso(projeto, req);
   }
 
@@ -752,13 +710,6 @@ class ProjectsController {
       // três fatos diferentes; a mesma requisição repetida não é.
       chave: `projeto:${projeto.id}:${transicao}:${new Date().toISOString().slice(0, 16)}`,
     });
-
-    if (concluir) {
-      this.webhook.fire("projeto.concluido", {
-        id: projeto.id, titulo: atual.titulo, status: statusNovo,
-        clienteId: atual.clienteId || null, progressoPct, concluidoEm: new Date(),
-      }, projeto.organizationId).catch(() => {});
-    }
 
     return { progressoPct, conclusao: concluir ? "concluido" : "reaberto" };
   }
@@ -1273,7 +1224,7 @@ class ProjectsController {
 }
 
 @Module({
-  imports: [WebhooksModule, AutomacoesModule, NotificationsModule, AuditModule],
+  imports: [NotificationsModule, AuditModule],
   providers: [ProjectAnexoStorageService, PrazosProjetoScheduler],
   controllers: [ProjectsController],
 })

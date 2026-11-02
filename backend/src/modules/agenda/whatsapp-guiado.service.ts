@@ -66,9 +66,7 @@ export class WhatsappGuiadoService {
           ? "gastos"
           : acao.startsWith("chamado.")
             ? "chamados"
-            : acao.startsWith("conta.")
-              ? "financeiro"
-              : "projetos";
+            : "projetos";
     const operacao = acao.endsWith(".criar")
       ? "criar"
       : acao.endsWith(".excluir")
@@ -78,16 +76,12 @@ export class WhatsappGuiadoService {
       ? operacao === "criar"
         ? "gastos:registrar"
         : "gastos:editar"
-      : recurso === "financeiro"
-        ? "financeiro:gerenciar"
-        : `${recurso}:${operacao}`;
+      : `${recurso}:${operacao}`;
   }
   private pode(p: string[], acao: string) {
     return (
       permissao(p, this.required(acao)) ||
-      (acao.startsWith("gasto.") &&
-        (permissao(p, "gastos:registrar") ||
-          permissao(p, "financeiro:gerenciar")))
+      (acao.startsWith("gasto.") && permissao(p, "gastos:registrar"))
     );
   }
   private menu(p: string[]) {
@@ -95,9 +89,7 @@ export class WhatsappGuiadoService {
       "Como posso ajudar? Responda o número:\n\n" +
       (permissao(p, "agenda:ver") ? "*1* — Meus compromissos\n" : "") +
       (permissao(p, "keep:ver") ? "*2* — Anotações\n" : "") +
-      (permissao(p, "gastos:ver") || permissao(p, "financeiro:ver")
-        ? "*3* — Meus gastos\n"
-        : "") +
+      (permissao(p, "gastos:ver") ? "*3* — Meus gastos\n" : "") +
       (permissao(p, "projetos:ver")
         ? "*4* — Projetos e tarefas da equipe\n"
         : "") +
@@ -163,10 +155,9 @@ export class WhatsappGuiadoService {
       "tarefa.excluir": "Excluir tarefa pessoal",
       "tarefa.status": "Mudar situação da tarefa pessoal",
       "chamado.criar": "Pedir ajuda",
-      "conta.criar": "Anotar conta a pagar",
     };
     const linhas = [`*${nomes[v.acao] || "Confira antes de salvar"}*`];
-    if (/^(projeto|demanda|chamado|conta)\./.test(v.acao))
+    if (/^(projeto|demanda|chamado)\./.test(v.acao))
       linhas.push("Espaço da sua empresa.");
     if (v.projectNome) linhas.push("Projeto: " + v.projectNome);
     for (const c of this.campos(v)) {
@@ -234,8 +225,7 @@ export class WhatsappGuiadoService {
     )[v.grupo];
     if (
       !necessario ||
-      (!permissao(acesso, necessario) &&
-        !(v.grupo === "gasto" && permissao(acesso, "financeiro:gerenciar")))
+      !permissao(acesso, necessario)
     )
       return {
         estado: { fase: "MENU", v: {} },
@@ -619,8 +609,6 @@ export class WhatsappGuiadoService {
                   "Vamos escolher pelo nome, sem precisar copiar códigos.\n\n" +
                   this.submenu("projeto", p),
               });
-            if (/^(?:conta|nova conta|lancar conta)\s*[:\-]/.test(n))
-              return form("conta.criar");
             const chamado = t.match(
               /^(?:chamado|abrir chamado|suporte|ticket)\s*:\s*(.+)$/is,
             );
@@ -674,8 +662,7 @@ export class WhatsappGuiadoService {
             };
             if (
               g[t] &&
-              (permissao(p, permitido[g[t]]) ||
-                (g[t] === "gasto" && permissao(p, "financeiro:ver")))
+              permissao(p, permitido[g[t]])
             ) {
               const contexto = g[t] === "projeto" ? "EMPRESA" : "PESSOAL";
               await tx.$executeRaw`INSERT INTO whatsapp_contextos(user_id,organization_id,instancia,conversa,contexto) VALUES (${u.id},${u.organizationId},${instancia},${conversa},${contexto}) ON CONFLICT(user_id,instancia,conversa) DO UPDATE SET organization_id=EXCLUDED.organization_id,contexto=EXCLUDED.contexto,atualizado_em=CURRENT_TIMESTAMP`;
@@ -689,7 +676,7 @@ export class WhatsappGuiadoService {
               return passo({
                 estado: { fase: "MAIS", v: {} },
                 mensagem:
-                  "Mais opções:\n*1* — Ver meu dia\n*2* — Pedir ajuda à equipe\n*3* — Consultar meus pedidos de ajuda\n*4* — Contas a pagar da empresa\n*5* — Procurar uma orientação\n*6* — O que posso fazer por aqui?" +
+                  "Mais opções:\n*1* — Ver meu dia\n*2* — Pedir ajuda à equipe\n*3* — Consultar meus pedidos de ajuda\n*4* — Procurar uma orientação\n*5* — O que posso fazer por aqui?" +
                   NAV,
               });
             return principal("Escolha um número que aparece abaixo.\n\n");
@@ -719,38 +706,20 @@ export class WhatsappGuiadoService {
               await portas.outro("chamados.lista", {});
               return principal();
             }
-            if (t === "4" && permissao(p, "financeiro:ver"))
-              return passo({
-                estado: { fase: "CONTAS", v: {} },
-                mensagem:
-                  "*Contas a pagar da empresa*\n*1* — Anotar conta\n*2* — Ver contas\n*3* — Ver resumo" +
-                  NAV,
-              });
-            if (t === "5" && permissao(p, "conhecimento:ver"))
+            if (t === "4" && permissao(p, "conhecimento:ver"))
               return passo({
                 estado: { fase: "BUSCA", v: {} },
                 mensagem:
                   "O que você quer saber? Escreva algumas palavras. Exemplo: *como criar um projeto*." +
                   NAV,
               });
-            if (t === "6")
+            if (t === "5")
               return principal(
                 "Aqui eu ajudo com compromissos, anotações, gastos, projetos e tarefas. Também consulto orientações e pedidos de ajuda, conforme seu acesso.\n\nNo site você encontra as opções avançadas: anexos, compartilhamentos, quadro completo, relatórios detalhados e configurações. Acesse *https://www.orkiestri.com/login*.\n\n",
               );
             return principal(
               "Essa opção não está disponível para sua conta.\n\n",
             );
-          }
-          if (state.fase === "CONTAS") {
-            if (t === "1") return form("conta.criar");
-            if (t === "2" || t === "3") {
-              externo = true;
-              await portas.outro(
-                t === "2" ? "contas.lista" : "contas.resumo",
-                {},
-              );
-              return principal();
-            }
           }
           if (state.fase === "BUSCA") {
             if (!permissao(p, "conhecimento:ver"))
@@ -1154,22 +1123,6 @@ export class WhatsappGuiadoService {
     if (m === "chamado") {
       await portas.outro(v.acao, v);
       return { mensagem: "Solicitação registrada.", externo: true };
-    }
-    if (m === "conta") {
-      await tx.contaPagar.create({
-        data: {
-          id: randomUUID(),
-          organizationId: u.organizationId,
-          fornecedorNome: v.descricao,
-          numero: "WA-" + randomUUID().slice(0, 12).toUpperCase(),
-          tipo: "MANUAL",
-          valorOriginal: Number(v.valor),
-          dataVencto: new Date(v.dataVencto + "T12:00:00Z"),
-          dataVenctoReal: new Date(v.dataVencto + "T12:00:00Z"),
-          dataEmissao: new Date(),
-        },
-      });
-      return { mensagem: "Conta a pagar registrada na sua empresa." };
     }
     const data: any = {};
     if (m === "evento") {

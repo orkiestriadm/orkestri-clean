@@ -170,26 +170,6 @@ export function camposGuia(acao: string): CampoGuia[] {
         tipo: "texto",
       },
     ];
-  if (acao === "conta.criar")
-    return [
-      {
-        key: "descricao",
-        nome: "Conta",
-        pergunta: "Qual conta precisa pagar? Exemplo: *Energia*.",
-        tipo: "titulo",
-      },
-      {
-        key: "valor",
-        nome: "Valor",
-        pergunta: "Qual é o valor? Exemplo: *150,00*.",
-        tipo: "valor",
-      },
-      {
-        ...prazo("dataVencto"),
-        opcional: false,
-        pergunta: `Em que dia a conta vence? Envie uma data, como *${exemploDia()}*.`,
-      },
-    ];
   return [];
 }
 export function diaGuia(t: string, agora = new Date()): string | null {

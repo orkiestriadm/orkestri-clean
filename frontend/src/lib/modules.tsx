@@ -4,9 +4,9 @@
 import {
   LayoutDashboard, CalendarDays, Layers, StickyNote, MessageCircle,
   Building2, GanttChart, Users, History, Settings,
-  Headphones, PiggyBank, BookOpen, Zap, Clock,
-  SmilePlus, Receipt, CreditCard,
-  ShoppingBag, Wallet, FileSpreadsheet,
+  Headphones, PiggyBank, BookOpen,
+  Receipt, CreditCard,
+  Wallet,
   ClipboardCheck, FolderKanban, ShieldCheck, HeartPulse, Bell, Info, CheckCircle2,
   UserPlus,
 } from "lucide-react";
@@ -69,13 +69,18 @@ export const NAV: NavGroup[] = [
     ],
   },
   {
+    // Service é O CHAMADO, e só.
+    //
+    // Saíram em 02/11/2026 Catálogo, Horas, CSAT e Automações. Os quatro eram
+    // satélites do chamado que ninguém abria: o Catálogo só fazia POST em
+    // /chamados, que a própria tela de Chamados já faz pelo "Novo Chamado";
+    // Horas e CSAT eram relatórios de um dado que a tela do chamado já
+    // mostrava; e Automações era um motor de regras sem regra escrita.
+    //
+    // A remoção foi de código, não de banco: as tabelas seguem lá, paradas.
     id: "service", produto: "Service", descritor: "Chamados", icon: Headphones,
     items: [
-      { href: "/dashboard/catalogo",      label: "Catálogo",     icon: ShoppingBag,  permission: "chamados:criar" },
       { href: "/dashboard/chamados",     label: "Chamados",     icon: Headphones,   permission: "chamados:ver" },
-      { href: "/dashboard/apontamentos", label: "Horas",        icon: Clock,        permission: "chamados:ver" },
-      { href: "/dashboard/csat",         label: "CSAT",         icon: SmilePlus,    permission: "chamados:ver" },
-      { href: "/dashboard/automacoes",   label: "Automações",   icon: Zap,          permission: "automacoes:ver" },
     ],
   },
   {
@@ -100,15 +105,37 @@ export const NAV: NavGroup[] = [
     ],
   },
   {
-    // O Orçamento era um produto à parte no menu (grupo "budget"), o que
-    // dividia o assunto dinheiro em duas portas para quem administra uma só.
-    // Desde 19/10/2026 é item do Finance. A ROTA não mudou: continua
-    // /dashboard/orcamento, para não quebrar link salvo nem favorito.
-    id: "finance", produto: "Finance", descritor: "Financeiro", icon: Wallet,
+    // Finance é O GASTO DA PESSOA, e só.
+    //
+    // Em 02/11/2026 saíram Contas a Pagar e a Dashboard do Finance. A
+    // Dashboard não ficou pobre com a saída das contas: ela ERA as contas —
+    // lia /financeiro/dashboard, que agregava contaPagar e mais nada. Sem
+    // contas a pagar ela não teria o que desenhar.
+    //
+    // Sobrou um item só, e o grupo continua existindo de propósito: é o
+    // produto Finance no menu e no vocabulário de notificações, não um
+    // atalho solto.
+    id: "finance", produto: "Finance", descritor: "Meus Gastos", icon: Wallet,
     items: [
-      { href: "/dashboard/financeiro",                  label: "Dashboard",      icon: Wallet,          permission: "financeiro:ver" },
       { href: "/dashboard/financeiro/gastos",           label: "Meus Gastos",    icon: Receipt,          permission: "gastos:ver" },
-      { href: "/dashboard/financeiro/contas-a-pagar",   label: "Contas a Pagar", icon: FileSpreadsheet,  permission: "financeiro:ver" },
+    ],
+  },
+  {
+    // O Orçamento volta a ser produto próprio, como era antes de 19/10/2026.
+    //
+    // Ele nunca teve uma linha de código em comum com o Finance: não lê
+    // contaPagar nem /financeiro/*. Era vizinho de menu, não de assunto — e
+    // com o Finance reduzido a "meus gastos" (o que EU gastei), misturar com
+    // orçamento (o que a organização PLANEJA gastar) confundia as duas coisas.
+    //
+    // A camada de notificações nunca juntou os dois: `budget` e `finance`
+    // sempre foram ids de produto separados em notificacao-modulos.ts, com
+    // `orcamento` traduzindo para `budget`. Isto aqui desfaz a divergência.
+    //
+    // A ROTA não mudou: continua /dashboard/orcamento, para não quebrar link
+    // salvo nem favorito.
+    id: "budget", produto: "Budget", descritor: "Orçamento", icon: PiggyBank,
+    items: [
       { href: "/dashboard/orcamento",                   label: "Orçamento",      icon: PiggyBank,        permission: "orcamento:ver" },
     ],
   },

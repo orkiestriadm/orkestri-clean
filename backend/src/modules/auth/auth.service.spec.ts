@@ -7,7 +7,6 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { CacheService } from "../cache/cache.service";
 import { WhatsAppService } from "../notifications/whatsapp.service";
 import { EmailService } from "../notifications/email.service";
-import { AutomacaoService } from "../automacoes/automacoes.module";
 import * as bcrypt from "bcryptjs";
 
 // ── Mocks ──────────────────────────────────────
@@ -119,11 +118,6 @@ const mockEmail = {
   send: jest.fn().mockResolvedValue(true),
 };
 
-const mockAutomacao = {
-  disparar: jest.fn().mockResolvedValue(undefined),
-  executar: jest.fn().mockResolvedValue(undefined),
-};
-
 describe("AuthService", () => {
   let service: AuthService;
 
@@ -139,7 +133,6 @@ describe("AuthService", () => {
         { provide: CacheService, useValue: mockCache },
         { provide: WhatsAppService, useValue: mockWhatsApp },
         { provide: EmailService, useValue: mockEmail },
-        { provide: AutomacaoService, useValue: mockAutomacao },
       ],
     }).compile();
 

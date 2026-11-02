@@ -244,7 +244,7 @@ describe("Quem nasceu pelo WhatsApp recupera a senha pelo site", () => {
       set: jest.fn(async () => undefined),
       del: jest.fn(async () => undefined),
     };
-    return new AuthService(prisma as any, new JwtService({}), config, cache, wa, {} as any, {} as any);
+    return new AuthService(prisma as any, new JwtService({}), config, cache, wa, {} as any);
   }
 
   it("acha a conta pelo DDD + número, manda o código para o número do cadastro e a senha nova passa a valer", async () => {

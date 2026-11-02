@@ -25,15 +25,9 @@ import { OrcamentoModule } from "./modules/orcamento/orcamento.module";
 import { AlertasModule } from "./modules/alertas/alertas.module";
 import { SlaModule } from "./modules/sla/sla.module";
 import { ConhecimentoModule } from "./modules/conhecimento/conhecimento.module";
-import { AutomacoesModule } from "./modules/automacoes/automacoes.module";
-import { ApontamentosModule } from "./modules/apontamentos/apontamentos.module";
-import { CsatModule } from "./modules/csat/csat.module";
-import { WebhooksModule } from "./modules/automacoes/webhooks.module";
 import { OrganizationsModule } from "./modules/organizations/organizations.module";
 import { CadastroRequestModule } from './modules/cadastro-request/cadastro-request.module';
-import { ChamadoTemplatesModule } from './modules/chamado-templates/chamado-templates.module';
 import { BillingModule } from './modules/billing/billing.module';
-import { FinanceiroModule } from './modules/financeiro/financeiro.module';
 import { GastosModule } from './modules/gastos/gastos.module';
 import { IntegracoesModule } from './modules/integracoes/integracoes.module';
 import { WhatsappInboundModule } from './modules/agenda/whatsapp-inbound.module';
@@ -54,10 +48,33 @@ import { JwtModule } from '@nestjs/jwt';
  * faturas), Supply e o portal do cliente. Capacity saiu junto porque lia de
  * ausencias/collaborators, e sem eles não tem o que medir.
  *
- * FICARAM, porque têm dado vivo: Service — Chamados (236 registros), SLA,
- * CSAT, Horas e Catálogo — e Quality — Conhecimento (61 artigos). Junto com
- * Space, Projects, Finance, Orçamento, Automações, WhatsApp, Resend,
- * Outlook/M365 e o núcleo (Core, Organizações, Saúde da Plataforma).
+ * FICARAM, porque têm dado vivo: Service — Chamados (236 registros) e SLA —
+ * e Quality — Conhecimento (61 artigos). Junto com Space, Projects, Finance,
+ * Budget, WhatsApp, Resend, Outlook/M365 e o núcleo (Core, Organizações,
+ * Saúde da Plataforma).
+ *
+ * SEGUNDA REDUÇÃO, de 02/11/2026 — a que enxugou o que SOBROU:
+ *
+ * Service ficou só com o Chamado. Saíram CSAT, Horas (apontamentos),
+ * Catálogo (chamado-templates) e Automações — este último levando junto os
+ * webhooks de saída, que viviam sob a mesma permissão. Automações não era
+ * tela: era um motor injetado em chamados, projetos, usuários e auth, que
+ * consultava a tabela de regras a CADA chamado criado ou atualizado, a cada
+ * tarefa e a cada usuário novo. Sem regra escrita, era uma consulta por
+ * evento para não fazer nada — e é a única parte desta redução com ganho de
+ * tempo de resposta, não só de código.
+ *
+ * Finance ficou só com Meus Gastos. Saíram Contas a Pagar e a Dashboard do
+ * Finance, que não era uma tela empobrecida pela saída das contas: ela ERA
+ * as contas, lia /financeiro/dashboard e nada mais. Os comandos de conta no
+ * WhatsApp saíram junto, de propósito: deixá-los de pé criaria lançamento
+ * que ninguém mais conseguiria ver.
+ *
+ * Orçamento voltou a ser produto próprio (Budget), como era antes de
+ * 19/10/2026 — ele nunca teve uma linha em comum com o Financeiro.
+ *
+ * Esta também foi remoção de CÓDIGO: as tabelas (contas_pagar, apontamentos,
+ * automacoes, webhooks, chamado_templates) seguem no banco, paradas.
  *
  * As tabelas dos módulos removidos seguem no banco, paradas: a remoção foi de
  * código, sem migration destrutiva.
@@ -86,11 +103,6 @@ import { JwtModule } from '@nestjs/jwt';
     AlertasModule,
     SlaModule,
     ConhecimentoModule,
-    AutomacoesModule,
-    ApontamentosModule,
-    CsatModule,
-    ChamadoTemplatesModule,
-    WebhooksModule,
     OrganizationsModule,
     CadastroRequestModule,
     BillingModule,
@@ -99,7 +111,6 @@ import { JwtModule } from '@nestjs/jwt';
     // o webhook, que é quem libera o mês pago.
     AssinaturaModule,
     JwtModule.register({ secret: process.env.JWT_SECRET, signOptions: { expiresIn: "1h" } }),
-    FinanceiroModule,
     GastosModule,
     // Integração de calendário externo (Microsoft 365 / futuro Google).
     // Rotas em /api/integracoes/microsoft/*. Ver docs/integracoes/.

@@ -11,7 +11,7 @@ export function contextoSolicitado(texto: string): ContextoWhats | null {
 
 // A organização nunca vem do texto ou do payload do provedor.
 export function comandoEmpresarial(texto: string): boolean {
-  return /^(?:\/?(?:meus?\s+|minhas?\s+)?(?:projetos?|demandas?|equipe|chamados?|contas?)(?:\b|:)|(?:novo|criar)\s+projeto\b|(?:nova|lançar|lancar)\s+conta\b|(?:abrir\s+)?(?:chamado|suporte|ticket)\b|(?:relatório|relatorio|resumo)\s+(?:de\s+)?contas?\b|(?:buscar|procurar|pesquisar|busca)\s*[:\-]?|(?:iniciar|concluir|reabrir|revisar|atribuir)\s+D-|adicionar\s+U-)/i.test(texto.trim());
+  return /^(?:\/?(?:meus?\s+|minhas?\s+)?(?:projetos?|demandas?|equipe|chamados?)(?:\b|:)|(?:novo|criar)\s+projeto\b|(?:abrir\s+)?(?:chamado|suporte|ticket)\b|(?:buscar|procurar|pesquisar|busca)\s*[:\-]?|(?:iniciar|concluir|reabrir|revisar|atribuir)\s+D-|adicionar\s+U-)/i.test(texto.trim());
 }
 
 @Injectable()

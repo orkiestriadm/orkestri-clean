@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "4.3.1";
+export const VERSAO = "5.0.0";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -26,7 +26,7 @@ export const VERSAO = "4.3.1";
 export const VERSAO_DATA = "2026-11-02";
 
 /** Nome da entrega, para dar contexto ao número. */
-export const VERSAO_NOME = "O WhatsApp do cadastro serve para recuperar a senha";
+export const VERSAO_NOME = "A agenda abre o sistema, e o menu só tem o que se usa";
 
 /**
  * Histórico exibido na tela Sobre, do mais recente para o mais antigo.
@@ -35,6 +35,18 @@ export const VERSAO_NOME = "O WhatsApp do cadastro serve para recuperar a senha"
  * esta lista quer saber o que mudou para ele.
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
+  {
+    versao: "5.0.0",
+    data: "2026-11-02",
+    titulo: "A agenda abre o sistema, e o menu só tem o que se usa",
+    itens: [
+      "A tela inicial agora abre com a sua agenda: um calendário do mês, com marca nos dias que têm compromisso, e a lista do que vem — antes havia só o número “Eventos Hoje”, que não dizia o que era nem a que horas. Clicando num dia a lista mostra o daquele dia; chamados e projetos seguem logo abaixo, e o painel de widgets deixa esconder o que você não quiser",
+      "O Financeiro agora é só Meus Gastos. Saíram a tela de Contas a Pagar e a dashboard do Financeiro, que existia só para somar essas contas — inclusive os comandos de conta no WhatsApp (“Conta: Energia 350 vence 10/11”, “contas a pagar”). Os lançamentos antigos continuam no banco, mas não têm mais tela",
+      "O Orçamento virou um módulo próprio no menu, chamado Budget, em vez de item dentro do Financeiro. O endereço não mudou: link salvo e favorito continuam funcionando",
+      "Em Chamados ficou o chamado. Saíram Catálogo, Horas, CSAT e Automações — com elas, a avaliação por estrelas do atendimento e o apontamento de horas dentro do chamado. Quem fechava o próprio chamado pela avaliação agora depende de quem atende mudar o status",
+      "Menos tela para carregar: cerca de 6 mil linhas de código saíram, com 6 telas e 35 rotas de API a menos",
+    ],
+  },
   // A 3.1.0 não aparece nesta lista de propósito. Ela existiu no git por
   // algumas horas, com o cadastro começando num formulário do site, e foi
   // substituída pela 3.2.0 antes de chegar a produção. Esta lista é o que

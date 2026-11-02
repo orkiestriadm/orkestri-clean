@@ -16,8 +16,6 @@ import { Permissions } from "../auth/permissions.decorator";
 import { PermissionsGuard } from "../auth/permissions.guard";
 import { acharNaOrganizacao } from "../../common/escopo-organizacao";
 import { SlaService } from "../sla/sla.module";
-import { AutomacaoService } from "../automacoes/automacoes.module";
-import { WebhookService } from "../automacoes/webhooks.module";
 import { NotificacaoDispatcher } from "../notifications/notificacao-dispatcher.service";
 
 const SLA_HORAS: Record<string, number> = { baixa: 72, media: 24, alta: 8, critica: 2 };
@@ -51,11 +49,6 @@ class UpdateChamadoDto {
 class AddComentarioDto {
   @IsString() texto: string;
   @IsOptional() interno?: boolean;
-}
-
-class AvaliarDto {
-  @IsInt() @Min(1) @Max(5) @Type(() => Number) avaliacao: number;
-  @IsOptional() @IsString() avaliacaoNota?: string;
 }
 
 const STATUS_VALID = ["aberto", "em_atendimento", "aguardando", "resolvido", "fechado"];
@@ -98,7 +91,6 @@ function mapChamado(c: any) {
     slaResolucaoAt: c.slaResolucaoAt || null,
     primeiraRespostaEm: c.primeiraRespostaEm || null,
     slaRespostaStatus,
-    avaliacao: c.avaliacao, avaliacaoNota: c.avaliacaoNota,
     resolvidoEm: c.resolvidoEm, fechadoEm: c.fechadoEm,
     aguardandoMotivo: c.aguardandoMotivo ?? null,
     aguardandoDesde: c.aguardandoDesde ?? null,
@@ -185,8 +177,6 @@ class ChamadosController {
     private email: EmailService,
     private config: ConfigService,
     private sla: SlaService,
-    private automacao: AutomacaoService,
-    private webhook: WebhookService,
     private dispatcher: NotificacaoDispatcher,
   ) {}
 
@@ -639,10 +629,6 @@ class ChamadosController {
       }).catch(() => {});
     }
 
-    // Fire automations async (non-blocking)
-    this.automacao.executar("chamado_criado", { id: chamado.id, numero: chamado.numero, titulo: chamado.titulo, prioridade, status: chamado.status, categoria: dto.categoria || null, solicitanteId: chamado.solicitanteId, atendenteId: chamado.atendenteId || null, clienteId: chamado.clienteId || null, organizationId: orgId, tags: chamado.tags || "" }).catch(() => {});
-    this.webhook.fire("chamado.criado", { id: chamado.id, numero: chamado.numero, titulo: chamado.titulo, prioridade, status: chamado.status, clienteId: chamado.clienteId || null, criadoEm: chamado.criadoEm }, orgId).catch(() => {});
-
     // Auditoria — criação (+ atribuição inicial se houver)
     await this.recordAudit(chamado.id, req.user.id, "criado", null, chamado.status, { numero: chamado.numero, prioridade });
     if (chamado.atendenteId) {
@@ -723,15 +709,6 @@ class ChamadosController {
         }
       }
     }
-    if (dto.status && ["resolvido", "fechado"].includes(dto.status) && dto.status !== existing.status) {
-      const evtName = dto.status === "fechado" ? "chamado.fechado" : "chamado.resolvido";
-      const autoTrigger = dto.status === "fechado" ? "chamado_fechado" : "chamado_resolvido";
-      this.automacao.executar(autoTrigger, { id: updated.id, numero: updated.numero, titulo: updated.titulo, prioridade: updated.prioridade, status: dto.status, categoria: updated.categoria || null, solicitanteId: updated.solicitanteId, atendenteId: updated.atendenteId || null, clienteId: updated.clienteId || null, organizationId: req.user?.organizationId, tags: (updated as any).tags || "" }).catch(() => {});
-      this.webhook.fire(evtName, { id: updated.id, numero: updated.numero, titulo: updated.titulo, status: updated.status, clienteId: updated.clienteId || null, resolvidoEm: (updated as any).resolvidoEm || new Date() }, req.user?.organizationId).catch(() => {});
-    }
-    // Fire chamado_atualizado for all updates
-    this.automacao.executar("chamado_atualizado", { id: updated.id, numero: updated.numero, titulo: updated.titulo, prioridade: updated.prioridade, status: updated.status, categoria: updated.categoria || null, solicitanteId: updated.solicitanteId, atendenteId: updated.atendenteId || null, clienteId: updated.clienteId || null, organizationId: req.user?.organizationId, tags: (updated as any).tags || "" }).catch(() => {});
-    this.webhook.fire("chamado.atualizado", { id: updated.id, numero: updated.numero, titulo: updated.titulo, prioridade: updated.prioridade, status: updated.status, clienteId: updated.clienteId || null }, req.user?.organizationId).catch(() => {});
     // Auditoria — registra mudanças relevantes
     if (dto.status && dto.status !== existing.status) {
       await this.recordAudit(id, req.user.id, "status", existing.status, dto.status);
@@ -809,16 +786,6 @@ class ChamadosController {
           this.email.sendChamadoStatus(solicitante.email, solicitante.nome, updated.numero, updated.titulo, body.status).catch(() => {});
         }
       }
-    }
-    // Fire automations async
-    const orgIdStatus = req.user?.organizationId;
-    const baseCtx = { id: updated.id, numero: updated.numero, titulo: updated.titulo, prioridade: updated.prioridade, status: body.status, categoria: updated.categoria || null, solicitanteId: updated.solicitanteId, atendenteId: updated.atendenteId || null, organizationId: orgIdStatus, tags: (updated as any).tags || "" };
-    this.automacao.executar("chamado_atualizado", baseCtx).catch(() => {});
-    if (["resolvido", "fechado"].includes(body.status) && body.status !== existing.status) {
-      const evtStatus = body.status === "fechado" ? "chamado.fechado" : "chamado.resolvido";
-      const trigStatus = body.status === "fechado" ? "chamado_fechado" : "chamado_resolvido";
-      this.automacao.executar(trigStatus, baseCtx).catch(() => {});
-      this.webhook.fire(evtStatus, { id: updated.id, numero: updated.numero, titulo: updated.titulo, status: updated.status, clienteId: updated.clienteId || null, resolvidoEm: (updated as any).resolvidoEm || new Date() }, orgIdStatus).catch(() => {});
     }
     // Frotas: encerrar o chamado encerra a OS que ele gerou. Sem isso o veículo
     // fica vermelho no farol para sempre, mesmo com o problema já resolvido —
@@ -1113,16 +1080,6 @@ class ChamadosController {
       if (sol?.email) this.email.sendChamadoStatus(sol.email, sol.nome, updated.numero, updated.titulo, "em_atendimento").catch(() => {});
     }
 
-    // Automações & webhooks (não bloqueantes)
-    if (updated) {
-      this.automacao.executar("chamado_atualizado", {
-        id: updated.id, numero: updated.numero, titulo: updated.titulo,
-        prioridade: updated.prioridade, status: "em_atendimento",
-        categoria: updated.categoria || null,
-        solicitanteId: updated.solicitanteId, atendenteId: userId,
-      }).catch(() => {});
-    }
-
     return mapChamado(updated);
   }
 
@@ -1177,20 +1134,6 @@ class ChamadosController {
     return { message: "Comentario removido" };
   }
 
-  @Patch(":id/avaliar")
-  @Permissions("chamados:editar")
-  async avaliar(@Param("id") id: string, @Body() dto: AvaliarDto, @Req() req: any) {
-    const chamado = await acharNaOrganizacao(this.prisma.chamado, id, req, "Chamado nao encontrado");
-    if (chamado.solicitanteId !== req.user.id) throw new ForbiddenException("Apenas o solicitante pode avaliar");
-    if (!["resolvido", "fechado"].includes(chamado.status)) throw new BadRequestException("Chamado precisa estar resolvido para avaliar");
-    const updated = await this.prisma.chamado.update({
-      where: { id },
-      data: { avaliacao: dto.avaliacao, avaliacaoNota: dto.avaliacaoNota, status: "fechado", fechadoEm: new Date() },
-      include: INCLUDE_DETAIL,
-    });
-    return mapChamado(updated);
-  }
-
   @Delete(":id")
   @Permissions("chamados:excluir")
   async remove(@Param("id") id: string, @Req() req: any) {
@@ -1236,8 +1179,6 @@ class ChamadosController {
 }
 
 import { SlaModule } from "../sla/sla.module";
-import { AutomacoesModule } from "../automacoes/automacoes.module";
-import { WebhooksModule } from "../automacoes/webhooks.module";
 import { NotificationsModule } from "../notifications/notifications.module";
 import { Injectable, OnModuleInit, Logger } from "@nestjs/common";
 import { MARCA } from "../../common/marca";
@@ -1249,7 +1190,7 @@ import { MARCA } from "../../common/marca";
 class SlaEscalationScheduler implements OnModuleInit {
   private readonly logger = new Logger("SlaEscalationScheduler");
 
-  constructor(private prisma: PrismaService, private wa: WhatsAppService, private automacao: AutomacaoService) {}
+  constructor(private prisma: PrismaService, private wa: WhatsAppService) {}
 
   onModuleInit() {
     // Primeiro tick após 2min (aguarda boot); depois a cada 30min
@@ -1351,30 +1292,7 @@ class SlaEscalationScheduler implements OnModuleInit {
         } catch {}
       }
 
-      this.automacao.executar("chamado_sla_risco", {
-        id: chamado.id, numero: chamado.numero, titulo: chamado.titulo,
-        prioridade: chamado.prioridade, status: chamado.status,
-        solicitanteId: chamado.solicitanteId, atendenteId: chamado.atendenteId || null,
-        organizationId: org.id, horasAtraso,
-      }).catch(() => {});
-
       this.logger.warn(`Escalado: #${chamado.numero} (${horasAtraso}h de atraso) → ${org.users.length} master(s)`);
-    }
-
-    // Dispara automação para chamados em risco (dentro de 2h do prazo)
-    const emRisco = await db.chamado.findMany({
-      where: {
-        status: { notIn: ["resolvido", "fechado", "cancelado"] },
-        slaResolucaoAt: { gt: now, lt: new Date(now.getTime() + 2 * 3600000) },
-      },
-      select: { id: true, numero: true, titulo: true, prioridade: true, status: true, solicitanteId: true, atendenteId: true, organizationId: true },
-    });
-    for (const c of emRisco) {
-      this.automacao.executar("chamado_sla_risco", {
-        id: c.id, numero: c.numero, titulo: c.titulo, prioridade: c.prioridade,
-        status: c.status, solicitanteId: c.solicitanteId, atendenteId: c.atendenteId || null,
-        organizationId: c.organizationId, emRisco: true,
-      }).catch(() => {});
     }
   }
 }
@@ -1449,10 +1367,10 @@ class ChamadoUploadController {
 }
 
 @Module({
-  imports:     [SlaModule, AutomacoesModule, WebhooksModule, NotificationsModule],
+  imports:     [SlaModule, NotificationsModule],
   controllers: [ChamadosController, ChamadoUploadController],
-  // WhatsAppService/EmailService vem via NotificationsModule (re-exportado);
-  // AutomacaoService via AutomacoesModule. Manter apenas o scheduler local.
+  // WhatsAppService/EmailService vem via NotificationsModule (re-exportado).
+  // Manter apenas o scheduler local.
   providers:   [SlaEscalationScheduler],
 })
 export class ChamadosModule {}

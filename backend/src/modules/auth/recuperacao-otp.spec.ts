@@ -50,7 +50,6 @@ function montar(perfis: any[], user: any = USER) {
     {} as any,
     wa,
     {} as any,
-    {} as any,
   );
   return { service, prisma, wa };
 }

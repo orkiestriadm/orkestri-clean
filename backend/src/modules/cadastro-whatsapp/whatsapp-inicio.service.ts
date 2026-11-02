@@ -12,7 +12,7 @@ type ResultadoFluxo = { consumido: boolean; mensagem?: string; acao?: AcaoInicio
 
 export function acessosInicio(perms: string[]) {
   return { evento: perms.includes("*") || perms.includes("agenda:criar"),
-    gasto: perms.includes("*") || perms.includes("gastos:registrar") || perms.includes("financeiro:gerenciar") };
+    gasto: perms.includes("*") || perms.includes("gastos:registrar") };
 }
 
 @Injectable()

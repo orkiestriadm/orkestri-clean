@@ -32,14 +32,15 @@ const RAIZ = path.resolve(__dirname, "..");
  * - `common/marca.ts` é quem define o padrão.
  * - `billing` é a assinatura do SaaS Orkiestri: quem paga, paga ao produto,
  *   não ao cliente white-label.
- * - `webhooks` usa o nome em CABEÇALHO HTTP (`X-Orkestri-Event`), que é
- *   contrato de integração — mudar quebraria quem já consome.
  * - `main.ts` é log de servidor, não chega a usuário.
+ *
+ * `modules/automacoes/webhooks.module.ts` saiu desta lista em 02/11/2026 com
+ * o próprio módulo: os webhooks de saída foram removidos junto com as
+ * automações, e com eles o cabeçalho `X-Orkestri-Event`.
  */
 const PERMITIDOS = [
   path.join("common", "marca.ts"),
   path.join("modules", "billing"),
-  path.join("modules", "automacoes", "webhooks.module.ts"),
   "main.ts",
 ];
 

@@ -29,7 +29,6 @@ function setup(perms = ["*"]) {
     project: model(),
     task: model(),
     user: model(),
-    contaPagar: model(),
   };
   db.$executeRaw = jest.fn(async (sql: any, ...values: any[]) => {
     const q = sql.join("");
@@ -257,9 +256,11 @@ describe("Aurélia guiada", () => {
     expect(await s.say("acesso")).toBe(false);
     expect(s.db.note.create).not.toHaveBeenCalled();
   });
+  // O "5" era "6" até 02/11/2026: a opção 4 do menu MAIS era Contas a pagar,
+  // que saiu com o módulo, e as de baixo subiram um número.
   it("explica precisamente as opções avançadas do site", async () => {
     const s = setup();
-    for (const t of ["menu", "6", "6"]) await s.say(t);
+    for (const t of ["menu", "6", "5"]) await s.say(t);
     expect(s.text()).toContain("anexos");
     expect(s.text()).toContain("https://www.orkiestri.com/login");
     expect(s.text()).toContain("Como posso ajudar");
