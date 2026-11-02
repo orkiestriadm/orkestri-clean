@@ -8,6 +8,22 @@ export function numeroCadastro(valor: string | null | undefined): string {
   return /^[1-9]\d{9,10}$/.test(local) ? `55${local}` : "";
 }
 
+/**
+ * Número do jeito que a pessoa reconhece: `(14) 99166-1688`.
+ *
+ * O guardado tem DDI e só dígitos (`5514991661688`), que é o formato que o
+ * Evolution exige — mas ninguém reconhece o próprio telefone assim, e é
+ * exatamente reconhecê-lo que se pede a quem confere o cadastro. Fora do
+ * padrão, devolve o que recebeu: um número cru é melhor que um recorte errado.
+ */
+export function exibirNumeroCadastro(valor: string | null | undefined): string {
+  const num = numeroCadastro(valor);
+  if (!num) return (valor || "").trim();
+  const local = num.slice(2);
+  const resto = local.slice(2);
+  return `(${local.slice(0, 2)}) ${resto.slice(0, -4)}-${resto.slice(-4)}`;
+}
+
 export function mesmoTelefoneCadastro(
   a: string,
   b: string | null | undefined,

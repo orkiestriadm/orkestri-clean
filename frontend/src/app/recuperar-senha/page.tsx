@@ -95,7 +95,11 @@ export default function RecuperarSenhaPage() {
     } finally { setLoading(false); }
   };
 
-  /** Só dígitos: o backend compara o número cru que está no perfil. */
+  /**
+   * Só dígitos — com ou sem o 55, tanto faz: o backend normaliza antes de
+   * comparar. Mandar o número cru era o que fazia toda conta criada pela
+   * Aurélia (gravada como `5514…`) cair em "não encontramos este número".
+   */
   const whatsappLimpo = whatsapp.replace(/\D/g, "");
 
   const handleEnviarOtp = async (e: React.FormEvent) => {

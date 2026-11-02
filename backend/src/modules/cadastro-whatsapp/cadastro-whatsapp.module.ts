@@ -1,6 +1,6 @@
 import { WhatsappInicioService } from "./whatsapp-inicio.service";
 import { concluirCadastroAtomico } from "./cadastro-atomico";
-import { comandoCadastroGeral, consultarNumeroCadastro, mensagemPrimeiroContato, numeroCadastro } from './whatsapp-entrada';
+import { comandoCadastroGeral, consultarNumeroCadastro, exibirNumeroCadastro, mensagemPrimeiroContato, numeroCadastro } from './whatsapp-entrada';
 import { dadosTesteAgenda, interesseConviteAgenda, textoSemInteresse, ORIGEM_CONVITE_AGENDA, ORIGEM_CONVITE_GRATUITO } from "../prospects/lead-onboarding";
 import { identificarExecucao, execucaoWhats } from "../agenda/whatsapp-execucao";
 import { MARCA } from "../../common/marca";
@@ -159,7 +159,7 @@ export class CadastroWhatsappService {
       const respostas = this.lerRespostas(aberta);
       if (conviteGratuito) respostas.origem = ORIGEM_CONVITE_GRATUITO;
       await this.avancar(aberta.id,'NOME',respostas);
-      await this.wa.sendMessage(num,this.msgAbertura(testeAgenda),inst as any);return true;
+      await this.wa.sendMessage(num,this.msgAbertura(num, testeAgenda),inst as any);return true;
     }
     await (this.prisma as any).cadastroWhatsapp.create({
       data: {
@@ -170,7 +170,7 @@ export class CadastroWhatsappService {
       },
     });
 
-    await this.wa.sendMessage(num, apresentar ? mensagemPrimeiroContato('novo') : this.msgAbertura(testeAgenda), inst as any).catch(() => false);
+    await this.wa.sendMessage(num, apresentar ? mensagemPrimeiroContato('novo') : this.msgAbertura(num, testeAgenda), inst as any).catch(() => false);
     this.logger.log(`cadastro iniciado pelo chat (numero ...${num.slice(-4)})`);
     return true;
   }
@@ -279,7 +279,7 @@ export class CadastroWhatsappService {
     if (cadastro.etapa === 'INICIO' && !comandoCadastroGeral(resposta) && !interesseConviteAgenda(resposta)) {
       if(resposta==='1') {
         if(await this.tratarConvite(cadastro.whatsapp,'1',inst||process.env.EVOLUTION_INSTANCE||'orkestri-default',respostas.whatsappLid?`${respostas.whatsappLid}@lid`:''))return true;
-        await this.avancar(cadastro.id,'NOME',respostas);await this.responder(cadastro,this.msgAbertura(false),inst);return true;
+        await this.avancar(cadastro.id,'NOME',respostas);await this.responder(cadastro,this.msgAbertura(cadastro.whatsapp, false),inst);return true;
       }
       // "2" agora é "não tenho interesse", como diz o convite. Quem já tem
       // conta é reconhecido pelo número antes de chegar aqui; para o caso raro
@@ -293,7 +293,7 @@ export class CadastroWhatsappService {
       const anterior:any={NOME:'INICIO',CPF:'NOME',EMAIL:'CPF',EMPRESA:'EMAIL',EMPRESA_NOME:'EMAIL',CONFIRMACAO:'EMPRESA',CORRIGIR_DADO:'CONFIRMACAO'};
       const etapa=anterior[cadastro.etapa]||'NOME';delete respostas._revisando;
       await this.avancar(cadastro.id,etapa,respostas);
-      await this.responder(cadastro,etapa==='INICIO'?mensagemPrimeiroContato('novo'):etapa==='CONFIRMACAO'?this.msgConfirmacao(cadastro.nome,cadastro.cpf,respostas):perguntas[etapa]+'\n\nO que você já informou foi preservado. Se estiver correto, envie *manter*.\n*Cancelar* — Parar o cadastro',inst);return true;
+      await this.responder(cadastro,etapa==='INICIO'?mensagemPrimeiroContato('novo'):etapa==='CONFIRMACAO'?this.msgConfirmacao(cadastro.nome,cadastro.cpf,respostas,cadastro.whatsapp):perguntas[etapa]+'\n\nO que você já informou foi preservado. Se estiver correto, envie *manter*.\n*Cancelar* — Parar o cadastro',inst);return true;
     }
     if(cadastro.etapa==='CORRIGIR_DADO') {
       const etapa=({'1':'NOME','2':'CPF','3':'EMAIL','4':'EMPRESA'} as any)[resposta];
@@ -311,15 +311,15 @@ export class CadastroWhatsappService {
       if(cadastro.etapa==='INICIO') await this.avancar(cadastro.id,'NOME',respostas);
       await (this.prisma as any).cadastroWhatsapp.update({ where: { id: cadastro.id }, data: { respostas: JSON.stringify(respostas) } });
       const pergunta: Record<string, string> = {
-        INICIO: this.msgAbertura(testeSolicitado),
-        NOME: this.msgAbertura(testeSolicitado),
+        INICIO: this.msgAbertura(cadastro.whatsapp, testeSolicitado),
+        NOME: this.msgAbertura(cadastro.whatsapp, testeSolicitado),
         CPF: `Vamos continuar seu cadastro no ${MARCA}. Qual é o seu *CPF*?`,
         EMAIL: `Vamos continuar seu cadastro no ${MARCA}. Qual é o seu *e-mail*?`,
         EMPRESA: perguntas.EMPRESA,
         EMPRESA_NOME: perguntas.EMPRESA,
-        CONFIRMACAO: this.msgConfirmacao(cadastro.nome || '', cadastro.cpf || '', respostas),
+        CONFIRMACAO: this.msgConfirmacao(cadastro.nome || '', cadastro.cpf || '', respostas, cadastro.whatsapp),
       };
-      await this.responder(cadastro, pergunta[cadastro.etapa] || this.msgAbertura(testeSolicitado), inst);
+      await this.responder(cadastro, pergunta[cadastro.etapa] || this.msgAbertura(cadastro.whatsapp, testeSolicitado), inst);
       return true;
     }
 
@@ -379,7 +379,7 @@ export class CadastroWhatsappService {
       delete respostas._revisando;
       await this.avancar(cadastro.id, "CONFIRMACAO", respostas);
       const atual = await (this.prisma as any).cadastroWhatsapp.findUnique({ where: { id: cadastro.id } });
-      await this.responder(cadastro, this.msgConfirmacao(atual.nome, atual.cpf, respostas), inst);
+      await this.responder(cadastro, this.msgConfirmacao(atual.nome, atual.cpf, respostas, cadastro.whatsapp), inst);
       return true;
     }
 
@@ -564,7 +564,7 @@ export class CadastroWhatsappService {
     delete respostas._revisando;
     await this.avancar(cadastro.id,'CONFIRMACAO',respostas);
     const atual=await (this.prisma as any).cadastroWhatsapp.findUnique({where:{id:cadastro.id}});
-    await this.responder(cadastro,this.msgConfirmacao(atual.nome,atual.cpf,respostas),inst);return true;
+    await this.responder(cadastro,this.msgConfirmacao(atual.nome,atual.cpf,respostas,cadastro.whatsapp),inst);return true;
   }
 
   /** Resposta inválida: conta a tentativa e encerra no teto. */
@@ -588,21 +588,26 @@ export class CadastroWhatsappService {
 
   // ── Textos ──────────────────────────────────────────────────────────────────
 
-  private msgAbertura(testeAgenda = false): string {
+  private msgAbertura(numero: string, testeAgenda = false): string {
     return (
       `Oi! Eu sou a *Aurélia*. Vamos fazer seu cadastro no *${MARCA}*, uma pergunta por vez. 😊\n\n` +
+      `📱 Já tenho o seu WhatsApp: *${exibirNumeroCadastro(numero)}* — é por aqui que vou te avisar das suas coisas. Não precisa digitar.
+
+` +
       "O cadastro e o acesso nesta fase são gratuitos, sem cartão. Avisaremos antes de qualquer mudança nas condições.\n\n" +
-      "Como é o seu *nome completo*?\n\n" +
+      "Agora vamos completar o resto. Como é o seu *nome completo*?\n\n" +
       "*Voltar* — Pergunta anterior\n*Cancelar* — Parar o cadastro"
     );
   }
 
-  private msgConfirmacao(nome: string, cpf: string, r: any): string {
+  private msgConfirmacao(nome: string, cpf: string, r: any, whatsapp: string): string {
     return (
       "✅ *Confere pra mim se está tudo certo:*\n\n" +
       `👤 Nome: *${nome}*\n` +
       `🪪 CPF: *${formatarCpf(cpf)}*\n` +
       `📧 E-mail: *${r.email}*\n` +
+      `📱 WhatsApp: *${exibirNumeroCadastro(whatsapp)}* — este, de onde você está falando
+` +
       `🏢 Organização: *${r.empresa || (r.usoPessoal === true ? nome : "Não informado")}*\n\n` +
       "Responda *1* para confirmar ou *2* para corrigir."
     );

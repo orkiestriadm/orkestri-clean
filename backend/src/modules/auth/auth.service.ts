@@ -10,6 +10,7 @@ import { linkCadastroWhatsapp } from "../cadastro-whatsapp/whatsapp-entrada";
 import { urlCheckout } from "../assinatura/checkout-token";
 import { WhatsAppService } from "../notifications/whatsapp.service";
 import { EmailService } from "../notifications/email.service";
+import { mesmoTelefoneCadastro, numeroCadastro } from "../cadastro-whatsapp/whatsapp-entrada";
 import { AutomacaoService } from "../automacoes/automacoes.module";
 import * as bcrypt from "bcryptjs";
 
@@ -1421,6 +1422,41 @@ export class AuthService implements OnModuleInit {
   // ── OTP via WhatsApp ───────────────────────────────────────────────────────────
 
   /**
+   * Perfil de um número, pela MESMA régua que o WhatsApp usa.
+   *
+   * Igualdade de string não encontra ninguém. A tela pede "DDD + número" e
+   * manda 11 dígitos; o cadastro feito pela Aurélia grava com o DDI
+   * (`5514991661688`), e as telas de perfil gravam o que a pessoa digitou,
+   * máscara e tudo. Com `where: { whatsapp }`, TODA conta nascida no WhatsApp
+   * recebia "não encontramos este número cadastrado" — inclusive com o número
+   * perfeitamente gravado. `mesmoTelefoneCadastro` normaliza o DDI e tolera a
+   * troca do nono dígito, que é o critério já usado para reconhecer quem
+   * escreve; usar outro aqui seria dizer que a pessoa tem conta na conversa e
+   * não tem no site.
+   *
+   * Carregar os perfis para comparar em memória é deliberado: a comparação não
+   * cabe em SQL sem desnormalizar a coluna, e a base tem centenas de contas,
+   * não milhões. Se um dia tiver, o caminho é guardar o número normalizado numa
+   * coluna própria — não afrouxar a comparação.
+   *
+   * Dois perfis com o mesmo número é dado sujo, não escolha: devolver um ao
+   * acaso manda o código de recuperação para a conta errada. Por isso aqui é
+   * ambiguidade, e ambiguidade sai pelo suporte.
+   */
+  private async perfilPorWhatsapp(
+    whatsapp: string,
+  ): Promise<{ userId: string; whatsapp: string | null } | "ambiguo" | null> {
+    if (!numeroCadastro(whatsapp)) return null;
+    const perfis = await this.prisma.userProfile.findMany({
+      where: { whatsapp: { not: null } },
+      select: { userId: true, whatsapp: true },
+    });
+    const ligados = perfis.filter((p) => mesmoTelefoneCadastro(whatsapp, p.whatsapp));
+    if (ligados.length > 1) return "ambiguo";
+    return ligados[0] ?? null;
+  }
+
+  /**
    * OTP de recuperação por WhatsApp.
    *
    * `semCadastro: true` diz à tela que aquele número não leva a lugar nenhum,
@@ -1441,7 +1477,11 @@ export class AuthService implements OnModuleInit {
       semCadastro: true,
     };
 
-    const profile = await this.prisma.userProfile.findFirst({ where: { whatsapp } });
+    const profile = await this.perfilPorWhatsapp(whatsapp);
+    if (profile === "ambiguo")
+      throw new UnauthorizedException(
+        "Há mais de uma conta com este número. Contate o Administrador.",
+      );
     if (!profile) return semCadastro;
     const user = await this.prisma.user.findUnique({ where: { id: profile.userId } });
     if (!user || !user.ativo) return semCadastro;
@@ -1473,8 +1513,14 @@ export class AuthService implements OnModuleInit {
     // indicando o motivo — a conta ficava sem saída e sem diagnóstico. A
     // resposta ao cliente continua genérica (não revela se o número existe),
     // mas a falha agora aparece no log.
+    // Destino é o número do PERFIL normalizado, não o que a pessoa digitou: o
+    // Evolution só entrega com DDI e dígitos, e o que chega da tela vem sem o
+    // 55 (e às vezes com máscara). Como os dois já foram provados o mesmo
+    // telefone, mandar pelo cadastro mantém o OTP no mesmo caminho dos outros
+    // avisos daquela conta.
+    const destino = numeroCadastro(profile.whatsapp) || numeroCadastro(whatsapp);
     this.wa
-      .sendOtpForOrg(user.organizationId, whatsapp, code)
+      .sendOtpForOrg(user.organizationId, destino, code)
       .then((enviado) => {
         if (!enviado) {
           this.logger.error(
@@ -1490,8 +1536,12 @@ export class AuthService implements OnModuleInit {
   }
 
   async verifyPasswordOtp(whatsapp: string, code: string) {
-    const profile = await this.prisma.userProfile.findFirst({ where: { whatsapp } });
-    if (!profile) throw new UnauthorizedException("Código inválido ou expirado.");
+    // Mesma régua do envio — com a busca exata daqui, o código certo era
+    // recusado como inválido. Ambíguo não chega nesta etapa (o envio barra
+    // antes) e, se chegar, não há conta única para destravar: é código inválido.
+    const profile = await this.perfilPorWhatsapp(whatsapp);
+    if (!profile || profile === "ambiguo")
+      throw new UnauthorizedException("Código inválido ou expirado.");
     const user = await this.prisma.user.findUnique({ where: { id: profile.userId } });
     if (!user || !user.ativo || (user as any).bloqueado) throw new UnauthorizedException("Conta bloqueada. Contate o Administrador.");
 

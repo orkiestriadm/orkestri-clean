@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "4.3.0";
+export const VERSAO = "4.3.1";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -23,10 +23,10 @@ export const VERSAO = "4.3.0";
  * Não é gerada no build: `new Date()` no bundle muda a cada compilação, e duas
  * builds do mesmo código pareceriam versões diferentes.
  */
-export const VERSAO_DATA = "2026-10-28";
+export const VERSAO_DATA = "2026-11-02";
 
 /** Nome da entrega, para dar contexto ao número. */
-export const VERSAO_NOME = "Entrada pela Aurélia, boas-vindas que ensinam e painel de billing";
+export const VERSAO_NOME = "O WhatsApp do cadastro serve para recuperar a senha";
 
 /**
  * Histórico exibido na tela Sobre, do mais recente para o mais antigo.
@@ -40,6 +40,16 @@ export const HISTORICO: { versao: string; data: string; titulo: string; itens: s
   // substituída pela 3.2.0 antes de chegar a produção. Esta lista é o que
   // mudou para quem USA o sistema, e uma versão que ninguém recebeu não mudou
   // nada para ninguém — anunciá-la só faria procurarem uma tela que não existe.
+  {
+    versao: "4.3.1",
+    data: "2026-11-02",
+    titulo: "O WhatsApp do cadastro serve para recuperar a senha",
+    itens: [
+      "Quem criou a conta pelo WhatsApp já consegue recuperar a senha por lá. Antes, o site respondia “não encontramos este número cadastrado” para toda conta criada pela Aurélia, mesmo com o número certo guardado — e a única saída era chamar o suporte",
+      "O código de 6 dígitos passa a sair pelo mesmo número que recebe os outros avisos da sua conta",
+      "Na conversa de cadastro, a Aurélia já diz qual número ela tem (“Já tenho o seu WhatsApp…”) e o mostra na conferência final, junto do nome, do CPF e do e-mail",
+    ],
+  },
   {
     versao: "4.3.0",
     data: "2026-10-28",
