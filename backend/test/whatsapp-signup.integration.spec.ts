@@ -5,6 +5,9 @@ import { Logger } from "@nestjs/common";
 import { CadastroWhatsappService } from "../src/modules/cadastro-whatsapp/cadastro-whatsapp.module";
 import { WhatsappInicioService } from "../src/modules/cadastro-whatsapp/whatsapp-inicio.service";
 import { WhatsappInboundService } from "../src/modules/agenda/whatsapp-inbound.module";
+import { AuthService } from "../src/modules/auth/auth.service";
+import { JwtService } from "@nestjs/jwt";
+import * as bcrypt from "bcryptjs";
 
 // This suite requires a NEW disposable local database. It never uses DATABASE_URL.
 const url = process.env.SIGNUP_TEST_DATABASE_URL || "";
@@ -215,4 +218,89 @@ describe("Cadastro único pelo webhook e PostgreSQL reais, mensagens simuladas",
     expect((await h.user())?.organization.nome).toBe('Organizacao Corrigida Fixture');
   });
 
+});
+
+/**
+ * O outro lado do mesmo telefone. A conta nasce aqui com o número gravado com
+ * DDI (`5511…`), e quem a criou vai recuperar a senha no navegador digitando
+ * só DDD + número (11 dígitos). Era exatamente aí que o sistema respondia "Não
+ * encontramos este número cadastrado" para TODA conta nascida pela Aurélia,
+ * com o número certo guardado do outro lado.
+ */
+describe("Quem nasceu pelo WhatsApp recupera a senha pelo site", () => {
+  function auth(enviados: { destino: string; codigo: string }[]) {
+    const wa: any = {
+      sendOtpForOrg: jest.fn(async (_org: string, destino: string, codigo: string) => {
+        enviados.push({ destino, codigo });
+        return true;
+      }),
+    };
+    const config: any = {
+      get: (chave: string, padrao?: any) =>
+        chave === "JWT_SECRET" ? "fixture-signup-jwt-secret" : padrao,
+    };
+    const cache: any = {
+      get: jest.fn(async () => null),
+      set: jest.fn(async () => undefined),
+      del: jest.fn(async () => undefined),
+    };
+    return new AuthService(prisma as any, new JwtService({}), config, cache, wa, {} as any, {} as any);
+  }
+
+  it("acha a conta pelo DDD + número, manda o código para o número do cadastro e a senha nova passa a valer", async () => {
+    const h = conversa();
+    await h.dados();
+    await h.send("1");
+    const user: any = await h.user();
+    expect((await h.row())?.status).toBe("CONCLUIDO");
+    // Como a Aurélia gravou: com DDI, 13 dígitos.
+    expect(user.profile.whatsapp).toBe(h.phone);
+
+    // Como a tela manda: DDD + número, sem o 55.
+    const digitadoNoSite = h.phone.slice(2);
+    expect(digitadoNoSite).toHaveLength(11);
+
+    const enviados: { destino: string; codigo: string }[] = [];
+    const service = auth(enviados);
+
+    const resposta: any = await service.sendPasswordOtp(digitadoNoSite);
+    expect(resposta.semCadastro).toBe(false);
+    // O envio não é aguardado dentro do serviço: sem este tique, a asserção
+    // roda antes do `sendOtpForOrg` e passaria por engano.
+    await new Promise((pronto) => setImmediate(pronto));
+    expect(enviados).toHaveLength(1);
+    // Sai pelo número do PERFIL, que é o que o Evolution entrega.
+    expect(enviados[0].destino).toBe(h.phone);
+
+    const { resetToken }: any = await service.verifyPasswordOtp(digitadoNoSite, enviados[0].codigo);
+    await service.resetPasswordWithToken(resetToken, "SenhaNovaFixture#2026");
+
+    // A prova de que o login funcionaria: o hash no banco confere com a senha nova.
+    const depois = await prisma.user.findUnique({ where: { id: user.id } });
+    expect(await bcrypt.compare("SenhaNovaFixture#2026", depois!.senhaHash)).toBe(true);
+    expect(await bcrypt.compare("senha-que-ninguem-definiu", depois!.senhaHash)).toBe(false);
+  });
+
+  it("aceita também o número digitado com DDI ou com máscara", async () => {
+    const h = conversa();
+    await h.dados();
+    await h.send("1");
+    const local = h.phone.slice(2);
+    const comMascara = `(${local.slice(0, 2)}) ${local.slice(2, 7)}-${local.slice(7)}`;
+    for (const digitado of [h.phone, local, comMascara]) {
+      const enviados: { destino: string; codigo: string }[] = [];
+      const resposta: any = await auth(enviados).sendPasswordOtp(digitado);
+      expect(resposta.semCadastro).toBe(false);
+      await new Promise((pronto) => setImmediate(pronto));
+      expect(enviados[0]?.destino).toBe(h.phone);
+    }
+  });
+
+  it("número que não é de ninguém segue recebendo a resposta genérica, sem enviar nada", async () => {
+    const enviados: { destino: string; codigo: string }[] = [];
+    const resposta: any = await auth(enviados).sendPasswordOtp("11900000000");
+    expect(resposta.semCadastro).toBe(true);
+    await new Promise((pronto) => setImmediate(pronto));
+    expect(enviados).toHaveLength(0);
+  });
 });
