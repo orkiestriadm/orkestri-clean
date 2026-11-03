@@ -75,11 +75,28 @@ describe("fim do teste — o '1' cobra, não libera", () => {
     const t = montar(trial());
     await t.msg("1");
 
-    expect(t.assinatura.prepararCobranca).toHaveBeenCalledWith("u1", expect.any(Date));
+    expect(t.assinatura.prepararCobranca).toHaveBeenCalledWith("u1", "MENSAL", expect.any(Date));
     expect(t.u.trialRenovacaoResposta).toBe("QUER_PAGAR");
     // O que não pode acontecer de jeito nenhum:
     expect(t.u.assinaturaEm).toBeNull();
     expect(t.u.assinaturaValidaAte).toBeNull();
+  });
+
+  it("'3' abre a cobrança ANUAL — e também não concede acesso", async () => {
+    const t = montar(trial());
+    await t.msg("3");
+
+    // É aqui que o número vira prazo: o mesmo caminho do "1", com outro plano.
+    expect(t.assinatura.prepararCobranca).toHaveBeenCalledWith("u1", "ANUAL", expect.any(Date));
+    expect(t.u.trialRenovacaoResposta).toBe("QUER_PAGAR");
+    expect(t.u.assinaturaEm).toBeNull();
+    expect(t.u.assinaturaValidaAte).toBeNull();
+  });
+
+  it("'anual' por extenso vale como o '3'", async () => {
+    const t = montar(trial());
+    await t.msg("anual");
+    expect(t.assinatura.prepararCobranca).toHaveBeenCalledWith("u1", "ANUAL", expect.any(Date));
 
     expect(t.enviado()).toContain("R$ 11,90");
     expect(t.enviado()).toContain("https://orkiestri.com/assinatura/tok");
@@ -141,14 +158,14 @@ describe("fim do teste — o '1' cobra, não libera", () => {
     const t = montar(trial());
     t.prisma.userProfile.findMany.mockResolvedValue([]);
     await t.msg(`RENOVAR ${codigoRenovacao("u1")}`, "123456789@lid");
-    expect(t.assinatura.prepararCobranca).toHaveBeenCalledWith("u1", expect.any(Date));
+    expect(t.assinatura.prepararCobranca).toHaveBeenCalledWith("u1", "MENSAL", expect.any(Date));
     expect(t.prisma.userProfile.upsert).toHaveBeenCalledWith(expect.objectContaining({ update: { whatsappLid: "123456789" } }));
   });
 
   it("LID desconhecido, mas o v2 manda o telefone no remoteJidAlt: '1' funciona", async () => {
     const t = montar(trial());
     await t.processar({ remoteJid: "999@lid", remoteJidAlt: `${TEL}@s.whatsapp.net` }, "1");
-    expect(t.assinatura.prepararCobranca).toHaveBeenCalledWith("u1", expect.any(Date));
+    expect(t.assinatura.prepararCobranca).toHaveBeenCalledWith("u1", "MENSAL", expect.any(Date));
   });
 
   it("vencido há mais de 15 dias: não cobra e avisa a equipe", async () => {
@@ -172,7 +189,7 @@ describe("mensalidade — o '1' cobra, não soma mês", () => {
     const t = montar(assinante());
     const venc = t.u.assinaturaValidaAte.getTime();
     await t.msg("1");
-    expect(t.assinatura.prepararCobranca).toHaveBeenCalledWith("u1", expect.any(Date));
+    expect(t.assinatura.prepararCobranca).toHaveBeenCalledWith("u1", "MENSAL", expect.any(Date));
     expect(t.u.assinaturaValidaAte.getTime()).toBe(venc);
     expect(t.auth.notificarEquipeTrial).toHaveBeenCalledWith("u1", "assinatura_quer_pagar", expect.any(String), expect.any(String));
   });
@@ -180,7 +197,7 @@ describe("mensalidade — o '1' cobra, não soma mês", () => {
   it("mensalidade vencida há 3 dias: '1' ainda cobra, dentro dos 15 dias", async () => {
     const t = montar(assinante({ assinaturaValidaAte: new Date(Date.now() - 3 * D), trialLembreteEm: new Date(Date.now() - 4 * D) }));
     await t.msg("1");
-    expect(t.assinatura.prepararCobranca).toHaveBeenCalledWith("u1", expect.any(Date));
+    expect(t.assinatura.prepararCobranca).toHaveBeenCalledWith("u1", "MENSAL", expect.any(Date));
   });
 
   it("código reenviado no meio do mês não abre cobrança nenhuma", async () => {

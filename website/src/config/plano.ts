@@ -25,17 +25,24 @@ export const PLANO = {
   retomadaDias: 15,
 
   /* ── Plano anual ────────────────────────────────────────────────────────
-     🔴 `anualAtivo` é FALSE de propósito, e só deve virar true no dia em que
-     o backend souber cobrar um ano.
+     🔴 `anualAtivo` continua FALSE, e o motivo MUDOU em 03/11/2026.
 
-     Hoje ele não sabe: `modules/assinatura/mercadopago.ts` cria o preapproval
-     com `frequency: 1, frequency_type: "months"`, e `trial-renovacao.ts` só
-     conhece `VALOR_MENSALIDADE` e `somarUmMes`. Publicar a oferta anual antes
-     disso levaria a pessoa a escolher o anual e receber a cobrança mensal —
-     é a mesma armadilha que fez o site anunciar contas a pagar depois de o
-     módulo sair do sistema.
+     O backend já sabe cobrar um ano: o plano virou dado da cobrança, o
+     preapproval aceita frequência de doze meses, a Aurélia oferece a opção 3
+     e `aplicarPagamentoConfirmado` concede doze meses em vez de um. São 572
+     testes passando, incluindo o par que trava o erro caro — um pagamento
+     anual não pode conceder um mês, nem um mensal conceder doze.
 
-     A tela está pronta: ligar a chave publica o comparativo inteiro. */
+     O que falta é PUBLICAR esse backend. Enquanto a produção rodar a API sem
+     o plano anual, ligar esta chave faz a pessoa escolher o anual e receber
+     cobrança mensal — exatamente o que a chave existe para impedir.
+
+     🔴 E o risco aqui é concreto, não teórico: este site já foi publicado
+     sozinho quatro vezes em 03/11, sem tocar na API. Um deploy só do
+     `website/` com a chave ligada quebra a promessa na hora.
+
+     REGRA: virar true SOMENTE no mesmo release que publica a API com o plano
+     anual, e conferindo a `/api/health` depois. */
   anualAtivo: false,
   anualLabel: "R$ 119,90",
   anualCentavos: 11990,

@@ -850,7 +850,9 @@ export class WhatsappInboundService {
     try {
       // Idempotente: dois "1" seguidos reaproveitam a mesma cobrança e o mesmo
       // Pix, em vez de gerar duas cobranças e duas conversas de suporte.
-      cobranca = await this.assinatura.prepararCobranca(alvo.id, agora);
+      // `resp.plano` é o que separa o "1" do "3": a mesma porta abre a cobrança
+      // mensal ou a anual conforme o número que a pessoa respondeu.
+      cobranca = await this.assinatura.prepararCobranca(alvo.id, resp.plano, agora);
     } catch (e: any) {
       this.logger.error(`Cobrança não abriu para user=${alvo.id}: ${e?.message || e}`);
       await falar(RESPOSTA_PAGAMENTO_INDISPONIVEL);

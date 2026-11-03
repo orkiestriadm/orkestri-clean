@@ -130,6 +130,19 @@ export class MercadoPagoClient {
     payerEmail: string;
     backUrl: string;
     externalReference: string;
+    /**
+     * De quantos em quantos meses o Mercado Pago cobra. 1 na mensalidade, 12 no
+     * plano anual.
+     *
+     * O tipo continua "months" nos dois: `frequency_type: "years"` existe na
+     * API, mas misturar as duas unidades daria duas formas de dizer a mesma
+     * coisa — e a comparação `frequency === 12` deixaria de bastar para
+     * reconhecer um anual vindo do MP.
+     *
+     * Default 1 para que toda chamada existente continue criando mensalidade
+     * sem alteração.
+     */
+    frequenciaMeses?: number;
     idempotencia?: string;
   }): Promise<Preapproval> {
     return this.chamar<Preapproval>(
@@ -153,7 +166,7 @@ export class MercadoPagoClient {
         // no passado é recusada, e data no futuro adia a primeira cobrança sem
         // que nada no sistema esteja esperando por isso.
         auto_recurring: {
-          frequency: 1,
+          frequency: p.frequenciaMeses ?? 1,
           frequency_type: "months",
           transaction_amount: p.valorCentavos / 100,
           currency_id: "BRL",

@@ -11,7 +11,7 @@
 jest.mock("nodemailer", () => ({}), { virtual: true });
 import "reflect-metadata";
 import { AssinaturaService } from "./assinatura.module";
-import { somarUmMes, VALOR_MENSALIDADE } from "../auth/trial-renovacao";
+import { somarUmMes, somarMeses, VALOR_MENSALIDADE, VALOR_ANUAL } from "../auth/trial-renovacao";
 
 const H = 60 * 60 * 1000;
 const D = 24 * H;
@@ -135,5 +135,67 @@ describe("aplicarPagamentoConfirmado", () => {
     const t = montar({}, { validadeConcedidaAte: em(30 * D), status: "pago" });
     expect(await t.svc.aplicarPagamentoConfirmado("c1", AGORA)).toBeNull();
     expect(t.users[0].assinaturaValidaAte).toBeNull();
+  });
+
+  // ── Plano anual ──────────────────────────────────────────────────────────
+  //
+  // O par de testes que importa: quem pagou um ano não pode receber um mês, e
+  // quem pagou um mês não pode receber um ano. Os dois erros são silenciosos —
+  // ninguém reclama de ter ganhado onze meses, e quem perdeu só descobre na
+  // data de vencimento.
+
+  it("pagamento ANUAL concede doze meses, não um", async () => {
+    const t = montar({}, { plano: "ANUAL", valor: VALOR_ANUAL });
+    const fimTeste = t.users[0].trialExpiraEm;
+
+    await t.svc.aplicarPagamentoConfirmado("c1", AGORA);
+
+    expect(t.users[0].assinaturaValidaAte.getTime()).toBe(somarMeses(fimTeste, 12).getTime());
+    expect(t.users[0].assinaturaValidaAte.getTime()).not.toBe(somarUmMes(fimTeste).getTime());
+    expect(t.users[0].assinaturaValor).toBe(VALOR_ANUAL);
+    expect(t.users[0].assinaturaPlano).toBe("ANUAL");
+  });
+
+  it("pagamento MENSAL continua concedendo um mês, mesmo para quem já foi anual", async () => {
+    // Era anual e agora renovou no mensal: o prazo vem da COBRANÇA, não do
+    // histórico da pessoa.
+    const vence = em(3 * D);
+    const t = montar(
+      { assinaturaEm: em(-300 * D), assinaturaValidaAte: vence, assinaturaPlano: "ANUAL", trialExpiraEm: em(-310 * D) },
+      { plano: "MENSAL" },
+    );
+
+    await t.svc.aplicarPagamentoConfirmado("c1", AGORA);
+
+    expect(t.users[0].assinaturaValidaAte.getTime()).toBe(somarUmMes(vence).getTime());
+    expect(t.users[0].assinaturaPlano).toBe("MENSAL");
+  });
+
+  it("cobrança antiga, sem a coluna plano, vale como mensal", async () => {
+    // Linha gravada antes da migration: `plano` chega undefined. Conceder doze
+    // meses aqui seria o pior erro possível, porque é invisível.
+    const t = montar({}, { plano: undefined });
+    const fimTeste = t.users[0].trialExpiraEm;
+
+    await t.svc.aplicarPagamentoConfirmado("c1", AGORA);
+
+    expect(t.users[0].assinaturaValidaAte.getTime()).toBe(somarUmMes(fimTeste).getTime());
+  });
+
+  it("o anual repetido também não soma dois anos", async () => {
+    const t = montar({}, { plano: "ANUAL", valor: VALOR_ANUAL });
+    await t.svc.aplicarPagamentoConfirmado("c1", AGORA);
+    const depois = t.users[0].assinaturaValidaAte.getTime();
+
+    expect(await t.svc.aplicarPagamentoConfirmado("c1", AGORA)).toBeNull();
+    expect(t.users[0].assinaturaValidaAte.getTime()).toBe(depois);
+  });
+
+  it("a confirmação do anual fala em ano que vem, não em mês que vem", async () => {
+    const t = montar({}, { plano: "ANUAL", valor: VALOR_ANUAL });
+    await t.svc.aplicarPagamentoConfirmado("c1", AGORA);
+    const texto = t.wa.sendMessage.mock.calls[0][1];
+    expect(texto).toContain("ano que vem");
+    expect(texto).not.toContain("mês que vem");
   });
 });

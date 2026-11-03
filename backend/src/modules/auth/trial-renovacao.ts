@@ -251,7 +251,17 @@ export function avisoDoCicloAtual(u: ContaRenovavel): boolean {
   return new Date(u.trialLembreteEm).getTime() >= f.limite.getTime() - maiorMarco * 24 * 60 * 60 * 1000;
 }
 
-export type RespostaRenovacao = { opcao: "RENOVAR" | "RECUSAR"; codigo: string | null };
+/**
+ * `plano` só tem sentido quando a opção é RENOVAR; no RECUSAR ele vem MENSAL e
+ * é ignorado.
+ *
+ * O plano entra como CAMPO, e não como uma terceira opção ("RENOVAR_ANUAL"),
+ * de propósito: todo `if (opcao === "RENOVAR")` espalhado pelo módulo do
+ * WhatsApp continua valendo sem alteração, e quem precisa do prazo lê o campo.
+ * Uma terceira opção obrigaria a revisar cada um desses ramos, e um esquecido
+ * faria o anual cair silenciosamente no caminho do "não quero".
+ */
+export type RespostaRenovacao = { opcao: "RENOVAR" | "RECUSAR"; plano: Plano; codigo: string | null };
 
 /**
  * Lê a resposta ao aviso. `soNumero` indica se a mensagem foi só "1"/"2" — esse
@@ -260,10 +270,17 @@ export type RespostaRenovacao = { opcao: "RENOVAR" | "RECUSAR"; codigo: string |
  */
 export function interpretarRespostaRenovacao(texto: string): (RespostaRenovacao & { soNumero: boolean }) | null {
   const t = (texto || "").trim();
-  if (/^\/?1\s*[?!.]*$/.test(t)) return { opcao: "RENOVAR", codigo: null, soNumero: true };
-  if (/^\/?2\s*[?!.]*$/.test(t)) return { opcao: "RECUSAR", codigo: null, soNumero: true };
+  if (/^\/?1\s*[?!.]*$/.test(t)) return { opcao: "RENOVAR", plano: "MENSAL", codigo: null, soNumero: true };
+  if (/^\/?2\s*[?!.]*$/.test(t)) return { opcao: "RECUSAR", plano: "MENSAL", codigo: null, soNumero: true };
+  // O "3" é o anual. Entrou DEPOIS do 1 e do 2, e por isso ficou com o número
+  // maior: quem já conhece o aviso não precisa reaprender o que o 1 faz.
+  if (/^\/?3\s*[?!.]*$/.test(t)) return { opcao: "RENOVAR", plano: "ANUAL", codigo: null, soNumero: true };
+  // "RENOVAR ANUAL ABC123" e "ANUAL ABC123" — a palavra antes do código, que é
+  // como a pessoa escreveria depois de ler a opção 3 no aviso.
+  const mAnual = t.match(/^\/?(?:renovar\s+)?anual(?:\s+([a-z0-9]{6}))?\s*[?!.]*$/i);
+  if (mAnual) return { opcao: "RENOVAR", plano: "ANUAL", codigo: mAnual[1] ? mAnual[1].toUpperCase() : null, soNumero: false };
   const m = t.match(/^\/?(renovar|quero renovar|renova[çc][aã]o|pagar)(?:\s+([a-z0-9]{6}))?\s*[?!.]*$/i);
-  if (m) return { opcao: "RENOVAR", codigo: m[2] ? m[2].toUpperCase() : null, soNumero: false };
+  if (m) return { opcao: "RENOVAR", plano: "MENSAL", codigo: m[2] ? m[2].toUpperCase() : null, soNumero: false };
   return null;
 }
 
@@ -296,13 +313,18 @@ export function montarLembrete(p: {
   const atalho = p.urlCheckout ? `Ou pague agora, sem responder nada:\n${p.urlCheckout}\n\n` : "";
   const rodape = `_Se o 1 não for reconhecido, envie: RENOVAR ${p.codigo}_`;
   const quando = fmtQuando(p.limite);
+  /* A opção 3 é o anual. Fica DEPOIS do "não, obrigado" de propósito: quem já
+     decidiu sair não deve esbarrar numa oferta maior antes da saída, e quem
+     está decidindo lê as três e escolhe. O preço por mês vai junto porque é o
+     que torna a comparação possível sem fazer conta. */
+  const anual = `*3* — Quero o plano anual: ${VALOR_ANUAL_LABEL} por 12 meses (${VALOR_ANUAL_POR_MES_LABEL}/mês)\n`;
   if (p.fase === "TESTE") {
     return (
       `${tituloAviso("TESTE", p.marco)}\n\n` +
       `Olá, *${nomeCadastro(p.nome)}*! Aqui é a Aurélia, do ${MARCA}. Seus 7 dias de teste do *${produto}* acabam em *${quando}*.\n\n` +
       `Quer continuar? São *${VALOR_MENSALIDADE_LABEL} por mês*, com todos os módulos liberados.\n\n` +
       `*1* — Quero continuar\n` +
-      `*2* — Não, obrigado\n\n` + atalho + rodape
+      `*2* — Não, obrigado\n` + anual + `\n` + atalho + rodape
     );
   }
   return (
@@ -310,7 +332,7 @@ export function montarLembrete(p: {
     `Olá, *${nomeCadastro(p.nome)}*! Aqui é a Aurélia, do ${MARCA}. Seu acesso ao *${produto}* vale até *${quando}*.\n\n` +
     `Quer seguir por mais um mês? São *${VALOR_MENSALIDADE_LABEL}*.\n\n` +
     `*1* — Quero renovar\n` +
-    `*2* — Não, encerrar\n\n` + atalho + rodape
+    `*2* — Não, encerrar\n` + anual + `\n` + atalho + rodape
   );
 }
 
@@ -320,15 +342,21 @@ export function montarLembrete(p: {
  * porque código no meio de texto corrido não se copia no celular.
  */
 export function montarCobranca(p: {
-  nome: string; modulo: string | null; urlCheckout: string; temPix: boolean;
+  nome: string; modulo: string | null; urlCheckout: string; temPix: boolean; plano?: Plano;
 }): string {
+  const plano = p.plano ?? "MENSAL";
+  const anual = plano === "ANUAL";
+  const periodo = anual ? "pelos próximos 12 meses" : "pelo próximo mês";
+  const cartao = anual
+    ? `*Cartão* — renova sozinho uma vez por ano:`
+    : `*Cartão* — renova sozinho todo mês, você não precisa lembrar:`;
   const pix = p.temPix
-    ? `*Pix* — paga um mês de cada vez. O código vem na mensagem seguinte. 👇\n\n`
-    : `*Pix* — se preferir pagar um mês de cada vez, escolha Pix na mesma página.\n\n`;
+    ? `*Pix* — ${anual ? "paga o ano de uma vez" : "paga um mês de cada vez"}. O código vem na mensagem seguinte. 👇\n\n`
+    : `*Pix* — se preferir, escolha Pix na mesma página.\n\n`;
   return (
     `💳 *Falta só o pagamento*\n\n` +
-    `São *${VALOR_MENSALIDADE_LABEL}* pelo próximo mês, ${nomeCadastro(p.nome)}. Escolha como pagar:\n\n` +
-    `*Cartão* — renova sozinho todo mês, você não precisa lembrar:\n${p.urlCheckout}\n\n` +
+    `São *${LABEL_DO_PLANO[plano]}* ${periodo}, ${nomeCadastro(p.nome)}. Escolha como pagar:\n\n` +
+    `${cartao}\n${p.urlCheckout}\n\n` +
     pix +
     `Assim que o pagamento cair, eu te aviso aqui e seu acesso segue liberado.`
   );
@@ -340,10 +368,12 @@ export function montarPixCopiaECola(codigo: string): string {
 }
 
 /** Confirmação depois que o Mercado Pago aprovou o pagamento. */
-export function montarPagamentoConfirmado(p: { nome: string; modulo: string | null; validaAte: Date; renovacaoAuto: boolean }): string {
+export function montarPagamentoConfirmado(p: { nome: string; modulo: string | null; validaAte: Date; renovacaoAuto: boolean; plano?: Plano }): string {
+  const anual = (p.plano ?? "MENSAL") === "ANUAL";
+  const quandoVolta = anual ? "ano que vem" : "mês que vem";
   const fecho = p.renovacaoAuto
-    ? `A renovação é automática no cartão — não precisa fazer nada no mês que vem.`
-    : `No mês que vem eu te aviso de novo por aqui.`;
+    ? `A renovação é automática no cartão — não precisa fazer nada no ${quandoVolta}.`
+    : `No ${quandoVolta} eu te aviso de novo por aqui.`;
   return (
     `✅ *Pagamento confirmado!*\n\n` +
     `Seu acesso ao *${produtoLabel(p.modulo)}* está liberado até *${fmtDia(p.validaAte)}*, ${nomeCadastro(p.nome)}. ${fecho}\n\n` +
@@ -352,10 +382,10 @@ export function montarPagamentoConfirmado(p: { nome: string; modulo: string | nu
 }
 
 /** Cobrança no cartão que não passou — o MP tenta de novo, mas é melhor avisar. */
-export function montarCobrancaFalhou(p: { nome: string; limite: Date; urlCheckout: string }): string {
+export function montarCobrancaFalhou(p: { nome: string; limite: Date; urlCheckout: string; plano?: Plano }): string {
   return (
     `⚠️ *Não conseguimos cobrar no seu cartão*\n\n` +
-    `Olá, ${nomeCadastro(p.nome)}! A cobrança de *${VALOR_MENSALIDADE_LABEL}* não passou. ` +
+    `Olá, ${nomeCadastro(p.nome)}! A cobrança de *${LABEL_DO_PLANO[p.plano ?? "MENSAL"]}* não passou. ` +
     `Seu acesso vale até *${fmtDia(p.limite)}*.\n\n` +
     `Dá para trocar o cartão ou pagar no Pix aqui:\n${p.urlCheckout}`
   );

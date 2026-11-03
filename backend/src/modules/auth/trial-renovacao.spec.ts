@@ -12,6 +12,7 @@ import {
   interpretarRespostaRenovacao, montarLembrete, montarCobranca, montarRespostaRecusou,
   montarPagamentoConfirmado, montarCobrancaFalhou, diasRestantes, cicloDe,
   codigoRenovacao, produtoLabel, VALOR_MENSALIDADE, VALOR_MENSALIDADE_LABEL, ContaRenovavel,
+  somarMeses, planoDe, VALOR_DO_PLANO, LABEL_DO_PLANO, MESES_DO_PLANO, VALOR_ANUAL_LABEL,
 } from "./trial-renovacao";
 
 const H = 60 * 60 * 1000;
@@ -131,19 +132,82 @@ describe("validade do mês", () => {
 
 describe("interpretarRespostaRenovacao", () => {
   it("1 e 2 soltos", () => {
-    expect(interpretarRespostaRenovacao("1")).toEqual({ opcao: "RENOVAR", codigo: null, soNumero: true });
-    expect(interpretarRespostaRenovacao(" 2! ")).toEqual({ opcao: "RECUSAR", codigo: null, soNumero: true });
+    expect(interpretarRespostaRenovacao("1")).toEqual({ opcao: "RENOVAR", plano: "MENSAL", codigo: null, soNumero: true });
+    expect(interpretarRespostaRenovacao(" 2! ")).toEqual({ opcao: "RECUSAR", plano: "MENSAL", codigo: null, soNumero: true });
   });
   it("RENOVAR e PAGAR, com e sem código", () => {
-    expect(interpretarRespostaRenovacao("renovar ab12cd")).toEqual({ opcao: "RENOVAR", codigo: "AB12CD", soNumero: false });
-    expect(interpretarRespostaRenovacao("Quero renovar")).toEqual({ opcao: "RENOVAR", codigo: null, soNumero: false });
-    expect(interpretarRespostaRenovacao("pagar")).toEqual({ opcao: "RENOVAR", codigo: null, soNumero: false });
+    expect(interpretarRespostaRenovacao("renovar ab12cd")).toEqual({ opcao: "RENOVAR", plano: "MENSAL", codigo: "AB12CD", soNumero: false });
+    expect(interpretarRespostaRenovacao("Quero renovar")).toEqual({ opcao: "RENOVAR", plano: "MENSAL", codigo: null, soNumero: false });
+    expect(interpretarRespostaRenovacao("pagar")).toEqual({ opcao: "RENOVAR", plano: "MENSAL", codigo: null, soNumero: false });
+  });
+  it("3 é o plano anual, solto e por extenso", () => {
+    expect(interpretarRespostaRenovacao("3")).toEqual({ opcao: "RENOVAR", plano: "ANUAL", codigo: null, soNumero: true });
+    expect(interpretarRespostaRenovacao(" 3. ")).toEqual({ opcao: "RENOVAR", plano: "ANUAL", codigo: null, soNumero: true });
+    expect(interpretarRespostaRenovacao("anual")).toEqual({ opcao: "RENOVAR", plano: "ANUAL", codigo: null, soNumero: false });
+    expect(interpretarRespostaRenovacao("RENOVAR ANUAL ab12cd")).toEqual({ opcao: "RENOVAR", plano: "ANUAL", codigo: "AB12CD", soNumero: false });
+  });
+  it("o anual não rouba o RENOVAR mensal com código", () => {
+    // "renovar ab12cd" e "renovar anual ab12cd" só diferem pela palavra; se o
+    // padrão do anual fosse frouxo, todo mundo que renova pagaria doze meses.
+    expect(interpretarRespostaRenovacao("renovar ab12cd")!.plano).toBe("MENSAL");
+    expect(interpretarRespostaRenovacao("renovar anual ab12cd")!.plano).toBe("ANUAL");
   });
   it("não rouba gasto, evento nem número maior", () => {
     expect(interpretarRespostaRenovacao("12")).toBeNull();
     expect(interpretarRespostaRenovacao("1 pão 5 reais")).toBeNull();
     expect(interpretarRespostaRenovacao("Gasto: Mercado 1")).toBeNull();
     expect(interpretarRespostaRenovacao("9")).toBeNull();
+    // "3" solto é renovação anual, mas "3 pães" continua sendo um gasto.
+    expect(interpretarRespostaRenovacao("3 pães")).toBeNull();
+    expect(interpretarRespostaRenovacao("33")).toBeNull();
+  });
+});
+
+describe("plano anual — prazo, valor e leitura segura", () => {
+  it("o anual soma doze meses e o mensal soma um", () => {
+    const agora = new Date("2026-11-03T12:00:00Z");
+    expect(proximaValidade(null, agora, "MENSAL").toISOString().slice(0, 10)).toBe("2026-12-03");
+    expect(proximaValidade(null, agora, "ANUAL").toISOString().slice(0, 10)).toBe("2027-11-03");
+  });
+
+  it("sem plano, continua mensal — é o que mantém toda chamada antiga valendo", () => {
+    const agora = new Date("2026-11-03T12:00:00Z");
+    expect(proximaValidade(null, agora).getTime()).toBe(proximaValidade(null, agora, "MENSAL").getTime());
+  });
+
+  it("o anual conta a partir do fim do período atual, como o mensal", () => {
+    const agora = new Date("2026-11-03T12:00:00Z");
+    const limite = new Date("2026-11-20T12:00:00Z");
+    // Quem renova antes de vencer não perde os dias que faltavam.
+    expect(proximaValidade(limite, agora, "ANUAL").toISOString().slice(0, 10)).toBe("2027-11-20");
+  });
+
+  it("fim de mês e bissexto não escorregam", () => {
+    expect(somarMeses(new Date("2027-01-31T12:00:00"), 1).toLocaleDateString("en-CA")).toBe("2027-02-28");
+    // 29/02 + 12 meses é 28/02 do ano seguinte. Somar 365 dias acertaria só por sorte.
+    expect(somarMeses(new Date("2028-02-29T12:00:00"), 12).toLocaleDateString("en-CA")).toBe("2029-02-28");
+    expect(somarMeses(new Date("2026-12-31T12:00:00"), 12).toLocaleDateString("en-CA")).toBe("2027-12-31");
+  });
+
+  it("valor e rótulo de cada plano", () => {
+    expect(VALOR_DO_PLANO.MENSAL).toBe(1190);
+    expect(VALOR_DO_PLANO.ANUAL).toBe(11990);
+    expect(LABEL_DO_PLANO.ANUAL).toBe("R$ 119,90");
+    expect(MESES_DO_PLANO.ANUAL).toBe(12);
+    // Doze meses avulsos custam mais do que o ano — se um dia deixar de custar,
+    // o desconto anunciado no site vira mentira.
+    expect(VALOR_DO_PLANO.MENSAL * 12).toBeGreaterThan(VALOR_DO_PLANO.ANUAL);
+  });
+
+  it("planoDe lê o banco com segurança: o que não for ANUAL é mensal", () => {
+    expect(planoDe("ANUAL")).toBe("ANUAL");
+    expect(planoDe("MENSAL")).toBe("MENSAL");
+    // Linha antiga sem a coluna, lixo ou enum futuro: o erro possível é conceder
+    // um mês a quem pagou um ano (visível e corrigível), nunca o contrário.
+    expect(planoDe(null)).toBe("MENSAL");
+    expect(planoDe(undefined)).toBe("MENSAL");
+    expect(planoDe("anual")).toBe("MENSAL");
+    expect(planoDe("TRIENAL")).toBe("MENSAL");
   });
 });
 

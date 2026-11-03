@@ -14,6 +14,7 @@ import { WhatsAppService } from "../notifications/whatsapp.service";
 import { NotificationsModule } from "../notifications/notifications.module";
 import {
   VALOR_MENSALIDADE, VALOR_MENSALIDADE_LABEL, PIX_VALIDADE_MS,
+  VALOR_DO_PLANO, LABEL_DO_PLANO, MESES_DO_PLANO, planoDe, type Plano,
   faseDaConta, podeRenovar, proximaValidade, cicloDe, produtoLabel,
   montarCobranca, montarPixCopiaECola, montarPagamentoConfirmado, montarCobrancaFalhou,
 } from "../auth/trial-renovacao";
@@ -102,15 +103,26 @@ export class AssinaturaService {
    * O mês que a próxima cobrança compra. Conta do fim do período atual quando
    * ele ainda não acabou: quem paga três dias antes não perde os três dias.
    */
-  private proximoPeriodo(u: UsuarioCobravel, agora: Date): Date {
+  private proximoPeriodo(u: UsuarioCobravel, agora: Date, plano: Plano = "MENSAL"): Date {
     const f = faseDaConta(u as any);
-    return proximaValidade(f ? f.limite : null, agora);
+    return proximaValidade(f ? f.limite : null, agora, plano);
   }
 
-  /** A cobrança pendente deste ciclo, se já existir e ainda valer. */
-  private async pendenteDoCiclo(userId: string, ciclo: string, agora: Date) {
+  /**
+   * A cobrança em aberto da pessoa, qualquer que seja o ciclo.
+   *
+   * Era "a pendente DESTE ciclo". Com o plano anual isso deixou de bastar: o
+   * ciclo é o mês em que o período comprado termina, então um "1" e um "3" do
+   * mesmo dia geram ciclos diferentes (o mês que vem e o ano que vem) e as
+   * duas cobranças ficariam abertas ao mesmo tempo — duas mensagens com dois
+   * Pix, e a chance de a pessoa pagar os dois.
+   *
+   * O invariante que o código sempre quis é "uma cobrança aberta por pessoa".
+   * É ele que está escrito aqui agora.
+   */
+  private async pendenteAberta(userId: string, agora: Date) {
     const abertas = await (this.prisma as any).assinaturaCobranca.findMany({
-      where: { userId, ciclo, status: "pendente" },
+      where: { userId, status: "pendente" },
       orderBy: { criadoEm: "desc" },
     });
     return abertas.find((c: any) => !c.expiraEm || new Date(c.expiraEm).getTime() > agora.getTime()) || null;
@@ -138,27 +150,43 @@ export class AssinaturaService {
    * Reaproveitar é o que impede dois "1" seguidos de gerarem dois Pix e duas
    * conversas de suporte.
    */
-  async abrirCobranca(userId: string, agora = new Date()) {
+  async abrirCobranca(userId: string, plano: Plano = "MENSAL", agora = new Date()) {
     const u = await this.carregar(userId);
     const f = faseDaConta(u as any);
     if (!f) throw new BadRequestException("Esta conta está fora do ciclo de mensalidade.");
     if (!podeRenovar(u as any, agora)) throw new BadRequestException("prazo_encerrado");
 
-    const validadeAlvo = this.proximoPeriodo(u, agora);
+    const validadeAlvo = this.proximoPeriodo(u, agora, plano);
     const ciclo = cicloDe(validadeAlvo);
 
-    const existente = await this.pendenteDoCiclo(u.id, ciclo, agora);
-    if (existente) return { usuario: u, cobranca: existente, reaproveitada: true };
+    const existente = await this.pendenteAberta(u.id, agora);
+    if (existente) {
+      // Mesmo plano: é o segundo "1" seguido. Devolve a mesma cobrança e o
+      // mesmo Pix, que é o que mantém uma conversa de suporte em vez de duas.
+      if (planoDe(existente.plano) === plano) return { usuario: u, cobranca: existente, reaproveitada: true };
+      // Trocou de plano (respondeu 1 e depois 3, ou o contrário): a anterior
+      // sai de cena para não ficarem duas cobranças abertas.
+      //
+      // Cancelar aqui é só o que o SISTEMA oferece. Se a pessoa pagar o Pix
+      // antigo assim mesmo, `aplicarPagamentoConfirmado` concede o período
+      // daquela cobrança, com o valor e o plano dela — que é o certo, porque
+      // foi aquilo que ela pagou.
+      await (this.prisma as any).assinaturaCobranca.update({
+        where: { id: existente.id },
+        data: { status: "cancelado" },
+      });
+      this.logger.log(`Cobrança ${existente.id} cancelada: user=${u.id} trocou ${existente.plano} → ${plano}`);
+    }
 
     const cobranca = await (this.prisma as any).assinaturaCobranca.create({
-      data: { userId: u.id, valor: VALOR_MENSALIDADE, ciclo, status: "pendente" },
+      data: { userId: u.id, valor: VALOR_DO_PLANO[plano], plano, ciclo, status: "pendente" },
     });
     return { usuario: u, cobranca, reaproveitada: false };
   }
 
   /** Gera o Pix da cobrança — ou devolve o que já existe. */
-  async gerarPix(userId: string, agora = new Date()) {
-    const { usuario, cobranca } = await this.abrirCobranca(userId, agora);
+  async gerarPix(userId: string, plano: Plano = "MENSAL", agora = new Date()) {
+    const { usuario, cobranca } = await this.abrirCobranca(userId, plano, agora);
     if (cobranca.pixQrCode) return { cobranca, usuario };
 
     const mp = this.mp();
@@ -171,7 +199,9 @@ export class AssinaturaService {
     try {
       pagamento = await mp.criarPagamentoPix({
         valorCentavos: cobranca.valor,
-        descricao: `${produtoLabel(usuario.trialModulo)} — mensalidade ${cobranca.ciclo}`,
+        descricao: planoDe(cobranca.plano) === "ANUAL"
+          ? `${produtoLabel(usuario.trialModulo)} — plano anual até ${cobranca.ciclo}`
+          : `${produtoLabel(usuario.trialModulo)} — mensalidade ${cobranca.ciclo}`,
         payerEmail: usuario.email,
         primeiroNome,
         sobrenome: resto.join(" ") || undefined,
@@ -310,7 +340,7 @@ export class AssinaturaService {
   }
 
   /** Cria a assinatura de cartão e devolve o endereço do checkout do MP. */
-  async assinarNoCartao(userId: string, agora = new Date()) {
+  async assinarNoCartao(userId: string, plano: Plano = "MENSAL", agora = new Date()) {
     const u = await this.carregar(userId);
     const f = faseDaConta(u as any);
     if (!f) throw new BadRequestException("Esta conta está fora do ciclo de mensalidade.");
@@ -328,9 +358,15 @@ export class AssinaturaService {
     // Reaproveitar também fixa o dia do ciclo: o Mercado Pago marca a cobrança
     // pela data de criação do preapproval, então o dia é o do primeiro clique,
     // não o de uma tentativa repetida.
+    const meses = MESES_DO_PLANO[plano];
+
     if (u.assinaturaPreapprovalId) {
       const atual = await mp.consultarPreapproval(u.assinaturaPreapprovalId).catch(() => null);
-      if (atual?.status === "pending" && atual.init_point) {
+      // Só reaproveita quando a assinatura pendente é do MESMO prazo. Sem esta
+      // conferência, quem pediu o mensal e depois trocou para o anual voltaria
+      // ao checkout do mensal — pagaria R$ 11,90 achando que assinou o ano.
+      const mesmoPrazo = (atual?.auto_recurring?.frequency ?? 1) === meses;
+      if (atual?.status === "pending" && atual.init_point && mesmoPrazo) {
         return { initPoint: atual.init_point, preapprovalId: atual.id, reaproveitada: true };
       }
     }
@@ -338,11 +374,14 @@ export class AssinaturaService {
     let preapproval;
     try {
       preapproval = await mp.criarPreapproval({
-        valorCentavos: VALOR_MENSALIDADE,
-        razao: `${produtoLabel(u.trialModulo)} — ${VALOR_MENSALIDADE_LABEL}/mês`,
+        valorCentavos: VALOR_DO_PLANO[plano],
+        razao: plano === "ANUAL"
+          ? `${produtoLabel(u.trialModulo)} — ${LABEL_DO_PLANO.ANUAL}/ano`
+          : `${produtoLabel(u.trialModulo)} — ${VALOR_MENSALIDADE_LABEL}/mês`,
         payerEmail: u.email,
         backUrl: `${this.linkDePagamento(u.id)}?retorno=cartao`,
         externalReference: u.id,
+        frequenciaMeses: meses,
       });
     } catch (e) {
       this.logger.error(`Preapproval não criado para user=${u.id}: ${(e as Error).message}`);
@@ -392,7 +431,12 @@ export class AssinaturaService {
       if (!u) return null;
 
       const f = faseDaConta(u as any);
-      const novaValidade = proximaValidade(f ? f.limite : null, agora);
+      // O prazo vem do PLANO GRAVADO NA COBRANÇA, e não do que a pessoa é hoje
+      // nem do valor pago. Quem pagou um ano recebe doze meses mesmo que já
+      // fosse mensal, e o contrário também vale. `planoDe` protege a linha
+      // antiga, sem a coluna: ela conta como mensal.
+      const planoPago = planoDe(c.plano);
+      const novaValidade = proximaValidade(f ? f.limite : null, agora, planoPago);
 
       // Reserva: se outra transação aplicou esta cobrança no meio do caminho,
       // o WHERE não casa e saímos sem conceder nada.
@@ -407,6 +451,7 @@ export class AssinaturaService {
         data: {
           assinaturaEm: u.assinaturaEm ?? agora,
           assinaturaValor: c.valor,
+          assinaturaPlano: planoPago,
           assinaturaValidaAte: novaValidade,
           trialAvisadoSuporte: false,
           trialRenovacaoResposta: "PAGOU",
@@ -414,7 +459,7 @@ export class AssinaturaService {
         } as any,
       });
 
-      return { novaValidade, userId: u.id, primeiroMes: !u.assinaturaEm };
+      return { novaValidade, userId: u.id, primeiroMes: !u.assinaturaEm, plano: planoPago };
     });
 
     if (!resultado) return null;
@@ -434,6 +479,7 @@ export class AssinaturaService {
           modulo: u.trialModulo,
           validaAte: resultado.novaValidade,
           renovacaoAuto: u.assinaturaRenovacaoAuto,
+          plano: resultado.plano,
         }),
       ).catch(() => false);
     }
@@ -450,13 +496,13 @@ export class AssinaturaService {
    * precisa sair pelo mesmo caminho que trata `@lid`, que é do módulo do
    * WhatsApp, não daqui.
    */
-  async prepararCobranca(userId: string, agora = new Date()): Promise<{
+  async prepararCobranca(userId: string, plano: Plano = "MENSAL", agora = new Date()): Promise<{
     texto: string; pixCopiaECola: string | null; usuario: UsuarioCobravel;
   }> {
     let qr: string | null = null;
     let usuario: UsuarioCobravel;
     try {
-      const r = await this.gerarPix(userId, agora);
+      const r = await this.gerarPix(userId, plano, agora);
       qr = r.cobranca.pixQrCode || null;
       usuario = r.usuario;
     } catch (e) {
@@ -464,7 +510,7 @@ export class AssinaturaService {
       // ainda vale: a página de checkout resolve no cartão. Só não vale ficar
       // calado — se nem a cobrança abriu, o erro sobe.
       this.logger.warn(`Cobrança sem Pix para user=${userId}: ${(e as Error).message}`);
-      await this.abrirCobranca(userId, agora);
+      await this.abrirCobranca(userId, plano, agora);
       usuario = await this.carregar(userId);
     }
 
@@ -474,6 +520,7 @@ export class AssinaturaService {
         modulo: usuario.trialModulo,
         urlCheckout: this.linkDePagamento(usuario.id),
         temPix: !!qr,
+        plano,
       }),
       pixCopiaECola: qr ? montarPixCopiaECola(qr) : null,
       usuario,
@@ -481,8 +528,8 @@ export class AssinaturaService {
   }
 
   /** Manda a cobrança por conta própria — usado fora da conversa de entrada. */
-  async enviarCobrancaPorWhatsApp(userId: string, agora = new Date()): Promise<boolean> {
-    const c = await this.prepararCobranca(userId, agora);
+  async enviarCobrancaPorWhatsApp(userId: string, plano: Plano = "MENSAL", agora = new Date()): Promise<boolean> {
+    const c = await this.prepararCobranca(userId, plano, agora);
     const ok = await this.falar(c.usuario, c.texto);
     if (ok && c.pixCopiaECola) await this.falar(c.usuario, c.pixCopiaECola).catch(() => false);
     return ok;
@@ -496,17 +543,20 @@ export class AssinaturaService {
     const u = await this.carregar(userId);
     const f = faseDaConta(u as any);
 
-    const pendente = f
-      ? await this.pendenteDoCiclo(u.id, cicloDe(this.proximoPeriodo(u, agora)), agora)
-      : null;
+    const pendente = f ? await this.pendenteAberta(u.id, agora) : null;
 
     const pago = await this.ultimoPagamento(u.id);
+
+    // O valor da tela é o da cobrança ABERTA, quando existe: quem respondeu 3
+    // no WhatsApp e abriu o link precisa ver R$ 119,90, e não a mensalidade.
+    const planoDaTela: Plano = pendente ? planoDe(pendente.plano) : "MENSAL";
 
     return {
       nome: u.nome,
       produto: produtoLabel(u.trialModulo),
-      valorCentavos: VALOR_MENSALIDADE,
-      valorLabel: VALOR_MENSALIDADE_LABEL,
+      plano: planoDaTela,
+      valorCentavos: VALOR_DO_PLANO[planoDaTela],
+      valorLabel: LABEL_DO_PLANO[planoDaTela],
       fase: f?.fase ?? null,
       venceEm: f?.limite ?? null,
       vencido: !!f && f.limite.getTime() < agora.getTime(),

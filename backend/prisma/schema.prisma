@@ -302,6 +302,9 @@ model User {
   /// cada cobrança aprovada chega por webhook. Nulo em quem paga por Pix.
   assinaturaPreapprovalId String?  @map("assinatura_preapproval_id")
   assinaturaRenovacaoAuto Boolean  @default(false) @map("assinatura_renovacao_auto")
+  /// MENSAL | ANUAL — o plano do último pagamento aplicado. Serve para o aviso
+  /// de vencimento falar do prazo certo e para o painel mostrar quem é anual.
+  assinaturaPlano         String   @default("MENSAL") @map("assinatura_plano")
   criadoEm         DateTime  @default(now()) @map("criado_em")
   atualizadoEm     DateTime  @updatedAt @map("atualizado_em")
 
@@ -1397,7 +1400,12 @@ model AssinaturaCobranca {
   /// Centavos (1190 = R$ 11,90), gravado na linha para preservar o histórico
   /// quando o preço mudar.
   valor Int
-  /// Mês de referência, "AAAA-MM". Uma cobrança pendente por ciclo.
+  /// MENSAL | ANUAL. Quantos meses ESTA cobrança compra — um dado da linha, e
+  /// não uma suposição do código, que até 03/11/2026 somava sempre um mês.
+  /// Ler sempre por `planoDe()`: o que não for ANUAL vale como mensal.
+  plano String @default("MENSAL")
+  /// Mês em que o período comprado termina, "AAAA-MM". No anual isso fica doze
+  /// meses à frente, e é o que separa a cobrança anual da mensal do mesmo mês.
   ciclo String
   /// cartao | pix — nulo até a pessoa escolher no checkout.
   meio  String?
