@@ -48,6 +48,48 @@ export const VALOR_MENSALIDADE = 1190;
 /** O valor escrito, num lugar só: mudar o preço não pode deixar texto velho. */
 export const VALOR_MENSALIDADE_LABEL = "R$ 11,90";
 
+/**
+ * O plano anual.
+ *
+ * R$ 119,90 contra R$ 142,80 de doze meses avulsos: R$ 22,90 de economia, que
+ * dá R$ 9,99 por mês. O produto é EXATAMENTE o mesmo — o que muda é o prazo
+ * da cobrança e, com ele, quantos meses um pagamento compra.
+ */
+export const VALOR_ANUAL = 11990;
+export const VALOR_ANUAL_LABEL = "R$ 119,90";
+/** 119,90 ÷ 12, para o texto que compara com a mensalidade. */
+export const VALOR_ANUAL_POR_MES_LABEL = "R$ 9,99";
+
+/**
+ * O prazo que um pagamento compra.
+ *
+ * Fica num tipo próprio, e não num booleano `anual`, porque ele atravessa o
+ * sistema inteiro — cobrança, preapproval, validade e texto — e um booleano
+ * invertido em qualquer uma dessas pontas é um bug silencioso que só aparece
+ * na data de vencimento, um mês ou um ano depois.
+ */
+export type Plano = "MENSAL" | "ANUAL";
+
+/** Centavos de cada plano. */
+export const VALOR_DO_PLANO: Record<Plano, number> = {
+  MENSAL: VALOR_MENSALIDADE,
+  ANUAL: VALOR_ANUAL,
+};
+
+/** O valor escrito de cada plano. */
+export const LABEL_DO_PLANO: Record<Plano, string> = {
+  MENSAL: VALOR_MENSALIDADE_LABEL,
+  ANUAL: VALOR_ANUAL_LABEL,
+};
+
+/** Quantos meses cada plano estica o acesso. */
+export const MESES_DO_PLANO: Record<Plano, number> = { MENSAL: 1, ANUAL: 12 };
+
+/** Lê o plano gravado no banco com segurança: o que não for ANUAL é mensal. */
+export function planoDe(valor: string | null | undefined): Plano {
+  return valor === "ANUAL" ? "ANUAL" : "MENSAL";
+}
+
 /** Prazo do Pix antes de expirar. Curto o bastante para não virar fila eterna. */
 export const PIX_VALIDADE_MS = 3 * 24 * 60 * 60 * 1000;
 
@@ -85,10 +127,25 @@ export function codigoRenovacao(userId: string): string {
 
 /** Mesmo dia do mês seguinte; 31/01 vira 28 (ou 29)/02, não 03/03. */
 export function somarUmMes(d: Date): Date {
+  return somarMeses(d, 1);
+}
+
+/**
+ * Mesmo dia, N meses à frente, sem estourar o fim do mês.
+ *
+ * `somarUmMes` passou a ser um caso particular daqui quando entrou o plano
+ * anual (12 meses). A conta é a mesma e o cuidado também: 31/01 + 1 mês é
+ * 28 (ou 29)/02, e nunca 03/03.
+ *
+ * O ano bissexto cai na mesma regra, e é por isso que ela importa aqui:
+ * 29/02 + 12 meses é 28/02 do ano seguinte. Somar 365 dias daria 28/02 só por
+ * sorte em alguns anos e 01/03 em outros.
+ */
+export function somarMeses(d: Date, meses: number): Date {
   const r = new Date(d);
   const dia = r.getDate();
   r.setDate(1);
-  r.setMonth(r.getMonth() + 1);
+  r.setMonth(r.getMonth() + meses);
   const ultimo = new Date(r.getFullYear(), r.getMonth() + 1, 0).getDate();
   r.setDate(Math.min(dia, ultimo));
   return r;
@@ -99,9 +156,9 @@ export function somarUmMes(d: Date): Date {
  * se ele ainda não acabou (quem renova na véspera não perde o dia que falta);
  * se já venceu, conta a partir de agora.
  */
-export function proximaValidade(limiteAtual: Date | null, agora: Date): Date {
+export function proximaValidade(limiteAtual: Date | null, agora: Date, plano: Plano = "MENSAL"): Date {
   const base = limiteAtual && new Date(limiteAtual).getTime() > agora.getTime() ? new Date(limiteAtual) : agora;
-  return somarUmMes(base);
+  return somarMeses(base, MESES_DO_PLANO[plano]);
 }
 
 /** Mês de referência da cobrança, "AAAA-MM", no fuso de quem paga. */
