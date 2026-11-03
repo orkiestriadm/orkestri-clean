@@ -44,6 +44,24 @@ Oito rotas públicas em 200 por HTTPS através do nginx, rodapé em `v3.5.0`, ne
 
 Rollback preparado e não acionado.
 
+## Segunda publicação do dia — site 3.6.0, às 09:28
+
+Autorizada na sequência da primeira. Código **7a75b8e**, mesma branch.
+
+Toda amostra do produto passou a acontecer dentro de uma moldura de celular, e a órbita de quatro pontos — que desde 29/10 era exclusiva do hero — passou a acompanhar todas elas: hero, galeria da home, `/demo`, `/aurelia` e a demonstração clicável de `/o-que-pedir`. O hero perdeu a órbita própria; com as duas, ficariam oito pontos em duas elipses.
+
+Mesmo procedimento: build local `linux/amd64` sem atestação, candidato exercitado em container idêntico ao de produção (treze rotas em 200, otimizador de imagem respondendo `image/jpeg`, nenhum erro no log), SHA-256 conferido nas duas pontas (`040f45284a3ac559a78a8f55eb744b4fd58f6e7ae83a64f0680ef860b33dfbbe`) e troca só do container do site.
+
+| | |
+|---|---|
+| Imagem ativa | `sha256:ec8437c1198fa254143df741682f0d872574637aa233cf7b2974ba57963ccdc6` |
+| Rollback | `orkestri/website:rollback-celular-20261103` → `sha256:47d2e4ff…` (o 3.5.0 publicado às 08:49) |
+| Container | `orkestri_website` `6b389afa8311` → `a46b70332cbc` |
+
+Os outros nove containers mantiveram o id e a API seguiu `healthy`. Depois da troca: oito rotas públicas em 200 por HTTPS, rodapé em `3.6.0`, três molduras de celular e doze pontos de órbita no HTML da home, e as três molduras medidas no navegador com dimensão real.
+
+**Uma captura headless do hero saiu em branco** e isso não é defeito: o conteúdo do hero entra por animação, e o `--screenshot` do Chrome fotografa antes de ela terminar. A conferência vale no navegador, forçando o estado final — foi assim que as três molduras foram medidas.
+
 ## Pendências que esta publicação não toca
 
 - O PR #24 continua em rascunho e aponta para a base antiga; a troca da base ficou com o usuário.
