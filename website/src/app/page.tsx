@@ -3,6 +3,7 @@ import { Hero } from "@/components/sections/hero";
 import { Plataforma } from "@/components/home/plataforma";
 import { Experimentar } from "@/components/home/experimentar";
 import { DiaNormal } from "@/components/home/dia-normal";
+import { ParaQuem } from "@/components/home/para-quem";
 import { AgendaSpotlight } from "@/components/home/agenda-spotlight";
 import { AureliaDemo } from "@/components/home/aurelia-demo";
 import { Perguntas } from "@/components/home/perguntas";
@@ -54,6 +55,7 @@ export default function HomePage() {
           produto antes de entregar CPF e e-mail. */}
       <Experimentar />
       <DiaNormal />
+      <ParaQuem />
       <AgendaSpotlight />
       <Plataforma />
       <AureliaDemo />

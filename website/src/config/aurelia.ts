@@ -642,3 +642,106 @@ export const DIA: MomentoDia[] = [
     ],
   },
 ];
+
+/**
+ * Para quem é o Orkiestri.
+ *
+ * NÃO são depoimentos. Não há cliente nomeado, foto nem citação: isso seria
+ * prova social fabricada, que engana o visitante e, de quebra, reprova o
+ * anúncio no Meta e no Google. São CENÁRIOS DE USO — como cada tipo de rotina
+ * cabe numa conversa —, e cada um demonstra um pedido que a Aurélia entende de
+ * verdade, pelos mesmos parsers do resto deste arquivo.
+ *
+ * O dia em que houver três clientes reais dispostos a dar uma frase com o nome
+ * autorizado, a seção de depoimentos é outra coisa, e aí sim se chama prova
+ * social.
+ */
+export type Perfil = {
+  id: string;
+  publico: string;
+  titulo: string;
+  texto: string;
+  conversa: { de: "voce" | "aurelia"; texto: string[] }[];
+};
+
+export const PARA_QUEM: Perfil[] = [
+  {
+    id: "advogados",
+    publico: "Advogados",
+    titulo: "A audiência não passa batida.",
+    texto:
+      "Atendimentos, prazos e audiências entram pela conversa e voltam como lembrete — uma hora antes, aos quinze, aos cinco e na hora.",
+    conversa: [
+      { de: "voce", texto: ["Audiência trabalhista quinta 14h no Fórum Central"] },
+      {
+        de: "aurelia",
+        texto: [
+          "Marcado: *Audiência trabalhista*",
+          "Quinta, 14:00 · Fórum Central",
+          "Te aviso 1h antes, aos 15min, aos 5min e na hora.",
+        ],
+      },
+    ],
+  },
+  {
+    id: "familia",
+    publico: "Mães e pais",
+    titulo: "A rotina das crianças, sem carregar tudo na cabeça.",
+    texto:
+      "Pediatra, reunião da escola, a atividade que se repete toda semana. Marque uma vez e seja lembrado — inclusive do que volta sempre.",
+    conversa: [
+      { de: "voce", texto: ["Natação toda terça e quinta às 17h"] },
+      {
+        de: "aurelia",
+        texto: ["Criei a série: *Natação*", "Toda terça e quinta, 17:00."],
+      },
+    ],
+  },
+  {
+    id: "saude",
+    publico: "Cuidado com a saúde",
+    titulo: "O remédio na hora certa, todo dia.",
+    texto:
+      "Peça uma vez e o lembrete volta sozinho, no horário que você marcar. Serve para o remédio diário, a consulta e o exame com data.",
+    conversa: [
+      { de: "voce", texto: ["me lembra do remédio todo dia às 8h e às 20h"] },
+      {
+        de: "aurelia",
+        texto: ["Combinado.", "Todo dia às 08:00 e às 20:00. Pode deixar."],
+      },
+    ],
+  },
+  {
+    id: "gestores",
+    publico: "Gestores e equipes",
+    titulo: "Nenhuma reunião ou demanda se perde.",
+    texto:
+      "A agenda do dia chega toda manhã, as reuniões entram com lembrete, e o que ficou combinado vira tarefa com prazo.",
+    conversa: [
+      { de: "voce", texto: ["meu dia"] },
+      {
+        de: "aurelia",
+        texto: [
+          "☀️ *Seu dia — hoje*",
+          "10:00 — Reunião de diretoria",
+          "15:00 — Call com o cliente",
+          "Vence hoje: enviar a proposta",
+        ],
+      },
+    ],
+  },
+  {
+    id: "pessoal",
+    publico: "Para a vida pessoal",
+    titulo: "Saber para onde foi o dinheiro, numa frase.",
+    texto:
+      "Anote o gasto do jeito que ele acontece e pergunte quanto já foi no mês. Sem planilha e sem aplicativo novo para aprender.",
+    conversa: [
+      { de: "voce", texto: ["gastei 45 no almoço no débito"] },
+      {
+        de: "aurelia",
+        texto: ["Lancei *R$ 45,00*", "Categoria: Alimentação · Forma: débito"],
+      },
+    ],
+  },
+];
