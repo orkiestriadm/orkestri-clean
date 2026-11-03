@@ -61,6 +61,20 @@ const incluso = [
 ];
 
 /**
+ * O que o anual acrescenta.
+ *
+ * Nenhuma linha promete recurso a mais: o anual é o MESMO produto com outro
+ * prazo de cobrança. Inventar vantagem exclusiva aqui seria criar um pacote
+ * que o sistema não tem.
+ */
+const vantagensAnuais = [
+  "Tudo o que está no mensal, sem diferença nenhuma",
+  "Quase dois meses de graça na conta do ano",
+  "Uma cobrança por ano, em vez de doze",
+  "O preço fica travado pelos doze meses",
+];
+
+/**
  * Do cadastro à primeira cobrança.
  *
  * É uma sequência de verdade — os marcos de aviso estão em
@@ -187,64 +201,134 @@ export default function PlanosPage() {
 
       <PageHero
         eyebrow="Planos"
-        title={`Um plano. ${PLANO.precoLabel} por mês.`}
-        description={`Comece por ${PLANO.testeDias} dias de teste, sem cartão. Depois é ${PLANO.precoLabel} por mês, com as seis aplicações liberadas — não existe plano por módulo nem recurso cobrado à parte.`}
+        title={
+          PLANO.anualAtivo
+            ? `Um plano. ${PLANO.precoLabel} por mês, ou ${PLANO.anualLabel} no ano.`
+            : `Um plano. ${PLANO.precoLabel} por mês.`
+        }
+        description={
+          PLANO.anualAtivo
+            ? `Comece por ${PLANO.testeDias} dias de teste, sem cartão. Depois você escolhe o prazo: ${PLANO.precoLabel} por mês, ou ${PLANO.anualLabel} de uma vez, que dá ${PLANO.anualPorMesLabel} por mês. O produto é o mesmo nos dois — não existe plano por módulo nem recurso cobrado à parte.`
+            : `Comece por ${PLANO.testeDias} dias de teste, sem cartão. Depois é ${PLANO.precoLabel} por mês, com as seis aplicações liberadas — não existe plano por módulo nem recurso cobrado à parte.`
+        }
         breadcrumb={[{ label: "Planos", href: "/planos" }]}
       />
 
-      {/* ── O card ────────────────────────────────────────────────────────
-          Um card só, sem coluna de comparação ao lado. Tabela de três planos
-          existe para empurrar o do meio; aqui não há do meio. */}
+      {/* ── Os cartões ────────────────────────────────────────────────────
+          Um cartão quando só existe o mensal; dois, lado a lado, quando o
+          anual está ligado. Nunca três: tabela de três planos existe para
+          empurrar o do meio, e aqui não há do meio. */}
       <Section className="pt-4 md:pt-6">
-        <div className="grid gap-10 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] lg:gap-16">
-          <Reveal className="premium-surface rounded-(--radius-image) p-7 md:p-10" data-spotlight>
-            <p className="section-kicker">Orkiestri completo</p>
-
-            <div className="mt-6 flex flex-wrap items-end gap-x-3 gap-y-1">
-              <span className="font-display text-[3.25rem] font-bold leading-none tracking-[-0.04em] text-chalk [font-stretch:108%] md:text-[4rem]">
-                {PLANO.precoLabel}
-              </span>
-              <span className="pb-2 text-[1.0625rem] text-chalk-dim">
-                por mês
-              </span>
-            </div>
-
-            <p className="mt-4 text-[1.0625rem] leading-[1.6] text-chalk-dim">
-              Os {PLANO.testeDias} primeiros dias são de teste e não são
-              cobrados. A primeira cobrança só existe se você disser que quer
-              continuar.
-            </p>
-
-            <ul className="mt-8 flex flex-col gap-3.5">
-              {incluso.map((item) => (
-                <li key={item} className="flex items-start gap-3">
-                  <Check
-                    className="mt-1 shrink-0 text-flame-soft"
-                    size={18}
-                    aria-hidden
-                  />
-                  <span className="text-[0.9375rem] leading-[1.55] text-chalk">
-                    {item}
-                  </span>
-                </li>
-              ))}
-            </ul>
-
-            <div className="mt-9 flex flex-col items-start gap-3">
-              <WhatsAppButton>
-                Começar o teste de {PLANO.testeDias} dias
-              </WhatsAppButton>
-              <p className="text-sm leading-relaxed text-chalk-faint">
-                Sem cartão para começar. A Aurélia faz o cadastro pelo
-                WhatsApp, uma pergunta por vez.
+        <div
+          className={
+            PLANO.anualAtivo
+              ? "flex flex-col gap-12"
+              : "grid gap-10 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] lg:gap-16"
+          }
+        >
+          <div className={PLANO.anualAtivo ? "grid items-start gap-5 md:grid-cols-2" : undefined}>
+            <Reveal className="premium-surface rounded-(--radius-image) p-7 md:p-10" data-spotlight>
+              <p className="section-kicker">
+                {PLANO.anualAtivo ? "Mensal" : "Orkiestri completo"}
               </p>
-            </div>
-          </Reveal>
 
-          {/* ── A explicação ao lado do card ───────────────────────────────
-              O card responde "quanto"; esta coluna responde "por que assim",
-              que é a objeção real de quem está acostumado a escolher pacote. */}
-          <div className="flex flex-col gap-10 lg:pt-4">
+              <div className="mt-6 flex flex-wrap items-end gap-x-3 gap-y-1">
+                <span className="font-display text-[3.25rem] font-bold leading-none tracking-[-0.04em] text-chalk [font-stretch:108%] md:text-[4rem]">
+                  {PLANO.precoLabel}
+                </span>
+                <span className="pb-2 text-[1.0625rem] text-chalk-dim">por mês</span>
+              </div>
+
+              <p className="mt-4 text-[1.0625rem] leading-[1.6] text-chalk-dim">
+                Os {PLANO.testeDias} primeiros dias são de teste e não são
+                cobrados. A primeira cobrança só existe se você disser que quer
+                continuar.
+              </p>
+
+              <ul className="mt-8 flex flex-col gap-3.5">
+                {incluso.map((item) => (
+                  <li key={item} className="flex items-start gap-3">
+                    <Check className="mt-1 shrink-0 text-flame-soft" size={18} aria-hidden />
+                    <span className="text-[0.9375rem] leading-[1.55] text-chalk">
+                      {item}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+
+              <div className="mt-9 flex flex-col items-start gap-3">
+                <WhatsAppButton>
+                  Começar o teste de {PLANO.testeDias} dias
+                </WhatsAppButton>
+                <p className="text-sm leading-relaxed text-chalk-faint">
+                  Sem cartão para começar. A Aurélia faz o cadastro pelo
+                  WhatsApp, uma pergunta por vez.
+                </p>
+              </div>
+            </Reveal>
+
+            {/* O anual. Ver a chave `anualAtivo` em config/plano.ts: ela existe
+                porque o checkout ainda cria o preapproval com frequência
+                mensal, e publicar a oferta antes disso cobraria errado. */}
+            {PLANO.anualAtivo && (
+              <Reveal
+                className="premium-surface relative rounded-(--radius-image) border border-flame/40 p-7 md:p-10"
+                data-spotlight
+              >
+                <span className="absolute right-6 top-6 rounded-full bg-flame/15 px-3 py-1 text-[0.6875rem] font-semibold uppercase tracking-[0.1em] text-ember">
+                  Economiza {PLANO.anualEconomiaLabel}
+                </span>
+                <p className="section-kicker">Anual</p>
+
+                <div className="mt-6 flex flex-wrap items-end gap-x-3 gap-y-1">
+                  <span className="font-display text-[3.25rem] font-bold leading-none tracking-[-0.04em] text-chalk [font-stretch:108%] md:text-[4rem]">
+                    {PLANO.anualPorMesLabel}
+                  </span>
+                  <span className="pb-2 text-[1.0625rem] text-chalk-dim">por mês</span>
+                </div>
+
+                <p className="mt-4 text-[1.0625rem] leading-[1.6] text-chalk-dim">
+                  {PLANO.anualLabel} cobrados uma vez por ano, no lugar de{" "}
+                  <span className="line-through decoration-chalk-faint">
+                    {PLANO.anualCheioLabel}
+                  </span>{" "}
+                  em doze meses avulsos. Os mesmos {PLANO.testeDias} dias de
+                  teste antes da primeira cobrança.
+                </p>
+
+                <ul className="mt-8 flex flex-col gap-3.5">
+                  {vantagensAnuais.map((v) => (
+                    <li key={v} className="flex items-start gap-3">
+                      <Check className="mt-1 shrink-0 text-flame-soft" size={18} aria-hidden />
+                      <span className="text-[0.9375rem] leading-[1.55] text-chalk">
+                        {v}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+
+                <div className="mt-9 flex flex-col items-start gap-3">
+                  <WhatsAppButton>Quero o plano anual</WhatsAppButton>
+                  <p className="text-sm leading-relaxed text-chalk-faint">
+                    Você escolhe anual ou mensal quando o teste acabar, na
+                    própria conversa.
+                  </p>
+                </div>
+              </Reveal>
+            )}
+          </div>
+
+          {/* ── A explicação ao lado dos cartões ───────────────────────────
+              Os cartões respondem "quanto"; esta coluna responde "por que
+              assim", que é a objeção real de quem está acostumado a escolher
+              pacote. */}
+          <div
+            className={
+              PLANO.anualAtivo
+                ? "grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:gap-16"
+                : "flex flex-col gap-10 lg:pt-4"
+            }
+          >
             <div>
               <h2 className="font-display text-[1.5rem] font-bold leading-[1.15] tracking-[-0.03em] text-chalk [font-stretch:108%] md:text-[1.875rem]">
                 Por que um plano só.
@@ -252,20 +336,19 @@ export default function PlanosPage() {
               <p className="mt-4 max-w-[46ch] text-[1.0625rem] leading-[1.65] text-chalk-dim">
                 Dividir o produto em pacotes obrigaria você a adivinhar, no
                 primeiro dia, de que parte vai precisar no terceiro mês. Quem
-                entra pela agenda costuma acabar usando as contas; quem entra
-                pelas contas acaba abrindo o primeiro projeto. Por isso tudo
-                vem junto, e você liga na sua tela só o que usa.
+                entra pela agenda costuma acabar usando os gastos; quem entra
+                pelos gastos acaba abrindo o primeiro projeto. Por isso tudo vem
+                junto, e você liga na sua tela só o que usa.
+                {PLANO.anualAtivo
+                  ? " O que muda entre mensal e anual é o prazo da cobrança, nunca o que você recebe."
+                  : ""}
               </p>
             </div>
 
             <div className="flex flex-col gap-5">
               {formas.map((f) => (
                 <div key={f.titulo} className="flex items-start gap-4">
-                  <f.icon
-                    className="mt-0.5 shrink-0 text-flame-soft"
-                    size={20}
-                    aria-hidden
-                  />
+                  <f.icon className="mt-0.5 shrink-0 text-flame-soft" size={20} aria-hidden />
                   <div>
                     <h3 className="text-base font-semibold text-chalk">
                       {f.titulo}
