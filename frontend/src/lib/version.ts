@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "5.1.1";
+export const VERSAO = "5.1.2";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -23,10 +23,10 @@ export const VERSAO = "5.1.1";
  * Não é gerada no build: `new Date()` no bundle muda a cada compilação, e duas
  * builds do mesmo código pareceriam versões diferentes.
  */
-export const VERSAO_DATA = "2026-11-02";
+export const VERSAO_DATA = "2026-11-03";
 
 /** Nome da entrega, para dar contexto ao número. */
-export const VERSAO_NOME = "A porta de entrada fala como gente";
+export const VERSAO_NOME = "Meus Gastos para de esconder o erro";
 
 /**
  * Histórico exibido na tela Sobre, do mais recente para o mais antigo.
@@ -35,6 +35,15 @@ export const VERSAO_NOME = "A porta de entrada fala como gente";
  * esta lista quer saber o que mudou para ele.
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
+  {
+    versao: "5.1.2",
+    data: "2026-11-03",
+    titulo: "Meus Gastos para de esconder o erro",
+    itens: [
+      "Quando os gastos não carregavam, a tela mostrava “Comece a anotar seus gastos” — a mesma coisa que ela mostra para quem de fato não tem nenhum. Falha de conexão e falta de acesso agora aparecem escritas, com um botão de tentar de novo",
+      "A tela passou a dizer de qual conta é a lista. Gasto é pessoal: quem entra com outra conta vê zero, mesmo que a empresa tenha lançamentos, e nada na tela explicava isso",
+    ],
+  },
   {
     versao: "5.1.1",
     data: "2026-11-02",
