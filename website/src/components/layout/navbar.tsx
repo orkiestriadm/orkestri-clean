@@ -8,13 +8,18 @@ import { ChevronDown, Menu, MessageCircle } from "lucide-react";
 import { Logo } from "./logo";
 import { ProductsMenu, ServicesMenu } from "./mega-menu";
 import { MobileNav } from "./mobile-nav";
+import { FaixaTeste } from "./faixa-teste";
 import { WHATSAPP_CADASTRO } from "@/config/site";
 import { cn } from "@/lib/utils";
 
 const simpleLinks = [
+  /* "Planos" vem primeiro entre os links de texto (03/11/2026): era a única
+     pergunta que o site inteiro não respondia, e quem procura preço procura
+     no cabeçalho antes de rolar a página. */
+  { label: "Aurélia", href: "/aurelia" },
+  { label: "Planos", href: "/planos" },
   { label: "Empresa", href: "/company" },
   { label: "Tecnologia", href: "/technology" },
-  { label: "Como funciona", href: "/demo" },
 ];
 
 /**
@@ -54,13 +59,20 @@ export function Navbar() {
       onKeyDown={(event) => {
         if (event.key === "Escape") setOpenMenu(null);
       }}
-      className={cn(
-        "fixed inset-x-0 top-0 z-40 transition-all duration-300",
-        scrolled
-          ? "site-warm-surface border-b border-white/[0.08] bg-ink/80 backdrop-blur-xl"
-          : "border-b border-transparent bg-transparent",
-      )}
+      className="fixed inset-x-0 top-0 z-40"
     >
+      {/* A faixa de oferta mora DENTRO do cabeçalho fixo, e não solta acima
+          dele: assim ela não rola para fora da tela, e o espaço que os heróis
+          reservam (`--faixa-h`) continua valendo depois da rolagem. */}
+      <FaixaTeste />
+      <div
+        className={cn(
+          "transition-all duration-300",
+          scrolled
+            ? "site-warm-surface border-b border-white/[0.08] bg-ink/80 backdrop-blur-xl"
+            : "border-b border-transparent bg-transparent",
+        )}
+      >
       <div className="container-content flex h-20 items-center justify-between">
         <Logo tone="light" />
 
@@ -123,7 +135,7 @@ export function Navbar() {
             )}
           >
             <MessageCircle className="h-[18px] w-[18px]" aria-hidden />
-            Cadastre-se é gratuito!
+            Teste grátis
           </a>
         </div>
 
@@ -136,6 +148,7 @@ export function Navbar() {
         >
           <Menu className="h-6 w-6" aria-hidden />
         </button>
+      </div>
       </div>
 
       <AnimatePresence>

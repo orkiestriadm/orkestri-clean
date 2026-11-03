@@ -15,7 +15,16 @@ import { cn } from "@/lib/utils";
  * clique; o do WhatsApp era o que o produto realmente atende.
  */
 export function WhatsAppButton({
-  children = "Cadastre-se é gratuito!",
+  /**
+   * Era "Cadastre-se é gratuito!". Trocado em 03/11/2026: o produto cobra
+   * R$ 11,90 depois de sete dias, e o site passou a publicar esse preço. Com
+   * a página de planos no ar, prometer "gratuito" no botão e cobrar no fim do
+   * teste é a contradição aparecendo justamente na hora de pagar.
+   *
+   * "Teste grátis" mantém a palavra — e ela continua verdadeira, porque o
+   * teste é grátis mesmo — sem dizer que o produto é.
+   */
+  children = "Teste grátis de 7 dias",
   tamanho = "lg",
   className,
 }: {

@@ -42,7 +42,10 @@ export default function TechnologyPage() {
       <PageHero
         eyebrow="Tecnologia"
         title="Engenharia preparada para os próximos dez anos."
-        description="Utilizamos arquiteturas escaláveis e tecnologias amplamente adotadas pelo mercado para garantir performance, segurança e evolução contínua."
+        /* Reescrito em 03/11/2026 para dizer por que isto importa para quem
+           usa, e não só o que usamos. A lista técnica continua logo abaixo,
+           para quem veio atrás dela. */
+        description="Esta página é para quem quer saber o que tem por baixo. O resumo: o aviso precisa chegar na hora certa mesmo quando ninguém está olhando, e os seus dados precisam continuar seus. O resto são as escolhas que sustentam essas duas coisas."
         breadcrumb={[{ label: "Tecnologia", href: "/technology" }]}
       />
 

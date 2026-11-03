@@ -41,7 +41,13 @@ export default function CompanyPage() {
       <PageHero
         eyebrow="Empresa"
         title="A gente constrói software. Este aqui era para uso próprio."
-        description="Acreditamos que grandes empresas precisam de plataformas sólidas, escaláveis e preparadas para evoluir continuamente. Nossa missão é desenvolver soluções capazes de acompanhar esse crescimento."
+        /* Era "Acreditamos que grandes empresas precisam de plataformas
+           sólidas, escaláveis e preparadas para evoluir continuamente".
+           Trocado em 03/11/2026: a home fala com uma pessoa e esta página
+           abria falando com uma diretoria — a mesma voz de ERP que o site
+           tinha largado em 26/10. A missão e a visão logo abaixo já estavam
+           certas; só a abertura tinha ficado para trás. */
+        description="A gente construiu isto porque esquecia das coisas. A agenda num lugar, a conta a pagar noutro, o que ficou combinado na cabeça de alguém. O Orkiestri existe para tirar isso da sua memória e devolver em forma de aviso, na hora em que ainda dá tempo."
         breadcrumb={[{ label: "Empresa", href: "/company" }]}
       />
 

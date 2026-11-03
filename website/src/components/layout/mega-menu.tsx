@@ -69,6 +69,28 @@ export function ProductsMenu({ onNavigate }: { onNavigate?: () => void }) {
           );
         })}
       </div>
+
+      {/* Rodapé do menu (03/11/2026).
+          As páginas que explicam o produto inteiro não cabem na barra —
+          ela já carrega Aurélia, Planos, Empresa e Tecnologia — e é aqui
+          que a pessoa já está procurando por elas. */}
+      <div className="mt-2 flex flex-wrap gap-x-5 gap-y-2 border-t border-white/[0.08] px-3 pb-1 pt-3">
+        {[
+          { href: "/funcionalidades", label: "Funcionalidades" },
+          { href: "/o-que-pedir", label: "O que pedir" },
+          { href: "/seguranca", label: "Segurança" },
+          { href: "/demo", label: "Como funciona" },
+        ].map((l) => (
+          <Link
+            key={l.href}
+            href={l.href}
+            onClick={onNavigate}
+            className="text-[0.8125rem] font-medium text-chalk-dim transition-colors hover:text-flame-soft"
+          >
+            {l.label}
+          </Link>
+        ))}
+      </div>
     </motion.div>
   );
 }

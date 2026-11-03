@@ -13,6 +13,11 @@ import { cn } from "@/lib/utils";
 import { EASE_OUT } from "@/lib/motion";
 
 const staticLinks = [
+  { label: "Aurélia", href: "/aurelia" },
+  { label: "Planos", href: "/planos" },
+  { label: "Funcionalidades", href: "/funcionalidades" },
+  { label: "O que pedir", href: "/o-que-pedir" },
+  { label: "Segurança", href: "/seguranca" },
   { label: "Empresa", href: "/company" },
   { label: "Tecnologia", href: "/technology" },
   { label: "Como funciona", href: "/demo" },
@@ -149,7 +154,7 @@ export function MobileNav({ onClose }: { onClose: () => void }) {
             className="inline-flex h-[52px] w-full items-center justify-center gap-2 rounded-(--radius-button) bg-signal font-semibold text-[#06281A] transition-colors hover:bg-signal-hover"
           >
             <MessageCircle className="h-5 w-5" aria-hidden />
-            Cadastre-se é gratuito!
+            Teste grátis de 7 dias
           </a>
           <a
             href="/login"

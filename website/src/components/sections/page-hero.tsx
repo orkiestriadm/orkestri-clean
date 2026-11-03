@@ -35,7 +35,10 @@ export function PageHero({
   return (
     <section
       aria-label={eyebrow}
-      className="ink-grain relative isolate overflow-hidden bg-ink pt-28 pb-12 md:pt-36 md:pb-20"
+      /* O padding de topo soma `--faixa-h` porque o cabeçalho é `fixed` e
+         carrega a faixa de oferta dentro dele. Zerar a variável no globals
+         devolve o espaçamento antigo sem tocar aqui. */
+      className="ink-grain relative isolate overflow-hidden bg-ink pt-[calc(7rem+var(--faixa-h))] pb-12 md:pt-[calc(9rem+var(--faixa-h))] md:pb-20"
     >
 
       <Container className="relative z-10">

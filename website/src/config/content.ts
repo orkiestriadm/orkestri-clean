@@ -64,9 +64,12 @@ export const homeFaq: FaqItem[] = [
       "Não. O cadastro cria sua conta no sistema Orkiestri. Agenda, anotações, gastos e os demais recursos seguem o plano e as permissões da conta. Um convite específico para testar a agenda tem suas próprias condições.",
   },
   {
-    question: "Criar minha conta é gratuito?",
+    /* Reescrita em 03/11/2026. A resposta antiga dizia "Sim" e mandava
+       consultar valores em algum lugar que o site não tinha. Agora o preço
+       existe, e a pergunta é respondida com ele. */
+    question: "Quanto custa, e quando começa a cobrar?",
     answer:
-      "Sim. Você pode fazer seu cadastro no Orkiestri pela conversa com a Aurélia, sem cartão e sem contratação automática. Consulte as condições e os valores dos recursos e planos antes de contratar.",
+      "O cadastro e os sete primeiros dias não são cobrados, e não pedimos cartão para começar. Depois do teste, a mensalidade é de R$ 11,90, com todas as aplicações liberadas — não existe plano por módulo. A Aurélia avisa três vezes antes de o teste acabar, e nada é cobrado sem você responder que quer continuar.",
   },
   {
     question: "Preciso instalar alguma coisa?",

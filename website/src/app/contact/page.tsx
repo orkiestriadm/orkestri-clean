@@ -1,10 +1,10 @@
-import { Mail, Linkedin } from "lucide-react";
+import { Mail, Linkedin, MessageCircle } from "lucide-react";
 import { PageHero } from "@/components/sections/page-hero";
 import { IconTile } from "@/components/ui/icon-tile";
 import { Container } from "@/components/ui/container";
 import { ContactForm } from "@/components/forms/contact-form";
 import { buildMetadata } from "@/lib/seo";
-import { siteConfig } from "@/config/site";
+import { siteConfig, WHATSAPP_CADASTRO } from "@/config/site";
 import { getService } from "@/config/services";
 
 export const metadata = buildMetadata({
@@ -34,9 +34,30 @@ export default async function ContactPage({ searchParams }: { searchParams: Prom
                 Fale diretamente
               </h2>
               <p className="mt-2 text-chalk-dim">
-                Prefere outro canal? Estamos por aqui.
+                O WhatsApp é o caminho mais curto. O formulário ao lado prepara
+                um e-mail, que depende de você ter um aplicativo de e-mail
+                configurado neste aparelho.
               </p>
             </div>
+            {/* O WhatsApp vem primeiro (03/11/2026). O formulário desta página
+                não envia nada: ele monta um `mailto:`, e quem está no celular
+                sem cliente de e-mail configurado simplesmente desiste ali. O
+                número é o mesmo que atende a Aurélia, então a conversa já
+                começa no lugar certo. */}
+            <a
+              href={WHATSAPP_CADASTRO}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-3 rounded-2xl border border-signal/30 bg-panel p-5 transition-colors hover:border-signal/60"
+            >
+              <IconTile icon={MessageCircle} />
+              <span>
+                <span className="block text-sm text-chalk-faint">WhatsApp</span>
+                <span className="font-medium text-chalk">
+                  Falar agora, com a conversa já aberta
+                </span>
+              </span>
+            </a>
             <a
               href={`mailto:${siteConfig.contact.email}`}
               className="flex items-center gap-3 rounded-2xl border border-white/[0.08] bg-panel p-5 transition-colors hover:border-flame/40"

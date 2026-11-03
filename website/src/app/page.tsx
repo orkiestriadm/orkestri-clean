@@ -1,7 +1,7 @@
 import Script from "next/script";
 import { Hero } from "@/components/sections/hero";
 import { Plataforma } from "@/components/home/plataforma";
-import { AureliaShowcase } from "@/components/home/aurelia-showcase";
+import { Experimentar } from "@/components/home/experimentar";
 import { AgendaSpotlight } from "@/components/home/agenda-spotlight";
 import { AureliaDemo } from "@/components/home/aurelia-demo";
 import { Perguntas } from "@/components/home/perguntas";
@@ -47,7 +47,11 @@ export default function HomePage() {
       />
 
       <Hero />
-      <AureliaShowcase />
+      {/* Era um segundo `AureliaGallery`, idêntico ao de `AureliaDemo` logo
+          abaixo: mesmos três passos, mesmos três prints, só o texto mudava.
+          No lugar dele, a demonstração clicável — a pessoa experimenta o
+          produto antes de entregar CPF e e-mail. */}
+      <Experimentar />
       <AgendaSpotlight />
       <Plataforma />
       <AureliaDemo />

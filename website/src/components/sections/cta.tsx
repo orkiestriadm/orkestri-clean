@@ -10,10 +10,17 @@ export function CTA({
   title,
   text,
   intent = "trial",
+  acaoLabel,
 }: {
   title?: string;
   text?: string;
   intent?: "trial" | "project";
+  /**
+   * Rótulo do botão verde. O padrão é o do site inteiro ("Teste grátis de 7
+   * dias"); as páginas passam outro quando o contexto pede — a da Aurélia
+   * convida a falar com ela, a de planos repete o teste logo abaixo do preço.
+   */
+  acaoLabel?: string;
 }) {
   return (
     <section className="py-20 md:py-28">
@@ -44,7 +51,11 @@ export function CTA({
             </p>
             <div className="mt-8 flex flex-wrap justify-center gap-3">
               {intent === "trial" ? (
-                <WhatsAppButton />
+                acaoLabel ? (
+                  <WhatsAppButton>{acaoLabel}</WhatsAppButton>
+                ) : (
+                  <WhatsAppButton />
+                )
               ) : (
                 <Button asChild size="lg">
                   <Link href="/contact?interest=project#contato">

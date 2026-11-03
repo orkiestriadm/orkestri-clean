@@ -117,6 +117,16 @@
 @layer base {
   :root {
     --font-inter: "Inter";
+
+    /* Altura da faixa de oferta acima do cabeçalho
+       (`components/layout/faixa-teste.tsx`).
+
+       O cabeçalho é `fixed`, então quem reserva o espaço são os heróis, que
+       somam esta variável ao padding de topo. Está aqui, e não dentro do
+       componente, para que a faixa possa ser desligada num lugar só: zerando
+       o valor, os heróis voltam ao espaçamento antigo sem nenhuma outra
+       alteração. */
+    --faixa-h: 2.25rem;
   }
 
   /* Cor de borda padrão de quem usa `border` sem cor. No escuro, cinza sólido

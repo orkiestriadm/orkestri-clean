@@ -5,8 +5,10 @@ import { WhatsAppButton } from "@/components/ui/whatsapp-button";
 import { AureliaSignature } from "@/components/home/aurelia-signature";
 
 export function Hero() {
+  /* O padding de topo soma `--faixa-h`: o cabeçalho é `fixed` e leva a faixa
+     de oferta dentro dele (ver `layout/faixa-teste.tsx`). */
   return (
-    <section className="hero-modern relative isolate overflow-hidden bg-ink pb-10 pt-28 md:pb-14 md:pt-36">
+    <section className="hero-modern relative isolate overflow-hidden bg-ink pb-10 pt-[calc(7rem+var(--faixa-h))] md:pb-14 md:pt-[calc(9rem+var(--faixa-h))]">
       <Container>
         <div className="grid items-center gap-8 md:grid-cols-[1.05fr_.95fr] lg:gap-14">
           <div className="hero-enter relative z-10">
@@ -39,8 +41,12 @@ export function Hero() {
               </a>
             </div>
             <p className="mt-2 max-w-md text-xs leading-relaxed text-chalk-dim">
-              Cadastro gratuito no Orkiestri. A Aurélia guia você pelo WhatsApp,
-              uma pergunta por vez.
+              {/* Era "Cadastro gratuito no Orkiestri". Com o preço publicado
+                  em /planos, o hero precisa dizer o que acontece depois do
+                  teste — descobrir a cobrança só no sétimo dia é o jeito mais
+                  rápido de perder a confiança na hora de pagar. */}
+              Sete dias de teste, sem cartão. Depois, R$ 11,90 por mês. A
+              Aurélia guia você pelo WhatsApp, uma pergunta por vez.
             </p>
           </div>
           <div className="hero-enter min-w-0">
