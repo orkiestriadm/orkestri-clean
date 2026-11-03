@@ -2,6 +2,7 @@ import Script from "next/script";
 import { Hero } from "@/components/sections/hero";
 import { Plataforma } from "@/components/home/plataforma";
 import { Experimentar } from "@/components/home/experimentar";
+import { DiaNormal } from "@/components/home/dia-normal";
 import { AgendaSpotlight } from "@/components/home/agenda-spotlight";
 import { AureliaDemo } from "@/components/home/aurelia-demo";
 import { Perguntas } from "@/components/home/perguntas";
@@ -52,6 +53,7 @@ export default function HomePage() {
           No lugar dele, a demonstração clicável — a pessoa experimenta o
           produto antes de entregar CPF e e-mail. */}
       <Experimentar />
+      <DiaNormal />
       <AgendaSpotlight />
       <Plataforma />
       <AureliaDemo />

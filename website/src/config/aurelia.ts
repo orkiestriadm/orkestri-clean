@@ -514,3 +514,131 @@ export const DEMO: DemoPasso[] = [
     ],
   },
 ];
+
+/**
+ * Um dia normal.
+ *
+ * A seção mais forte da página do concorrente não lista funcionalidade: ela
+ * conta um dia e mostra o que a equipe resolve em cada hora. Vende rotina, e
+ * rotina é o que o Orkiestri faz.
+ *
+ * 🔴 Duas regras, as mesmas do resto deste arquivo:
+ *
+ *   1. **Todo momento é um comportamento que existe.** Três deles a pessoa
+ *      provoca (áudio vira compromisso, gasto numa frase, chamado aberto) e
+ *      três chegam sozinhos (resumo da manhã, lembrete de uma hora, a
+ *      anotação que ela mandou guardar). Os que chegam sozinhos usam o texto
+ *      no formato real: o resumo sai como `☀️ *Seu dia — 03/11*` em
+ *      `whatsapp-rotina.service.ts`, e o lembrete de 60 minutos sai como
+ *      `🔔 Você tem um evento em 60 minutos` em `alert.scheduler.ts`.
+ *   2. **Nada de contas a pagar, catálogo, horas ou CSAT.** Saíram do sistema
+ *      em 02/11; ver o comentário no topo deste arquivo.
+ */
+export type MomentoDia = {
+  id: string;
+  hora: string;
+  titulo: string;
+  texto: string;
+  /** A mesa que atende, para o rótulo. */
+  modulo: string;
+  /** Quem começa: a pessoa, ou a Aurélia sem ser chamada. */
+  inicio: "voce" | "aurelia";
+  conversa: { de: "voce" | "aurelia"; texto: string[]; audio?: boolean }[];
+};
+
+export const DIA: MomentoDia[] = [
+  {
+    id: "manha",
+    hora: "07:00",
+    titulo: "O dia chega escrito, antes de você perguntar.",
+    texto:
+      "Você escolhe o horário uma vez — “ativar resumo diário 08:00” — e a partir daí o dia inteiro chega sozinho, em ordem, com o que vence hoje. “Dias úteis” no fim do pedido pula o fim de semana.",
+    modulo: "Space · rotina",
+    inicio: "aurelia",
+    conversa: [
+      {
+        de: "aurelia",
+        texto: [
+          "☀️ *Seu dia — 03/11*",
+          "09:00 — Reunião com a equipe",
+          "14:30 — Dentista",
+          "Vence hoje: enviar a proposta",
+        ],
+      },
+    ],
+  },
+  {
+    id: "audio",
+    hora: "09:15",
+    titulo: "Um áudio no caminho, e o compromisso está marcado.",
+    texto:
+      "Trinta segundos de fala, do jeito que a frase sai. A Aurélia transcreve, entende o dia e a hora, cria o compromisso e confirma por escrito para você conferir sem abrir nada.",
+    modulo: "Space · agenda",
+    inicio: "voce",
+    conversa: [
+      { de: "voce", texto: ["Marcar dentista quinta 15h"], audio: true },
+      {
+        de: "aurelia",
+        texto: [
+          "Marcado: *Dentista*",
+          "Quinta, 15:00",
+          "Eu te aviso 1h antes, aos 15min, aos 5min e na hora.",
+        ],
+      },
+    ],
+  },
+  {
+    id: "gasto",
+    hora: "12:40",
+    titulo: "Pagou o almoço? Uma frase e está lançado.",
+    texto:
+      "Sem formulário e sem categoria para escolher. Ela lê o valor, a descrição e a forma de pagamento, e a categoria sai do que você escreveu — mercado, farmácia, posto e assinatura são reconhecidos pelo nome.",
+    modulo: "Finance",
+    inicio: "voce",
+    conversa: [
+      { de: "voce", texto: ["almoço 45 no débito"] },
+      { de: "aurelia", texto: ["Lancei *R$ 45,00*", "Categoria: Alimentação · Forma: débito"] },
+    ],
+  },
+  {
+    id: "chamado",
+    hora: "15:30",
+    titulo: "O pedido que chegou não depende da memória de ninguém.",
+    texto:
+      "“A impressora não liga” vira chamado com número, prazo e responsável, em vez de ficar num grupo. Se o prazo começa a apertar, o sistema avisa antes de estourar.",
+    modulo: "Service",
+    inicio: "voce",
+    conversa: [
+      { de: "voce", texto: ["Chamado: a impressora não liga"] },
+      { de: "aurelia", texto: ["Chamado aberto para a sua equipe.", "Eu te aviso quando ele andar."] },
+    ],
+  },
+  {
+    id: "lembrete",
+    hora: "14:00",
+    titulo: "Uma hora antes, o aviso chega sem você pedir.",
+    texto:
+      "E depois de novo aos quinze minutos, aos cinco e na hora que começa. Os quatro avisos chegam na mesma conversa, sem aplicativo novo e sem notificação vindo de outro lugar.",
+    modulo: "Space · avisos",
+    inicio: "aurelia",
+    conversa: [
+      {
+        de: "aurelia",
+        texto: ["🔔 Você tem um evento em 60 minutos:", "*Dentista*", "Hoje, 15:00"],
+      },
+    ],
+  },
+  {
+    id: "noite",
+    hora: "22:30",
+    titulo: "O que não pode se perder tem onde ficar.",
+    texto:
+      "A ideia que aparece tarde, a lista de mercado, o recado para amanhã. Vira anotação no Keep ou tarefa com prazo, e volta quando você perguntar — meses depois, se for o caso.",
+    modulo: "Space · Keep",
+    inicio: "voce",
+    conversa: [
+      { de: "voce", texto: ["Nota: comprar pilha para o controle"] },
+      { de: "aurelia", texto: ["Anotado no seu Keep.", "Mande *minhas notas* para ver tudo."] },
+    ],
+  },
+];
