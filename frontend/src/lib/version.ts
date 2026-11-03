@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "5.0.0";
+export const VERSAO = "5.1.0";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -26,7 +26,7 @@ export const VERSAO = "5.0.0";
 export const VERSAO_DATA = "2026-11-02";
 
 /** Nome da entrega, para dar contexto ao número. */
-export const VERSAO_NOME = "A agenda abre o sistema, e o menu só tem o que se usa";
+export const VERSAO_NOME = "O sistema vira aplicativo no celular e no computador";
 
 /**
  * Histórico exibido na tela Sobre, do mais recente para o mais antigo.
@@ -35,6 +35,16 @@ export const VERSAO_NOME = "A agenda abre o sistema, e o menu só tem o que se u
  * esta lista quer saber o que mudou para ele.
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
+  {
+    versao: "5.1.0",
+    data: "2026-11-02",
+    titulo: "O sistema vira aplicativo no celular e no computador",
+    itens: [
+      "Dá para instalar o Orkiestri como aplicativo. No computador, aparece um ícone de instalar na barra de endereço do navegador; no celular, é o “Adicionar à tela de início” do menu. Ele passa a abrir em janela própria, com ícone junto dos outros aplicativos e sem as abas e a barra de endereço em volta",
+      "Sem internet, o aplicativo instalado mostra uma tela explicando, com um botão de tentar de novo, no lugar da tela de erro do navegador",
+      "O sistema ganhou ícone próprio na aba do navegador, que antes não tinha nenhum. O mesmo ícone passou a acompanhar os lembretes de compromisso — eles saíam sem ícone porque o arquivo apontado não existia",
+    ],
+  },
   {
     versao: "5.0.0",
     data: "2026-11-02",
