@@ -6,9 +6,10 @@ import {
 } from "recharts";
 import Topbar from "@/components/layout/Topbar";
 import { api } from "@/lib/api";
+import { useAuthStore } from "@/lib/store";
 import {
   Receipt, Plus, Pencil, Trash2, X, CalendarDays, Wallet, TrendingDown,
-  Loader2, MessageCircle, Search,
+  Loader2, MessageCircle, Search, AlertTriangle,
 } from "lucide-react";
 
 // ── Config ──────────────────────────────────────────────────────────────────
@@ -65,9 +66,11 @@ const card: CSSProperties = {
 
 // ── Page ────────────────────────────────────────────────────────────────────
 export default function GastosPage() {
+  const { user } = useAuthStore();
   const [resumo, setResumo] = useState<Resumo | null>(null);
   const [rows, setRows] = useState<Gasto[]>([]);
   const [loading, setLoading] = useState(true);
+  const [erro, setErro] = useState<string | null>(null);
   const [inicio, setInicio] = useState(inicioMes());
   const [fim, setFim] = useState(fimMes());
   const [preset, setPreset] = useState<Preset>("mes");
@@ -87,6 +90,7 @@ export default function GastosPage() {
 
   const carregar = useCallback(async () => {
     setLoading(true);
+    setErro(null);
     try {
       const params: any = { inicio, fim };
       const [r, l] = await Promise.all([
@@ -95,8 +99,24 @@ export default function GastosPage() {
       ]);
       setResumo(r.data);
       setRows(l.data.rows || []);
-    } catch {
-      // silencioso: a tela mostra estado vazio
+    } catch (e: any) {
+      /* Antes isto era um `catch` vazio com o comentário "silencioso: a tela
+         mostra estado vazio". Falha de rede, 403 e "você não tem gasto nenhum"
+         viravam a MESMA tela — e em 03/11/2026 isso custou um dia de
+         investigação: a conta tinha nove gastos, a API respondeu certo, e quem
+         olhava via "Comece a anotar seus gastos" sem nenhuma pista de que
+         estava na conta errada.
+
+         Erro de verdade agora aparece. Quem não tem gasto continua vendo o
+         convite para começar. */
+      const status = e?.response?.status;
+      setErro(
+        status === 403
+          ? "Sua conta não tem acesso aos gastos. Fale com quem administra a organização."
+          : "Não consegui carregar seus gastos agora. Tente de novo em instantes.",
+      );
+      setRows([]);
+      setResumo(null);
     } finally {
       setLoading(false);
     }
@@ -186,7 +206,12 @@ export default function GastosPage() {
               </div>
               <div>
                 <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800 }}>Meus Gastos</h1>
-                <p style={{ margin: 0, fontSize: 13, color: "var(--text-muted, #6b7280)" }}>Só você vê os seus gastos. Toque num cartão para filtrar.</p>
+                {/* O e-mail no subtítulo é a pista que faltava: a lista é
+                    filtrada por USUÁRIO, então quem está na conta errada vê
+                    zero sem nada na tela explicando por quê. */}
+                <p style={{ margin: 0, fontSize: 13, color: "var(--text-muted, #6b7280)" }}>
+                  Só você vê os seus gastos{user?.email ? <> — esta é a conta <strong>{user.email}</strong></> : null}. Toque num cartão para filtrar.
+                </p>
               </div>
             </div>
             <div style={{ display: "flex", gap: 8 }}>
@@ -479,6 +504,16 @@ export default function GastosPage() {
           <div style={{ ...card, padding: 0, overflow: "hidden" }}>
             {loading ? (
               <div style={{ padding: 40, textAlign: "center", color: "var(--text-muted,#6b7280)" }}><Loader2 className="spin" size={22} /></div>
+            ) : erro ? (
+              /* O erro tem tela própria: antes ele caía no estado vazio e a
+                 pessoa lia "comece a anotar" quando o problema era outro. */
+              <div style={{ padding: "40px 24px", textAlign: "center", display: "grid", gap: 12, placeItems: "center" }}>
+                <div style={{ width: 52, height: 52, borderRadius: 14, background: "rgba(239,68,68,0.12)", display: "grid", placeItems: "center" }}>
+                  <AlertTriangle size={26} color="#ef4444" />
+                </div>
+                <p style={{ margin: 0, fontWeight: 800, fontSize: 16, maxWidth: 420 }}>{erro}</p>
+                <button onClick={carregar} style={{ ...chip(false), fontSize: 13, fontWeight: 700 }}>Tentar de novo</button>
+              </div>
             ) : rows.length === 0 ? (
               temFiltroTabela ? (
                 <div style={{ padding: "36px 20px", textAlign: "center" }}>
@@ -493,6 +528,15 @@ export default function GastosPage() {
                   <div>
                     <p style={{ margin: "0 0 4px", fontWeight: 800, fontSize: 17 }}>Comece a anotar seus gastos</p>
                     <p style={{ margin: 0, color: "var(--text-muted,#6b7280)", fontSize: 14 }}>É rápido, e só você vê. Dá pra fazer de dois jeitos:</p>
+                    {/* Dizer DE QUEM é a lista vazia. Gasto é filtrado por
+                        usuário, então quem entra com outra conta vê zero
+                        mesmo que a organização tenha lançamentos — e sem o
+                        e-mail aqui não há nada na tela que denuncie isso. */}
+                    {user?.email && (
+                      <p style={{ margin: "10px 0 0", color: "var(--text-muted,#6b7280)", fontSize: 12.5 }}>
+                        Você está em <strong>{user.email}</strong>. Lançou em outra conta? Os gastos ficam na conta de quem lançou.
+                      </p>
+                    )}
                   </div>
                   <div style={{ display: "grid", gap: 10, width: "100%", maxWidth: 440, textAlign: "left" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", border: "1px solid var(--border-subtle)", borderRadius: 12 }}>
