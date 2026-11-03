@@ -601,19 +601,6 @@ export const DIA: MomentoDia[] = [
     ],
   },
   {
-    id: "chamado",
-    hora: "15:30",
-    titulo: "O pedido que chegou não depende da memória de ninguém.",
-    texto:
-      "“A impressora não liga” vira chamado com número, prazo e responsável, em vez de ficar num grupo. Se o prazo começa a apertar, o sistema avisa antes de estourar.",
-    modulo: "Service",
-    inicio: "voce",
-    conversa: [
-      { de: "voce", texto: ["Chamado: a impressora não liga"] },
-      { de: "aurelia", texto: ["Chamado aberto para a sua equipe.", "Eu te aviso quando ele andar."] },
-    ],
-  },
-  {
     id: "lembrete",
     hora: "14:00",
     titulo: "Uma hora antes, o aviso chega sem você pedir.",
@@ -626,6 +613,19 @@ export const DIA: MomentoDia[] = [
         de: "aurelia",
         texto: ["🔔 Você tem um evento em 60 minutos:", "*Dentista*", "Hoje, 15:00"],
       },
+    ],
+  },
+  {
+    id: "chamado",
+    hora: "15:30",
+    titulo: "O pedido que chegou não depende da memória de ninguém.",
+    texto:
+      "“A impressora não liga” vira chamado com número, prazo e responsável, em vez de ficar num grupo. Se o prazo começa a apertar, o sistema avisa antes de estourar.",
+    modulo: "Service",
+    inicio: "voce",
+    conversa: [
+      { de: "voce", texto: ["Chamado: a impressora não liga"] },
+      { de: "aurelia", texto: ["Chamado aberto para a sua equipe.", "Eu te aviso quando ele andar."] },
     ],
   },
   {
