@@ -25,7 +25,7 @@ export const footerNav: { title: string; items: NavItem[] }[] = [
       { label: "Pedidos e chamados", href: "/products/one-desk" },
       { label: "Projetos e tarefas", href: "/products/one-projects" },
       /* Era "Orkiestri Fleet", removido do sistema em 19/10/2026. */
-      { label: "Contas e gastos", href: "/products/one-finance" },
+      { label: "Meus gastos", href: "/products/one-finance" },
       { label: "Ver todos", href: "/products" },
     ],
   },

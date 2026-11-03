@@ -4,7 +4,6 @@ import {
   StickyNote,
   ListChecks,
   FolderKanban,
-  Receipt,
   Headset,
   BookOpen,
   UserCog,
@@ -128,18 +127,10 @@ export const MESAS: MesaPedidos[] = [
       { texto: "meus projetos", hora: "10:11", parser: "listarProjetos" },
     ],
   },
-  {
-    id: "contas",
-    titulo: "Contas a pagar",
-    modulo: "Finance",
-    icon: Receipt,
-    href: "/products/one-finance",
-    pedidos: [
-      { texto: "Conta: energia 350 vence 10/11", hora: "11:08", parser: "mConta" },
-      { texto: "contas a pagar", hora: "15:20", parser: "contas.lista" },
-      { texto: "resumo de contas", hora: "17:40", parser: "contas.resumo" },
-    ],
-  },
+  /* Havia aqui uma mesa "Contas a pagar", escrita contra a 4.3.0. Em
+     02/11/2026 (sistema 5.1.1) CONTAS A PAGAR saiu da produção junto com a
+     dashboard do Financeiro: o `financeiro.module.ts` foi removido e o parser
+     de "Conta:" não existe mais. O Finance virou "Meus gastos" e só. */
   {
     id: "chamados",
     titulo: "Pedidos e chamados",
@@ -257,7 +248,7 @@ export const CAPACIDADES: Capacidade[] = [
 
   // ── Finance ───────────────────────────────────────────────────────────
   {
-    grupo: "Contas e gastos",
+    grupo: "Meus gastos",
     titulo: "Anote o gasto numa frase, e ele entra na categoria certa.",
     texto:
       "“gastei 87 na farmácia”, “mercado 150 no crédito”, “paguei 180 de luz no pix”. A Aurélia lê o valor, a descrição e a forma de pagamento e lança. A categoria sai do que você escreveu: mercado, combustível, academia, contas de casa, roupa, assinatura e material de estudo são reconhecidos pelo nome.",
@@ -267,25 +258,25 @@ export const CAPACIDADES: Capacidade[] = [
     },
   },
   {
-    grupo: "Contas e gastos",
+    grupo: "Meus gastos",
     titulo: "A compra parcelada se desdobra sozinha.",
     texto:
       "“comprei uma cadeira em 6x de 95” cria as seis parcelas, uma em cada mês, com o total calculado. “à vista” também é entendido, e vale escrever “parcelado em 12” do mesmo jeito.",
   },
   {
-    grupo: "Contas e gastos",
+    grupo: "Meus gastos",
     titulo: "Cada forma de pagamento é reconhecida pelo nome.",
     texto:
       "Débito, crédito, Pix, dinheiro e boleto. Você escreve do jeito que falaria — “no cartão”, “em espécie”, “no pix” — e o lançamento guarda a forma certa, que é o que faz o resumo do mês bater com a fatura.",
   },
   {
-    grupo: "Contas e gastos",
+    grupo: "Meus gastos",
     titulo: "Pergunte quanto já foi, no período que você quiser.",
     texto:
       "“quanto gastei esse mês” responde com o número na conversa. “resumo dos meus gastos” traz o recorte por categoria e por forma de pagamento, e o resumo semanal chega sozinho — “parar resumo” desliga, “voltar resumo” religa.",
   },
   {
-    grupo: "Contas e gastos",
+    grupo: "Meus gastos",
     titulo: "Errou o valor? Corrija na frase seguinte.",
     texto:
       "“corrige, o almoço foi 54” troca o valor do último lançamento. Um “apagar”, “desfazer” ou “errei” desfaz o que acabou de entrar, sem tela de edição no meio.",
@@ -295,13 +286,13 @@ export const CAPACIDADES: Capacidade[] = [
     },
   },
   {
-    grupo: "Contas e gastos",
-    titulo: "A conta a pagar guarda o vencimento junto.",
+    grupo: "Meus gastos",
+    titulo: "O que se repete todo mês o sistema passa a esperar.",
     texto:
-      "“Conta: energia 350 vence 10/11” registra o valor e a data. “contas a pagar” lista o que está em aberto e “resumo de contas” fecha o período. Quem paga continua sendo você; a Aurélia anota e lembra.",
+      "Metas por categoria e os gastos que voltam sempre — a mensalidade, a assinatura, o mercado de toda semana — ficam no painel do site, com previsto contra realizado. A conversa serve para lançar e para perguntar; o recorte mês a mês você vê com calma na tela.",
   },
   {
-    grupo: "Contas e gastos",
+    grupo: "Meus gastos",
     titulo: "Seus gastos pessoais são só seus.",
     texto:
       "O que você lança como gasto pessoal fica na sua conta, e não aparece para o resto da organização. As contas da empresa vivem em outro lugar, com a permissão de quem cuida do financeiro.",
@@ -465,11 +456,14 @@ export const DEMO: DemoPasso[] = [
     ],
   },
   {
-    id: "conta",
-    chip: "Anotar uma conta",
-    mesa: "Contas",
-    pedido: "Conta: energia 350 vence 10/11",
-    resposta: ["Conta registrada: *Energia*", "R$ 350,00 · vence em 10/11"],
+    id: "recorrente",
+    chip: "Gasto que se repete",
+    mesa: "Gastos",
+    pedido: "paguei 180 de luz no pix",
+    resposta: [
+      "Lancei *R$ 180,00*",
+      "Categoria: Contas de casa · Forma: Pix",
+    ],
   },
   {
     id: "chamado",

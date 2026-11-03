@@ -121,7 +121,7 @@ const perguntas = [
   },
   {
     q: "Os meus gastos aparecem para a minha equipe?",
-    a: "Não. O gasto pessoal fica preso ao seu usuário e não ao da organização — nem quem administra a conta enxerga. O que é da empresa vive em contas a pagar, atrás da permissão de quem cuida do financeiro.",
+    a: "Não. O gasto pessoal fica preso ao seu usuário e não ao da organização — nem quem administra a conta enxerga. O que é da empresa vive no Orçamento, atrás da permissão de quem cuida dele.",
   },
   {
     q: "Como eu protejo melhor a minha conta?",

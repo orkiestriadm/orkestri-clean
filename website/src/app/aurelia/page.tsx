@@ -52,7 +52,7 @@ const oQueFaco = [
   {
     titulo: "Eu guardo o que não pode se perder.",
     texto:
-      "A anotação solta, a tarefa com prazo, o projeto que começou numa frase, a conta que vence dia 10. Cada coisa no lugar certo, e tudo de volta quando você perguntar.",
+      "A anotação solta, a tarefa com prazo, o projeto que começou numa frase, o gasto que você lançou correndo. Cada coisa no lugar certo, e tudo de volta quando você perguntar.",
   },
   {
     titulo: "Eu abro o seu pedido e acompanho.",

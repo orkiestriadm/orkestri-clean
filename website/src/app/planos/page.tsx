@@ -54,7 +54,7 @@ const incluso = [
   "A Aurélia no WhatsApp, para marcar, anotar e consultar",
   "Lembrete antes da hora: uma hora antes, aos quinze, aos cinco e na hora",
   "Agenda no site e no WhatsApp, sincronizada com o Outlook",
-  "Contas, gastos e compras parceladas, com o aviso quando vence",
+  "Gastos e compras parceladas, com resumo semanal no WhatsApp",
   "Projetos, tarefas, chamados e base de conhecimento",
   "Pagamento no cartão, que renova sozinho, ou no Pix, mês a mês",
   "Cancelamento quando quiser, pela mesma conversa",

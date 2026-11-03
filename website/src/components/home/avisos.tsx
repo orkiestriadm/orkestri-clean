@@ -53,7 +53,7 @@ const gatilhos = [
     modulo: "Agenda",
     quando: "1 hora, 15 minutos e 5 minutos antes — e na hora que começa",
   },
-  { modulo: "Contas e gastos", quando: "todo domingo às 20h, se houve gasto na semana" },
+  { modulo: "Meus gastos", quando: "todo domingo às 20h, se houve gasto na semana" },
   { modulo: "Chamados", quando: "quando o prazo entra em risco, estoura ou é escalado" },
   { modulo: "Acessos", quando: "você escolhe, módulo por módulo, o que quer receber" },
 ];
