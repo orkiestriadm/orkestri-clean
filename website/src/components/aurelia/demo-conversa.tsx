@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useReducedMotion } from "framer-motion";
 import { Check, CheckCheck } from "lucide-react";
 import { DEMO, type DemoPasso } from "@/config/aurelia";
+import { Celular } from "@/components/ui/celular";
 import { cn } from "@/lib/utils";
 
 /**
@@ -125,9 +126,12 @@ export function DemoConversa() {
         </div>
       </div>
 
-      {/* ── A conversa ─────────────────────────────────────────────────── */}
-      <div className="hairline overflow-hidden rounded-(--radius-image) border bg-ink">
-        <div className="hairline flex items-center gap-3 border-b bg-panel px-5 py-3.5">
+      {/* ── A conversa, dentro do celular ──────────────────────────────
+          A moldura entrou em 03/11/2026: a demonstração mostrava a conversa
+          num cartão, e um cartão não diz que isso acontece no telefone da
+          pessoa. A órbita acompanha, como em toda amostra do site. */}
+      <Celular largura={360}>
+        <div className="hairline flex items-center gap-3 border-b bg-panel px-5 pb-3.5">
           <span
             className="grid h-9 w-9 place-items-center rounded-full bg-flame/20 text-sm font-semibold text-ember"
             aria-hidden
@@ -189,7 +193,7 @@ export function DemoConversa() {
         <p className="hairline border-t px-5 py-3 text-xs leading-relaxed text-chalk-faint">
           Demonstração. Nenhuma mensagem é enviada e nenhum dado é salvo.
         </p>
-      </div>
+      </Celular>
     </div>
   );
 }

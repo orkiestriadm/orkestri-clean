@@ -1119,6 +1119,81 @@ footer.bg-ink {
   .aurelia-planet { width: calc(var(--planet-size, 7px) * .8); }
 }
 
+/* ── Moldura de celular ───────────────────────────────────────────────────
+   Ver `components/ui/celular.tsx`. O palco existe para a órbita ter onde
+   acontecer: ela é `position: absolute` e precisa de um pai posicionado,
+   com folga nas laterais para os pontos passarem POR FORA do aparelho. */
+.celular-palco {
+  position: relative;
+  isolation: isolate;
+  width: 100%;
+  margin-inline: auto;
+  /* A folga vertical é o espaço por onde os pontos sobem e descem. Sem ela
+     a elipse fica rente ao aparelho e os pontos parecem colados na borda. */
+  padding-block: 34px;
+}
+
+.celular {
+  position: relative;
+  z-index: 1;
+  border-radius: 42px;
+  /* A moldura é um gradiente, e não uma cor chapada: no escuro, uma borda
+     sólida achata o aparelho e ele vira um retângulo cinza. O degradê dá a
+     impressão de luz batendo de cima. */
+  background: linear-gradient(160deg, #2b3039 0%, #14171d 42%, #0b0d11 100%);
+  padding: 10px;
+  box-shadow:
+    /* fio de luz no topo da carcaça */
+    inset 0 1px 0 rgba(255, 255, 255, 0.16),
+    /* aresta externa, que separa o aparelho do fundo */
+    0 0 0 1px rgba(255, 255, 255, 0.07),
+    /* sombra longa, para o aparelho não flutuar sem peso */
+    0 32px 70px -28px rgba(0, 0, 0, 0.9);
+}
+
+.celular-tela {
+  position: relative;
+  overflow: hidden;
+  border-radius: 33px;
+  background: var(--color-ink);
+  /* O conteúdo manda na altura: print do WhatsApp e conversa interativa têm
+     proporções diferentes, e fixar aspect-ratio cortaria um dos dois. */
+  display: flex;
+  flex-direction: column;
+}
+
+/* A ilha no topo. Fica SOBRE a tela, como no aparelho real, e some em telas
+   muito estreitas, onde ela comeria a primeira linha do conteúdo. */
+.celular-tela::before {
+  content: "";
+  position: absolute;
+  top: 9px;
+  left: 50%;
+  translate: -50% 0;
+  z-index: 2;
+  width: 86px;
+  height: 20px;
+  border-radius: 999px;
+  background: #06070a;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+  pointer-events: none;
+}
+
+/* O conteúdo começa abaixo da ilha — só o primeiro filho recebe o recuo,
+   senão um conteúdo de várias partes (cabeçalho, mensagens, rodapé) ganharia
+   um vão em cada uma delas. */
+.celular-tela > :first-child {
+  padding-top: 34px;
+}
+
+@media (max-width: 420px) {
+  .celular { border-radius: 34px; padding: 7px; }
+  .celular-tela { border-radius: 27px; }
+  .celular-tela::before { width: 68px; height: 16px; top: 7px; }
+  .celular-tela > :first-child { padding-top: 28px; }
+  .celular-palco { padding-block: 24px; }
+}
+
 .site-warm-surface, .site-menu-surface {
   background-color: #090a0d;
   background-image: var(--site-atmosphere);
