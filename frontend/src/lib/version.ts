@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "5.1.0";
+export const VERSAO = "5.1.1";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -26,7 +26,7 @@ export const VERSAO = "5.1.0";
 export const VERSAO_DATA = "2026-11-02";
 
 /** Nome da entrega, para dar contexto ao número. */
-export const VERSAO_NOME = "O sistema vira aplicativo no celular e no computador";
+export const VERSAO_NOME = "A porta de entrada fala como gente";
 
 /**
  * Histórico exibido na tela Sobre, do mais recente para o mais antigo.
@@ -35,6 +35,15 @@ export const VERSAO_NOME = "O sistema vira aplicativo no celular e no computador
  * esta lista quer saber o que mudou para ele.
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
+  {
+    versao: "5.1.1",
+    data: "2026-11-02",
+    titulo: "A porta de entrada fala como gente",
+    itens: [
+      "A tela de login e a de solicitar acesso diziam “o sistema operacional da sua empresa” e vendiam selos de engenharia — “Cloud Native”, “API First” e “99,9% de disponibilidade”, um número que ninguém media. Agora as duas falam do que você vai fazer aqui: a sua agenda, os seus pedidos de ajuda, os seus projetos e o aviso no WhatsApp",
+      "A tela de solicitar acesso ainda oferecia frota, ativos e indicadores, que saíram do sistema na redução de escopo. O mesmo valia para o texto que aparece no Google",
+    ],
+  },
   {
     versao: "5.1.0",
     data: "2026-11-02",

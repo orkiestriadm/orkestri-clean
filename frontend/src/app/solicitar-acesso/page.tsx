@@ -3,8 +3,9 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { api } from "@/lib/api";
 import { BrandLogo } from "@/components/ui/logo";
-import { ArrowRight, ArrowLeft, CheckCircle2, Loader2, ShieldCheck, Cloud, Sparkles, Network } from "lucide-react";
+import { ArrowRight, ArrowLeft, CheckCircle2, Loader2 } from "lucide-react";
 import { MARCA } from "@/lib/marca";
+import { PILARES } from "@/lib/pilares";
 
 interface Organization {
   id: string;
@@ -12,13 +13,6 @@ interface Organization {
   slug: string;
 }
 
-/* Mesmos pilares da tela de login — uma só promessa de marca. */
-const PILARES = [
-  { icon: ShieldCheck, label: "Segurança", text: "MFA, criptografia e auditoria" },
-  { icon: Sparkles, label: "IA nativa", text: "Copilotos em toda a plataforma" },
-  { icon: Cloud, label: "Cloud Native", text: "99,9% de disponibilidade" },
-  { icon: Network, label: "API First", text: "Integrações sem retrabalho" },
-];
 
 export default function SolicitarAcessoPage() {
   const [form, setForm] = useState({
@@ -95,17 +89,17 @@ export default function SolicitarAcessoPage() {
 
         <div className="max-w-lg">
           <h2 className="text-[2.6rem] font-bold leading-[1.08] tracking-[-0.035em] xl:text-[3.1rem]">
-            Uma plataforma.
+            Tudo o que você faz
             <br />
-            Toda a sua{" "}
+            no dia, em{" "}
             <span className="bg-gradient-to-r from-[#f97316] to-[#fb923c] bg-clip-text text-transparent">
-              operação
+              um lugar
             </span>
             .
           </h2>
           <p className="mt-5 text-[17px] leading-relaxed text-white/55">
-            Chamados, projetos, frota, ativos e indicadores em um único ambiente —
-            com automação e inteligência artificial nativas.
+            Agenda, chamados, projetos, orçamento e os seus gastos no mesmo lugar —
+            e um aviso no WhatsApp quando a hora chega.
           </p>
 
           <ul className="mt-10 grid grid-cols-2 gap-3">
@@ -125,7 +119,7 @@ export default function SolicitarAcessoPage() {
         </div>
 
         <p className="text-[13px] text-white/30">
-          &copy; {new Date().getFullYear()} {MARCA} — Enterprise Software Company
+          &copy; {new Date().getFullYear()} {MARCA}
         </p>
       </aside>
 
@@ -188,7 +182,7 @@ export default function SolicitarAcessoPage() {
 
                   <div className="flex flex-col gap-2">
                     <label htmlFor="email" className="text-[13px] font-medium text-white/70">
-                      E-mail corporativo <span className="text-[#fb923c]">*</span>
+                      E-mail <span className="text-[#fb923c]">*</span>
                     </label>
                     <input
                       id="email"

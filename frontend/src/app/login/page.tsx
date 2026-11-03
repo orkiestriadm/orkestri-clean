@@ -5,16 +5,11 @@ import Link from "next/link";
 import { useAuthStore } from "@/lib/store";
 import { authApi } from "@/lib/api";
 import { homeRoute } from "@/lib/modules";
-import { Eye, EyeOff, ArrowRight, Loader2, ShieldCheck, Cloud, Sparkles, Network } from "lucide-react";
+import { Eye, EyeOff, ArrowRight, Loader2 } from "lucide-react";
 import { BrandLogo } from "@/components/ui/logo";
 import { MARCA, LOGIN_FUNDO } from "@/lib/marca";
+import { PILARES } from "@/lib/pilares";
 
-const pilares = [
-  { icon: ShieldCheck, label: "Segurança", text: "MFA, criptografia e auditoria" },
-  { icon: Sparkles, label: "IA nativa", text: "Copilotos em toda a plataforma" },
-  { icon: Cloud, label: "Cloud Native", text: "99,9% de disponibilidade" },
-  { icon: Network, label: "API First", text: "Integrações sem retrabalho" },
-];
 
 export default function LoginPage() {
   const router = useRouter();
@@ -120,21 +115,21 @@ export default function LoginPage() {
 
         <div className="max-w-lg">
           <h2 className="text-[2.6rem] font-bold leading-[1.08] tracking-[-0.035em] xl:text-[3.1rem]">
-            O sistema operacional
+            Organize o seu dia.
             <br />
-            da sua{" "}
+            O resto a gente{" "}
             <span className="bg-gradient-to-r from-[#f97316] to-[#fb923c] bg-clip-text text-transparent">
-              empresa
+              avisa
             </span>
             .
           </h2>
           <p className="mt-5 text-[17px] leading-relaxed text-white/55">
-            Gestão, automação e inteligência artificial em uma única plataforma —
-            conectando pessoas, processos e informações.
+            Agenda, projetos, pedidos de ajuda e os seus gastos no mesmo lugar —
+            e um aviso no WhatsApp quando a hora chega.
           </p>
 
           <ul className="mt-10 grid grid-cols-2 gap-3">
-            {pilares.map((p) => {
+            {PILARES.map((p) => {
               const Icon = p.icon;
               return (
                 <li
@@ -153,7 +148,7 @@ export default function LoginPage() {
         </div>
 
         <p className="text-[13px] text-white/30">
-          &copy; {new Date().getFullYear()} {MARCA} — Enterprise Software Company
+          &copy; {new Date().getFullYear()} {MARCA}
         </p>
       </aside>
 
@@ -167,10 +162,10 @@ export default function LoginPage() {
 
           <div className="rounded-[24px] border border-white/[0.08] bg-white/[0.035] p-7 shadow-[0_24px_60px_-15px_rgba(0,0,0,0.6)] backdrop-blur-xl sm:p-8">
             <h1 className="text-[26px] font-bold tracking-tight text-white">
-              Acessar a plataforma
+              Entrar
             </h1>
             <p className="mt-1.5 text-[15px] text-white/50">
-              Entre com suas credenciais corporativas.
+              Com o e-mail e a senha da sua conta.
             </p>
 
             {/* Primeiro acesso: criar a senha aqui mesmo, com o código do
