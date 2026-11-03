@@ -62,6 +62,33 @@ Os outros nove containers mantiveram o id e a API seguiu `healthy`. Depois da tr
 
 **Uma captura headless do hero saiu em branco** e isso não é defeito: o conteúdo do hero entra por animação, e o `--screenshot` do Chrome fotografa antes de ela terminar. A conferência vale no navegador, forçando o estado final — foi assim que as três molduras foram medidas.
 
+## Terceira e quarta publicações do dia — site 3.7.0 e 3.7.1
+
+A moldura virou um iPhone de verdade (barra de status com sinal, wi-fi e bateria, ilha, botões laterais e barra de gestos) e entrou a linha do tempo "um dia normal", com seis momentos na home.
+
+**A 3.7.1 saiu minutos depois da 3.7.0, e por um defeito meu.** A verificação pós-troca leu os horários renderizados no ar e eles estavam fora de ordem: `07:00 → 09:15 → 12:40 → 15:30 → 14:00 → 22:30`. O próprio comentário do componente diz que a ordem é a informação — a pessoa reconhece o próprio dia na lista antes de ler qualquer descrição. Corrigido e republicado; agora lê `07:00 → 09:15 → 12:40 → 14:00 → 15:30 → 22:30`.
+
+| | 3.7.0 | 3.7.1 |
+|---|---|---|
+| Código | `f4dc13e` | `bd083a2` |
+| Imagem | `sha256:43e0b7c4…` | `sha256:d7eabee4…` |
+| SHA-256 do pacote | `ab22c746…` | `792dec5c…` |
+| Container | `a46b70332cbc` → `21448c2ccfeb` | → novo |
+
+Rollback da linha: `orkestri/website:rollback-dia-20261103` (o 3.6.0). Nas duas trocas só o container do site mudou de id; os outros nove ficaram iguais e a API seguiu `healthy`.
+
+### O plano anual foi junto, e está desligado
+
+O commit `f41fe9b` leva a página do plano anual pronta — R$ 119,90 no ano, R$ 9,99/mês, R$ 22,90 de economia — atrás da chave `PLANO.anualAtivo`, que está em `false`.
+
+**O sistema não sabe cobrar um ano.** `modules/assinatura/mercadopago.ts` cria o preapproval com `frequency: 1, frequency_type: "months"`, e `trial-renovacao.ts` só conhece `VALOR_MENSALIDADE` e `somarUmMes`. Com a chave desligada nada disso aparece no site — conferido no candidato e no ar, zero ocorrências de "119,90" em `/planos`.
+
+Ligar a chave antes de o backend cobrar anual faria a pessoa escolher o anual e receber cobrança mensal.
+
+### Duas medições que enganaram
+
+Uma captura headless do hero saiu em branco: o conteúdo entra por animação e o `--screenshot` fotografa antes de ela terminar. E uma leitura de overflow deu positivo porque o painel do navegador estava com largura zero; medido de novo a 390px e a 1440px, não há estouro. Nos dois casos a conferência válida foi no navegador, com viewport real.
+
 ## Pendências que esta publicação não toca
 
 - O PR #24 continua em rascunho e aponta para a base antiga; a troca da base ficou com o usuário.
