@@ -293,9 +293,9 @@ export const CAPACIDADES: Capacidade[] = [
   },
   {
     grupo: "Meus gastos",
-    titulo: "Seus gastos pessoais são só seus.",
+    titulo: "O seu gasto é seu; quem administra vê o da organização.",
     texto:
-      "O que você lança como gasto pessoal fica na sua conta, e não aparece para o resto da organização. As contas da empresa vivem em outro lugar, com a permissão de quem cuida do financeiro.",
+      "O que você lança como gasto pessoal fica na sua conta e a equipe comum não vê. Quem administra a organização pode ver os gastos de todos, com o nome de quem lançou — é de quem responde pela conta. Usando sozinho, só você vê.",
   },
 
   // ── Projects ──────────────────────────────────────────────────────────

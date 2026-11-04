@@ -116,6 +116,39 @@ class GastosController {
     return { organizationId: req.user?.organizationId, userId: req.user?.id };
   }
 
+  /**
+   * Escopo de LEITURA dos gastos.
+   *
+   * Por padrão — e sempre nas escritas — o gasto é pessoal: filtra por usuário
+   * e organização. Quem administra a organização (permissão `*`, `isMaster`)
+   * pode pedir a visão da organização inteira com `escopo=org`; aí cai o filtro
+   * por usuário e sobra só a organização.
+   *
+   * O portão é `req.user.isMaster`, resolvido no servidor em `jwt.strategy`: um
+   * não-master que mandar `escopo=org` é ignorado e continua vendo só o que é
+   * dele. O alcance nunca é decidido pelo cliente.
+   *
+   * Só a lista e o resumo respeitam isto. Orçamentos, recorrentes, receitas e
+   * categorias continuam pessoais mesmo para o master: são a configuração de
+   * cada um, não o gasto que ele precisa enxergar.
+   */
+  private leitura(req: any, escopo?: string): { where: any; org: boolean } {
+    const org = !!req.user?.isMaster && escopo === "org";
+    return org
+      ? { where: { organizationId: req.user?.organizationId }, org: true }
+      : { where: { organizationId: req.user?.organizationId, userId: req.user?.id }, org: false };
+  }
+
+  /** Nome de cada dono, para atribuir os gastos na visão da organização. */
+  private async donos(userIds: string[]): Promise<Map<string, string>> {
+    const ids = [...new Set(userIds)];
+    if (!ids.length) return new Map();
+    const users = await (this.prisma as any).user.findMany({
+      where: { id: { in: ids } }, select: { id: true, nome: true, email: true },
+    });
+    return new Map(users.map((u: any) => [u.id, (u.nome || u.email || "—") as string]));
+  }
+
   // Período padrão = mês corrente.
   private periodo(inicio?: string, fim?: string) {
     const agora = new Date();
@@ -138,10 +171,12 @@ class GastosController {
     @Query("fim") fim?: string,
     @Query("ordenar") ordenar = "dataGasto",
     @Query("dir") dir = "desc",
+    @Query("escopo") escopo?: string,
   ) {
     const page = Math.max(1, parseInt(pageQ) || 1);
     const limit = Math.min(200, parseInt(limitQ) || 50);
-    const where: any = { ...this.escopo(req) };
+    const le = this.leitura(req, escopo);
+    const where: any = { ...le.where };
     if (q) where.descricao = { contains: q, mode: "insensitive" };
     if (forma) where.formaPagamento = forma;
     if (categoria) where.categoria = categoria;
@@ -158,14 +193,21 @@ class GastosController {
       (this.prisma as any).gasto.count({ where }),
       (this.prisma as any).gasto.findMany({ where, orderBy, skip: (page - 1) * limit, take: limit }),
     ]);
-    return { total, page, limit, totalPages: Math.ceil(total / limit), rows: rows.map(mapGasto) };
+    // Na visão da organização cada linha diz de quem é — uma lista mesclada sem
+    // nome não se lê.
+    const nomes = le.org ? await this.donos((rows as any[]).map((g) => g.userId)) : null;
+    const mapped = (rows as any[]).map((g) =>
+      nomes ? { ...mapGasto(g), pessoa: nomes.get(g.userId) || "—" } : mapGasto(g),
+    );
+    return { total, page, limit, totalPages: Math.ceil(total / limit), escopo: le.org ? "org" : "meu", rows: mapped };
   }
 
   // ── Resumo (cartões + gráficos), sempre só do usuário ──────────────────────
   @Get("resumo")
   @Permissions("gastos:ver")
-  async resumo(@Req() req: any, @Query("inicio") inicio?: string, @Query("fim") fim?: string) {
-    const esc = this.escopo(req);
+  async resumo(@Req() req: any, @Query("inicio") inicio?: string, @Query("fim") fim?: string, @Query("escopo") escopo?: string) {
+    const le = this.leitura(req, escopo);
+    const esc = le.where;
     const { ini, f } = this.periodo(inicio, fim);
     const agora = new Date();
     const hoje0 = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate(), 0, 0, 0, 0);
@@ -257,6 +299,10 @@ class GastosController {
       },
       saldo: { rendaMes, gastosMes: cardMes.total, saldoMes: rendaMes - cardMes.total },
       periodo: { inicio: ini, fim: f, total: totalPeriodo, qtd: qtdPeriodo, porForma, porCategoria, porDia },
+      // `podeVerOrg` liga o seletor "Toda a organização" na tela, só para quem
+      // administra. `escopo` diz o que estes números já cobrem.
+      podeVerOrg: !!req.user?.isMaster,
+      escopo: le.org ? "org" : "meu",
     };
   }
 

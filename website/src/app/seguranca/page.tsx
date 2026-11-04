@@ -68,7 +68,7 @@ const pilares = [
     titulo: "Quem vê o quê é decidido antes.",
     paragrafos: [
       "O acesso é por papel: cada pessoa recebe as permissões do que ela precisa usar, e o que está fora delas não aparece. Isso vale para o site e vale para a conversa — o menu da Aurélia é montado a partir das suas permissões, então um módulo que não é seu não aparece nem se você perguntar por ele escrevendo.",
-      "Os seus gastos pessoais são seus. Eles ficam presos ao seu usuário, e não ao da organização: ninguém da equipe vê o que você lançou como gasto pessoal, nem quem administra.",
+      "Os seus gastos pessoais ficam presos ao seu usuário: a equipe comum não vê o que você lançou. Quem administra a organização pode ver os gastos de todos — é quem responde pela conta —, e nada sai para fora da sua organização.",
       "As contas da empresa são outra coisa, e vivem atrás da permissão de quem cuida do financeiro.",
     ],
   },
@@ -121,7 +121,7 @@ const perguntas = [
   },
   {
     q: "Os meus gastos aparecem para a minha equipe?",
-    a: "Não. O gasto pessoal fica preso ao seu usuário e não ao da organização — nem quem administra a conta enxerga. O que é da empresa vive no Orçamento, atrás da permissão de quem cuida dele.",
+    a: "Para a equipe comum, não: cada pessoa vê só os próprios gastos. Quem administra a organização pode ver os gastos de todos, com o nome de quem lançou — é um poder de quem responde pela conta, e não sai da sua organização. Se você usa o Orkiestri sozinho, só você vê.",
   },
   {
     q: "Como eu protejo melhor a minha conta?",
@@ -129,7 +129,7 @@ const perguntas = [
   },
   {
     q: "Quem administra a organização vê tudo?",
-    a: "Vê o que as permissões dela alcançam, que é bastante no que diz respeito à empresa — e não alcança o gasto pessoal de ninguém. Administrar a organização não dá acesso a dado de outra organização em nenhuma hipótese.",
+    a: "Vê o que as permissões dela alcançam, que é bastante no que diz respeito à organização — inclusive os gastos de cada pessoa, com o nome de quem lançou. O que administrar a organização nunca dá é acesso a dado de outra organização.",
   },
   {
     q: "E se eu perder o celular?",

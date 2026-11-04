@@ -14,7 +14,8 @@ import { cn } from "@/lib/utils";
  * ⚠️ As quatro afirmações de baixo são verificáveis:
  * - os horários dos lembretes estão em `alert.scheduler.ts`;
  * - os comandos, em `whatsapp-inbound.module.ts`;
- * - "cada um só vê o seu" vale para `gastos` (gasto pessoal é por usuário);
+ * - gasto é por usuário em `gastos` (a equipe comum não vê o do outro; quem
+ *   administra a organização vê o de todos, com o nome de quem lançou);
  * - o cadastro pelo WhatsApp é o `cadastro-whatsapp.module.ts`.
  */
 

@@ -27,6 +27,8 @@ type Gasto = {
   id: string; descricao: string; categoria?: string | null; valor: number;
   formaPagamento: string; parcelas: number; valorParcela?: number | null;
   dataGasto: string; origem: string;
+  /** Só vem na visão da organização: o dono do lançamento. */
+  pessoa?: string;
 };
 type Meta = { id: string; categoria: string; limiteMensal: number; gastoMes: number };
 type Recorrente = { id: string; descricao: string; categoria?: string | null; valor: number; formaPagamento: string; diaDoMes: number; ativo: boolean };
@@ -48,6 +50,10 @@ type Resumo = {
     porCategoria: { categoria: string; valor: number; qtd: number }[];
     porDia: { dia: string; label: string; valor: number }[];
   };
+  /** Liga o seletor "Toda a organização", só para quem administra. */
+  podeVerOrg?: boolean;
+  /** O que estes números já cobrem: "meu" ou "org". */
+  escopo?: "meu" | "org";
 };
 
 // ── Formatters ──────────────────────────────────────────────────────────────
@@ -77,6 +83,10 @@ export default function GastosPage() {
   const [q, setQ] = useState("");
   const [forma, setForma] = useState("");        // filtra a tabela
   const [categoria, setCategoria] = useState(""); // filtra a tabela
+  /* "meu" (padrão) ou "org". Só quem administra consegue "org"; o seletor só
+     aparece quando o resumo volta com podeVerOrg, e o backend ignora "org" de
+     quem não é master. */
+  const [escopoView, setEscopoView] = useState<"meu" | "org">("meu");
   const [metas, setMetas] = useState<Meta[]>([]);
   const [recorrentes, setRecorrentes] = useState<Recorrente[]>([]);
   const [categorias, setCategorias] = useState<Categoria[]>([]);
@@ -92,7 +102,8 @@ export default function GastosPage() {
     setLoading(true);
     setErro(null);
     try {
-      const params: any = { inicio, fim };
+      const escopo = escopoView === "org" ? "org" : undefined;
+      const params: any = { inicio, fim, escopo };
       const [r, l] = await Promise.all([
         api.get("/gastos/resumo", { params }),
         api.get("/gastos", { params: { ...params, q: q || undefined, forma: forma || undefined, categoria: categoria || undefined, limit: 200 } }),
@@ -120,7 +131,7 @@ export default function GastosPage() {
     } finally {
       setLoading(false);
     }
-  }, [inicio, fim, q, forma, categoria]);
+  }, [inicio, fim, q, forma, categoria, escopoView]);
 
   const carregarMetas = useCallback(async () => {
     try { const { data } = await api.get("/gastos/metas"); setMetas(data || []); } catch { /* vazio */ }
@@ -187,6 +198,7 @@ export default function GastosPage() {
   };
 
   const per = resumo?.periodo;
+  const org = escopoView === "org";
   const donut = (per?.porForma || []).map(f => ({ name: f.label, value: f.valor, forma: f.forma }));
   const temFiltroTabela = !!forma || !!categoria;
   const corCat = (nome: string) => categorias.find(c => c.nome === nome)?.cor || "#6366f1";
@@ -205,16 +217,28 @@ export default function GastosPage() {
                 <Receipt size={22} color="#6366f1" />
               </div>
               <div>
-                <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800 }}>Meus Gastos</h1>
-                {/* O e-mail no subtítulo é a pista que faltava: a lista é
-                    filtrada por USUÁRIO, então quem está na conta errada vê
-                    zero sem nada na tela explicando por quê. */}
+                <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800 }}>{org ? "Gastos da organização" : "Meus Gastos"}</h1>
+                {/* O subtítulo diz de quem é a lista. Em "meu", o e-mail é a
+                    pista que faltava: a lista é por USUÁRIO, e quem está na
+                    conta errada via zero sem explicação. Em "org", avisa que
+                    o que aparece é de todo mundo e que cada linha tem dono. */}
                 <p style={{ margin: 0, fontSize: 13, color: "var(--text-muted, #6b7280)" }}>
-                  Só você vê os seus gastos{user?.email ? <> — esta é a conta <strong>{user.email}</strong></> : null}. Toque num cartão para filtrar.
+                  {org
+                    ? <>Gastos de todas as pessoas da organização. Cada linha mostra quem lançou.</>
+                    : <>Só você vê os seus gastos{user?.email ? <> — esta é a conta <strong>{user.email}</strong></> : null}. Toque num cartão para filtrar.</>}
                 </p>
               </div>
             </div>
-            <div style={{ display: "flex", gap: 8 }}>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              {/* O seletor só existe para quem administra (o backend confirma
+                  com podeVerOrg). Ver os gastos pessoais de cada um é poder de
+                  quem responde pela conta — a página de segurança diz isso. */}
+              {resumo?.podeVerOrg && (
+                <div style={{ display: "inline-flex", border: "1px solid var(--border-subtle)", borderRadius: 10, overflow: "hidden" }}>
+                  <button onClick={() => setEscopoView("meu")} style={segBtn(!org)}>Meus</button>
+                  <button onClick={() => setEscopoView("org")} style={segBtn(org)}>Organização</button>
+                </div>
+              )}
               <button onClick={() => setCatModal(true)} style={{ ...chip(false), fontWeight: 700 }}>Categorias</button>
               <button onClick={() => setModal({})} style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "#6366f1", color: "#fff", border: "none", borderRadius: 10, padding: "10px 16px", fontWeight: 700, cursor: "pointer" }}>
                 <Plus size={16} /> Novo gasto
@@ -558,7 +582,7 @@ export default function GastosPage() {
                 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
                   <thead>
                     <tr style={{ background: "var(--bg-primary)", textAlign: "left" }}>
-                      <th style={th}>Data</th><th style={th}>Descrição</th><th style={th}>Categoria</th>
+                      <th style={th}>Data</th>{org && <th style={th}>Pessoa</th>}<th style={th}>Descrição</th><th style={th}>Categoria</th>
                       <th style={th}>Forma</th><th style={{ ...th, textAlign: "right" }}>Valor</th><th style={{ ...th, width: 80 }}></th>
                     </tr>
                   </thead>
@@ -566,6 +590,7 @@ export default function GastosPage() {
                     {rows.map(g => (
                       <tr key={g.id} style={{ borderTop: "1px solid var(--border-subtle)" }}>
                         <td style={td}>{fmtD(g.dataGasto)}</td>
+                        {org && <td style={{ ...td, color: "var(--text-muted,#6b7280)", whiteSpace: "nowrap" }}>{g.pessoa || "—"}</td>}
                         <td style={{ ...td, fontWeight: 600 }}>
                           {g.descricao}
                           {g.origem === "WHATSAPP" && <MessageCircle size={12} color="#25D366" style={{ marginLeft: 6, verticalAlign: "middle" }} />}
@@ -949,4 +974,11 @@ const chip = (on: boolean): CSSProperties => ({
   padding: "7px 12px", borderRadius: 8, border: `1px solid ${on ? "#6366f1" : "var(--border-subtle)"}`,
   background: on ? "rgba(99,102,241,0.10)" : "var(--bg-card)", color: on ? "#4f46e5" : "inherit",
   cursor: "pointer", fontWeight: 600, fontSize: 13,
+});
+
+/** Botão de um seletor segmentado (Meus | Organização). Sem borda própria:
+    a borda e o arredondamento são do contêiner, para os dois parecerem um só. */
+const segBtn = (on: boolean): CSSProperties => ({
+  padding: "8px 14px", border: "none", cursor: "pointer", fontWeight: 700, fontSize: 13,
+  background: on ? "#6366f1" : "transparent", color: on ? "#fff" : "var(--text-muted, #6b7280)",
 });
