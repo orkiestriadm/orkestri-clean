@@ -18,7 +18,7 @@ export function AureliaGallery({ id, kicker, title, description }: {
             <p className="section-kicker">{kicker}</p>
             <h2 className="mt-4 max-w-xl font-display text-[clamp(2rem,4vw,3.25rem)] font-semibold leading-[1.08] tracking-[-.035em] text-chalk">{title}</h2>
             <p className="mt-5 max-w-lg leading-relaxed text-chalk-dim">{description}</p>
-            <div className="mt-8 flex flex-col gap-3" role="group" aria-label="Etapas reais da conversa">
+            <div className="mt-8 flex flex-col gap-3" role="group" aria-label="Etapas da conversa">
               {aureliaCaptures.map((item, index) => (
                 <button key={item.key} type="button" aria-pressed={active === index} aria-controls={id + "-capture"}
                   onClick={() => setActive(index)}
@@ -42,5 +42,5 @@ export function AureliaGallery({ id, kicker, title, description }: {
 
 export function AureliaShowcase() {
   return <AureliaGallery id="aurelia" kicker="Veja a Aurélia em ação" title="A conversa é de verdade. A organização também."
-    description="Explore prints reais do WhatsApp: do menu ao compromisso salvo, até a chegada do lembrete automático." />;
+    description="Acompanhe a demonstração no WhatsApp: do menu ao compromisso salvo, até a chegada do lembrete automático." />;
 }

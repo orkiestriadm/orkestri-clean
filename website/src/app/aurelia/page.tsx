@@ -265,8 +265,8 @@ export default function AureliaPage() {
               Como falar comigo.
             </h2>
             <p className="mt-5 max-w-[50ch] text-[1.0625rem] leading-[1.65] text-chalk-dim">
-              Quatro jeitos, e nenhum deles pede que você aprenda nada. O da
-              direita é um print de verdade de uma conversa de teste.
+              Escolha o jeito que combina com a sua rotina. No celular ao lado,
+              acompanhe uma demonstração da conversa com a Aurélia.
             </p>
             <div className="mt-10 flex flex-col gap-6">
               {comoFalar.map((c) => (

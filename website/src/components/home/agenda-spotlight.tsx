@@ -6,7 +6,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { Container } from "@/components/ui/container";
-import { Screenshot } from "@/components/ui/screenshot";
+import { Notebook } from "@/components/ui/notebook";
 import { products } from "@/config/products";
 
 export function AgendaSpotlight() {
@@ -30,13 +30,9 @@ export function AgendaSpotlight() {
             compromissos, horários e o que vem pela frente.
           </p>
         </div>
-        <div className="agenda-frame mt-10">
+        <div className="mt-10">
           {agenda?.screenshot && (
-            <Screenshot
-              {...agenda.screenshot}
-              reflection={false}
-              zoomOnHover={false}
-            />
+            <Notebook tela={agenda.screenshot} />
           )}
         </div>
         <p className="mt-4 text-xs">Tela real do sistema em modo escuro, com dados fictícios de demonstração.</p>

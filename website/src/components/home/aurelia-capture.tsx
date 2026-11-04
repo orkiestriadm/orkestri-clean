@@ -1,52 +1,32 @@
-import { Screenshot } from "@/components/ui/screenshot";
-import { Celular } from "@/components/ui/celular";
-import { aureliaCaptures } from "@/config/aurelia-captures";
+"use client";
 
-/**
- * Uma captura real da conversa, dentro de um celular.
- *
- * Antes de 03/11/2026 a captura era um retângulo solto na página. Agora entra
- * na moldura de `ui/celular.tsx`, com a órbita em volta — o mesmo tratamento
- * que até então só o hero tinha. O print continua o mesmo arquivo e continua
- * clicável para ampliar.
- *
- * O `Screenshot` entra sem borda e sem reflexo: quem desenha a moldura é o
- * aparelho, e duas bordas concêntricas fazem a tela parecer um quadro.
- */
-export function AureliaCapture({
-  index,
-  priority = false,
-  orbita = true,
-}: {
-  index: number;
-  priority?: boolean;
-  /** Desligue onde já existe outra órbita na mesma dobra. */
-  orbita?: boolean;
-}) {
-  const capture = aureliaCaptures[index];
-  return (
-    <div className="mx-auto w-full max-w-[420px]">
-      <div className="mb-3 flex items-center justify-center gap-2 text-xs text-chalk-dim">
-        <span className="h-2 w-2 rounded-full bg-emerald-400" aria-hidden />
-        Aurélia no WhatsApp · captura real
-      </div>
-      <Celular orbita={orbita} largura={340}>
-        <div className="my-auto w-full">
-          <Screenshot
-            src={capture.src}
-            alt={capture.alt}
-            width={capture.width}
-            height={capture.height}
-            priority={priority}
-            reflection={false}
-            zoomOnHover={false}
-            bordered={false}
-          />
+import { useState } from "react";
+import { CheckCheck, RotateCcw } from "lucide-react";
+import { Celular } from "@/components/ui/celular";
+import { ChatHeader, ChatComposer } from "@/components/ui/whatsapp";
+
+const cenas = [
+  [["Oi, Aurélia! O que tenho para hoje?", true], ["Bom dia! Quer consultar a agenda ou marcar um compromisso?", false], ["Consultar a agenda", true], ["Você tem uma reunião às 10h e uma visita às 15h.", false]],
+  [["Marca uma reunião com a equipe amanhã às 10h.", true], ["Reunião com a equipe\nAmanhã · 10h\nPosso salvar na agenda?", false], ["Pode confirmar.", true], ["Pronto! Reunião salva. Eu te aviso antes.", false]],
+  [["Lembrete da sua agenda", false], ["A reunião com a equipe começa em 15 minutos.\nHoje · 10h", false], ["Obrigada, Aurélia!", true]],
+] as const;
+
+export function AureliaCapture({ index, orbita = true }: { index: number; orbita?: boolean }) {
+  const [replay, setReplay] = useState(0);
+  return <figure className="mx-auto w-full max-w-[350px]">
+    <Celular orbita={orbita} largura={330}>
+      <div className={index === 1 ? "wa-screen wa-light" : "wa-screen"}>
+        <ChatHeader />
+        <div className="wa-thread" key={index + "-" + replay}>
+          <span className="wa-date">Hoje</span>
+          {cenas[index].map(([text, sent], i) => <div key={text} className={"wa-bubble wa-enter " + (sent ? "wa-sent" : "wa-received")} style={{ animationDelay: i * 650 + "ms" }}>
+            <p className="whitespace-pre-line">{text}</p>
+            <small>09:{i < 2 ? "41" : "42"} {sent && <CheckCheck size={13} />}</small>
+          </div>)}
         </div>
-      </Celular>
-      <p className="mt-3 text-center text-xs leading-relaxed text-chalk-faint">
-        Conversa real de teste. Clique na imagem para ampliar.
-      </p>
-    </div>
-  );
+        <ChatComposer />
+      </div>
+    </Celular>
+    <figcaption className="text-center"><button type="button" className="inline-flex items-center gap-2 rounded-full px-4 py-2 text-xs text-chalk-dim hover:text-chalk" onClick={() => setReplay(n => n + 1)}><RotateCcw size={13}/> Reproduzir conversa</button></figcaption>
+  </figure>;
 }

@@ -1,3 +1,4 @@
+import { ModulosEmAcao } from "./modulos-em-acao";
 import Link from "next/link";
 import { Faixa, Cabecalho, LinkTexto } from "./ui";
 import { products } from "@/config/products";
@@ -31,6 +32,8 @@ export function Plataforma() {
           </LinkTexto>
         }
       />
+
+      <ModulosEmAcao />
 
       {/* Grade de fios: cada célula se separa das vizinhas por uma linha de
           1px, como uma tabela. Desenho de engenharia, não de catálogo. */}

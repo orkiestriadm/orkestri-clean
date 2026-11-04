@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Mic } from "lucide-react";
 import { Faixa, Cabecalho } from "./ui";
-import { Celular } from "@/components/ui/celular";
+import Image from "next/image";
 import { negrito } from "@/components/aurelia/markup";
 import { DIA } from "@/config/aurelia";
 import { cn } from "@/lib/utils";
@@ -34,14 +34,15 @@ export function DiaNormal() {
 
   return (
     <Faixa id="um-dia" tom="ink">
+      <div className="grid items-start gap-10 lg:grid-cols-2 lg:gap-16">
+        <div>
       <Cabecalho
         titulo="Um dia normal. Só que nada ficou com você."
         texto="Seis momentos de um dia comum e o que acontece em cada um deles pela conversa. Três você provoca; três chegam sem você pedir."
       />
 
-      <div className="mt-12 grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.78fr)] lg:gap-16">
         {/* ── Os momentos ───────────────────────────────────────────────── */}
-        <ol className="flex flex-col">
+        <ol className="mt-6 divide-y divide-white/10">
           {DIA.map((m) => {
             const selecionado = m.id === momento.id;
             return (
@@ -100,38 +101,25 @@ export function DiaNormal() {
             );
           })}
         </ol>
+        </div>
 
         {/* ── A conversa daquele momento ────────────────────────────────── */}
         <div className="lg:sticky lg:top-32 lg:self-start">
-          <Celular largura={340}>
-            <div className="hairline flex items-center gap-3 border-b bg-panel px-5 pb-3.5">
-              <span
-                className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-flame/20 text-sm font-semibold text-ember"
-                aria-hidden
-              >
-                A
-              </span>
-              <div className="min-w-0">
-                <p className="truncate text-sm font-semibold text-chalk">Aurélia</p>
-                <p className="font-mono text-xs text-chalk-faint tabular-nums">
-                  {momento.hora}
-                </p>
-              </div>
-            </div>
-
-            <div
+          <div className="day-scene">
+            <Image src="/media/rotina-aurelia.webp" alt="Profissional usando o celular em um café" fill sizes="(min-width: 1024px) 48vw, 95vw" className="object-cover" />
+            <div key={momento.id}
               id="dia-conversa"
               aria-live="polite"
-              className="flex min-h-[15rem] flex-col gap-2.5 p-5"
+              className="day-messages"
             >
               {momento.conversa.map((l, i) => (
                 <div
                   key={momento.id + i}
                   className={cn(
-                    "max-w-[88%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed",
+                    "wa-bubble wa-enter",
                     l.de === "voce"
-                      ? "self-end bg-signal/15 text-chalk"
-                      : "hairline self-start border bg-panel text-chalk",
+                      ? "wa-sent"
+                      : "wa-received",
                   )}
                 >
                   {l.audio && (
@@ -148,7 +136,7 @@ export function DiaNormal() {
                 </div>
               ))}
             </div>
-          </Celular>
+          </div>
         </div>
       </div>
     </Faixa>

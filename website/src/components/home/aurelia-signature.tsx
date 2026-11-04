@@ -12,7 +12,7 @@ import { AureliaCapture } from "./aurelia-capture";
 export function AureliaSignature() {
   return (
     <div className="aurelia-signature">
-      <AureliaCapture index={1} priority />
+      <AureliaCapture index={1} />
     </div>
   );
 }

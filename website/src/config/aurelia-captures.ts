@@ -8,13 +8,13 @@ export const aureliaCaptures = [
   },
   {
     key: "confirmacao", label: "Confira e confirme", title: "Você confere antes de salvar.",
-    description: "A Aurélia apresenta nome, data, horário, duração e repetição. Você pode confirmar, corrigir ou cancelar. O print mostra a confirmação e o compromisso salvo no teste.",
+    description: "A Aurélia apresenta nome, data, horário, duração e repetição. Você pode confirmar, corrigir ou cancelar. Acompanhe a confirmação na conversa.",
     src: "/screenshots/real-dark/whatsapp-confirmacao.webp", width: 420, height: 394,
     alt: "Print real do WhatsApp: resumo do compromisso, confirmação e mensagem de que foi salvo na agenda",
   },
   {
     key: "lembrete", label: "Receba o lembrete", title: "Na hora certa, o aviso chega por lá.",
-    description: "Depois de salvar, os avisos chegam na mesma conversa. Esta captura registra o lembrete automático recebido durante o teste real da agenda.",
+    description: "Depois de salvar, os avisos chegam na mesma conversa. A demonstração mostra o lembrete de quinze minutos.",
     src: "/screenshots/real-dark/whatsapp-lembrete.webp", width: 350, height: 180,
     alt: "Print real do WhatsApp: lembrete automático de quinze minutos para o compromisso de teste",
   },

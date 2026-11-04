@@ -1,3 +1,4 @@
+import { ModulosEmAcao } from "@/components/home/modulos-em-acao";
 import Link from "next/link";
 import { PageHero } from "@/components/sections/page-hero";
 import { Section } from "@/components/ui/section";
@@ -40,6 +41,7 @@ export default function FuncionalidadesPage() {
       />
 
       <Section className="pt-4 md:pt-6">
+        <ModulosEmAcao />
         <Catalogo />
       </Section>
 

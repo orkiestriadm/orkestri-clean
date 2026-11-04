@@ -4,7 +4,7 @@ import Script from "next/script";
 import { Check, Sparkles, Plug, ArrowRight } from "lucide-react";
 import { PageHero } from "@/components/sections/page-hero";
 import { IconTile } from "@/components/ui/icon-tile";
-import { Screenshot } from "@/components/ui/screenshot";
+import { Notebook } from "@/components/ui/notebook";
 import { Container } from "@/components/ui/container";
 import { Section, SectionHeader } from "@/components/ui/section";
 import { Button } from "@/components/ui/button";
@@ -104,7 +104,7 @@ export default async function ProductPage({
       {product.screenshot && (
         <Container className="pb-4">
           <Reveal>
-            <Screenshot {...product.screenshot} />
+            <Notebook tela={product.screenshot} />
             <p className="mt-4 text-xs text-chalk-dim">Tela real em modo escuro, com dados fictícios de demonstração.</p>
           </Reveal>
         </Container>
