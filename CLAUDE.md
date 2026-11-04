@@ -1,13 +1,13 @@
-## Referência após publicação autorizada em 29/10/2026
+## Referência atual de produção — Atualizado em 04/11/2026
 
-A base atual é `origin/codex/aurelia-date-followup`. API publicada em e4b11d3: data e horário em mensagens separadas e meses por extenso. Site mantém pontos orbitais publicados em fa60e89 e frontend mantém o login corrigido em b790e15. Testes locais e do runtime aprovados; testes reais de WhatsApp pendentes por restrição do número oficial informada pelo usuário. Partir dessa referência enquanto o PR #23 estiver aberto. Main continua protegida. Ver `docs/DEPLOY_AURELIA_DATAS_2026-10-29.md`. Esta autorização não autoriza futuras publicações.
+- **Pasta principal oficial (local):** `C:\orkestri-clean` (alinhada com a produção atual).
+- **Branch remota de referência (GitHub):** `origin/claude/orkiestri-audit-benchmark-4a28b4` (ver `docs/DEPLOY_TUDO_2026-11-04.md`).
+- **Versões em produção e no `http://localhost`:** API `5.1.3` | Frontend `5.1.3` | Website `3.8.0`.
 
-# Instruções para o Claude
+# Instruções para o Claude (e demais IAs)
 
-Leia e siga `AGENTS.md`, `docs/SINCRONIZACAO_GITHUB.md` e `docs/PARIDADE_PRODUCAO_2026-10-28.md` antes de alterar código.
-
-A base compartilhada atual é `origin/codex/aurelia-date-followup` até a integração revisada do PR #23. Ela espelha os fontes de produção auditados em 28/10/2026: API/frontend 4.3.0 e site 3.3.2. Não partir das antigas branches Hub ou de uma worktree antiga só porque ela já está aberta.
-
-Começar com status, fetch e atualização da base limpa. Criar branch de tarefa; terminar com testes locais, revisão, commit, push da branch e documentação do SHA. Nunca sobrescrever trabalho de outra sessão.
-
-Deploy é uma operação separada e exige autorização expressa. Não publicar, aplicar migrations, rodar seeds ou reiniciar serviços como consequência de sincronizar Git. Nesta sincronização, main permanece intacta e não há auto-merge.
+1. **Leia e siga `AGENTS.md`** antes de iniciar qualquer alteração.
+2. **`C:\orkestri-clean` agora é a pasta principal de produção** (não é mais a linha Hub antiga; a linha Hub foi arquivada em `C:\orkestri-backup-hub-20261104`).
+3. **Ao iniciar qualquer sessão:** rode `git fetch origin` e `git pull --ff-only` para garantir que está com a última atualização deixada por outra IA (Antigravity, Codex ou Claude).
+4. **Ao concluir qualquer atualização ou deploy autorizado:** faça `git commit` e `git push` para a branch compartilhada no GitHub e mantenha `AGENTS.md` e `CLAUDE.md` atualizados com a versão e commit vigentes, para que todas as IAs permaneçam sincronizadas automaticamente.
+5. **Deploy em produção exige autorização expressa:** nunca publicar em produção, aplicar migrations remotas ou acionar serviços reais sem pedido explícito do usuário.

@@ -1,31 +1,35 @@
-## Referência após publicação autorizada em 29/10/2026
+## Referência atual de produção — Atualizado em 04/11/2026
 
-A base atual é `origin/codex/aurelia-date-followup`. API publicada em e4b11d3: data e horário em mensagens separadas e meses por extenso. Site mantém pontos orbitais publicados em fa60e89 e frontend mantém o login corrigido em b790e15. Testes locais e do runtime aprovados; testes reais de WhatsApp pendentes por restrição do número oficial informada pelo usuário. Partir dessa referência enquanto o PR #23 estiver aberto. Main continua protegida. Ver `docs/DEPLOY_AURELIA_DATAS_2026-10-29.md`. Esta autorização não autoriza futuras publicações.
+- **Pasta principal oficial (local):** `C:\orkestri-clean` (branch local `producao-5.1.3` rastreando `origin/claude/orkiestri-audit-benchmark-4a28b4`).
+- **Branch remota de referência (GitHub):** `origin/claude/orkiestri-audit-benchmark-4a28b4` (último deploy registrado em `docs/DEPLOY_TUDO_2026-11-04.md`).
+- **Versões em produção e no `http://localhost`:**
+  - **API:** `5.1.3`
+  - **Frontend (Painel):** `5.1.3`
+  - **Website:** `3.8.0`
+- **Histórico antigo:** A antiga linha Hub foi preservada em backup externo (`C:\orkestri-backup-hub-20261104`) e na branch local `codex/preserva-hub-20261104`. O foco total do projeto é exclusivamente o sistema atual em produção.
 
-# Base compartilhada entre Codex e Claude
+---
 
-## Referência atual
-- Usar a branch remota `codex/aurelia-date-followup` enquanto o PR #23 estiver aberto; seguir a referência atualizada acima após integração.
-- A base de código foi copiada dos fontes observados em produção em 28/10/2026: API e frontend 4.3.0; site 3.3.2. Os hashes dos 530 arquivos auditados constam em `docs/baselines/production-20261028.json`.
-- Ler `docs/SINCRONIZACAO_GITHUB.md` e `docs/PARIDADE_PRODUCAO_2026-10-28.md` antes de trabalhar.
-- A pasta antiga `C:/orkestri-clean` e as antigas pastas do Claude contêm linhas históricas/Hub preservadas. Não usá-las como fonte de uma nova alteração da versão atual nem copiá-las sobre esta base.
+# Sincronização Automática entre IAs (Antigravity, Claude e Codex)
 
-## Produção
-- Sincronização Git não autoriza deploy. Não executar deploy, SSH de escrita, rsync/scp para servidor, migrations, seeds, testes com serviços reais ou reinício de containers sem autorização expressa para essa operação.
-- Nesta sincronização, não fazer push direto, force-push ou merge na main. Usar branches codex/ e PRs em rascunho, sem auto-merge.
-- Conferir workflows e integrações antes de push/PR. Se puderem afetar produção, interromper essa etapa e explicar.
-- Nunca alterar produção para fazê-la coincidir com o Git. Nesta base, a direção autorizada foi produção para código local/GitHub.
+## 1. Base única compartilhada
+- Todas as IAs (**Antigravity**, **Claude** e **Codex**) devem usar **`C:\orkestri-clean`** e a referência remota acima como fonte única da verdade.
+- Não usar versões antigas nem recriar arquivos da antiga linha Hub.
 
-## Fluxo obrigatório para ambas as IAs
-1. Ler este arquivo, `CLAUDE.md` e os documentos de paridade/sincronização.
-2. Conferir status, branch e worktrees. Preservar trabalho pendente de outras sessões; não usar reset --hard ou clean para trocar de versão.
-3. Executar `git fetch origin`. Em árvore limpa da base correta, atualizar com `git pull --ff-only`. Partir da mesma referência remota indicada acima.
-4. Criar uma branch de tarefa. Para trabalhos simultâneos, usar pastas separadas com a mesma base; não exigir que duas IAs editem a mesma árvore ao mesmo tempo.
-5. Implementar e executar validações locais isoladas pertinentes. `node scripts/verify-source-baseline.cjs` confere o retrato inicial de produção; diferenças depois de uma tarefa são esperadas e precisam ser explicadas, sem reescrever o manifesto para esconder mudanças.
-6. Revisar diff e arquivos novos, salvar commits e fazer push da branch autorizada. Nunca usar `git add .` sem revisar os arquivos.
-7. Informar branch, SHA, testes e pendências. Registrar decisões e a nova referência compartilhada em documentação; o histórico do chat não acompanha o clone.
+## 2. Ritual obrigatório ao INICIAR qualquer tarefa
+1. Ler este arquivo (`AGENTS.md`) e `CLAUDE.md`.
+2. Executar `git fetch origin` e verificar `git status -sb`.
+3. Se a árvore estiver limpa e houver commits novos na branch remota de produção, atualizar automaticamente com `git pull --ff-only` antes de editar qualquer arquivo.
+4. Caso duas IAs precisem editar simultaneamente em paralelo, usar worktree temporária criada a partir do commit mais recente da referência remota acima e integrar de volta assim que concluir.
 
-## Privacidade e histórico
-- O repositório é público. Não publicar .env, tokens, chaves, dumps, dados de clientes, sessões, caches ou builds.
-- Branches históricas `codex/sync-20261028/*` exceto `coordination` preservam trabalhos divergentes; não são a base atual nem releases aprovadas.
-- Não substituir esta árvore pelas cópias apps/, work/ ou por fontes da linha Hub. Consultar o inventário para recuperar trabalho antigo seletivamente.
+## 3. Ritual obrigatório ao CONCLUIR alterações ou deploy autorizado
+1. Validar localmente as alterações (testes/build pertinentes).
+2. Quando um deploy em produção ou atualização oficial for autorizado e concluído:
+   - Atualizar este cabeçalho em `AGENTS.md` e `CLAUDE.md` com a nova versão, commit/branch e arquivo `docs/DEPLOY_*.md`.
+   - Fazer `git commit` e `git push` para o GitHub imediatamente, garantindo que todas as outras IAs recebam a atualização automaticamente no próximo `git fetch` / `git pull`.
+   - Atualizar também o `http://localhost` (`docker compose up -d --build` em `C:\orkestri-clean`) quando solicitado pelo usuário para manter paridade total entre Produção, GitHub e Localhost.
+
+## 4. Segurança de Produção e Privacidade
+- Sincronização Git não autoriza deploy. Nunca executar deploy, SSH de escrita, rsync/scp para servidor, migrations em produção, seeds ou testes com WhatsApp real sem autorização expressa do usuário.
+- No ambiente local (`http://localhost`), o container `evolution_v2` permanece desligado (`replicas: 0` no `docker-compose.override.yml`) para nunca disparar mensagens reais de WhatsApp.
+- O repositório exige proteção de segredos: nunca publicar `.env`, `.env.production`, chaves, tokens, dumps de banco ou caches.
