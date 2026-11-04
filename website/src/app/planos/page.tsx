@@ -38,7 +38,7 @@ import { buildMetadata } from "@/lib/seo";
 
 export const metadata = buildMetadata({
   title: "Planos",
-  description: `Um plano só: ${PLANO.precoLabel} por mês, com as seis aplicações liberadas. Comece por ${PLANO.testeDias} dias de teste, sem cartão.`,
+  description: `Compare o mensal de ${PLANO.precoLabel} com o anual de ${PLANO.anualLabel}. A economia no ano é de ${PLANO.anualEconomiaLabel}, com as mesmas seis aplicações.`,
   path: "/planos",
   keywords: [
     "preço Orkiestri",
@@ -208,7 +208,7 @@ export default function PlanosPage() {
         }
         description={
           PLANO.anualAtivo
-            ? `Comece por ${PLANO.testeDias} dias de teste, sem cartão. Depois você escolhe o prazo: ${PLANO.precoLabel} por mês, ou ${PLANO.anualLabel} de uma vez, que dá ${PLANO.anualPorMesLabel} por mês. O produto é o mesmo nos dois — não existe plano por módulo nem recurso cobrado à parte.`
+            ? `Os dois planos incluem as mesmas seis aplicações. O anual economiza ${PLANO.anualEconomiaLabel} em relação a doze mensalidades. Experimente o Orkiestri por ${PLANO.testeDias} dias sem cartão.`
             : `Comece por ${PLANO.testeDias} dias de teste, sem cartão. Depois é ${PLANO.precoLabel} por mês, com as seis aplicações liberadas — não existe plano por módulo nem recurso cobrado à parte.`
         }
         breadcrumb={[{ label: "Planos", href: "/planos" }]}
@@ -267,9 +267,6 @@ export default function PlanosPage() {
               </div>
             </Reveal>
 
-            {/* O anual. Ver a chave `anualAtivo` em config/plano.ts: ela existe
-                porque o checkout ainda cria o preapproval com frequência
-                mensal, e publicar a oferta antes disso cobraria errado. */}
             {PLANO.anualAtivo && (
               <Reveal
                 className="premium-surface relative rounded-(--radius-image) border border-flame/40 p-7 md:p-10"
@@ -282,18 +279,16 @@ export default function PlanosPage() {
 
                 <div className="mt-6 flex flex-wrap items-end gap-x-3 gap-y-1">
                   <span className="font-display text-[3.25rem] font-bold leading-none tracking-[-0.04em] text-chalk [font-stretch:108%] md:text-[4rem]">
-                    {PLANO.anualPorMesLabel}
+                    {PLANO.anualLabel}
                   </span>
-                  <span className="pb-2 text-[1.0625rem] text-chalk-dim">por mês</span>
+                  <span className="pb-2 text-[1.0625rem] text-chalk-dim">por ano</span>
                 </div>
 
                 <p className="mt-4 text-[1.0625rem] leading-[1.6] text-chalk-dim">
-                  {PLANO.anualLabel} cobrados uma vez por ano, no lugar de{" "}
+                  Equivale a {PLANO.anualPorMesLabel} por mês. Doze mensalidades avulsas somam{" "}
                   <span className="line-through decoration-chalk-faint">
                     {PLANO.anualCheioLabel}
-                  </span>{" "}
-                  em doze meses avulsos. Os mesmos {PLANO.testeDias} dias de
-                  teste antes da primeira cobrança.
+                  </span>.
                 </p>
 
                 <ul className="mt-8 flex flex-col gap-3.5">
@@ -308,10 +303,8 @@ export default function PlanosPage() {
                 </ul>
 
                 <div className="mt-9 flex flex-col items-start gap-3">
-                  <WhatsAppButton>Quero o plano anual</WhatsAppButton>
                   <p className="text-sm leading-relaxed text-chalk-faint">
-                    Você escolhe anual ou mensal quando o teste acabar, na
-                    própria conversa.
+                    Contratação anual em breve.
                   </p>
                 </div>
               </Reveal>

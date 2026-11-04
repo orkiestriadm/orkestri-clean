@@ -144,7 +144,7 @@ export function DemoConversa() {
           </div>
         </div>
 
-        <div className="flex max-h-[26rem] min-h-[20rem] flex-col gap-2.5 overflow-y-auto p-5">
+        <div className="flex min-h-0 flex-1 flex-col gap-2.5 overflow-y-auto p-5">
           {linhas.map((l) => (
             <div
               key={l.id}

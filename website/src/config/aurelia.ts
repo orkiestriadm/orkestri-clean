@@ -744,4 +744,44 @@ export const PARA_QUEM: Perfil[] = [
       },
     ],
   },
+  {
+    id: "medicos",
+    publico: "Médicos e consultórios",
+    titulo: "O plantão já fica na agenda.",
+    texto: "Entre os atendimentos no consultório e os turnos no hospital, registre o próximo plantão assim que receber a escala.",
+    conversa: [
+      { de: "voce", texto: ["Marca meu plantão no hospital sábado às 7h"] },
+      { de: "aurelia", texto: ["*Plantão no hospital*", "Sábado, 07:00."] },
+    ],
+  },
+  {
+    id: "arquitetos",
+    publico: "Arquitetos e engenheiros",
+    titulo: "As medidas da obra voltam na hora do desenho.",
+    texto: "Anote uma medida pelo WhatsApp durante a visita. Depois, consulte a anotação no escritório para atualizar a planta.",
+    conversa: [
+      { de: "voce", texto: ["Anota na obra da Rua das Flores que o vão da cozinha mede 1,80 m"] },
+      { de: "aurelia", texto: ["Anotado em *Obra da Rua das Flores*.", "Vão da cozinha: 1,80 m."] },
+    ],
+  },
+  {
+    id: "contadores",
+    publico: "Contadores",
+    titulo: "A conferência da folha tem prazo.",
+    texto: "Transforme uma pendência do fechamento em tarefa com data para conseguir encontrá-la entre as entregas da semana.",
+    conversa: [
+      { de: "voce", texto: ["Cria uma tarefa para conferir a folha de pagamento até sexta"] },
+      { de: "aurelia", texto: ["Tarefa criada: *Conferir a folha de pagamento*.", "Prazo: sexta-feira."] },
+    ],
+  },
+  {
+    id: "fotografos",
+    publico: "Fotógrafos",
+    titulo: "O aluguel da lente entra nos gastos do ensaio.",
+    texto: "Registre a despesa na retirada do equipamento, enquanto o valor e a forma de pagamento estão frescos na memória.",
+    conversa: [
+      { de: "voce", texto: ["Gastei 120 reais no aluguel da lente para o ensaio, paguei no Pix"] },
+      { de: "aurelia", texto: ["Lancei *R$ 120,00*.", "Aluguel de lente · Pix"] },
+    ],
+  },
 ];

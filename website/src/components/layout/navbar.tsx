@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import { AnimatePresence } from "framer-motion";
 import { ChevronDown, Menu, MessageCircle } from "lucide-react";
 import { Logo } from "./logo";
-import { ProductsMenu, ServicesMenu } from "./mega-menu";
+import { ProductsMenu, CompanyMenu } from "./mega-menu";
 import { MobileNav } from "./mobile-nav";
 import { FaixaTeste } from "./faixa-teste";
 import { WHATSAPP_CADASTRO } from "@/config/site";
@@ -18,7 +18,6 @@ const simpleLinks = [
      no cabeçalho antes de rolar a página. */
   { label: "Aurélia", href: "/aurelia" },
   { label: "Planos", href: "/planos" },
-  { label: "Empresa", href: "/company" },
   { label: "Tecnologia", href: "/technology" },
 ];
 
@@ -38,7 +37,7 @@ export function Navbar() {
      ainda não rodou — e o estado inicial bate com o servidor, porque a rota
      é a mesma dos dois lados. */
   const [scrolled, setScrolled] = useState(!naHome);
-  const [openMenu, setOpenMenu] = useState<"products" | "services" | null>(
+  const [openMenu, setOpenMenu] = useState<"products" | "company" | null>(
     null,
   );
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -82,7 +81,7 @@ export function Navbar() {
           onMouseLeave={() => setOpenMenu(null)}
         >
           <MenuTrigger
-            label="Produtos"
+            label="Funcionalidades"
             open={openMenu === "products"}
             onOpen={() => setOpenMenu("products")}
             onToggle={() =>
@@ -92,14 +91,14 @@ export function Navbar() {
             <ProductsMenu onNavigate={() => setOpenMenu(null)} />
           </MenuTrigger>
           <MenuTrigger
-            label="Soluções"
-            open={openMenu === "services"}
-            onOpen={() => setOpenMenu("services")}
+            label="Empresa"
+            open={openMenu === "company"}
+            onOpen={() => setOpenMenu("company")}
             onToggle={() =>
-              setOpenMenu(openMenu === "services" ? null : "services")
+              setOpenMenu(openMenu === "company" ? null : "company")
             }
           >
-            <ServicesMenu onNavigate={() => setOpenMenu(null)} />
+            <CompanyMenu onNavigate={() => setOpenMenu(null)} />
           </MenuTrigger>
           {simpleLinks.map((l) => (
             <Link

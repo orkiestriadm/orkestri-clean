@@ -24,19 +24,8 @@ export const PLANO = {
   /** Depois de vencer, a conta ainda pode ser retomada por este prazo. */
   retomadaDias: 15,
 
-  /* ── Plano anual ────────────────────────────────────────────────────────
-     🔴 `anualAtivo` é FALSE de propósito, e só deve virar true no dia em que
-     o backend souber cobrar um ano.
-
-     Hoje ele não sabe: `modules/assinatura/mercadopago.ts` cria o preapproval
-     com `frequency: 1, frequency_type: "months"`, e `trial-renovacao.ts` só
-     conhece `VALOR_MENSALIDADE` e `somarUmMes`. Publicar a oferta anual antes
-     disso levaria a pessoa a escolher o anual e receber a cobrança mensal —
-     é a mesma armadilha que fez o site anunciar contas a pagar depois de o
-     módulo sair do sistema.
-
-     A tela está pronta: ligar a chave publica o comparativo inteiro. */
-  anualAtivo: false,
+  /** Exibe o comparativo no site independentemente da integração de cobrança. */
+  anualAtivo: true,
   anualLabel: "R$ 119,90",
   anualCentavos: 11990,
   anualNumero: 119.9,

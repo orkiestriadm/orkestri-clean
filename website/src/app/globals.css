@@ -1143,6 +1143,9 @@ footer.bg-ink {
 }
 
 .celular {
+  aspect-ratio: 72 / 148;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr);
   position: relative;
   z-index: 1;
   border-radius: 46px;
@@ -1182,8 +1185,6 @@ footer.bg-ink {
   overflow: hidden;
   border-radius: 36px;
   background: var(--color-ink);
-  /* O conteúdo manda na altura: print do WhatsApp e conversa interativa têm
-     proporções diferentes, e fixar aspect-ratio cortaria um dos dois. */
   display: flex;
   flex-direction: column;
 }
@@ -1230,9 +1231,14 @@ footer.bg-ink {
 }
 
 .celular-conteudo {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  overflow-y: auto;
   min-width: 0;
   /* Espaço para a barra de gestos não encostar no conteúdo. */
-  padding-bottom: 18px;
+  margin-bottom: 18px;
 }
 
 /* ── Barra de gestos ──────────────────────────────────────────────────── */

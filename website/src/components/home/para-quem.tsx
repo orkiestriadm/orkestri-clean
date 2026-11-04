@@ -1,4 +1,4 @@
-import { Scale, Baby, Pill, Briefcase, Wallet } from "lucide-react";
+import { Scale, Baby, Pill, Briefcase, Wallet, Stethoscope, Ruler, Calculator, Camera } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Faixa, Cabecalho } from "./ui";
 import { negrito } from "@/components/aurelia/markup";
@@ -24,6 +24,10 @@ const ICONE: Record<string, LucideIcon> = {
   saude: Pill,
   gestores: Briefcase,
   pessoal: Wallet,
+  medicos: Stethoscope,
+  arquitetos: Ruler,
+  contadores: Calculator,
+  fotografos: Camera,
 };
 
 export function ParaQuem() {

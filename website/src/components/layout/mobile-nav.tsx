@@ -15,10 +15,8 @@ import { EASE_OUT } from "@/lib/motion";
 const staticLinks = [
   { label: "Aurélia", href: "/aurelia" },
   { label: "Planos", href: "/planos" },
-  { label: "Funcionalidades", href: "/funcionalidades" },
   { label: "O que pedir", href: "/o-que-pedir" },
   { label: "Segurança", href: "/seguranca" },
-  { label: "Empresa", href: "/company" },
   { label: "Tecnologia", href: "/technology" },
   { label: "Como funciona", href: "/demo" },
   { label: "Contato", href: "/contact" },
@@ -26,7 +24,7 @@ const staticLinks = [
 
 /** Mobile drawer — slides from the right (doc 08 — drawer). */
 export function MobileNav({ onClose }: { onClose: () => void }) {
-  const [section, setSection] = useState<"products" | "services" | null>(null);
+  const [section, setSection] = useState<"products" | "company" | null>(null);
   const panel = useRef<HTMLElement>(null);
   const reduceMotion = useReducedMotion();
 
@@ -88,7 +86,7 @@ export function MobileNav({ onClose }: { onClose: () => void }) {
 
         <nav className="flex-1 overflow-y-auto px-4 py-4">
           <Collapsible
-            label="Produtos"
+            label="Funcionalidades"
             open={section === "products"}
             onToggle={() =>
               setSection(section === "products" ? null : "products")
@@ -100,6 +98,9 @@ export function MobileNav({ onClose }: { onClose: () => void }) {
               className="block rounded-lg px-3 py-2 text-sm font-semibold text-flame-soft"
             >
               Orkiestri One →
+            </Link>
+            <Link href="/funcionalidades" onClick={onClose} className="block rounded-lg px-3 py-2 text-sm text-chalk">
+              Ver todas as funcionalidades
             </Link>
             {products.map((p) => (
               <Link
@@ -114,13 +115,18 @@ export function MobileNav({ onClose }: { onClose: () => void }) {
           </Collapsible>
 
           <Collapsible
-            label="Soluções"
-            open={section === "services"}
+            label="Empresa"
+            open={section === "company"}
             onToggle={() =>
-              setSection(section === "services" ? null : "services")
+              setSection(section === "company" ? null : "company")
             }
           >
-            {services.map((s) => (
+            <Link href="/company" onClick={onClose} className="block rounded-lg px-3 py-2 text-sm text-chalk">
+              Quem somos
+            </Link>
+            <details>
+              <summary className="cursor-pointer rounded-lg px-3 py-2 text-sm font-medium text-chalk">Soluções</summary>
+              {services.map((s) => (
               <Link
                 key={s.slug}
                 href={`/services/${s.slug}`}
@@ -129,7 +135,8 @@ export function MobileNav({ onClose }: { onClose: () => void }) {
               >
                 {s.name}
               </Link>
-            ))}
+              ))}
+            </details>
           </Collapsible>
 
           {staticLinks.map((l) => (

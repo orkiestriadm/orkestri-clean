@@ -13,9 +13,8 @@ import { cn } from "@/lib/utils";
  * **botões laterais**. São esses detalhes, e não o raio da borda, que fazem o
  * cérebro reconhecer um aparelho.
  *
- * Tudo é DOM e CSS, sem imagem: a moldura precisa acompanhar a altura do
- * conteúdo (o print do WhatsApp e a conversa interativa têm proporções
- * diferentes) e uma imagem de aparelho obrigaria a cortar um dos dois.
+ * A carcaça mantém a proporção do aparelho em qualquer largura. Capturas
+ * preservam sua proporção e conversas longas rolam dentro da tela.
  *
  * 🔴 Quem já está dentro de um `Celular` NÃO deve trazer a própria moldura:
  * o `Screenshot` entra com `bordered={false}` e `reflection={false}`, senão

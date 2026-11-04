@@ -96,7 +96,7 @@ export function ProductsMenu({ onNavigate }: { onNavigate?: () => void }) {
 }
 
 /** Services mega menu — single column list (doc 07). */
-export function ServicesMenu({ onNavigate }: { onNavigate?: () => void }) {
+export function CompanyMenu({ onNavigate }: { onNavigate?: () => void }) {
   return (
     <motion.div
       variants={panel}
@@ -104,7 +104,12 @@ export function ServicesMenu({ onNavigate }: { onNavigate?: () => void }) {
       animate="show"
       className="site-menu-surface w-[380px] rounded-(--radius-card) border border-white/[0.08] bg-panel p-3 shadow-soft-lg"
     >
-      <div className="flex flex-col gap-1">
+      <Link href="/company" onClick={onNavigate} className="block rounded-lg p-3 font-medium text-chalk hover:bg-white/[0.05]">
+        Quem somos
+      </Link>
+      <details>
+        <summary className="cursor-pointer rounded-lg p-3 font-medium text-chalk hover:bg-white/[0.05]">Soluções</summary>
+        <div className="flex flex-col gap-1 pl-2">
         {services.map((s) => {
           const Icon = s.icon;
           return (
@@ -124,7 +129,8 @@ export function ServicesMenu({ onNavigate }: { onNavigate?: () => void }) {
             </Link>
           );
         })}
-      </div>
+        </div>
+      </details>
     </motion.div>
   );
 }

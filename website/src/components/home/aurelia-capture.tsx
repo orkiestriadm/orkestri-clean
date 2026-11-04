@@ -31,16 +31,18 @@ export function AureliaCapture({
         Aurélia no WhatsApp · captura real
       </div>
       <Celular orbita={orbita} largura={340}>
-        <Screenshot
-          src={capture.src}
-          alt={capture.alt}
-          width={capture.width}
-          height={capture.height}
-          priority={priority}
-          reflection={false}
-          zoomOnHover={false}
-          bordered={false}
-        />
+        <div className="my-auto w-full">
+          <Screenshot
+            src={capture.src}
+            alt={capture.alt}
+            width={capture.width}
+            height={capture.height}
+            priority={priority}
+            reflection={false}
+            zoomOnHover={false}
+            bordered={false}
+          />
+        </div>
       </Celular>
       <p className="mt-3 text-center text-xs leading-relaxed text-chalk-faint">
         Conversa real de teste. Clique na imagem para ampliar.
