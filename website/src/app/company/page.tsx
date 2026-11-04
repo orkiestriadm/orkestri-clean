@@ -39,21 +39,17 @@ export default function CompanyPage() {
       <div className="grid gap-8 border-t border-white/15 pt-8 md:grid-cols-[.8fr_1.2fr]">
         <figure className="max-w-sm">
           <div className="relative aspect-[4/5] overflow-hidden rounded-2xl bg-panel">
-            <Image src="/media/guilherme-landcast.webp" alt="Guilherme Rodrigues, fundador do Orkiestri" width={290} height={362} unoptimized className="h-full w-full object-cover" />
+            <Image src="/media/guilherme-rodrigues.jpg" alt="Guilherme Rodrigues, fundador do Orkiestri" width={896} height={1152} unoptimized className="h-full w-full object-cover" />
           </div>
-          <figcaption className="mt-2 text-xs text-chalk-faint">Retrato da divulgação do Land Cast · Land IT</figcaption>
         </figure>
         <div>
           <p className="section-kicker">O fundador</p>
           <h2 className="mt-4 text-4xl font-semibold tracking-tight">Guilherme Rodrigues</h2>
-          <a className="mt-4 inline-block text-sm text-flame-soft underline underline-offset-4" href="https://www.linkedin.com/in/guilhermeluisrodrigues/">Perfil no LinkedIn</a>
-        <div className="mt-6 max-w-prose space-y-4 leading-relaxed text-chalk-dim">
-          <p>O Orkiestri nasceu de uma dificuldade que Guilherme vivia na gestão de operações de TI. Para acompanhar o trabalho da equipe, precisava juntar pedidos, prazos e decisões espalhados por diferentes lugares. Ele começou a desenvolver a plataforma por conta própria para resolver esse problema.</p>
-          <p>Ele desenhou os módulos, desenvolveu a aplicação e colocou a plataforma no ar na AWS. Ao longo desse trabalho, reuniu gestão de operações, desenvolvimento de software e inteligência artificial em um produto que ele próprio queria usar.</p>
-          <p>No Land Cast, Guilherme compartilhou sua experiência à frente de operações de infraestrutura que precisam funcionar 24 horas por dia. O episódio aborda liderança de equipes, eficiência e como decidir onde a tecnologia pode reduzir o esforço da operação.</p>
-          <a className="block text-sm text-flame-soft underline underline-offset-4" href="https://pt.linkedin.com/posts/landitlandit_infraestrutura-cr%C3%ADtica-n%C3%A3o-permite-improviso-activity-7488970250676527104-o4Dl">Conheça o episódio do Land Cast</a>
-          <a className="inline-block text-sm text-flame-soft underline underline-offset-4" href="https://pt.linkedin.com/posts/guilhermeluisrodrigues_orkiestri-plataforma-corporativa-de-gest%C3%A3o-activity-7463391370746130432-3RWd">Leia o relato de Guilherme sobre a criação do Orkiestri</a>
-        </div>
+          <a className="mt-4 inline-block text-sm text-flame-soft underline underline-offset-4" href="https://www.linkedin.com/in/guilhermeluisrodrigues/" target="_blank" rel="noopener noreferrer">Perfil no LinkedIn</a>
+          <div className="mt-6 max-w-prose space-y-4 leading-relaxed text-chalk-dim">
+            <p>O Orkiestri nasceu da inquietação de quem vivia na pele a pressão de liderar operações de tecnologia que não podem parar. No ritmo intenso do dia a dia, Guilherme via o talento das equipes ser consumido tentando costurar pedidos, prazos e decisões espalhados por dezenas de conversas e ferramentas desconectadas. Em vez de aceitar esse caos como parte da rotina, decidiu construir a resposta com as próprias mãos.</p>
+            <p>Com visão empreendedora e obsessão por simplicidade, desenhou cada módulo do zero, arquitetou a plataforma na nuvem da AWS e trouxe a inteligência artificial para o centro da experiência. O que começou como a busca incansável pela ferramenta que ele mesmo sonhava em usar transformou-se no Orkiestri: uma plataforma criada para devolver clareza, tempo e controle a quem constrói resultados todos os dias.</p>
+          </div>
         </div>
       </div>
     </Section>
