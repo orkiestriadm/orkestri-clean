@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "5.1.2";
+export const VERSAO = "5.1.3";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -23,10 +23,10 @@ export const VERSAO = "5.1.2";
  * Não é gerada no build: `new Date()` no bundle muda a cada compilação, e duas
  * builds do mesmo código pareceriam versões diferentes.
  */
-export const VERSAO_DATA = "2026-11-03";
+export const VERSAO_DATA = "2026-11-04";
 
 /** Nome da entrega, para dar contexto ao número. */
-export const VERSAO_NOME = "Meus Gastos para de esconder o erro";
+export const VERSAO_NOME = "Quem administra ve os gastos da organizacao";
 
 /**
  * Histórico exibido na tela Sobre, do mais recente para o mais antigo.
@@ -35,6 +35,14 @@ export const VERSAO_NOME = "Meus Gastos para de esconder o erro";
  * esta lista quer saber o que mudou para ele.
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
+  {
+    versao: "5.1.3",
+    data: "2026-11-04",
+    titulo: "Quem administra vê os gastos da organização",
+    itens: [
+      "Quem administra a organização ganhou um seletor “Meus · Organização” em Meus Gastos. Na visão da organização aparecem os gastos de todas as pessoas, com o nome de quem lançou cada um, e os cartões somam a organização inteira. Quem não administra continua vendo só os próprios gastos",
+    ],
+  },
   {
     versao: "5.1.2",
     data: "2026-11-03",

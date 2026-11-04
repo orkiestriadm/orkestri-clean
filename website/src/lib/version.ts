@@ -6,5 +6,5 @@
  * ter mudado. Aparece pequeno no rodapé para servir de referência ao reportar
  * problema — "quebrou na 1.1.0" localiza o deploy; "quebrou hoje" não.
  */
-export const VERSAO_SITE = "3.7.1";
-export const VERSAO_SITE_DATA = "2026-11-03";
+export const VERSAO_SITE = "3.8.0";
+export const VERSAO_SITE_DATA = "2026-11-04";
