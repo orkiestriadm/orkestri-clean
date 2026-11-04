@@ -11,7 +11,7 @@ import { buildMetadata } from "@/lib/seo";
 
 export const metadata = buildMetadata({
   title: "Quem somos",
-  description: "Conheça a origem do Orkiestri, os princípios da equipe e o papel da Aurélia na organização da rotina.",
+  description: "Conheça a história do Orkiestri, a trajetória do fundador Guilherme Rodrigues e o propósito de simplificar a rotina com tecnologia acessível.",
   path: "/company",
 });
 
@@ -31,31 +31,67 @@ const numeros = [
 export default function CompanyPage() {
   const agenda = products.find(p => p.slug === "one-space")?.screenshot;
   return <>
-    <PageHero eyebrow="Quem somos" title="O Orkiestri nasceu no meio do expediente."
-      description="Quando os pedidos de uma equipe ficam espalhados entre conversas, é fácil perder de vista quem ficou de fazer o quê. Foi desse problema de organização que nasceu o Orkiestri."
-      breadcrumb={[{ label: "Quem somos", href: "/company" }]} />
+    <PageHero
+      eyebrow="Quem somos"
+      title="Uma história de tecnologia, propósito e empreendedorismo."
+      description="Da experiência de transformar realidades com tecnologia ao desafio de criar uma solução simples e acessível para todos."
+      breadcrumb={[{ label: "Quem somos", href: "/company" }]}
+    />
 
     <Section id="fundador" muted>
-      <div className="grid gap-8 border-t border-white/15 pt-8 md:grid-cols-[.8fr_1.2fr]">
-        <figure className="max-w-sm">
-          <div className="relative aspect-[4/5] overflow-hidden rounded-2xl bg-panel">
+      <div className="grid items-start gap-10 border-t border-white/15 pt-10 md:grid-cols-[minmax(280px,360px)_minmax(0,1fr)] lg:gap-14">
+        <figure className="mx-auto w-full max-w-sm md:sticky md:top-28">
+          <div className="relative aspect-[4/5] overflow-hidden rounded-2xl border border-white/10 bg-panel shadow-soft-lg">
             <Image src="/media/guilherme-rodrigues.jpg" alt="Guilherme Rodrigues, fundador do Orkiestri" width={896} height={1152} unoptimized className="h-full w-full object-cover" />
           </div>
+          <div className="mt-4 flex items-center justify-between px-1">
+            <div>
+              <p className="text-base font-semibold text-chalk">Guilherme Rodrigues</p>
+              <p className="text-xs text-chalk-faint">Fundador do Orkiestri</p>
+            </div>
+            <a
+              className="text-xs font-medium text-flame-soft underline underline-offset-4 hover:text-ember"
+              href="https://www.linkedin.com/in/guilhermeluisrodrigues/"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Perfil no LinkedIn
+            </a>
+          </div>
         </figure>
-        <div>
-          <p className="section-kicker">O fundador</p>
-          <h2 className="mt-4 text-4xl font-semibold tracking-tight">Guilherme Rodrigues</h2>
-          <a className="mt-4 inline-block text-sm text-flame-soft underline underline-offset-4" href="https://www.linkedin.com/in/guilhermeluisrodrigues/" target="_blank" rel="noopener noreferrer">Perfil no LinkedIn</a>
-          <div className="mt-6 max-w-prose space-y-4 leading-relaxed text-chalk-dim">
-            <p>O Orkiestri nasceu da inquietação de quem vivia na pele a pressão de liderar operações de tecnologia que não podem parar. No ritmo intenso do dia a dia, Guilherme via o talento das equipes ser consumido tentando costurar pedidos, prazos e decisões espalhados por dezenas de conversas e ferramentas desconectadas. Em vez de aceitar esse caos como parte da rotina, decidiu construir a resposta com as próprias mãos.</p>
-            <p>Com visão empreendedora e obsessão por simplicidade, desenhou cada módulo do zero, arquitetou a plataforma na nuvem da AWS e trouxe a inteligência artificial para o centro da experiência. O que começou como a busca incansável pela ferramenta que ele mesmo sonhava em usar transformou-se no Orkiestri: uma plataforma criada para devolver clareza, tempo e controle a quem constrói resultados todos os dias.</p>
+
+        <div className="min-w-0">
+          <p className="section-kicker">O fundador · Guilherme Rodrigues</p>
+          <h2 className="mt-3 text-3xl font-semibold leading-tight tracking-tight text-chalk md:text-4xl">
+            Da experiência de transformar realidades com tecnologia ao desafio de criar uma solução acessível para todos.
+          </h2>
+
+          <div className="mt-6 max-w-[68ch] space-y-4 text-[0.975rem] leading-relaxed text-chalk-dim">
+            <p>
+              Sou profissional de Tecnologia da Informação há mais de 20 anos e, ao longo da minha trajetória, tive o privilégio de participar de projetos que vão muito além da implementação de sistemas. São iniciativas que impactaram diretamente a vida das pessoas: da inclusão digital que levou internet Wi-Fi gratuita a uma cidade de 50 mil habitantes, à informatização completa de um hospital regional no interior de São Paulo que antes operava inteiramente em papel, até a atuação estratégica em tecnologia para concessionárias de rodovias, cuidando da segurança e da mobilidade de milhares de usuários.
+            </p>
+            <p>
+              Em todos esses projetos sempre houve um ponto em comum: <strong className="font-medium text-chalk">a tecnologia conectada ao propósito de melhorar a vida das pessoas</strong>. Ao mesmo tempo, vivi na pele um desafio que acompanhou toda a minha carreira — a dificuldade de organizar compromissos, demandas, projetos e finanças sem precisar contratar e aprender a usar várias plataformas caras e desconectadas.
+            </p>
+            <blockquote className="my-5 border-l-2 border-flame pl-4 text-base font-medium italic text-chalk">
+              “Por que organizar a própria vida, os compromissos, os projetos e as finanças precisa ser algo tão complexo e caro?”
+            </blockquote>
+            <p>
+              Foi dessa necessidade real que nasceu o <strong className="font-medium text-chalk">Orkiestri</strong>: uma plataforma que reúne agenda, gestão de compromissos, demandas, projetos, lembretes e controle financeiro em um único ambiente — com a simplicidade de estar integrada diretamente ao <strong className="font-medium text-chalk">WhatsApp</strong>, a ferramenta que já faz parte do dia a dia de milhões de brasileiros.
+            </p>
+            <p>
+              Mais do que desenvolver um software, meu objetivo com o Orkiestri é democratizar o acesso à organização pessoal, profissional e financeira — para que uma pessoa comum, uma família, um profissional autônomo, um pequeno empreendedor ou uma empresa possam administrar melhor seu tempo e suas responsabilidades de forma simples e acessível.
+            </p>
+            <p className="pt-2 text-base font-semibold text-flame-soft">
+              Tecnologia para organizar. Simplicidade para transformar. Acessibilidade para todos.
+            </p>
           </div>
         </div>
       </div>
     </Section>
 
     <Section id="origem">
-      <div className="grid items-center gap-10 lg:grid-cols-[.8fr_1.2fr]">
+      <div className="grid items-center gap-10 lg:grid-cols-[.85fr_1.15fr] lg:gap-14">
         <div>
           <p className="section-kicker">A origem</p>
           <h2 className="mt-4 text-3xl font-semibold tracking-tight md:text-5xl">O que ficou combinado naquela conversa?</h2>
@@ -67,7 +103,7 @@ export default function CompanyPage() {
     </Section>
 
     <Section muted id="principios">
-      <div className="grid gap-10 lg:grid-cols-2">
+      <div className="grid items-center gap-10 lg:grid-cols-2 lg:gap-14">
         <div>
           <p className="section-kicker">Nossos princípios</p>
           <h2 className="mt-4 max-w-lg text-4xl font-semibold tracking-tight md:text-6xl">O sistema lembra. Você decide.</h2>

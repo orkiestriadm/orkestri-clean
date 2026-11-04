@@ -8,34 +8,10 @@ import { Celular } from "@/components/ui/celular";
 import { ChatHeader, ChatComposer } from "@/components/ui/whatsapp";
 import { cn } from "@/lib/utils";
 
-/**
- * Demonstração clicável da conversa.
- *
- * O site mostrava prints estáticos com "clique para ampliar": a pessoa via o
- * produto, mas não experimentava nada antes de entregar CPF e e-mail. Aqui ela
- * toca num pedido e vê a resposta acontecer.
- *
- * 🔴 **Nada é enviado.** O roteiro vive em `config/aurelia.ts` e a página diz
- * isso em voz alta, duas vezes. O que é verdade é o comportamento: todo pedido
- * daqui é um que a Aurélia entende de fato, e a resposta tem o formato que ela
- * devolve.
- *
- * Três cuidados de implementação:
- *
- *   1. **Começa cheio.** A conversa já abre com um pedido respondido. Um
- *      mockup vazio esperando clique não mostra nada a quem só passa os olhos
- *      — e é o primeiro quadro que vai parar na miniatura.
- *   2. **O timer é cancelado no desmonte e a cada novo clique**, senão duas
- *      respostas disputam a mesma lista e a conversa sai fora de ordem.
- *   3. **`prefers-reduced-motion` zera a espera.** Quem pediu menos movimento
- *      recebe a resposta na hora, sem o "digitando".
- */
-
 type Linha = { de: "voce" | "aurelia"; texto: string[]; id: string };
 
 const ESPERA_MS = 900;
 
-/** A conversa já nasce com este pedido respondido. Ver o cuidado 1 acima. */
 const INICIAL: DemoPasso = DEMO[0];
 
 export function DemoConversa() {
@@ -61,8 +37,6 @@ export function DemoConversa() {
       if (timer.current) clearTimeout(timer.current);
       setAtivo(passo.id);
       setLinhas((atual) => {
-        /* A conversa não cresce para sempre: além de quatro trocas a coluna
-           vira uma barra de rolagem interminável dentro da página. */
         const recente = atual.slice(-6);
         return [
           ...recente,
@@ -94,17 +68,17 @@ export function DemoConversa() {
   }, [linhas, digitando, reduzir]);
 
   return (
-    <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.9fr)] lg:gap-14">
+    <div className="grid items-center gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.9fr)] lg:gap-16">
       {/* ── Os pedidos ─────────────────────────────────────────────────── */}
       <div>
         <h3 className="text-base font-semibold text-chalk">
           Toque num pedido.
         </h3>
-        <p className="mt-2 max-w-[44ch] text-sm leading-relaxed text-chalk-dim">
+        <p className="mt-2 max-w-[46ch] text-sm leading-relaxed text-chalk-dim">
           São pedidos que a Aurélia entende de verdade. A resposta ao lado é
           uma amostra do formato — aqui nada é enviado nem salvo.
         </p>
-        <div className="mt-6 flex flex-wrap gap-2">
+        <div className="mt-6 flex flex-wrap gap-2.5">
           {DEMO.map((d) => (
             <button
               key={d.id}
@@ -125,76 +99,69 @@ export function DemoConversa() {
         </div>
       </div>
 
-      {/* ── A conversa, dentro do celular ──────────────────────────────
-          A moldura entrou em 03/11/2026: a demonstração mostrava a conversa
-          num cartão, e um cartão não diz que isso acontece no telefone da
-          pessoa. A órbita acompanha, como em toda amostra do site. */}
-      <Celular largura={324}>
-        <div className="wa-screen">
-        <ChatHeader />
-        <div className="wa-thread">
-          {linhas.map((l) => (
-            <div
-              key={l.id}
-              className={cn(
-                "wa-bubble wa-enter",
-                l.de === "voce"
-                  ? "wa-sent"
-                  : "wa-received",
-              )}
-            >
-              {l.texto.map((t, i) => (
-                <p key={i} className={i > 0 ? "mt-1" : undefined}>
-                  {negrito(t)}
-                </p>
-              ))}
-              <span className="mt-1 flex justify-end text-chalk-faint">
-                {l.de === "voce" ? (
-                  <CheckCheck size={14} aria-hidden />
-                ) : (
-                  <Check size={14} aria-hidden />
+      {/* ── A conversa, dentro do celular (mesmo padrão claro do Hero) ── */}
+      <Celular largura={320}>
+        <div className="wa-screen wa-light">
+          <ChatHeader />
+          <div className="wa-thread">
+            <span className="wa-date">Hoje</span>
+            {linhas.map((l) => (
+              <div
+                key={l.id}
+                className={cn(
+                  "wa-bubble wa-enter",
+                  l.de === "voce"
+                    ? "wa-sent"
+                    : "wa-received",
                 )}
-              </span>
-            </div>
-          ))}
-
-          {digitando && (
-            <div
-              className="hairline self-start rounded-2xl border bg-panel px-4 py-3"
-              aria-live="polite"
-            >
-              <span className="sr-only">A Aurélia está respondendo</span>
-              <span className="flex gap-1" aria-hidden>
-                {[0, 1, 2].map((i) => (
-                  <span
-                    key={i}
-                    className="h-1.5 w-1.5 rounded-full bg-chalk-faint motion-safe:animate-pulse"
-                    style={{ animationDelay: `${i * 140}ms` }}
-                  />
+              >
+                {l.texto.map((t, i) => (
+                  <p key={i} className={i > 0 ? "mt-1" : undefined}>
+                    {negrito(t)}
+                  </p>
                 ))}
-              </span>
-            </div>
-          )}
-          <div ref={fim} />
-        </div>
+                <small>
+                  09:41{" "}
+                  {l.de === "voce" ? (
+                    <CheckCheck size={13} aria-hidden />
+                  ) : (
+                    <Check size={13} aria-hidden />
+                  )}
+                </small>
+              </div>
+            ))}
 
-        <ChatComposer />
+            {digitando && (
+              <div
+                className="wa-bubble wa-received"
+                aria-live="polite"
+              >
+                <span className="sr-only">A Aurélia está respondendo</span>
+                <span className="flex gap-1 py-1" aria-hidden>
+                  {[0, 1, 2].map((i) => (
+                    <span
+                      key={i}
+                      className="h-1.5 w-1.5 rounded-full bg-current opacity-50 motion-safe:animate-pulse"
+                      style={{ animationDelay: `${i * 140}ms` }}
+                    />
+                  ))}
+                </span>
+              </div>
+            )}
+            <div ref={fim} />
+          </div>
+
+          <ChatComposer />
         </div>
       </Celular>
     </div>
   );
 }
 
-/**
- * O `*negrito*` do WhatsApp, resolvido sem biblioteca.
- *
- * O roteiro é escrito na mesma marcação que a Aurélia usa de verdade, então
- * a amostra sai com a mesma cara da conversa real.
- */
 function negrito(texto: string) {
   return texto.split(/(\*[^*]+\*)/g).map((parte, i) =>
     parte.startsWith("*") && parte.endsWith("*") && parte.length > 2 ? (
-      <strong key={i} className="font-semibold text-chalk">
+      <strong key={i} className="font-semibold text-current">
         {parte.slice(1, -1)}
       </strong>
     ) : (

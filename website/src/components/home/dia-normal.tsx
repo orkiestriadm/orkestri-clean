@@ -8,41 +8,48 @@ import { negrito } from "@/components/aurelia/markup";
 import { DIA } from "@/config/aurelia";
 import { cn } from "@/lib/utils";
 
-/**
- * Um dia normal.
- *
- * A seção mais forte da página do concorrente não lista funcionalidade: conta
- * um dia e mostra o que acontece em cada hora. Vende rotina — e rotina é o
- * que o Orkiestri faz.
- *
- * Três decisões:
- *
- *   1. **Os horários estão em ordem de relógio**, e não de importância. A
- *      ordem é a informação: a pessoa reconhece o próprio dia na lista antes
- *      de ler qualquer descrição.
- *   2. **Metade dos momentos a Aurélia começa sozinha** — o resumo da manhã e
- *      o lembrete de uma hora. É o que separa este produto de um bloco de
- *      notas, então os dois ganham destaque próprio no rótulo ("ela avisa").
- *   3. **A conversa aparece dentro do celular**, como toda amostra do site
- *      desde 03/11. Sem estado vazio: a seção abre com o primeiro momento já
- *      escolhido, porque é o primeiro quadro que alguém que só passa os olhos
- *      vai ver.
- */
+const FOTOS_DIA: Record<string, { src: string; alt: string }> = {
+  manha: {
+    src: "/media/rotina-aurelia.webp",
+    alt: "Empreendedora conferindo o resumo da manhã no celular em um café",
+  },
+  audio: {
+    src: "/media/rotina-audio.jpg",
+    alt: "Profissional enviando um áudio rápido no caminho para uma reunião",
+  },
+  gasto: {
+    src: "/media/rotina-gasto.jpg",
+    alt: "Profissional registrando o almoço pelo celular na mesa do restaurante",
+  },
+  lembrete: {
+    src: "/media/rotina-lembrete.jpg",
+    alt: "Profissional recebendo o aviso de compromisso no consultório",
+  },
+  chamado: {
+    src: "/media/rotina-chamado.jpg",
+    alt: "Gestor abrindo um chamado para a equipe pelo celular no escritório",
+  },
+  noite: {
+    src: "/media/rotina-noite.jpg",
+    alt: "Pessoa registrando uma anotação à noite em casa pelo celular",
+  },
+};
+
 export function DiaNormal() {
   const [ativo, setAtivo] = useState(DIA[0].id);
   const momento = DIA.find((m) => m.id === ativo) ?? DIA[0];
+  const foto = FOTOS_DIA[momento.id] ?? FOTOS_DIA.manha;
 
   return (
     <Faixa id="um-dia" tom="ink">
-      <div className="grid items-start gap-10 lg:grid-cols-2 lg:gap-16">
-        <div>
       <Cabecalho
         titulo="Um dia normal. Só que nada ficou com você."
         texto="Seis momentos de um dia comum e o que acontece em cada um deles pela conversa. Três você provoca; três chegam sem você pedir."
       />
 
+      <div className="mt-12 grid items-center gap-10 lg:grid-cols-2 lg:gap-16">
         {/* ── Os momentos ───────────────────────────────────────────────── */}
-        <ol className="mt-6 divide-y divide-white/10">
+        <ol className="divide-y divide-white/10">
           {DIA.map((m) => {
             const selecionado = m.id === momento.id;
             return (
@@ -77,9 +84,6 @@ export function DiaNormal() {
                     >
                       {m.titulo}
                     </span>
-                    {/* O texto longo só aparece no momento escolhido: com os
-                        seis abertos a coluna vira um muro e a linha do tempo
-                        deixa de ser lida como uma sequência de horas. */}
                     {selecionado && (
                       <>
                         <span className="mt-2.5 block text-sm leading-relaxed text-chalk-dim">
@@ -101,13 +105,21 @@ export function DiaNormal() {
             );
           })}
         </ol>
-        </div>
 
-        {/* ── A conversa daquele momento ────────────────────────────────── */}
-        <div className="lg:sticky lg:top-32 lg:self-start">
+        {/* ── A conversa e a pessoa daquele momento ─────────────────────── */}
+        <div className="w-full">
           <div className="day-scene">
-            <Image src="/media/rotina-aurelia.webp" alt="Profissional usando o celular em um café" fill sizes="(min-width: 1024px) 48vw, 95vw" className="object-cover" />
-            <div key={momento.id}
+            <Image
+              key={foto.src}
+              src={foto.src}
+              alt={foto.alt}
+              fill
+              unoptimized
+              sizes="(min-width: 1024px) 48vw, 95vw"
+              className="object-cover transition-opacity duration-300"
+            />
+            <div
+              key={momento.id}
               id="dia-conversa"
               aria-live="polite"
               className="day-messages"
@@ -123,7 +135,7 @@ export function DiaNormal() {
                   )}
                 >
                   {l.audio && (
-                    <span className="mb-1.5 flex items-center gap-2 text-xs text-chalk-faint">
+                    <span className="mb-1.5 flex items-center gap-2 text-xs opacity-75">
                       <Mic size={13} aria-hidden />
                       Áudio · 0:06
                     </span>

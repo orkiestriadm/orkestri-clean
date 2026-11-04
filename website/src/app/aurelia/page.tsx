@@ -161,7 +161,7 @@ export default function AureliaPage() {
           é, onde atende e com o que trabalha. */}
       <Section className="pt-4 md:pt-6">
         <Reveal className="premium-surface rounded-(--radius-image) p-7 md:p-10" data-spotlight>
-          <div className="grid gap-9 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:gap-16">
+          <div className="grid items-center gap-9 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:gap-16">
             <div>
               <p className="section-kicker">Assistente do Orkiestri</p>
               <h2 className="mt-4 font-display text-[1.875rem] font-bold leading-[1.1] tracking-[-0.03em] text-chalk [font-stretch:108%] md:text-[2.25rem]">
@@ -259,7 +259,7 @@ export default function AureliaPage() {
 
       {/* ── Como falar comigo + captura real ───────────────────────────── */}
       <Section muted>
-        <div className="grid gap-12 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.8fr)] lg:gap-20">
+        <div className="grid items-center gap-12 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.8fr)] lg:gap-20">
           <div>
             <h2 className="font-display text-[1.875rem] font-bold leading-[1.1] tracking-[-0.03em] text-chalk [font-stretch:108%] md:text-[2.5rem]">
               Como falar comigo.
