@@ -166,11 +166,7 @@ export function Screenshot({
                     width={width}
                     height={height}
                     priority={priority}
-                    /* Capturas de interface são densas em texto miúdo: o padrão
-                       (q=75) borra as letras e um `sizes` estreito faria o
-                       navegador escolher um candidato pequeno demais. */
-                    quality={92}
-                    sizes="(max-width: 768px) 100vw, (max-width: 1280px) 95vw, 1280px"
+                    unoptimized
                     className={cn(
                       uniform ? "h-full w-full object-contain" : "h-auto w-full"
                     )}
@@ -250,8 +246,7 @@ export function Screenshot({
                 alt={alt}
                 width={width}
                 height={height}
-                quality={95}
-                sizes="100vw"
+                unoptimized
                 className="h-auto w-auto max-w-none"
               />
             </div>

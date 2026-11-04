@@ -129,7 +129,7 @@ export function DemoConversa() {
           A moldura entrou em 03/11/2026: a demonstração mostrava a conversa
           num cartão, e um cartão não diz que isso acontece no telefone da
           pessoa. A órbita acompanha, como em toda amostra do site. */}
-      <Celular largura={360}>
+      <Celular largura={324}>
         <div className="wa-screen">
         <ChatHeader />
         <div className="wa-thread">

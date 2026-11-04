@@ -8,7 +8,7 @@ import { WHATSAPP_CADASTRO } from "./site";
 export const mainNav: NavItem[] = [
   { label: "Aurélia", href: "/aurelia" },
   { label: "Planos", href: "/planos" },
-  { label: "Empresa", href: "/company" },
+  { label: "Quem somos", href: "/company" },
   { label: "Produtos", href: "/products" },
   { label: "Soluções", href: "/services" },
   { label: "Tecnologia", href: "/technology" },

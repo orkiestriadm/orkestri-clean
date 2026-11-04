@@ -91,7 +91,7 @@ export function Navbar() {
             <ProductsMenu onNavigate={() => setOpenMenu(null)} />
           </MenuTrigger>
           <MenuTrigger
-            label="Empresa"
+            label="Quem somos"
             open={openMenu === "company"}
             onOpen={() => setOpenMenu("company")}
             onToggle={() =>

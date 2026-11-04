@@ -1305,7 +1305,17 @@ footer.bg-ink {
 .notebook { width:100%; margin-inline:auto; padding-block:8px; }
 .notebook-display { position:relative; margin-inline:5.5%; padding:3% 1.2% 1.5%; background:linear-gradient(130deg,#313437,#08090a 30%,#17181a); border:1px solid #707477; border-radius:clamp(8px,1.6vw,20px) clamp(8px,1.6vw,20px) 3px 3px; box-shadow:inset 0 0 0 2px #101112; }
 .notebook-camera { position:absolute; top:1.6%; left:50%; width:5px; height:5px; border-radius:50%; background:#182a36; box-shadow:0 0 0 1px #080809; }
-.notebook-display figure { margin:0; }
+.notebook-display figure { margin:0; overflow:hidden; }
+.notebook-display button { aspect-ratio:16/9; overflow:hidden; }
+.notebook-display button > div { height:100%; }
+.notebook-display button .screen-feather {
+  /* A navegação ocupa o primeiro sexto das capturas. A prévia privilegia o
+     módulo; a ampliação conserva a interface completa em resolução nativa. */
+  width:120%;
+  margin-left:-20%;
+}
+.notebook-display button img { display:block; width:100%; height:auto; }
+.notebook-display button:hover { --lift:0px; }
 .notebook-display button,.notebook-display button > div { border-radius:2px; }
 .notebook-display .screen-feather { mask-image:none; }
 .notebook-base { position:relative; height:clamp(8px,1.2vw,17px); border-radius:2px 2px 24% 24% / 2px 2px 90% 90%; background:linear-gradient(#8a8b8c,#494c50 30%,#292b2e 68%,#101112); box-shadow:0 13px 19px -9px #000a; }

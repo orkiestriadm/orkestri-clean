@@ -14,7 +14,7 @@ const cenas = [
 export function AureliaCapture({ index, orbita = true }: { index: number; orbita?: boolean }) {
   const [replay, setReplay] = useState(0);
   return <figure className="mx-auto w-full max-w-[350px]">
-    <Celular orbita={orbita} largura={330}>
+    <Celular orbita={orbita} largura={300}>
       <div className={index === 1 ? "wa-screen wa-light" : "wa-screen"}>
         <ChatHeader />
         <div className="wa-thread" key={index + "-" + replay}>

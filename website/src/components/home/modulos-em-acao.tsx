@@ -23,7 +23,7 @@ export function ModulosEmAcao() {
     <div className="flex flex-wrap gap-2" role="group" aria-label="Escolha uma aplicação">
       {modulos.map((p, i) => <button type="button" key={p.slug} aria-pressed={i === ativo} onClick={() => selecionar(i)} className="module-tab"><p.icon size={16} />{p.short ?? p.name}</button>)}
     </div>
-    <div className="mt-8 grid items-center gap-8 md:grid-cols-[minmax(0,.68fr)_minmax(0,1.32fr)]" aria-live="polite">
+    <div className="mt-8 grid items-center gap-8 xl:grid-cols-[minmax(0,.48fr)_minmax(0,1.52fr)]" aria-live="polite">
       <div className="module-stack">
         <div className="module-card" key={produto.slug}>
           <Icon size={30} aria-hidden/><p className="mt-5 font-mono text-xs tracking-widest">ORKIESTRI / 0{ativo + 1}</p>

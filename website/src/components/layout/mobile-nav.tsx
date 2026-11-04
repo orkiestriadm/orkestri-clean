@@ -115,7 +115,7 @@ export function MobileNav({ onClose }: { onClose: () => void }) {
           </Collapsible>
 
           <Collapsible
-            label="Empresa"
+            label="Quem somos"
             open={section === "company"}
             onToggle={() =>
               setSection(section === "company" ? null : "company")
