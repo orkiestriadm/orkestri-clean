@@ -1,8 +1,8 @@
 ## Referência atual de produção — Atualizado em 04/11/2026
 
 - **Pasta principal oficial (local):** `C:\orkestri-clean` (alinhada com a produção atual).
-- **Branch remota de referência (GitHub):** `origin/claude/orkiestri-audit-benchmark-4a28b4` (site `cbb1315`, ver `docs/DEPLOY_SITE_3120_2026-11-04.md`).
-- **Versões em produção e no `http://localhost`:** API `5.1.3` | Frontend `5.1.3` | Website `3.12.0`.
+- **Branch remota de referência (GitHub):** `origin/claude/orkiestri-audit-benchmark-4a28b4` (site `593da5c`, ver `docs/DEPLOY_SITE_3130_2026-11-04.md`).
+- **Versões em produção e no `http://localhost`:** API `5.1.3` | Frontend `5.1.3` | Website `3.13.0`.
 
 # Instruções para o Claude (e demais IAs)
 
