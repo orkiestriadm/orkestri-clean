@@ -19,6 +19,7 @@ describe("rotas chamadas por máquina precisam estar isentas", () => {
   it("os outros webhooks de máquina seguem isentos", () => {
     expect(isentoDeCsrf("/api/whatsapp/inbound")).toBe(true);
     expect(isentoDeCsrf("/api/integracoes/microsoft/webhook")).toBe(true);
+    expect(isentoDeCsrf("/api/integracoes/google/webhook")).toBe(true);
   });
 
   it("o login e o primeiro acesso, que acontecem antes de haver sessão", () => {

@@ -50,6 +50,7 @@ export const CSRF_EXEMPT_PATHS: string[] = [
   // Webhook do Microsoft Graph: chamado pela Microsoft, sem cookie CSRF. A
   // autenticidade vem do clientState verificado no controller.
   "/api/integracoes/microsoft/webhook",
+  "/api/integracoes/google/webhook",
 
   // Webhook de ENTRADA do WhatsApp (Evolution): POST de máquina, sem cookie
   // CSRF. A autenticidade vem do ?secret= validado no controller.

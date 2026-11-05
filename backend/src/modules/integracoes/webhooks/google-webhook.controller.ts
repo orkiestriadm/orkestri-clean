@@ -36,6 +36,10 @@ export class GoogleWebhookController {
     });
 
     if (sub) {
+      if (sub.clientState && clientToken !== sub.clientState) {
+        this.logger.warn(`Google Webhook token inválido para canal ${channelId} — descartado.`);
+        return { ok: true };
+      }
       this.logger.log(`Google Webhook notificação recebida (canal ${channelId}). Disparando deltaSync...`);
       this.sync.deltaSync(sub.connectionId).catch((e) => {
         this.logger.warn(`Erro no deltaSync disparado pelo Google Webhook: ${e?.message || e}`);
