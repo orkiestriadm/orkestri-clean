@@ -112,12 +112,22 @@ export default async function ProductPage({
 
       {/* Captura real do módulo (doc 06: imagens reais, nunca mockups) */}
       {product.screenshot && (
-        <Container className="pb-4">
-          <Reveal>
-            <Notebook tela={product.screenshot} />
-            <p className="mt-4 text-xs text-chalk-dim">Tela real em modo escuro, com dados fictícios de demonstração.</p>
-          </Reveal>
-        </Container>
+        <Section className="pt-8 md:pt-12">
+          <SectionHeader
+            align="left"
+            eyebrow="Visão na plataforma"
+            title="Tudo o que você manda pelo WhatsApp, organizado em tela grande."
+            description="Quando quiser planejar a semana inteira, revisar detalhes ou acompanhar tudo de uma vez, o painel no navegador mostra cada registro no seu lugar."
+          />
+          <div className="mt-10">
+            <Reveal>
+              <Notebook tela={product.screenshot} />
+              <p className="mt-4 text-xs text-chalk-dim">
+                Tela real em modo escuro, com dados fictícios de demonstração.
+              </p>
+            </Reveal>
+          </div>
+        </Section>
       )}
 
       {/* Features */}

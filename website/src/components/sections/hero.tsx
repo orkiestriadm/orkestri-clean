@@ -35,7 +35,7 @@ export function Hero() {
               <WhatsAppButton />
               <Link
                 href="/products/one-space#tutorial"
-                className="group inline-flex min-h-[52px] items-center gap-3 rounded-(--radius-button) border border-flame/40 bg-flame/[0.09] px-5 py-3 text-sm font-semibold text-chalk shadow-[inset_0_1px_0_rgba(255,196,138,0.18)] transition-all duration-200 hover:border-flame hover:bg-flame/[0.16] hover:text-white"
+                className="group inline-flex h-14 items-center gap-3 rounded-(--radius-button) border border-flame/40 bg-flame/[0.09] px-5 text-sm font-semibold text-chalk shadow-[inset_0_1px_0_rgba(255,196,138,0.18)] transition-all duration-200 hover:border-flame hover:bg-flame/[0.16] hover:text-white"
               >
                 <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-flame text-white shadow-[0_0_16px_rgba(255,106,26,0.6)] transition-transform duration-200 group-hover:scale-105">
                   <Play size={13} className="ml-0.5 fill-current" aria-hidden />

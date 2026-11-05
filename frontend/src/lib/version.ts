@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "5.1.3";
+export const VERSAO = "5.1.4";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -26,7 +26,7 @@ export const VERSAO = "5.1.3";
 export const VERSAO_DATA = "2026-11-04";
 
 /** Nome da entrega, para dar contexto ao número. */
-export const VERSAO_NOME = "Quem administra ve os gastos da organizacao";
+export const VERSAO_NOME = "Nova tela de login com Aurelia em orbita";
 
 /**
  * Histórico exibido na tela Sobre, do mais recente para o mais antigo.
@@ -35,6 +35,15 @@ export const VERSAO_NOME = "Quem administra ve os gastos da organizacao";
  * esta lista quer saber o que mudou para ele.
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
+  {
+    versao: "5.1.4",
+    data: "2026-11-04",
+    titulo: "Nova tela de entrada alinhada com a Aurélia",
+    itens: [
+      "A tela de login ganhou o mesmo visual escuro com luz quente e órbita da Aurélia que o site usa, substituindo o fundo antigo do planeta",
+      "Saiu o link “Solicitar acesso” da tela de login: quem ainda não tem conta agora vai direto para o teste grátis com a Aurélia no WhatsApp",
+    ],
+  },
   {
     versao: "5.1.3",
     data: "2026-11-04",

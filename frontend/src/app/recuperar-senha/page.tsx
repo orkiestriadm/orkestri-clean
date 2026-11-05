@@ -159,9 +159,13 @@ export default function RecuperarSenhaPage() {
     <div className="relative flex min-h-dvh items-center justify-center overflow-hidden bg-[#08090c] px-5 py-10 text-white">
       {/* Mesma atmosfera do login: o planeta continua ao fundo. */}
       <div aria-hidden className="pointer-events-none absolute inset-0">
-        <img src={LOGIN_FUNDO} alt="" className="absolute inset-0 h-full w-full object-cover" />
-        <div className="absolute inset-0 bg-[#08090c]/70" />
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,transparent_20%,rgba(8,9,12,0.85)_80%)]" />
+        <div
+          className="absolute inset-0"
+          style={{
+            background:
+              "radial-gradient(ellipse 85% 95% at 0% 0%, rgba(255, 106, 26, 0.17), transparent 72%), radial-gradient(ellipse 85% 95% at 100% 100%, rgba(255, 121, 48, 0.13), transparent 72%), radial-gradient(ellipse 65% 80% at 55% 48%, rgba(255, 150, 85, 0.045), transparent 80%)",
+          }}
+        />
       </div>
 
       {semCadastro && (

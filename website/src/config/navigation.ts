@@ -66,7 +66,7 @@ export const footerNav: { title: string; items: NavItem[] }[] = [
       /* "Solicitar demonstração" saiu daqui em 26/10/2026: o cadastro passou
          a ser só pelo WhatsApp, e o rodapé era o último lugar do site que
          ainda oferecia o caminho antigo. */
-      { label: "Teste grátis de 7 dias", href: WHATSAPP_CADASTRO },
+      { label: "Teste grátis", href: WHATSAPP_CADASTRO },
       { label: "Planos e preço", href: "/planos" },
       { label: "Como funciona", href: "/demo" },
       { label: "Guias de uso", href: "/blog" },

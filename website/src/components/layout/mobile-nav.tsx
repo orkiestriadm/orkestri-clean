@@ -161,7 +161,7 @@ export function MobileNav({ onClose }: { onClose: () => void }) {
             className="inline-flex h-[52px] w-full items-center justify-center gap-2 rounded-(--radius-button) bg-signal font-semibold text-[#06281A] transition-colors hover:bg-signal-hover"
           >
             <MessageCircle className="h-5 w-5" aria-hidden />
-            Teste grátis de 7 dias
+            Teste grátis
           </a>
           <a
             href="/login"

@@ -24,7 +24,7 @@ export function WhatsAppButton({
    * "Teste grátis" mantém a palavra — e ela continua verdadeira, porque o
    * teste é grátis mesmo — sem dizer que o produto é.
    */
-  children = "Teste grátis de 7 dias",
+  children = "Teste grátis",
   tamanho = "lg",
   className,
 }: {
