@@ -1,11 +1,11 @@
 ## Referência atual de produção — Atualizado em 04/11/2026
 
 - **Pasta principal oficial (local):** `C:\orkestri-clean` (branch local `producao-5.1.3` rastreando `origin/claude/orkiestri-audit-benchmark-4a28b4`).
-- **Branch remota de referência (GitHub):** `origin/claude/orkiestri-audit-benchmark-4a28b4` (site `593da5c`, ver `docs/DEPLOY_SITE_3130_2026-11-04.md`).
+- **Branch remota de referência (GitHub):** `origin/claude/orkiestri-audit-benchmark-4a28b4` (site `8390605`, ver `docs/DEPLOY_SITE_3140_2026-11-04.md`).
 - **Versões em produção e no `http://localhost`:**
   - **API:** `5.1.3`
   - **Frontend (Painel):** `5.1.3`
-  - **Website:** `3.13.0`
+  - **Website:** `3.14.0`
 - **Histórico antigo:** A antiga linha Hub foi preservada em backup externo (`C:\orkestri-backup-hub-20261104`) e na branch local `codex/preserva-hub-20261104`. O foco total do projeto é exclusivamente o sistema atual em produção.
 
 ---
