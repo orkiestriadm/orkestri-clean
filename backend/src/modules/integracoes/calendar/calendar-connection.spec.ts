@@ -18,7 +18,7 @@ describe("CalendarConnectionService.getValidAccessToken", () => {
         update: jest.fn().mockResolvedValue({ ...conn }),
       },
     };
-    const svc = new CalendarConnectionService(prisma, oauth, {} as any);
+    const svc = new CalendarConnectionService(prisma, oauth, {} as any, {} as any, {} as any);
     return { svc, prisma };
   }
 

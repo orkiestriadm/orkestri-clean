@@ -1,10 +1,11 @@
 import { Injectable, Logger, BadRequestException } from "@nestjs/common";
+import { CalendarProvider } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { MicrosoftConfig } from "./graph/microsoft.config";
 import { MicrosoftConfigResolver } from "./graph/microsoft-config.resolver";
+import { GoogleConfig } from "./google/google.config";
+import { GoogleConfigResolver } from "./google/google-config.resolver";
 import { encryptSecret, vaultConfigured } from "../../common/vault";
-
-const PROVIDER = "microsoft" as const;
 
 export interface SaveConfigInput {
   clientId?: string;
@@ -15,56 +16,66 @@ export interface SaveConfigInput {
   enabled?: boolean;
 }
 
-/**
- * Administra a configuração do app do provedor pela tela (em vez de env).
- *
- * `scopeOrgId`:
- *   - uma string → configuração DAQUELA organização (bring-your-own-app);
- *   - null → padrão da PLATAFORMA (só super-admin), herdado por quem não tem a sua.
- *
- * O client secret nunca volta ao frontend: o DTO expõe apenas `secretConfigured`.
- */
 @Injectable()
 export class IntegrationConfigService {
   private readonly logger = new Logger(IntegrationConfigService.name);
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly env: MicrosoftConfig,
-    private readonly resolver: MicrosoftConfigResolver,
+    private readonly msEnv: MicrosoftConfig,
+    private readonly msResolver: MicrosoftConfigResolver,
+    private readonly googleEnv: GoogleConfig,
+    private readonly googleResolver: GoogleConfigResolver,
   ) {}
 
-  private findRow(scopeOrgId: string | null) {
+  private findRow(scopeOrgId: string | null, provider: CalendarProvider) {
     return this.prisma.calendarProviderConfig.findFirst({
-      where: { organizationId: scopeOrgId, provider: PROVIDER },
+      where: { organizationId: scopeOrgId, provider },
     });
   }
 
-  /** DTO seguro (sem secret) + o que a org precisa saber para registrar no Entra. */
-  async getConfig(scopeOrgId: string | null, effectiveForOrgId?: string) {
-    const row = await this.findRow(scopeOrgId);
-    // A config EFETIVA (o que de fato será usado), para a tela mostrar a origem.
-    const effective = await this.resolver.resolve(effectiveForOrgId ?? scopeOrgId ?? undefined);
+  async getConfig(scopeOrgId: string | null, effectiveForOrgId?: string, provider: CalendarProvider = "microsoft") {
+    const row = await this.findRow(scopeOrgId, provider);
+    if (provider === "google") {
+      const effective = await this.googleResolver.resolve(effectiveForOrgId ?? scopeOrgId ?? undefined);
+      return {
+        provider: "google" as const,
+        scope: scopeOrgId ? "org" : "platform",
+        exists: !!row,
+        enabled: row?.enabled ?? true,
+        clientId: row?.clientId ?? "",
+        redirectUri: row?.redirectUri || this.googleEnv.redirectUriFor(this.googleEnv.appUrl),
+        webhookUrl: row?.webhookUrl || this.googleEnv.webhookUrlFor(this.googleEnv.appUrl),
+        secretConfigured: !!row?.clientSecretEnc,
+        redirectUriParaRegistrar: this.googleEnv.redirectUriFor(this.googleEnv.appUrl),
+        webhookUrlParaRegistrar: this.googleEnv.webhookUrlFor(this.googleEnv.appUrl),
+        effectiveSource: effective.source,
+        effectiveConfigured: effective.isConfigured,
+        vaultReady: vaultConfigured(),
+      };
+    }
+
+    // Microsoft
+    const effective = await this.msResolver.resolve(effectiveForOrgId ?? scopeOrgId ?? undefined);
     return {
+      provider: "microsoft" as const,
       scope: scopeOrgId ? "org" : "platform",
       exists: !!row,
       enabled: row?.enabled ?? true,
       clientId: row?.clientId ?? "",
       tenantId: row?.tenantId ?? "common",
-      redirectUri: row?.redirectUri || this.env.redirectUriFor(this.env.appUrl),
-      webhookUrl: row?.webhookUrl || this.env.webhookUrlFor(this.env.appUrl),
+      redirectUri: row?.redirectUri || this.msEnv.redirectUriFor(this.msEnv.appUrl),
+      webhookUrl: row?.webhookUrl || this.msEnv.webhookUrlFor(this.msEnv.appUrl),
       secretConfigured: !!row?.clientSecretEnc,
-      // Endereços que devem ser registrados no App Registration.
-      redirectUriParaRegistrar: this.env.redirectUriFor(this.env.appUrl),
-      webhookUrlParaRegistrar: this.env.webhookUrlFor(this.env.appUrl),
-      // Origem da config que está valendo AGORA para esta org.
-      effectiveSource: effective.source, // org | platform | env | none
+      redirectUriParaRegistrar: this.msEnv.redirectUriFor(this.msEnv.appUrl),
+      webhookUrlParaRegistrar: this.msEnv.webhookUrlFor(this.msEnv.appUrl),
+      effectiveSource: effective.source,
       effectiveConfigured: effective.isConfigured,
       vaultReady: vaultConfigured(),
     };
   }
 
-  async saveConfig(scopeOrgId: string | null, input: SaveConfigInput, userId?: string) {
+  async saveConfig(scopeOrgId: string | null, input: SaveConfigInput, userId?: string, provider: CalendarProvider = "microsoft") {
     if (!vaultConfigured()) {
       throw new BadRequestException("APP_VAULT_KEY não configurada — não é seguro guardar o segredo do app.");
     }
@@ -77,9 +88,8 @@ export class IntegrationConfigService {
       throw new BadRequestException("Webhook URL deve começar com https://.");
     }
 
-    const existing = await this.findRow(scopeOrgId);
+    const existing = await this.findRow(scopeOrgId, provider);
 
-    // Secret: só atualiza se veio um novo; string vazia = manter o atual.
     const secretProvided = typeof input.clientSecret === "string" && input.clientSecret.trim().length > 0;
     if (!existing && !secretProvided) {
       throw new BadRequestException("Client Secret é obrigatório na primeira configuração.");
@@ -87,7 +97,7 @@ export class IntegrationConfigService {
 
     const data: any = {
       organizationId: scopeOrgId,
-      provider: PROVIDER,
+      provider,
       clientId,
       tenantId: (input.tenantId || "common").trim(),
       redirectUri: input.redirectUri?.trim() || null,
@@ -97,18 +107,17 @@ export class IntegrationConfigService {
     };
     if (secretProvided) data.clientSecretEnc = encryptSecret(input.clientSecret!.trim());
 
-    let saved;
     if (existing) {
-      saved = await this.prisma.calendarProviderConfig.update({ where: { id: existing.id }, data });
+      await this.prisma.calendarProviderConfig.update({ where: { id: existing.id }, data });
     } else {
-      saved = await this.prisma.calendarProviderConfig.create({ data });
+      await this.prisma.calendarProviderConfig.create({ data });
     }
-    this.logger.log(`Config do provedor salva (scope=${scopeOrgId ? "org:" + scopeOrgId : "platform"}) por ${userId}`);
-    return this.getConfig(scopeOrgId, scopeOrgId ?? undefined);
+    this.logger.log(`Config do provedor ${provider} salva (scope=${scopeOrgId ? "org:" + scopeOrgId : "platform"}) por ${userId}`);
+    return this.getConfig(scopeOrgId, scopeOrgId ?? undefined, provider);
   }
 
-  async deleteConfig(scopeOrgId: string | null) {
-    const existing = await this.findRow(scopeOrgId);
+  async deleteConfig(scopeOrgId: string | null, provider: CalendarProvider = "microsoft") {
+    const existing = await this.findRow(scopeOrgId, provider);
     if (existing) {
       await this.prisma.calendarProviderConfig.delete({ where: { id: existing.id } });
     }

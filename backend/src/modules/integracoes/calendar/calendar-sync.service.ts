@@ -2,14 +2,15 @@ import { Injectable, Logger } from "@nestjs/common";
 import { PrismaService } from "../../../prisma/prisma.service";
 import { CalendarConnectionService } from "./calendar-connection.service";
 import { MicrosoftGraphClient, GraphAuthError, GraphForbiddenError } from "../graph/microsoft-graph.client";
-import { graphEventToOrkestri, isSeriesMasterWithoutInstance, GraphEventLike } from "./outlook-mapper";
+import { graphEventToOrkestri, isSeriesMasterWithoutInstance, GraphEventLike, MappedExternalEvent } from "./outlook-mapper";
+import { GoogleCalendarClient, GoogleAuthError, GoogleSyncTokenExpiredError } from "../google/google-calendar.client";
+import { googleEventToOrkestri } from "./google-mapper";
 
-const PROVIDER = "microsoft";
 // Janela sincronizada: passado recente (histórico útil) + futuro amplo (agenda).
 const WINDOW_PAST_DAYS = 30;
 const WINDOW_FUTURE_DAYS = 180;
 const SYNC_TIMEZONE = "UTC";
-const MAX_PAGES = 200; // guarda contra loop de paginação
+const MAX_PAGES = 200;
 
 export interface SyncResult {
   imported: number;
@@ -18,23 +19,6 @@ export interface SyncResult {
   skipped: number;
 }
 
-/**
- * Traz o Outlook para a agenda unificada (tabela Event) e mantém em dia.
- *
- * - `initialSync`: varredura completa da janela via calendarView/delta, grava o
- *   deltaLink (cursor) ao final. Também rola a janela (é o que a reconciliação usa).
- * - `deltaSync`: retoma do deltaLink — barato, usado pelo webhook.
- *
- * ## Anti-duplicidade
- * (connectionId, externalId) é UNIQUE. Todo upsert casa por essa chave; webhook
- * e reconciliação chegando ao mesmo evento convergem para a MESMA linha.
- *
- * ## Anti-loop (eco)
- * Se o etag que chega do Graph é igual ao `externalEtag` já guardado, o evento
- * não mudou de fato — pulamos. É o que impede que o writeback do Orkiestri (que
- * grava o etag retornado pelo Graph) volte como uma "mudança" e reescreva tudo
- * num ciclo infinito.
- */
 @Injectable()
 export class CalendarSyncService {
   private readonly logger = new Logger(CalendarSyncService.name);
@@ -43,6 +27,7 @@ export class CalendarSyncService {
     private readonly prisma: PrismaService,
     private readonly connections: CalendarConnectionService,
     private readonly graph: MicrosoftGraphClient,
+    private readonly googleClient: GoogleCalendarClient,
   ) {}
 
   private window() {
@@ -76,7 +61,6 @@ export class CalendarSyncService {
     try {
       accessToken = await this.connections.getValidAccessToken(connectionId);
     } catch (e: any) {
-      // getValidAccessToken já marca reauth_required quando é o caso.
       const msg = e?.response?.message || e?.message || "Falha de autenticação";
       if (e?.response?.code !== "REAUTH_REQUIRED") {
         await this.connections.setStatus(connectionId, "error", String(msg).slice(0, 300));
@@ -84,8 +68,81 @@ export class CalendarSyncService {
       throw e;
     }
 
+    if (conn.provider === "google") {
+      return this.runGoogleSync(conn, accessToken, opts);
+    } else {
+      return this.runMicrosoftSync(conn, accessToken, opts);
+    }
+  }
+
+  /** Sincronização Google Calendar */
+  private async runGoogleSync(conn: any, accessToken: string, opts: { fresh: boolean }): Promise<SyncResult> {
+    const result: SyncResult = { imported: 0, updated: 0, cancelled: 0, skipped: 0 };
+    const { startIso, endIso } = this.window();
+
     try {
-      const { startIso, endIso } = this.window();
+      let pageToken: string | undefined = undefined;
+      let nextSyncToken: string | undefined = undefined;
+      let pages = 0;
+
+      do {
+        pages++;
+        let page;
+        try {
+          page = await this.googleClient.calendarEventsDelta(accessToken, {
+            syncToken: (opts.fresh || !conn.deltaLink) ? undefined : conn.deltaLink,
+            timeMin: (opts.fresh || !conn.deltaLink) ? startIso : undefined,
+            timeMax: (opts.fresh || !conn.deltaLink) ? endIso : undefined,
+            pageToken,
+          });
+        } catch (e) {
+          if (e instanceof GoogleSyncTokenExpiredError) {
+            this.logger.warn(`SyncToken Google expirado para conexão ${conn.id}. Executando sync completo.`);
+            return this.runGoogleSync(conn, accessToken, { fresh: true });
+          }
+          throw e;
+        }
+
+        for (const ev of page.items) {
+          const mapped = googleEventToOrkestri(ev);
+          if (mapped) {
+            const r = await this.applyMappedEvent(conn, mapped, "#4285F4");
+            result[r]++;
+          }
+        }
+
+        pageToken = page.nextPageToken;
+        if (page.nextSyncToken) nextSyncToken = page.nextSyncToken;
+      } while (pageToken && pages < MAX_PAGES);
+
+      await this.prisma.calendarConnection.update({
+        where: { id: conn.id },
+        data: {
+          deltaLink: nextSyncToken || conn.deltaLink,
+          lastSyncAt: new Date(),
+          status: "synced",
+          lastError: null,
+        },
+      });
+
+      this.logger.log(`Google Sync ${conn.id}: +${result.imported} ~${result.updated} x${result.cancelled} (skip ${result.skipped})`);
+      return result;
+    } catch (e: any) {
+      if (e instanceof GoogleAuthError) {
+        await this.connections.markReauthRequired(conn.id, "Google 401 durante sync");
+      } else {
+        await this.connections.setStatus(conn.id, "error", String(e?.message || "Falha na sincronização Google").slice(0, 300));
+      }
+      throw e;
+    }
+  }
+
+  /** Sincronização Microsoft Graph */
+  private async runMicrosoftSync(conn: any, accessToken: string, opts: { fresh: boolean }): Promise<SyncResult> {
+    const result: SyncResult = { imported: 0, updated: 0, cancelled: 0, skipped: 0 };
+    const { startIso, endIso } = this.window();
+
+    try {
       let page = await this.graph.calendarViewDelta(accessToken, {
         deltaLink: opts.fresh ? undefined : (conn.deltaLink || undefined),
         startIso,
@@ -99,8 +156,10 @@ export class CalendarSyncService {
         pages++;
         const items: GraphEventLike[] = page.value || [];
         for (const ev of items) {
-          const r = await this.applyEvent(conn, ev);
-          result[r]++;
+          if (!isSeriesMasterWithoutInstance(ev)) {
+            const r = await this.applyEvent(conn, ev);
+            result[r]++;
+          }
         }
         deltaLink = page["@odata.deltaLink"] || null;
         const nextLink = page["@odata.nextLink"] || null;
@@ -109,7 +168,7 @@ export class CalendarSyncService {
       }
 
       await this.prisma.calendarConnection.update({
-        where: { id: connectionId },
+        where: { id: conn.id },
         data: {
           deltaLink: deltaLink || conn.deltaLink,
           lastSyncAt: new Date(),
@@ -117,35 +176,39 @@ export class CalendarSyncService {
           lastError: null,
         },
       });
-      this.logger.log(`Sync ${connectionId}: +${result.imported} ~${result.updated} x${result.cancelled} (skip ${result.skipped})`);
+      this.logger.log(`Microsoft Sync ${conn.id}: +${result.imported} ~${result.updated} x${result.cancelled} (skip ${result.skipped})`);
       return result;
     } catch (e: any) {
       if (e instanceof GraphAuthError) {
-        await this.connections.markReauthRequired(connectionId, "Graph 401 durante sync");
+        await this.connections.markReauthRequired(conn.id, "Graph 401 durante sync");
       } else if (e instanceof GraphForbiddenError) {
-        await this.connections.setStatus(connectionId, "error", "Permissão insuficiente (Calendars.ReadWrite)");
+        await this.connections.setStatus(conn.id, "error", "Permissão insuficiente (Calendars.ReadWrite)");
       } else {
-        await this.connections.setStatus(connectionId, "error", String(e?.message || "Falha na sincronização").slice(0, 300));
+        await this.connections.setStatus(conn.id, "error", String(e?.message || "Falha na sincronização").slice(0, 300));
       }
       throw e;
     }
   }
 
   /**
-   * Aplica um evento do Graph à agenda unificada. Retorna qual contador somar.
-   * Idempotente: reexecutar com o mesmo etag é no-op ("skipped").
+   * Aplica um evento do Microsoft Graph à agenda unificada.
    */
   private async applyEvent(conn: any, ev: GraphEventLike): Promise<keyof SyncResult> {
     if (isSeriesMasterWithoutInstance(ev)) return "skipped";
     const mapped = graphEventToOrkestri(ev);
     if (!mapped) return "skipped";
+    return this.applyMappedEvent(conn, mapped, "#0078d4");
+  }
 
+  /**
+   * Aplica um evento mapeado (Google ou Microsoft) à tabela Event.
+   */
+  private async applyMappedEvent(conn: any, mapped: MappedExternalEvent, defaultColor: string): Promise<keyof SyncResult> {
     const existing = await this.prisma.event.findUnique({
       where: { connectionId_externalId: { connectionId: conn.id, externalId: mapped.externalId } },
     });
 
-    // Cancelado/removido no Outlook → reflete removendo o espelho local.
-    if (mapped.cancelled) {
+    if (mapped.cancelled || mapped.showAsFree) {
       if (existing) {
         await this.prisma.event.delete({ where: { id: existing.id } });
         return "cancelled";
@@ -153,16 +216,6 @@ export class CalendarSyncService {
       return "skipped";
     }
 
-    // "Livre"/"trabalhando noutro lugar" não ocupa a agenda — não espelhamos.
-    if (mapped.showAsFree) {
-      if (existing) {
-        await this.prisma.event.delete({ where: { id: existing.id } });
-        return "cancelled";
-      }
-      return "skipped";
-    }
-
-    // Anti-eco: mesmo etag = nada mudou.
     if (existing && mapped.externalEtag && existing.externalEtag === mapped.externalEtag) {
       return "skipped";
     }
@@ -192,8 +245,8 @@ export class CalendarSyncService {
         userId: conn.userId,
         criadoPorId: conn.userId,
         tipo: "EXTERNO" as any,
-        cor: "#0078d4", // azul Outlook, para distinguir visualmente
-        provider: PROVIDER,
+        cor: defaultColor,
+        provider: conn.provider || "microsoft",
         connectionId: conn.id,
         externalId: mapped.externalId,
         externalCalendarId: conn.externalCalendarId,
@@ -205,13 +258,12 @@ export class CalendarSyncService {
 
   /**
    * Reconciliação periódica (rede de segurança): re-sincroniza todas as conexões
-   * ativas com uma varredura completa, rolando a janela. Cobre notificações de
-   * webhook perdidas e falhas transitórias.
+   * ativas (Google e Microsoft) com uma varredura completa.
    */
   async reconcileAll(): Promise<{ connections: number; errors: number }> {
     const conns = await this.prisma.calendarConnection.findMany({
-      where: { provider: PROVIDER, syncEnabled: true, status: { in: ["connected", "synced", "error", "syncing"] } },
-      select: { id: true },
+      where: { syncEnabled: true, status: { in: ["connected", "synced", "error", "syncing"] } },
+      select: { id: true, provider: true },
     });
     let errors = 0;
     for (const c of conns) {
@@ -219,7 +271,7 @@ export class CalendarSyncService {
         await this.initialSync(c.id);
       } catch (e: any) {
         errors++;
-        this.logger.warn(`Reconciliação falhou para conexão ${c.id}: ${e?.message || e}`);
+        this.logger.warn(`Reconciliação falhou para conexão ${c.id} (${c.provider}): ${e?.message || e}`);
       }
     }
     return { connections: conns.length, errors };

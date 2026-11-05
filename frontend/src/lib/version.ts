@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "5.1.4";
+export const VERSAO = "5.2.0";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -23,10 +23,10 @@ export const VERSAO = "5.1.4";
  * Não é gerada no build: `new Date()` no bundle muda a cada compilação, e duas
  * builds do mesmo código pareceriam versões diferentes.
  */
-export const VERSAO_DATA = "2026-11-04";
+export const VERSAO_DATA = "2026-11-05";
 
 /** Nome da entrega, para dar contexto ao número. */
-export const VERSAO_NOME = "Nova tela de login com Aurelia em orbita";
+export const VERSAO_NOME = "Integracao Space com Google Agenda";
 
 /**
  * Histórico exibido na tela Sobre, do mais recente para o mais antigo.
@@ -35,6 +35,15 @@ export const VERSAO_NOME = "Nova tela de login com Aurelia em orbita";
  * esta lista quer saber o que mudou para ele.
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
+  {
+    versao: "5.2.0",
+    data: "2026-11-05",
+    titulo: "A Space agora conversa com o Google Agenda",
+    itens: [
+      "Você pode conectar a sua conta do Google Agenda direto pelo botão no topo da Space ou em Configurações → Integrações, quando e se quiser",
+      "Compromissos criados na Space ou pela Aurélia no WhatsApp podem ser enviados automaticamente para o seu Google Agenda, e o que está lá aparece aqui para evitar conflito de horário",
+    ],
+  },
   {
     versao: "5.1.4",
     data: "2026-11-04",
