@@ -6,6 +6,7 @@ import Link from "next/link";
 import { motion, useReducedMotion } from "framer-motion";
 import { X, ChevronDown, MessageCircle } from "lucide-react";
 import { Logo } from "./logo";
+import { InstallPwaButton } from "@/components/ui/install-pwa-button";
 import { WHATSAPP_CADASTRO } from "@/config/site";
 import { products } from "@/config/products";
 import { services } from "@/config/services";
@@ -63,9 +64,6 @@ export function MobileNav({ onClose }: { onClose: () => void }) {
           if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
           else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
         }}
-        /* Gaveta escura: a home é escura e abrir o menu nela devolvia um
-           clarão branco. Sob as páginas claras ela continua legível, como
-           qualquer folha escura sobre fundo claro. */
         className="site-menu-surface absolute right-0 top-0 flex h-full w-[min(88vw,380px)] flex-col border-l border-white/[0.08] bg-ink"
         initial={reduceMotion ? false : { x: "100%" }}
         animate={{ x: 0 }}
@@ -152,7 +150,6 @@ export function MobileNav({ onClose }: { onClose: () => void }) {
         </nav>
 
         <div className="flex flex-col gap-2 border-t border-white/[0.08] p-4">
-          {/* Único caminho de cadastro, aqui como em todo o resto do site. */}
           <a
             href={WHATSAPP_CADASTRO}
             target="_blank"
@@ -170,6 +167,7 @@ export function MobileNav({ onClose }: { onClose: () => void }) {
           >
             Entrar
           </a>
+          <InstallPwaButton variant="mobile" />
         </div>
       </motion.aside>
     </div>,

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Linkedin, Github, Instagram } from "lucide-react";
 import { Container } from "@/components/ui/container";
+import { InstallPwaButton } from "@/components/ui/install-pwa-button";
 import { Logo } from "./logo";
 import { footerNav } from "@/config/navigation";
 import { siteConfig } from "@/config/site";
@@ -28,7 +29,7 @@ export function Footer() {
               A sua agenda, as suas contas e os seus projetos num lugar só — com
               aviso no WhatsApp na hora em que ainda dá tempo.
             </p>
-            <div className="mt-2 flex items-center gap-2.5">
+            <div className="mt-1 flex items-center gap-2.5">
               {socials.map((s) => {
                 const Icon = s.icon;
                 return (
@@ -46,6 +47,7 @@ export function Footer() {
                 );
               })}
             </div>
+            <InstallPwaButton variant="footer" />
           </div>
 
           {footerNav.map((col) => (

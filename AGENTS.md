@@ -5,7 +5,7 @@
 - **Versões em produção e no `http://localhost`:**
   - **API:** `5.1.3`
   - **Frontend (Painel):** `5.1.4`
-  - **Website:** `3.16.0`
+  - **Website:** `3.17.0`
 - **Histórico antigo:** A antiga linha Hub foi preservada em backup externo (`C:\orkestri-backup-hub-20261104`) e na branch local `codex/preserva-hub-20261104`. O foco total do projeto é exclusivamente o sistema atual em produção.
 
 ---

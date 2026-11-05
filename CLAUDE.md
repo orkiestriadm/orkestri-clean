@@ -2,7 +2,7 @@
 
 - **Pasta principal oficial (local):** `C:\orkestri-clean` (alinhada com a produção atual).
 - **Branch remota de referência (GitHub):** `origin/claude/orkiestri-audit-benchmark-4a28b4` (ver `docs/DEPLOY_SITE_3160_FRONTEND_514_2026-11-04.md`).
-- **Versões em produção e no `http://localhost`:** API `5.1.3` | Frontend `5.1.4` | Website `3.16.0`.
+- **Versões em produção e no `http://localhost`:** API `5.1.3` | Frontend `5.1.4` | Website `3.17.0`.
 
 # Instruções para o Claude (e demais IAs)
 
