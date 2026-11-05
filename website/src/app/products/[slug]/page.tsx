@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { ProductCard } from "@/components/cards/product-card";
 import { Reveal } from "@/components/animations/reveal";
 import { CTA } from "@/components/sections/cta";
+import { TutorialVideo } from "@/components/sections/tutorial-video";
 import { products, getProduct } from "@/config/products";
 import { buildMetadata } from "@/lib/seo";
 import { siteConfig } from "@/config/site";
@@ -99,6 +100,15 @@ export default async function ProductPage({
           </div>
         )}
       </PageHero>
+
+      {/* Vídeo tutorial passo a passo exclusivo no One Space */}
+      {product.slug === "one-space" && (
+        <Container>
+          <Reveal>
+            <TutorialVideo />
+          </Reveal>
+        </Container>
+      )}
 
       {/* Captura real do módulo (doc 06: imagens reais, nunca mockups) */}
       {product.screenshot && (

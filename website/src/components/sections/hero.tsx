@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowDown, Check, MoveUpRight } from "lucide-react";
+import { Check, MoveUpRight, Play } from "lucide-react";
 import { Container } from "@/components/ui/container";
 import { WhatsAppButton } from "@/components/ui/whatsapp-button";
 import { AureliaSignature } from "@/components/home/aurelia-signature";
@@ -31,16 +31,22 @@ export function Hero() {
               Você manda uma mensagem. Ela ajuda a organizar, consultar e
               lembrar.
             </p>
-            <div className="mt-7 flex flex-col items-start gap-3">
+            <div className="mt-7 flex flex-wrap items-center gap-3">
               <WhatsAppButton />
-              <a
-                href="#aurelia"
-                className="inline-flex min-h-11 items-center gap-3 text-sm font-medium text-chalk-dim transition-colors hover:text-chalk"
+              <Link
+                href="/products/one-space#tutorial"
+                className="group inline-flex min-h-[52px] items-center gap-3 rounded-(--radius-button) border border-flame/40 bg-flame/[0.09] px-5 py-3 text-sm font-semibold text-chalk shadow-[inset_0_1px_0_rgba(255,196,138,0.18)] transition-all duration-200 hover:border-flame hover:bg-flame/[0.16] hover:text-white"
               >
-                Conheça a Aurélia <ArrowDown size={16} aria-hidden />
-              </a>
+                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-flame text-white shadow-[0_0_16px_rgba(255,106,26,0.6)] transition-transform duration-200 group-hover:scale-105">
+                  <Play size={13} className="ml-0.5 fill-current" aria-hidden />
+                </span>
+                <span>
+                  Ver vídeo de como funciona{" "}
+                  <span className="font-normal text-ember">(1m46s)</span>
+                </span>
+              </Link>
             </div>
-            <p className="mt-2 max-w-md text-xs leading-relaxed text-chalk-dim">
+            <p className="mt-3 max-w-md text-xs leading-relaxed text-chalk-dim">
               {/* Era "Cadastro gratuito no Orkiestri". Com o preço publicado
                   em /planos, o hero precisa dizer o que acontece depois do
                   teste — descobrir a cobrança só no sétimo dia é o jeito mais
