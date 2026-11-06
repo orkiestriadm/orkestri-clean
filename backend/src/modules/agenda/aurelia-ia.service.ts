@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { diaCompromisso, horaCompromisso } from '../notifications/evento-alerta-datas';
 import { diaSaoPaulo, instanteSaoPaulo, somarDias } from './whatsapp-rotina-datas';
+import { horarioAmbiguo } from './whatsapp-agenda-comandos';
 
 export type ExtracaoAgenda = { acao: 'criar' | 'consultar' | 'outro'; titulo: string; dia: string; hora: string; duracao: string };
 export const CAMPOS_IA = ['titulo', 'dia', 'hora', 'duracao'] as const;
@@ -63,7 +64,7 @@ export function trechoOriginalIa(texto: string, valor: string): string | null {
 }
 /** Written clock times require an explicit period; "duas" alone is ambiguous. */
 export function horaIa(s: string): string | null {
-  const n = normal(s).replace(/^as\s+/, '');
+  const n = normal(s).replace(/^as\s+/, '').replace(/ e trinta\b/, ' e meia');
   if (n === 'meio-dia' || n === 'meio dia') return '12:00';
   if (n === 'meia-noite' || n === 'meia noite') return '00:00';
   const m = n.match(/^(uma|duas|tres|quatro|cinco|seis|sete|oito|nove|dez|onze|doze|\d{1,2})(?: (?:horas?))?( e meia)? (?:da|a) (manha|tarde|noite)$/);
@@ -101,8 +102,8 @@ export function dadosAgendaIa(v: ExtracaoAgenda, agora = new Date()): Record<str
     const [h, m] = hora.split(':');
     const quando = instanteSaoPaulo(dia, h, m);
     if (quando > agora) dados.quando = quando.toISOString();
-  } else if (dia || hora) {
-    dados.quandoParcial = { ...(dia ? { dia } : {}), ...(hora ? { horario: hora } : {}) };
+  } else if (dia || hora || horarioAmbiguo(v.hora)) {
+    dados.quandoParcial = { ...(dia ? { dia } : {}), ...(hora ? { horario: hora } : {}), ...(horarioAmbiguo(v.hora) ? { ambiguo: v.hora } : {}) };
   }
   const duracao = duracaoIa(v.duracao);
   if (duracao !== undefined) dados.duracao = duracao;

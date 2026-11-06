@@ -9,7 +9,7 @@ const meses = ["janeiro", "fevereiro", "marco", "abril", "maio", "junho", "julho
 
 /** Interpreta só o dia; nunca atribui um horário nem corrige datas impossíveis. */
 export function diaCompromisso(texto: string, agora = new Date()): string | null {
-  const t = normalizar(texto), hoje = diaSaoPaulo(agora);
+  const t = normalizar(texto).replace(/^dia\s+/, '').replace(/^(\d{1,2})\s+(?:do|de)\s+(\d{1,2})$/, '$1/$2'), hoje = diaSaoPaulo(agora);
   if (t === "hoje") return hoje;
   if (t === "amanha") return somarDias(hoje, 1);
   const numerica = t.match(/^(\d{1,2})\/(\d{1,2})(?:\/(\d{4}))?$/);

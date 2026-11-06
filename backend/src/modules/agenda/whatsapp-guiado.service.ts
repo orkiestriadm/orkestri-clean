@@ -1,4 +1,5 @@
 import { coletarQuando, perguntaQuando } from "./whatsapp-guiado-quando";
+import { comandoAgenda } from './whatsapp-agenda-comandos';
 import { Injectable, Optional } from "@nestjs/common";
 import { AureliaIaService, dadosAgendaIa, duracaoIa, ExtracaoAgenda } from './aurelia-ia.service';
 import { PrismaService } from "../../prisma/prisma.service";
@@ -382,9 +383,11 @@ export class WhatsappGuiadoService {
     // under the same advisory lock used by all guided writes.
     let extraidoIa: ExtracaoAgenda = null;
     let snapshotIa: string | undefined;
-    if (this.ia?.habilitada() && texto.length <= 1000 &&
+    const comando = comandoAgenda(texto);
+    if ((comando || this.ia?.habilitada()) && texto.length <= 1000 &&
+        (comando ||
         /\b(?:agend|marc|compromisso|consulta|dentista|reuni[aã]o)\w*/i.test(texto) &&
-        !/\b(?:apagu|apag|exclu|cancel|remov|reagend|alter|mud|repete|repetir|toda|todo|diariamente|semanalmente|mensalmente)\w*/i.test(texto)) {
+        !/\b(?:apagu|apag|exclu|cancel|remov|reagend|alter|mud|repete|repetir|toda|todo|diariamente|semanalmente|mensalmente)\w*/i.test(texto))) {
       try {
         const acesso = await this.auth.resolvePermissions(u.id);
         const rows: any[] = await this.prisma.$queryRaw`SELECT etapa,dados FROM whatsapp_inicio WHERE user_id=${u.id} AND instancia=${instancia} AND conversa=${conversa} AND expira_em>CURRENT_TIMESTAMP`;
@@ -392,7 +395,7 @@ export class WhatsappGuiadoService {
         if (permissao(acesso, 'agenda:criar') && contextos[0]?.contexto !== 'EMPRESA' &&
             (!rows.length || rows[0]?.dados?.fase === 'MENU')) {
           snapshotIa = JSON.stringify(rows[0] || null);
-          extraidoIa = await this.ia.extrair(texto);
+          extraidoIa = comando || await this.ia.extrair(texto);
         }
       } catch { /* Preserve the existing flow if the optional AI is unavailable. */ }
     }

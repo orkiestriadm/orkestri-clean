@@ -12,6 +12,17 @@ import { WhatsappEquipeService } from "./whatsapp-equipe.service";
 
 const user = { id: "u1", organizationId: "org1", nome: "Pessoa Teste" };
 describe('Aurélia IA integrada ao fluxo autorizado', () => {
+  it('aceita transcrição com Aurélio mesmo sem IA, esclarece horário e cancela sem gravar', async () => {
+    const s = setup();
+    await s.say('Aurélio. Anota aí pra mim: pegar táxi amanhã às duas horas.');
+    expect(s.text()).toContain('É de manhã');
+    await s.say('da tarde');
+    expect(s.state().dados.v.quando).toBeTruthy();
+    expect(s.state().dados.v.titulo).toBe('pegar táxi');
+    await s.say('cancelar');
+    expect(s.state()).toBeNull();
+    expect(s.db.event.create).not.toHaveBeenCalled();
+  });
   const ia = (dados: any) => ({ habilitada: () => true, extrair: jest.fn().mockResolvedValue(dados) });
   const proposta = { acao: 'criar', titulo: 'dentista', dia: 'amanhã', hora: '14h', duracao: 'uma hora' };
   it('preenche rascunho e só grava depois da confirmação explícita', async () => {
