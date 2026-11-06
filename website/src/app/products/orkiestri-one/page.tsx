@@ -29,12 +29,36 @@ export const metadata = buildMetadata({
 });
 
 const layers = [
-  { icon: Boxes, title: "Core Platform", text: "Identidade, autenticação, permissões e integrações." },
-  { icon: Zap, title: "Automation Engine", text: "Fluxos, eventos, aprovações e notificações." },
-  { icon: BrainCircuit, title: "Artificial Intelligence", text: "Copilotos, OCR, busca e análise — nativos." },
-  { icon: BarChart3, title: "Analytics", text: "Dashboards, KPIs e Business Intelligence." },
-  { icon: Plug, title: "Integration Layer", text: "API REST, webhooks, filas e mensageria." },
-  { icon: ShieldCheck, title: "Security", text: "MFA, criptografia, auditoria e LGPD." },
+  {
+    icon: Boxes,
+    title: "Core Platform",
+    text: "Identidade, autenticação, permissões e integrações.",
+  },
+  {
+    icon: Zap,
+    title: "Automation Engine",
+    text: "Fluxos, eventos, aprovações e notificações.",
+  },
+  {
+    icon: BrainCircuit,
+    title: "Artificial Intelligence",
+    text: "Copilotos, OCR, busca e análise — nativos.",
+  },
+  {
+    icon: BarChart3,
+    title: "Analytics",
+    text: "Dashboards, KPIs e Business Intelligence.",
+  },
+  {
+    icon: Plug,
+    title: "Integration Layer",
+    text: "API REST, webhooks, filas e mensageria.",
+  },
+  {
+    icon: ShieldCheck,
+    title: "Security",
+    text: "MFA, criptografia, auditoria e LGPD.",
+  },
 ];
 
 const benefits = [
@@ -118,7 +142,9 @@ export default function OrkiestriOnePage() {
                   <h3 className="mt-5 text-lg font-semibold text-chalk">
                     {l.title}
                   </h3>
-                  <p className="mt-2 text-[0.9375rem] text-chalk-dim">{l.text}</p>
+                  <p className="mt-2 text-[0.9375rem] text-chalk-dim">
+                    {l.text}
+                  </p>
                 </div>
               </Reveal>
             );
@@ -157,7 +183,7 @@ export default function OrkiestriOnePage() {
 
       <CTA
         title="Comece pela agenda. O resto vem quando precisar."
-        text="A conta nasce numa conversa de WhatsApp, com os módulos já ligados."
+        text="Faça seu cadastro no Orkiestri com a Aurélia pelo WhatsApp. Os recursos disponíveis seguem o plano e as permissões da conta."
       />
     </>
   );

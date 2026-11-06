@@ -25,7 +25,7 @@ export default function ServicesPage() {
         <ServicesGrid />
       </Section>
       <SoftwareFactory />
-      <CTA />
+      <CTA intent="project" />
     </>
   );
 }

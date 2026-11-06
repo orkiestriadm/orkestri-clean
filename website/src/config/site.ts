@@ -24,8 +24,8 @@ export const siteConfig = {
     "Orkiestri guarda a sua agenda, as suas anotações, os seus projetos, as suas contas e os seus gastos — e te avisa no WhatsApp quando é hora. Você anota mandando uma mensagem e é lembrado por mensagem.",
   locale: "pt-BR",
   social: {
-    linkedin: "https://www.linkedin.com/company/orkiestri",
-    github: "https://github.com/orkiestri",
+    linkedin: "https://www.linkedin.com/in/guilherme-l-rodrigues",
+    github: "https://github.com/orkiestriadm",
     instagram: "https://www.instagram.com/orkiestri",
     youtube: "https://www.youtube.com/@orkiestri",
   },
@@ -47,5 +47,5 @@ export type SiteConfig = typeof siteConfig;
 export const WHATSAPP_NUMERO = "5514991661688";
 
 export const WHATSAPP_CADASTRO = `https://wa.me/${WHATSAPP_NUMERO}?text=${encodeURIComponent(
-  "Quero fazer meu cadastro no Orkiestri",
+  "CADASTRO",
 )}`;

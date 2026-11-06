@@ -11,7 +11,133 @@ import {
 import { WhatsappEquipeService } from "./whatsapp-equipe.service";
 
 const user = { id: "u1", organizationId: "org1", nome: "Pessoa Teste" };
-function setup(perms = ["*"]) {
+describe('Atendimento conversacional público',()=>{
+  const conversar=(s:ReturnType<typeof setup>,t:string)=>s.service.tratarConversa(user,t,'chat','inst',s.ports);
+  it('não oferece menus nem executa funções de outros módulos',async()=>{
+    const s=setup();
+    for(const t of ['oi','menu','1','7']) {
+      await conversar(s,t);
+      expect(s.text()).toContain('Dentista hoje às 17h');
+      expect(s.text()).not.toMatch(/\*[0-9]\*|Responda o número/);
+    }
+    await conversar(s,'projetos');
+    expect(s.text()).toContain('/login');
+    expect(s.db.project.create).not.toHaveBeenCalled();
+  });
+  it('lança pix apenas depois de confirmar',async()=>{
+    const s=setup();
+    await conversar(s,'lançar barrinha de cereal 12 reais no pix');
+    expect(s.text()).toContain('barrinha de cereal');
+    expect(s.text()).toContain('Fechou, confirma');
+    expect(s.db.gasto.create).not.toHaveBeenCalled();
+    await conversar(s,'sim');
+    expect(s.db.gasto.create).toHaveBeenCalledWith({data:expect.objectContaining({descricao:'barrinha de cereal',valor:12,formaPagamento:'PIX',userId:user.id,organizationId:user.organizationId})});
+    expect(s.text()).not.toMatch(/\*[0-9]\*/);
+  });
+  it('cria parcelas mensais somando o total após confirmação',async()=>{
+    const s=setup();
+    await conversar(s,'lançar Gasolina 400 reais no credito em 3x');
+    expect(s.text()).toContain('133,34');
+    expect(s.db.gasto.create).not.toHaveBeenCalled();
+    await conversar(s,'pode salvar');
+    const dados=s.db.gasto.create.mock.calls.map((c:any)=>c[0].data);
+    expect(dados).toHaveLength(3);
+    expect(dados.map((d:any)=>d.valor)).toEqual([133.34,133.33,133.33]);
+    expect(dados.map((d:any)=>d.parcelas)).toEqual([1,1,1]);
+    expect(dados[1].dataGasto.getUTCMonth()).toBe((dados[0].dataGasto.getUTCMonth()+1)%12);
+    expect(dados.every((d:any)=>d.userId===user.id&&d.organizationId===user.organizationId)).toBe(true);
+  });
+  it('cancelamento e falta de permissão não geram parcelas',async()=>{
+    const s=setup();await conversar(s,'lançar Gasolina 400 reais no credito em 3x');await conversar(s,'não salva');
+    expect(s.db.gasto.create).not.toHaveBeenCalled();
+    const sem=setup(['agenda:ver']);await conversar(sem,'lançar Gasolina 400 reais no credito em 3x');
+    expect(sem.text()).toContain('não permite');expect(sem.db.gasto.create).not.toHaveBeenCalled();
+  });
+});
+describe('Aurélia IA integrada ao fluxo autorizado', () => {
+  it.each(['cancela','deixa pra lá','não salva','desisti'])('cancela um rascunho com %s', async (frase) => {
+    const s = setup();
+    await s.say('Aurélia, anota aí: dentista amanhã');
+    await s.say(frase);
+    expect(s.state()).toBeNull();
+    expect(s.db.event.create).not.toHaveBeenCalled();
+  });
+  it('corrige horário e título sem gravar até confirmação', async () => {
+    const s = setup();
+    await s.say('Agende uma reunião amanhã às 15h por meia hora');
+    await s.say('não');
+    await s.say('não, é às 16h');
+    expect(s.text()).toContain('16:00');
+    await s.say('o nome é reunião com João');
+    expect(s.text()).toContain('reunião com João');
+    expect(s.db.event.create).not.toHaveBeenCalled();
+    await s.say('isso mesmo, pode marcar');
+    expect(s.db.event.create).toHaveBeenCalledTimes(1);
+    expect(s.db.event.create.mock.calls[0][0].data.titulo).toBe('reunião com João');
+  });
+  it('pede um compromisso por vez e não chama o modelo para misturá-los', async () => {
+    const modelo = {habilitada:()=>true,extrair:jest.fn()};
+    const s=setup(['*'],modelo);
+    await s.say('marque dentista amanhã às 9h e academia às 15h');
+    expect(s.text()).toContain('um de cada vez');
+    expect(modelo.extrair).not.toHaveBeenCalled();
+    expect(s.db.event.create).not.toHaveBeenCalled();
+  });
+  it('aceita transcrição com Aurélio mesmo sem IA, esclarece horário e cancela sem gravar', async () => {
+    const s = setup();
+    await s.say('Aurélio. Anota aí pra mim: pegar táxi amanhã às duas horas.');
+    expect(s.text()).toContain('É de manhã');
+    await s.say('da tarde');
+    expect(s.state().dados.v.quando).toBeTruthy();
+    expect(s.state().dados.v.titulo).toBe('pegar táxi');
+    await s.say('cancelar');
+    expect(s.state()).toBeNull();
+    expect(s.db.event.create).not.toHaveBeenCalled();
+  });
+  const ia = (dados: any) => ({ habilitada: () => true, extrair: jest.fn().mockResolvedValue(dados) });
+  const proposta = { acao: 'criar', titulo: 'dentista', dia: 'amanhã', hora: '14h', duracao: 'uma hora' };
+  it('preenche rascunho e só grava depois da confirmação explícita', async () => {
+    const s = setup(['*'], ia(proposta));
+    await s.say('Marca dentista amanhã às 14h por uma hora');
+    expect(s.text()).toContain('se repete');
+    expect(s.db.event.create).not.toHaveBeenCalled();
+    await s.say('não');
+    expect(s.text()).toContain('Posso confirmar em sua agenda');
+    expect(s.db.event.create).not.toHaveBeenCalled();
+    await s.say('pode salvar');
+    expect(s.db.event.create).toHaveBeenCalledTimes(1);
+    expect(s.db.event.create.mock.calls[0][0].data).toMatchObject({ userId: user.id, organizationId: user.organizationId, titulo: 'dentista' });
+    expect(s.wb.onEventCreated).toHaveBeenCalledWith('salvo');
+    expect(s.text()).not.toContain('Responda o número');
+  });
+  it('pergunta informações ausentes e cancela sem gravar', async () => {
+    const s = setup(['*'], ia({ ...proposta, dia: '', hora: '', duracao: '' }));
+    await s.say('Quero agendar dentista');
+    expect(s.text()).toContain('dia e o horário');
+    await s.say('cancelar');
+    expect(s.state()).toBeNull();
+    expect(s.db.event.create).not.toHaveBeenCalled();
+  });
+  it('não usa IA sem permissão e preserva o fallback', async () => {
+    const client = ia(proposta); const s = setup(['agenda:ver'], client);
+    await s.say('Marca dentista amanhã às 14h');
+    expect(client.extrair).not.toHaveBeenCalled();
+    expect(s.db.event.create).not.toHaveBeenCalled();
+    const legacy = setup(['*'], ia(null));
+    await legacy.say('menu');
+    expect(legacy.text()).toContain('Dentista hoje às 17h');
+  });
+  it('revalida a permissão na confirmação', async () => {
+    const s = setup(['*'], ia(proposta));
+    await s.say('Marca dentista amanhã às 14h por uma hora');
+    await s.say('não');
+    s.auth.resolvePermissions.mockResolvedValue(['agenda:ver']);
+    await s.say('sim');
+    expect(s.db.event.create).not.toHaveBeenCalled();
+    expect(s.text()).toContain('Seu acesso mudou');
+  });
+});
+function setup(perms = ["*"], ia?: any) {
   let state: any = null;
   const model = () => ({
     findMany: jest.fn().mockResolvedValue([]),
@@ -29,7 +155,6 @@ function setup(perms = ["*"]) {
     project: model(),
     task: model(),
     user: model(),
-    contaPagar: model(),
   };
   db.$executeRaw = jest.fn(async (sql: any, ...values: any[]) => {
     const q = sql.join("");
@@ -40,9 +165,8 @@ function setup(perms = ["*"]) {
       state = { etapa: "GUIA_REVISAR", dados: { fase: "REVISAR", v: {} } };
     return 1;
   });
-  db.$queryRaw = jest.fn(async () =>
-    state ? [JSON.parse(JSON.stringify(state))] : [],
-  );
+  db.$queryRaw = jest.fn(async (sql: any) => sql.join('').includes('FROM whatsapp_contextos')
+    ? [] : state ? [JSON.parse(JSON.stringify(state))] : []);
   db.$transaction = jest.fn(async (fn: any) => fn(db));
   const wa: any = { sendToJid: jest.fn().mockResolvedValue(true) };
   const auth: any = { resolvePermissions: jest.fn().mockResolvedValue(perms) };
@@ -54,7 +178,7 @@ function setup(perms = ["*"]) {
     onEventUpdated: jest.fn().mockResolvedValue(undefined),
     onEventDeleted: jest.fn().mockResolvedValue(undefined),
   };
-  const service = new WhatsappGuiadoService(db, wa, auth, equipe, wb);
+  const service = new WhatsappGuiadoService(db, wa, auth, equipe, wb, ia);
   const ports: any = {
     evento: (t: string) => parseComandoEvento("Evento: " + t, new Date()),
     gasto: (t: string) => parseComandoGasto(t, new Date(), true),
@@ -79,7 +203,7 @@ describe("Aurélia guiada", () => {
   it("mostra nomes de ações e só recursos permitidos", async () => {
     const s = setup(["keep:ver", "keep:criar"]);
     await s.say("menu");
-    expect(s.text()).toContain("Anotações");
+    expect(s.text()).toContain("www.orkiestri.com");
     expect(s.text()).not.toContain("Meus gastos");
     expect(s.text()).not.toContain("Keep");
   });
@@ -248,7 +372,7 @@ describe("Aurélia guiada", () => {
   it("comando antigo também apresenta prévia antes de criar", async () => {
     const s = setup();
     await s.say("Gasto: Mercado 150 pix");
-    expect(s.text()).toContain("Confirmar");
+    expect(s.text()).toContain("Fechou, confirma");
     expect(s.db.gasto.create).not.toHaveBeenCalled();
   });
   it("deixa comandos de acesso saírem do diálogo sem virar anotação", async () => {
@@ -257,12 +381,14 @@ describe("Aurélia guiada", () => {
     expect(await s.say("acesso")).toBe(false);
     expect(s.db.note.create).not.toHaveBeenCalled();
   });
+  // O "5" era "6" até 02/11/2026: a opção 4 do menu MAIS era Contas a pagar,
+  // que saiu com o módulo, e as de baixo subiram um número.
   it("explica precisamente as opções avançadas do site", async () => {
     const s = setup();
-    for (const t of ["menu", "6", "6"]) await s.say(t);
+    for (const t of ["menu", "6", "5"]) await s.say(t);
     expect(s.text()).toContain("anexos");
     expect(s.text()).toContain("https://www.orkiestri.com/login");
-    expect(s.text()).toContain("Como posso ajudar");
+    expect(s.text()).toContain("Diga o que você quer fazer");
   });
 });
 describe("Datas e valores guiados", () => {
@@ -306,5 +432,55 @@ describe("Gateway de projetos guiados", () => {
       "org1",
     );
     expect(svc.chamar).not.toHaveBeenCalled();
+  });
+});
+
+
+describe("Data e horário do compromisso em mensagens separadas", () => {
+  beforeEach(() => { jest.useFakeTimers(); jest.setSystemTime(new Date("2026-10-29T11:28:00Z")); });
+  afterEach(() => jest.useRealTimers());
+  it.each(["10/12/2026", "10 de dezembro de 2026"])("preserva %s e pede somente o horário", async data => {
+    const s = setup();
+    for (const t of ["menu", "1", "1", "Consulta", data]) await s.say(t);
+    expect(s.text()).toContain("10/12/2026");
+    expect(s.text()).toContain("Qual é o horário");
+    expect(s.text()).not.toContain("data válida");
+    expect(s.db.event.create).not.toHaveBeenCalled();
+    // Nova instância comprova persistência entre mensagens/webhooks.
+    const resumed = new WhatsappGuiadoService(s.db, s.wa, s.auth, s.equipe, s.wb);
+    await resumed.tratar(user, "14:30", "chat", "inst", s.ports);
+    expect(s.text()).toContain("repete");
+    for (const t of ["1"]) await s.say(t);
+    expect(s.text()).toContain("10/12/2026");
+    expect(s.db.event.create).not.toHaveBeenCalled();
+    await s.say("1");
+    expect(s.db.event.create).toHaveBeenCalledWith({data: expect.objectContaining({inicio: new Date("2026-12-10T17:30:00Z"),titulo:"Consulta",organizationId:"org1",userId:"u1"})});
+  });
+  it.each(["09h", "9"])("interpreta %s como horário após receber a data", async hora => {
+    const s=setup();for(const t of ["menu","1","1","Consulta","10/12/2026",hora])await s.say(t);
+    expect(s.state().dados.v.quando).toBe("2026-12-10T12:00:00.000Z");
+  });
+  it("guarda o horário quando ele chega antes da data", async () => {
+    const s=setup();for(const t of ["menu","1","1","Consulta","às 14h30"]) await s.say(t);
+    expect(s.text()).toContain("Qual é o dia");
+    await s.say("10 de dezembro de 2026");
+    expect(s.text()).toContain("repete");expect(s.state().dados.v.quando).toBe("2026-12-10T17:30:00.000Z");
+  });
+  it("mantém a data após horário inválido e aceita substituí-la", async () => {
+    const s=setup();for(const t of ["menu","1","1","Consulta","10/12/2026","25h"])await s.say(t);
+    expect(s.text()).toContain("10/12/2026");
+    await s.say("11 de dezembro de 2026");await s.say("14");
+    expect(s.state().dados.v.quando).toBe("2026-12-11T17:00:00.000Z");
+  });
+  it("voltar descarta a data parcial e cancelar não cria evento", async () => {
+    const s=setup();for(const t of ["menu","1","1","Consulta","10/12/2026","voltar","14h"])await s.say(t);
+    expect(s.text()).toContain("Qual é o dia");expect(s.db.event.create).not.toHaveBeenCalled();
+    await s.say("cancelar");expect(s.state().dados.v.quandoParcial).toBeUndefined();expect(s.db.event.create).not.toHaveBeenCalled();
+  });
+  it("recusa datas impossíveis e passadas sem inventar horário", async () => {
+    const s=setup();for(const t of ["menu","1","1","Consulta","31 de fevereiro de 2027","28/10/2026"])await s.say(t);
+    expect(s.state().dados.v.quando).toBeUndefined();expect(s.text()).toContain("passado");expect(s.db.event.create).not.toHaveBeenCalled();
+    await s.say("hoje");await s.say("08h");expect(s.text()).toContain("passou");expect(s.db.event.create).not.toHaveBeenCalled();
+    await s.say("14h");expect(s.text()).toContain("repete");
   });
 });

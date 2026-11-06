@@ -1,0 +1,93 @@
+{
+  "activatedAt": "2026-10-28T18:30:11.153652+00:00",
+  "revision": "9d15275a44e5ac8402f06fcd24eb1d61299b2a70",
+  "image": "sha256:7bb817c0f0529b3a55b3d1d11f793ac63c3726dd699dcd8328e0643167a878cb",
+  "container": "c272e49bb2acb09408259e738f2502746922eea8238cd4358d3b9b3fe1f80cac",
+  "apiHealth": "healthy",
+  "runtimeChecksums": "passed",
+  "publicRoutes": 3,
+  "otherServicesPreserved": [
+    "orkestri_frontend",
+    "orkestri_website",
+    "orkestri_nginx",
+    "orkestri_postgres",
+    "orkestri_redis",
+    "orkestri_evolution_v2",
+    "orkestri_media_worker"
+  ],
+  "migrationsExecuted": false,
+  "rollback": "orkestri/api:rollback-cadastro-9d15275-20261028",
+  "livePrompt": "Qual é o nome da sua *empresa ou organização*? Se não tiver empresa, informe seu *nome completo*. Esse nome aparecerá na sua organização.",
+  "oldSelectorPresent": false,
+  "artifact": {
+    "revision": "9d15275a44e5ac8402f06fcd24eb1d61299b2a70",
+    "base": "df9f9083e66df084cc9aad1cef54876c2384277e",
+    "typescript": "5.9.3",
+    "sourceFiles": [
+      {
+        "path": "backend/Dockerfile",
+        "sha256": "294eff49e5a2c1c6b4121dac8168ad2995318c4ef23897ad1e63c93385907e23",
+        "baseline": "d9afed75a7b262dd291b9a077ce27f23b966a59ec8133c1c35cd649eaad56fe7"
+      },
+      {
+        "path": "backend/package.json",
+        "sha256": "efa04d35a15b87c1ca69ad55f666538749b76020754556fb2e65f5654949d956",
+        "baseline": "b853afc2045ed5e4619f7ea0b3550464b12538aeb47942ecfec81336fa2e1064"
+      },
+      {
+        "path": "backend/scripts/test-whatsapp-signup.cjs",
+        "sha256": "2a7b2fec1b307ed1f083815e06ea16c72052769dec245495d967025f13f615d8",
+        "baseline": null
+      },
+      {
+        "path": "backend/src/modules/cadastro-whatsapp/cadastro-atomico.ts",
+        "sha256": "3bfd426d80dce03cb6e27c7d6b4087282e4595e1b0fe8ddfb0ec46196bf26963",
+        "baseline": "44998ee1cc0b018c73230f9584002e5abcab88ac1bb1c1d227de49f43fb6b0de"
+      },
+      {
+        "path": "backend/src/modules/cadastro-whatsapp/cadastro-whatsapp.module.ts",
+        "sha256": "ca3d1a49d22b191ccc81ad75a8ff53fb38319e24a5f41376c416fad24288dcb6",
+        "baseline": "b42a5f02eca2c36b9689ea82dd583db67e0df48669580007326c03197abe3d92"
+      },
+      {
+        "path": "backend/test/jest-signup.json",
+        "sha256": "05d6c0cb357cfff73db770aa48d139f819448a63f5ba023c52942086bd92d1bb",
+        "baseline": null
+      },
+      {
+        "path": "backend/test/whatsapp-signup.integration.spec.ts",
+        "sha256": "4b23af777ba58583213adc74e0e6dfcf45a3ca2370acd768b6db472c576a4822",
+        "baseline": null
+      },
+      {
+        "path": "backend/tsconfig.build.json",
+        "sha256": "81ff9711c26c7125010a960227a6f0fb7a850854d1744e3088fff41d81eac798",
+        "baseline": null
+      },
+      {
+        "path": "docs/CADASTRO_WHATSAPP_CORRECAO_2026-10-28.md",
+        "sha256": "4b7c42be9377ede4a1afa56ec4aaacbd945a20412dfbc08fb34e19d536f5a24c",
+        "baseline": null
+      }
+    ],
+    "runtimeFiles": [
+      {
+        "path": "modules/cadastro-whatsapp/cadastro-atomico.js",
+        "sha256": "6b2deb7bc711f31c1fe708dace5873a692c5bc30f0a7dcf9eca0a56ce4174c12"
+      },
+      {
+        "path": "modules/cadastro-whatsapp/cadastro-atomico.js.map",
+        "sha256": "9f4c6ae3090b805f32387772e95a717d24080e0a5e9763181da35ae96691afa3"
+      },
+      {
+        "path": "modules/cadastro-whatsapp/cadastro-whatsapp.module.js",
+        "sha256": "5581384c979ac281e51ffa9923d13a3d2f67cdb6e935c6978cfc9f9b8075bef2"
+      },
+      {
+        "path": "modules/cadastro-whatsapp/cadastro-whatsapp.module.js.map",
+        "sha256": "680c87d15342377f8ff3c9059854f18f6ab455ec8965075bad196d0732522c0e"
+      }
+    ]
+  },
+  "previousImage": "sha256:a713e32fbda1ee63f1870b6099030a816fe8a051f19bdf779949396aab6e32bc"
+}

@@ -6,9 +6,10 @@ import {
 } from "recharts";
 import Topbar from "@/components/layout/Topbar";
 import { api } from "@/lib/api";
+import { useAuthStore } from "@/lib/store";
 import {
   Receipt, Plus, Pencil, Trash2, X, CalendarDays, Wallet, TrendingDown,
-  Loader2, MessageCircle, Search,
+  Loader2, MessageCircle, Search, AlertTriangle,
 } from "lucide-react";
 
 // ── Config ──────────────────────────────────────────────────────────────────
@@ -26,6 +27,8 @@ type Gasto = {
   id: string; descricao: string; categoria?: string | null; valor: number;
   formaPagamento: string; parcelas: number; valorParcela?: number | null;
   dataGasto: string; origem: string;
+  /** Só vem na visão da organização: o dono do lançamento. */
+  pessoa?: string;
 };
 type Meta = { id: string; categoria: string; limiteMensal: number; gastoMes: number };
 type Recorrente = { id: string; descricao: string; categoria?: string | null; valor: number; formaPagamento: string; diaDoMes: number; ativo: boolean };
@@ -47,6 +50,10 @@ type Resumo = {
     porCategoria: { categoria: string; valor: number; qtd: number }[];
     porDia: { dia: string; label: string; valor: number }[];
   };
+  /** Liga o seletor "Toda a organização", só para quem administra. */
+  podeVerOrg?: boolean;
+  /** O que estes números já cobrem: "meu" ou "org". */
+  escopo?: "meu" | "org";
 };
 
 // ── Formatters ──────────────────────────────────────────────────────────────
@@ -59,21 +66,27 @@ const inicioMes = () => { const d = new Date(); return isoDay(new Date(d.getFull
 const fimMes = () => { const d = new Date(); return isoDay(new Date(d.getFullYear(), d.getMonth() + 1, 0)); };
 
 const card: CSSProperties = {
-  background: "var(--surface, #fff)", border: "1px solid var(--border, #e5e7eb)",
+  background: "var(--bg-card)", border: "1px solid var(--border-subtle)",
   borderRadius: 14, padding: 18,
 };
 
 // ── Page ────────────────────────────────────────────────────────────────────
 export default function GastosPage() {
+  const { user } = useAuthStore();
   const [resumo, setResumo] = useState<Resumo | null>(null);
   const [rows, setRows] = useState<Gasto[]>([]);
   const [loading, setLoading] = useState(true);
+  const [erro, setErro] = useState<string | null>(null);
   const [inicio, setInicio] = useState(inicioMes());
   const [fim, setFim] = useState(fimMes());
   const [preset, setPreset] = useState<Preset>("mes");
   const [q, setQ] = useState("");
   const [forma, setForma] = useState("");        // filtra a tabela
   const [categoria, setCategoria] = useState(""); // filtra a tabela
+  /* "meu" (padrão) ou "org". Só quem administra consegue "org"; o seletor só
+     aparece quando o resumo volta com podeVerOrg, e o backend ignora "org" de
+     quem não é master. */
+  const [escopoView, setEscopoView] = useState<"meu" | "org">("meu");
   const [metas, setMetas] = useState<Meta[]>([]);
   const [recorrentes, setRecorrentes] = useState<Recorrente[]>([]);
   const [categorias, setCategorias] = useState<Categoria[]>([]);
@@ -87,20 +100,38 @@ export default function GastosPage() {
 
   const carregar = useCallback(async () => {
     setLoading(true);
+    setErro(null);
     try {
-      const params: any = { inicio, fim };
+      const escopo = escopoView === "org" ? "org" : undefined;
+      const params: any = { inicio, fim, escopo };
       const [r, l] = await Promise.all([
         api.get("/gastos/resumo", { params }),
         api.get("/gastos", { params: { ...params, q: q || undefined, forma: forma || undefined, categoria: categoria || undefined, limit: 200 } }),
       ]);
       setResumo(r.data);
       setRows(l.data.rows || []);
-    } catch {
-      // silencioso: a tela mostra estado vazio
+    } catch (e: any) {
+      /* Antes isto era um `catch` vazio com o comentário "silencioso: a tela
+         mostra estado vazio". Falha de rede, 403 e "você não tem gasto nenhum"
+         viravam a MESMA tela — e em 03/11/2026 isso custou um dia de
+         investigação: a conta tinha nove gastos, a API respondeu certo, e quem
+         olhava via "Comece a anotar seus gastos" sem nenhuma pista de que
+         estava na conta errada.
+
+         Erro de verdade agora aparece. Quem não tem gasto continua vendo o
+         convite para começar. */
+      const status = e?.response?.status;
+      setErro(
+        status === 403
+          ? "Sua conta não tem acesso aos gastos. Fale com quem administra a organização."
+          : "Não consegui carregar seus gastos agora. Tente de novo em instantes.",
+      );
+      setRows([]);
+      setResumo(null);
     } finally {
       setLoading(false);
     }
-  }, [inicio, fim, q, forma, categoria]);
+  }, [inicio, fim, q, forma, categoria, escopoView]);
 
   const carregarMetas = useCallback(async () => {
     try { const { data } = await api.get("/gastos/metas"); setMetas(data || []); } catch { /* vazio */ }
@@ -167,6 +198,7 @@ export default function GastosPage() {
   };
 
   const per = resumo?.periodo;
+  const org = escopoView === "org";
   const donut = (per?.porForma || []).map(f => ({ name: f.label, value: f.valor, forma: f.forma }));
   const temFiltroTabela = !!forma || !!categoria;
   const corCat = (nome: string) => categorias.find(c => c.nome === nome)?.cor || "#6366f1";
@@ -185,11 +217,28 @@ export default function GastosPage() {
                 <Receipt size={22} color="#6366f1" />
               </div>
               <div>
-                <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800 }}>Meus Gastos</h1>
-                <p style={{ margin: 0, fontSize: 13, color: "var(--text-muted, #6b7280)" }}>Só você vê os seus gastos. Toque num cartão para filtrar.</p>
+                <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800 }}>{org ? "Gastos da organização" : "Meus Gastos"}</h1>
+                {/* O subtítulo diz de quem é a lista. Em "meu", o e-mail é a
+                    pista que faltava: a lista é por USUÁRIO, e quem está na
+                    conta errada via zero sem explicação. Em "org", avisa que
+                    o que aparece é de todo mundo e que cada linha tem dono. */}
+                <p style={{ margin: 0, fontSize: 13, color: "var(--text-muted, #6b7280)" }}>
+                  {org
+                    ? <>Gastos de todas as pessoas da organização. Cada linha mostra quem lançou.</>
+                    : <>Só você vê os seus gastos{user?.email ? <> — esta é a conta <strong>{user.email}</strong></> : null}. Toque num cartão para filtrar.</>}
+                </p>
               </div>
             </div>
-            <div style={{ display: "flex", gap: 8 }}>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              {/* O seletor só existe para quem administra (o backend confirma
+                  com podeVerOrg). Ver os gastos pessoais de cada um é poder de
+                  quem responde pela conta — a página de segurança diz isso. */}
+              {resumo?.podeVerOrg && (
+                <div style={{ display: "inline-flex", border: "1px solid var(--border-subtle)", borderRadius: 10, overflow: "hidden" }}>
+                  <button onClick={() => setEscopoView("meu")} style={segBtn(!org)}>Meus</button>
+                  <button onClick={() => setEscopoView("org")} style={segBtn(org)}>Organização</button>
+                </div>
+              )}
               <button onClick={() => setCatModal(true)} style={{ ...chip(false), fontWeight: 700 }}>Categorias</button>
               <button onClick={() => setModal({})} style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "#6366f1", color: "#fff", border: "none", borderRadius: 10, padding: "10px 16px", fontWeight: 700, cursor: "pointer" }}>
                 <Plus size={16} /> Novo gasto
@@ -256,7 +305,7 @@ export default function GastosPage() {
                 {per && per.porDia.length > 0 ? (
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={per.porDia} margin={{ top: 6, right: 6, left: -18, bottom: 0 }} barCategoryGap={per.porDia.length > 12 ? 2 : "28%"}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="var(--border,#eef0f3)" vertical={false} />
+                      <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle)" vertical={false} />
                       <XAxis dataKey="label" tick={{ fontSize: 11 }} interval="preserveStartEnd" />
                       <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => R0(v)} width={64} />
                       <Tooltip cursor={{ fill: "rgba(99,102,241,0.06)" }} formatter={(v: any) => R(Number(v))} labelFormatter={(l) => `Dia ${l}`} />
@@ -284,7 +333,7 @@ export default function GastosPage() {
                   <div style={{ flex: 1, display: "grid", gap: 4 }}>
                     {(per?.porForma || []).map(f => (
                       <button key={f.forma} onClick={() => setForma(forma === f.forma ? "" : f.forma)} title="Filtrar a lista por esta forma"
-                        style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, background: forma === f.forma ? "var(--bg,#f1f2f4)" : "transparent", border: "none", borderRadius: 8, padding: "6px 8px", cursor: "pointer", textAlign: "left", width: "100%", color: "inherit" }}>
+                        style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, background: forma === f.forma ? "var(--bg-primary)" : "transparent", border: "none", borderRadius: 8, padding: "6px 8px", cursor: "pointer", textAlign: "left", width: "100%", color: "inherit" }}>
                         <span style={{ width: 10, height: 10, borderRadius: 3, background: FORMA_COR[f.forma] || "#94a3b8" }} />
                         <span style={{ flex: 1 }}>{f.label}</span>
                         <b>{R(f.valor)}</b>
@@ -306,12 +355,12 @@ export default function GastosPage() {
                   const on = categoria === c.categoria;
                   return (
                     <button key={c.categoria} onClick={() => setCategoria(on ? "" : c.categoria)} title="Filtrar a lista por esta categoria"
-                      style={{ display: "flex", alignItems: "center", gap: 10, background: on ? "var(--bg,#f1f2f4)" : "transparent", border: "none", borderRadius: 8, padding: "6px 8px", cursor: "pointer", width: "100%", color: "inherit" }}>
+                      style={{ display: "flex", alignItems: "center", gap: 10, background: on ? "var(--bg-primary)" : "transparent", border: "none", borderRadius: 8, padding: "6px 8px", cursor: "pointer", width: "100%", color: "inherit" }}>
                       <span style={{ display: "inline-flex", alignItems: "center", gap: 7, width: 130, fontSize: 13, fontWeight: 600, textAlign: "left" }}>
                         <span style={{ width: 10, height: 10, borderRadius: 3, background: corCat(c.categoria), flexShrink: 0 }} />
                         <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.categoria}</span>
                       </span>
-                      <div style={{ flex: 1, height: 10, background: "var(--bg,#f1f2f4)", borderRadius: 999 }}>
+                      <div style={{ flex: 1, height: 10, background: "var(--bg-primary)", borderRadius: 999 }}>
                         <div style={{ width: `${pct}%`, height: "100%", background: corCat(c.categoria), opacity: on ? 1 : 0.85, borderRadius: 999 }} />
                       </div>
                       <span style={{ width: 110, textAlign: "right", fontSize: 13 }}><b>{R(c.valor)}</b></span>
@@ -347,7 +396,7 @@ export default function GastosPage() {
                           <button onClick={definirMetaEconomia} style={{ ...iconBtn, padding: 2 }} title="Editar meta"><Pencil size={12} /></button>
                         </span>
                       </div>
-                      <div style={{ height: 10, background: "var(--bg,#f1f2f4)", borderRadius: 999, overflow: "hidden" }}>
+                      <div style={{ height: 10, background: "var(--bg-primary)", borderRadius: 999, overflow: "hidden" }}>
                         <div style={{ width: `${pct}%`, height: "100%", background: ok ? "#16a34a" : "#6366f1", borderRadius: 999, transition: "width .3s" }} />
                       </div>
                     </>
@@ -359,7 +408,7 @@ export default function GastosPage() {
 
               <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
                 {gami.conquistas.map(c => (
-                  <div key={c.id} title={c.desc} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", borderRadius: 10, border: "1px solid var(--border,#eef0f3)", opacity: c.ganha ? 1 : 0.5, background: c.ganha ? "rgba(99,102,241,0.06)" : "transparent" }}>
+                  <div key={c.id} title={c.desc} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", borderRadius: 10, border: "1px solid var(--border-subtle)", opacity: c.ganha ? 1 : 0.5, background: c.ganha ? "rgba(99,102,241,0.06)" : "transparent" }}>
                     <span style={{ fontSize: 18, filter: c.ganha ? "none" : "grayscale(1)" }}>{c.ganha ? "🏆" : "🔒"}</span>
                     <div>
                       <div style={{ fontSize: 13, fontWeight: 700 }}>{c.nome}</div>
@@ -393,7 +442,7 @@ export default function GastosPage() {
                           <button onClick={() => excluirMeta(m)} style={{ ...iconBtn, padding: 2, color: "#dc2626" }} title="Remover meta"><Trash2 size={13} /></button>
                         </span>
                       </div>
-                      <div style={{ height: 10, background: "var(--bg,#f1f2f4)", borderRadius: 999, overflow: "hidden" }}>
+                      <div style={{ height: 10, background: "var(--bg-primary)", borderRadius: 999, overflow: "hidden" }}>
                         <div style={{ width: `${Math.min(100, pct * 100)}%`, height: "100%", background: cor, borderRadius: 999, transition: "width .3s" }} />
                       </div>
                       {pct >= 0.8 && <div style={{ fontSize: 11, color: cor, marginTop: 4, fontWeight: 700 }}>{pct >= 1 ? "⚠️ Estourou o orçamento" : `${Math.round(pct * 100)}% do limite`}</div>}
@@ -415,7 +464,7 @@ export default function GastosPage() {
             ) : (
               <div style={{ display: "grid", gap: 8 }}>
                 {recorrentes.map(r => (
-                  <div key={r.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 10px", border: "1px solid var(--border,#eef0f3)", borderRadius: 10, opacity: r.ativo ? 1 : 0.55 }}>
+                  <div key={r.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 10px", border: "1px solid var(--border-subtle)", borderRadius: 10, opacity: r.ativo ? 1 : 0.55 }}>
                     <span style={{ fontSize: 18 }}>🔁</span>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontWeight: 600, fontSize: 14 }}>{r.descricao} {r.categoria && <span style={{ color: "var(--text-muted,#9ca3af)", fontWeight: 400, fontSize: 12 }}>· {r.categoria}</span>}</div>
@@ -440,7 +489,7 @@ export default function GastosPage() {
               </div>
               <div style={{ display: "grid", gap: 8 }}>
                 {receitas.map(rc => (
-                  <div key={rc.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 10px", border: "1px solid var(--border,#eef0f3)", borderRadius: 10 }}>
+                  <div key={rc.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 10px", border: "1px solid var(--border-subtle)", borderRadius: 10 }}>
                     <span style={{ fontSize: 16 }}>💰</span>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontWeight: 600, fontSize: 14 }}>{rc.descricao} {rc.recorrente && <span style={{ color: "#16a34a", fontWeight: 400, fontSize: 12 }}>· fixa/mês</span>}</div>
@@ -479,6 +528,16 @@ export default function GastosPage() {
           <div style={{ ...card, padding: 0, overflow: "hidden" }}>
             {loading ? (
               <div style={{ padding: 40, textAlign: "center", color: "var(--text-muted,#6b7280)" }}><Loader2 className="spin" size={22} /></div>
+            ) : erro ? (
+              /* O erro tem tela própria: antes ele caía no estado vazio e a
+                 pessoa lia "comece a anotar" quando o problema era outro. */
+              <div style={{ padding: "40px 24px", textAlign: "center", display: "grid", gap: 12, placeItems: "center" }}>
+                <div style={{ width: 52, height: 52, borderRadius: 14, background: "rgba(239,68,68,0.12)", display: "grid", placeItems: "center" }}>
+                  <AlertTriangle size={26} color="#ef4444" />
+                </div>
+                <p style={{ margin: 0, fontWeight: 800, fontSize: 16, maxWidth: 420 }}>{erro}</p>
+                <button onClick={carregar} style={{ ...chip(false), fontSize: 13, fontWeight: 700 }}>Tentar de novo</button>
+              </div>
             ) : rows.length === 0 ? (
               temFiltroTabela ? (
                 <div style={{ padding: "36px 20px", textAlign: "center" }}>
@@ -493,13 +552,22 @@ export default function GastosPage() {
                   <div>
                     <p style={{ margin: "0 0 4px", fontWeight: 800, fontSize: 17 }}>Comece a anotar seus gastos</p>
                     <p style={{ margin: 0, color: "var(--text-muted,#6b7280)", fontSize: 14 }}>É rápido, e só você vê. Dá pra fazer de dois jeitos:</p>
+                    {/* Dizer DE QUEM é a lista vazia. Gasto é filtrado por
+                        usuário, então quem entra com outra conta vê zero
+                        mesmo que a organização tenha lançamentos — e sem o
+                        e-mail aqui não há nada na tela que denuncie isso. */}
+                    {user?.email && (
+                      <p style={{ margin: "10px 0 0", color: "var(--text-muted,#6b7280)", fontSize: 12.5 }}>
+                        Você está em <strong>{user.email}</strong>. Lançou em outra conta? Os gastos ficam na conta de quem lançou.
+                      </p>
+                    )}
                   </div>
                   <div style={{ display: "grid", gap: 10, width: "100%", maxWidth: 440, textAlign: "left" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", border: "1px solid var(--border,#e5e7eb)", borderRadius: 12 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", border: "1px solid var(--border-subtle)", borderRadius: 12 }}>
                       <MessageCircle size={20} color="#25D366" style={{ flexShrink: 0 }} />
                       <div style={{ fontSize: 13 }}>Pelo WhatsApp, mande: <b>Gasto: Mercado 150 no crédito</b></div>
                     </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", border: "1px solid var(--border,#e5e7eb)", borderRadius: 12 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", border: "1px solid var(--border-subtle)", borderRadius: 12 }}>
                       <Plus size={20} color="#6366f1" style={{ flexShrink: 0 }} />
                       <div style={{ fontSize: 13 }}>Aqui na tela, toque em <b>Novo gasto</b> e preencha.</div>
                     </div>
@@ -513,15 +581,16 @@ export default function GastosPage() {
               <div style={{ overflowX: "auto" }}>
                 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
                   <thead>
-                    <tr style={{ background: "var(--bg,#f7f8fa)", textAlign: "left" }}>
-                      <th style={th}>Data</th><th style={th}>Descrição</th><th style={th}>Categoria</th>
+                    <tr style={{ background: "var(--bg-primary)", textAlign: "left" }}>
+                      <th style={th}>Data</th>{org && <th style={th}>Pessoa</th>}<th style={th}>Descrição</th><th style={th}>Categoria</th>
                       <th style={th}>Forma</th><th style={{ ...th, textAlign: "right" }}>Valor</th><th style={{ ...th, width: 80 }}></th>
                     </tr>
                   </thead>
                   <tbody>
                     {rows.map(g => (
-                      <tr key={g.id} style={{ borderTop: "1px solid var(--border,#eef0f3)" }}>
+                      <tr key={g.id} style={{ borderTop: "1px solid var(--border-subtle)" }}>
                         <td style={td}>{fmtD(g.dataGasto)}</td>
+                        {org && <td style={{ ...td, color: "var(--text-muted,#6b7280)", whiteSpace: "nowrap" }}>{g.pessoa || "—"}</td>}
                         <td style={{ ...td, fontWeight: 600 }}>
                           {g.descricao}
                           {g.origem === "WHATSAPP" && <MessageCircle size={12} color="#25D366" style={{ marginLeft: 6, verticalAlign: "middle" }} />}
@@ -570,7 +639,7 @@ function ResumoCard({ titulo, valor, qtd, cor, icon, ativo, onClick }: { titulo:
   return (
     <button onClick={onClick} style={{
       ...card, display: "flex", alignItems: "center", gap: 12, cursor: "pointer", textAlign: "left", width: "100%", color: "inherit",
-      borderColor: ativo ? cor : "var(--border,#e5e7eb)",
+      borderColor: ativo ? cor : "var(--border-subtle)",
       boxShadow: ativo ? `0 0 0 2px ${cor}33` : "none", transition: "box-shadow .15s, border-color .15s",
     }}>
       <div style={{ width: 40, height: 40, borderRadius: 10, background: cor + "1f", display: "grid", placeItems: "center" }}>{icon}</div>
@@ -644,7 +713,7 @@ function GastoModal({ gasto, sugestoes, onClose, onSaved }: { gasto?: Gasto; sug
 
   return (
     <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", display: "grid", placeItems: "center", zIndex: 50, padding: 16 }}>
-      <div onClick={e => e.stopPropagation()} style={{ background: "var(--surface,#fff)", borderRadius: 16, width: "100%", maxWidth: 420, padding: 22 }}>
+      <div onClick={e => e.stopPropagation()} style={{ background: "var(--bg-card)", borderRadius: 16, width: "100%", maxWidth: 420, padding: 22 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
           <h3 style={{ margin: 0, fontSize: 18, fontWeight: 800 }}>{gasto ? "Editar gasto" : "Novo gasto"}</h3>
           <button onClick={onClose} style={{ ...iconBtn }}><X size={18} /></button>
@@ -670,7 +739,7 @@ function GastoModal({ gasto, sugestoes, onClose, onSaved }: { gasto?: Gasto; sug
           {erro && <div style={{ color: "#dc2626", fontSize: 13 }}>{erro}</div>}
         </div>
         <div style={{ display: "flex", gap: 8, marginTop: 18 }}>
-          <button onClick={onClose} style={{ flex: 1, padding: "11px", borderRadius: 10, border: "1px solid var(--border,#e5e7eb)", background: "var(--surface,#fff)", fontWeight: 700, cursor: "pointer" }}>Cancelar</button>
+          <button onClick={onClose} style={{ flex: 1, padding: "11px", borderRadius: 10, border: "1px solid var(--border-subtle)", background: "var(--bg-card)", fontWeight: 700, cursor: "pointer" }}>Cancelar</button>
           <button onClick={salvar} disabled={saving} style={{ flex: 1, padding: "11px", borderRadius: 10, border: "none", background: "#6366f1", color: "#fff", fontWeight: 700, cursor: "pointer", display: "inline-flex", justifyContent: "center", alignItems: "center", gap: 6 }}>
             {saving && <Loader2 className="spin" size={15} />} Salvar
           </button>
@@ -697,14 +766,14 @@ function CategoriasModal({ categorias, onClose, onChanged }: { categorias: Categ
 
   return (
     <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", display: "grid", placeItems: "center", zIndex: 50, padding: 16 }}>
-      <div onClick={e => e.stopPropagation()} style={{ background: "var(--surface,#fff)", borderRadius: 16, width: "100%", maxWidth: 460, maxHeight: "88vh", overflowY: "auto", padding: 22 }}>
+      <div onClick={e => e.stopPropagation()} style={{ background: "var(--bg-card)", borderRadius: 16, width: "100%", maxWidth: 460, maxHeight: "88vh", overflowY: "auto", padding: 22 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
           <h3 style={{ margin: 0, fontSize: 18, fontWeight: 800 }}>Categorias</h3>
           <button onClick={onClose} style={iconBtn}><X size={18} /></button>
         </div>
 
         <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
-          <input type="color" value={novaCor} onChange={e => setNovaCor(e.target.value)} style={{ width: 42, height: 40, border: "1px solid var(--border,#e5e7eb)", borderRadius: 8, background: "none", cursor: "pointer", padding: 2 }} />
+          <input type="color" value={novaCor} onChange={e => setNovaCor(e.target.value)} style={{ width: 42, height: 40, border: "1px solid var(--border-subtle)", borderRadius: 8, background: "none", cursor: "pointer", padding: 2 }} />
           <input value={novoNome} onChange={e => setNovoNome(e.target.value)} onKeyDown={e => { if (e.key === "Enter") adicionar(); }} placeholder="Nova categoria" style={{ ...inpFull, flex: 1 }} />
           <button onClick={adicionar} disabled={busy} style={{ background: "#6366f1", color: "#fff", border: "none", borderRadius: 10, padding: "0 16px", fontWeight: 700, cursor: "pointer" }}>Adicionar</button>
         </div>
@@ -712,7 +781,7 @@ function CategoriasModal({ categorias, onClose, onChanged }: { categorias: Categ
         <div style={{ display: "grid", gap: 6 }}>
           {categorias.map(c => (
             <div key={c.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "6px 4px" }}>
-              <input type="color" value={c.cor} onChange={e => mudarCor(c, e.target.value)} title="Cor" style={{ width: 30, height: 30, border: "1px solid var(--border,#e5e7eb)", borderRadius: 7, background: "none", cursor: "pointer", padding: 2, flexShrink: 0 }} />
+              <input type="color" value={c.cor} onChange={e => mudarCor(c, e.target.value)} title="Cor" style={{ width: 30, height: 30, border: "1px solid var(--border-subtle)", borderRadius: 7, background: "none", cursor: "pointer", padding: 2, flexShrink: 0 }} />
               <input defaultValue={c.nome} onBlur={e => renomear(c, e.target.value)} style={{ ...inpFull, flex: 1 }} />
               <button onClick={() => remover(c)} style={{ ...iconBtn, color: "#dc2626" }} title="Remover"><Trash2 size={15} /></button>
             </div>
@@ -745,7 +814,7 @@ function MetaModal({ sugestoes, onClose, onSaved }: { sugestoes: string[]; onClo
 
   return (
     <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", display: "grid", placeItems: "center", zIndex: 50, padding: 16 }}>
-      <div onClick={e => e.stopPropagation()} style={{ background: "var(--surface,#fff)", borderRadius: 16, width: "100%", maxWidth: 400, padding: 22 }}>
+      <div onClick={e => e.stopPropagation()} style={{ background: "var(--bg-card)", borderRadius: 16, width: "100%", maxWidth: 400, padding: 22 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
           <h3 style={{ margin: 0, fontSize: 18, fontWeight: 800 }}>Nova meta do mês</h3>
           <button onClick={onClose} style={iconBtn}><X size={18} /></button>
@@ -759,7 +828,7 @@ function MetaModal({ sugestoes, onClose, onSaved }: { sugestoes: string[]; onClo
           {erro && <div style={{ color: "#dc2626", fontSize: 13 }}>{erro}</div>}
         </div>
         <div style={{ display: "flex", gap: 8, marginTop: 18 }}>
-          <button onClick={onClose} style={{ flex: 1, padding: "11px", borderRadius: 10, border: "1px solid var(--border,#e5e7eb)", background: "var(--surface,#fff)", fontWeight: 700, cursor: "pointer" }}>Cancelar</button>
+          <button onClick={onClose} style={{ flex: 1, padding: "11px", borderRadius: 10, border: "1px solid var(--border-subtle)", background: "var(--bg-card)", fontWeight: 700, cursor: "pointer" }}>Cancelar</button>
           <button onClick={salvar} disabled={saving} style={{ flex: 1, padding: "11px", borderRadius: 10, border: "none", background: "#6366f1", color: "#fff", fontWeight: 700, cursor: "pointer", display: "inline-flex", justifyContent: "center", alignItems: "center", gap: 6 }}>
             {saving && <Loader2 className="spin" size={15} />} Salvar
           </button>
@@ -793,7 +862,7 @@ function ReceitaModal({ receita, onClose, onSaved }: { receita?: Receita; onClos
 
   return (
     <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", display: "grid", placeItems: "center", zIndex: 50, padding: 16 }}>
-      <div onClick={e => e.stopPropagation()} style={{ background: "var(--surface,#fff)", borderRadius: 16, width: "100%", maxWidth: 400, padding: 22 }}>
+      <div onClick={e => e.stopPropagation()} style={{ background: "var(--bg-card)", borderRadius: 16, width: "100%", maxWidth: 400, padding: 22 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
           <h3 style={{ margin: 0, fontSize: 18, fontWeight: 800 }}>{receita ? "Editar receita" : "Nova receita"}</h3>
           <button onClick={onClose} style={iconBtn}><X size={18} /></button>
@@ -811,7 +880,7 @@ function ReceitaModal({ receita, onClose, onSaved }: { receita?: Receita; onClos
           {erro && <div style={{ color: "#dc2626", fontSize: 13 }}>{erro}</div>}
         </div>
         <div style={{ display: "flex", gap: 8, marginTop: 18 }}>
-          <button onClick={onClose} style={{ flex: 1, padding: "11px", borderRadius: 10, border: "1px solid var(--border,#e5e7eb)", background: "var(--surface,#fff)", fontWeight: 700, cursor: "pointer" }}>Cancelar</button>
+          <button onClick={onClose} style={{ flex: 1, padding: "11px", borderRadius: 10, border: "1px solid var(--border-subtle)", background: "var(--bg-card)", fontWeight: 700, cursor: "pointer" }}>Cancelar</button>
           <button onClick={salvar} disabled={saving} style={{ flex: 1, padding: "11px", borderRadius: 10, border: "none", background: "#16a34a", color: "#fff", fontWeight: 700, cursor: "pointer", display: "inline-flex", justifyContent: "center", alignItems: "center", gap: 6 }}>
             {saving && <Loader2 className="spin" size={15} />} Salvar
           </button>
@@ -849,7 +918,7 @@ function RecorrenteModal({ rec, sugestoes, onClose, onSaved }: { rec?: Recorrent
 
   return (
     <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", display: "grid", placeItems: "center", zIndex: 50, padding: 16 }}>
-      <div onClick={e => e.stopPropagation()} style={{ background: "var(--surface,#fff)", borderRadius: 16, width: "100%", maxWidth: 420, padding: 22 }}>
+      <div onClick={e => e.stopPropagation()} style={{ background: "var(--bg-card)", borderRadius: 16, width: "100%", maxWidth: 420, padding: 22 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
           <h3 style={{ margin: 0, fontSize: 18, fontWeight: 800 }}>{rec ? "Editar gasto fixo" : "Novo gasto fixo"}</h3>
           <button onClick={onClose} style={iconBtn}><X size={18} /></button>
@@ -875,7 +944,7 @@ function RecorrenteModal({ rec, sugestoes, onClose, onSaved }: { rec?: Recorrent
           {erro && <div style={{ color: "#dc2626", fontSize: 13 }}>{erro}</div>}
         </div>
         <div style={{ display: "flex", gap: 8, marginTop: 18 }}>
-          <button onClick={onClose} style={{ flex: 1, padding: "11px", borderRadius: 10, border: "1px solid var(--border,#e5e7eb)", background: "var(--surface,#fff)", fontWeight: 700, cursor: "pointer" }}>Cancelar</button>
+          <button onClick={onClose} style={{ flex: 1, padding: "11px", borderRadius: 10, border: "1px solid var(--border-subtle)", background: "var(--bg-card)", fontWeight: 700, cursor: "pointer" }}>Cancelar</button>
           <button onClick={salvar} disabled={saving} style={{ flex: 1, padding: "11px", borderRadius: 10, border: "none", background: "#6366f1", color: "#fff", fontWeight: 700, cursor: "pointer", display: "inline-flex", justifyContent: "center", alignItems: "center", gap: 6 }}>
             {saving && <Loader2 className="spin" size={15} />} Salvar
           </button>
@@ -895,14 +964,21 @@ function Campo({ label, children }: { label: string; children: ReactNode }) {
 }
 
 // ── Estilos ─────────────────────────────────────────────────────────────────
-const inp: CSSProperties = { padding: "8px 10px", borderRadius: 8, border: "1px solid var(--border,#e5e7eb)", background: "var(--surface,#fff)", fontSize: 13, color: "inherit" };
+const inp: CSSProperties = { padding: "8px 10px", borderRadius: 8, border: "1px solid var(--border-subtle)", background: "var(--bg-card)", fontSize: 13, color: "inherit" };
 const inpFull: CSSProperties = { ...inp, width: "100%" };
 const th: CSSProperties = { padding: "11px 14px", fontSize: 12, fontWeight: 700, color: "var(--text-muted,#6b7280)", textTransform: "uppercase", letterSpacing: 0.3 };
 const td: CSSProperties = { padding: "11px 14px" };
 const iconBtn: CSSProperties = { background: "transparent", border: "none", cursor: "pointer", padding: 6, borderRadius: 6, color: "inherit" };
 const saldoLbl: CSSProperties = { fontSize: 11, fontWeight: 700, letterSpacing: 0.3, textTransform: "uppercase", color: "var(--text-muted,#9ca3af)", marginBottom: 3 };
 const chip = (on: boolean): CSSProperties => ({
-  padding: "7px 12px", borderRadius: 8, border: `1px solid ${on ? "#6366f1" : "var(--border,#e5e7eb)"}`,
-  background: on ? "rgba(99,102,241,0.10)" : "var(--surface,#fff)", color: on ? "#4f46e5" : "inherit",
+  padding: "7px 12px", borderRadius: 8, border: `1px solid ${on ? "#6366f1" : "var(--border-subtle)"}`,
+  background: on ? "rgba(99,102,241,0.10)" : "var(--bg-card)", color: on ? "#4f46e5" : "inherit",
   cursor: "pointer", fontWeight: 600, fontSize: 13,
+});
+
+/** Botão de um seletor segmentado (Meus | Organização). Sem borda própria:
+    a borda e o arredondamento são do contêiner, para os dois parecerem um só. */
+const segBtn = (on: boolean): CSSProperties => ({
+  padding: "8px 14px", border: "none", cursor: "pointer", fontWeight: 700, fontSize: 13,
+  background: on ? "#6366f1" : "transparent", color: on ? "#fff" : "var(--text-muted, #6b7280)",
 });

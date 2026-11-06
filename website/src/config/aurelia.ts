@@ -1,0 +1,787 @@
+import {
+  CalendarDays,
+  Wallet,
+  StickyNote,
+  ListChecks,
+  FolderKanban,
+  Headset,
+  BookOpen,
+  UserCog,
+} from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+
+/**
+ * O que a Aurélia entende, escrito a partir do código que interpreta a
+ * mensagem — e não de material de marketing.
+ *
+ * 🔴 REGRA. Cada pedido desta página tem de casar com um padrão que existe em
+ * `backend/src/modules/agenda/`:
+ *
+ *   - `whatsapp-inbound.module.ts` — os parsers de texto livre: evento, gasto,
+ *     nota, tarefa, projeto, conta, chamado, busca e desfazer.
+ *   - `whatsapp-guiado.service.ts` — o menu numerado, para quem prefere
+ *     escolher em vez de escrever.
+ *   - `whatsapp-rotina.service.ts` — "meu dia" e o resumo diário.
+ *   - `whatsapp-media.service.ts` — áudio e arquivo.
+ *
+ * Inventário feito em 03/11/2026 sobre a base de produção (site 3.3.2, API
+ * 4.3.0). Ao mexer: abra o parser antes de acrescentar um pedido. Publicar
+ * uma frase que a Aurélia não entende é pior do que não publicar nenhuma —
+ * a pessoa tenta, não funciona, e para de tentar.
+ */
+
+export type Pedido = {
+  /** O texto exato, do jeito que a pessoa manda. */
+  texto: string;
+  /** Hora fictícia, só para a parede parecer uma conversa e não uma tabela. */
+  hora: string;
+  /** Onde no código isso é interpretado. Não aparece na tela; serve de prova. */
+  parser?: string;
+};
+
+export type MesaPedidos = {
+  id: string;
+  titulo: string;
+  modulo: string;
+  icon: LucideIcon;
+  /** Para onde a pessoa vai se quiser conhecer o módulo. */
+  href: string;
+  pedidos: Pedido[];
+};
+
+export const MESAS: MesaPedidos[] = [
+  {
+    id: "agenda",
+    titulo: "Agenda e compromissos",
+    modulo: "Space",
+    icon: CalendarDays,
+    href: "/products/one-space",
+    pedidos: [
+      { texto: "Evento: reunião com a equipe amanhã 9h", hora: "08:14", parser: "parseComandoEvento" },
+      { texto: "Marcar dentista quinta 15h", hora: "11:02", parser: "parseComandoEvento" },
+      { texto: "Agendar consulta dia 12/11 às 14h30", hora: "19:47", parser: "parseComandoEvento" },
+      { texto: "Compromisso: aula de inglês toda semana", hora: "07:33", parser: "recorrência semanal" },
+      { texto: "Evento: academia todo dia às 7h por 3 meses", hora: "22:08", parser: "recorrência + limite" },
+      { texto: "Evento: financeiro todo mês a partir de 01/12", hora: "16:21", parser: "recorrência mensal" },
+      { texto: "meus compromissos", hora: "06:58", parser: "listarCompromissos" },
+      { texto: "minha agenda", hora: "13:40", parser: "listarCompromissos" },
+      { texto: "excluir compromisso 2", hora: "20:15", parser: "mDelEvento" },
+    ],
+  },
+  {
+    id: "gastos",
+    titulo: "Gastos do dia a dia",
+    modulo: "Finance",
+    icon: Wallet,
+    href: "/products/one-finance",
+    pedidos: [
+      { texto: "gastei 87 na farmácia", hora: "19:26", parser: "parseComandoGasto" },
+      { texto: "Gasto: mercado 150 no crédito", hora: "12:41", parser: "parseComandoGasto" },
+      { texto: "paguei 180 de luz no pix", hora: "08:39", parser: "forma de pagamento" },
+      { texto: "almoço 45 no débito", hora: "13:48", parser: "forma de pagamento" },
+      { texto: "comprei uma cadeira em 6x de 95", hora: "21:04", parser: "parcelamento" },
+      { texto: "abasteci 250 no cartão", hora: "17:12", parser: "categoria automática" },
+      { texto: "quanto gastei esse mês", hora: "22:07", parser: "relatório de gastos" },
+      { texto: "resumo dos meus gastos", hora: "09:05", parser: "gastos.resumo" },
+      { texto: "corrige, o almoço foi 54", hora: "13:52", parser: "correção do último" },
+      { texto: "parar resumo", hora: "23:31", parser: "configurarResumo" },
+    ],
+  },
+  {
+    id: "anotacoes",
+    titulo: "Anotações rápidas",
+    modulo: "Space · Keep",
+    icon: StickyNote,
+    href: "/products/one-space",
+    pedidos: [
+      { texto: "Nota: comprar pilha para o controle", hora: "19:12", parser: "mNota" },
+      { texto: "anotar: ideia da vitrine nova", hora: "23:14", parser: "mNota" },
+      { texto: "lembrete: ligar para o contador", hora: "18:40", parser: "mNota" },
+      { texto: "minhas notas", hora: "10:26", parser: "listarNotas" },
+    ],
+  },
+  {
+    id: "rotina",
+    titulo: "Tarefas e o resumo do dia",
+    modulo: "Space · Rotina",
+    icon: ListChecks,
+    href: "/products/one-space",
+    pedidos: [
+      { texto: "tarefa: comprar material amanhã", hora: "09:57", parser: "comandoRotina" },
+      { texto: "meu dia", hora: "07:00", parser: "comandoRotina" },
+      { texto: "rotina", hora: "07:02", parser: "comandoRotina" },
+      { texto: "ativar resumo diário 08:00", hora: "22:51", parser: "resumo diário" },
+      { texto: "ativar resumo diário 08:00 dias úteis", hora: "22:53", parser: "resumo diário" },
+      { texto: "pausar resumo diário", hora: "07:26", parser: "resumo diário" },
+      { texto: "minhas tarefas", hora: "19:23", parser: "listarTarefas" },
+    ],
+  },
+  {
+    id: "projetos",
+    titulo: "Projetos da equipe",
+    modulo: "Projects",
+    icon: FolderKanban,
+    href: "/products/one-projects",
+    pedidos: [
+      { texto: "Projeto: reforma da loja", hora: "16:52", parser: "mProjeto" },
+      { texto: "meus projetos", hora: "10:11", parser: "listarProjetos" },
+    ],
+  },
+  /* Havia aqui uma mesa "Contas a pagar", escrita contra a 4.3.0. Em
+     02/11/2026 (sistema 5.1.1) CONTAS A PAGAR saiu da produção junto com a
+     dashboard do Financeiro: o `financeiro.module.ts` foi removido e o parser
+     de "Conta:" não existe mais. O Finance virou "Meus gastos" e só. */
+  {
+    id: "chamados",
+    titulo: "Pedidos e chamados",
+    modulo: "Service",
+    icon: Headset,
+    href: "/products/one-desk",
+    pedidos: [
+      { texto: "Chamado: a impressora não liga", hora: "09:22", parser: "mChamado" },
+      { texto: "suporte: o acesso do Lucas não entra", hora: "14:33", parser: "mChamado" },
+      { texto: "meus chamados", hora: "17:55", parser: "listarChamados" },
+    ],
+  },
+  {
+    id: "conhecimento",
+    titulo: "Base de conhecimento",
+    modulo: "Quality",
+    icon: BookOpen,
+    href: "/products/one-quality",
+    pedidos: [
+      { texto: "Buscar: como criar um projeto", hora: "11:20", parser: "mBusca" },
+      { texto: "procurar política de reembolso", hora: "16:23", parser: "mBusca" },
+    ],
+  },
+  {
+    id: "conta",
+    titulo: "Sua conta e o acesso",
+    modulo: "Core",
+    icon: UserCog,
+    href: "/products/one-core",
+    pedidos: [
+      { texto: "menu", hora: "08:05", parser: "menu guiado" },
+      { texto: "cadastro", hora: "09:12", parser: "cadastro-whatsapp" },
+      { texto: "vincular 7QF3ZD", hora: "12:53", parser: "mVinc" },
+      { texto: "apagar", hora: "13:12", parser: "desfazer o último" },
+      { texto: "errei", hora: "13:13", parser: "desfazer o último" },
+    ],
+  },
+];
+
+/** Quantos pedidos a parede mostra, contados de verdade. */
+export const TOTAL_PEDIDOS = MESAS.reduce((n, m) => n + m.pedidos.length, 0);
+
+/**
+ * O catálogo de funcionalidades.
+ *
+ * Mesma regra das mesas: cada item corresponde a comportamento que existe no
+ * sistema hoje. `grupo` casa com os módulos de `config/products.ts`.
+ */
+export type Capacidade = {
+  grupo: string;
+  titulo: string;
+  texto: string;
+  /** Exemplo de conversa, quando existe um pedido que demonstra a capacidade. */
+  exemplo?: { pergunta: string; resposta: string };
+};
+
+export const CAPACIDADES: Capacidade[] = [
+  // ── Space · agenda ────────────────────────────────────────────────────
+  {
+    grupo: "Agenda e anotações",
+    titulo: "Marque um compromisso escrevendo como você falaria.",
+    texto:
+      "Você não decora comando. “Marcar dentista quinta 15h” e “Evento: reunião com a equipe amanhã 9h” chegam ao mesmo lugar. A Aurélia entende o dia, a hora e o assunto, cria o compromisso e devolve a confirmação escrita para você conferir sem abrir nada.",
+    exemplo: {
+      pergunta: "Marcar dentista quinta 15h",
+      resposta: "Marcado: Dentista, quinta, 15:00. Eu te aviso antes.",
+    },
+  },
+  {
+    grupo: "Agenda e anotações",
+    titulo: "O que se repete nasce de uma vez só.",
+    texto:
+      "“Toda semana”, “todo mês”, “todo dia”, “a cada quinze dias”. A série inteira é criada de uma vez. Dá para limitar com “por 3 meses” ou começar adiante com “a partir de 01/12”, na mesma frase.",
+  },
+  {
+    grupo: "Agenda e anotações",
+    titulo: "O lembrete chega quatro vezes, antes de você precisar dele.",
+    texto:
+      "Uma hora antes, de novo aos quinze minutos, aos cinco e na hora que começa. Os quatro avisos chegam na mesma conversa do WhatsApp, sem aplicativo novo e sem notificação vindo de outro lugar.",
+  },
+  {
+    grupo: "Agenda e anotações",
+    titulo: "Consulte a semana sem sair da conversa.",
+    texto:
+      "“meus compromissos” ou “minha agenda” devolve a lista numerada do que vem pela frente. Para tirar um, “excluir compromisso 2” — o número é o da própria lista que acabou de chegar.",
+  },
+  {
+    grupo: "Agenda e anotações",
+    titulo: "A agenda do site e a do WhatsApp são a mesma.",
+    texto:
+      "O que você marca pela conversa aparece na agenda do site, e o que você marca no site a Aurélia enxerga. Nada é digitado duas vezes. Quem usa Outlook ou Microsoft 365 mantém a sincronização ligada.",
+  },
+  {
+    grupo: "Agenda e anotações",
+    titulo: "A anotação que não é tarefa de ninguém tem lugar.",
+    texto:
+      "“Nota: comprar pilha para o controle” vira uma anotação no Keep, e “minhas notas” traz tudo de volta. É o lugar da ideia solta, daquilo que você só precisa não esquecer, sem prazo nem responsável.",
+    exemplo: {
+      pergunta: "Nota: comprar pilha para o controle",
+      resposta: "Anotado no seu Keep.",
+    },
+  },
+  {
+    grupo: "Agenda e anotações",
+    titulo: "Receba o resumo do dia no horário que você escolher.",
+    texto:
+      "“meu dia” responde na hora. Para receber sozinho toda manhã, “ativar resumo diário 08:00”, e “ativar resumo diário 08:00 dias úteis” pula o fim de semana. Para parar, “pausar resumo diário”. Horário de Brasília.",
+  },
+  {
+    grupo: "Agenda e anotações",
+    titulo: "A tarefa pessoal entra pela mesma conversa.",
+    texto:
+      "“tarefa: comprar material amanhã” abre a tarefa com o prazo que você disse. Ela entra no resumo do dia e sai da fila quando você manda concluir, pelo código que veio na mensagem.",
+  },
+
+  // ── Finance ───────────────────────────────────────────────────────────
+  {
+    grupo: "Meus gastos",
+    titulo: "Anote o gasto numa frase, e ele entra na categoria certa.",
+    texto:
+      "“gastei 87 na farmácia”, “mercado 150 no crédito”, “paguei 180 de luz no pix”. A Aurélia lê o valor, a descrição e a forma de pagamento e lança. A categoria sai do que você escreveu: mercado, combustível, academia, contas de casa, roupa, assinatura e material de estudo são reconhecidos pelo nome.",
+    exemplo: {
+      pergunta: "gastei 87 na farmácia",
+      resposta: "Lancei R$ 87,00 em Saúde, no crédito.",
+    },
+  },
+  {
+    grupo: "Meus gastos",
+    titulo: "A compra parcelada se desdobra sozinha.",
+    texto:
+      "“comprei uma cadeira em 6x de 95” cria as seis parcelas, uma em cada mês, com o total calculado. “à vista” também é entendido, e vale escrever “parcelado em 12” do mesmo jeito.",
+  },
+  {
+    grupo: "Meus gastos",
+    titulo: "Cada forma de pagamento é reconhecida pelo nome.",
+    texto:
+      "Débito, crédito, Pix, dinheiro e boleto. Você escreve do jeito que falaria — “no cartão”, “em espécie”, “no pix” — e o lançamento guarda a forma certa, que é o que faz o resumo do mês bater com a fatura.",
+  },
+  {
+    grupo: "Meus gastos",
+    titulo: "Pergunte quanto já foi, no período que você quiser.",
+    texto:
+      "“quanto gastei esse mês” responde com o número na conversa. “resumo dos meus gastos” traz o recorte por categoria e por forma de pagamento, e o resumo semanal chega sozinho — “parar resumo” desliga, “voltar resumo” religa.",
+  },
+  {
+    grupo: "Meus gastos",
+    titulo: "Errou o valor? Corrija na frase seguinte.",
+    texto:
+      "“corrige, o almoço foi 54” troca o valor do último lançamento. Um “apagar”, “desfazer” ou “errei” desfaz o que acabou de entrar, sem tela de edição no meio.",
+    exemplo: {
+      pergunta: "corrige, o almoço foi 54",
+      resposta: "Corrigido: almoço, R$ 54,00.",
+    },
+  },
+  {
+    grupo: "Meus gastos",
+    titulo: "O que se repete todo mês o sistema passa a esperar.",
+    texto:
+      "Metas por categoria e os gastos que voltam sempre — a mensalidade, a assinatura, o mercado de toda semana — ficam no painel do site, com previsto contra realizado. A conversa serve para lançar e para perguntar; o recorte mês a mês você vê com calma na tela.",
+  },
+  {
+    grupo: "Meus gastos",
+    titulo: "O seu gasto é seu; quem administra vê o da organização.",
+    texto:
+      "O que você lança como gasto pessoal fica na sua conta e a equipe comum não vê. Quem administra a organização pode ver os gastos de todos, com o nome de quem lançou — é de quem responde pela conta. Usando sozinho, só você vê.",
+  },
+
+  // ── Projects ──────────────────────────────────────────────────────────
+  {
+    grupo: "Projetos e tarefas",
+    titulo: "O projeto começa por uma mensagem e continua no quadro.",
+    texto:
+      "“Projeto: reforma da loja” abre o projeto no contexto da sua empresa. Daí em diante prazos, responsáveis e etapas vivem no quadro do site, e “meus projetos” traz a situação de volta para a conversa.",
+  },
+  {
+    grupo: "Projetos e tarefas",
+    titulo: "Cada um vê o que é da sua conta.",
+    texto:
+      "A lista de projetos respeita o acesso de quem perguntou: você só enxerga aquilo a que tem permissão. É o mesmo controle do site, aplicado à conversa.",
+  },
+
+  // ── Service ───────────────────────────────────────────────────────────
+  {
+    grupo: "Pedidos e chamados",
+    titulo: "O pedido entra pelo WhatsApp e não se perde.",
+    texto:
+      "“Chamado: a impressora não liga” abre o chamado com histórico e responsável. “meus chamados” mostra em que pé estão. O pedido deixa de depender de alguém lembrar que foi pedido.",
+    exemplo: {
+      pergunta: "Chamado: a impressora não liga",
+      resposta: "Chamado aberto. Eu te aviso quando andar.",
+    },
+  },
+  {
+    grupo: "Pedidos e chamados",
+    titulo: "O prazo do atendimento é acompanhado sozinho.",
+    texto:
+      "O sistema acompanha o prazo de cada chamado e avisa quem precisa agir antes de ele estourar, em vez de só registrar o atraso depois que aconteceu.",
+  },
+
+  // ── Quality ───────────────────────────────────────────────────────────
+  {
+    grupo: "Base de conhecimento",
+    titulo: "Escreveu uma vez, para de ser perguntado.",
+    texto:
+      "“Buscar: como criar um projeto” procura na base de conhecimento da sua organização e devolve a orientação na conversa. Quem respondia a mesma pergunta toda semana passa a mandar o link uma vez.",
+  },
+
+  // ── Core ──────────────────────────────────────────────────────────────
+  {
+    grupo: "Acessos e avisos",
+    titulo: "Quem prefere escolher em vez de escrever, manda “menu”.",
+    texto:
+      "Um menu numerado aparece com o que a sua conta pode fazer: compromissos, anotações, gastos, projetos, tarefas e mais opções. A Aurélia pergunta um campo por vez, e “voltar”, “menu” e “0” existem em toda etapa.",
+  },
+  {
+    grupo: "Acessos e avisos",
+    titulo: "O menu mostra só o que você tem permissão de usar.",
+    texto:
+      "As opções são montadas a partir das suas permissões. Um módulo que a sua conta não acessa não aparece na lista — e não aparece também se você perguntar por ele escrevendo.",
+  },
+  {
+    grupo: "Acessos e avisos",
+    titulo: "Mande um áudio quando escrever não der.",
+    texto:
+      "Áudio de até trinta segundos é transcrito e tratado como se você tivesse escrito. Serve para o pedido que aparece no meio da rua, com o celular na mão e sem jeito de digitar.",
+  },
+  {
+    grupo: "Acessos e avisos",
+    titulo: "Mande o arquivo e ele fica anexado ao registro.",
+    texto:
+      "PDF e imagem em JPEG, PNG ou WebP, de até 5 MB. O arquivo chega pela conversa e fica guardado junto do que você estava registrando, para ser encontrado depois pelo site.",
+  },
+  {
+    grupo: "Acessos e avisos",
+    titulo: "Já tem conta no site? Vincule o seu WhatsApp.",
+    texto:
+      "No Perfil do sistema você gera um código e manda “vincular” com ele na conversa. Daí em diante o WhatsApp e a conta são a mesma coisa, sem cadastro novo.",
+  },
+];
+
+/** Os grupos do catálogo, na ordem em que aparecem. */
+export const GRUPOS_CAPACIDADE = [...new Set(CAPACIDADES.map((c) => c.grupo))];
+
+/**
+ * O roteiro da demonstração clicável.
+ *
+ * 🔴 A resposta aqui é ENCENAÇÃO, e a página diz isso em voz alta. Nada é
+ * enviado, nada é salvo e nenhum número é real. O que não pode ser encenado é
+ * o COMPORTAMENTO: cada pedido é um que a Aurélia entende de verdade, e a
+ * resposta é do mesmo formato que ela devolve — confirmação escrita, com o
+ * dado que ela extraiu da frase.
+ *
+ * Sem isso, a demonstração vira promessa; com isso, ela vira amostra.
+ */
+export type DemoPasso = {
+  id: string;
+  /** O que a pessoa manda. */
+  pedido: string;
+  /** O que a Aurélia responde, em até três linhas. */
+  resposta: string[];
+  /** Rótulo curto do botão. */
+  chip: string;
+  /** A mesa, para colorir o chip e dar contexto. */
+  mesa: string;
+};
+
+export const DEMO: DemoPasso[] = [
+  {
+    id: "evento",
+    chip: "Marcar um compromisso",
+    mesa: "Agenda",
+    pedido: "Evento: reunião com a equipe amanhã 9h",
+    resposta: [
+      "Marcado: *Reunião com a equipe*",
+      "Amanhã, 09:00 · 1 hora",
+      "Eu te aviso 1h antes, aos 15min, aos 5min e na hora.",
+    ],
+  },
+  {
+    id: "gasto",
+    chip: "Anotar um gasto",
+    mesa: "Gastos",
+    pedido: "gastei 87 na farmácia",
+    resposta: ["Lancei *R$ 87,00*", "Categoria: Saúde · Forma: crédito"],
+  },
+  {
+    id: "parcelado",
+    chip: "Parcelar uma compra",
+    mesa: "Gastos",
+    pedido: "comprei uma cadeira em 6x de 95",
+    resposta: [
+      "Parcelei em *6x de R$ 95,00*",
+      "Total: R$ 570,00 · uma parcela por mês",
+    ],
+  },
+  {
+    id: "nota",
+    chip: "Guardar uma anotação",
+    mesa: "Anotações",
+    pedido: "Nota: comprar pilha para o controle",
+    resposta: ["Anotado no seu Keep.", "Mande *minhas notas* para ver tudo."],
+  },
+  {
+    id: "tarefa",
+    chip: "Criar uma tarefa",
+    mesa: "Tarefas",
+    pedido: "tarefa: comprar material amanhã",
+    resposta: [
+      "Tarefa criada: *comprar material*",
+      "Prazo: amanhã · Código T-9F2A41C8",
+      "Ela entra no seu resumo do dia.",
+    ],
+  },
+  {
+    id: "dia",
+    chip: "Ver o meu dia",
+    mesa: "Rotina",
+    pedido: "meu dia",
+    resposta: [
+      "*Hoje*",
+      "09:00 — Reunião com a equipe",
+      "Vence hoje: comprar material",
+    ],
+  },
+  {
+    id: "recorrente",
+    chip: "Gasto que se repete",
+    mesa: "Gastos",
+    pedido: "paguei 180 de luz no pix",
+    resposta: [
+      "Lancei *R$ 180,00*",
+      "Categoria: Contas de casa · Forma: Pix",
+    ],
+  },
+  {
+    id: "chamado",
+    chip: "Abrir um chamado",
+    mesa: "Chamados",
+    pedido: "Chamado: a impressora não liga",
+    resposta: [
+      "Chamado aberto para a sua equipe.",
+      "Eu te aviso quando ele andar.",
+    ],
+  },
+  {
+    id: "gastos-mes",
+    chip: "Quanto eu gastei",
+    mesa: "Gastos",
+    pedido: "quanto gastei esse mês",
+    resposta: [
+      "No mês: *R$ 1.284,50*",
+      "Mercado R$ 412 · Saúde R$ 287 · Transporte R$ 250",
+    ],
+  },
+  {
+    id: "buscar",
+    chip: "Procurar uma orientação",
+    mesa: "Conhecimento",
+    pedido: "Buscar: como criar um projeto",
+    resposta: [
+      "Achei na base da sua organização:",
+      "*Como abrir um projeto e convidar a equipe*",
+    ],
+  },
+  {
+    id: "desfazer",
+    chip: "Desfazer o último",
+    mesa: "Conta",
+    pedido: "errei",
+    resposta: ["Desfiz o último registro.", "Pode mandar de novo do jeito certo."],
+  },
+  {
+    id: "menu",
+    chip: "Ver o menu",
+    mesa: "Conta",
+    pedido: "menu",
+    resposta: [
+      "Como posso ajudar? Responda o número:",
+      "*1* Compromissos · *2* Anotações · *3* Gastos",
+      "*4* Projetos · *5* Tarefas · *6* Mais opções",
+    ],
+  },
+];
+
+/**
+ * Um dia normal.
+ *
+ * A seção mais forte da página do concorrente não lista funcionalidade: ela
+ * conta um dia e mostra o que a equipe resolve em cada hora. Vende rotina, e
+ * rotina é o que o Orkiestri faz.
+ *
+ * 🔴 Duas regras, as mesmas do resto deste arquivo:
+ *
+ *   1. **Todo momento é um comportamento que existe.** Três deles a pessoa
+ *      provoca (áudio vira compromisso, gasto numa frase, chamado aberto) e
+ *      três chegam sozinhos (resumo da manhã, lembrete de uma hora, a
+ *      anotação que ela mandou guardar). Os que chegam sozinhos usam o texto
+ *      no formato real: o resumo sai como `☀️ *Seu dia — 03/11*` em
+ *      `whatsapp-rotina.service.ts`, e o lembrete de 60 minutos sai como
+ *      `🔔 Você tem um evento em 60 minutos` em `alert.scheduler.ts`.
+ *   2. **Nada de contas a pagar, catálogo, horas ou CSAT.** Saíram do sistema
+ *      em 02/11; ver o comentário no topo deste arquivo.
+ */
+export type MomentoDia = {
+  id: string;
+  hora: string;
+  titulo: string;
+  texto: string;
+  /** A mesa que atende, para o rótulo. */
+  modulo: string;
+  /** Quem começa: a pessoa, ou a Aurélia sem ser chamada. */
+  inicio: "voce" | "aurelia";
+  conversa: { de: "voce" | "aurelia"; texto: string[]; audio?: boolean }[];
+};
+
+export const DIA: MomentoDia[] = [
+  {
+    id: "manha",
+    hora: "07:00",
+    titulo: "O dia chega escrito, antes de você perguntar.",
+    texto:
+      "Você escolhe o horário uma vez — “ativar resumo diário 08:00” — e a partir daí o dia inteiro chega sozinho, em ordem, com o que vence hoje. “Dias úteis” no fim do pedido pula o fim de semana.",
+    modulo: "Space · rotina",
+    inicio: "aurelia",
+    conversa: [
+      {
+        de: "aurelia",
+        texto: [
+          "☀️ *Seu dia — 03/11*",
+          "09:00 — Reunião com a equipe",
+          "14:30 — Dentista",
+          "Vence hoje: enviar a proposta",
+        ],
+      },
+    ],
+  },
+  {
+    id: "audio",
+    hora: "09:15",
+    titulo: "Um áudio no caminho, e o compromisso está marcado.",
+    texto:
+      "Trinta segundos de fala, do jeito que a frase sai. A Aurélia transcreve, entende o dia e a hora, cria o compromisso e confirma por escrito para você conferir sem abrir nada.",
+    modulo: "Space · agenda",
+    inicio: "voce",
+    conversa: [
+      { de: "voce", texto: ["Marcar dentista quinta 15h"], audio: true },
+      {
+        de: "aurelia",
+        texto: [
+          "Marcado: *Dentista*",
+          "Quinta, 15:00",
+          "Eu te aviso 1h antes, aos 15min, aos 5min e na hora.",
+        ],
+      },
+    ],
+  },
+  {
+    id: "gasto",
+    hora: "12:40",
+    titulo: "Pagou o almoço? Uma frase e está lançado.",
+    texto:
+      "Sem formulário e sem categoria para escolher. Ela lê o valor, a descrição e a forma de pagamento, e a categoria sai do que você escreveu — mercado, farmácia, posto e assinatura são reconhecidos pelo nome.",
+    modulo: "Finance",
+    inicio: "voce",
+    conversa: [
+      { de: "voce", texto: ["almoço 45 no débito"] },
+      { de: "aurelia", texto: ["Lancei *R$ 45,00*", "Categoria: Alimentação · Forma: débito"] },
+    ],
+  },
+  {
+    id: "lembrete",
+    hora: "14:00",
+    titulo: "Uma hora antes, o aviso chega sem você pedir.",
+    texto:
+      "E depois de novo aos quinze minutos, aos cinco e na hora que começa. Os quatro avisos chegam na mesma conversa, sem aplicativo novo e sem notificação vindo de outro lugar.",
+    modulo: "Space · avisos",
+    inicio: "aurelia",
+    conversa: [
+      {
+        de: "aurelia",
+        texto: ["🔔 Você tem um evento em 60 minutos:", "*Dentista*", "Hoje, 15:00"],
+      },
+    ],
+  },
+  {
+    id: "chamado",
+    hora: "15:30",
+    titulo: "O pedido que chegou não depende da memória de ninguém.",
+    texto:
+      "“A impressora não liga” vira chamado com número, prazo e responsável, em vez de ficar num grupo. Se o prazo começa a apertar, o sistema avisa antes de estourar.",
+    modulo: "Service",
+    inicio: "voce",
+    conversa: [
+      { de: "voce", texto: ["Chamado: a impressora não liga"] },
+      { de: "aurelia", texto: ["Chamado aberto para a sua equipe.", "Eu te aviso quando ele andar."] },
+    ],
+  },
+  {
+    id: "noite",
+    hora: "22:30",
+    titulo: "O que não pode se perder tem onde ficar.",
+    texto:
+      "A ideia que aparece tarde, a lista de mercado, o recado para amanhã. Vira anotação no Keep ou tarefa com prazo, e volta quando você perguntar — meses depois, se for o caso.",
+    modulo: "Space · Keep",
+    inicio: "voce",
+    conversa: [
+      { de: "voce", texto: ["Nota: comprar pilha para o controle"] },
+      { de: "aurelia", texto: ["Anotado no seu Keep.", "Mande *minhas notas* para ver tudo."] },
+    ],
+  },
+];
+
+/**
+ * Para quem é o Orkiestri.
+ *
+ * NÃO são depoimentos. Não há cliente nomeado, foto nem citação: isso seria
+ * prova social fabricada, que engana o visitante e, de quebra, reprova o
+ * anúncio no Meta e no Google. São CENÁRIOS DE USO — como cada tipo de rotina
+ * cabe numa conversa —, e cada um demonstra um pedido que a Aurélia entende de
+ * verdade, pelos mesmos parsers do resto deste arquivo.
+ *
+ * O dia em que houver três clientes reais dispostos a dar uma frase com o nome
+ * autorizado, a seção de depoimentos é outra coisa, e aí sim se chama prova
+ * social.
+ */
+export type Perfil = {
+  id: string;
+  publico: string;
+  titulo: string;
+  texto: string;
+  conversa: { de: "voce" | "aurelia"; texto: string[] }[];
+};
+
+export const PARA_QUEM: Perfil[] = [
+  {
+    id: "advogados",
+    publico: "Advogados",
+    titulo: "A audiência não passa batida.",
+    texto:
+      "Atendimentos, prazos e audiências entram pela conversa e voltam como lembrete — uma hora antes, aos quinze, aos cinco e na hora.",
+    conversa: [
+      { de: "voce", texto: ["Audiência trabalhista quinta 14h no Fórum Central"] },
+      {
+        de: "aurelia",
+        texto: [
+          "Marcado: *Audiência trabalhista*",
+          "Quinta, 14:00 · Fórum Central",
+          "Te aviso 1h antes, aos 15min, aos 5min e na hora.",
+        ],
+      },
+    ],
+  },
+  {
+    id: "familia",
+    publico: "Mães e pais",
+    titulo: "A rotina das crianças, sem carregar tudo na cabeça.",
+    texto:
+      "Pediatra, reunião da escola, a atividade que se repete toda semana. Marque uma vez e seja lembrado — inclusive do que volta sempre.",
+    conversa: [
+      { de: "voce", texto: ["Natação toda terça e quinta às 17h"] },
+      {
+        de: "aurelia",
+        texto: ["Criei a série: *Natação*", "Toda terça e quinta, 17:00."],
+      },
+    ],
+  },
+  {
+    id: "saude",
+    publico: "Cuidado com a saúde",
+    titulo: "O remédio na hora certa, todo dia.",
+    texto:
+      "Peça uma vez e o lembrete volta sozinho, no horário que você marcar. Serve para o remédio diário, a consulta e o exame com data.",
+    conversa: [
+      { de: "voce", texto: ["me lembra do remédio todo dia às 8h e às 20h"] },
+      {
+        de: "aurelia",
+        texto: ["Combinado.", "Todo dia às 08:00 e às 20:00. Pode deixar."],
+      },
+    ],
+  },
+  {
+    id: "gestores",
+    publico: "Gestores e equipes",
+    titulo: "Nenhuma reunião ou demanda se perde.",
+    texto:
+      "A agenda do dia chega toda manhã, as reuniões entram com lembrete, e o que ficou combinado vira tarefa com prazo.",
+    conversa: [
+      { de: "voce", texto: ["meu dia"] },
+      {
+        de: "aurelia",
+        texto: [
+          "☀️ *Seu dia — hoje*",
+          "10:00 — Reunião de diretoria",
+          "15:00 — Call com o cliente",
+          "Vence hoje: enviar a proposta",
+        ],
+      },
+    ],
+  },
+  {
+    id: "pessoal",
+    publico: "Para a vida pessoal",
+    titulo: "Saber para onde foi o dinheiro, numa frase.",
+    texto:
+      "Anote o gasto do jeito que ele acontece e pergunte quanto já foi no mês. Sem planilha e sem aplicativo novo para aprender.",
+    conversa: [
+      { de: "voce", texto: ["gastei 45 no almoço no débito"] },
+      {
+        de: "aurelia",
+        texto: ["Lancei *R$ 45,00*", "Categoria: Alimentação · Forma: débito"],
+      },
+    ],
+  },
+  {
+    id: "medicos",
+    publico: "Médicos e consultórios",
+    titulo: "O plantão já fica na agenda.",
+    texto: "Entre os atendimentos no consultório e os turnos no hospital, registre o próximo plantão assim que receber a escala.",
+    conversa: [
+      { de: "voce", texto: ["Marca meu plantão no hospital sábado às 7h"] },
+      { de: "aurelia", texto: ["*Plantão no hospital*", "Sábado, 07:00."] },
+    ],
+  },
+  {
+    id: "arquitetos",
+    publico: "Arquitetos e engenheiros",
+    titulo: "As medidas da obra voltam na hora do desenho.",
+    texto: "Anote uma medida pelo WhatsApp durante a visita. Depois, consulte a anotação no escritório para atualizar a planta.",
+    conversa: [
+      { de: "voce", texto: ["Anota na obra da Rua das Flores que o vão da cozinha mede 1,80 m"] },
+      { de: "aurelia", texto: ["Anotado em *Obra da Rua das Flores*.", "Vão da cozinha: 1,80 m."] },
+    ],
+  },
+  {
+    id: "contadores",
+    publico: "Contadores",
+    titulo: "A conferência da folha tem prazo.",
+    texto: "Transforme uma pendência do fechamento em tarefa com data para conseguir encontrá-la entre as entregas da semana.",
+    conversa: [
+      { de: "voce", texto: ["Cria uma tarefa para conferir a folha de pagamento até sexta"] },
+      { de: "aurelia", texto: ["Tarefa criada: *Conferir a folha de pagamento*.", "Prazo: sexta-feira."] },
+    ],
+  },
+  {
+    id: "fotografos",
+    publico: "Fotógrafos",
+    titulo: "O aluguel da lente entra nos gastos do ensaio.",
+    texto: "Registre a despesa na retirada do equipamento, enquanto o valor e a forma de pagamento estão frescos na memória.",
+    conversa: [
+      { de: "voce", texto: ["Gastei 120 reais no aluguel da lente para o ensaio, paguei no Pix"] },
+      { de: "aurelia", texto: ["Lancei *R$ 120,00*.", "Aluguel de lente · Pix"] },
+    ],
+  },
+];

@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "4.0.0";
+export const VERSAO = "5.2.0";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -23,10 +23,10 @@ export const VERSAO = "4.0.0";
  * Não é gerada no build: `new Date()` no bundle muda a cada compilação, e duas
  * builds do mesmo código pareceriam versões diferentes.
  */
-export const VERSAO_DATA = "2026-10-27";
+export const VERSAO_DATA = "2026-11-05";
 
 /** Nome da entrega, para dar contexto ao número. */
-export const VERSAO_NOME = "Mensalidade de R$ 11,90 com pagamento no cartão ou Pix";
+export const VERSAO_NOME = "Integracao Space com Google Agenda";
 
 /**
  * Histórico exibido na tela Sobre, do mais recente para o mais antigo.
@@ -35,11 +35,116 @@ export const VERSAO_NOME = "Mensalidade de R$ 11,90 com pagamento no cartão ou 
  * esta lista quer saber o que mudou para ele.
  */
 export const HISTORICO: { versao: string; data: string; titulo: string; itens: string[] }[] = [
+  {
+    versao: "5.2.0",
+    data: "2026-11-05",
+    titulo: "A Space agora conversa com o Google Agenda",
+    itens: [
+      "Você pode conectar a sua conta do Google Agenda direto pelo botão no topo da Space ou em Configurações → Integrações, quando e se quiser",
+      "Compromissos criados na Space ou pela Aurélia no WhatsApp podem ser enviados automaticamente para o seu Google Agenda, e o que está lá aparece aqui para evitar conflito de horário",
+    ],
+  },
+  {
+    versao: "5.1.4",
+    data: "2026-11-04",
+    titulo: "Nova tela de entrada alinhada com a Aurélia",
+    itens: [
+      "A tela de login ganhou o mesmo visual escuro com luz quente e órbita da Aurélia que o site usa, substituindo o fundo antigo do planeta",
+      "Saiu o link “Solicitar acesso” da tela de login: quem ainda não tem conta agora vai direto para o teste grátis com a Aurélia no WhatsApp",
+    ],
+  },
+  {
+    versao: "5.1.3",
+    data: "2026-11-04",
+    titulo: "Quem administra vê os gastos da organização",
+    itens: [
+      "Quem administra a organização ganhou um seletor “Meus · Organização” em Meus Gastos. Na visão da organização aparecem os gastos de todas as pessoas, com o nome de quem lançou cada um, e os cartões somam a organização inteira. Quem não administra continua vendo só os próprios gastos",
+    ],
+  },
+  {
+    versao: "5.1.2",
+    data: "2026-11-03",
+    titulo: "Meus Gastos para de esconder o erro",
+    itens: [
+      "Quando os gastos não carregavam, a tela mostrava “Comece a anotar seus gastos” — a mesma coisa que ela mostra para quem de fato não tem nenhum. Falha de conexão e falta de acesso agora aparecem escritas, com um botão de tentar de novo",
+      "A tela passou a dizer de qual conta é a lista. Gasto é pessoal: quem entra com outra conta vê zero, mesmo que a empresa tenha lançamentos, e nada na tela explicava isso",
+    ],
+  },
+  {
+    versao: "5.1.1",
+    data: "2026-11-02",
+    titulo: "A porta de entrada fala como gente",
+    itens: [
+      "A tela de login e a de solicitar acesso diziam “o sistema operacional da sua empresa” e vendiam selos de engenharia — “Cloud Native”, “API First” e “99,9% de disponibilidade”, um número que ninguém media. Agora as duas falam do que você vai fazer aqui: a sua agenda, os seus pedidos de ajuda, os seus projetos e o aviso no WhatsApp",
+      "A tela de solicitar acesso ainda oferecia frota, ativos e indicadores, que saíram do sistema na redução de escopo. O mesmo valia para o texto que aparece no Google",
+    ],
+  },
+  {
+    versao: "5.1.0",
+    data: "2026-11-02",
+    titulo: "O sistema vira aplicativo no celular e no computador",
+    itens: [
+      "Dá para instalar o Orkiestri como aplicativo. No computador, aparece um ícone de instalar na barra de endereço do navegador; no celular, é o “Adicionar à tela de início” do menu. Ele passa a abrir em janela própria, com ícone junto dos outros aplicativos e sem as abas e a barra de endereço em volta",
+      "Sem internet, o aplicativo instalado mostra uma tela explicando, com um botão de tentar de novo, no lugar da tela de erro do navegador",
+      "O sistema ganhou ícone próprio na aba do navegador, que antes não tinha nenhum. O mesmo ícone passou a acompanhar os lembretes de compromisso — eles saíam sem ícone porque o arquivo apontado não existia",
+    ],
+  },
+  {
+    versao: "5.0.0",
+    data: "2026-11-02",
+    titulo: "A agenda abre o sistema, e o menu só tem o que se usa",
+    itens: [
+      "A tela inicial agora abre com a sua agenda: um calendário do mês, com marca nos dias que têm compromisso, e a lista do que vem — antes havia só o número “Eventos Hoje”, que não dizia o que era nem a que horas. Clicando num dia a lista mostra o daquele dia; chamados e projetos seguem logo abaixo, e o painel de widgets deixa esconder o que você não quiser",
+      "O Financeiro agora é só Meus Gastos. Saíram a tela de Contas a Pagar e a dashboard do Financeiro, que existia só para somar essas contas — inclusive os comandos de conta no WhatsApp (“Conta: Energia 350 vence 10/11”, “contas a pagar”). Os lançamentos antigos continuam no banco, mas não têm mais tela",
+      "O Orçamento virou um módulo próprio no menu, chamado Budget, em vez de item dentro do Financeiro. O endereço não mudou: link salvo e favorito continuam funcionando",
+      "Em Chamados ficou o chamado. Saíram Catálogo, Horas, CSAT e Automações — com elas, a avaliação por estrelas do atendimento e o apontamento de horas dentro do chamado. Quem fechava o próprio chamado pela avaliação agora depende de quem atende mudar o status",
+      "Menos tela para carregar: cerca de 6 mil linhas de código saíram, com 6 telas e 35 rotas de API a menos",
+    ],
+  },
   // A 3.1.0 não aparece nesta lista de propósito. Ela existiu no git por
   // algumas horas, com o cadastro começando num formulário do site, e foi
   // substituída pela 3.2.0 antes de chegar a produção. Esta lista é o que
   // mudou para quem USA o sistema, e uma versão que ninguém recebeu não mudou
   // nada para ninguém — anunciá-la só faria procurarem uma tela que não existe.
+  {
+    versao: "4.3.1",
+    data: "2026-11-02",
+    titulo: "O WhatsApp do cadastro serve para recuperar a senha",
+    itens: [
+      "Quem criou a conta pelo WhatsApp já consegue recuperar a senha por lá. Antes, o site respondia “não encontramos este número cadastrado” para toda conta criada pela Aurélia, mesmo com o número certo guardado — e a única saída era chamar o suporte",
+      "O código de 6 dígitos passa a sair pelo mesmo número que recebe os outros avisos da sua conta",
+      "Na conversa de cadastro, a Aurélia já diz qual número ela tem (“Já tenho o seu WhatsApp…”) e o mostra na conferência final, junto do nome, do CPF e do e-mail",
+    ],
+  },
+  {
+    versao: "4.3.0",
+    data: "2026-10-28",
+    titulo: "Entrada pela Aurélia, boas-vindas que ensinam e painel de billing",
+    itens: [
+      "Quem clica em cadastrar no site agora recebe o convite da Aurélia antes de qualquer pergunta. Antes caía direto num “qual é seu nome completo?”, sem ter lido o que é o produto nem quanto custa",
+      "Responder 2 no convite passa a agradecer e deixar o site à mão, em vez de falar de uma conta que a pessoa não tem",
+      "Depois do cadastro chega uma segunda mensagem com um exemplo por módulo e o caminho do comando ajuda. Quem acabava de entrar ficava olhando para uma conversa vazia, sem saber o que escrever",
+      "Quem escolhe “só para mim” não vira mais uma organização chamada “Pessoal”: o espaço passa a ter o nome da própria pessoa",
+      "A administração ganhou um painel de billing: quem está em dia, em teste, inadimplente ou encerrado, quanto já entrou, e um botão para liberar acesso sem cobrança",
+    ],
+  },
+  // A 4.0.1 e a 4.2.x não aparecem, pelo mesmo motivo da 3.1.0: mexeram em
+  // telas que só a administração vê, ou nunca chegaram a produção.
+  {
+    versao: "4.1.0",
+    data: "2026-10-28",
+    titulo: "O cadastro é com a Aurélia, e o teste passa a ter prazo",
+    itens: [
+      "A entrada no Orkiestri agora é por um caminho só: conversando com a Aurélia no WhatsApp. O cadastro pelo site saiu do ar e passa a indicar a conversa",
+      "Toda conta nova nasce com 7 dias para usar tudo sem pagar nada. Antes, quem se cadastrava pelo WhatsApp ficava sem prazo nenhum e nunca era cobrado — o aviso e a mensalidade só alcançavam quem tinha entrado pelo site",
+      "Faltando 3 dias, 1 dia e no último dia, a Aurélia avisa no WhatsApp com o link para pagar. Quem já está no cartão não recebe aviso: a cobrança é automática",
+      "No cartão, a cobrança se repete no mesmo dia em que você assinou, todo mês",
+      "Abrir o pagamento no cartão duas vezes não cria mais duas assinaturas: o segundo clique devolve a mesma",
+      "Depois de pagar, recarregar a página não faz mais ela pedir pagamento de novo: ela mostra quanto entrou, quando, e até quando o acesso está liberado",
+      "Quem volta ao link dias depois vê que o mês já está pago, com a data. Antes a tela parecia estar cobrando outra vez, e o caminho natural de quem achava que o pagamento falhou era pagar duas vezes",
+      "Para quem realmente quer adiantar o mês seguinte, as opções de pagamento continuam a um clique",
+    ],
+  },
   {
     versao: "4.0.0",
     data: "2026-10-27",

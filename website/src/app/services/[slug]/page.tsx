@@ -68,7 +68,7 @@ export default async function ServicePage({
         ]}
       >
         <Button asChild size="lg">
-          <Link href="/demo">Solicitar um projeto</Link>
+          <Link href={`/contact?service=${service.slug}#contato`}>Conversar sobre meu projeto</Link>
         </Button>
       </PageHero>
 
@@ -109,7 +109,7 @@ export default async function ServicePage({
         </div>
       </Section>
 
-      <CTA />
+      <CTA intent="project" />
     </>
   );
 }

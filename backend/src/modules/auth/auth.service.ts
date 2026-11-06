@@ -5,11 +5,12 @@ import { ConfigService } from "@nestjs/config";
 import { PrismaService } from "../../prisma/prisma.service";
 import { CacheService } from "../cache/cache.service";
 import { registrarIndicacao, montarMensagemAtivacao, codigoIndicacao } from "../referral/referral.helpers";
-import { LEMBRETE_ANTECEDENCIA_MS, marcoDoAviso, montarLembrete, codigoRenovacao, faseDaConta, acessoVencido } from "./trial-renovacao";
+import { LEMBRETE_ANTECEDENCIA_MS, marcoDoAviso, montarLembrete, codigoRenovacao, faseDaConta, acessoVencido, DIAS_DE_TESTE } from "./trial-renovacao";
+import { linkCadastroWhatsapp } from "../cadastro-whatsapp/whatsapp-entrada";
 import { urlCheckout } from "../assinatura/checkout-token";
 import { WhatsAppService } from "../notifications/whatsapp.service";
 import { EmailService } from "../notifications/email.service";
-import { AutomacaoService } from "../automacoes/automacoes.module";
+import { mesmoTelefoneCadastro, numeroCadastro } from "../cadastro-whatsapp/whatsapp-entrada";
 import * as bcrypt from "bcryptjs";
 
 // Todas as permissões do sistema no formato "recurso:acao"
@@ -68,17 +69,9 @@ const ALL_PERMISSIONS: { recurso: string; acao: string; descricao: string }[] = 
   // SLA
   { recurso: "sla",           acao: "ver",         descricao: "Ver configurações SLA" },
   { recurso: "sla",           acao: "gerenciar",   descricao: "Gerenciar regras e acordos SLA" },
-  // Automações
-  { recurso: "automacoes",    acao: "ver",         descricao: "Ver automações configuradas" },
-  { recurso: "automacoes",    acao: "criar",       descricao: "Criar automações" },
-  { recurso: "automacoes",    acao: "editar",      descricao: "Editar automações" },
-  { recurso: "automacoes",    acao: "excluir",     descricao: "Excluir automações" },
   // A tela inicial checa dashboard:ver; sem a permissao no catalogo ela nunca
   // poderia ser concedida.
   { recurso: "dashboard",     acao: "ver",         descricao: "Ver a tela inicial" },
-  // Financeiro
-  { recurso: "financeiro",    acao: "ver",         descricao: "Ver módulo financeiro (contas a pagar, dashboard)" },
-  { recurso: "financeiro",    acao: "gerenciar",   descricao: "Criar, editar e excluir títulos financeiros" },
   // Gastos pessoais (por usuário — cada um só vê o seu)
   { recurso: "gastos",        acao: "ver",         descricao: "Ver os próprios gastos" },
   { recurso: "gastos",        acao: "registrar",   descricao: "Anotar, editar e excluir os próprios gastos" },
@@ -247,8 +240,6 @@ const ROLE_DEFAULTS: Record<string, { nivel: number; descricao: string; permisso
       "solicitacoes:ver","solicitacoes:criar","solicitacoes:editar","solicitacoes:aprovar",
       "conhecimento:ver","conhecimento:criar","conhecimento:editar","conhecimento:publicar",
       "sla:ver","sla:gerenciar",
-      "automacoes:ver","automacoes:criar","automacoes:editar","automacoes:excluir",
-      "financeiro:ver","financeiro:gerenciar",
     ],
   },
   analista: {
@@ -263,7 +254,6 @@ const ROLE_DEFAULTS: Record<string, { nivel: number; descricao: string; permisso
       "whatsapp:ver",
       "solicitacoes:ver","solicitacoes:criar",
       "conhecimento:ver","conhecimento:criar",
-      "financeiro:ver",
     ],
   },
   tecnico: {
@@ -355,7 +345,6 @@ export class AuthService implements OnModuleInit {
     private cache: CacheService,
     private wa: WhatsAppService,
     private email: EmailService,
-    private automacao: AutomacaoService,
   ) {}
 
   async onModuleInit() {
@@ -1158,7 +1147,6 @@ export class AuthService implements OnModuleInit {
       entregaEmail = true;
     } catch { entregaEmail = false; }
     this.logAudit(requestUser.id, "usuarios", "users", userId, "CREATE", `Conta aprovada via solicitação: ${email}`).catch(() => {});
-    this.automacao.executar("usuario_criado", { id: userId, nome, email, organizationId }).catch(() => {});
     return {
       message: "Usuário aprovado com sucesso.",
       userId,
@@ -1190,7 +1178,6 @@ export class AuthService implements OnModuleInit {
 
   // ── Acesso de teste (trial de 7 dias, criado pela landing page) ─────────────────
 
-  private readonly TRIAL_DIAS = 7;
   private readonly TRIAL_ORG = "00000000-0000-0000-0000-000000000001";
 
   // Produto Orkiestri One escolhido no modal -> RECURSOS de permissão que o
@@ -1204,11 +1191,10 @@ export class AuthService implements OnModuleInit {
     "one-space":    ["agenda"],
     "one-fleet":    ["frota"],
     "one-assets":   ["ativos"],
-    "one-finance":  ["financeiro", "gastos"],
+    "one-finance":  ["gastos"],
     "one-budget":   ["orcamento"],
     "one-crm":      ["crm", "clientes"],
     "one-observe":  ["monitoramento"],
-    "one-flow":     ["automacoes"],
     "one-core":     ["configuracoes"],
   };
 
@@ -1217,103 +1203,29 @@ export class AuthService implements OnModuleInit {
    * pendência (e-mail + produto + código) fica no cache por 10 min — nada é
    * criado no banco até a confirmação do código.
    */
-  async iniciarTrial(dto: { email: string; whatsapp: string; produto: string; codigoIndicacao?: string }) {
-    const email = dto.email.trim().toLowerCase();
-    const whatsapp = dto.whatsapp.trim();
-    const digits = whatsapp.replace(/\D/g, "");
-    if (digits.length < 10) throw new BadRequestException("Informe um WhatsApp válido com DDD.");
-
-    const existing = await this.prisma.user.findFirst({ where: { email } });
-    if (existing) throw new BadRequestException("Já existe um acesso com esse e-mail. Faça login ou fale com a nossa equipe.");
-
-    // Um teste ativo por número.
-    const trialAtivo = await this.prisma.user.findFirst({
-      where: { isTrial: true, trialExpiraEm: { gt: new Date() }, profile: { whatsapp } } as any,
-    });
-    if (trialAtivo) throw new BadRequestException("Já existe um teste ativo para este WhatsApp.");
-
-    const code = String(Math.floor(100000 + Math.random() * 900000));
-    await this.cache.set(`trial:otp:${digits}`, { email, produto: dto.produto, code, tentativas: 0, codigoIndicacao: (dto.codigoIndicacao || "").trim() || undefined }, 600);
-
-    const inst = await this.wa.resolveInstance(this.TRIAL_ORG).catch(() => undefined);
-    const enviado = await this.wa.sendTrialOtp(whatsapp, code, inst).catch(() => false);
-    if (!enviado) {
-      await this.cache.del(`trial:otp:${digits}`);
-      throw new BadRequestException("Não conseguimos enviar o código no WhatsApp. Confira o número e tente novamente.");
-    }
-    return { message: "Enviamos um código no seu WhatsApp." };
+  /**
+   * FECHADA. A conta de teste nascia aqui, pelo modal do site, e este era o
+   * único caminho que colocava alguém no ciclo de cobrança — quem entrava pela
+   * Aurélia ficava de graça para sempre. A entrada agora é só pelo WhatsApp, e
+   * é lá que os 7 dias começam a contar.
+   *
+   * Responde com o caminho novo em vez de 410 porque o modal do site mostra
+   * esta mensagem para a pessoa: um erro seco deixaria o visitante sem saída.
+   */
+  private portaFechada(): never {
+    throw new BadRequestException(
+      `O cadastro agora é pelo WhatsApp, com a Aurélia: ${linkCadastroWhatsapp()} — ` +
+        `são ${DIAS_DE_TESTE} dias para testar, sem pagar nada.`,
+    );
   }
 
-  /**
-   * Passo 2: confere o código e, se bater, cria o acesso de teste (7 dias, só o
-   * módulo escolhido, senha padrão) e manda as credenciais + boas-vindas por
-   * WhatsApp.
-   */
-  async confirmarTrial(dto: { whatsapp: string; codigo: string }) {
-    const whatsapp = dto.whatsapp.trim();
-    const digits = whatsapp.replace(/\D/g, "");
-    const chave = `trial:otp:${digits}`;
-    const pend: any = await this.cache.get(chave);
-    if (!pend) throw new BadRequestException("Código expirado. Peça um novo.");
-    if ((pend.tentativas || 0) >= 5) {
-      await this.cache.del(chave);
-      throw new BadRequestException("Muitas tentativas. Peça um novo código.");
-    }
-    if (pend.code !== dto.codigo.trim()) {
-      await this.cache.set(chave, { ...pend, tentativas: (pend.tentativas || 0) + 1 }, 600);
-      throw new BadRequestException("Código inválido.");
-    }
-    await this.cache.del(chave);
+  async iniciarTrial(_dto: { email: string; whatsapp: string; produto: string; codigoIndicacao?: string }) {
+    this.portaFechada();
+  }
 
-    const email = pend.email;
-    const existing = await this.prisma.user.findFirst({ where: { email } });
-    if (existing) throw new BadRequestException("Já existe um acesso com esse e-mail.");
-
-    const tempPassword = "123@mudar";
-    const senhaHash = await bcrypt.hash(tempPassword, 12);
-    const role = await this.prisma.role.findFirst({
-      where: { organizationId: this.TRIAL_ORG, nome: "visualizador", isMaster: false },
-    });
-    // Informativo (o gate real é resolvePermissions pelo trialModulo). Guarda os
-    // recursos do produto para a tela refletir o que o trial enxerga.
-    const modulos = this.TRIAL_PRODUTO_RECURSOS[pend.produto] || [];
-    const nome = String(email).split("@")[0];
-    const userId = require("crypto").randomUUID();
-    const expira = new Date(Date.now() + this.TRIAL_DIAS * 24 * 60 * 60 * 1000);
-
-    await this.prisma.user.create({
-      data: {
-        id: userId, nome, email, senhaHash, ativo: true, primeiroAcesso: true,
-        bloqueado: false, tentativasFalhas: 0, organizationId: this.TRIAL_ORG,
-        isTrial: true, trialExpiraEm: expira, trialModulo: pend.produto,
-      } as any,
-    });
-    await this.prisma.userProfile.create({
-      data: {
-        id: require("crypto").randomUUID(), userId, whatsapp,
-        modulos: JSON.stringify(modulos),
-      } as any,
-    });
-    if (role) {
-      await this.prisma.userRole.create({ data: { userId, roleId: role.id } as any });
-    }
-
-    // Indicação (referral) — best-effort, nunca quebra o cadastro.
-    const indicadorNome = pend.codigoIndicacao
-      ? await registrarIndicacao(this.prisma, pend.codigoIndicacao, userId).catch(() => null)
-      : null;
-
-    const appUrl = this.config.get("APP_URL", "http://localhost");
-    const inst = await this.wa.resolveInstance(this.TRIAL_ORG).catch(() => undefined);
-    this.wa.sendTrialWelcome(whatsapp, email, tempPassword, appUrl, this.TRIAL_DIAS, inst).catch(() => {});
-    // Mensagem de ativação da indicação (confirma o vínculo + convida a indicar).
-    if (indicadorNome) {
-      this.wa.sendMessage(whatsapp, montarMensagemAtivacao(indicadorNome, codigoIndicacao(userId)), inst).catch(() => {});
-    }
-    this.email.sendAccountApproved(email, nome, tempPassword).catch(() => {});
-    this.logAudit(userId, "usuarios", "users", userId, "CREATE", `Acesso de teste criado: ${email}`, this.TRIAL_ORG).catch(() => {});
-
-    return { message: "Acesso de teste criado! Enviamos suas credenciais no WhatsApp." };
+  /** FECHADA junto com `iniciarTrial` — ver o porquê lá. */
+  async confirmarTrial(_dto: { whatsapp: string; codigo: string }) {
+    this.portaFechada();
   }
 
   /**
@@ -1495,6 +1407,41 @@ export class AuthService implements OnModuleInit {
   // ── OTP via WhatsApp ───────────────────────────────────────────────────────────
 
   /**
+   * Perfil de um número, pela MESMA régua que o WhatsApp usa.
+   *
+   * Igualdade de string não encontra ninguém. A tela pede "DDD + número" e
+   * manda 11 dígitos; o cadastro feito pela Aurélia grava com o DDI
+   * (`5514991661688`), e as telas de perfil gravam o que a pessoa digitou,
+   * máscara e tudo. Com `where: { whatsapp }`, TODA conta nascida no WhatsApp
+   * recebia "não encontramos este número cadastrado" — inclusive com o número
+   * perfeitamente gravado. `mesmoTelefoneCadastro` normaliza o DDI e tolera a
+   * troca do nono dígito, que é o critério já usado para reconhecer quem
+   * escreve; usar outro aqui seria dizer que a pessoa tem conta na conversa e
+   * não tem no site.
+   *
+   * Carregar os perfis para comparar em memória é deliberado: a comparação não
+   * cabe em SQL sem desnormalizar a coluna, e a base tem centenas de contas,
+   * não milhões. Se um dia tiver, o caminho é guardar o número normalizado numa
+   * coluna própria — não afrouxar a comparação.
+   *
+   * Dois perfis com o mesmo número é dado sujo, não escolha: devolver um ao
+   * acaso manda o código de recuperação para a conta errada. Por isso aqui é
+   * ambiguidade, e ambiguidade sai pelo suporte.
+   */
+  private async perfilPorWhatsapp(
+    whatsapp: string,
+  ): Promise<{ userId: string; whatsapp: string | null } | "ambiguo" | null> {
+    if (!numeroCadastro(whatsapp)) return null;
+    const perfis = await this.prisma.userProfile.findMany({
+      where: { whatsapp: { not: null } },
+      select: { userId: true, whatsapp: true },
+    });
+    const ligados = perfis.filter((p) => mesmoTelefoneCadastro(whatsapp, p.whatsapp));
+    if (ligados.length > 1) return "ambiguo";
+    return ligados[0] ?? null;
+  }
+
+  /**
    * OTP de recuperação por WhatsApp.
    *
    * `semCadastro: true` diz à tela que aquele número não leva a lugar nenhum,
@@ -1515,7 +1462,11 @@ export class AuthService implements OnModuleInit {
       semCadastro: true,
     };
 
-    const profile = await this.prisma.userProfile.findFirst({ where: { whatsapp } });
+    const profile = await this.perfilPorWhatsapp(whatsapp);
+    if (profile === "ambiguo")
+      throw new UnauthorizedException(
+        "Há mais de uma conta com este número. Contate o Administrador.",
+      );
     if (!profile) return semCadastro;
     const user = await this.prisma.user.findUnique({ where: { id: profile.userId } });
     if (!user || !user.ativo) return semCadastro;
@@ -1547,8 +1498,14 @@ export class AuthService implements OnModuleInit {
     // indicando o motivo — a conta ficava sem saída e sem diagnóstico. A
     // resposta ao cliente continua genérica (não revela se o número existe),
     // mas a falha agora aparece no log.
+    // Destino é o número do PERFIL normalizado, não o que a pessoa digitou: o
+    // Evolution só entrega com DDI e dígitos, e o que chega da tela vem sem o
+    // 55 (e às vezes com máscara). Como os dois já foram provados o mesmo
+    // telefone, mandar pelo cadastro mantém o OTP no mesmo caminho dos outros
+    // avisos daquela conta.
+    const destino = numeroCadastro(profile.whatsapp) || numeroCadastro(whatsapp);
     this.wa
-      .sendOtpForOrg(user.organizationId, whatsapp, code)
+      .sendOtpForOrg(user.organizationId, destino, code)
       .then((enviado) => {
         if (!enviado) {
           this.logger.error(
@@ -1564,8 +1521,12 @@ export class AuthService implements OnModuleInit {
   }
 
   async verifyPasswordOtp(whatsapp: string, code: string) {
-    const profile = await this.prisma.userProfile.findFirst({ where: { whatsapp } });
-    if (!profile) throw new UnauthorizedException("Código inválido ou expirado.");
+    // Mesma régua do envio — com a busca exata daqui, o código certo era
+    // recusado como inválido. Ambíguo não chega nesta etapa (o envio barra
+    // antes) e, se chegar, não há conta única para destravar: é código inválido.
+    const profile = await this.perfilPorWhatsapp(whatsapp);
+    if (!profile || profile === "ambiguo")
+      throw new UnauthorizedException("Código inválido ou expirado.");
     const user = await this.prisma.user.findUnique({ where: { id: profile.userId } });
     if (!user || !user.ativo || (user as any).bloqueado) throw new UnauthorizedException("Conta bloqueada. Contate o Administrador.");
 

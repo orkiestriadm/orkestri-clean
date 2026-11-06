@@ -133,7 +133,7 @@ export function ScreensCarousel() {
                   </div>
                 </div>
 
-                {/* Imagem, inserida com respiro — não sangra até a borda. */}
+                {/* Captura real, com dados fictícios de demonstração. */}
                 <div className="overflow-hidden rounded-2xl bg-ink-raise">
                   <div className="relative aspect-[16/10] w-full">
                     <Image

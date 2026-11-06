@@ -65,10 +65,11 @@ export default function PrivacyPage() {
             não a conversa.
           </p>
           <p>
-            Gastos pessoais são visíveis <strong>apenas para você</strong>,
-            inclusive em relação a quem administra a conta da sua empresa.
-            Contas a pagar e orçamento são dados da organização e seguem as
-            permissões definidas pelo administrador.
+            Gastos pessoais ficam presos ao seu usuário: a equipe comum não vê
+            os seus. Quem <strong>administra a organização</strong> pode ver os
+            gastos de todos, com o nome de quem lançou, por responder pela
+            conta — e nada disso sai da sua organização. Se você usa sozinho,
+            só você vê.
           </p>
 
           <h2>4. Avisos pelo WhatsApp</h2>

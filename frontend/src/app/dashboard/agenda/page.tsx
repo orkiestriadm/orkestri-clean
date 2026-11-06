@@ -1,5 +1,6 @@
 "use client";
 import EventModalAgenda from "@/components/ui/EventModalAgenda";
+import GoogleCalendarModal, { GoogleCalendarIcon } from "@/components/agenda/GoogleCalendarModal";
 import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import Topbar from "@/components/layout/Topbar";
@@ -978,6 +979,14 @@ export default function AgendaPage() {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [pickerYear, setPickerYear] = useState(today.getFullYear());
   const [showHelp, setShowHelp] = useState(false);
+  const [showGoogleModal, setShowGoogleModal] = useState(false);
+  const [googleConnected, setGoogleConnected] = useState(false);
+
+  useEffect(() => {
+    api.get("/integracoes/google/status")
+      .then((r) => setGoogleConnected(!!r.data?.connected))
+      .catch(() => {});
+  }, []);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -995,6 +1004,18 @@ export default function AgendaPage() {
   }, [view, cur, weekStart, curDate]);
 
   useEffect(() => { load(); }, [load]);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const g = params.get("google");
+      if (g === "connected") {
+        setGoogleConnected(true);
+        load();
+        window.history.replaceState({}, "", window.location.pathname);
+      }
+    }
+  }, [load]);
 
   // ── Item #14: atalhos de teclado ────────────────────────────────────────
   useEffect(() => {
@@ -1085,6 +1106,29 @@ export default function AgendaPage() {
             Disponibilidade
           </button>
         </Link>
+        <button
+          className="btn btn-ghost no-print"
+          style={{ fontSize: 12, display: "flex", alignItems: "center", gap: 7 }}
+          onClick={() => setShowGoogleModal(true)}
+          aria-label="Google Agenda"
+          title="Google Agenda"
+        >
+          <GoogleCalendarIcon size={16} />
+          <span>Google Agenda</span>
+          {googleConnected && (
+            <span
+              style={{
+                width: 7,
+                height: 7,
+                borderRadius: "50%",
+                background: "#22c55e",
+                boxShadow: "0 0 6px #22c55e",
+                display: "inline-block",
+              }}
+              title="Conectado e sincronizado"
+            />
+          )}
+        </button>
         <button className="btn btn-ghost no-print" style={{ fontSize:12 }} onClick={() => setShowHelp(true)} aria-label="Ver atalhos de teclado" title="Atalhos de teclado (?)">
           <Keyboard size={13} aria-hidden="true" />
         </button>
@@ -1214,6 +1258,16 @@ export default function AgendaPage() {
       </div>
 
       {showHelp && <ShortcutsHelp onClose={() => setShowHelp(false)} />}
+      <GoogleCalendarModal
+        open={showGoogleModal}
+        onClose={() => setShowGoogleModal(false)}
+        onSyncComplete={() => {
+          load();
+          api.get<{ connected: boolean }>("/integracoes/google/status")
+            .then(r => setGoogleConnected(!!r.data?.connected))
+            .catch(() => {});
+        }}
+      />
       {(modalNew||modalEdit) && <EventModalAgenda date={modalNew||(modalEdit?.inicio.slice(0,16)??"")} event={modalEdit||undefined} users={users} onClose={()=>{setModalNew(null);setModalEdit(null);}} onSave={load} />}
       {modalDet && <EventDetail event={modalDet} me={me} onRespond={load} canEdit={modalDet.criadoPorId===me?.id||!!me?.isMaster} onClose={()=>setModalDet(null)} onEdit={()=>{setModalEdit(modalDet);setModalDet(null);}} onDelete={()=>setDeleteId(modalDet.recurringParentId||modalDet.id)} />}
       {deleteId && (

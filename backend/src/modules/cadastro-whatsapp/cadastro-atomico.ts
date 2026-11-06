@@ -16,7 +16,14 @@ export async function concluirCadastroAtomico<T>(
     const cadastro = await tx.cadastroWhatsapp.findUnique({ where: { id: cadastroId } });
     if (claim.count !== 1) return { status: cadastro?.status === "CONCLUIDO" ? "ja_concluido" : "indisponivel" };
     const respostas = JSON.parse(cadastro.respostas || "{}");
-    if (!cadastro.nome || !cadastro.cpf || !respostas.email || !respostas.empresa) {
+    const preenchido = (valor: unknown) => typeof valor === "string" && valor.trim().length > 0;
+    // A escolha pessoal antiga já expressava usar o próprio nome. Materializa
+    // esse nome antes de provisionar, sem deixar organização ou respostas vazias.
+    if (!preenchido(respostas.empresa) && respostas.usoPessoal === true && preenchido(cadastro.nome)) {
+      respostas.empresa = cadastro.nome.trim();
+    }
+    if (!preenchido(cadastro.nome) || !preenchido(cadastro.cpf) || !preenchido(cadastro.whatsapp)
+      || !preenchido(respostas.email) || !preenchido(respostas.empresa)) {
       throw new Error("Cadastro incompleto: revise os dados antes de confirmar.");
     }
     const conta = await provisionar(tx, cadastro, respostas);

@@ -4,9 +4,11 @@ import { cn } from "@/lib/utils";
 export function Container({
   className,
   children,
+  id,
 }: {
   className?: string;
   children: React.ReactNode;
+  id?: string;
 }) {
-  return <div className={cn("container-content", className)}>{children}</div>;
+  return <div id={id} className={cn("container-content", className)}>{children}</div>;
 }

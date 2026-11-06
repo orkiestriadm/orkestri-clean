@@ -72,19 +72,20 @@
 
   /* ---------- Texto sobre o escuro ---------- */
   --color-chalk: #f4f6f9;
-  --color-chalk-dim: #99a0ad;
+  --color-chalk-dim: #adb4c2;
   /* #6a7280 dava 3,4:1 sobre o ink — reprova no AA para texto pequeno, que é
      justamente onde este tom é usado (legendas, microcópia). */
   --color-chalk-faint: #868e9d;
 
   /* ---------- Typography ---------- */
-  --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system,
-    "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-sans:
+    var(--font-inter), ui-sans-serif, system-ui, -apple-system, "Segoe UI",
+    Roboto, Helvetica, Arial, sans-serif;
   /* Archivo em largura expandida para as manchetes. Inter e Archivo são as
      duas grotescas, mas o eixo `wdth` as separa à primeira vista: a manchete
      fica larga e de engenharia, o texto corrido segue estreito e neutro. */
-  --font-display: var(--font-archivo), var(--font-inter), ui-sans-serif,
-    system-ui, sans-serif;
+  --font-display:
+    var(--font-archivo), var(--font-inter), ui-sans-serif, system-ui, sans-serif;
 
   /* Type scale (doc 06 — hierarchy) */
   --text-caption: 0.875rem; /* 14px */
@@ -116,6 +117,16 @@
 @layer base {
   :root {
     --font-inter: "Inter";
+
+    /* Altura da faixa de oferta acima do cabeçalho
+       (`components/layout/faixa-teste.tsx`).
+
+       O cabeçalho é `fixed`, então quem reserva o espaço são os heróis, que
+       somam esta variável ao padding de topo. Está aqui, e não dentro do
+       componente, para que a faixa possa ser desligada num lugar só: zerando
+       o valor, os heróis voltam ao espaçamento antigo sem nenhuma outra
+       alteração. */
+    --faixa-h: 2.25rem;
   }
 
   /* Cor de borda padrão de quem usa `border` sem cor. No escuro, cinza sólido
@@ -206,8 +217,16 @@
      perto da fonte de luz e sumir antes de virar papel quadriculado. */
   .malha {
     background-image:
-      linear-gradient(to right, rgba(255, 255, 255, 0.045) 1px, transparent 1px),
-      linear-gradient(to bottom, rgba(255, 255, 255, 0.045) 1px, transparent 1px);
+      linear-gradient(
+        to right,
+        rgba(255, 255, 255, 0.045) 1px,
+        transparent 1px
+      ),
+      linear-gradient(
+        to bottom,
+        rgba(255, 255, 255, 0.045) 1px,
+        transparent 1px
+      );
     background-size: 64px 64px;
     -webkit-mask-image: radial-gradient(
       ellipse 58% 52% at 28% 0%,
@@ -225,12 +244,15 @@
      parece vazio; o ruído a 3% quebra as duas coisas. SVG inline para não
      custar requisição. */
   .ink-grain::after {
+    content: none;
+  }
+  body::after {
     content: "";
-    position: absolute;
+    position: fixed;
     inset: 0;
-    z-index: 0;
+    z-index: -1;
     pointer-events: none;
-    opacity: 0.035;
+    opacity: 0.018;
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
   }
 
@@ -293,7 +315,8 @@
      o retângulo aparece como um bloco — mesmo sem borda alguma. A máscara
      apaga os pixels das extremidades, e o cinza se desfaz no branco. */
   .screen-feather {
-    -webkit-mask-image: linear-gradient(
+    -webkit-mask-image:
+      linear-gradient(
         to right,
         transparent 0%,
         #000 5%,
@@ -308,7 +331,8 @@
         transparent 100%
       );
     -webkit-mask-composite: source-in;
-    mask-image: linear-gradient(
+    mask-image:
+      linear-gradient(
         to right,
         transparent 0%,
         #000 5%,
@@ -432,6 +456,539 @@
   }
 }
 
+/* Modernização: luz e transições leves, sem vídeos ou rolagem controlada. */
+.hero-highlight {
+  background: linear-gradient(110deg, #fff4e9, #ffab72 55%, #ff6a1a);
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+}
+.chat-grid {
+  background-image: radial-gradient(
+    rgba(255, 255, 255, 0.035) 1px,
+    transparent 1px
+  );
+  background-size: 18px 18px;
+}
+.journey-step {
+  cursor: pointer;
+  transition:
+    border-color 0.2s,
+    background-color 0.2s,
+    transform 0.2s;
+}
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+  .journey-step:hover {
+    transform: translateX(4px);
+  }
+}
+@keyframes chat-arrive {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .chat-enter {
+    animation: chat-arrive 0.25s ease-out both;
+  }
+  .hero-enter {
+    animation: chat-arrive 0.6s ease-out both;
+  }
+}
+section[id] {
+  scroll-margin-top: 6rem;
+}
+
+/* Aurélia — linguagem visual: órbitas, vidro, profundidade e ritmo editorial. */
+.section-kicker {
+  color: #ffad77;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+.premium-surface {
+  position: relative;
+  isolation: isolate;
+  border: 1px solid rgba(255, 255, 255, 0.11);
+  background: linear-gradient(
+    145deg,
+    rgba(34, 38, 48, 0.94),
+    rgba(14, 16, 22, 0.98)
+  );
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.05) inset,
+    0 22px 60px -28px rgba(0, 0, 0, 0.8);
+}
+.premium-surface::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  pointer-events: none;
+  background: radial-gradient(
+    380px circle at var(--spot-x, 50%) var(--spot-y, 0%),
+    rgba(255, 160, 95, 0.13),
+    transparent 70%
+  );
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+.premium-surface:hover::before,
+.premium-surface:focus-within::before {
+  opacity: 1;
+}
+.reading-progress {
+  position: fixed;
+  inset: 0 auto auto 0;
+  z-index: 60;
+  height: 2px;
+  width: 100%;
+  background: linear-gradient(90deg, #ff6a1a, #ffd9b4);
+  transform: scaleX(0);
+  transform-origin: left;
+  pointer-events: none;
+}
+@keyframes page-progress {
+  to {
+    transform: scaleX(1);
+  }
+}
+@supports (animation-timeline: scroll()) {
+  .reading-progress {
+    animation: page-progress linear both;
+    animation-timeline: scroll();
+  }
+}
+.aurelia-stage {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-width: 0;
+  height: clamp(320px, 37vw, 530px);
+  isolation: isolate;
+}
+.aurelia-stage-grid {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  opacity: 0.28;
+  background: radial-gradient(circle, #8994ac 1px, transparent 1px);
+  background-size: 26px 26px;
+  mask-image: radial-gradient(ellipse, #000, transparent 70%);
+}
+.aurelia-orbits {
+  position: absolute;
+  width: min(100%, 520px);
+  height: 100%;
+  overflow: visible;
+}
+.aurelia-core {
+  display: grid;
+  place-items: center;
+  width: clamp(132px, 16vw, 218px);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  padding: 1px;
+  background: conic-gradient(
+    from 30deg,
+    #ffbe91,
+    #4b251b,
+    #f17e3b,
+    #5774a3,
+    #ffbe91
+  );
+  box-shadow:
+    0 0 80px -10px rgba(255, 106, 26, 0.24),
+    0 0 140px 30px rgba(102, 130, 192, 0.08);
+}
+.aurelia-core-inner {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  background: radial-gradient(
+    ellipse at 30% 20%,
+    #593a31,
+    #1c171d 45%,
+    #0b0c13 80%
+  );
+  box-shadow: 0 1px 28px rgba(255, 202, 164, 0.18) inset;
+  overflow: hidden;
+}
+.aurelia-core-inner > span {
+  font-family: Georgia, serif;
+  font-style: italic;
+  font-size: clamp(92px, 11vw, 152px);
+  line-height: 1;
+  color: #ffdcc2;
+  transform: translateY(-7%);
+  text-shadow: 0 0 30px rgba(255, 163, 104, 0.5);
+}
+.aurelia-core-inner > i {
+  position: absolute;
+  inset: 13%;
+  border: 1px solid rgba(255, 208, 170, 0.13);
+  border-radius: 45% 55% 55% 45%;
+  transform: rotate(35deg);
+}
+.aurelia-core-inner > i:nth-of-type(2) {
+  transform: rotate(95deg);
+  inset: 8%;
+}
+.aurelia-core-inner > i:nth-of-type(3) {
+  transform: rotate(-25deg);
+  inset: 19%;
+}
+.aurelia-float {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 17px;
+  border-radius: 17px;
+  backdrop-filter: blur(16px);
+  max-width: 91%;
+}
+.aurelia-float-top {
+  top: 8%;
+  left: 0;
+}
+.aurelia-float-bottom {
+  bottom: 9%;
+  right: 0;
+}
+.aurelia-float-icon {
+  display: grid;
+  place-items: center;
+  width: 35px;
+  height: 35px;
+  flex: 0 0 auto;
+  border-radius: 11px;
+  background: rgba(255, 139, 63, 0.12);
+  color: #ffc196;
+}
+.aurelia-float small {
+  display: block;
+  color: #a8b1c2;
+  font-size: 11px;
+  margin-bottom: 4px;
+}
+.aurelia-float strong {
+  display: block;
+  color: #f4f6f9;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.5;
+}
+.aurelia-orbit-label {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  bottom: -7px;
+  font-size: 11px;
+  letter-spacing: 0.02em;
+  color: #a8b1c2;
+}
+.aurelia-showcase {
+  background:
+    radial-gradient(
+      ellipse at 90% 50%,
+      rgba(94, 116, 165, 0.06),
+      transparent 55%
+    ),
+    #0e1016;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+.scenario-switch {
+  display: inline-grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  padding: 5px;
+  gap: 5px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 18px;
+  background: #080a10;
+}
+.scenario-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  padding: 12px 20px;
+  min-height: 46px;
+  border-radius: 13px;
+  color: #adb4c2;
+  font-size: 14px;
+  cursor: pointer;
+  transition:
+    color 0.2s,
+    background 0.2s,
+    box-shadow 0.2s;
+}
+.scenario-button:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.04);
+}
+.scenario-button.is-active {
+  color: #ffd6b6;
+  background: linear-gradient(135deg, #40271e, #241b19);
+  box-shadow:
+    0 1px 0 rgba(255, 199, 150, 0.18) inset,
+    0 5px 15px rgba(0, 0, 0, 0.2);
+}
+.conversation-window {
+  overflow: hidden;
+  border-radius: 25px;
+}
+.conversation-heading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 20px 24px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+.assistant-avatar {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 43px;
+  height: 43px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 30% 20%, #805039, #221920);
+  border: 1px solid #9c6444;
+  color: #ffdfc6;
+  font:
+    italic 34px/1 Georgia,
+    serif;
+  padding-bottom: 4px;
+}
+.conversation-context {
+  margin-left: auto;
+  padding: 5px 9px;
+  border-radius: 100px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  font-size: 10px;
+  color: #bbc3d0;
+}
+.conversation-body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-height: 330px;
+  padding: 22px 24px;
+  background: radial-gradient(
+    ellipse at 100% 0%,
+    rgba(255, 139, 60, 0.04),
+    transparent 70%
+  );
+}
+.conversation-caption {
+  text-align: center;
+  color: #9da7b8;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  margin-bottom: 5px;
+}
+.bubble {
+  max-width: 89%;
+  padding: 14px 17px;
+  font-size: 14px;
+  line-height: 1.65;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+.bubble-out {
+  align-self: flex-end;
+  border-radius: 17px 5px 17px 17px;
+  background: #27342f;
+  color: #eff7f1;
+}
+.bubble-out > svg {
+  margin: 7px 0 0 auto;
+  color: #b9cde9;
+}
+.bubble-in {
+  align-self: flex-start;
+  border-radius: 5px 17px 17px 17px;
+  background: #1c2029;
+  color: #dbe0e8;
+}
+.bubble-in > span {
+  display: block;
+  color: #ffc399;
+  font-size: 11px;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+.conversation-actions {
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+  padding: 16px 24px;
+}
+.conversation-command {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  min-height: 43px;
+  gap: 10px;
+  border-radius: 12px;
+  padding: 10px 13px;
+  text-align: left;
+  font-size: 12px;
+  color: #ffd4b5;
+  border: 1px solid rgba(255, 164, 104, 0.2);
+  background: rgba(255, 141, 61, 0.05);
+  cursor: pointer;
+}
+.conversation-command:hover {
+  background: rgba(255, 141, 61, 0.11);
+}
+.agenda-editorial {
+  background: #edeae5;
+  color: #484b52;
+  position: relative;
+  overflow: hidden;
+}
+.agenda-editorial h2,
+.agenda-editorial h3 {
+  color: #202329;
+}
+.agenda-editorial .section-kicker {
+  color: #9c451c;
+}
+.agenda-frame {
+  padding: 10px;
+  border-radius: 25px;
+  background: #15181f;
+  box-shadow:
+    0 22px 60px -25px rgba(17, 24, 39, 0.45),
+    0 1px 1px #fff inset;
+}
+.agenda-frame figure::before {
+  display: none;
+}
+.editorial-benefit {
+  display: flex;
+  gap: 12px;
+  padding-top: 18px;
+  border-top: 1px solid #d2d0cd;
+}
+.editorial-benefit > svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: #a44f23;
+}
+.editorial-benefit h3 {
+  font-size: 14px;
+  font-weight: 650;
+}
+.editorial-benefit p {
+  font-size: 13px;
+  line-height: 1.6;
+  margin-top: 5px;
+}
+.nav-active {
+  background: rgba(255, 255, 255, 0.055);
+  color: #fff;
+  box-shadow: 0 -1px 0 #ff8a3d inset;
+}
+@keyframes surface-arrive {
+  from {
+    transform: translateY(14px);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+@supports (animation-timeline: view()) {
+  @media (prefers-reduced-motion: no-preference) {
+    .scroll-reveal {
+      animation: surface-arrive linear both;
+      animation-timeline: view();
+      animation-range: entry 0% entry 30%;
+    }
+  }
+}
+@keyframes orbit-turn {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes aurelia-breathe {
+  50% {
+    transform: scale(1.035);
+  }
+}
+@keyframes gentle-float {
+  50% {
+    transform: translateY(-7px);
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .aurelia-orbit-motion {
+    transform-origin: 260px 260px;
+    animation: orbit-turn 45s linear infinite;
+  }
+  .aurelia-core {
+    animation: aurelia-breathe 7s ease-in-out infinite;
+  }
+  .aurelia-float-top {
+    animation: gentle-float 8s ease-in-out infinite;
+  }
+  .aurelia-float-bottom {
+    animation: gentle-float 8s ease-in-out -4s infinite;
+  }
+  .scenario-copy {
+    animation: chat-arrive 0.3s ease-out both;
+  }
+}
+@media (max-width: 639px) {
+  .aurelia-stage {
+    height: 310px;
+  }
+  .scenario-switch {
+    width: 100%;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .scenario-button {
+    padding: 12px 9px;
+    font-size: 13px;
+  }
+  .scenario-button:last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+  }
+  .conversation-heading {
+    padding: 17px;
+    flex-wrap: wrap;
+  }
+  .conversation-context {
+    margin-left: 55px;
+    margin-top: -3px;
+  }
+  .conversation-body {
+    padding: 20px 16px;
+  }
+  .conversation-actions {
+    padding: 14px 16px;
+  }
+  .bubble {
+    max-width: 94%;
+  }
+  .agenda-frame {
+    padding: 5px;
+    border-radius: 18px;
+  }
+}
+
 /* ---------- Reduced motion (doc 08) ---------- */
 @media (prefers-reduced-motion: reduce) {
   html {
@@ -445,3 +1002,327 @@
     transition-duration: 0.01ms !important;
   }
 }
+
+/* Uma atmosfera única, fixa no viewport, não reinicia nas bordas das seções. */
+body {
+  --site-atmosphere:
+    radial-gradient(ellipse 85% 95% at 0% 0%, rgba(255, 106, 26, .17), transparent 72%),
+    radial-gradient(ellipse 85% 95% at 100% 100%, rgba(255, 121, 48, .13), transparent 72%),
+    radial-gradient(ellipse 65% 80% at 55% 48%, rgba(255, 150, 85, .035), transparent 80%);
+  isolation: isolate;
+  background: #090a0d;
+}
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: var(--site-atmosphere);
+}
+.site-warm-surface,
+.bg-ink,
+.bg-ink-raise,
+.bg-panel,
+.bg-panel-high,
+.bg-background,
+.bg-surface,
+.bg-surface-muted {
+  background-image: none;
+}
+.bg-panel,
+.bg-panel-high {
+  background-color: rgba(22, 23, 29, .64);
+}
+.bg-ink,
+.bg-ink-raise,
+.bg-background,
+.bg-surface,
+.bg-surface-muted {
+  background-color: rgba(10, 11, 15, .62);
+}
+#main,
+#main > section,
+#main > section.bg-ink,
+#main > section.bg-ink-raise,
+#main > section.agenda-editorial,
+footer.bg-ink {
+  background: transparent;
+  border-top: 0;
+  border-bottom: 0;
+}
+.agenda-editorial { color: var(--color-chalk-dim); }
+.agenda-editorial h2,
+.agenda-editorial h3 { color: var(--color-chalk); }
+.agenda-editorial .section-kicker { color: #ffad77; }
+.agenda-frame {
+  background: rgba(18, 19, 24, .46);
+  padding: 1px;
+  box-shadow: 0 20px 60px -32px rgba(0, 0, 0, .65);
+  border: 1px solid rgba(255,255,255,.07);
+}
+.editorial-benefit { border-top-color: rgba(255,255,255,.08); }
+.editorial-benefit > svg { color: #ffad77; }
+
+/* Órbita proporcional à captura: somente pontos, sem letras ou trilhas. */
+.aurelia-signature {
+  position: relative;
+  isolation: isolate;
+  width: 100%;
+  max-width: 560px;
+  margin-inline: auto;
+  padding-block: 64px;
+}
+.aurelia-capture-stage {
+  position: relative;
+  width: min(88%, 380px);
+  margin-inline: auto;
+}
+.aurelia-orbit-field {
+  position: absolute;
+  inset: -8% -15%;
+  z-index: 0;
+  pointer-events: none;
+}
+.aurelia-planet {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: var(--planet-size, 7px);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: #ffb273;
+  box-shadow: 0 0 12px 2px rgba(255, 139, 63, .28);
+  offset-path: ellipse(50% 50% at 50% 50%);
+  offset-distance: var(--orbit-start);
+  offset-rotate: 0deg;
+}
+.aurelia-planet-one { --planet-size: 8px; --orbit-start: 8%; --orbit-end: 108%; --orbit-duration: 26s; }
+.aurelia-planet-two { --planet-size: 5px; --orbit-start: 36%; --orbit-end: 136%; --orbit-duration: 34s; background: #ffd4ae; }
+.aurelia-planet-three { --planet-size: 7px; --orbit-start: 61%; --orbit-end: 161%; --orbit-duration: 30s; }
+.aurelia-planet-four { --planet-size: 4px; --orbit-start: 85%; --orbit-end: 185%; --orbit-duration: 40s; background: #ff8a3d; }
+.aurelia-whatsapp-layer {
+  position: relative;
+  z-index: 1;
+}
+@keyframes aurelia-planet-orbit {
+  from { offset-distance: var(--orbit-start); }
+  to { offset-distance: var(--orbit-end); }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .aurelia-planet { animation: aurelia-planet-orbit var(--orbit-duration) linear infinite; }
+}
+@media (max-width: 639px) {
+  .aurelia-signature { padding-block: 40px; }
+  .aurelia-capture-stage { width: min(90%, 340px); }
+  .aurelia-orbit-field { inset: -6% -10%; }
+  .aurelia-planet { width: calc(var(--planet-size, 7px) * .8); }
+}
+
+/* ── Moldura de celular ───────────────────────────────────────────────────
+   Ver `components/ui/celular.tsx`.
+
+   A primeira versão (03/11, manhã) desenhou carcaça e ilha e ainda assim não
+   lia como telefone. O que faltava é o que o olho procura sem perceber: a
+   barra de status com hora, sinal, wi-fi e bateria, a barra de gestos embaixo
+   e os botões laterais. São esses detalhes, e não o raio da borda, que fazem
+   o cérebro reconhecer um aparelho.
+
+   O palco existe para a órbita ter onde acontecer: ela é `position: absolute`
+   e precisa de um pai posicionado, com folga nas laterais para os pontos
+   passarem POR FORA do aparelho. */
+.celular-palco {
+  position: relative;
+  isolation: isolate;
+  width: 100%;
+  margin-inline: auto;
+  /* A folga vertical é o espaço por onde os pontos sobem e descem; a lateral
+     dá lugar aos botões, que saem para fora da carcaça. */
+  padding-block: 34px;
+  padding-inline: 4px;
+}
+
+.celular {
+  aspect-ratio: 72 / 148;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr);
+  position: relative;
+  z-index: 1;
+  border-radius: 46px;
+  /* A moldura é um gradiente, e não uma cor chapada: no escuro, uma borda
+     sólida achata o aparelho e ele vira um retângulo cinza. O degradê dá a
+     impressão de luz batendo de cima à esquerda, como a do resto da página. */
+  background: linear-gradient(152deg, #3a4049 0%, #191c22 38%, #0a0c10 72%, #23272f 100%);
+  padding: 11px;
+  box-shadow:
+    /* fio de luz na quina de cima */
+    inset 0 1px 0 rgba(255, 255, 255, 0.22),
+    /* fio escuro na de baixo, que fecha o volume */
+    inset 0 -1px 0 rgba(0, 0, 0, 0.6),
+    /* aresta externa, que separa o aparelho do fundo */
+    0 0 0 1px rgba(255, 255, 255, 0.08),
+    /* sombra longa, para o aparelho não flutuar sem peso */
+    0 36px 80px -30px rgba(0, 0, 0, 0.95);
+}
+
+/* ── Botões laterais ──────────────────────────────────────────────────────
+   Saem 2px para fora da carcaça, como no aparelho real. Decorativos. */
+.celular-botao {
+  position: absolute;
+  width: 3px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, #2e333c, #14171d);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.5);
+}
+.celular-silencioso { left: -2px; top: 86px; height: 26px; }
+.celular-vol { left: -2px; }
+.celular-vol-cima { top: 128px; height: 48px; }
+.celular-vol-baixo { top: 186px; height: 48px; }
+.celular-power { right: -2px; top: 150px; height: 74px; }
+
+.celular-tela {
+  position: relative;
+  overflow: hidden;
+  border-radius: 36px;
+  background: var(--color-ink);
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── A ilha ───────────────────────────────────────────────────────────────
+   Fica SOBRE a barra de status, como no aparelho real. */
+.celular-tela::before {
+  content: "";
+  position: absolute;
+  top: 9px;
+  left: 50%;
+  translate: -50% 0;
+  z-index: 3;
+  width: 84px;
+  height: 25px;
+  border-radius: 999px;
+  background: #05060a;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+  pointer-events: none;
+}
+
+/* ── Barra de status ──────────────────────────────────────────────────────
+   Em flow, e não absoluta: assim ela empurra o conteúdo para baixo sozinha e
+   nenhum filho precisa saber que existe uma ilha ali em cima. */
+.celular-status {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex: none;
+  padding: 13px 24px 7px;
+  color: var(--color-chalk);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.01em;
+}
+.celular-hora { padding-left: 4px; }
+.celular-sinais {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.celular-conteudo {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  overflow-y: auto;
+  min-width: 0;
+  /* Espaço para a barra de gestos não encostar no conteúdo. */
+  margin-bottom: 18px;
+}
+
+/* ── Barra de gestos ──────────────────────────────────────────────────── */
+.celular-gesto {
+  position: absolute;
+  bottom: 7px;
+  left: 50%;
+  translate: -50% 0;
+  z-index: 3;
+  width: 36%;
+  max-width: 134px;
+  height: 5px;
+  border-radius: 999px;
+  background: var(--color-chalk);
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+@media (max-width: 420px) {
+  .celular { border-radius: 36px; padding: 8px; }
+  .celular-tela { border-radius: 29px; }
+  .celular-tela::before { width: 66px; height: 20px; top: 7px; }
+  .celular-status { padding: 10px 18px 6px; font-size: 0.75rem; }
+  .celular-palco { padding-block: 24px; }
+  .celular-botao { display: none; }
+}
+
+.site-warm-surface, .site-menu-surface {
+  background-color: #090a0d;
+  background-image: var(--site-atmosphere);
+  background-attachment: fixed;
+  background-size: 100vw 100vh;
+  background-repeat: no-repeat;
+}
+.site-warm-surface { border-bottom-color: transparent; }
+/* Demonstrações de conversa, rotina e aplicações. */
+.celular { padding: 6px; border: 2px solid #707376; background: linear-gradient(110deg,#494b4e,#101214 9%,#101214 91%,#575b60); }
+.celular-tela { border-radius: 37px; }
+.celular-conteudo:has(.wa-screen) { margin-bottom: 0; overflow: hidden; }
+.celular-tela:has(.wa-light), .celular-tela:has(.wa-light) .celular-status { background: #fafafa; color: #161a1b; }
+.celular-tela:has(.wa-light) .celular-gesto { background: #252525; }
+.wa-screen { display: flex; flex: 1; min-height: 0; flex-direction: column; color: #edf3ef; background: #101c1b; --chat-panel: #1e2929; --chat-in: #283936; --chat-out: #075545; }
+.wa-light { background: #eee9e1; color: #17251f; --chat-panel: #fafafa; --chat-in: white; --chat-out: #d5f7c6; }
+.wa-header,.wa-composer { background: var(--chat-panel); display: flex; align-items: center; gap: 9px; padding: 10px 13px; flex: none; }
+.wa-header { border-bottom: 1px solid #78847d35; font-size: .88rem; }
+.wa-header small { display: block; font-size: .62rem; opacity: .75; }
+.wa-avatar { border-radius: 50%; display: grid; place-items: center; width: 33px; height: 33px; background: #472f25; color: #ffc596; font-weight: 700; }
+.wa-thread { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; align-items: flex-start; gap: 9px; padding: 15px 12px; background-image: radial-gradient(#7d898322 .8px,transparent .9px); background-size: 11px 13px; }
+.wa-date { align-self:center; border-radius:6px; padding:2px 10px; font-size:.63rem; background:var(--chat-panel); }
+.wa-bubble { position:relative; max-width:86%; padding:9px 12px 6px; border-radius:11px; box-shadow:0 1px 2px #0002; font-size:.81rem; line-height:1.42; }
+.wa-bubble small { display:flex; gap:3px; align-items:center; justify-content:flex-end; opacity:.68; font-size:.59rem; }
+.wa-received { align-self:flex-start; background:var(--chat-in,#fff); border-top-left-radius:2px; }
+.wa-sent { align-self:flex-end; background:var(--chat-out,#d5f7c6); border-top-right-radius:2px; }
+.wa-composer { padding-bottom:20px; }
+.wa-composer span { flex:1; padding:4px 10px; border:1px solid #80908855; border-radius:99px; font-size:.72rem; opacity:.7; }
+@media (prefers-reduced-motion:no-preference) {
+  .wa-enter { animation:wa-arrive .35s both; }
+  @keyframes wa-arrive { from { opacity:0; transform:translateY(7px); } to { opacity:1; transform:none; } }
+}
+.day-scene { position:relative; isolation:isolate; overflow:hidden; min-height:clamp(410px,43vw,610px); border-radius:24px; background:#282421; display:flex; align-items:flex-end; }
+.day-scene::after { content:""; position:absolute; inset:0; background:linear-gradient(transparent 40%,#080b0fd9); }
+.day-messages { position:relative; z-index:1; display:flex; flex:1; flex-direction:column; gap:8px; padding:clamp(16px,3vw,38px); color:#13241b; }
+.day-messages strong { color:inherit; }
+.notebook { width:100%; margin-inline:auto; padding-block:8px; }
+.notebook-display { position:relative; margin-inline:5.5%; padding:3% 1.2% 1.5%; background:linear-gradient(130deg,#313437,#08090a 30%,#17181a); border:1px solid #707477; border-radius:clamp(8px,1.6vw,20px) clamp(8px,1.6vw,20px) 3px 3px; box-shadow:inset 0 0 0 2px #101112; }
+.notebook-camera { position:absolute; top:1.6%; left:50%; width:5px; height:5px; border-radius:50%; background:#182a36; box-shadow:0 0 0 1px #080809; }
+.notebook-display figure { margin:0; overflow:hidden; }
+.notebook-display button { aspect-ratio:16/9; overflow:hidden; }
+.notebook-display button > div { height:100%; }
+.notebook-display button .screen-feather {
+  /* A navegação ocupa o primeiro sexto das capturas. A prévia privilegia o
+     módulo; a ampliação conserva a interface completa em resolução nativa. */
+  width:120%;
+  margin-left:-20%;
+}
+.notebook-display button img { display:block; width:100%; height:auto; }
+.notebook-display button:hover { --lift:0px; }
+.notebook-display button,.notebook-display button > div { border-radius:2px; }
+.notebook-display .screen-feather { mask-image:none; }
+.notebook-base { position:relative; height:clamp(8px,1.2vw,17px); border-radius:2px 2px 24% 24% / 2px 2px 90% 90%; background:linear-gradient(#8a8b8c,#494c50 30%,#292b2e 68%,#101112); box-shadow:0 13px 19px -9px #000a; }
+.notebook-base::after { content:""; position:absolute; left:42%; right:42%; height:42%; border-radius:0 0 8px 8px; background:#45484b; }
+.module-studio { margin-block:2.5rem; padding:clamp(18px,4vw,48px); border:1px solid #ffffff22; border-radius:26px; background:radial-gradient(ellipse at 20% 90%,#29312b,transparent 55%),#101417; color:#f0f3f1; }
+.module-tab { display:inline-flex; align-items:center; gap:7px; border:1px solid #ffffff32; border-radius:30px; padding:8px 12px; font-size:.78rem; cursor:pointer; }
+.module-tab[aria-pressed=true] { background:#e6eddc; color:#14241e; }
+.module-stack { position:relative; padding:12px 14px 0; }
+.module-card { position:relative; border:1px solid #ffffff50; border-radius:16px; padding:24px; background:linear-gradient(145deg,#39493f,#151d19); box-shadow:-8px 7px #39413c,-14px 13px #262e29; }
+.module-message { position:relative; margin:-5px 0 0 auto; width:fit-content; max-width:91%; border-radius:10px 2px 10px 10px; background:#075545; padding:9px 14px; font-size:.82rem; }

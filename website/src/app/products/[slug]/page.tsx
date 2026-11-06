@@ -4,7 +4,7 @@ import Script from "next/script";
 import { Check, Sparkles, Plug, ArrowRight } from "lucide-react";
 import { PageHero } from "@/components/sections/page-hero";
 import { IconTile } from "@/components/ui/icon-tile";
-import { Screenshot } from "@/components/ui/screenshot";
+import { Notebook } from "@/components/ui/notebook";
 import { Container } from "@/components/ui/container";
 import { Section, SectionHeader } from "@/components/ui/section";
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { ProductCard } from "@/components/cards/product-card";
 import { Reveal } from "@/components/animations/reveal";
 import { CTA } from "@/components/sections/cta";
+import { TutorialVideo } from "@/components/sections/tutorial-video";
 import { products, getProduct } from "@/config/products";
 import { buildMetadata } from "@/lib/seo";
 import { siteConfig } from "@/config/site";
@@ -100,13 +101,33 @@ export default async function ProductPage({
         )}
       </PageHero>
 
-      {/* Captura real do módulo (doc 06: imagens reais, nunca mockups) */}
-      {product.screenshot && (
-        <Container className="pb-4">
+      {/* Vídeo tutorial passo a passo exclusivo no One Space */}
+      {product.slug === "one-space" && (
+        <Container>
           <Reveal>
-            <Screenshot {...product.screenshot} />
+            <TutorialVideo />
           </Reveal>
         </Container>
+      )}
+
+      {/* Captura real do módulo (doc 06: imagens reais, nunca mockups) */}
+      {product.screenshot && (
+        <Section className="pt-8 md:pt-12">
+          <SectionHeader
+            align="left"
+            eyebrow="Visão na plataforma"
+            title="Tudo o que você manda pelo WhatsApp, organizado em tela grande."
+            description="Quando quiser planejar a semana inteira, revisar detalhes ou acompanhar tudo de uma vez, o painel no navegador mostra cada registro no seu lugar."
+          />
+          <div className="mt-10">
+            <Reveal>
+              <Notebook tela={product.screenshot} />
+              <p className="mt-4 text-xs text-chalk-dim">
+                Tela real em modo escuro, com dados fictícios de demonstração.
+              </p>
+            </Reveal>
+          </div>
+        </Section>
       )}
 
       {/* Features */}
@@ -114,7 +135,7 @@ export default async function ProductPage({
         <SectionHeader
           align="left"
           eyebrow="Recursos"
-          title={`Tudo o que o ${product.name} entrega.`}
+          title="O que você pode fazer."
         />
         <div className="mt-10 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {product.features.map((f, i) => (
@@ -133,7 +154,7 @@ export default async function ProductPage({
       {/* AI + Integrations */}
       <Section muted>
         <div className="grid gap-8 lg:grid-cols-2">
-          <div className="rounded-(--radius-card) border border-white/[0.08] bg-panel p-8">
+          {product.ai.length > 0 && <div className="rounded-(--radius-card) border border-white/[0.08] bg-panel p-8">
             <IconTile icon={Sparkles} />
             <h3 className="mt-5 text-xl font-semibold text-chalk">
               Inteligência Artificial
@@ -150,6 +171,7 @@ export default async function ProductPage({
             </ul>
           </div>
 
+          }
           {product.integrations && product.integrations.length > 0 && (
             <div className="rounded-(--radius-card) border border-white/[0.08] bg-panel p-8">
               <IconTile icon={Plug} tone="dark" />

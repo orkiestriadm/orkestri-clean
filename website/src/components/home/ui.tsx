@@ -26,18 +26,11 @@ export function Faixa({
     <section
       id={id}
       className={cn(
-        "relative py-20 md:py-28",
+        "relative py-16 md:py-24",
         tom === "ink" ? "bg-ink" : "bg-ink-raise",
         className,
       )}
     >
-      {/* Fio de separação no topo. Duas faixas quase da mesma cor precisam de
-          uma aresta para não virarem um bloco só; o fio resolve sem a linha
-          dura de um `border-t`. */}
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/[0.09] to-transparent"
-      />
       <Container className="relative">{children}</Container>
     </section>
   );

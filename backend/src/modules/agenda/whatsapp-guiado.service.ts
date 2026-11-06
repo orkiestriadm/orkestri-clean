@@ -1,4 +1,8 @@
-import { Injectable } from "@nestjs/common";
+import { coletarQuando, perguntaQuando } from "./whatsapp-guiado-quando";
+import { comandoAgenda, variosCompromissos } from './whatsapp-agenda-comandos';
+import { orientacaoAurelia, parcelasMensais } from './aurelia-conversa';
+import { Injectable, Optional } from "@nestjs/common";
+import { AureliaIaService, dadosAgendaIa, duracaoIa, ExtracaoAgenda } from './aurelia-ia.service';
 import { PrismaService } from "../../prisma/prisma.service";
 import { AuthService } from "../auth/auth.service";
 import { WhatsAppService } from "../notifications/whatsapp.service";
@@ -45,7 +49,43 @@ export class WhatsappGuiadoService {
     private auth: AuthService,
     private equipe: WhatsappEquipeService,
     private writeback: CalendarWritebackService,
+    @Optional() private ia?: AureliaIaService,
   ) {}
+  /** Public WhatsApp entry: keep the legacy state engine, never expose its numeric menus. */
+  async tratarConversa(u: User, texto: string, conversa: string, instancia: string, portas: PortasGuia): Promise<boolean> {
+    const n = simples(texto);
+    if (/^(?:acesso|cadastro|renovar|vincular\b)/.test(n)) return false;
+    const p = await this.auth.resolvePermissions(u.id);
+    const say = (s: string) => this.wa.sendToJid(conversa,s,instancia);
+    if (/^(?:empresa|projetos?|tarefas?|keep|notas?|anotacoes|chamados?|suporte|conhecimento)\b/.test(n)) {
+      await say('Para organizar isso com todos os detalhes, abra https://www.orkiestri.com/login. Pelo navegador você consegue visualizar e usar todos os recursos. Por aqui, posso ajudar com seus compromissos e gastos pessoais.');
+      return true;
+    }
+    const rows: any[] = await this.prisma.$queryRaw`SELECT etapa,dados FROM whatsapp_inicio WHERE user_id=${u.id} AND instancia=${instancia} AND conversa=${conversa} AND expira_em>CURRENT_TIMESTAMP`;
+    const state = rows[0]?.dados;
+    if (/^(obrigad[oa]|valeu|muito obrigad[oa])[.!?]*$/.test(n)) {
+      await say('Por nada! Quando precisar organizar um compromisso ou anotar um gasto, é só me contar.');
+      return true;
+    }
+    if (state && state.fase !== 'MENU' && !state.v?.ia) {
+      await this.tratar(u,'menu',conversa,instancia,portas);
+      return true;
+    }
+    const pedido = texto.replace(/^evento\s*:\s*/i,'marque ');
+    const financeiro = /^(?:lan[cç]ar|lan[cç]a|gastos?|gastei|despesa|comprei|paguei)\b/i.test(pedido);
+    if (!state?.v?.ia && (comandoAgenda(pedido) || financeiro)) {
+      const contextos:any[] = await this.prisma.$queryRaw`SELECT contexto FROM whatsapp_contextos WHERE user_id=${u.id} AND organization_id=${u.organizationId} AND instancia=${instancia} AND conversa=${conversa}`;
+      if (contextos[0]?.contexto === 'EMPRESA') {
+        await say('Por aqui registro sua agenda e seus gastos pessoais. Para voltar a esse atendimento, diga pessoal. Para trabalhar com os dados da empresa, abra https://www.orkiestri.com/login.');
+        return true;
+      }
+    }
+    if (state?.v?.ia || comandoAgenda(pedido) || variosCompromissos(pedido) || financeiro) {
+      if (await this.tratar(u,pedido,conversa,instancia,portas)) return true;
+    }
+    await say(orientacaoAurelia(this.pode(p,'evento.criar'),this.pode(p,'gasto.criar')));
+    return true;
+  }
   private scope(user: User) {
     return {
       organizationId: user.organizationId,
@@ -65,9 +105,7 @@ export class WhatsappGuiadoService {
           ? "gastos"
           : acao.startsWith("chamado.")
             ? "chamados"
-            : acao.startsWith("conta.")
-              ? "financeiro"
-              : "projetos";
+            : "projetos";
     const operacao = acao.endsWith(".criar")
       ? "criar"
       : acao.endsWith(".excluir")
@@ -77,32 +115,16 @@ export class WhatsappGuiadoService {
       ? operacao === "criar"
         ? "gastos:registrar"
         : "gastos:editar"
-      : recurso === "financeiro"
-        ? "financeiro:gerenciar"
-        : `${recurso}:${operacao}`;
+      : `${recurso}:${operacao}`;
   }
   private pode(p: string[], acao: string) {
     return (
       permissao(p, this.required(acao)) ||
-      (acao.startsWith("gasto.") &&
-        (permissao(p, "gastos:registrar") ||
-          permissao(p, "financeiro:gerenciar")))
+      (acao.startsWith("gasto.") && permissao(p, "gastos:registrar"))
     );
   }
   private menu(p: string[]) {
-    return (
-      "Como posso ajudar? Responda o número:\n\n" +
-      (permissao(p, "agenda:ver") ? "*1* — Meus compromissos\n" : "") +
-      (permissao(p, "keep:ver") ? "*2* — Anotações\n" : "") +
-      (permissao(p, "gastos:ver") || permissao(p, "financeiro:ver")
-        ? "*3* — Meus gastos\n"
-        : "") +
-      (permissao(p, "projetos:ver")
-        ? "*4* — Projetos e tarefas da equipe\n"
-        : "") +
-      (permissao(p, "keep:ver") ? "*5* — Minhas tarefas pessoais\n" : "") +
-      "*6* — Mais opções e ajuda\n*0* — Sair"
-    );
+    return orientacaoAurelia(this.pode(p,'evento.criar'),this.pode(p,'gasto.criar'));
   }
   private submenu(grupo: string, p: string[]) {
     const nome: any = {
@@ -162,10 +184,9 @@ export class WhatsappGuiadoService {
       "tarefa.excluir": "Excluir tarefa pessoal",
       "tarefa.status": "Mudar situação da tarefa pessoal",
       "chamado.criar": "Pedir ajuda",
-      "conta.criar": "Anotar conta a pagar",
     };
     const linhas = [`*${nomes[v.acao] || "Confira antes de salvar"}*`];
-    if (/^(projeto|demanda|chamado|conta)\./.test(v.acao))
+    if (/^(projeto|demanda|chamado)\./.test(v.acao))
       linhas.push("Espaço da sua empresa.");
     if (v.projectNome) linhas.push("Projeto: " + v.projectNome);
     for (const c of this.campos(v)) {
@@ -208,10 +229,19 @@ export class WhatsappGuiadoService {
       linhas.push(v.concluido ? "Tarefa concluída" : "Tarefa pendente");
     if (v.serie)
       linhas.push("Atenção: esta alteração afeta a série de compromissos.");
+    if (v.ia && v.acao === 'gasto.criar' && v.parcelas > 1 && v.dataGasto) {
+      const parcelas = parcelasMensais(Number(v.valor),Number(v.parcelas),v.dataGasto);
+      linhas.push('Vou distribuir o total assim:');
+      parcelas.forEach((parcela,i) => linhas.push(`${i+1}/${parcelas.length}: ${dinheiro(parcela.valor)} em ${diaLegivel(parcela.dataGasto.toISOString().slice(0,10))}`));
+    }
     return (
       linhas.join("\n") +
-      "\n\n*1* — Confirmar\n*2* — Corrigir\n*Cancelar* — Não salvar" +
-      NAV
+      (v.ia && v.acao === 'evento.criar'
+        ? `\n\nAh, fechou então! Posso confirmar em sua agenda o compromisso *${v.titulo || 'esse compromisso'}*? Se quiser corrigir algo, é só falar!`
+        : v.ia && v.acao === 'gasto.criar'
+          ? '\n\nFechou, confirma pra mim se é isso mesmo que é pra lançar?'
+        : v.ia ? "\n\nPosso salvar assim? Responda *sim*, *corrigir* ou *cancelar*." :
+      "\n\n*1* — Confirmar\n*2* — Corrigir\n*Cancelar* — Não salvar" + NAV)
     );
   }
   private async lista(
@@ -233,8 +263,7 @@ export class WhatsappGuiadoService {
     )[v.grupo];
     if (
       !necessario ||
-      (!permissao(acesso, necessario) &&
-        !(v.grupo === "gasto" && permissao(acesso, "financeiro:gerenciar")))
+      !permissao(acesso, necessario)
     )
       return {
         estado: { fase: "MENU", v: {} },
@@ -352,16 +381,22 @@ export class WhatsappGuiadoService {
     u: User,
     v: any,
   ): Promise<{ estado: Estado; mensagem: string }> {
-    const campos = this.campos(v),
-      campo = campos[v.indice || 0];
+    const campos = this.campos(v);
+    if (v.ia && !v.corrigindo) {
+      while ((v.indice || 0) < campos.length && Object.prototype.hasOwnProperty.call(v, campos[v.indice || 0].key))
+        v.indice = (v.indice || 0) + 1;
+    }
+    const campo = campos[v.indice || 0];
     if (!campo)
       return { estado: { fase: "CONFIRMAR", v }, mensagem: this.resumo(v) };
     if (campo.tipo === "pessoa")
       return this.lista(tx, u, { ...v, grupo: "pessoa", pagina: 0 });
+    if (campo.tipo === "quando" && v.quando) delete v.quandoParcial;
     return {
       estado: { fase: "FORM", v },
       mensagem:
-        campo.pergunta +
+        (v.ia && campo.tipo === 'repeticao' ? `Viu, deixa eu te perguntar: esse compromisso *${v.titulo || 'esse compromisso'}* se repete? Pode responder não, diariamente, semanalmente ou mensalmente.` :
+        campo.tipo === "quando" ? perguntaQuando(v.quandoParcial) : campo.pergunta) +
         (v[campo.key] != null
           ? "\nAtual: " +
             (campo.tipo === "quando"
@@ -369,7 +404,7 @@ export class WhatsappGuiadoService {
               : String(v[campo.key]).slice(0, 160)) +
             "\nPara manter, envie *manter*."
           : "") +
-        NAV,
+        (v.ia ? '\nPara interromper, escreva cancelar.' : NAV),
     };
   }
   async tratar(
@@ -379,6 +414,27 @@ export class WhatsappGuiadoService {
     instancia: string,
     portas: PortasGuia,
   ): Promise<boolean> {
+    // Inference happens outside the transaction. The snapshot is checked again
+    // under the same advisory lock used by all guided writes.
+    let extraidoIa: ExtracaoAgenda = null;
+    let snapshotIa: string | undefined;
+    const multiplos = texto.length <= 1000 && variosCompromissos(texto);
+    const comando = multiplos ? null : comandoAgenda(texto);
+    if (!multiplos && (comando || this.ia?.habilitada()) && texto.length <= 1000 &&
+        (comando ||
+        /\b(?:agend|marc|compromisso|consulta|dentista|reuni[aã]o)\w*/i.test(texto) &&
+        !/\b(?:apagu|apag|exclu|cancel|remov|reagend|alter|mud|repete|repetir|toda|todo|diariamente|semanalmente|mensalmente)\w*/i.test(texto))) {
+      try {
+        const acesso = await this.auth.resolvePermissions(u.id);
+        const rows: any[] = await this.prisma.$queryRaw`SELECT etapa,dados FROM whatsapp_inicio WHERE user_id=${u.id} AND instancia=${instancia} AND conversa=${conversa} AND expira_em>CURRENT_TIMESTAMP`;
+        const contextos: any[] = await this.prisma.$queryRaw`SELECT contexto FROM whatsapp_contextos WHERE user_id=${u.id} AND organization_id=${u.organizationId} AND instancia=${instancia} AND conversa=${conversa}`;
+        if (permissao(acesso, 'agenda:criar') && contextos[0]?.contexto !== 'EMPRESA' &&
+            (!rows.length || rows[0]?.dados?.fase === 'MENU')) {
+          snapshotIa = JSON.stringify(rows[0] || null);
+          extraidoIa = comando || await this.ia.extrair(texto);
+        }
+      } catch { /* Preserve the existing flow if the optional AI is unavailable. */ }
+    }
     const t = texto.trim(),
       n = simples(t),
       abrir =
@@ -443,6 +499,28 @@ export class WhatsappGuiadoService {
               await this.perguntar(tx, u, { ...v, acao, indice: 0 }),
             );
           };
+          if ((!state || state.fase === 'MENU') && /^(?:lan[cç]ar|lan[cç]a|gastos?|gastei|despesa|comprei|paguei)\b/i.test(t)) {
+            if (!this.pode(p,'gasto.criar')) return 'Seu acesso não permite registrar gastos. Você pode conferir as opções da sua conta em https://www.orkiestri.com/login.';
+            const contextos: any[] = await tx.$queryRaw`SELECT contexto FROM whatsapp_contextos WHERE user_id=${u.id} AND organization_id=${u.organizationId} AND instancia=${instancia} AND conversa=${conversa}`;
+            if (contextos[0]?.contexto === 'EMPRESA') return 'Esses lançamentos são pessoais. Para o financeiro da empresa, abra https://www.orkiestri.com/login.';
+            const g = portas.gasto(t);
+            if (!g || g === 'sem_valor') return form('gasto.criar',{ia:true});
+            if (g.parcelas > 1 && g.formaPagamento !== 'CREDITO') return 'Você quer parcelar no cartão de crédito? Me envie o gasto com a forma de pagamento e a quantidade de parcelas. Ainda não salvei nada.';
+            const v:any = {...g,ia:true,valor:Number(g.valor),dataGasto:diaSaoPaulo(new Date(g.dataGasto))};
+            if (v.formaPagamento === 'NAO_INFORMADO') delete v.formaPagamento;
+            if (v.descricao === 'Gasto') delete v.descricao;
+            try { parcelasMensais(v.valor,v.parcelas,v.dataGasto); } catch { return 'Confira o valor e a quantidade de parcelas. Cada parcela precisa ter pelo menos um centavo, e aceito até 120 parcelas. Ainda não salvei nada.'; }
+            return form('gasto.criar',v);
+          }
+          if (multiplos && (!state || state.fase === 'MENU' || state.v?.ia))
+            return 'Identifiquei mais de um compromisso. Envie um de cada vez, começando pelo primeiro. Não gravei nenhum compromisso desta mensagem.';
+          if (extraidoIa && snapshotIa !== JSON.stringify(rows[0] || null))
+            return 'A conversa mudou enquanto eu interpretava a mensagem. Responda à última pergunta ou envie novamente. Nada foi salvo por esta mensagem.';
+          if (extraidoIa?.acao === 'criar') {
+            return form('evento.criar', dadosAgendaIa(extraidoIa));
+          }
+          if (abrir && this.ia?.habilitada() && !/^(menu|ajuda|voltar ao menu)/.test(n))
+            return salvar({ fase: 'MENU', v: {} }, 'Oiee, eu sou a Aurélia, assistente e assessora do Orkiestri.\n\nMe conte o compromisso que você quer marcar. Por exemplo: dentista amanhã às 14h.');
           if (abrir) return principal();
           if (
             state &&
@@ -455,9 +533,15 @@ export class WhatsappGuiadoService {
             await limpar();
             return "Tudo bem. Encerrei esta conversa. Para voltar, escreva *menu*.";
           }
+          if (/^(cancelar|cancela|deixa pra la|deixa para la|nao salva|desisti)[.!?]*$/.test(n) && state?.v?.ia) {
+            await limpar();
+            return 'Cancelei este rascunho. Nada foi salvo. O que mais você precisa?';
+          }
           if (n === "cancelar" && state)
             return principal("Cancelei o que ainda não estava salvo.\n\n");
-          if ((n === "voltar" || n === "9") && state) {
+          const respondendoQuando = state?.fase === "FORM" &&
+            this.campos(state.v)[state.v.indice || 0]?.tipo === "quando";
+          if ((n === "voltar" || (n === "9" && !respondendoQuando)) && state) {
             const anterior = (state.historico || []).pop();
             if (!anterior) return principal();
             if (anterior.v?.acao && anterior.v.acao === state.v?.acao) {
@@ -534,7 +618,7 @@ export class WhatsappGuiadoService {
                             60000,
                         ),
                       )
-                    : 30,
+                    : 60,
                   recorrencia: e.recorrencia || null,
                   recorrenciaFim: e.recorrenciaFim
                     ? diaSaoPaulo(new Date(e.recorrenciaFim))
@@ -615,8 +699,6 @@ export class WhatsappGuiadoService {
                   "Vamos escolher pelo nome, sem precisar copiar códigos.\n\n" +
                   this.submenu("projeto", p),
               });
-            if (/^(?:conta|nova conta|lancar conta)\s*[:\-]/.test(n))
-              return form("conta.criar");
             const chamado = t.match(
               /^(?:chamado|abrir chamado|suporte|ticket)\s*:\s*(.+)$/is,
             );
@@ -670,8 +752,7 @@ export class WhatsappGuiadoService {
             };
             if (
               g[t] &&
-              (permissao(p, permitido[g[t]]) ||
-                (g[t] === "gasto" && permissao(p, "financeiro:ver")))
+              permissao(p, permitido[g[t]])
             ) {
               const contexto = g[t] === "projeto" ? "EMPRESA" : "PESSOAL";
               await tx.$executeRaw`INSERT INTO whatsapp_contextos(user_id,organization_id,instancia,conversa,contexto) VALUES (${u.id},${u.organizationId},${instancia},${conversa},${contexto}) ON CONFLICT(user_id,instancia,conversa) DO UPDATE SET organization_id=EXCLUDED.organization_id,contexto=EXCLUDED.contexto,atualizado_em=CURRENT_TIMESTAMP`;
@@ -685,7 +766,7 @@ export class WhatsappGuiadoService {
               return passo({
                 estado: { fase: "MAIS", v: {} },
                 mensagem:
-                  "Mais opções:\n*1* — Ver meu dia\n*2* — Pedir ajuda à equipe\n*3* — Consultar meus pedidos de ajuda\n*4* — Contas a pagar da empresa\n*5* — Procurar uma orientação\n*6* — O que posso fazer por aqui?" +
+                  "Mais opções:\n*1* — Ver meu dia\n*2* — Pedir ajuda à equipe\n*3* — Consultar meus pedidos de ajuda\n*4* — Procurar uma orientação\n*5* — O que posso fazer por aqui?" +
                   NAV,
               });
             return principal("Escolha um número que aparece abaixo.\n\n");
@@ -715,38 +796,20 @@ export class WhatsappGuiadoService {
               await portas.outro("chamados.lista", {});
               return principal();
             }
-            if (t === "4" && permissao(p, "financeiro:ver"))
-              return passo({
-                estado: { fase: "CONTAS", v: {} },
-                mensagem:
-                  "*Contas a pagar da empresa*\n*1* — Anotar conta\n*2* — Ver contas\n*3* — Ver resumo" +
-                  NAV,
-              });
-            if (t === "5" && permissao(p, "conhecimento:ver"))
+            if (t === "4" && permissao(p, "conhecimento:ver"))
               return passo({
                 estado: { fase: "BUSCA", v: {} },
                 mensagem:
                   "O que você quer saber? Escreva algumas palavras. Exemplo: *como criar um projeto*." +
                   NAV,
               });
-            if (t === "6")
+            if (t === "5")
               return principal(
                 "Aqui eu ajudo com compromissos, anotações, gastos, projetos e tarefas. Também consulto orientações e pedidos de ajuda, conforme seu acesso.\n\nNo site você encontra as opções avançadas: anexos, compartilhamentos, quadro completo, relatórios detalhados e configurações. Acesse *https://www.orkiestri.com/login*.\n\n",
               );
             return principal(
               "Essa opção não está disponível para sua conta.\n\n",
             );
-          }
-          if (state.fase === "CONTAS") {
-            if (t === "1") return form("conta.criar");
-            if (t === "2" || t === "3") {
-              externo = true;
-              await portas.outro(
-                t === "2" ? "contas.lista" : "contas.resumo",
-                {},
-              );
-              return principal();
-            }
           }
           if (state.fase === "BUSCA") {
             if (!permissao(p, "conhecimento:ver"))
@@ -964,12 +1027,38 @@ export class WhatsappGuiadoService {
               mensagem: this.resumo(v),
             });
           }
+          if (state.v?.ia && state.v.acao === 'evento.criar' && ['FORM','CONFIRMAR','CORRIGIR'].includes(state.fase)) {
+            const nome = t.match(/^(?:o\s+)?nome\s+[ée]\s+(.+)$/i);
+            const quando = t.match(/^(?:(?:n[aã]o[, ]+)[ée]\s+|troca\s+(?:o\s+)?(?:dia|hor[aá]rio)\s+para\s+|quis dizer\s+)(.+)$/i);
+            if (nome || quando) {
+              const v = { ...state.v, indice: 0, corrigindo: false };
+              if (nome) {
+                const campo = this.campos(v).find(c => c.key === 'titulo');
+                const valid = validarCampo(campo, nome[1], portas.evento);
+                if (valid.erro) return salvar(state, valid.erro);
+                v.titulo = valid.valor;
+              } else {
+                const anterior = v.quando ? {
+                  dia: diaSaoPaulo(new Date(v.quando)),
+                  horario: new Date(v.quando).toLocaleTimeString('en-GB', {timeZone:'America/Sao_Paulo',hour:'2-digit',minute:'2-digit'}),
+                } : v.quandoParcial;
+                const valid = coletarQuando(quando[1], anterior);
+                if (valid.erro) return salvar(state, valid.erro + '\nO rascunho anterior foi mantido.');
+                delete v.quando;
+                delete v.quandoParcial;
+                if (valid.valor) v.quando = valid.valor;
+                else v.quandoParcial = valid.parcial;
+              }
+              return passo(await this.perguntar(tx, u, v));
+            }
+          }
           if (state.fase === "CORRIGIR") {
-            const i = Number(t) - 1;
-            if (!/^\d$/.test(t) || !this.campos(state.v)[i])
+            const porNome = state.v.ia ? this.campos(state.v).findIndex(c => simples(c.nome) === n || c.key === n || (c.key === 'quando' && /^(data|horario|dia|hora)$/.test(n))) : -1;
+            const i = porNome >= 0 ? porNome : Number(t) - 1;
+            if ((porNome < 0 && !/^\d$/.test(t)) || !this.campos(state.v)[i])
               return salvar(
                 state,
-                "Escolha o número da informação que deseja corrigir." + NAV,
+                (state.v.ia ? 'Qual informação quer corrigir? Escreva o nome do campo: ' + this.campos(state.v).map(c => c.nome).join(', ') : "Escolha o número da informação que deseja corrigir." + NAV),
               );
             return passo(
               await this.perguntar(tx, u, {
@@ -982,6 +1071,10 @@ export class WhatsappGuiadoService {
           if (state.fase === "FORM") {
             const v = { ...state.v },
               campo = this.campos(v)[v.indice || 0];
+            const respostaIa = v.ia && campo.tipo === 'duracao' ? duracaoIa(t) : undefined;
+            const repeticaoIa = v.ia && campo.tipo === 'repeticao'
+              ? ({ nao: '1', 'nao repete': '1', diariamente: '2', semanalmente: '3', mensalmente: '4' } as Record<string,string>)[n]
+              : undefined;
             if (
               v.acao === "projeto.editar" &&
               campo.key === "dataFim" &&
@@ -993,12 +1086,21 @@ export class WhatsappGuiadoService {
                 "Para remover o prazo de um projeto, abra o projeto no site. Por aqui você pode informar uma nova data ou enviar *manter*." +
                   NAV,
               );
-            const valid =
+            const valid: ReturnType<typeof coletarQuando> =
               n === "manter" && v[campo.key] != null
                 ? { valor: v[campo.key] }
-                : validarCampo(campo, t, portas.evento);
+                : campo.tipo === "quando"
+                  ? coletarQuando(t, v.quandoParcial)
+                  : validarCampo(campo, respostaIa !== undefined ? String(respostaIa) : repeticaoIa || t, portas.evento);
             if (valid.erro)
-              return salvar(state, valid.erro + "\n\n" + campo.pergunta + NAV);
+              return salvar(state, valid.erro + "\n\n" +
+                (campo.tipo === "quando" ? perguntaQuando(v.quandoParcial) : campo.pergunta) + NAV);
+            if (valid.parcial)
+              return passo({
+                estado: { fase: "FORM", v: { ...v, quandoParcial: valid.parcial } },
+                mensagem: valid.mensagem + NAV,
+              });
+            if (campo.tipo === "quando") delete v.quandoParcial;
             if (
               campo.key === "recorrenciaFim" &&
               valid.valor &&
@@ -1033,12 +1135,12 @@ export class WhatsappGuiadoService {
                 mensagem:
                   "Qual informação quer corrigir?\n" +
                   this.campos(state.v)
-                    .map((c, i) => `*${i + 1}* — ${c.nome}`)
+                    .map((c, i) => state.v.ia ? c.nome : `*${i + 1}* — ${c.nome}`)
                     .join("\n") +
-                  NAV,
+                  (state.v.ia ? '\nEscreva o nome da informação.' : NAV),
               });
             }
-            if (!/^(1|sim|confirmar|confirmo)$/.test(n))
+            if (!/^(1|sim|confirmar|confirmo|pode|claro|e claro|com certeza)$/.test(n) && !(state.v.ia && /^(pode salvar|pode confirmar|sim, pode salvar|sim pode salvar|pode marcar|isso mesmo,? pode marcar|pode ser|pode confirmar sim)[.!?]*$/.test(n)))
               return salvar(state, this.resumo(state.v));
             if (!this.pode(p, state.v.acao))
               return principal(
@@ -1050,6 +1152,10 @@ export class WhatsappGuiadoService {
             eventoSync = r.sync;
             externo = !!r.externo;
             acaoUtil("GUIADO_" + state.v.acao.toUpperCase().replace(".", "_"));
+            if (state.v.ia) {
+              await limpar();
+              return 'Pronto! ' + r.mensagem + '\n\nSe precisar de mais alguma coisa, é só me contar.';
+            }
             return principal("✅ " + r.mensagem + "\n\n");
           }
           return principal(
@@ -1142,22 +1248,6 @@ export class WhatsappGuiadoService {
       await portas.outro(v.acao, v);
       return { mensagem: "Solicitação registrada.", externo: true };
     }
-    if (m === "conta") {
-      await tx.contaPagar.create({
-        data: {
-          id: randomUUID(),
-          organizationId: u.organizationId,
-          fornecedorNome: v.descricao,
-          numero: "WA-" + randomUUID().slice(0, 12).toUpperCase(),
-          tipo: "MANUAL",
-          valorOriginal: Number(v.valor),
-          dataVencto: new Date(v.dataVencto + "T12:00:00Z"),
-          dataVenctoReal: new Date(v.dataVencto + "T12:00:00Z"),
-          dataEmissao: new Date(),
-        },
-      });
-      return { mensagem: "Conta a pagar registrada na sua empresa." };
-    }
     const data: any = {};
     if (m === "evento") {
       if (op === "excluir") {
@@ -1185,7 +1275,7 @@ export class WhatsappGuiadoService {
         inicio,
         fim: v.diaTodo
           ? null
-          : new Date(inicio.getTime() + (v.duracao || 30) * 60000),
+          : new Date(inicio.getTime() + (v.duracao || 60) * 60000),
         diaTodo: !!v.diaTodo,
         ...(op === "criar"
           ? {
@@ -1237,6 +1327,11 @@ export class WhatsappGuiadoService {
         data.parcelas > 1
           ? Math.round((data.valor / data.parcelas) * 100) / 100
           : null;
+      if (op === 'criar' && v.ia && data.parcelas > 1) {
+        const parcelas = parcelasMensais(data.valor,data.parcelas,v.dataGasto);
+        for (const [i,parcela] of parcelas.entries()) await tx.gasto.create({data:{...data,...base,...parcela,descricao:`${data.descricao} (${i+1}/${parcelas.length})`,parcelas:1,valorParcela:null}});
+        return {mensagem:`Anotei ${data.descricao}: ${dinheiro(data.valor)} no total, distribuídos em ${parcelas.length} lançamentos mensais, a partir de ${diaLegivel(v.dataGasto)}.`};
+      }
     }
     if (m === "tarefa") {
       if (op === "excluir") {

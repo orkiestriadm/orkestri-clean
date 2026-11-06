@@ -3,7 +3,7 @@ import {
   instanteSaoPaulo,
   somarDias,
 } from "./whatsapp-rotina-datas";
-import { novaDataCompromisso } from "../notifications/evento-alerta-datas";
+import { diaCompromisso, novaDataCompromisso } from "../notifications/evento-alerta-datas";
 
 export const simples = (t: string) =>
   t
@@ -13,7 +13,7 @@ export const simples = (t: string) =>
     .toLowerCase()
     .replace(/^\//, "");
 export const NAV =
-  "\n\n*Voltar* — pergunta anterior\n*Menu* — início · *0* — sair";
+  "\n\nSe quiser rever a resposta anterior, diga voltar. Para deixar este rascunho de lado, diga cancelar.";
 export type CampoGuia = {
   key: string;
   nome: string;
@@ -53,13 +53,8 @@ export function camposGuia(acao: string): CampoGuia[] {
         pergunta: "Qual é o dia e o horário? Exemplo: *amanhã às 14h*.",
         tipo: "quando",
       },
-      {
-        key: "duracao",
-        nome: "Duração",
-        pergunta:
-          "Quanto tempo vai durar? Envie os minutos, por exemplo *30*. Uma hora é *60*.",
-        tipo: "duracao",
-      },
+      // Compromissos têm duração padrão de 60 minutos. Não interrompa o
+      // cadastro perguntando isso: a pessoa pode ajustar depois no sistema.
       ...(acao === "evento.criar"
         ? [
             {
@@ -107,7 +102,7 @@ export function camposGuia(acao: string): CampoGuia[] {
         key: "formaPagamento",
         nome: "Como pagou",
         pergunta:
-          "Como você pagou?\n*1* — Pix\n*2* — Cartão de crédito\n*3* — Cartão de débito\n*4* — Dinheiro\n*5* — Boleto",
+          "Como você pagou: pix, crédito, débito, dinheiro ou boleto?",
         tipo: "pagamento",
       },
       {
@@ -170,26 +165,6 @@ export function camposGuia(acao: string): CampoGuia[] {
         tipo: "texto",
       },
     ];
-  if (acao === "conta.criar")
-    return [
-      {
-        key: "descricao",
-        nome: "Conta",
-        pergunta: "Qual conta precisa pagar? Exemplo: *Energia*.",
-        tipo: "titulo",
-      },
-      {
-        key: "valor",
-        nome: "Valor",
-        pergunta: "Qual é o valor? Exemplo: *150,00*.",
-        tipo: "valor",
-      },
-      {
-        ...prazo("dataVencto"),
-        opcional: false,
-        pergunta: `Em que dia a conta vence? Envie uma data, como *${exemploDia()}*.`,
-      },
-    ];
   return [];
 }
 export function diaGuia(t: string, agora = new Date()): string | null {
@@ -198,19 +173,7 @@ export function diaGuia(t: string, agora = new Date()): string | null {
   if (n === "hoje") return hoje;
   if (n === "amanha") return somarDias(hoje, 1);
   if (n === "ontem") return somarDias(hoje, -1);
-  const m = n.match(/^(\d{1,2})\/(\d{1,2})(?:\/(\d{4}))?$/);
-  if (!m) return null;
-  const y = Number(m[3] || hoje.slice(0, 4)),
-    mo = Number(m[2]),
-    d = Number(m[1]),
-    test = new Date(Date.UTC(y, mo - 1, d));
-  return y >= 2000 &&
-    y <= 2199 &&
-    test.getUTCFullYear() === y &&
-    test.getUTCMonth() === mo - 1 &&
-    test.getUTCDate() === d
-    ? test.toISOString().slice(0, 10)
-    : null;
+  return diaCompromisso(t, agora);
 }
 export function validarCampo(
   c: CampoGuia,
@@ -263,7 +226,7 @@ export function validarCampo(
     };
     return formas[n]
       ? { valor: formas[n] }
-      : { erro: "Escolha um número de *1* a *5*, ou escreva como pagou." };
+      : { erro: "Não reconheci a forma de pagamento. Foi pix, crédito, débito, dinheiro ou boleto?" };
   }
   if (c.tipo === "parcelas" || c.tipo === "duracao") {
     const v = Number(t.replace(/\s*(minutos?|min)$/i, ""));
@@ -305,7 +268,7 @@ export function validarCampo(
     };
     return Object.prototype.hasOwnProperty.call(r, n)
       ? { valor: r[n] }
-      : { erro: "Responda *1*, *2*, *3* ou *4*." };
+      : { erro: "Esse compromisso se repete? Pode dizer não, diariamente, semanalmente ou mensalmente." };
   }
   return { erro: "Escolha uma opção da lista." };
 }

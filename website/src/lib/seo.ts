@@ -24,6 +24,16 @@ export function buildMetadata({
     title: fullTitle,
     description,
     keywords,
+    manifest: "/manifest.webmanifest",
+    icons: {
+      icon: "/icon-192.png",
+      apple: "/apple-touch-icon.png",
+    },
+    appleWebApp: {
+      capable: true,
+      title: "Orkiestri One",
+      statusBarStyle: "black",
+    },
     alternates: { canonical: url },
     openGraph: {
       type: "website",

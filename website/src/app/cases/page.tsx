@@ -1,87 +1,100 @@
+import Link from "next/link";
+import {
+  ArrowUpRight,
+  CalendarDays,
+  NotebookPen,
+  KanbanSquare,
+  Headset,
+} from "lucide-react";
 import { PageHero } from "@/components/sections/page-hero";
 import { Section } from "@/components/ui/section";
 import { CTA } from "@/components/sections/cta";
 import { buildMetadata } from "@/lib/seo";
 
 export const metadata = buildMetadata({
-  title: "Cases",
+  title: "Possibilidades de uso",
   description:
-    "Estudos de caso em preparação. Enquanto isso, veja onde o Orkiestri One se encaixa e fale com quem construiu a plataforma.",
+    "Conheça formas de aplicar os recursos do Orkiestri à agenda, às anotações, aos projetos e ao atendimento.",
   path: "/cases",
 });
-
-/**
- * Cases.
- *
- * ⚠️ Esta página NÃO tem depoimento nem logo de cliente, e isso é
- * deliberado. Até 26/10/2026 ela exibia três depoimentos — "Diretor de
- * Operações / Setor de Logística" e parecidos — que eram **inventados**,
- * logo abaixo de um texto dizendo que os estudos de caso viriam "em breve".
- * A contradição estava na mesma dobra.
- *
- * A faixa de baixo também dizia "Segmentos atendidos" e listava doze
- * setores, sem um cliente em nenhum deles. Virou "onde a plataforma se
- * encaixa", que é uma afirmação sobre o produto e se sustenta.
- *
- * Quando houver case real, com nome e número que o cliente autorize, ele
- * entra aqui. Antes disso, não.
- */
-
-/* Afirmação sobre o PRODUTO, não sobre carteira de clientes: estes são os
-   contextos em que os módulos que existem hoje resolvem o problema. */
-const encaixes = [
+const uses = [
   {
-    titulo: "Quem atende chamado interno",
-    texto:
-      "TI, Facilities e Administrativo que hoje recebem pedido por e-mail e WhatsApp solto, sem fila, sem SLA e sem histórico.",
+    icon: CalendarDays,
+    label: "Compromissos",
+    title: "Uma agenda que acompanha quem está sempre em movimento.",
+    text: "Registre um compromisso pelo WhatsApp, consulte os eventos e acompanhe a semana na plataforma. Os lembretes ajudam a lembrar do que vem pela frente.",
+    href: "/products/one-space",
+    example: "Evento: reunião amanhã 9h",
   },
   {
-    titulo: "Quem repete a mesma resposta",
-    texto:
-      "Times que explicam o mesmo procedimento toda semana e precisam dele escrito, achável e citável dentro do chamado.",
+    icon: NotebookPen,
+    label: "Vida pessoal",
+    title: "Uma ideia encontra lugar antes de se perder.",
+    text: "Use uma mensagem para guardar uma anotação no Keep. Consulte os recursos disponíveis para a sua conta sem misturar informações pessoais com as da organização.",
+    href: "/products/one-space",
+    example: "Nota: comprar material para a reunião",
   },
   {
-    titulo: "Quem toca projeto sem ferramenta",
-    texto:
-      "Operações que controlam entregas em planilha e perdem prazo por não enxergar o que depende do quê.",
+    icon: KanbanSquare,
+    label: "Trabalho em equipe",
+    title: "O projeto continua organizado depois da primeira mensagem.",
+    text: "Inicie o projeto no contexto da empresa e consulte suas tarefas pelo WhatsApp. Prazos, responsáveis e etapas continuam na plataforma.",
+    href: "/products/one-projects",
+    example: "Projeto: reforma da loja",
   },
   {
-    titulo: "Quem precisa do orçamento à vista",
-    texto:
-      "Financeiro e diretoria que só descobrem o desvio no fim do mês, quando já não dá para corrigir.",
+    icon: Headset,
+    label: "Atendimento",
+    title: "Um pedido deixa de depender da memória de alguém.",
+    text: "Registre o chamado e acompanhe o atendimento com histórico e responsáveis. O acesso aos recursos segue o plano e as permissões da organização.",
+    href: "/products/one-desk",
+    example: "Chamado: a impressora não liga",
   },
 ];
-
-export default function CasesPage() {
+export default function UsesPage() {
   return (
     <>
       <PageHero
-        eyebrow="Cases"
-        title="Os estudos de caso estão sendo preparados."
-        description="Preferimos publicar resultado com nome, número e autorização do cliente a encher esta página de depoimento genérico. Enquanto isso, abaixo está onde a plataforma se encaixa hoje."
-        breadcrumb={[{ label: "Cases", href: "/cases" }]}
+        eyebrow="Possibilidades de uso"
+        title="Um produto. Diferentes rotinas."
+        description="Explore situações em que os recursos do Orkiestri podem ajudar. Comece pela sua necessidade e conheça o módulo correspondente."
+        breadcrumb={[{ label: "Possibilidades de uso", href: "/cases" }]}
       />
-
-      <Section>
-        <h2 className="font-display text-[1.75rem] font-bold tracking-[-0.03em] text-chalk md:text-[2.25rem]">
-          Onde o Orkiestri One se encaixa
-        </h2>
-        <ul className="mt-12 grid gap-px overflow-hidden rounded-(--radius-card) bg-white/[0.07] sm:grid-cols-2">
-          {encaixes.map((e) => (
-            <li key={e.titulo} className="bg-ink p-7">
-              <h3 className="font-semibold text-chalk">{e.titulo}</h3>
-              <p className="mt-2 text-[0.9375rem] leading-relaxed text-chalk-dim">
-                {e.texto}
+      <Section className="pt-4 md:pt-6">
+        <div className="grid gap-5 md:grid-cols-2">
+          {uses.map((use) => (
+            <Link
+              key={use.label}
+              href={use.href}
+              className="premium-surface group rounded-3xl p-7 transition-transform hover:-translate-y-1 motion-reduce:hover:translate-y-0"
+              data-spotlight
+            >
+              <div className="flex items-center justify-between">
+                <use.icon className="text-flame-soft" size={26} aria-hidden />
+                <ArrowUpRight
+                  className="text-chalk-faint transition-colors group-hover:text-flame-soft"
+                  size={18}
+                  aria-hidden
+                />
+              </div>
+              <p className="section-kicker mt-7">{use.label}</p>
+              <h2 className="mt-3 text-2xl font-semibold leading-tight text-chalk">
+                {use.title}
+              </h2>
+              <p className="mt-4 text-sm leading-relaxed text-chalk-dim">
+                {use.text}
               </p>
-            </li>
+              <p className="mt-6 rounded-xl border border-white/10 bg-ink/60 p-4 font-mono text-xs leading-relaxed text-ember">
+                {use.example}
+              </p>
+              <span className="mt-5 inline-block text-sm font-medium text-flame-soft">
+                Conhecer os recursos →
+              </span>
+            </Link>
           ))}
-        </ul>
+        </div>
       </Section>
-
-      <CTA
-        title="Quer ser o primeiro case publicado?"
-        text="Fale com quem construiu a plataforma e veja se ela resolve o seu problema antes de decidir."
-      />
+      <CTA />
     </>
   );
 }

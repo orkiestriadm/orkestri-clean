@@ -1,7 +1,7 @@
 import { WhatsappInicioService } from "./whatsapp-inicio.service";
 import { concluirCadastroAtomico } from "./cadastro-atomico";
-import { comandoCadastroGeral, consultarNumeroCadastro, mensagemPrimeiroContato, numeroCadastro } from './whatsapp-entrada';
-import { dadosTesteAgenda, interesseConviteAgenda, ORIGEM_CONVITE_AGENDA, ORIGEM_CONVITE_GRATUITO } from "../prospects/lead-onboarding";
+import { comandoCadastroGeral, consultarNumeroCadastro, exibirNumeroCadastro, mensagemPrimeiroContato, numeroCadastro } from './whatsapp-entrada';
+import { dadosTesteAgenda, interesseConviteAgenda, textoSemInteresse, ORIGEM_CONVITE_AGENDA, ORIGEM_CONVITE_GRATUITO } from "../prospects/lead-onboarding";
 import { identificarExecucao, execucaoWhats } from "../agenda/whatsapp-execucao";
 import { MARCA } from "../../common/marca";
 import { Module, Injectable, Logger } from "@nestjs/common";
@@ -11,12 +11,13 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { WhatsAppService } from "../notifications/whatsapp.service";
 import { NotificationsModule } from "../notifications/notifications.module";
 import { semearPermissoes, semearPapeisDaOrganizacao } from "../auth/auth.service";
+import { fimDoTeste, PRODUTO_PADRAO } from "../auth/trial-renovacao";
 
 /**
  * Cadastro feito INTEIRO pelo WhatsApp.
  *
  * A pessoa clica no site, o WhatsApp abre já na conversa com a Aurélia, e ela
- * pergunta nome, CPF, e-mail e empresa — uma coisa por vez. O número de
+ * pergunta nome, CPF, e-mail e nome da organização — uma coisa por vez. O número de
  * WhatsApp não é perguntado: é aquele de onde a mensagem veio.
  *
  * QUEM INICIA É A PESSOA
@@ -158,7 +159,7 @@ export class CadastroWhatsappService {
       const respostas = this.lerRespostas(aberta);
       if (conviteGratuito) respostas.origem = ORIGEM_CONVITE_GRATUITO;
       await this.avancar(aberta.id,'NOME',respostas);
-      await this.wa.sendMessage(num,this.msgAbertura(testeAgenda),inst as any);return true;
+      await this.wa.sendMessage(num,this.msgAbertura(num, testeAgenda),inst as any);return true;
     }
     await (this.prisma as any).cadastroWhatsapp.create({
       data: {
@@ -169,7 +170,7 @@ export class CadastroWhatsappService {
       },
     });
 
-    await this.wa.sendMessage(num, apresentar ? mensagemPrimeiroContato('novo') : this.msgAbertura(testeAgenda), inst as any).catch(() => false);
+    await this.wa.sendMessage(num, apresentar ? mensagemPrimeiroContato('novo') : this.msgAbertura(num, testeAgenda), inst as any).catch(() => false);
     this.logger.log(`cadastro iniciado pelo chat (numero ...${num.slice(-4)})`);
     return true;
   }
@@ -188,7 +189,8 @@ export class CadastroWhatsappService {
 
   /** Só interpreta 1/2 quando existe convite enviado e ainda sem resposta. */
   async tratarConvite(whatsapp: string, texto: string, inst: string, conversa = ''): Promise<boolean> {
-    const opcao = texto.trim().match(/^([12])[.!]?$/)?.[1];
+    const fala = texto.trim().normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+    const opcao = /^(1|sim|quero me cadastrar|vamos comecar|quero|pode comecar)[.!?]*$/.test(fala) ? '1' : /^(2|nao|nao tenho interesse|agora nao|nao quero)[.!?]*$/.test(fala) ? '2' : null;
     const num = normalizarWhatsapp(whatsapp);
     if (!opcao || !num) return false;
     // Quem já tem conta continua nos menus normais da Aurélia.
@@ -251,7 +253,7 @@ export class CadastroWhatsappService {
       return true;
     }
 
-    if (/^(0|cancelar|sair|parar)$/i.test(resposta)) {
+    if (/^(0|cancelar|cancela|sair|parar|desisti|deixa pra l[aá]|n[aã]o tenho interesse)[.!?]*$/i.test(resposta)) {
       await this.encerrar(cadastro.id, "CANCELADO");
       await this.responder(cadastro, "👋 Cadastro cancelado. Se mudar de ideia, me mande *cadastro*.", inst);
       return true;
@@ -259,29 +261,43 @@ export class CadastroWhatsappService {
 
     const respostas = this.lerRespostas(cadastro);
     if(/^manter$/i.test(resposta)) {
-      const atual=({NOME:cadastro.nome,CPF:cadastro.cpf,EMAIL:respostas.email,EMPRESA:respostas.empresa,EMPRESA_NOME:respostas.empresa} as any)[cadastro.etapa];
+      const atual = ({
+        NOME: cadastro.nome,
+        CPF: cadastro.cpf,
+        EMAIL: respostas.email,
+        EMPRESA: respostas.empresa || (respostas.usoPessoal === true ? cadastro.nome : null),
+        EMPRESA_NOME: respostas.empresa,
+      } as any)[cadastro.etapa];
       if(atual)resposta=atual;
     }
 
-    const perguntas:Record<string,string>={NOME:'Como é seu *nome completo*?',CPF:'Qual é seu *CPF*? Envie os 11 números. Uso esse dado para identificar sua conta.',EMAIL:'Qual é seu *e-mail*? Exemplo: *nome@gmail.com*. Ele será seu acesso ao site.',EMPRESA:'Você vai usar para você ou para uma empresa?\n*1* — Só para mim\n*2* — Para uma empresa',EMPRESA_NOME:'Qual é o nome da empresa?'};
+    const perguntas: Record<string, string> = {
+      NOME: 'Como é seu *nome completo*?',
+      CPF: 'Qual é seu *CPF*? Envie os 11 números. Uso esse dado para identificar sua conta.',
+      EMAIL: 'Qual é seu *e-mail*? Exemplo: *nome@gmail.com*. Ele será seu acesso ao site.',
+      EMPRESA: 'Qual é o nome da sua *empresa ou organização*? Se não tiver empresa, informe seu *nome completo*. Esse nome aparecerá na sua organização.',
+    };
     if (cadastro.etapa === 'INICIO' && !comandoCadastroGeral(resposta) && !interesseConviteAgenda(resposta)) {
-      if(resposta==='1') {
+      if(/^(1|sim|quero|pode come[çc]ar)[.!?]*$/i.test(resposta)) {
         if(await this.tratarConvite(cadastro.whatsapp,'1',inst||process.env.EVOLUTION_INSTANCE||'orkestri-default',respostas.whatsappLid?`${respostas.whatsappLid}@lid`:''))return true;
-        await this.avancar(cadastro.id,'NOME',respostas);await this.responder(cadastro,this.msgAbertura(false),inst);return true;
+        await this.avancar(cadastro.id,'NOME',respostas);await this.responder(cadastro,this.msgAbertura(cadastro.whatsapp, false),inst);return true;
       }
-      if(resposta==='2'||/^j[aá] tenho (?:uma )?conta$/i.test(resposta)){await this.encerrar(cadastro.id,'CANCELADO');await this.responder(cadastro,mensagemPrimeiroContato('vincular'),inst);return true;}
-      if(resposta==='3'){await this.responder(cadastro,`Você conversa comigo para marcar compromissos, fazer anotações, anotar gastos e organizar projetos e tarefas.\n\nPara criar sua conta gratuita, responda *1*. Para conhecer o site: https://www.orkiestri.com\n*0* — Sair`,inst);return true;}
-      await this.responder(cadastro,'Para criar sua conta, responda *1*. Se já tem uma conta, responda *2*. Para conhecer o sistema, responda *3*.\n*0* — Sair',inst);return true;
+      // "2" agora é "não tenho interesse", como diz o convite. Quem já tem
+      // conta é reconhecido pelo número antes de chegar aqui; para o caso raro
+      // de o número ser outro, a frase escrita continua valendo.
+      if(/^j[aá] tenho (?:uma )?conta$/i.test(resposta)){await this.encerrar(cadastro.id,'CANCELADO');await this.responder(cadastro,mensagemPrimeiroContato('vincular'),inst);return true;}
+      if(/^(2|n[aã]o|n[aã]o tenho interesse|agora n[aã]o|n[aã]o quero)[.!?]*$/i.test(resposta)){await this.encerrar(cadastro.id,'CANCELADO');await this.responder(cadastro,textoSemInteresse(),inst);return true;}
+      await this.responder(cadastro,'Posso ajudar com compromissos e gastos por aqui. Quer que eu crie sua conta? Pode dizer “vamos começar”. Se preferir conhecer primeiro, abra https://www.orkiestri.com.',inst);return true;
     }
     if (/^voltar$/i.test(resposta)) {
-      const anterior:any={NOME:'INICIO',CPF:'NOME',EMAIL:'CPF',EMPRESA:'EMAIL',EMPRESA_NOME:'EMPRESA',CONFIRMACAO:'EMPRESA',CORRIGIR_DADO:'CONFIRMACAO'};
+      const anterior:any={NOME:'INICIO',CPF:'NOME',EMAIL:'CPF',EMPRESA:'EMAIL',EMPRESA_NOME:'EMAIL',CONFIRMACAO:'EMPRESA',CORRIGIR_DADO:'CONFIRMACAO'};
       const etapa=anterior[cadastro.etapa]||'NOME';delete respostas._revisando;
       await this.avancar(cadastro.id,etapa,respostas);
-      await this.responder(cadastro,etapa==='INICIO'?mensagemPrimeiroContato('novo'):etapa==='CONFIRMACAO'?this.msgConfirmacao(cadastro.nome,cadastro.cpf,respostas):perguntas[etapa]+'\n\nO que você já informou foi preservado. Se estiver correto, envie *manter*.\n*Cancelar* — Parar o cadastro',inst);return true;
+      await this.responder(cadastro,etapa==='INICIO'?mensagemPrimeiroContato('novo'):etapa==='CONFIRMACAO'?this.msgConfirmacao(cadastro.nome,cadastro.cpf,respostas,cadastro.whatsapp):perguntas[etapa]+'\n\nO que você já informou foi preservado. Se estiver correto, envie *manter*.\n*Cancelar* — Parar o cadastro',inst);return true;
     }
     if(cadastro.etapa==='CORRIGIR_DADO') {
-      const etapa=({'1':'NOME','2':'CPF','3':'EMAIL','4':'EMPRESA'} as any)[resposta];
-      if(!etapa){await this.responder(cadastro,'Qual informação quer corrigir?\n*1* — Nome\n*2* — CPF\n*3* — E-mail\n*4* — Uso pessoal ou empresa\n*Voltar* — Conferir os dados',inst);return true;}
+      const etapa=({'1':'NOME','2':'CPF','3':'EMAIL','4':'EMPRESA',nome:'NOME',cpf:'CPF',email:'EMAIL','e-mail':'EMAIL',empresa:'EMPRESA',organizacao:'EMPRESA','nome da organizacao':'EMPRESA'} as any)[resposta.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'')];
+      if(!etapa){await this.responder(cadastro,'Qual informação quer corrigir: nome, CPF, e-mail ou nome da organização?',inst);return true;}
       respostas._revisando=true;await this.avancar(cadastro.id,etapa,respostas);await this.responder(cadastro,perguntas[etapa]+'\n\n*Voltar* — Pergunta anterior · *Cancelar* — Sair',inst);return true;
     }
 
@@ -295,14 +311,15 @@ export class CadastroWhatsappService {
       if(cadastro.etapa==='INICIO') await this.avancar(cadastro.id,'NOME',respostas);
       await (this.prisma as any).cadastroWhatsapp.update({ where: { id: cadastro.id }, data: { respostas: JSON.stringify(respostas) } });
       const pergunta: Record<string, string> = {
-        INICIO: this.msgAbertura(testeSolicitado),
-        NOME: this.msgAbertura(testeSolicitado),
+        INICIO: this.msgAbertura(cadastro.whatsapp, testeSolicitado),
+        NOME: this.msgAbertura(cadastro.whatsapp, testeSolicitado),
         CPF: `Vamos continuar seu cadastro no ${MARCA}. Qual é o seu *CPF*?`,
         EMAIL: `Vamos continuar seu cadastro no ${MARCA}. Qual é o seu *e-mail*?`,
-        EMPRESA: `Vamos continuar seu cadastro no ${MARCA}. Qual é o nome da sua *empresa*? Para uso pessoal, responda *Pessoal*.`,
-        CONFIRMACAO: this.msgConfirmacao(cadastro.nome || '', cadastro.cpf || '', respostas),
+        EMPRESA: perguntas.EMPRESA,
+        EMPRESA_NOME: perguntas.EMPRESA,
+        CONFIRMACAO: this.msgConfirmacao(cadastro.nome || '', cadastro.cpf || '', respostas, cadastro.whatsapp),
       };
-      await this.responder(cadastro, pergunta[cadastro.etapa] || this.msgAbertura(testeSolicitado), inst);
+      await this.responder(cadastro, pergunta[cadastro.etapa] || this.msgAbertura(cadastro.whatsapp, testeSolicitado), inst);
       return true;
     }
 
@@ -350,35 +367,39 @@ export class CadastroWhatsappService {
       }
       respostas.email = email;
       await this.avancar(cadastro.id, "EMPRESA", respostas);
-      if(await this.corrigido(cadastro,respostas,inst))return true;
+      if (await this.corrigido(cadastro, respostas, inst)) return true;
       await this.responder(cadastro, perguntas.EMPRESA, inst);
       return true;
     }
 
-    if (cadastro.etapa === "EMPRESA" || cadastro.etapa === 'EMPRESA_NOME') {
-      if(cadastro.etapa==='EMPRESA'&&resposta==='2'){await this.avancar(cadastro.id,'EMPRESA_NOME',respostas);await this.responder(cadastro,perguntas.EMPRESA_NOME+'\n\n*Voltar* — Escolher uso pessoal',inst);return true;}
-      const empresa=cadastro.etapa==='EMPRESA'&&resposta==='1'?'Pessoal':resposta;
-      if (empresa.length < 2) return this.invalida(cadastro, perguntas.EMPRESA, inst);
-      respostas.empresa = empresa;
+    if (cadastro.etapa === "EMPRESA" || cadastro.etapa === "EMPRESA_NOME") {
+      if (resposta.length < 2) return this.invalida(cadastro, perguntas.EMPRESA, inst);
+      respostas.empresa = resposta;
+      delete respostas.usoPessoal;
       delete respostas._revisando;
       await this.avancar(cadastro.id, "CONFIRMACAO", respostas);
       const atual = await (this.prisma as any).cadastroWhatsapp.findUnique({ where: { id: cadastro.id } });
-      await this.responder(cadastro, this.msgConfirmacao(atual.nome, atual.cpf, respostas), inst);
+      await this.responder(cadastro, this.msgConfirmacao(atual.nome, atual.cpf, respostas, cadastro.whatsapp), inst);
       return true;
     }
 
     if (cadastro.etapa === "CONFIRMACAO") {
       if (/^(1|sim|s|confirmar|confirmo(?: meus dados)?|ok)[.!]?$/i.test(resposta)) {
+        if (!(typeof respostas.empresa === "string" && respostas.empresa.trim()) && respostas.usoPessoal !== true) {
+          await this.avancar(cadastro.id, "EMPRESA", respostas);
+          await this.responder(cadastro, perguntas.EMPRESA, inst);
+          return true;
+        }
         const atual = await (this.prisma as any).cadastroWhatsapp.findUnique({ where: { id: cadastro.id } });
         await this.concluir(atual, respostas, inst);
         return true;
       }
       if (/^(2|nao|não|n|corrigir)$/i.test(resposta)) {
         await this.avancar(cadastro.id,'CORRIGIR_DADO',respostas);
-        await this.responder(cadastro,'Qual informação quer corrigir?\n*1* — Nome\n*2* — CPF\n*3* — E-mail\n*4* — Uso pessoal ou empresa\n*Voltar* — Conferir os dados',inst);
+        await this.responder(cadastro,'Qual informação quer corrigir: nome, CPF, e-mail ou nome da organização?',inst);
         return true;
       }
-      return this.invalida(cadastro, "Responda *1* para confirmar ou *2* para corrigir.", inst);
+      return this.invalida(cadastro, "Está tudo certo? Pode dizer sim ou corrigir, se precisar ajustar algum dado.", inst);
     }
 
     return false;
@@ -406,19 +427,44 @@ export class CadastroWhatsappService {
 
         const org = await tx.organization.create({
           data: {
-            nome: respostas.empresa || cadastro.nome,
+            // Um único campo obrigatório: nome da empresa ou da própria pessoa.
+            nome: respostas.empresa,
             slug, ativo: true,
             statusOperacional: "ativo", statusComercial: testeAgenda || conviteGratuito ? "teste" : "ativo",
             modulosAtivos: [],
           },
         });
 
+        // A conta nasce com a gratuidade CORRENDO, com data de fim.
+        //
+        // Sem `trialExpiraEm`, `faseDaConta` devolve null e a conta fica fora
+        // do ciclo: não recebe aviso de vencimento, não recebe cobrança e o
+        // acesso nunca termina. Era o que acontecia com todo mundo que entrava
+        // por aqui — a cobrança só alcançava quem vinha pelo site.
+        //
+        // Marcar `isTrial` não reduz o que a pessoa enxerga: ela recebe o papel
+        // master da organização nova, e `resolvePermissions` devolve "*" para
+        // quem é master ANTES de olhar o ramo de teste. O convite de agenda é
+        // que entra com papel restrito, e por isso mantém as regras próprias.
         const user = await tx.user.create({
           data: {
             id: randomUUID(), organizationId: org.id,
             nome: cadastro.nome, email: respostas.email, cpf: cadastro.cpf,
             senhaHash: hash, ativo: true, primeiroAcesso: false,
-            ...(testeAgenda ? dadosTesteAgenda() : {}),
+            // O convite gratuito fica de fora: é cortesia declarada, e a
+            // própria mensagem de boas-vindas diz que "o acesso nesta fase é
+            // gratuito". Dar prazo a ele seria desdizer o que foi prometido a
+            // quem foi convidado.
+            ...(testeAgenda
+              ? dadosTesteAgenda()
+              : conviteGratuito
+                ? {}
+                : {
+                    isTrial: true,
+                    trialModulo: PRODUTO_PADRAO,
+                    trialExpiraEm: fimDoTeste(),
+                    trialAvisadoSuporte: false,
+                  }),
           },
         });
 
@@ -463,7 +509,7 @@ export class CadastroWhatsappService {
       });
     } catch (e: any) {
       this.logger.error("Falha ao concluir cadastro: " + cadastro.id);
-      await this.responder(cadastro, "Não consegui concluir seu cadastro agora. Seus dados foram preservados. Responda *1* para tentar novamente, *2* para revisar os dados ou *cancelar* para sair.", inst);
+      await this.responder(cadastro, "Não consegui concluir seu cadastro agora, mas guardei seus dados. Diga sim para eu tentar novamente, corrigir para revisar ou cancelar para deixar para depois.", inst);
       return;
     }
     if (resultado.status === "ja_concluido") {
@@ -518,7 +564,7 @@ export class CadastroWhatsappService {
     delete respostas._revisando;
     await this.avancar(cadastro.id,'CONFIRMACAO',respostas);
     const atual=await (this.prisma as any).cadastroWhatsapp.findUnique({where:{id:cadastro.id}});
-    await this.responder(cadastro,this.msgConfirmacao(atual.nome,atual.cpf,respostas),inst);return true;
+    await this.responder(cadastro,this.msgConfirmacao(atual.nome,atual.cpf,respostas,cadastro.whatsapp),inst);return true;
   }
 
   /** Resposta inválida: conta a tentativa e encerra no teto. */
@@ -542,23 +588,28 @@ export class CadastroWhatsappService {
 
   // ── Textos ──────────────────────────────────────────────────────────────────
 
-  private msgAbertura(testeAgenda = false): string {
+  private msgAbertura(numero: string, testeAgenda = false): string {
     return (
-      `Oi! Eu sou a *Aurélia*. Vamos fazer seu cadastro no *${MARCA}*, uma pergunta por vez. 😊\n\n` +
+      `Oiee, eu sou a *Aurélia*, assistente e assessora do *${MARCA}*. 😊\n\nVamos fazer seu cadastro. Vou perguntar uma coisa de cada vez.\n\n` +
+      `📱 Já tenho o seu WhatsApp: *${exibirNumeroCadastro(numero)}* — é por aqui que vou te avisar das suas coisas. Não precisa digitar.
+
+` +
       "O cadastro e o acesso nesta fase são gratuitos, sem cartão. Avisaremos antes de qualquer mudança nas condições.\n\n" +
-      "Como é o seu *nome completo*?\n\n" +
+      "Agora vamos completar o resto. Como é o seu *nome completo*?\n\n" +
       "*Voltar* — Pergunta anterior\n*Cancelar* — Parar o cadastro"
     );
   }
 
-  private msgConfirmacao(nome: string, cpf: string, r: any): string {
+  private msgConfirmacao(nome: string, cpf: string, r: any, whatsapp: string): string {
     return (
       "✅ *Confere pra mim se está tudo certo:*\n\n" +
       `👤 Nome: *${nome}*\n` +
       `🪪 CPF: *${formatarCpf(cpf)}*\n` +
       `📧 E-mail: *${r.email}*\n` +
-      `🏢 Empresa: *${r.empresa}*\n\n` +
-      "Responda *1* para confirmar ou *2* para corrigir."
+      `📱 WhatsApp: *${exibirNumeroCadastro(whatsapp)}* — este, de onde você está falando
+` +
+      `🏢 Organização: *${r.empresa || (r.usoPessoal === true ? nome : "Não informado")}*\n\n` +
+      "Está tudo certo? Me diga sim para concluir ou corrigir se quiser ajustar algum dado."
     );
   }
 

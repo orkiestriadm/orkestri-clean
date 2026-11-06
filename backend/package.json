@@ -5,6 +5,7 @@
     "build": "nest build",
     "start": "node dist/main",
     "test": "jest --passWithNoTests",
+    "test:signup": "node scripts/test-whatsapp-signup.cjs",
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
     "smoke:health": "node scripts/smoke-health.js",

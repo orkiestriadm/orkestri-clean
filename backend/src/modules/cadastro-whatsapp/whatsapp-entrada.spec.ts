@@ -5,6 +5,7 @@ import { WhatsappInboundService } from "../agenda/whatsapp-inbound.module";
 import {
   comandoCadastroGeral,
   consultarNumeroCadastro,
+  exibirNumeroCadastro,
   mesmoTelefoneCadastro,
   numeroCadastro,
 } from "./whatsapp-entrada";
@@ -97,10 +98,14 @@ describe("Identificação e recepção da Aurélia", () => {
   });
   it("separa cadastro geral do comando legado de teste da agenda", () => {
     expect(comandoCadastroGeral("CADASTRO")).toBe(true);
-    expect(comandoCadastroGeral("Quero fazer meu cadastro no Orkiestri")).toBe(
-      true,
-    );
+    expect(comandoCadastroGeral("cadastrar")).toBe(true);
     expect(comandoCadastroGeral("CADASTRO AGENDA")).toBe(false);
+  });
+  it("a frase que o SITE manda NÃO é atalho — ela tem de cair no convite", () => {
+    // Quem clica em "cadastrar" no site ainda não viu o que é o produto nem
+    // quanto custa. Tratar isso como atalho levava a pessoa direto para
+    // "qual é seu nome completo?", sem convite e sem preço.
+    expect(comandoCadastroGeral("Quero fazer meu cadastro no Orkiestri")).toBe(false);
   });
   it("consulta a base antes de orientar um número sem conta", async () => {
     const { incoming, prisma, wa } = setup();
@@ -108,7 +113,9 @@ describe("Identificação e recepção da Aurélia", () => {
     expect(prisma.userProfile.findMany).toHaveBeenCalled();
     expect(wa.sendMessage).toHaveBeenCalledWith(
       TEL,
-      expect.stringContaining("Criar minha conta gratuita"),
+      // Desde 28/10/2026 quem chega novo recebe o MESMO convite da campanha de
+      // leads — é a mensagem que o site promete ao mandar a pessoa para cá.
+      expect.stringContaining("Quer que eu comece seu cadastro?"),
       "teste",
     );
     expect(wa.sendMessage.mock.calls[0][1]).not.toContain("VINCULAR ABC123");
@@ -299,5 +306,60 @@ describe("Identificação e recepção da Aurélia", () => {
       tipo: "existente",
       userId: "conta",
     });
+  });
+});
+
+/**
+ * O número é o único dado que a pessoa NÃO digita — e, até aqui, o único que
+ * ela não via. Quem chegava pelo botão do site ficava esperando a pergunta do
+ * telefone, ou supunha que não tinha ficado gravado e começava de novo.
+ */
+describe("O WhatsApp aparece no cadastro sem ter sido perguntado", () => {
+  it("abre a conversa dizendo qual número já está no cadastro", async () => {
+    const { cadastro, wa } = setup();
+    await cadastro.iniciarPeloChat(
+      TEL,
+      "teste",
+      "Quero fazer meu cadastro no Orkiestri",
+    );
+    const abertura = wa.sendMessage.mock.calls[0][1];
+    expect(abertura).toContain("Já tenho o seu WhatsApp: *(11) 99999-1234*");
+    expect(abertura).toContain("nome completo");
+  });
+
+  it("mostra o número na conferência final, junto do que foi digitado", async () => {
+    const { cadastro, prisma, wa } = setup();
+    prisma.cadastroWhatsapp.findUnique = jest.fn(async () => ({
+      nome: "Maria Souza",
+      cpf: "52998224725",
+      whatsapp: TEL,
+    }));
+    await cadastro.tratarResposta(
+      {
+        id: "c1",
+        etapa: "EMPRESA",
+        whatsapp: TEL,
+        tentativas: 0,
+        expiraEm: new Date(Date.now() + 600_000),
+        respostas: JSON.stringify({ email: "maria@exemplo.com" }),
+      },
+      // Nesta etapa a pessoa digita o nome da organizacao: resposta de um
+      // caractere so e recusada antes de chegar a conferencia.
+      "Padaria da Maria",
+      "teste",
+    );
+    const conferencia = wa.sendMessage.mock.calls.at(-1)[1];
+    expect(conferencia).toContain("📱 WhatsApp: *(11) 99999-1234*");
+    expect(conferencia).toContain("👤 Nome: *Maria Souza*");
+    // O número não entra no menu de correção: ele É esta conversa.
+    expect(conferencia).toContain("de onde você está falando");
+  });
+
+  it("exibe o guardado sem o DDI e devolve o cru quando não reconhece", () => {
+    expect(exibirNumeroCadastro(TEL)).toBe("(11) 99999-1234");
+    expect(exibirNumeroCadastro("551133334444")).toBe("(11) 3333-4444");
+    expect(exibirNumeroCadastro("123456789012345@lid")).toBe(
+      "123456789012345@lid",
+    );
   });
 });

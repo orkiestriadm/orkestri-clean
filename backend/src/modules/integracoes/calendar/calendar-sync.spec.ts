@@ -17,7 +17,7 @@ describe("CalendarSyncService.applyEvent", () => {
         delete: jest.fn().mockResolvedValue({ id: existing?.id }),
       },
     };
-    const svc = new CalendarSyncService(prisma, {} as any, {} as any);
+    const svc = new CalendarSyncService(prisma, {} as any, {} as any, {} as any);
     return { svc, prisma };
   }
 

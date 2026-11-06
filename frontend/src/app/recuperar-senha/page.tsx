@@ -95,15 +95,24 @@ export default function RecuperarSenhaPage() {
     } finally { setLoading(false); }
   };
 
-  /** Só dígitos: o backend compara o número cru que está no perfil. */
+  /**
+   * Só dígitos — com ou sem o 55, tanto faz: o backend normaliza antes de
+   * comparar. Mandar o número cru era o que fazia toda conta criada pela
+   * Aurélia (gravada como `5514…`) cair em "não encontramos este número".
+   */
   const whatsappLimpo = whatsapp.replace(/\D/g, "");
+  // O cadastro da Aurélia guarda números com o código do Brasil. A pessoa
+  // pode digitar só DDD + número; envie para a API no mesmo formato do cadastro.
+  const whatsappApi = whatsappLimpo.length === 10 || whatsappLimpo.length === 11
+    ? `55${whatsappLimpo}`
+    : whatsappLimpo;
 
   const handleEnviarOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     if (whatsappLimpo.length < 10) { setError("Informe o número com DDD."); return; }
     setLoading(true); setError("");
     try {
-      const { data } = await api.post("/auth/enviar-otp", { whatsapp: whatsappLimpo });
+      const { data } = await api.post("/auth/enviar-otp", { whatsapp: whatsappApi });
       // Sem WhatsApp cadastrado não adianta ir para a tela de código: a pessoa
       // ficaria esperando um código que nunca chega, sem saber por quê. Sete das
       // doze contas desta organização estão nessa situação.
@@ -119,7 +128,7 @@ export default function RecuperarSenhaPage() {
     if (codigo.length !== 6) { setError("O código tem 6 dígitos."); return; }
     setLoading(true); setError("");
     try {
-      const { data } = await api.post("/auth/verificar-otp", { whatsapp: whatsappLimpo, codigo });
+      const { data } = await api.post("/auth/verificar-otp", { whatsapp: whatsappApi, codigo });
       // O token vale 3 minutos — daí ir direto para a senha, sem tela no meio.
       setResetToken(data.resetToken);
       setStep("nova-senha");
@@ -155,9 +164,13 @@ export default function RecuperarSenhaPage() {
     <div className="relative flex min-h-dvh items-center justify-center overflow-hidden bg-[#08090c] px-5 py-10 text-white">
       {/* Mesma atmosfera do login: o planeta continua ao fundo. */}
       <div aria-hidden className="pointer-events-none absolute inset-0">
-        <img src={LOGIN_FUNDO} alt="" className="absolute inset-0 h-full w-full object-cover" />
-        <div className="absolute inset-0 bg-[#08090c]/70" />
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,transparent_20%,rgba(8,9,12,0.85)_80%)]" />
+        <div
+          className="absolute inset-0"
+          style={{
+            background:
+              "radial-gradient(ellipse 85% 95% at 0% 0%, rgba(255, 106, 26, 0.17), transparent 72%), radial-gradient(ellipse 85% 95% at 100% 100%, rgba(255, 121, 48, 0.13), transparent 72%), radial-gradient(ellipse 65% 80% at 55% 48%, rgba(255, 150, 85, 0.045), transparent 80%)",
+          }}
+        />
       </div>
 
       {semCadastro && (

@@ -18,7 +18,14 @@ import type { Product } from "@/types";
  * aqui é um grupo de lá e cada `feature` é uma tela que existe. Até
  * 26/10/2026 o site anunciava DOZE aplicações; cinco tinham sido removidas
  * da produção em 19/10 e o hero ainda mostrava capturas delas.
- * **Não existe "contas a receber"** — só contas a pagar, gastos e orçamento.
+ * Em 02/11/2026 saiu CONTAS A PAGAR, e com ela a dashboard do Financeiro: o
+ * Finance virou "meus gastos" e só. Do Service saíram Catálogo, Horas, CSAT e
+ * Automações — sobrou o chamado. Não existe "contas a receber", e agora
+ * também não existe "contas a pagar": o dinheiro aqui é o GASTO de uma
+ * pessoa e o ORÇAMENTO da organização, que são produtos separados no menu.
+ *
+ * O Orçamento ainda não tem card próprio porque falta uma captura real da
+ * tela — e esta lista não enche espaço com imagem de outro módulo.
  *
  * **2. O texto fala com UMA PESSOA.**
  * A ordem começa pelo que é mais pessoal (agenda, dinheiro) e não pelo que é
@@ -29,10 +36,10 @@ export const products: Product[] = [
   {
     slug: "one-space",
     screenshot: {
-      src: "/screenshots/orkiestrispace.png",
-      alt: "Agenda da semana no Orkiestri, com os compromissos e seus horários",
-      width: 1690,
-      height: 1030,
+      src: "/screenshots/real-dark/agenda.webp",
+      alt: "Agenda real do Orkiestri em modo escuro, com compromissos de demonstração",
+      width: 1440,
+      height: 960,
     },
     name: "Agenda e anotações",
     short: "Agenda",
@@ -54,21 +61,21 @@ export const products: Product[] = [
   {
     slug: "one-finance",
     screenshot: {
-      src: "/screenshots/orcamento-dashboard.png",
-      alt: "Painel de orçamento do Orkiestri mostrando previsto, realizado e desvio por período",
-      width: 1755,
-      height: 999,
+      src: "/screenshots/real-dark/gastos.webp",
+      alt: "Tela real de Meus Gastos em modo escuro, com totais e gráficos de demonstração",
+      width: 1440,
+      height: 960,
     },
-    name: "Contas e gastos",
-    short: "Contas",
+    name: "Meus gastos",
+    short: "Gastos",
     category: "Finance",
     tagline: "Anota no crédito em 12x e o domingo te cobra.",
     description:
-      "Seus gastos, lançados por mensagem na hora em que acontecem, inclusive parcelados. As contas a pagar com data de vencimento, e o relatório que diz o total, o que já venceu e o que vence em trinta dias. Todo domingo às 20h chega um resumo do que você gastou na semana — e dá para desligar mandando \"parar resumo\".",
+      "Seus gastos, lançados por mensagem na hora em que acontecem, inclusive parcelados, e o relatório que diz quanto saiu no mês, por cartão ou no total. Todo domingo às 20h chega um resumo do que você gastou na semana — e dá para desligar mandando \"parar resumo\".",
     icon: Wallet,
     features: [
       "Meus gastos, com parcelamento",
-      "Contas a pagar e vencimentos",
+      "Metas por categoria e gastos que se repetem",
       "Orçamento: previsto × realizado",
       "Resumo semanal no WhatsApp, com opt-out",
     ],
@@ -79,10 +86,10 @@ export const products: Product[] = [
   {
     slug: "one-projects",
     screenshot: {
-      src: "/screenshots/projetos.png",
+      src: "/screenshots/real-dark/projetos.webp",
       alt: "Quadro de um projeto no Orkiestri, com tarefas, responsáveis e progresso",
-      width: 2200,
-      height: 1332,
+      width: 1440,
+      height: 960,
     },
     name: "Projetos e tarefas",
     short: "Projetos",
@@ -103,10 +110,10 @@ export const products: Product[] = [
   {
     slug: "one-desk",
     screenshot: {
-      src: "/screenshots/orkiestridesk.png",
+      src: "/screenshots/real-dark/chamados.webp",
       alt: "Fila de chamados no Orkiestri, com status, prioridade e indicadores de SLA",
-      width: 2200,
-      height: 1086,
+      width: 1440,
+      height: 960,
     },
     name: "Pedidos e chamados",
     short: "Chamados",
@@ -116,11 +123,9 @@ export const products: Product[] = [
       "Quando alguém precisa de você — a impressora que não liga, o acesso que falta —, o pedido vira um chamado com número, prazo e responsável, em vez de ficar num grupo. Se o prazo começa a apertar, o sistema avisa antes de estourar; se estourou, avisa também.",
     icon: Headset,
     features: [
-      "Catálogo do que dá para pedir",
       "Fila com prazo e responsável",
       "Aviso de prazo em risco, estourado e escalado",
-      "Horas apontadas e pesquisa de satisfação",
-      "Automações",
+      "Comentários, anexos e histórico no chamado",
     ],
     ai: ["Abrir e acompanhar chamado por mensagem"],
     integrations: ["WhatsApp", "E-mail", "Microsoft 365"],
@@ -129,12 +134,12 @@ export const products: Product[] = [
   {
     slug: "one-quality",
     screenshot: {
-      src: "/screenshots/conhecimento.png",
+      src: "/screenshots/real-dark/conhecimento.webp",
       alt: "Base de conhecimento do Orkiestri com artigos organizados por categoria",
-      width: 1690,
-      height: 1030,
+      width: 1440,
+      height: 960,
     },
-    name: "O que você não quer repetir",
+    name: "Base de conhecimento",
     short: "Conhecimento",
     category: "Quality",
     tagline: "Escreveu uma vez, para de ser perguntado.",

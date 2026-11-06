@@ -33,6 +33,7 @@ export function Screenshot({
   zoomOnHover = true,
   uniform = false,
   bordered = true,
+  reflection = true,
   className,
 }: {
   src: string;
@@ -45,8 +46,7 @@ export function Screenshot({
   /**
    * Enquadra em 16:9, como pede o image-style.md. As capturas variam de 1,5 a
    * 2,9 de proporção; sem isto, cada uma teria uma altura, e lado a lado o
-   * conjunto fica desalinhado. O fundo branco esconde as faixas, porque as
-   * telas do produto também são brancas.
+   * conjunto fica desalinhado. O fundo escuro acompanha o tema real do produto.
    */
   uniform?: boolean;
   /**
@@ -55,6 +55,7 @@ export function Screenshot({
    * com a própria tela do produto.
    */
   bordered?: boolean;
+  reflection?: boolean;
   className?: string;
 }) {
   const surface = useRef<HTMLDivElement>(null);
@@ -143,7 +144,7 @@ export function Screenshot({
                     Ela existe por causa da máscara: as telas variam de 1,5 a
                     2,9 de proporção, então dentro da moldura 16:9 o `<img>`
                     ocupa a caixa inteira mas os pixels ficam num retângulo
-                    menor, com faixas brancas em volta. Uma máscara no `<img>`
+                    menor, com faixas escuras em volta. Uma máscara no `<img>`
                     dissolveria a borda das faixas — invisíveis — e passaria
                     longe das arestas de verdade. Aqui ela cai sobre o
                     conteúdo. */}
@@ -165,27 +166,13 @@ export function Screenshot({
                     width={width}
                     height={height}
                     priority={priority}
-                    /* Capturas de interface são densas em texto miúdo: o padrão
-                       (q=75) borra as letras e um `sizes` estreito faria o
-                       navegador escolher um candidato pequeno demais. */
-                    quality={92}
-                    sizes="(max-width: 768px) 100vw, (max-width: 1280px) 95vw, 1280px"
+                    unoptimized
                     className={cn(
                       uniform ? "h-full w-full object-contain" : "h-auto w-full"
                     )}
                   />
                 </div>
               </div>
-
-              {/* Com moldura, a base ganha um degradê para não cortar reto
-                  contra a seção. Sem moldura, a máscara da imagem já cuida
-                  das quatro bordas. */}
-              {bordered && (
-                <div
-                  aria-hidden
-                  className="pointer-events-none absolute inset-x-0 bottom-0 z-20 h-16 bg-gradient-to-t from-white via-white/70 to-transparent"
-                />
-              )}
 
               {/* Holofote seguindo o cursor */}
               <div
@@ -203,7 +190,7 @@ export function Screenshot({
                 className={cn(
                   "pointer-events-none absolute bottom-4 right-4 z-20 inline-flex items-center gap-1.5",
                   "rounded-full border border-white/15 bg-ink/75 px-3 py-1.5 text-xs font-medium text-white",
-                  "opacity-0 backdrop-blur-sm transition-opacity duration-200 group-hover:opacity-100"
+                  "opacity-100 backdrop-blur-sm transition-opacity duration-200 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100"
                 )}
               >
                 <ZoomIn className="h-3.5 w-3.5" />
@@ -214,6 +201,7 @@ export function Screenshot({
         </Dialog.Trigger>
 
         {/* 5. Reflexo — assenta o card no fundo */}
+        {reflection && (
         <div
           aria-hidden
           className={cn(
@@ -222,6 +210,7 @@ export function Screenshot({
             "transition-all duration-[280ms] group-hover:w-[92%] group-hover:opacity-80"
           )}
         />
+        )}
       </figure>
 
       {/* ── Galeria em tela cheia ─────────────────────────────────────────── */}
@@ -234,6 +223,7 @@ export function Screenshot({
           )}
         >
           <Dialog.Title className="sr-only">{alt}</Dialog.Title>
+          <Dialog.Description className="sr-only">Captura de tela do produto em tamanho ampliado. Role para ver os detalhes ou pressione Escape para fechar.</Dialog.Description>
 
           {/* Barra de ações — só o fechar. A imagem já abre grande, então o
               alternador de tamanho virava um passo extra sem ganho. */}
@@ -256,8 +246,7 @@ export function Screenshot({
                 alt={alt}
                 width={width}
                 height={height}
-                quality={95}
-                sizes="100vw"
+                unoptimized
                 className="h-auto w-auto max-w-none"
               />
             </div>

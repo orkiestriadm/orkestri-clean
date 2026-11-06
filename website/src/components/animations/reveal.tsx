@@ -24,11 +24,11 @@ export function Reveal({
 
   return (
     <MotionTag
-      className={cn(className)}
-      initial={reduce ? { opacity: 0 } : { opacity: 0, y: 24 }}
+      className={cn("scroll-reveal", className)}
+      initial={false}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, margin: "-80px" }}
-      transition={{ duration: 0.35, ease: EASE_OUT, delay }}
+      transition={{ duration: reduce ? 0 : 0.35, ease: EASE_OUT, delay }}
     >
       {children}
     </MotionTag>
@@ -59,7 +59,7 @@ export function RevealGroup({
     <MotionTag
       className={cn(className)}
       variants={container}
-      initial="hidden"
+      initial={false}
       whileInView="show"
       viewport={{ once: true, margin: "-80px" }}
     >
@@ -69,6 +69,6 @@ export function RevealGroup({
 }
 
 export const revealItem: Variants = {
-  hidden: { opacity: 0, y: 24 },
+  hidden: { opacity: 1, y: 0 },
   show: { opacity: 1, y: 0, transition: { duration: 0.35, ease: EASE_OUT } },
 };

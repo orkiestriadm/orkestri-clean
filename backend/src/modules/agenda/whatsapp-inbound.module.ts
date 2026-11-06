@@ -1,9 +1,11 @@
+import { orientacaoAurelia } from './aurelia-conversa';
 import { WhatsappRotinaService, comandoRotina } from "./whatsapp-rotina.service";
 import { WhatsappOperacaoController } from "./whatsapp-operacao.controller";
 import { WhatsappMediaService, WhatsappAnexosController } from "./whatsapp-media.service";
 import { WhatsappContextoService, contextoSolicitado, comandoEmpresarial } from "./whatsapp-contexto.service";
 import { WhatsappEquipeService } from "./whatsapp-equipe.service";
 import { WhatsappLinguagemService } from "./whatsapp-linguagem.service";
+import { AureliaIaService } from './aurelia-ia.service';
 import { dataTarefa } from "./whatsapp-rotina-datas";
 import { identificarExecucao, acaoUtil, abrirMensagem } from "./whatsapp-execucao";
 import { WhatsappInicioService } from "../cadastro-whatsapp/whatsapp-inicio.service";
@@ -96,21 +98,7 @@ const GUIA_PDF_LEGENDA = "📖 Preparei um guia rápido pra você começar — �
  * Financeiro suma da lista dele.
  */
 function montarMenuAjuda(acessos: AcessosWhats, nome: string): string {
-  const nm = primeiroNome(nome);
-  let m =
-    (nm ? `😊 *Oi, ${nm}!*` : "😊 *Oi!*") +
-    ` Eu sou a *Aurélia*, sua ajudante do ${MARCA} aqui no WhatsApp.\n` +
-    "Com qual módulo você quer a minha ajuda? É só responder o número:\n\n";
-  if (acessos.gastos)       m += "💸 Para *Financeiro*: responda *1*\n";
-  if (acessos.agenda)       m += "🗓️ Para *Agenda*: responda *2*\n";
-  if (acessos.keep)         m += "📝 Para *Keep*: responda *3*\n";
-  if (acessos.projetos)     m += "📁 Para *Projetos*: responda *4*\n";
-  if (acessos.chamados)     m += "🎧 Para *Chamados*: responda *5*\n";
-  if (acessos.conhecimento) m += "📚 Para *Conhecimento*: responda *6*\n";
-  m += "📖 Para ver *TUDO de uma vez*: responda *7*\n";
-  m += "👋 Para encerrar nossa conversa: responda *0*";
-  m += "\n\n☀️ Para consultar seu dia: *meu dia*. Para escolher o resumo automático: *rotina*.\n📝 Para criar tarefa: *tarefa: comprar material amanhã*.";
-  return m;
+  return orientacaoAurelia(acessos.agenda, acessos.gastos);
 }
 
 /** O que a pessoa pode usar pelo WhatsApp, resolvido uma vez por mensagem. */
@@ -126,7 +114,7 @@ function acessosDe(perms: string[]): AcessosWhats {
   };
 }
 
-// Passo a passo do FINANCEIRO (gastos pessoais + contas a pagar).
+// Passo a passo do FINANCEIRO (gastos pessoais).
 function ajudaFinanceiro(temAgenda: boolean): string {
   let m =
     "💸 *FINANCEIRO*\n\n" +
@@ -136,8 +124,7 @@ function ajudaFinanceiro(temAgenda: boolean): string {
     "Errou? *apagar* (tira o último) ou *corrige o último pra 150*\n\n" +
     "*VER QUANTO GASTOU*\n" +
     "👉 *Relatório: quanto gastei esse mês*\n" +
-    "(dá para pedir por *crédito*, *débito* ou *no total*)\n\n" +
-    "Para contas a pagar da organização, envie *empresa*.\n\n";
+    "(dá para pedir por *crédito*, *débito* ou *no total*)\n\n";
   if (!temAgenda) {
     m += "✨ *Mais fácil ainda:* pode mandar só *Mercado 150 crédito* que eu já entendo.\n\n";
   }
@@ -266,11 +253,16 @@ function montarBoasVindas(acessos: AcessosWhats, nome: string): string {
   return m;
 }
 
-// Permissões → o que a pessoa pode fazer pelo WhatsApp. Agenda é base (quase todo
-// mundo tem); Gastos exige acesso de gerenciar o Financeiro (o mesmo do trial one-finance).
+// Permissões → o que a pessoa pode fazer pelo WhatsApp. Agenda e Gastos são
+// permissões BASE: acompanham a conta, não dependem de papel.
+//
+// `financeiro:gerenciar` saiu daqui em 02/11/2026 junto com o módulo: era o
+// atalho de quem administrava contas a pagar. Quem tinha só ele e nunca teve
+// `gastos:registrar` não existe — a permissão de gasto é base desde que o
+// módulo nasceu.
 function podeAgenda(perms: string[]): boolean { return perms.includes("*") || perms.includes("agenda:criar"); }
 function podeGastos(perms: string[]): boolean {
-  return perms.includes("*") || perms.includes("gastos:registrar") || perms.includes("financeiro:gerenciar");
+  return perms.includes("*") || perms.includes("gastos:registrar");
 }
 
 function podeKeep(perms: string[]): boolean { return perms.includes("*") || perms.includes("keep:criar"); }
@@ -467,7 +459,7 @@ function categoriaDe(texto: string): string | null {
 // `exigePrefixo=false` aceita o texto cru (usado só para quem tem apenas Gastos).
 export function parseComandoGasto(texto: string, agora: Date, exigePrefixo = true): ParsedGasto | "sem_valor" | null {
   const t = (texto || "").trim();
-  const mKey = t.match(/^\s*(gastos?|gastei|despesa|comprei|paguei)\b[:\-–]?\s*/i);
+  const mKey = t.match(/^\s*(lan[cç]ar|lan[cç]a|gastos?|gastei|despesa|comprei|paguei)\b[:\-–]?\s*/i);
   let resto: string;
   if (mKey) resto = t.slice(mKey[0].length).trim();
   else if (exigePrefixo) return null;   // sem palavra-chave e exigindo prefixo → não é comando
@@ -944,30 +936,8 @@ export class WhatsappInboundService {
     const a = acessosDe(perms);
     // O menu pessoal não oferece operações da organização.
     a.projetos = false; a.chamados = false; a.conhecimento = false;
-    const quantos = Object.values(a).filter(Boolean).length;
-
-    if (quantos > 1) {
-      this.abrirMenu(remoteJid);
-      await this.responder(remoteJid, user.telefone, user.organizationId, inst,
-        this.contexto.mensagem("PESSOAL") + "\n\n" + montarMenuAjuda(a, user.nome));
-      return;
-    }
-
-    // Um módulo só (ou nenhum): sem menu — a Aurélia já entrega o tutorial,
-    // porque um menu de uma opção é uma pergunta sem escolha.
     this.fecharMenu(remoteJid);
-    const nm = primeiroNome(user.nome);
-    const saud = (nm ? `😊 *Oi, ${nm}!* ` : "😊 ") +
-      `Eu sou a *Aurélia*, sua ajudante do ${MARCA} aqui no WhatsApp.\n\n`;
-    let corpo: string;
-    if (a.gastos)            corpo = ajudaFinanceiro(a.agenda) + RODAPE_SIMPLES;
-    else if (a.agenda)       corpo = ajudaAgenda() + RODAPE_SIMPLES;
-    else if (a.keep)         corpo = ajudaKeep() + RODAPE_SIMPLES;
-    else if (a.projetos)     corpo = ajudaProjetos() + RODAPE_SIMPLES;
-    else if (a.chamados)     corpo = ajudaChamados() + RODAPE_SIMPLES;
-    else if (a.conhecimento) corpo = ajudaConhecimento() + RODAPE_SIMPLES;
-    else corpo = "Peça ao administrador para liberar os módulos para você aproveitar tudo por aqui. 😉";
-    await this.responder(remoteJid, user.telefone, user.organizationId, inst, saud + corpo);
+    await this.responder(remoteJid, user.telefone, user.organizationId, inst, montarMenuAjuda(a,user.nome));
   }
 
   // Resposta ao menu: 1 Financeiro, 2 Agenda, 3 Keep, 4 Projetos, 5 Chamados,
@@ -1145,118 +1115,6 @@ export class WhatsappInboundService {
     });
     await this.responder(remoteJid, user.telefone, user.organizationId, inst,
       `📁 Criei o projeto *${proj.titulo}*, em planejamento.\n\nPara ver todos, mande *projetos*. ✅`);
-  }
-
-  // ── Finance: contas a pagar ─────────────────────────────────────────────
-
-  private async criarConta(remoteJid: string, texto: string, inst: string) {
-    const user = await this.identificar(remoteJid);
-    if (!user) { await this.wa.sendToJid(remoteJid, NAO_VINCULADO, inst).catch(() => {}); return; }
-    const perms = await this.auth.resolvePermissions(user.id).catch(() => [] as string[]);
-    if (!(perms.includes("*") || perms.includes("financeiro:gerenciar"))) {
-      await this.responder(remoteJid, user.telefone, user.organizationId, inst,
-        "💰 Você não tem acesso para lançar contas. Fale com quem administra o sistema.");
-      return;
-    }
-    const bruto = texto.trim();
-
-    // A DATA sai PRIMEIRO, e só depois o valor.
-    //
-    // Invertido, "Conta: Energia 350 vence 10/11" virava uma conta de R$ 11:
-    // o extrator de valor BR encontrava o "11" de "10/11" antes de chegar ao
-    // 350, e o "350" sobrava no nome do fornecedor. Tirar a data da frase
-    // antes de procurar dinheiro resolve na raiz.
-    const mVence = bruto.match(/\b(?:vence|venc|vencimento|para)\s+(\S+)/i);
-    const vencimento = mVence ? this.parseDataCurta(mVence[1]) : null;
-    const semData = bruto.replace(/\b(?:vence|venc|vencimento|para)\s+\S+/i, " ").trim();
-
-    const valorInfo = extrairValorBR(semData);
-    if (!valorInfo) {
-      await this.responder(remoteJid, user.telefone, user.organizationId, inst,
-        "💰 Faltou o valor. Mande assim: *Conta: Energia 350 vence 10/11*");
-      return;
-    }
-    // O que sobra depois de tirar a data e o valor é o nome de quem recebe.
-    const fornecedor = (semData.slice(0, valorInfo.index) + " " + semData.slice(valorInfo.index + valorInfo.matchStr.length))
-      .replace(/\s+/g, " ").trim();
-    if (!fornecedor) {
-      await this.responder(remoteJid, user.telefone, user.organizationId, inst,
-        "💰 Faltou dizer de quem é a conta. Mande assim: *Conta: Energia 350 vence 10/11*");
-      return;
-    }
-    await (this.prisma as any).contaPagar.create({
-      data: {
-        id: require("crypto").randomUUID(),
-        organizationId: user.organizationId,
-        fornecedorNome: fornecedor,
-        // `numero` e `tipo` são obrigatórios no modelo, que nasceu para
-        // importação de ERP. Lançamento pelo WhatsApp não tem nota fiscal: o
-        // número é gerado e o tipo marca a origem, para dar para separar
-        // depois o que veio da importação do que foi lançado à mão.
-        numero: "WA-" + Date.now().toString(36).toUpperCase(),
-        tipo: "MANUAL",
-        valorOriginal: valorInfo.valor,
-        dataVencto: vencimento, dataVenctoReal: vencimento,
-        dataEmissao: new Date(),
-      },
-    });
-    const quando = vencimento ? ` com vencimento em ${this.fmtData(vencimento)}` : " sem data de vencimento";
-    await this.responder(remoteJid, user.telefone, user.organizationId, inst,
-      `💰 Lancei *${fornecedor}* de R$ ${this.fmtValor(valorInfo.valor)}${quando}.\n\nPara ver todas, mande *contas a pagar*. ✅`);
-  }
-
-  private async listarContas(remoteJid: string, inst: string) {
-    const user = await this.identificar(remoteJid);
-    if (!user) { await this.wa.sendToJid(remoteJid, NAO_VINCULADO, inst).catch(() => {}); return; }
-    const contas = await (this.prisma as any).contaPagar.findMany({
-      where: { organizationId: user.organizationId, dataPagamento: null },
-      orderBy: { dataVenctoReal: "asc" }, take: 10,
-      select: { fornecedorNome: true, valorOriginal: true, dataVenctoReal: true },
-    });
-    if (!contas.length) {
-      await this.responder(remoteJid, user.telefone, user.organizationId, inst,
-        "💰 Não há contas em aberto. 🎉");
-      return;
-    }
-    const hoje = new Date();
-    const linhas = contas.map((c: any, i: number) => {
-      const v = Number(c.valorOriginal || 0);
-      const venc = c.dataVenctoReal ? new Date(c.dataVenctoReal) : null;
-      const atrasada = venc && venc < hoje ? " ⚠️" : "";
-      const quando = venc ? ` — ${this.fmtData(venc)}` : "";
-      return `${i + 1}. *${c.fornecedorNome}* R$ ${this.fmtValor(v)}${quando}${atrasada}`;
-    });
-    await this.responder(remoteJid, user.telefone, user.organizationId, inst,
-      "💰 *Contas em aberto:*\n\n" + linhas.join("\n") + "\n\n_⚠️ = já venceu._");
-  }
-
-  private async relatorioContas(remoteJid: string, inst: string) {
-    const user = await this.identificar(remoteJid);
-    if (!user) { await this.wa.sendToJid(remoteJid, NAO_VINCULADO, inst).catch(() => {}); return; }
-    const abertas = await (this.prisma as any).contaPagar.findMany({
-      where: { organizationId: user.organizationId, dataPagamento: null },
-      select: { valorOriginal: true, dataVenctoReal: true },
-    });
-    if (!abertas.length) {
-      await this.responder(remoteJid, user.telefone, user.organizationId, inst,
-        "📊 Não há contas em aberto para somar. 🎉");
-      return;
-    }
-    const hoje = new Date();
-    const em30 = new Date(Date.now() + 30 * 86400000);
-    let total = 0, vencido = 0, proximo = 0, nVencido = 0, nProximo = 0;
-    for (const c of abertas) {
-      const v = Number(c.valorOriginal || 0);
-      total += v;
-      const d = c.dataVenctoReal ? new Date(c.dataVenctoReal) : null;
-      if (d && d < hoje) { vencido += v; nVencido++; }
-      else if (d && d <= em30) { proximo += v; nProximo++; }
-    }
-    await this.responder(remoteJid, user.telefone, user.organizationId, inst,
-      "📊 *Contas a pagar*\n\n" +
-      `Em aberto: *R$ ${this.fmtValor(total)}* (${abertas.length} conta(s))\n` +
-      `Já venceu: *R$ ${this.fmtValor(vencido)}* (${nVencido})\n` +
-      `Vence em 30 dias: *R$ ${this.fmtValor(proximo)}* (${nProximo})`);
   }
 
   // ── Keep ────────────────────────────────────────────────────────────────
@@ -1711,6 +1569,7 @@ export class WhatsappInboundService {
     this.logger.log(`inbound jid=${remoteJid} fromMe=${key?.fromMe} texto="${texto.slice(0, 50)}"`);
     if (!texto) return;
 
+
     // ── Cadastro em andamento? ANTES de tudo. ─────────────────────────────────
     //
     // Quem está preenchendo o formulário ainda NÃO é usuário: `identificar()`
@@ -1809,13 +1668,6 @@ export class WhatsappInboundService {
     if (mProj) { await this.criarProjeto(remoteJid, mProj[1], inst); return; }
     if (/^\/?(?:meus\s+)?projetos?\b[.!?]*$/i.test(texto)) { await this.listarProjetos(remoteJid, inst); return; }
     if (/^\/?(?:minhas\s+)?tarefas?\b[.!?]*$/i.test(texto)) { await this.listarMinhasTarefas(remoteJid, inst); return; }
-
-    // Finance: contas a pagar. O relatório vem ANTES da criação, senão
-    // "relatório de contas" cairia no parser de criar conta.
-    if (/^\/?(?:relat[óo]rio|resumo)\s+(?:de\s+)?contas?\b[.!?]*$/i.test(texto)) { await this.relatorioContas(remoteJid, inst); return; }
-    if (/^\/?contas?(?:\s+a\s+pagar)?\b[.!?]*$/i.test(texto)) { await this.listarContas(remoteJid, inst); return; }
-    const mConta = texto.match(/^\/?(?:conta|nova conta|lan[çc]ar conta)\s*[:\-]\s*([\s\S]+)$/i);
-    if (mConta) { await this.criarConta(remoteJid, mConta[1], inst); return; }
 
     // Chamados
     const mCham = texto.match(/^\/?(?:chamado|abrir chamado|suporte|ticket)\s*[:\-]?\s*([\s\S]+)$/i);
@@ -1985,7 +1837,11 @@ export class WhatsappInboundService {
     }
     if (!texto) return;
 
-    if (usuarioEntrada && this.guiado && await this.guiado.tratar(usuarioEntrada,texto,remoteJid,inst,{
+    if (usuarioEntrada && /^(?:contexto\s+)?pessoal[.!?]*$/i.test(texto)) {
+      await this.contexto.trocar(usuarioEntrada,inst,remoteJid,'PESSOAL');
+      texto = 'ajuda';
+    }
+    if (usuarioEntrada && this.guiado && await this.guiado.tratarConversa(usuarioEntrada,texto,remoteJid,inst,{
       evento: t => parseComandoEvento('Evento: '+t,new Date()),
       gasto: t => parseComandoGasto(t,new Date(),true),
       outro: async (acao,v) => {
@@ -1993,8 +1849,6 @@ export class WhatsappInboundService {
         if (acao==='gastos.resumo') await this.gerarRelatorioWhats(remoteJid,parseComandoRelatorio('Relatório: quanto gastei esse mês',new Date()) as ParsedRelatorio,inst);
         if (acao==='chamados.lista') await this.listarMeusChamados(remoteJid,inst);
         if (acao==='chamado.criar') await this.abrirChamado(remoteJid,v.descricao,inst);
-        if (acao==='contas.lista') await this.listarContas(remoteJid,inst);
-        if (acao==='contas.resumo') await this.relatorioContas(remoteJid,inst);
         if (acao==='buscar') await this.buscarConhecimento(remoteJid,v.texto,inst);
       },
     })) return;
@@ -2114,7 +1968,7 @@ export class WhatsappInboundService {
       if (atual === "EMPRESA") {
         if (await this.equipe.tratar(usuarioContexto, inst, remoteJid, texto)) return;
         if (/^(?:oi|olá|ola|ajuda|menu|voltar|9|7)[.!?]*$/i.test(texto)) {
-          await this.wa.sendToJid(remoteJid, this.contexto.mensagem(atual) + "\n\n*projetos* — seus projetos\n*projeto: Nome* — criar projeto\n*meus chamados* — acompanhar chamados\n*contas a pagar* — consultar contas\n*conta: Energia 350 vence 10/11* — lançar conta\n\nAs operações exigem as permissões do sistema.", inst); return;
+          await this.wa.sendToJid(remoteJid, this.contexto.mensagem(atual) + "\n\n*projetos* — seus projetos\n*projeto: Nome* — criar projeto\n*meus chamados* — acompanhar chamados\n\nAs operações exigem as permissões do sistema.", inst); return;
         }
         const neutro = /^(?:acesso|vincular\s|renovar\s|indica|ork-|0$)/i.test(texto);
         if (!neutro && !comandoEmpresarial(texto)) {
@@ -2122,8 +1976,7 @@ export class WhatsappInboundService {
         }
         if (!neutro) {
           const p = await this.auth.resolvePermissions(usuarioContexto.id);
-          const necessario = /conta/i.test(texto) ? "financeiro:ver"
-            : /^(?:buscar|procurar|pesquisar|busca)/i.test(texto) ? "conhecimento:ver"
+          const necessario = /^(?:buscar|procurar|pesquisar|busca)/i.test(texto) ? "conhecimento:ver"
             : /(?:chamado|ticket|suporte)/i.test(texto) ? "chamados:ver" : "projetos:ver";
           if (!p.includes("*") && !p.includes(necessario)) {
             await this.wa.sendToJid(remoteJid, "🔒 Sua conta não tem permissão para consultar este módulo da empresa.", inst); return;
@@ -2225,13 +2078,6 @@ export class WhatsappInboundService {
     if (mProj) { await this.criarProjeto(remoteJid, mProj[1], inst); return; }
     if (/^\/?(?:meus\s+)?projetos?\b[.!?]*$/i.test(texto)) { await this.listarProjetos(remoteJid, inst); return; }
     if (/^\/?(?:minhas\s+)?tarefas?\b[.!?]*$/i.test(texto)) { await this.listarMinhasTarefas(remoteJid, inst); return; }
-
-    // Finance: contas a pagar. O relatório vem ANTES da criação, senão
-    // "relatório de contas" cairia no parser de criar conta.
-    if (/^\/?(?:relat[óo]rio|resumo)\s+(?:de\s+)?contas?\b[.!?]*$/i.test(texto)) { await this.relatorioContas(remoteJid, inst); return; }
-    if (/^\/?contas?(?:\s+a\s+pagar)?\b[.!?]*$/i.test(texto)) { await this.listarContas(remoteJid, inst); return; }
-    const mConta = texto.match(/^\/?(?:conta|nova conta|lan[çc]ar conta)\s*[:\-]\s*([\s\S]+)$/i);
-    if (mConta) { await this.criarConta(remoteJid, mConta[1], inst); return; }
 
     // Chamados
     const mCham = texto.match(/^\/?(?:chamado|abrir chamado|suporte|ticket)\s*[:\-]?\s*([\s\S]+)$/i);
@@ -2374,6 +2220,6 @@ export class WhatsappInboundController {
 @Module({
   imports: [NotificationsModule, AuthModule, ReferralModule, AssinaturaModule, CadastroWhatsappModule, IntegracoesModule],
   controllers: [WhatsappInboundController, WhatsappOperacaoController, WhatsappAnexosController],
-  providers: [WhatsappInboundService, { provide: "WHATSAPP_INBOUND", useExisting: WhatsappInboundService }, WhatsappRotinaService, WhatsappContextoService, WhatsappEquipeService, WhatsappLinguagemService, WhatsappMediaService, WhatsappGuiadoService],
+  providers: [WhatsappInboundService, { provide: "WHATSAPP_INBOUND", useExisting: WhatsappInboundService }, WhatsappRotinaService, WhatsappContextoService, WhatsappEquipeService, WhatsappLinguagemService, WhatsappMediaService, WhatsappGuiadoService, AureliaIaService],
 })
 export class WhatsappInboundModule {}

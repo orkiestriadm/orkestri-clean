@@ -56,3 +56,31 @@ export const LOGO_ARQUIVO = process.env.NEXT_PUBLIC_LOGO_ARQUIVO?.trim() || "";
  */
 export const LOGO_ARQUIVO_CLARO =
   process.env.NEXT_PUBLIC_LOGO_ARQUIVO_CLARO?.trim() || LOGO_ARQUIVO;
+
+/**
+ * Ícone do atalho instalado (PWA) e da aba do navegador.
+ *
+ * Vazio (padrão) usa o símbolo do produto, em `/icon-192.png` e companhia.
+ * Um ambiente white-label aponta para o ícone do cliente — e aponta por
+ * CAMINHO, não trocando o conteúdo de `/icon-512.png`: arquivo substituído no
+ * disco volta ao original na primeira vez que alguém trouxer `frontend/public`
+ * do git, e volta em silêncio, porque o build passa igual (foi assim que a
+ * foto da rodovia virou planeta — ver `LOGIN_FUNDO`).
+ *
+ * Precisa ser um PNG quadrado de 512×512: é o que o manifest declara, e o
+ * navegador só oferece a instalação com o tamanho batendo.
+ */
+export const ICONE_APP = process.env.NEXT_PUBLIC_ICONE_APP?.trim() || "";
+
+/**
+ * A frase de uma linha que descreve o produto.
+ *
+ * Mora aqui porque sai em DOIS lugares — a meta `description` da página e o
+ * `description` do manifest, que o celular mostra na hora de instalar — e duas
+ * cópias à mão acabam divergindo.
+ *
+ * Sem o nome do produto dentro: a frase serve a qualquer ambiente, e quem põe
+ * o nome é quem a exibe.
+ */
+export const DESCRICAO_CURTA =
+  "A sua agenda, os seus gastos e os seus pedidos de ajuda — com aviso no WhatsApp.";

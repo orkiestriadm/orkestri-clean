@@ -1,16 +1,27 @@
 import type { Metadata } from 'next'
 import LandingClient from './LandingClient'
 
+/**
+ * Isto é o que o Google mostra, e estava errado em dois sentidos.
+ *
+ * Vendia CRM, fornecedores e CAPEX/OPEX — produtos que saíram do sistema na
+ * redução de escopo de 19/10/2026. Quem chegasse pela busca procuraria telas
+ * que não existem mais.
+ *
+ * E falava como ERP (“plataforma corporativa”, “enterprise”, “gestão
+ * operacional”), quando o produto organiza o dia de UMA PESSOA e avisa no
+ * WhatsApp. O texto agora lista os módulos que estão no ar, na ordem do menu.
+ */
 export const metadata: Metadata = {
-  title: 'Orkiestri — Plataforma Corporativa de Gestão Operacional',
+  title: 'Orkiestri — organize o seu dia e receba o aviso no WhatsApp',
   description:
-    'Centralize CRM, projetos, fornecedores, financeiro e operações em uma plataforma enterprise moderna. Profundidade corporativa com experiência moderna.',
+    'Agenda, chamados, projetos, orçamento e os seus gastos no mesmo lugar — e um aviso no WhatsApp quando a hora chega.',
   keywords:
-    'sistema corporativo, ERP moderno, CRM, gestão de projetos, fornecedores, CAPEX OPEX, SaaS enterprise, gestão operacional',
+    'agenda no whatsapp, lembrete de compromisso, controle de gastos, chamados, gestão de projetos, orçamento',
   openGraph: {
-    title: 'Orkiestri — Plataforma Corporativa de Gestão Operacional',
+    title: 'Orkiestri — organize o seu dia e receba o aviso no WhatsApp',
     description:
-      'Centralize CRM, projetos, fornecedores, financeiro e operações em uma plataforma enterprise moderna.',
+      'Agenda, chamados, projetos, orçamento e os seus gastos no mesmo lugar — e um aviso no WhatsApp quando a hora chega.',
     url: 'https://www.orkiestri.com',
     siteName: 'Orkiestri',
     locale: 'pt_BR',
@@ -18,9 +29,9 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Orkiestri — Plataforma Corporativa de Gestão Operacional',
+    title: 'Orkiestri — organize o seu dia e receba o aviso no WhatsApp',
     description:
-      'Centralize CRM, projetos, fornecedores, financeiro e operações em uma plataforma enterprise moderna.',
+      'Agenda, chamados, projetos, orçamento e os seus gastos no mesmo lugar — e um aviso no WhatsApp quando a hora chega.',
   },
   robots: { index: true, follow: true },
   alternates: { canonical: 'https://www.orkiestri.com' },

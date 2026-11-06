@@ -8,7 +8,8 @@ export function ProductCard({ product }: { product: Product }) {
   return (
     <Link
       href={`/products/${product.slug}`}
-      className="group flex h-full flex-col rounded-(--radius-card) border border-white/[0.08] bg-panel p-6 transition-all duration-200 ease-(--ease-out-quart) hover:-translate-y-1 hover:border-flame/40 hover:shadow-soft motion-reduce:hover:translate-y-0"
+      data-spotlight
+      className="premium-surface group flex h-full flex-col rounded-(--radius-card) p-6 transition-all duration-200 ease-(--ease-out-quart) hover:-translate-y-1 hover:border-flame/40 motion-reduce:hover:translate-y-0 focus-visible:border-flame/60"
     >
       <div className="flex items-center justify-between">
         <IconTile

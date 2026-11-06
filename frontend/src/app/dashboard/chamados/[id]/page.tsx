@@ -18,7 +18,7 @@ interface Chamado {
   solicitanteId: string; atendenteId?: string; clienteId?: string;
   slaHoras?: number; slaStatus: string; slaDeadline?: string;
   slaRespostaStatus: string; slaRespostaAt?: string; slaResolucaoAt?: string;
-  primeiraRespostaEm?: string; avaliacao?: number; avaliacaoNota?: string;
+  primeiraRespostaEm?: string;
   resolvidoEm?: string; fechadoEm?: string; criadoEm: string; atualizadoEm: string;
   horasEstimadas?: number;
   skillRequerida?: { id: string; nome: string };
@@ -31,11 +31,6 @@ interface Chamado {
 interface Comentario {
   id: string; texto: string; interno: boolean; criadoEm: string;
   user: { id: string; nome: string; avatar?: string };
-}
-interface Apontamento {
-  id: string; minutos: number; descricao?: string; data: string;
-  user: { id: string; nome: string };
-  chamado: { numero: number; titulo: string };
 }
 type Anexo = {
   id: string; nomeOriginal: string; nomeArquivo: string; mimeType: string;
@@ -74,10 +69,6 @@ function fmtDt(d?: string | null) {
 function fmtDate(d?: string) {
   if (!d) return "—";
   return new Date(d).toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric" });
-}
-function fmtHoras(min: number) {
-  const h = Math.floor(min / 60); const m = min % 60;
-  return h > 0 ? `${h}h${m > 0 ? ` ${m}m` : ""}` : `${m}m`;
 }
 function timeAgo(d: string) {
   const diff = (Date.now() - new Date(d).getTime()) / 1000;
@@ -177,21 +168,6 @@ function ComentarioItem({ c, currentUserId, onDelete }: { c: Comentario; current
   );
 }
 
-// ── Star Rating ───────────────────────────────────────────────────────────────
-function StarRating({ value, onChange }: { value: number; onChange: (v: number) => void }) {
-  const [hover, setHover] = useState(0);
-  return (
-    <div className="flex gap-1">
-      {[1,2,3,4,5].map(n => (
-        <button key={n} type="button" onMouseEnter={() => setHover(n)} onMouseLeave={() => setHover(0)} onClick={() => onChange(n)}
-          className="transition-transform hover:scale-110">
-          <Star size={20} className={cn("transition-colors", (hover || value) >= n ? "fill-yellow-400 text-yellow-400" : "text-muted-foreground")} />
-        </button>
-      ))}
-    </div>
-  );
-}
-
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export default function ChamadoDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -199,7 +175,6 @@ export default function ChamadoDetailPage({ params }: { params: Promise<{ id: st
   const { user } = useAuthStore();
 
   const [chamado, setChamado] = useState<Chamado | null>(null);
-  const [apontamentos, setApontamentos] = useState<Apontamento[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [usuarios, setUsuarios] = useState<{ id: string; nome: string }[]>([]);
@@ -214,17 +189,6 @@ export default function ChamadoDetailPage({ params }: { params: Promise<{ id: st
   const [interno, setInterno] = useState(false);
   const [enviandoComent, setEnviandoComent] = useState(false);
   const comentRef = useRef<HTMLTextAreaElement>(null);
-
-  // Apontamento
-  const [showAptForm, setShowAptForm] = useState(false);
-  const [aptHoras, setAptHoras] = useState(""); const [aptMins, setAptMins] = useState("");
-  const [aptDesc, setAptDesc] = useState(""); const [aptData, setAptData] = useState(new Date().toISOString().slice(0,10));
-  const [savingApt, setSavingApt] = useState(false);
-
-  // CSAT
-  const [csatNota, setCsatNota] = useState(0);
-  const [csatComent, setCsatComent] = useState("");
-  const [savingCsat, setSavingCsat] = useState(false);
 
   // Anexos
   const [anexos, setAnexos] = useState<Anexo[]>([]);
@@ -245,16 +209,13 @@ export default function ChamadoDetailPage({ params }: { params: Promise<{ id: st
   async function load(silent = false) {
     silent ? setRefreshing(true) : setLoading(true);
     try {
-      const [{ data: c }, { data: apts }, { data: anx }] = await Promise.all([
+      const [{ data: c }, { data: anx }] = await Promise.all([
         api.get(`/chamados/${id}`),
-        api.get(`/apontamentos?chamadoId=${id}`),
         api.get(`/chamados/${id}/anexos`).catch(() => ({ data: [] })),
       ]);
       setChamado(c);
-      setApontamentos(apts);
       setAnexos(Array.isArray(anx) ? anx : []);
       setEditForm({ titulo: c.titulo, descricao: c.descricao, status: c.status, prioridade: c.prioridade, categoria: c.categoria || "", tags: c.tags || "", atendenteId: c.atendenteId || "" });
-      if (c.avaliacao) setCsatNota(c.avaliacao);
     } catch { router.push("/dashboard/chamados"); }
     finally { setLoading(false); setRefreshing(false); }
   }
@@ -304,24 +265,6 @@ export default function ChamadoDetailPage({ params }: { params: Promise<{ id: st
     setChamado(c => c ? { ...c, comentarios: c.comentarios.filter(x => x.id !== comentId) } : c);
   }
 
-  async function handleApontamento() {
-    const minutos = (Number(aptHoras) || 0) * 60 + (Number(aptMins) || 0);
-    if (minutos <= 0) return;
-    setSavingApt(true);
-    try {
-      await api.post("/apontamentos", { chamadoId: id, minutos, descricao: aptDesc || undefined, data: aptData });
-      setAptHoras(""); setAptMins(""); setAptDesc(""); setShowAptForm(false);
-      const { data } = await api.get(`/apontamentos?chamadoId=${id}`);
-      setApontamentos(data);
-    } finally { setSavingApt(false); }
-  }
-
-  async function handleDeleteApontamento(aptId: string) {
-    if (!confirm("Remover apontamento?")) return;
-    await api.delete(`/apontamentos/${aptId}`);
-    setApontamentos(p => p.filter(a => a.id !== aptId));
-  }
-
   function fmtBytes(bytes: number) {
     if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
     return `${Math.ceil(bytes / 1024)} KB`;
@@ -356,15 +299,6 @@ export default function ChamadoDetailPage({ params }: { params: Promise<{ id: st
     setAnexos(prev => prev.filter(a => a.id !== anexoId));
   }
 
-  async function handleCsat() {
-    if (!csatNota) return;
-    setSavingCsat(true);
-    try {
-      await api.patch(`/chamados/${id}/avaliar`, { avaliacao: csatNota, avaliacaoNota: csatComent || undefined });
-      await load(true);
-    } finally { setSavingCsat(false); }
-  }
-
   if (loading) {
     return (
       <div className="flex items-center justify-center h-full">
@@ -374,7 +308,6 @@ export default function ChamadoDetailPage({ params }: { params: Promise<{ id: st
   }
   if (!chamado) return null;
 
-  const totalHoras = apontamentos.reduce((s, a) => s + a.minutos, 0);
   const statusInfo = STATUS_MAP[chamado.status] || STATUS_MAP.aberto;
   const prioInfo = PRIO_MAP[chamado.prioridade] || PRIO_MAP.media;
   const isClosed = ["resolvido","fechado"].includes(chamado.status);
@@ -555,71 +488,6 @@ export default function ChamadoDetailPage({ params }: { params: Promise<{ id: st
               </div>
             </div>
 
-            {/* Apontamentos de horas */}
-            <div className="rounded-xl border border-border bg-card p-5">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-sm font-semibold text-foreground">
-                  Horas apontadas
-                  {totalHoras > 0 && <span className="text-muted-foreground font-normal ml-2">— {fmtHoras(totalHoras)} total</span>}
-                </h2>
-                <button onClick={() => setShowAptForm(f => !f)} className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground border border-border hover:bg-accent px-2.5 py-1 rounded-lg transition-colors">
-                  <Plus size={12} /> Apontar
-                </button>
-              </div>
-
-              {showAptForm && (
-                <div className="mb-4 p-4 rounded-xl bg-muted/30 border border-border space-y-3">
-                  <div className="grid grid-cols-3 gap-3">
-                    <div>
-                      <label className="block text-[11px] text-muted-foreground mb-1">Horas</label>
-                      <input type="number" min="0" value={aptHoras} onChange={e => setAptHoras(e.target.value)} placeholder="0" className="w-full px-3 py-1.5 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
-                    </div>
-                    <div>
-                      <label className="block text-[11px] text-muted-foreground mb-1">Minutos</label>
-                      <input type="number" min="0" max="59" value={aptMins} onChange={e => setAptMins(e.target.value)} placeholder="0" className="w-full px-3 py-1.5 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
-                    </div>
-                    <div>
-                      <label className="block text-[11px] text-muted-foreground mb-1">Data</label>
-                      <input type="date" value={aptData} onChange={e => setAptData(e.target.value)} className="w-full px-3 py-1.5 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
-                    </div>
-                  </div>
-                  <input value={aptDesc} onChange={e => setAptDesc(e.target.value)} placeholder="Descrição (opcional)" className="w-full px-3 py-1.5 rounded-lg border border-border bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
-                  <div className="flex justify-end gap-2">
-                    <button onClick={() => setShowAptForm(false)} className="px-3 py-1.5 text-xs rounded-lg border border-border text-muted-foreground hover:bg-accent transition-colors">Cancelar</button>
-                    <button onClick={handleApontamento} disabled={savingApt || (Number(aptHoras||0)*60+Number(aptMins||0)) <= 0}
-                      className="px-3 py-1.5 text-xs rounded-lg bg-primary text-primary-foreground font-medium hover:bg-primary/90 transition-colors disabled:opacity-50">
-                      {savingApt ? "Salvando..." : "Salvar"}
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {apontamentos.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-4">Nenhuma hora apontada neste chamado.</p>
-              ) : (
-                <div className="space-y-2">
-                  {apontamentos.map(a => (
-                    <div key={a.id} className="flex items-center gap-3 p-3 rounded-lg bg-muted/30 border border-border">
-                      <Clock size={14} className="text-muted-foreground flex-shrink-0" />
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-medium text-foreground">{fmtHoras(a.minutos)}</span>
-                          <span className="text-xs text-muted-foreground">{a.user.nome}</span>
-                          <span className="text-xs text-muted-foreground">· {fmtDate(a.data)}</span>
-                        </div>
-                        {a.descricao && <div className="text-xs text-muted-foreground mt-0.5 truncate">{a.descricao}</div>}
-                      </div>
-                      {(isMaster || a.user.id === user?.id) && (
-                        <button onClick={() => handleDeleteApontamento(a.id)} className="text-muted-foreground hover:text-red-400 transition-colors flex-shrink-0">
-                          <Trash2 size={13} />
-                        </button>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
             {/* Anexos */}
             <div className="rounded-xl border border-border bg-card p-5">
               <div className="flex items-center justify-between mb-4">
@@ -674,24 +542,6 @@ export default function ChamadoDetailPage({ params }: { params: Promise<{ id: st
               )}
             </div>
 
-            {/* CSAT */}
-            {isClosed && (isSolicitante || isMaster) && (
-              <div className="rounded-xl border border-border bg-card p-5">
-                <h2 className="text-sm font-semibold text-foreground mb-4">
-                  Avaliação do atendimento
-                  {chamado.avaliacao && <span className="text-muted-foreground font-normal ml-2">(já avaliado)</span>}
-                </h2>
-                <div className="space-y-3">
-                  <StarRating value={csatNota} onChange={setCsatNota} />
-                  <textarea value={csatComent} onChange={e => setCsatComent(e.target.value)} placeholder="Comentário sobre o atendimento (opcional)"
-                    rows={2} className="w-full bg-muted/50 border border-border rounded-xl px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary resize-none" />
-                  <button onClick={handleCsat} disabled={!csatNota || savingCsat}
-                    className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 transition-colors disabled:opacity-50">
-                    {savingCsat ? "Salvando..." : chamado.avaliacao ? "Atualizar avaliação" : "Enviar avaliação"}
-                  </button>
-                </div>
-              </div>
-            )}
           </div>
 
           {/* ── Right: sidebar ── */}
@@ -759,20 +609,6 @@ export default function ChamadoDetailPage({ params }: { params: Promise<{ id: st
 
             {/* SLA */}
             <SlaBar chamado={chamado} />
-
-            {/* CSAT resultado */}
-            {chamado.avaliacao && (
-              <div className="rounded-xl border border-border bg-card p-4">
-                <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">CSAT</h3>
-                <div className="flex items-center gap-2 mb-2">
-                  {[1,2,3,4,5].map(n => (
-                    <Star key={n} size={16} className={cn(n <= chamado.avaliacao! ? "fill-yellow-400 text-yellow-400" : "text-muted-foreground/30")} />
-                  ))}
-                  <span className="text-sm font-bold text-foreground ml-1">{chamado.avaliacao}/5</span>
-                </div>
-                {chamado.avaliacaoNota && <p className="text-xs text-muted-foreground italic">"{chamado.avaliacaoNota}"</p>}
-              </div>
-            )}
 
             {/* Link cliente */}
             {chamado.cliente && (

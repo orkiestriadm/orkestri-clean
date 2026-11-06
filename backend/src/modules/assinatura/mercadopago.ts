@@ -141,6 +141,17 @@ export class MercadoPagoClient {
         back_url: p.backUrl,
         external_reference: p.externalReference,
         status: "pending",
+        // `start_date` fica de fora de propósito.
+        //
+        // Sem ele, o Mercado Pago grava start_date = momento desta chamada e
+        // `has_billing_day: false` — ou seja, a cobrança se repete no DIA em
+        // que a pessoa assinou, que é a regra que queremos. Conferido na API
+        // real em 28/10/2026: a resposta volta com start_date e
+        // next_payment_date preenchidos com o instante da criação.
+        //
+        // Mandar uma data explícita aqui só criaria duas formas de errar: data
+        // no passado é recusada, e data no futuro adia a primeira cobrança sem
+        // que nada no sistema esteja esperando por isso.
         auto_recurring: {
           frequency: 1,
           frequency_type: "months",

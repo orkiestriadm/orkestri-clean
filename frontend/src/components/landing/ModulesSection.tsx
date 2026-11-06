@@ -3,49 +3,60 @@
 import { useRef } from 'react'
 import { motion, useInView } from 'framer-motion'
 import {
-  Users, Calculator, BarChart3, FolderKanban, FileText,
+  Headset, Calculator, Receipt, FolderKanban, CalendarDays, BookOpen,
 } from 'lucide-react'
 
+// Espelho do menu do sistema — a fonte da verdade é `@/lib/modules` → NAV.
+// Esta lista já anunciou Relatórios e um Financeiro com "contratos e receitas",
+// nenhum dos dois existindo. Ao mexer no NAV, mexa aqui.
 const MODULES = [
   {
-    icon: Users,
+    icon: CalendarDays,
+    name: 'Agenda',
+    description: 'Seus compromissos num lugar só, com lembrete no WhatsApp antes da hora.',
+    color: '#fbbf24',
+    gradient: 'from-amber-500/20 to-amber-600/5',
+    border: 'rgba(251,191,36,0.2)',
+  },
+  {
+    icon: Receipt,
+    name: 'Meus Gastos',
+    description: 'Anote o gasto por mensagem, inclusive parcelado, e receba o resumo da semana no domingo.',
+    color: '#22d3ee',
+    gradient: 'from-cyan-500/20 to-cyan-600/5',
+    border: 'rgba(34,211,238,0.2)',
+  },
+  {
+    icon: Headset,
     name: 'Chamados',
-    description: 'Organize demandas, controle desenvolvimento do time, tudo com histórico e comunicação centralizada.',
+    description: 'O pedido vira um chamado com número, prazo e responsável — e avisa antes do prazo estourar.',
+    color: '#60a5fa',
+    gradient: 'from-blue-500/20 to-blue-600/5',
+    border: 'rgba(96,165,250,0.2)',
+  },
+  {
+    icon: FolderKanban,
+    name: 'Projetos',
+    description: 'O quadro com as tarefas, quem ficou com cada uma e a linha do tempo dos prazos.',
     color: '#a78bfa',
     gradient: 'from-violet-500/20 to-violet-600/5',
     border: 'rgba(167,139,250,0.2)',
   },
   {
     icon: Calculator,
-    name: 'Orçamentos',
-    description: 'CAPEX/OPEX, ciclos, centros de custo e aprovações de orçamento.',
+    name: 'Orçamento',
+    description: 'O que foi planejado e o que de fato saiu, mês a mês, por centro de custo.',
     color: '#34d399',
     gradient: 'from-emerald-500/20 to-emerald-600/5',
     border: 'rgba(52,211,153,0.2)',
   },
   {
-    icon: BarChart3,
-    name: 'Financeiro',
-    description: 'Orçamento(Capex/Opex), contratos, receitas, despesas e relatórios financeiros.',
-    color: '#22d3ee',
-    gradient: 'from-cyan-500/20 to-cyan-600/5',
-    border: 'rgba(34,211,238,0.2)',
-  },
-  {
-    icon: FolderKanban,
-    name: 'Projetos',
-    description: 'Kanban, milestones, apontamentos de horas e gestão de equipes.',
-    color: '#a78bfa',
-    gradient: 'from-violet-500/20 to-violet-600/5',
-    border: 'rgba(167,139,250,0.2)',
-  },
-  {
-    icon: FileText,
-    name: 'Relatórios',
-    description: 'Dashboards dinâmicos, exportação e análises operacionais completas.',
-    color: '#34d399',
-    gradient: 'from-emerald-500/20 to-emerald-600/5',
-    border: 'rgba(52,211,153,0.2)',
+    icon: BookOpen,
+    name: 'Conhecimento',
+    description: 'As orientações escritas uma vez, para não responder a mesma pergunta toda semana.',
+    color: '#f472b6',
+    gradient: 'from-pink-500/20 to-pink-600/5',
+    border: 'rgba(244,114,182,0.2)',
   },
 ]
 

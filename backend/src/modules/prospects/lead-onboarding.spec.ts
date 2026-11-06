@@ -53,6 +53,19 @@ describe('Convite → cadastro Aurélia → agenda', () => {
     };
     return state;
   }
+  it.each(['quero me cadastrar','vamos começar','sim'])('inicia convite com linguagem natural: %s',async resposta=>{
+    const {service,p,wa}=comConvite();
+    expect(await service.tratarConvite('5511999991234',resposta,'teste')).toBe(true);
+    expect(p.cadastroWhatsapp.create).toHaveBeenCalledTimes(1);
+    expect(wa.sendMessage.mock.calls[0][1]).toContain('nome completo');
+    expect(wa.sendMessage.mock.calls[0][1]).not.toMatch(/\*[12]\*/);
+  });
+  it.each(['não tenho interesse','agora não'])('encerra convite sem conta: %s',async resposta=>{
+    const {service,p}=comConvite();
+    expect(await service.tratarConvite('5511999991234',resposta,'teste')).toBe(true);
+    expect(p.cadastroWhatsapp.create).not.toHaveBeenCalled();
+    expect(p.user.create).not.toHaveBeenCalled();
+  });
   it('1 abre o cadastro e a Aurélia já pergunta o nome na mesma conversa', async () => {
     const { service, p, wa } = comConvite();
     expect(await service.tratarConvite('5511999991234', '1', 'teste', '123456789@lid')).toBe(true);
@@ -113,7 +126,7 @@ describe('Convite → cadastro Aurélia → agenda', () => {
     expect(cadastro.status).toBe('CONCLUIDO');
     expect(inicio.enfileirar).toHaveBeenCalled(); expect(inicio.entregar).toHaveBeenCalledWith(user.id);
     const cache: any = { get: jest.fn().mockResolvedValue(null), set: jest.fn() };
-    const auth = new AuthService(p, null, null, cache, null, null, null);
+    const auth = new AuthService(p, null, null, cache, null, null);
     expect(await auth.resolvePermissions(user.id)).toEqual(expect.arrayContaining(['agenda:ver', 'agenda:criar']));
     expect(await auth.resolvePermissions(user.id)).not.toContain('*');
   });
@@ -124,7 +137,13 @@ describe('Convite → cadastro Aurélia → agenda', () => {
     await responder('Pessoa Teste'); await responder('52998224725'); await responder('geral@example.invalid'); await responder('Pessoal'); await responder('1');
     const user = p.user.create.mock.calls[0][0].data;
     expect(user.organizationId).toBe('org-isolada');
-    expect(user).not.toHaveProperty('trialModulo');
+    // Desde 28/10/2026 o cadastro geral nasce com a gratuidade CORRENDO: a
+    // Aurélia virou a única porta de entrada, e quem entra por ela passou a
+    // ter 7 dias. Antes esta conta ficava fora do ciclo de cobrança para
+    // sempre. O convite gratuito segue sem prazo — ver o teste dele abaixo.
+    expect(user.isTrial).toBe(true);
+    expect(user.trialModulo).toBe('one-space');
+    expect(user.trialExpiraEm).toBeInstanceOf(Date);
     expect(user).not.toHaveProperty('assinaturaEm');
     expect(p.userRole.create.mock.calls[0][0].data.roleId).toBe('master-nao-atribuido');
     expect(JSON.parse(p.userProfile.create.mock.calls[0][0].data.modulos)).toEqual(expect.arrayContaining(['agenda', 'keep', 'projetos', 'financeiro', 'gastos', 'chamados', 'conhecimento']));
@@ -145,7 +164,8 @@ describe('Convite → cadastro Aurélia → agenda', () => {
   it('entrega instruções completas, e não informa teste ativo depois do vencimento', () => {
     const user = { nome: 'Pessoa Teste', email: 'teste@example.invalid', ...dadosTesteAgenda() };
     const texto = mensagemInicioTesteAgenda(user)!;
-    for (const parte of ['Aurélia', 'começar', 'compromissos', '/recuperar-senha', '/login', 'WhatsApp']) expect(texto).toContain(parte);
+    for (const parte of ['Dentista hoje às 17h', 'lançar barrinha', '/recuperar-senha', '/login', 'WhatsApp']) expect(texto).toContain(parte);
+    expect(texto).not.toMatch(/\*[0-9]\*|escolha.*menu/i);
     expect(mensagemInicioTesteAgenda({ ...user, trialExpiraEm: new Date(0) })).toContain('terminou');
     expect(testeAgendaExpirado({ ...user, assinaturaEm: new Date(), trialExpiraEm: new Date(0) })).toBe(false);
   });

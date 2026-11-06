@@ -21,11 +21,9 @@ class StatsController {
     const [
       // chamados
       chamAbertos, chamUrgentes, chamHoje, chamEmAtend,
-      chamResolvidosMes, chamSlaViolados, chamCsat,
+      chamResolvidosMes, chamSlaViolados,
       // projetos
       projAtivos, projConclMes,
-      // horas
-      horasMes,
       // conhecimento
       artigoTotal, artigoViews,
     ] = await Promise.all([
@@ -35,10 +33,8 @@ class StatsController {
       this.prisma.chamado.count({ where: { status: "em_atendimento", ...ow } }),
       this.prisma.chamado.count({ where: { status: { in: ["resolvido","fechado"] }, resolvidoEm: { gte: mesInicio }, ...ow } }),
       this.db.chamado.count({ where: { slaResolucaoAt: { lt: now }, status: { notIn: ["resolvido","fechado","cancelado"] }, ...ow } }),
-      this.db.chamado.aggregate({ _avg: { avaliacao: true }, _count: { avaliacao: true }, where: { avaliacao: { not: null }, atualizadoEm: { gte: mesInicio }, ...ow } }),
       this.prisma.project.count({ where: { status: { in: ["PLANEJAMENTO","EM_ANDAMENTO"] }, ...ow } }),
       this.prisma.project.count({ where: { status: "CONCLUIDO", atualizadoEm: { gte: mesInicio }, ...ow } }),
-      this.db.apontamentoHoras.aggregate({ _sum: { minutos: true }, _count: { id: true }, where: { data: { gte: mesInicio }, ...ow } }),
       this.db.artigoConhecimento.count({ where: { status: "publicado", ...ow } }),
       this.db.artigoConhecimento.aggregate({ _sum: { visualizacoes: true }, where: { ...ow } }),
     ]);
@@ -54,11 +50,8 @@ class StatsController {
         abertos: chamAbertos, urgentes: chamUrgentes, hoje: chamHoje,
         emAtendimento: chamEmAtend, resolvidosMes: chamResolvidosMes,
         slaViolados: chamSlaViolados, slaCompliancePct,
-        csatMedia:  Math.round(((chamCsat._avg.avaliacao || 0)) * 10) / 10,
-        csatTotal:  chamCsat._count.avaliacao,
       },
       projetos:     { ativos: projAtivos, concluidosMes: projConclMes },
-      horas:        { totalMinutos: horasMes._sum.minutos || 0, totalRegistros: horasMes._count.id },
       conhecimento: { artigos: artigoTotal, visualizacoes: artigoViews._sum.visualizacoes || 0 },
     };
   }
@@ -92,7 +85,6 @@ class StatsController {
       chamAbertos,
       chamUrgentes,
       chamSlaRisco,
-      csatMedia,
       chamRecentes14d,
       ativRecentes,
     ] = await Promise.all([
@@ -115,7 +107,6 @@ class StatsController {
       this.db.chamado.count({ where: { status: { in: ["aberto","em_atendimento","aguardando"] }, ...ow } }),
       this.db.chamado.count({ where: { prioridade: "urgente", status: { in: ["aberto","em_atendimento"] }, ...ow } }),
       this.db.chamado.count({ where: { slaResolucaoAt: { not: null, lt: em2h }, status: { notIn: ["resolvido","fechado","cancelado"] }, ...ow } }),
-      this.db.chamado.aggregate({ _avg: { avaliacao: true }, where: { avaliacao: { not: null }, criadoEm: { gte: mesInicio }, ...ow } }),
       this.db.chamado.findMany({ where: { criadoEm: { gte: ha14 }, ...ow }, select: { criadoEm: true } }),
       this.db.chamado.findMany({
         take: 6,
@@ -147,7 +138,6 @@ class StatsController {
       eventos: { total: totalEventos, hoje: eventosHoje },
       notas: { total: totalNotas },
       chamados: { abertos: chamAbertos, urgentes: chamUrgentes, slaRisco: chamSlaRisco },
-      csat: { media: Math.round(((csatMedia._avg.avaliacao || 0)) * 10) / 10 },
       chamadosPorDia,
       ativRecentes,
     };
