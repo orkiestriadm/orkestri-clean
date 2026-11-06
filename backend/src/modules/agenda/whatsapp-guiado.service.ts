@@ -422,7 +422,8 @@ export class WhatsappGuiadoService {
     let snapshotIa: string | undefined;
     const multiplos = texto.length <= 1000 && variosCompromissos(texto);
     const comando = multiplos ? null : comandoAgenda(texto);
-    if (!multiplos && (comando || this.ia?.habilitadaPara?.(u.id) || this.ia?.habilitada?.()) && texto.length <= 1000 &&
+    const iaDisponivel = this.ia?.habilitadaPara ? this.ia.habilitadaPara(u.id) : this.ia?.habilitada?.();
+    if (!multiplos && (comando || iaDisponivel) && texto.length <= 1000 &&
         (comando ||
         /\b(?:agend|marc|compromisso|consulta|dentista|reuni[aã]o)\w*/i.test(texto) &&
         !/\b(?:apagu|apag|exclu|cancel|remov|reagend|alter|mud|repete|repetir|toda|todo|diariamente|semanalmente|mensalmente)\w*/i.test(texto))) {
