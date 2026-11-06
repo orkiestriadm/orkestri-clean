@@ -236,7 +236,9 @@ export class WhatsappGuiadoService {
     }
     return (
       linhas.join("\n") +
-      (v.ia ? "\n\nPosso salvar assim? Responda *sim*, *corrigir* ou *cancelar*." :
+      (v.ia && v.acao === 'evento.criar'
+        ? `\n\nAh, fechou então! Posso confirmar em sua agenda o compromisso *${v.titulo || 'esse compromisso'}*? Se quiser corrigir algo, é só falar!`
+        : v.ia ? "\n\nPosso salvar assim? Responda *sim*, *corrigir* ou *cancelar*." :
       "\n\n*1* — Confirmar\n*2* — Corrigir\n*Cancelar* — Não salvar" + NAV)
     );
   }
@@ -391,7 +393,7 @@ export class WhatsappGuiadoService {
     return {
       estado: { fase: "FORM", v },
       mensagem:
-        (v.ia && campo.tipo === 'repeticao' ? 'Esse compromisso se repete? Pode responder: não, diariamente, semanalmente ou mensalmente.' :
+        (v.ia && campo.tipo === 'repeticao' ? `Viu, deixa eu te perguntar: esse compromisso *${v.titulo || 'esse compromisso'}* se repete? Pode responder não, diariamente, semanalmente ou mensalmente.` :
         campo.tipo === "quando" ? perguntaQuando(v.quandoParcial) : campo.pergunta) +
         (v[campo.key] != null
           ? "\nAtual: " +
@@ -1136,7 +1138,7 @@ export class WhatsappGuiadoService {
                   (state.v.ia ? '\nEscreva o nome da informação.' : NAV),
               });
             }
-            if (!/^(1|sim|confirmar|confirmo)$/.test(n) && !(state.v.ia && /^(pode salvar|pode confirmar|sim, pode salvar|sim pode salvar|pode marcar|isso mesmo,? pode marcar)[.!?]*$/.test(n)))
+            if (!/^(1|sim|confirmar|confirmo|pode|claro|e claro|com certeza)$/.test(n) && !(state.v.ia && /^(pode salvar|pode confirmar|sim, pode salvar|sim pode salvar|pode marcar|isso mesmo,? pode marcar|pode ser|pode confirmar sim)[.!?]*$/.test(n)))
               return salvar(state, this.resumo(state.v));
             if (!this.pode(p, state.v.acao))
               return principal(

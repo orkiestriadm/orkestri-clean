@@ -102,8 +102,7 @@ describe('Aurélia IA integrada ao fluxo autorizado', () => {
     expect(s.text()).toContain('se repete');
     expect(s.db.event.create).not.toHaveBeenCalled();
     await s.say('não');
-    expect(s.text()).toContain('Posso salvar assim?');
-    expect(s.text()).toContain('dentista');
+    expect(s.text()).toContain('Posso confirmar em sua agenda');
     expect(s.db.event.create).not.toHaveBeenCalled();
     await s.say('pode salvar');
     expect(s.db.event.create).toHaveBeenCalledTimes(1);
@@ -204,7 +203,7 @@ describe("Aurélia guiada", () => {
   it("mostra nomes de ações e só recursos permitidos", async () => {
     const s = setup(["keep:ver", "keep:criar"]);
     await s.say("menu");
-    expect(s.text()).toContain("/login");
+    expect(s.text()).toContain("www.orkiestri.com");
     expect(s.text()).not.toContain("Meus gastos");
     expect(s.text()).not.toContain("Keep");
   });
@@ -389,7 +388,7 @@ describe("Aurélia guiada", () => {
     for (const t of ["menu", "6", "5"]) await s.say(t);
     expect(s.text()).toContain("anexos");
     expect(s.text()).toContain("https://www.orkiestri.com/login");
-    expect(s.text()).toContain("Me conte o que você precisa organizar");
+    expect(s.text()).toContain("Diga o que você quer fazer");
   });
 });
 describe("Datas e valores guiados", () => {
