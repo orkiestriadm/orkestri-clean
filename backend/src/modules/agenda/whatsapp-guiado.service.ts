@@ -544,8 +544,9 @@ export class WhatsappGuiadoService {
             await limpar();
             return 'Cancelei este rascunho. Nada foi salvo. O que mais você precisa?';
           }
-          if (state?.v?.quando && /\b(?:n[aã]o|corrig|troca|melhor|muda|ajust)/i.test(t)) {
-            const ajuste = t.match(/\b(?:[àa]s|para)\s*(\d{1,2})(?:(?::|h)\s*(\d{2}))?\s*h?\b/i);
+          const correcaoHora = texto.match(/\b(?:n[aã]o|corrig\w*|troca\w*|melhor|muda\w*|ajust\w*)\b.*?\b(?:[àa]s|as|para)\s*(\d{1,2})(?:(?::|h)\s*(\d{2}))?\s*h?\b/i);
+          if (state?.v?.quando && correcaoHora) {
+            const ajuste = correcaoHora;
             if (ajuste) {
               const atual = new Date(state.v.quando);
               const hora = Number(ajuste[1]);
