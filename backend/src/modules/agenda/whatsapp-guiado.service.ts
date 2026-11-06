@@ -521,6 +521,21 @@ export class WhatsappGuiadoService {
           }
           if (multiplos && (!state || state.fase === 'MENU' || state.v?.ia))
             return 'Identifiquei mais de um compromisso. Envie um de cada vez, começando pelo primeiro. Não gravei nenhum compromisso desta mensagem.';
+          // Correções curtas como "não, às 11h" precisam ser resolvidas antes
+          // da interpretação geral da IA, que poderia recriar o rascunho antigo.
+          const correcaoHoraAntesIa = texto.match(/\b(?:n[aã]o|corrig\w*|troca\w*|melhor|muda\w*|ajust\w*)\b.*?\b(?:[àa]s|as|para)\s*(\d{1,2})(?:(?::|h)\s*(\d{2}))?\s*h?\b/i);
+          if (state?.v?.quando && correcaoHoraAntesIa && state.fase === 'CONFIRMAR') {
+            const atual = new Date(state.v.quando);
+            const hora = Number(correcaoHoraAntesIa[1]);
+            const minuto = Number(correcaoHoraAntesIa[2] || 0);
+            if (hora <= 23 && minuto <= 59) {
+              const corrigido = new Date(Date.UTC(atual.getUTCFullYear(), atual.getUTCMonth(), atual.getUTCDate(), hora + 3, minuto, 0));
+              if (corrigido.getTime() > Date.now()) {
+                state.v.quando = corrigido.toISOString();
+                return salvar({ fase: 'CONFIRMAR', v: state.v }, this.resumo(state.v));
+              }
+            }
+          }
           if (extraidoIa && snapshotIa !== JSON.stringify(rows[0] || null))
             return 'A conversa mudou enquanto eu interpretava a mensagem. Responda à última pergunta ou envie novamente. Nada foi salvo por esta mensagem.';
           if (extraidoIa?.acao === 'criar') {
