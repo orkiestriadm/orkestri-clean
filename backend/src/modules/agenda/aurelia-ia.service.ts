@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { diaCompromisso, horaCompromisso } from '../notifications/evento-alerta-datas';
 import { diaSaoPaulo, instanteSaoPaulo, somarDias } from './whatsapp-rotina-datas';
 import { horarioAmbiguo } from './whatsapp-agenda-comandos';
+import { numeroFalado, partesHoraFalada } from './agenda-portugues';
 
 export type ExtracaoAgenda = { acao: 'criar' | 'consultar' | 'outro'; titulo: string; dia: string; hora: string; duracao: string };
 export const CAMPOS_IA = ['titulo', 'dia', 'hora', 'duracao'] as const;
@@ -64,17 +65,19 @@ export function trechoOriginalIa(texto: string, valor: string): string | null {
 }
 /** Written clock times require an explicit period; "duas" alone is ambiguous. */
 export function horaIa(s: string): string | null {
-  const n = normal(s).replace(/^as\s+/, '').replace(/ e trinta\b/, ' e meia');
+  const n = normal(s).replace(/^(?:as|ao)\s+/, '');
   if (n === 'meio-dia' || n === 'meio dia') return '12:00';
   if (n === 'meia-noite' || n === 'meia noite') return '00:00';
-  const m = n.match(/^(uma|duas|tres|quatro|cinco|seis|sete|oito|nove|dez|onze|doze|\d{1,2})(?: (?:horas?))?( e meia)? (?:da|a) (manha|tarde|noite)$/);
-  if (m) {
-    const numeros = ['','uma','duas','tres','quatro','cinco','seis','sete','oito','nove','dez','onze','doze'];
-    let hora = /^\d+$/.test(m[1]) ? Number(m[1]) : numeros.indexOf(m[1]);
-    if (hora < 1 || hora > 12) return null;
-    if (m[3] === 'manha') hora %= 12;
-    else if (hora < 12) hora += 12;
-    return String(hora).padStart(2, '0') + (m[2] ? ':30' : ':00');
+  const p = partesHoraFalada(n);
+  if (p) {
+    if (horarioAmbiguo(n)) return null;
+    let hora = p.hora;
+    if (p.periodo) {
+      if (hora < 1 || hora > 12) return null;
+      if (p.periodo === 'manha' || (p.periodo === 'noite' && hora === 12)) hora %= 12;
+      else if (hora < 12) hora += 12;
+    }
+    return String(hora).padStart(2, '0') + ':' + String(p.minuto).padStart(2, '0');
   }
   return horaCompromisso(s);
 }
@@ -83,6 +86,12 @@ export function duracaoIa(s: string): number | undefined {
   if (/^(uma|1) hora$/.test(n)) return 60;
   if (/^(duas|2) horas$/.test(n)) return 120;
   if (n === 'meia hora') return 30;
+  const escrita = n.match(/^(.+)\s+(minutos?|horas?)$/);
+  if (escrita) {
+    const numero = numeroFalado(escrita[1]);
+    const minutos = numero === null ? 0 : numero * (escrita[2].startsWith('hora') ? 60 : 1);
+    if (minutos >= 1 && minutos <= 720) return minutos;
+  }
   const m = n.match(/^(\d{1,3})(?:\s*(?:min|minutos?))?$/);
   return m && +m[1] >= 1 && +m[1] <= 720 ? +m[1] : undefined;
 }
@@ -98,13 +107,18 @@ export function dadosAgendaIa(v: ExtracaoAgenda, agora = new Date()): Record<str
     dia = somarDias(hoje, (idx - atual + 7) % 7 || 7);
   }
   const hora = horaIa(v.hora);
+  let erro: string | undefined;
+  if (v.dia && !dia) erro = 'Essa data não existe ou não foi reconhecida. Qual é a data correta?';
+  if (dia && dia < diaSaoPaulo(agora)) erro = 'Esse dia está no passado. Escolha uma data futura.';
   if (dia && hora) {
     const [h, m] = hora.split(':');
     const quando = instanteSaoPaulo(dia, h, m);
     if (quando > agora) dados.quando = quando.toISOString();
+    else erro = 'Esse horário já passou. Escolha outro dia ou horário.';
   } else if (dia || hora || horarioAmbiguo(v.hora)) {
     dados.quandoParcial = { ...(dia ? { dia } : {}), ...(hora ? { horario: hora } : {}), ...(horarioAmbiguo(v.hora) ? { ambiguo: v.hora } : {}) };
   }
+  if (erro) dados.quandoParcial = { ...(dados.quandoParcial || {}), erro };
   const duracao = duracaoIa(v.duracao);
   if (duracao !== undefined) dados.duracao = duracao;
   return dados;

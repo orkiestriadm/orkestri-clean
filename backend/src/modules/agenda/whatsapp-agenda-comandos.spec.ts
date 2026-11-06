@@ -1,8 +1,24 @@
 import { comandoAgenda } from './whatsapp-agenda-comandos';
-import { dadosAgendaIa } from './aurelia-ia.service';
+import { dadosAgendaIa, horaIa, duracaoIa } from './aurelia-ia.service';
+import { diaCompromisso } from '../notifications/evento-alerta-datas';
+const exemplos = require('./fixtures/aurelia-agenda.json');
 import { coletarQuando } from './whatsapp-guiado-quando';
 const agora = new Date('2026-11-05T13:00:00Z');
 describe('Comandos de agenda por texto e transcrição', () => {
+  it.each(exemplos)('base formal/informal: $texto', (exemplo: any) => {
+    const {texto,horario,...campos} = exemplo;
+    expect(comandoAgenda(texto)).toMatchObject(campos);
+    expect(horaIa(campos.hora)).toBe(horario);
+  });
+  it('interpreta data e duração por extenso', () => {
+    expect(diaCompromisso('no dia vinte e seis de novembro',agora)).toBe('2026-11-26');
+    expect(duracaoIa('quarenta e cinco minutos')).toBe(45);
+    expect(coletarQuando('sexta',{},agora).parcial?.dia).toBe('2026-11-06');
+  });
+  it('não normaliza data impossível nem mistura dois compromissos', () => {
+    expect(dadosAgendaIa(comandoAgenda('marque dentista dia 31 do 02 às 15h')!,agora).quandoParcial.erro).toContain('data');
+    expect(comandoAgenda('marque dentista amanhã às 9h e academia às 15h')).toBeNull();
+  });
   it.each([
     ['Aurélia, anota aí pra mim, academia amanhã às 15.', 'academia','amanhã','15'],
     ['Aurélio. Anota aí pra mim: pegar táxi amanhã às 12.', 'pegar táxi','amanhã','12'],

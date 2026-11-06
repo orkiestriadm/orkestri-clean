@@ -3,10 +3,11 @@ import { diaSaoPaulo, somarDias } from "./whatsapp-rotina-datas";
 import { horaIa } from './aurelia-ia.service';
 import { horarioAmbiguo } from './whatsapp-agenda-comandos';
 
-export type QuandoParcial = { dia?: string; horario?: string; ambiguo?: string };
+export type QuandoParcial = { dia?: string; horario?: string; ambiguo?: string; erro?: string };
 const legivel = (dia: string) => dia.split("-").reverse().join("/");
 export function perguntaQuando(parcial: QuandoParcial = {}, agora = new Date()): string {
   const exemplo = legivel(somarDias(diaSaoPaulo(agora), 1));
+  if (parcial.erro) return parcial.erro + '\n' + perguntaQuando({...parcial, erro:undefined}, agora);
   if (parcial.ambiguo) return `Você disse “${parcial.ambiguo}”. É de manhã, da tarde ou da noite? Envie o horário completo, por exemplo: *duas da tarde* ou *14h*.`;
   if (parcial.dia) return "Data: *" + legivel(parcial.dia) + "*. Qual é o horário? Exemplo: *14h* ou *14:30*.";
   if (parcial.horario) return "Horário: *" + parcial.horario + "*. Qual é o dia? Exemplo: *amanhã* ou *" + exemplo + "*.";
@@ -24,6 +25,7 @@ export function coletarQuando(texto: string, anterior: QuandoParcial = {}, agora
   if (diaInformado && diaInformado < diaSaoPaulo(agora)) return { erro: "Esse dia está no passado. Envie uma data de hoje em diante." };
   if (horarioAmbiguo(combinado ? combinado[2] : texto)) {
     const parcial = { ...anterior, ...(diaInformado ? {dia:diaInformado} : {}), horario: undefined, ambiguo: combinado ? combinado[2] : texto.trim() };
+    delete parcial.erro;
     return { parcial, mensagem: perguntaQuando(parcial, agora) };
   }
   const periodo = texto.trim().match(/^(?:da |de |à |a )?(manhã|manha|tarde|noite)$/i);
@@ -32,6 +34,7 @@ export function coletarQuando(texto: string, anterior: QuandoParcial = {}, agora
   if (!dia && !horario) return { erro: "Não reconheci essa informação. Envie uma data válida ou um horário, como *amanhã* ou *14:30*." };
   if (dia && dia < diaSaoPaulo(agora)) return { erro: "Esse dia está no passado. Envie uma data de hoje em diante." };
   const parcial = { ...anterior, ...(dia ? { dia } : {}), ...(horario ? { horario } : {}) };
+  delete parcial.erro;
   if (horario) delete parcial.ambiguo;
   if (parcial.dia && parcial.horario) {
     const data = novaDataCompromisso(legivel(parcial.dia) + " " + parcial.horario, agora);

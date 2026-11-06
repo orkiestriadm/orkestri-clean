@@ -1,5 +1,5 @@
 import { coletarQuando, perguntaQuando } from "./whatsapp-guiado-quando";
-import { comandoAgenda } from './whatsapp-agenda-comandos';
+import { comandoAgenda, variosCompromissos } from './whatsapp-agenda-comandos';
 import { Injectable, Optional } from "@nestjs/common";
 import { AureliaIaService, dadosAgendaIa, duracaoIa, ExtracaoAgenda } from './aurelia-ia.service';
 import { PrismaService } from "../../prisma/prisma.service";
@@ -383,8 +383,9 @@ export class WhatsappGuiadoService {
     // under the same advisory lock used by all guided writes.
     let extraidoIa: ExtracaoAgenda = null;
     let snapshotIa: string | undefined;
-    const comando = comandoAgenda(texto);
-    if ((comando || this.ia?.habilitada()) && texto.length <= 1000 &&
+    const multiplos = texto.length <= 1000 && variosCompromissos(texto);
+    const comando = multiplos ? null : comandoAgenda(texto);
+    if (!multiplos && (comando || this.ia?.habilitada()) && texto.length <= 1000 &&
         (comando ||
         /\b(?:agend|marc|compromisso|consulta|dentista|reuni[aã]o)\w*/i.test(texto) &&
         !/\b(?:apagu|apag|exclu|cancel|remov|reagend|alter|mud|repete|repetir|toda|todo|diariamente|semanalmente|mensalmente)\w*/i.test(texto))) {
@@ -463,6 +464,8 @@ export class WhatsappGuiadoService {
               await this.perguntar(tx, u, { ...v, acao, indice: 0 }),
             );
           };
+          if (multiplos && (!state || state.fase === 'MENU' || state.v?.ia))
+            return 'Identifiquei mais de um compromisso. Envie um de cada vez, começando pelo primeiro. Não gravei nenhum compromisso desta mensagem.';
           if (extraidoIa && snapshotIa !== JSON.stringify(rows[0] || null))
             return 'A conversa mudou enquanto eu interpretava a mensagem. Responda à última pergunta ou envie novamente. Nada foi salvo por esta mensagem.';
           if (extraidoIa?.acao === 'criar') {
@@ -482,7 +485,7 @@ export class WhatsappGuiadoService {
             await limpar();
             return "Tudo bem. Encerrei esta conversa. Para voltar, escreva *menu*.";
           }
-          if (n === 'cancelar' && state?.v?.ia) {
+          if (/^(cancelar|cancela|deixa pra la|deixa para la|nao salva|desisti)[.!?]*$/.test(n) && state?.v?.ia) {
             await limpar();
             return 'Cancelei este rascunho. Nada foi salvo. O que mais você precisa?';
           }
@@ -976,6 +979,31 @@ export class WhatsappGuiadoService {
               mensagem: this.resumo(v),
             });
           }
+          if (state.v?.ia && state.v.acao === 'evento.criar' && ['FORM','CONFIRMAR','CORRIGIR'].includes(state.fase)) {
+            const nome = t.match(/^(?:o\s+)?nome\s+[ée]\s+(.+)$/i);
+            const quando = t.match(/^(?:(?:n[aã]o[, ]+)[ée]\s+|troca\s+(?:o\s+)?(?:dia|hor[aá]rio)\s+para\s+|quis dizer\s+)(.+)$/i);
+            if (nome || quando) {
+              const v = { ...state.v, indice: 0, corrigindo: false };
+              if (nome) {
+                const campo = this.campos(v).find(c => c.key === 'titulo');
+                const valid = validarCampo(campo, nome[1], portas.evento);
+                if (valid.erro) return salvar(state, valid.erro);
+                v.titulo = valid.valor;
+              } else {
+                const anterior = v.quando ? {
+                  dia: diaSaoPaulo(new Date(v.quando)),
+                  horario: new Date(v.quando).toLocaleTimeString('en-GB', {timeZone:'America/Sao_Paulo',hour:'2-digit',minute:'2-digit'}),
+                } : v.quandoParcial;
+                const valid = coletarQuando(quando[1], anterior);
+                if (valid.erro) return salvar(state, valid.erro + '\nO rascunho anterior foi mantido.');
+                delete v.quando;
+                delete v.quandoParcial;
+                if (valid.valor) v.quando = valid.valor;
+                else v.quandoParcial = valid.parcial;
+              }
+              return passo(await this.perguntar(tx, u, v));
+            }
+          }
           if (state.fase === "CORRIGIR") {
             const porNome = state.v.ia ? this.campos(state.v).findIndex(c => simples(c.nome) === n || c.key === n || (c.key === 'quando' && /^(data|horario|dia|hora)$/.test(n))) : -1;
             const i = porNome >= 0 ? porNome : Number(t) - 1;
@@ -1064,7 +1092,7 @@ export class WhatsappGuiadoService {
                   (state.v.ia ? '\nEscreva o nome da informação.' : NAV),
               });
             }
-            if (!/^(1|sim|confirmar|confirmo)$/.test(n) && !(state.v.ia && /^(pode salvar|pode confirmar|sim, pode salvar|sim pode salvar|pode marcar)$/.test(n)))
+            if (!/^(1|sim|confirmar|confirmo)$/.test(n) && !(state.v.ia && /^(pode salvar|pode confirmar|sim, pode salvar|sim pode salvar|pode marcar|isso mesmo,? pode marcar)[.!?]*$/.test(n)))
               return salvar(state, this.resumo(state.v));
             if (!this.pode(p, state.v.acao))
               return principal(

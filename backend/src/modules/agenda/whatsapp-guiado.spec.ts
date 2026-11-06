@@ -12,6 +12,34 @@ import { WhatsappEquipeService } from "./whatsapp-equipe.service";
 
 const user = { id: "u1", organizationId: "org1", nome: "Pessoa Teste" };
 describe('Aurélia IA integrada ao fluxo autorizado', () => {
+  it.each(['cancela','deixa pra lá','não salva','desisti'])('cancela um rascunho com %s', async (frase) => {
+    const s = setup();
+    await s.say('Aurélia, anota aí: dentista amanhã');
+    await s.say(frase);
+    expect(s.state()).toBeNull();
+    expect(s.db.event.create).not.toHaveBeenCalled();
+  });
+  it('corrige horário e título sem gravar até confirmação', async () => {
+    const s = setup();
+    await s.say('Agende uma reunião amanhã às 15h por meia hora');
+    await s.say('não');
+    await s.say('não, é às 16h');
+    expect(s.text()).toContain('16:00');
+    await s.say('o nome é reunião com João');
+    expect(s.text()).toContain('reunião com João');
+    expect(s.db.event.create).not.toHaveBeenCalled();
+    await s.say('isso mesmo, pode marcar');
+    expect(s.db.event.create).toHaveBeenCalledTimes(1);
+    expect(s.db.event.create.mock.calls[0][0].data.titulo).toBe('reunião com João');
+  });
+  it('pede um compromisso por vez e não chama o modelo para misturá-los', async () => {
+    const modelo = {habilitada:()=>true,extrair:jest.fn()};
+    const s=setup(['*'],modelo);
+    await s.say('marque dentista amanhã às 9h e academia às 15h');
+    expect(s.text()).toContain('um de cada vez');
+    expect(modelo.extrair).not.toHaveBeenCalled();
+    expect(s.db.event.create).not.toHaveBeenCalled();
+  });
   it('aceita transcrição com Aurélio mesmo sem IA, esclarece horário e cancela sem gravar', async () => {
     const s = setup();
     await s.say('Aurélio. Anota aí pra mim: pegar táxi amanhã às duas horas.');
