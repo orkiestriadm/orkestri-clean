@@ -1,9 +1,9 @@
 export function orientacaoAurelia(agenda = true, gastos = true): string {
-  return 'Oiee, eu sou a Aurélia, assistente e assessora do Orkiestri.\n\nDiga o que você quer fazer.' +
-    (agenda ? '\n\nPara marcar um compromisso, escreva: “Dentista hoje às 17h”.' : '') +
-    (gastos ? '\n\nPara anotar um gasto, escreva: “Almoço 30 reais no Pix”.' : '') +
-    '\n\nEu repito os detalhes e pergunto se está tudo certo antes de salvar.' +
-    '\n\nPara usar outras funções, abra o Orkiestri no navegador: https://www.orkiestri.com/login';
+  return 'Oiee, eu sou a Aurélia, assistente e assessora do Orkiestri. 😊\n\nDiga o que você quer fazer e receba a notificação pelo WhatsApp!!! 📲' +
+    (agenda ? '\n\n📅 Para marcar um compromisso em sua agenda escreva:\n“Dentista hoje às 17h”.' : '') +
+    (gastos ? '\n\n💰 Para anotar um gasto, escreva:\n“Almoço 30 reais no Pix”.' : '') +
+    '\n\nEu repito os detalhes e pergunto se está tudo certo antes de salvar. ✅' +
+    '\n\nPara usar outras funções, abra o Orkiestri no navegador ou app.\nwww.orkiestri.com';
 }
 
 /** Values are divided in cents; each monthly row is counted once by existing reports. */
