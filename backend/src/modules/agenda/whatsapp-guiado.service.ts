@@ -431,7 +431,8 @@ export class WhatsappGuiadoService {
         if (permissao(acesso, 'agenda:criar') && contextos[0]?.contexto !== 'EMPRESA' &&
             (!rows.length || rows[0]?.dados?.fase === 'MENU')) {
           snapshotIa = JSON.stringify(rows[0] || null);
-          extraidoIa = comando || await this.ia.extrair(texto);
+          const interpretacao = comando || await this.ia.extrair(texto);
+          extraidoIa = this.ia?.modoSombra?.() && !comando ? null : interpretacao;
         }
       } catch { /* Preserve the existing flow if the optional AI is unavailable. */ }
     }

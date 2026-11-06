@@ -131,6 +131,7 @@ export class AureliaIaService {
   private falhas = 0;
   private pausaAte = 0;
   habilitada(): boolean { return process.env.AURELIA_IA_ENABLED === 'true'; }
+  modoSombra(): boolean { return process.env.AURELIA_IA_SHADOW === 'true'; }
   async extrair(texto: string): Promise<ExtracaoAgenda | null> {
     if (!this.habilitada() || !texto || texto.length > 1000 || this.ocupados >= 1 || Date.now() < this.pausaAte) return null;
     const endpoint = process.env.AURELIA_IA_URL;
