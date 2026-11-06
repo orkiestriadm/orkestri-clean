@@ -23,6 +23,7 @@ import {
   rotuloStatus,
 } from "./whatsapp-guiado-formularios";
 import { randomUUID } from "crypto";
+import { AureliaAprendizadoService } from './aurelia-aprendizado.service';
 import {
   dataTarefa,
   diaSaoPaulo,
@@ -50,6 +51,7 @@ export class WhatsappGuiadoService {
     private equipe: WhatsappEquipeService,
     private writeback: CalendarWritebackService,
     @Optional() private ia?: AureliaIaService,
+    @Optional() private aprendizado?: AureliaAprendizadoService,
   ) {}
   /** Public WhatsApp entry: keep the legacy state engine, never expose its numeric menus. */
   async tratarConversa(u: User, texto: string, conversa: string, instancia: string, portas: PortasGuia): Promise<boolean> {
@@ -420,7 +422,7 @@ export class WhatsappGuiadoService {
     let snapshotIa: string | undefined;
     const multiplos = texto.length <= 1000 && variosCompromissos(texto);
     const comando = multiplos ? null : comandoAgenda(texto);
-    if (!multiplos && (comando || this.ia?.habilitada()) && texto.length <= 1000 &&
+    if (!multiplos && (comando || this.ia?.habilitadaPara?.(u.id) || this.ia?.habilitada?.()) && texto.length <= 1000 &&
         (comando ||
         /\b(?:agend|marc|compromisso|consulta|dentista|reuni[aã]o)\w*/i.test(texto) &&
         !/\b(?:apagu|apag|exclu|cancel|remov|reagend|alter|mud|repete|repetir|toda|todo|diariamente|semanalmente|mensalmente)\w*/i.test(texto))) {
@@ -432,7 +434,10 @@ export class WhatsappGuiadoService {
             (!rows.length || rows[0]?.dados?.fase === 'MENU')) {
           snapshotIa = JSON.stringify(rows[0] || null);
           const interpretacao = comando || await this.ia.extrair(texto);
-          extraidoIa = this.ia?.modoSombra?.() && !comando ? null : interpretacao;
+          if (this.ia?.modoSombra?.() && !comando && interpretacao && this.aprendizado) {
+            void this.aprendizado.registrarPendente({ organizationId: u.organizationId, userId: u.id, entrada: texto, intencao: interpretacao.acao }).catch(() => undefined);
+            extraidoIa = null;
+          } else extraidoIa = interpretacao;
         }
       } catch { /* Preserve the existing flow if the optional AI is unavailable. */ }
     }

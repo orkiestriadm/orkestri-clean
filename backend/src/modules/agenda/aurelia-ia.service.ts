@@ -131,6 +131,14 @@ export class AureliaIaService {
   private falhas = 0;
   private pausaAte = 0;
   habilitada(): boolean { return process.env.AURELIA_IA_ENABLED === 'true'; }
+  habilitadaPara(chave?: string): boolean {
+    if (!this.habilitada()) return false;
+    const percentual = Math.max(0, Math.min(100, Number(process.env.AURELIA_IA_ROLLOUT_PERCENT || '100')));
+    if (percentual >= 100) return true;
+    if (percentual <= 0 || !chave) return false;
+    let hash = 0; for (const c of chave) hash = (hash * 31 + c.charCodeAt(0)) >>> 0;
+    return hash % 100 < percentual;
+  }
   modoSombra(): boolean { return process.env.AURELIA_IA_SHADOW === 'true'; }
   async extrair(texto: string): Promise<ExtracaoAgenda | null> {
     if (!this.habilitada() || !texto || texto.length > 1000 || this.ocupados >= 1 || Date.now() < this.pausaAte) return null;
