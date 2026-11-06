@@ -540,7 +540,7 @@ export class WhatsappGuiadoService {
             await limpar();
             return "Tudo bem. Encerrei esta conversa. Para voltar, escreva *menu*.";
           }
-          if (/^(cancelar|cancela|deixa pra la|deixa para la|nao salva|desisti)[.!?]*$/.test(n) && state?.v?.ia) {
+          if (/^(cancelar|cancela|deixa pra la|deixa para la|nao salva|desisti)[.!?]*$/.test(n) && state && (state.v?.ia || state.fase === 'CONFIRMAR')) {
             await limpar();
             return 'Cancelei este rascunho. Nada foi salvo. O que mais você precisa?';
           }
