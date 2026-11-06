@@ -1,12 +1,26 @@
-import { AureliaIaService, dadosAgendaIa, duracaoIa, validarExtracaoAgenda } from './aurelia-ia.service';
+import { AureliaIaService, dadosAgendaIa, duracaoIa, horaIa, validarExtracaoAgenda } from './aurelia-ia.service';
 
 const empty = { acao: 'criar', titulo: '', dia: '', hora: '', duracao: '' } as const;
 describe('Agenda IA: dados não confiáveis', () => {
+  it('interpreta horários por extenso somente com período explícito', () => {
+    expect(horaIa('duas da tarde')).toBe('14:00');
+    expect(horaIa('às nove e meia da manhã')).toBe('09:30');
+    expect(horaIa('oito da noite')).toBe('20:00');
+    expect(horaIa('meio-dia')).toBe('12:00');
+    expect(horaIa('duas')).toBeNull();
+    expect(horaIa('25 da tarde')).toBeNull();
+  });
   it('rejeita datas inventadas e ações fora da lista', () => {
     expect(validarExtracaoAgenda({ ...empty, dia: '2023-04-01' }, 'dentista amanhã')).toBeNull();
     expect(validarExtracaoAgenda({ ...empty, acao: 'excluir' }, 'excluir')).toBeNull();
     expect(validarExtracaoAgenda({ ...empty, userId: 'outro' }, 'oi')).toBeNull();
     expect(validarExtracaoAgenda({ ...empty, hora: null }, 'oi')).toBeNull();
+    expect(validarExtracaoAgenda({ ...empty, hora: '2h' }, 'dentista às 12h')).toBeNull();
+    expect(validarExtracaoAgenda({ ...empty, hora: '14h' }, 'dentista às duas da tarde')).toBeNull();
+  });
+  it('restaura acentos e caixa somente quando o trecho existe na mensagem', () => {
+    expect(validarExtracaoAgenda({ ...empty, titulo: 'reuniao', dia: 'amanha' }, '📅 Marque REUNIÃO amanhã')?.dia).toBe('amanhã');
+    expect(validarExtracaoAgenda({ ...empty, titulo: 'reuniao' }, '📅 Marque REUNIÃO amanhã')?.titulo).toBe('REUNIÃO');
   });
   it('aceita apenas trechos copiados e não preenche informações ausentes', () => {
     const v = validarExtracaoAgenda({ ...empty, titulo: 'reunião' }, 'Quero agendar uma reunião');
@@ -48,5 +62,6 @@ describe('Cliente Ollama: limites e fallback', () => {
     release({ ok: false });
     expect(await first).toBeNull();
     expect(global.fetch).toHaveBeenCalledTimes(1);
+    expect(JSON.parse((global.fetch as jest.Mock).mock.calls[0][1].body).think).toBe(false);
   });
 });
