@@ -544,6 +544,21 @@ export class WhatsappGuiadoService {
             await limpar();
             return 'Cancelei este rascunho. Nada foi salvo. O que mais você precisa?';
           }
+          if (state?.v?.quando && /\b(?:n[aã]o|corrig|troca|melhor|muda|ajust)/i.test(t)) {
+            const ajuste = t.match(/\b(?:[àa]s|para)\s*(\d{1,2})(?:(?::|h)\s*(\d{2}))?\s*h?\b/i);
+            if (ajuste) {
+              const atual = new Date(state.v.quando);
+              const hora = Number(ajuste[1]);
+              const minuto = Number(ajuste[2] || 0);
+              if (hora <= 23 && minuto <= 59) {
+                const corrigido = new Date(Date.UTC(atual.getUTCFullYear(), atual.getUTCMonth(), atual.getUTCDate(), hora + 3, minuto, 0));
+                if (corrigido.getTime() > Date.now()) {
+                  state.v.quando = corrigido.toISOString();
+                  return salvar({ fase: 'CONFIRMAR', v: state.v }, this.resumo(state.v));
+                }
+              }
+            }
+          }
           if (n === "cancelar" && state)
             return principal("Cancelei o que ainda não estava salvo.\n\n");
           const respondendoQuando = state?.fase === "FORM" &&
@@ -1129,20 +1144,6 @@ export class WhatsappGuiadoService {
             );
           }
           if (state.fase === "CONFIRMAR") {
-            if (state.v.acao === 'evento.criar' && state.v.quando && /\b(?:n[aã]o|corrig|troca|melhor|muda|ajust)/i.test(t)) {
-              const ajuste = t.match(/\b(?:[àa]s|para|às)\s*(\d{1,2})(?:(?::|h)\s*(\d{2}))?\s*h?\b/i);
-              if (ajuste) {
-                const atual = new Date(state.v.quando);
-                const hora = Number(ajuste[1]);
-                const minuto = Number(ajuste[2] || 0);
-                if (hora > 23 || minuto > 59) return salvar(state, 'Esse horário não parece válido. Pode me dizer outro?');
-                const corrigido = new Date(Date.UTC(atual.getUTCFullYear(), atual.getUTCMonth(), atual.getUTCDate(), hora + 3, minuto, 0));
-                if (corrigido.getTime() > Date.now()) {
-                  state.v.quando = corrigido.toISOString();
-                  return passo({ estado: { fase: "CONFIRMAR", v: state.v }, mensagem: this.resumo(state.v) });
-                }
-              }
-            }
             if (t === "2" || n === "corrigir") {
               if (
                 !this.campos(state.v).length ||
