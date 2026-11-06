@@ -590,7 +590,7 @@ export class CadastroWhatsappService {
 
   private msgAbertura(numero: string, testeAgenda = false): string {
     return (
-      `Oi! Eu sou a *Aurélia*. Vamos fazer seu cadastro no *${MARCA}*, uma pergunta por vez. 😊\n\n` +
+      `Oiee, eu sou a *Aurélia*, assistente e assessora do *${MARCA}*. 😊\n\nVamos fazer seu cadastro. Vou perguntar uma coisa de cada vez.\n\n` +
       `📱 Já tenho o seu WhatsApp: *${exibirNumeroCadastro(numero)}* — é por aqui que vou te avisar das suas coisas. Não precisa digitar.
 
 ` +

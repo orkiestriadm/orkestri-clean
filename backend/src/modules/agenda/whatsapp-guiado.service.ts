@@ -516,7 +516,7 @@ export class WhatsappGuiadoService {
             return form('evento.criar', dadosAgendaIa(extraidoIa));
           }
           if (abrir && this.ia?.habilitada() && !/^(menu|ajuda|voltar ao menu)/.test(n))
-            return salvar({ fase: 'MENU', v: {} }, 'Olá! Sou a Aurélia. Me conte o compromisso que você quer marcar, por exemplo: dentista amanhã às 14h. Se preferir ver todos os recursos, escreva *menu*.');
+            return salvar({ fase: 'MENU', v: {} }, 'Oiee, eu sou a Aurélia, assistente e assessora do Orkiestri.\n\nMe conte o compromisso que você quer marcar. Por exemplo: dentista amanhã às 14h.');
           if (abrir) return principal();
           if (
             state &&

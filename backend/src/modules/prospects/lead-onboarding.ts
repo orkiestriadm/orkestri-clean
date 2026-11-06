@@ -34,7 +34,7 @@ export function linksConviteAgenda() {
  */
 export function textoConvite(nome?: string) {
   const ola = nome ? `Olá, ${nome}!` : 'Olá!';
-  return `${ola} Sou a Aurélia, assistente do ${MARCA}. Posso ajudar você a lembrar dos compromissos e organizar seus gastos por aqui.\n\nO cadastro e o acesso nesta fase são gratuitos, sem cartão. Se as condições mudarem, você será avisado com antecedência.\n\nQuer que eu comece seu cadastro? Pode me dizer “quero me cadastrar” ou “vamos começar”. Vou pedir uma informação por vez. Se não quiser, basta dizer “não tenho interesse”.\n\nSe preferir conhecer primeiro: https://www.orkiestri.com`;
+  return `${ola}\nOiee, eu sou a Aurélia, assistente e assessora do ${MARCA}.\n\nEu ajudo com compromissos e gastos.\n\nQuer fazer seu cadastro? Diga “quero me cadastrar”. Vou perguntar uma coisa de cada vez.\n\nSe não quiser agora, diga “não tenho interesse”.\n\nPara conhecer o Orkiestri: https://www.orkiestri.com`;
 }
 /** Quem respondeu "2": agradece e deixa a porta do site aberta. */
 export function textoSemInteresse() {
