@@ -1,6 +1,6 @@
 # Aurélia: comandos formais e informais de agenda
 
-Status: implementado no código, sem deploy. Produção permanece na API 5.2.2.
+Status: publicado na API 5.2.3; ver `DEPLOY_AURELIA_IA_523_2026-11-06.md`.
 Esta entrega amplia regras determinísticas e a base de avaliação; não treina
 os pesos do Qwen3 e não altera o transcritor de áudio.
 

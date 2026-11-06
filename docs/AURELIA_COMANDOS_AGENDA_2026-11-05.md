@@ -1,6 +1,6 @@
 # Comandos de agenda por texto e áudio transcrito
 
-Implementação local, sem deploy. Produção permanece na API 5.2.2.
+Publicado em 06/11/2026 na API 5.2.3; ver `DEPLOY_AURELIA_IA_523_2026-11-06.md`.
 
 Reconhece `Aurélia/Aurélio, anota aí pra mim/para mim`, sem depender de
 maiúsculas, acentos no nome/comando ou pontuação inserida pelo transcritor.
