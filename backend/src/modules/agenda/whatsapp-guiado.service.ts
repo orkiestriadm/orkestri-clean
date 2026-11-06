@@ -238,6 +238,8 @@ export class WhatsappGuiadoService {
       linhas.join("\n") +
       (v.ia && v.acao === 'evento.criar'
         ? `\n\nAh, fechou então! Posso confirmar em sua agenda o compromisso *${v.titulo || 'esse compromisso'}*? Se quiser corrigir algo, é só falar!`
+        : v.ia && v.acao === 'gasto.criar'
+          ? '\n\nFechou, confirma pra mim se é isso mesmo que é pra lançar?'
         : v.ia ? "\n\nPosso salvar assim? Responda *sim*, *corrigir* ou *cancelar*." :
       "\n\n*1* — Confirmar\n*2* — Corrigir\n*Cancelar* — Não salvar" + NAV)
     );

@@ -28,7 +28,7 @@ describe('Atendimento conversacional público',()=>{
     const s=setup();
     await conversar(s,'lançar barrinha de cereal 12 reais no pix');
     expect(s.text()).toContain('barrinha de cereal');
-    expect(s.text()).toContain('Posso salvar');
+    expect(s.text()).toContain('Fechou, confirma');
     expect(s.db.gasto.create).not.toHaveBeenCalled();
     await conversar(s,'sim');
     expect(s.db.gasto.create).toHaveBeenCalledWith({data:expect.objectContaining({descricao:'barrinha de cereal',valor:12,formaPagamento:'PIX',userId:user.id,organizationId:user.organizationId})});
@@ -372,7 +372,7 @@ describe("Aurélia guiada", () => {
   it("comando antigo também apresenta prévia antes de criar", async () => {
     const s = setup();
     await s.say("Gasto: Mercado 150 pix");
-    expect(s.text()).toContain("Posso salvar");
+    expect(s.text()).toContain("Fechou, confirma");
     expect(s.db.gasto.create).not.toHaveBeenCalled();
   });
   it("deixa comandos de acesso saírem do diálogo sem virar anotação", async () => {
