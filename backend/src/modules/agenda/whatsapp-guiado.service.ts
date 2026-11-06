@@ -1129,7 +1129,7 @@ export class WhatsappGuiadoService {
             );
           }
           if (state.fase === "CONFIRMAR") {
-            if (state.v.ia && state.v.quando && /\b(?:n[aã]o|corrig|troca|melhor|muda|ajust)/i.test(t)) {
+            if (state.v.acao === 'evento.criar' && state.v.quando && /\b(?:n[aã]o|corrig|troca|melhor|muda|ajust)/i.test(t)) {
               const ajuste = t.match(/\b(?:[àa]s|para|às)\s*(\d{1,2})(?:(?::|h)\s*(\d{2}))?\s*h?\b/i);
               if (ajuste) {
                 const atual = new Date(state.v.quando);
