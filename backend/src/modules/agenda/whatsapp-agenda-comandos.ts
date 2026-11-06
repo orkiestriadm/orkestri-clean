@@ -12,7 +12,10 @@ export function comandoAgenda(texto: string): ExtracaoAgenda | null {
   const explicito = prefixo.test(t) || acao.test(t);
   if (prefixo.test(t)) t = t.replace(prefixo, '');
   t = t.replace(acao, '');
-  if (!explicito && !/^(?:dentista|academia|cardiologista|reuni[aã]o)\b/i.test(t)) return null;
+  if (/^tenho\s+que\b/i.test(t)) return null;
+  // Sem prefixo, qualquer título acompanhado de dia e horário é um pedido
+  // de agenda (por exemplo, “Futebol Arthur hoje às 17h”). A ausência de
+  // data/horário continua impedindo falsos positivos no fim da função.
   t = t.replace(new RegExp(`([àa]s\\s+)${HORA_FALADA}\\s+n[aã]o\\s+(?:[ée]\\s+)?(?:[àa]s\\s+)?(${HORA_FALADA})$`, 'i'), '$1$2');
   if (/\b(?:cancelar|excluir|apagar|reagendar|toda|todo|diariamente|semanalmente|mensalmente)\b/i.test(t)) return null;
   const r: ExtracaoAgenda = { acao:'criar', titulo:'', dia:'', hora:'', duracao:'' };
