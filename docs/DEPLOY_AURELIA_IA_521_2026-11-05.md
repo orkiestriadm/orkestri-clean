@@ -102,3 +102,16 @@ fixa ou atendimento simultâneo de 5–10 conversas com IA.
 - Evolution, frontend, website e demais serviços não foram recriados.
 - Localhost não foi atualizado nesta publicação: última API local registrada 5.2.0.
 - Não houve teste de ponta a ponta com número real nem gravação de compromisso real.
+
+## Avaliação Qwen3 1.7B — 05/11/2026
+
+A pedido do usuário, baixado `qwen3:1.7b` e testado pelo túnel com o mesmo prompt,
+esquema e validação da Aurélia, sempre com `think=false` e mensagens fictícias.
+- Contexto 2048: timeout após 45,0 s sem resposta utilizável.
+- Contexto 1024, num_batch 32, saída limitada a 120 tokens: timeout após 25,0 s.
+- Durante o primeiro teste: 1793/1941 MiB de RAM usados, 148 MiB disponíveis, sem swap.
+- Resultado: reprovado para ativação nesta máquina com prazo de resposta de 20 s.
+- Configuração de produção permaneceu `qwen2.5:1.5b`; nenhuma troca de modelo ou
+  deploy da API foi aplicado. Ollama reiniciado para descarregar a inferência em teste.
+- Qwen3 permanece baixado para avaliação futura com mais recursos. Não carregar
+  automaticamente ou substituir a produção sem nova avaliação.
