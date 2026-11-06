@@ -72,7 +72,7 @@ export function comandoCadastroGeral(texto: string): boolean {
   // no Orkiestri") saíram daqui de propósito — quem clica em cadastrar no
   // site ainda não viu o convite, e ia parar num "qual é seu nome completo?"
   // sem nunca ter lido o que é o produto nem quanto custa.
-  return /^(cadastro|cadastrar|cadastro (?:no )?orkiestri)$/.test(t);
+  return /^(cadastro|cadastrar|cadastro (?:no )?orkiestri|quero me cadastrar|quero cadastrar|vamos comecar|quero criar (?:minha )?conta)[.!?]*$/.test(t);
 }
 
 export type SituacaoNumero = {
@@ -127,7 +127,7 @@ export function mensagemPrimeiroContato(
   if (tipo === "restrito" || tipo === "ambiguo")
     return `Oi! Sou a Aurélia, do *${MARCA}*. Preciso que nossa equipe confira o acesso deste número antes de continuar. Fale com o suporte pelo site. Não vou abrir outro cadastro para você.`;
   if (tipo === "existente")
-    return `Oi! Sou a Aurélia, do *${MARCA}*. Você já tem cadastro com este WhatsApp. Envie *menu* para ver seus recursos ou *acesso* para receber as orientações de entrada.`;
+    return `Oi! Você já tem cadastro com este WhatsApp. Me conte um compromisso, como “Dentista hoje às 17h”, ou um gasto, como “lançar almoço 30 reais no pix”. Para os outros módulos, abra https://www.orkiestri.com/login. Se precisar de ajuda para entrar, diga acesso.`;
   if (tipo === "vincular" || jaTemConta)
     return `Oi! Sou a Aurélia, do *${MARCA}*. Para usar sua conta existente com este WhatsApp, entre no sistema, abra seu *Perfil* e siga a opção *Criar evento pelo WhatsApp*. Envie aqui *VINCULAR* e o código que aparecer.\n\nSe precisar recuperar o acesso, use *Esqueci a senha* no site. Não precisa criar outra conta.`;
   // Quem chega novo recebe o MESMO convite da campanha de leads: é a mensagem

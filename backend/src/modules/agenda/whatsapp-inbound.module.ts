@@ -1,3 +1,4 @@
+import { orientacaoAurelia } from './aurelia-conversa';
 import { WhatsappRotinaService, comandoRotina } from "./whatsapp-rotina.service";
 import { WhatsappOperacaoController } from "./whatsapp-operacao.controller";
 import { WhatsappMediaService, WhatsappAnexosController } from "./whatsapp-media.service";
@@ -97,21 +98,7 @@ const GUIA_PDF_LEGENDA = "📖 Preparei um guia rápido pra você começar — �
  * Financeiro suma da lista dele.
  */
 function montarMenuAjuda(acessos: AcessosWhats, nome: string): string {
-  const nm = primeiroNome(nome);
-  let m =
-    (nm ? `😊 *Oi, ${nm}!*` : "😊 *Oi!*") +
-    ` Eu sou a *Aurélia*, sua ajudante do ${MARCA} aqui no WhatsApp.\n` +
-    "Com qual módulo você quer a minha ajuda? É só responder o número:\n\n";
-  if (acessos.gastos)       m += "💸 Para *Financeiro*: responda *1*\n";
-  if (acessos.agenda)       m += "🗓️ Para *Agenda*: responda *2*\n";
-  if (acessos.keep)         m += "📝 Para *Keep*: responda *3*\n";
-  if (acessos.projetos)     m += "📁 Para *Projetos*: responda *4*\n";
-  if (acessos.chamados)     m += "🎧 Para *Chamados*: responda *5*\n";
-  if (acessos.conhecimento) m += "📚 Para *Conhecimento*: responda *6*\n";
-  m += "📖 Para ver *TUDO de uma vez*: responda *7*\n";
-  m += "👋 Para encerrar nossa conversa: responda *0*";
-  m += "\n\n☀️ Para consultar seu dia: *meu dia*. Para escolher o resumo automático: *rotina*.\n📝 Para criar tarefa: *tarefa: comprar material amanhã*.";
-  return m;
+  return orientacaoAurelia(acessos.agenda, acessos.gastos);
 }
 
 /** O que a pessoa pode usar pelo WhatsApp, resolvido uma vez por mensagem. */
@@ -472,7 +459,7 @@ function categoriaDe(texto: string): string | null {
 // `exigePrefixo=false` aceita o texto cru (usado só para quem tem apenas Gastos).
 export function parseComandoGasto(texto: string, agora: Date, exigePrefixo = true): ParsedGasto | "sem_valor" | null {
   const t = (texto || "").trim();
-  const mKey = t.match(/^\s*(gastos?|gastei|despesa|comprei|paguei)\b[:\-–]?\s*/i);
+  const mKey = t.match(/^\s*(lan[cç]ar|lan[cç]a|gastos?|gastei|despesa|comprei|paguei)\b[:\-–]?\s*/i);
   let resto: string;
   if (mKey) resto = t.slice(mKey[0].length).trim();
   else if (exigePrefixo) return null;   // sem palavra-chave e exigindo prefixo → não é comando
@@ -949,30 +936,8 @@ export class WhatsappInboundService {
     const a = acessosDe(perms);
     // O menu pessoal não oferece operações da organização.
     a.projetos = false; a.chamados = false; a.conhecimento = false;
-    const quantos = Object.values(a).filter(Boolean).length;
-
-    if (quantos > 1) {
-      this.abrirMenu(remoteJid);
-      await this.responder(remoteJid, user.telefone, user.organizationId, inst,
-        this.contexto.mensagem("PESSOAL") + "\n\n" + montarMenuAjuda(a, user.nome));
-      return;
-    }
-
-    // Um módulo só (ou nenhum): sem menu — a Aurélia já entrega o tutorial,
-    // porque um menu de uma opção é uma pergunta sem escolha.
     this.fecharMenu(remoteJid);
-    const nm = primeiroNome(user.nome);
-    const saud = (nm ? `😊 *Oi, ${nm}!* ` : "😊 ") +
-      `Eu sou a *Aurélia*, sua ajudante do ${MARCA} aqui no WhatsApp.\n\n`;
-    let corpo: string;
-    if (a.gastos)            corpo = ajudaFinanceiro(a.agenda) + RODAPE_SIMPLES;
-    else if (a.agenda)       corpo = ajudaAgenda() + RODAPE_SIMPLES;
-    else if (a.keep)         corpo = ajudaKeep() + RODAPE_SIMPLES;
-    else if (a.projetos)     corpo = ajudaProjetos() + RODAPE_SIMPLES;
-    else if (a.chamados)     corpo = ajudaChamados() + RODAPE_SIMPLES;
-    else if (a.conhecimento) corpo = ajudaConhecimento() + RODAPE_SIMPLES;
-    else corpo = "Peça ao administrador para liberar os módulos para você aproveitar tudo por aqui. 😉";
-    await this.responder(remoteJid, user.telefone, user.organizationId, inst, saud + corpo);
+    await this.responder(remoteJid, user.telefone, user.organizationId, inst, montarMenuAjuda(a,user.nome));
   }
 
   // Resposta ao menu: 1 Financeiro, 2 Agenda, 3 Keep, 4 Projetos, 5 Chamados,
@@ -1604,6 +1569,7 @@ export class WhatsappInboundService {
     this.logger.log(`inbound jid=${remoteJid} fromMe=${key?.fromMe} texto="${texto.slice(0, 50)}"`);
     if (!texto) return;
 
+
     // ── Cadastro em andamento? ANTES de tudo. ─────────────────────────────────
     //
     // Quem está preenchendo o formulário ainda NÃO é usuário: `identificar()`
@@ -1871,7 +1837,11 @@ export class WhatsappInboundService {
     }
     if (!texto) return;
 
-    if (usuarioEntrada && this.guiado && await this.guiado.tratar(usuarioEntrada,texto,remoteJid,inst,{
+    if (usuarioEntrada && /^(?:contexto\s+)?pessoal[.!?]*$/i.test(texto)) {
+      await this.contexto.trocar(usuarioEntrada,inst,remoteJid,'PESSOAL');
+      texto = 'ajuda';
+    }
+    if (usuarioEntrada && this.guiado && await this.guiado.tratarConversa(usuarioEntrada,texto,remoteJid,inst,{
       evento: t => parseComandoEvento('Evento: '+t,new Date()),
       gasto: t => parseComandoGasto(t,new Date(),true),
       outro: async (acao,v) => {

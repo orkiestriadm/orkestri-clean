@@ -1,5 +1,6 @@
 import { coletarQuando, perguntaQuando } from "./whatsapp-guiado-quando";
 import { comandoAgenda, variosCompromissos } from './whatsapp-agenda-comandos';
+import { orientacaoAurelia, parcelasMensais } from './aurelia-conversa';
 import { Injectable, Optional } from "@nestjs/common";
 import { AureliaIaService, dadosAgendaIa, duracaoIa, ExtracaoAgenda } from './aurelia-ia.service';
 import { PrismaService } from "../../prisma/prisma.service";
@@ -50,6 +51,41 @@ export class WhatsappGuiadoService {
     private writeback: CalendarWritebackService,
     @Optional() private ia?: AureliaIaService,
   ) {}
+  /** Public WhatsApp entry: keep the legacy state engine, never expose its numeric menus. */
+  async tratarConversa(u: User, texto: string, conversa: string, instancia: string, portas: PortasGuia): Promise<boolean> {
+    const n = simples(texto);
+    if (/^(?:acesso|cadastro|renovar|vincular\b)/.test(n)) return false;
+    const p = await this.auth.resolvePermissions(u.id);
+    const say = (s: string) => this.wa.sendToJid(conversa,s,instancia);
+    if (/^(?:empresa|projetos?|tarefas?|keep|notas?|anotacoes|chamados?|suporte|conhecimento)\b/.test(n)) {
+      await say('Para organizar isso com todos os detalhes, abra https://www.orkiestri.com/login. Pelo navegador você consegue visualizar e usar todos os recursos. Por aqui, posso ajudar com seus compromissos e gastos pessoais.');
+      return true;
+    }
+    const rows: any[] = await this.prisma.$queryRaw`SELECT etapa,dados FROM whatsapp_inicio WHERE user_id=${u.id} AND instancia=${instancia} AND conversa=${conversa} AND expira_em>CURRENT_TIMESTAMP`;
+    const state = rows[0]?.dados;
+    if (/^(obrigad[oa]|valeu|muito obrigad[oa])[.!?]*$/.test(n)) {
+      await say('Por nada! Quando precisar organizar um compromisso ou anotar um gasto, é só me contar.');
+      return true;
+    }
+    if (state && state.fase !== 'MENU' && !state.v?.ia) {
+      await this.tratar(u,'menu',conversa,instancia,portas);
+      return true;
+    }
+    const pedido = texto.replace(/^evento\s*:\s*/i,'marque ');
+    const financeiro = /^(?:lan[cç]ar|lan[cç]a|gastos?|gastei|despesa|comprei|paguei)\b/i.test(pedido);
+    if (!state?.v?.ia && (comandoAgenda(pedido) || financeiro)) {
+      const contextos:any[] = await this.prisma.$queryRaw`SELECT contexto FROM whatsapp_contextos WHERE user_id=${u.id} AND organization_id=${u.organizationId} AND instancia=${instancia} AND conversa=${conversa}`;
+      if (contextos[0]?.contexto === 'EMPRESA') {
+        await say('Por aqui registro sua agenda e seus gastos pessoais. Para voltar a esse atendimento, diga pessoal. Para trabalhar com os dados da empresa, abra https://www.orkiestri.com/login.');
+        return true;
+      }
+    }
+    if (state?.v?.ia || comandoAgenda(pedido) || variosCompromissos(pedido) || financeiro) {
+      if (await this.tratar(u,pedido,conversa,instancia,portas)) return true;
+    }
+    await say(orientacaoAurelia(this.pode(p,'evento.criar'),this.pode(p,'gasto.criar')));
+    return true;
+  }
   private scope(user: User) {
     return {
       organizationId: user.organizationId,
@@ -88,17 +124,7 @@ export class WhatsappGuiadoService {
     );
   }
   private menu(p: string[]) {
-    return (
-      "Como posso ajudar? Responda o número:\n\n" +
-      (permissao(p, "agenda:ver") ? "*1* — Meus compromissos\n" : "") +
-      (permissao(p, "keep:ver") ? "*2* — Anotações\n" : "") +
-      (permissao(p, "gastos:ver") ? "*3* — Meus gastos\n" : "") +
-      (permissao(p, "projetos:ver")
-        ? "*4* — Projetos e tarefas da equipe\n"
-        : "") +
-      (permissao(p, "keep:ver") ? "*5* — Minhas tarefas pessoais\n" : "") +
-      "*6* — Mais opções e ajuda\n*0* — Sair"
-    );
+    return orientacaoAurelia(this.pode(p,'evento.criar'),this.pode(p,'gasto.criar'));
   }
   private submenu(grupo: string, p: string[]) {
     const nome: any = {
@@ -203,6 +229,11 @@ export class WhatsappGuiadoService {
       linhas.push(v.concluido ? "Tarefa concluída" : "Tarefa pendente");
     if (v.serie)
       linhas.push("Atenção: esta alteração afeta a série de compromissos.");
+    if (v.ia && v.acao === 'gasto.criar' && v.parcelas > 1 && v.dataGasto) {
+      const parcelas = parcelasMensais(Number(v.valor),Number(v.parcelas),v.dataGasto);
+      linhas.push('Vou distribuir o total assim:');
+      parcelas.forEach((parcela,i) => linhas.push(`${i+1}/${parcelas.length}: ${dinheiro(parcela.valor)} em ${diaLegivel(parcela.dataGasto.toISOString().slice(0,10))}`));
+    }
     return (
       linhas.join("\n") +
       (v.ia ? "\n\nPosso salvar assim? Responda *sim*, *corrigir* ou *cancelar*." :
@@ -464,6 +495,19 @@ export class WhatsappGuiadoService {
               await this.perguntar(tx, u, { ...v, acao, indice: 0 }),
             );
           };
+          if ((!state || state.fase === 'MENU') && /^(?:lan[cç]ar|lan[cç]a|gastos?|gastei|despesa|comprei|paguei)\b/i.test(t)) {
+            if (!this.pode(p,'gasto.criar')) return 'Seu acesso não permite registrar gastos. Você pode conferir as opções da sua conta em https://www.orkiestri.com/login.';
+            const contextos: any[] = await tx.$queryRaw`SELECT contexto FROM whatsapp_contextos WHERE user_id=${u.id} AND organization_id=${u.organizationId} AND instancia=${instancia} AND conversa=${conversa}`;
+            if (contextos[0]?.contexto === 'EMPRESA') return 'Esses lançamentos são pessoais. Para o financeiro da empresa, abra https://www.orkiestri.com/login.';
+            const g = portas.gasto(t);
+            if (!g || g === 'sem_valor') return form('gasto.criar',{ia:true});
+            if (g.parcelas > 1 && g.formaPagamento !== 'CREDITO') return 'Você quer parcelar no cartão de crédito? Me envie o gasto com a forma de pagamento e a quantidade de parcelas. Ainda não salvei nada.';
+            const v:any = {...g,ia:true,valor:Number(g.valor),dataGasto:diaSaoPaulo(new Date(g.dataGasto))};
+            if (v.formaPagamento === 'NAO_INFORMADO') delete v.formaPagamento;
+            if (v.descricao === 'Gasto') delete v.descricao;
+            try { parcelasMensais(v.valor,v.parcelas,v.dataGasto); } catch { return 'Confira o valor e a quantidade de parcelas. Cada parcela precisa ter pelo menos um centavo, e aceito até 120 parcelas. Ainda não salvei nada.'; }
+            return form('gasto.criar',v);
+          }
           if (multiplos && (!state || state.fase === 'MENU' || state.v?.ia))
             return 'Identifiquei mais de um compromisso. Envie um de cada vez, começando pelo primeiro. Não gravei nenhum compromisso desta mensagem.';
           if (extraidoIa && snapshotIa !== JSON.stringify(rows[0] || null))
@@ -1106,7 +1150,7 @@ export class WhatsappGuiadoService {
             acaoUtil("GUIADO_" + state.v.acao.toUpperCase().replace(".", "_"));
             if (state.v.ia) {
               await limpar();
-              return '✅ ' + r.mensagem + '\n\nSe precisar marcar outro compromisso, é só me contar.';
+              return 'Pronto! ' + r.mensagem + '\n\nSe precisar de mais alguma coisa, é só me contar.';
             }
             return principal("✅ " + r.mensagem + "\n\n");
           }
@@ -1279,6 +1323,11 @@ export class WhatsappGuiadoService {
         data.parcelas > 1
           ? Math.round((data.valor / data.parcelas) * 100) / 100
           : null;
+      if (op === 'criar' && v.ia && data.parcelas > 1) {
+        const parcelas = parcelasMensais(data.valor,data.parcelas,v.dataGasto);
+        for (const [i,parcela] of parcelas.entries()) await tx.gasto.create({data:{...data,...base,...parcela,descricao:`${data.descricao} (${i+1}/${parcelas.length})`,parcelas:1,valorParcela:null}});
+        return {mensagem:`Anotei ${data.descricao}: ${dinheiro(data.valor)} no total, distribuídos em ${parcelas.length} lançamentos mensais, a partir de ${diaLegivel(v.dataGasto)}.`};
+      }
     }
     if (m === "tarefa") {
       if (op === "excluir") {

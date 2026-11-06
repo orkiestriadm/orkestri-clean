@@ -115,7 +115,7 @@ describe("Identificação e recepção da Aurélia", () => {
       TEL,
       // Desde 28/10/2026 quem chega novo recebe o MESMO convite da campanha de
       // leads — é a mensagem que o site promete ao mandar a pessoa para cá.
-      expect.stringContaining("Quero me cadastrar e experimentar"),
+      expect.stringContaining("Quer que eu comece seu cadastro?"),
       "teste",
     );
     expect(wa.sendMessage.mock.calls[0][1]).not.toContain("VINCULAR ABC123");

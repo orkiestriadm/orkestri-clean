@@ -13,7 +13,7 @@ export const simples = (t: string) =>
     .toLowerCase()
     .replace(/^\//, "");
 export const NAV =
-  "\n\n*Voltar* — pergunta anterior\n*Menu* — início · *0* — sair";
+  "\n\nSe quiser rever a resposta anterior, diga voltar. Para deixar este rascunho de lado, diga cancelar.";
 export type CampoGuia = {
   key: string;
   nome: string;
@@ -107,7 +107,7 @@ export function camposGuia(acao: string): CampoGuia[] {
         key: "formaPagamento",
         nome: "Como pagou",
         pergunta:
-          "Como você pagou?\n*1* — Pix\n*2* — Cartão de crédito\n*3* — Cartão de débito\n*4* — Dinheiro\n*5* — Boleto",
+          "Como você pagou: pix, crédito, débito, dinheiro ou boleto?",
         tipo: "pagamento",
       },
       {
@@ -231,7 +231,7 @@ export function validarCampo(
     };
     return formas[n]
       ? { valor: formas[n] }
-      : { erro: "Escolha um número de *1* a *5*, ou escreva como pagou." };
+      : { erro: "Não reconheci a forma de pagamento. Foi pix, crédito, débito, dinheiro ou boleto?" };
   }
   if (c.tipo === "parcelas" || c.tipo === "duracao") {
     const v = Number(t.replace(/\s*(minutos?|min)$/i, ""));
@@ -273,7 +273,7 @@ export function validarCampo(
     };
     return Object.prototype.hasOwnProperty.call(r, n)
       ? { valor: r[n] }
-      : { erro: "Responda *1*, *2*, *3* ou *4*." };
+      : { erro: "Esse compromisso se repete? Pode dizer não, diariamente, semanalmente ou mensalmente." };
   }
   return { erro: "Escolha uma opção da lista." };
 }

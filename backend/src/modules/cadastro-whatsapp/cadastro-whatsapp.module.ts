@@ -189,7 +189,8 @@ export class CadastroWhatsappService {
 
   /** Só interpreta 1/2 quando existe convite enviado e ainda sem resposta. */
   async tratarConvite(whatsapp: string, texto: string, inst: string, conversa = ''): Promise<boolean> {
-    const opcao = texto.trim().match(/^([12])[.!]?$/)?.[1];
+    const fala = texto.trim().normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+    const opcao = /^(1|sim|quero me cadastrar|vamos comecar|quero|pode comecar)[.!?]*$/.test(fala) ? '1' : /^(2|nao|nao tenho interesse|agora nao|nao quero)[.!?]*$/.test(fala) ? '2' : null;
     const num = normalizarWhatsapp(whatsapp);
     if (!opcao || !num) return false;
     // Quem já tem conta continua nos menus normais da Aurélia.
@@ -252,7 +253,7 @@ export class CadastroWhatsappService {
       return true;
     }
 
-    if (/^(0|cancelar|sair|parar)$/i.test(resposta)) {
+    if (/^(0|cancelar|cancela|sair|parar|desisti|deixa pra l[aá]|n[aã]o tenho interesse)[.!?]*$/i.test(resposta)) {
       await this.encerrar(cadastro.id, "CANCELADO");
       await this.responder(cadastro, "👋 Cadastro cancelado. Se mudar de ideia, me mande *cadastro*.", inst);
       return true;
@@ -277,7 +278,7 @@ export class CadastroWhatsappService {
       EMPRESA: 'Qual é o nome da sua *empresa ou organização*? Se não tiver empresa, informe seu *nome completo*. Esse nome aparecerá na sua organização.',
     };
     if (cadastro.etapa === 'INICIO' && !comandoCadastroGeral(resposta) && !interesseConviteAgenda(resposta)) {
-      if(resposta==='1') {
+      if(/^(1|sim|quero|pode come[çc]ar)[.!?]*$/i.test(resposta)) {
         if(await this.tratarConvite(cadastro.whatsapp,'1',inst||process.env.EVOLUTION_INSTANCE||'orkestri-default',respostas.whatsappLid?`${respostas.whatsappLid}@lid`:''))return true;
         await this.avancar(cadastro.id,'NOME',respostas);await this.responder(cadastro,this.msgAbertura(cadastro.whatsapp, false),inst);return true;
       }
@@ -285,9 +286,8 @@ export class CadastroWhatsappService {
       // conta é reconhecido pelo número antes de chegar aqui; para o caso raro
       // de o número ser outro, a frase escrita continua valendo.
       if(/^j[aá] tenho (?:uma )?conta$/i.test(resposta)){await this.encerrar(cadastro.id,'CANCELADO');await this.responder(cadastro,mensagemPrimeiroContato('vincular'),inst);return true;}
-      if(resposta==='2'){await this.encerrar(cadastro.id,'CANCELADO');await this.responder(cadastro,textoSemInteresse(),inst);return true;}
-      if(resposta==='3'){await this.responder(cadastro,`Você conversa comigo para marcar compromissos, fazer anotações, anotar gastos e organizar projetos e tarefas.\n\nPara criar sua conta gratuita, responda *1*. Para conhecer o site: https://www.orkiestri.com`,inst);return true;}
-      await this.responder(cadastro,'Para criar sua conta, responda *1*. Se não tiver interesse, responda *2*.',inst);return true;
+      if(/^(2|n[aã]o|n[aã]o tenho interesse|agora n[aã]o|n[aã]o quero)[.!?]*$/i.test(resposta)){await this.encerrar(cadastro.id,'CANCELADO');await this.responder(cadastro,textoSemInteresse(),inst);return true;}
+      await this.responder(cadastro,'Posso ajudar com compromissos e gastos por aqui. Quer que eu crie sua conta? Pode dizer “vamos começar”. Se preferir conhecer primeiro, abra https://www.orkiestri.com.',inst);return true;
     }
     if (/^voltar$/i.test(resposta)) {
       const anterior:any={NOME:'INICIO',CPF:'NOME',EMAIL:'CPF',EMPRESA:'EMAIL',EMPRESA_NOME:'EMAIL',CONFIRMACAO:'EMPRESA',CORRIGIR_DADO:'CONFIRMACAO'};
@@ -296,8 +296,8 @@ export class CadastroWhatsappService {
       await this.responder(cadastro,etapa==='INICIO'?mensagemPrimeiroContato('novo'):etapa==='CONFIRMACAO'?this.msgConfirmacao(cadastro.nome,cadastro.cpf,respostas,cadastro.whatsapp):perguntas[etapa]+'\n\nO que você já informou foi preservado. Se estiver correto, envie *manter*.\n*Cancelar* — Parar o cadastro',inst);return true;
     }
     if(cadastro.etapa==='CORRIGIR_DADO') {
-      const etapa=({'1':'NOME','2':'CPF','3':'EMAIL','4':'EMPRESA'} as any)[resposta];
-      if(!etapa){await this.responder(cadastro,'Qual informação quer corrigir?\n*1* — Nome\n*2* — CPF\n*3* — E-mail\n*4* — Nome da organização\n*Voltar* — Conferir os dados',inst);return true;}
+      const etapa=({'1':'NOME','2':'CPF','3':'EMAIL','4':'EMPRESA',nome:'NOME',cpf:'CPF',email:'EMAIL','e-mail':'EMAIL',empresa:'EMPRESA',organizacao:'EMPRESA','nome da organizacao':'EMPRESA'} as any)[resposta.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'')];
+      if(!etapa){await this.responder(cadastro,'Qual informação quer corrigir: nome, CPF, e-mail ou nome da organização?',inst);return true;}
       respostas._revisando=true;await this.avancar(cadastro.id,etapa,respostas);await this.responder(cadastro,perguntas[etapa]+'\n\n*Voltar* — Pergunta anterior · *Cancelar* — Sair',inst);return true;
     }
 
@@ -396,10 +396,10 @@ export class CadastroWhatsappService {
       }
       if (/^(2|nao|não|n|corrigir)$/i.test(resposta)) {
         await this.avancar(cadastro.id,'CORRIGIR_DADO',respostas);
-        await this.responder(cadastro,'Qual informação quer corrigir?\n*1* — Nome\n*2* — CPF\n*3* — E-mail\n*4* — Nome da organização\n*Voltar* — Conferir os dados',inst);
+        await this.responder(cadastro,'Qual informação quer corrigir: nome, CPF, e-mail ou nome da organização?',inst);
         return true;
       }
-      return this.invalida(cadastro, "Responda *1* para confirmar ou *2* para corrigir.", inst);
+      return this.invalida(cadastro, "Está tudo certo? Pode dizer sim ou corrigir, se precisar ajustar algum dado.", inst);
     }
 
     return false;
@@ -509,7 +509,7 @@ export class CadastroWhatsappService {
       });
     } catch (e: any) {
       this.logger.error("Falha ao concluir cadastro: " + cadastro.id);
-      await this.responder(cadastro, "Não consegui concluir seu cadastro agora. Seus dados foram preservados. Responda *1* para tentar novamente, *2* para revisar os dados ou *cancelar* para sair.", inst);
+      await this.responder(cadastro, "Não consegui concluir seu cadastro agora, mas guardei seus dados. Diga sim para eu tentar novamente, corrigir para revisar ou cancelar para deixar para depois.", inst);
       return;
     }
     if (resultado.status === "ja_concluido") {
@@ -609,7 +609,7 @@ export class CadastroWhatsappService {
       `📱 WhatsApp: *${exibirNumeroCadastro(whatsapp)}* — este, de onde você está falando
 ` +
       `🏢 Organização: *${r.empresa || (r.usoPessoal === true ? nome : "Não informado")}*\n\n` +
-      "Responda *1* para confirmar ou *2* para corrigir."
+      "Está tudo certo? Me diga sim para concluir ou corrigir se quiser ajustar algum dado."
     );
   }
 

@@ -11,6 +11,49 @@ import {
 import { WhatsappEquipeService } from "./whatsapp-equipe.service";
 
 const user = { id: "u1", organizationId: "org1", nome: "Pessoa Teste" };
+describe('Atendimento conversacional público',()=>{
+  const conversar=(s:ReturnType<typeof setup>,t:string)=>s.service.tratarConversa(user,t,'chat','inst',s.ports);
+  it('não oferece menus nem executa funções de outros módulos',async()=>{
+    const s=setup();
+    for(const t of ['oi','menu','1','7']) {
+      await conversar(s,t);
+      expect(s.text()).toContain('Dentista hoje às 17h');
+      expect(s.text()).not.toMatch(/\*[0-9]\*|Responda o número/);
+    }
+    await conversar(s,'projetos');
+    expect(s.text()).toContain('/login');
+    expect(s.db.project.create).not.toHaveBeenCalled();
+  });
+  it('lança pix apenas depois de confirmar',async()=>{
+    const s=setup();
+    await conversar(s,'lançar barrinha de cereal 12 reais no pix');
+    expect(s.text()).toContain('barrinha de cereal');
+    expect(s.text()).toContain('Posso salvar');
+    expect(s.db.gasto.create).not.toHaveBeenCalled();
+    await conversar(s,'sim');
+    expect(s.db.gasto.create).toHaveBeenCalledWith({data:expect.objectContaining({descricao:'barrinha de cereal',valor:12,formaPagamento:'PIX',userId:user.id,organizationId:user.organizationId})});
+    expect(s.text()).not.toMatch(/\*[0-9]\*/);
+  });
+  it('cria parcelas mensais somando o total após confirmação',async()=>{
+    const s=setup();
+    await conversar(s,'lançar Gasolina 400 reais no credito em 3x');
+    expect(s.text()).toContain('133,34');
+    expect(s.db.gasto.create).not.toHaveBeenCalled();
+    await conversar(s,'pode salvar');
+    const dados=s.db.gasto.create.mock.calls.map((c:any)=>c[0].data);
+    expect(dados).toHaveLength(3);
+    expect(dados.map((d:any)=>d.valor)).toEqual([133.34,133.33,133.33]);
+    expect(dados.map((d:any)=>d.parcelas)).toEqual([1,1,1]);
+    expect(dados[1].dataGasto.getUTCMonth()).toBe((dados[0].dataGasto.getUTCMonth()+1)%12);
+    expect(dados.every((d:any)=>d.userId===user.id&&d.organizationId===user.organizationId)).toBe(true);
+  });
+  it('cancelamento e falta de permissão não geram parcelas',async()=>{
+    const s=setup();await conversar(s,'lançar Gasolina 400 reais no credito em 3x');await conversar(s,'não salva');
+    expect(s.db.gasto.create).not.toHaveBeenCalled();
+    const sem=setup(['agenda:ver']);await conversar(sem,'lançar Gasolina 400 reais no credito em 3x');
+    expect(sem.text()).toContain('não permite');expect(sem.db.gasto.create).not.toHaveBeenCalled();
+  });
+});
 describe('Aurélia IA integrada ao fluxo autorizado', () => {
   it.each(['cancela','deixa pra lá','não salva','desisti'])('cancela um rascunho com %s', async (frase) => {
     const s = setup();
@@ -83,7 +126,7 @@ describe('Aurélia IA integrada ao fluxo autorizado', () => {
     expect(s.db.event.create).not.toHaveBeenCalled();
     const legacy = setup(['*'], ia(null));
     await legacy.say('menu');
-    expect(legacy.text()).toContain('Meus compromissos');
+    expect(legacy.text()).toContain('Dentista hoje às 17h');
   });
   it('revalida a permissão na confirmação', async () => {
     const s = setup(['*'], ia(proposta));
@@ -161,7 +204,7 @@ describe("Aurélia guiada", () => {
   it("mostra nomes de ações e só recursos permitidos", async () => {
     const s = setup(["keep:ver", "keep:criar"]);
     await s.say("menu");
-    expect(s.text()).toContain("Anotações");
+    expect(s.text()).toContain("/login");
     expect(s.text()).not.toContain("Meus gastos");
     expect(s.text()).not.toContain("Keep");
   });
@@ -330,7 +373,7 @@ describe("Aurélia guiada", () => {
   it("comando antigo também apresenta prévia antes de criar", async () => {
     const s = setup();
     await s.say("Gasto: Mercado 150 pix");
-    expect(s.text()).toContain("Confirmar");
+    expect(s.text()).toContain("Posso salvar");
     expect(s.db.gasto.create).not.toHaveBeenCalled();
   });
   it("deixa comandos de acesso saírem do diálogo sem virar anotação", async () => {
@@ -346,7 +389,7 @@ describe("Aurélia guiada", () => {
     for (const t of ["menu", "6", "5"]) await s.say(t);
     expect(s.text()).toContain("anexos");
     expect(s.text()).toContain("https://www.orkiestri.com/login");
-    expect(s.text()).toContain("Como posso ajudar");
+    expect(s.text()).toContain("Me conte o que você precisa organizar");
   });
 });
 describe("Datas e valores guiados", () => {

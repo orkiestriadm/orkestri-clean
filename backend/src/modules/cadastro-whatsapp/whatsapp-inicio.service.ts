@@ -5,6 +5,7 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { WhatsAppService } from "../notifications/whatsapp.service";
 import { mensagemInicioTesteAgenda } from "../prospects/lead-onboarding";
 import { DIAS_DE_TESTE, VALOR_MENSALIDADE_LABEL } from "../auth/trial-renovacao";
+import { orientacaoAurelia } from '../agenda/aurelia-conversa';
 
 export type UsuarioInicio = { id: string; organizationId: string; nome: string; telefone: string | null };
 export type AcaoInicio = { tipo: "evento" | "gasto"; resumo: string; registro: any };
@@ -35,7 +36,7 @@ export class WhatsappInicioService {
     return `✅ *Sua conta está pronta, ${user.nome.split(/\s+/)[0]}!*\n\n` +
       `Você tem *${DIAS_DE_TESTE} dias* para usar tudo sem pagar nada. ` +
       `Quando estiver acabando eu te aviso por aqui, com as formas de pagar — são *${VALOR_MENSALIDADE_LABEL} por mês*, com todos os módulos.\n\n` +
-      "Para usar aqui no WhatsApp, escreva *menu*. Eu mostro suas opções e faço uma pergunta por vez.\n\n" +
+      "Já pode me contar seus compromissos e gastos. Por exemplo: “Dentista hoje às 17h” ou “lançar barrinha de cereal 12 reais no pix”. Eu confiro os detalhes com você antes de registrar.\n\n" +
       `E-mail de acesso: *${user.email}*\n` +
       `Quer usar também o site? Crie sua senha em:\n${app}/recuperar-senha\n` +
       "Escolha receber o código pelo WhatsApp ou o link por e-mail.\n\n" +
@@ -53,15 +54,7 @@ export class WhatsappInicioService {
    * no comando *ajuda*, que já existe e abre módulo a módulo.
    */
   private mensagemComoUsar(nome: string) {
-    const nm = (nome || "").trim().split(/\s+/)[0];
-    return `🧡 *Boas-vindas${nm ? `, ${nm}` : ""}!* Já pode me pedir as coisas por aqui:\n\n` +
-      "🗓️ *Agenda* — _reunião com o contador amanhã às 10h_\n" +
-      "💸 *Financeiro* — _gastei 50 no mercado_\n" +
-      "📝 *Keep* — _anota: ligar para o João_\n" +
-      "📁 *Projetos* — _tarefa: revisar a proposta sexta_\n" +
-      "☀️ *Seu dia* — mande *meu dia* e eu conto o que vem pela frente\n\n" +
-      "Escreva do seu jeito, sem formato certo. Se eu não entender, eu pergunto.\n\n" +
-      "📖 Para o passo a passo de cada módulo, mande *ajuda*.";
+    return orientacaoAurelia();
   }
 
   /**

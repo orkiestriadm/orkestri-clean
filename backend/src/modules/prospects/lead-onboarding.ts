@@ -4,6 +4,7 @@ export const ORIGEM_CONVITE_GRATUITO = 'CONVITE_GRATUITO';
 export const COMANDO_CONVITE_AGENDA = 'CADASTRO';
 export function conviteComOpcoes(texto = '') {
   const t = texto.replace(/\*/g, '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  if (t.includes('quer que eu comece seu cadastro') && t.includes('nao tenho interesse')) return true;
   return /\b1\s*[-—–:.)]?\s*(?:para\s+)?(?:quero\s+)?(?:me\s+)?(?:fazer\s+(?:o\s+)?)?(?:cadastro|se cadastrar|cadastrar)\b/.test(t)
     && /\b2\s*[-—–:.)]?\s*(?:para\s+)?(?:finalizar|encerrar|nao tenho interesse[.\s—–-]*encerrar convite)\b/.test(t);
 }
@@ -33,7 +34,7 @@ export function linksConviteAgenda() {
  */
 export function textoConvite(nome?: string) {
   const ola = nome ? `Olá, ${nome}!` : 'Olá!';
-  return `${ola} 👋 *Que tal receber seus compromissos e lembretes no WhatsApp que você já usa todos os dias?*\n\nSou a *Aurélia*, assistente do *${MARCA}*. Eu te ajudo a organizar a rotina e lembrar do que importa: reuniões, consultas e aqueles compromissos que não podem passar despercebidos. 📅\n\nQuero te convidar para conhecer o ${MARCA}. *O cadastro e o acesso nesta fase são gratuitos, sem cartão.* Você se cadastra aqui mesmo, conversando comigo, e eu te ajudo a agendar seu primeiro compromisso.\n\n*Vamos começar? É gratuito!*\n\n*1* — Quero me cadastrar e experimentar\n*2* — Não tenho interesse. Encerrar convite\n\nAo responder *1*, vou pedir seus dados, uma informação por vez. Se as condições de acesso mudarem, você será avisado com antecedência.\n\nConheça o ${MARCA}: https://www.orkiestri.com`;
+  return `${ola} Sou a Aurélia, assistente do ${MARCA}. Posso ajudar você a lembrar dos compromissos e organizar seus gastos por aqui.\n\nO cadastro e o acesso nesta fase são gratuitos, sem cartão. Se as condições mudarem, você será avisado com antecedência.\n\nQuer que eu comece seu cadastro? Pode me dizer “quero me cadastrar” ou “vamos começar”. Vou pedir uma informação por vez. Se não quiser, basta dizer “não tenho interesse”.\n\nSe preferir conhecer primeiro: https://www.orkiestri.com`;
 }
 /** Quem respondeu "2": agradece e deixa a porta do site aberta. */
 export function textoSemInteresse() {
@@ -44,7 +45,7 @@ export function modelosConviteAgenda() {
   return [
     { nome: `Convite • cadastro gratuito no ${MARCA}`, texto: textoConvite('{nome}') },
     { nome: `Orientação • primeiro acesso ao ${MARCA}`, texto: `Olá, {nome}! Se ainda não criou sua conta, envie *CADASTRO* aqui nesta conversa. A Aurélia fará seu cadastro no ${MARCA} pelo WhatsApp.\n\nSe já concluiu o cadastro e quiser usar também o site, defina sua senha em ${l.senha}. Escolha o código por WhatsApp e informe o mesmo número usado no cadastro.\n\nDepois, entre com seu e-mail e a senha que criou: ${l.login}\nPara começar por aqui, envie *começar* à Aurélia.` },
-    { nome: 'Acompanhamento • primeiro compromisso', texto: `Olá, {nome}! Vamos usar sua agenda do ${MARCA}? Na conversa com a Aurélia, envie *começar*, escolha *1 — compromisso*, informe o título, o dia e o horário e confirme a prévia.\n\nPara consultar o que marcou, envie *compromissos*. Pelo site: ${l.agenda}\n\nSe precisar receber novamente as instruções de acesso, envie *acesso* à Aurélia.` },
+    { nome: 'Acompanhamento • primeiro compromisso', texto: `Olá, {nome}! Me conte seu compromisso, por exemplo: “Dentista hoje às 17h”. Eu confiro os detalhes com você antes de salvar. Para visualizar sua agenda completa, abra ${l.agenda}. Se precisar de ajuda para entrar, diga acesso.` },
     { nome: 'Conversão • continuar após o teste', texto: `Olá, {nome}! Como foi seu teste da agenda do ${MARCA}? Quer continuar organizando seus compromissos com a Aurélia? Responda para conhecer as condições do plano e receber orientação para contratar. Nenhuma contratação é feita por esta mensagem.` },
     { nome: 'Novidades e promoções', texto: `Olá, {nome}! Temos novidades no ${MARCA}: [descreva a função ou promoção e suas condições]. Quer saber como aproveitar?` },
   ];
@@ -56,5 +57,5 @@ export function mensagemInicioTesteAgenda(user: any) {
   const condicao = user.trialExpiraEm
     ? `Seu teste grátis vai até *${new Date(user.trialExpiraEm).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', dateStyle: 'short', timeStyle: 'short' })}* (horário de Brasília).`
     : 'Seu acesso nesta fase é gratuito. Se as condições mudarem, você será avisado com antecedência.';
-  return `✅ *Sua agenda está pronta, ${user.nome.split(/\s+/)[0]}!*\nSou a *Aurélia* e vou te ajudar a começar.\n\nPara usar pelo WhatsApp, envie *menu* e escolha *Meus compromissos*. Eu pergunto as informações, uma de cada vez.\n\n${condicao}\n\nQuer usar também o site? Crie sua senha em ${l.senha}, escolhendo receber o código no seu WhatsApp. Depois, entre em ${l.login} com o e-mail *${user.email}*. Não envie sua senha nesta conversa.\n\nPara rever estas orientações, envie *acesso*.`;
+  return `Sua conta está pronta, ${user.nome.split(/\s+/)[0]}! Me conte seu primeiro compromisso, por exemplo: “Dentista hoje às 17h”. Para um gasto, pode escrever “lançar barrinha de cereal 12 reais no pix”. Eu confiro os detalhes antes de registrar.\n\n${condicao}\n\nPara visualizar sua rotina e usar os outros módulos com mais comodidade, abra o sistema no navegador. Crie sua senha em ${l.senha}, escolhendo receber o código no WhatsApp. Depois, entre em ${l.login} com o e-mail *${user.email}*. Não envie sua senha nesta conversa.\n\nSe precisar rever estas orientações, me diga acesso.`;
 }
