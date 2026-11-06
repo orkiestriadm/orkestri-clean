@@ -66,6 +66,7 @@ model Organization {
   whatsappContextos     WhatsappContexto[]
   whatsappAtividades    WhatsappAtividade[]
   whatsappAnexos        WhatsappAnexo[]
+  aureliaLearningExamples AureliaLearningExample[]
   id                    String                 @id @default(uuid())
   nome                  String
   slug                  String                 @unique
@@ -255,6 +256,7 @@ model User {
   whatsappPrevias       WhatsappPrevia[]
   whatsappAtividades    WhatsappAtividade[]
   whatsappAnexos        WhatsappAnexo[]
+  aureliaLearningExamples AureliaLearningExample[]
   id                    String                 @id @default(uuid())
   organizationId        String                 @map("organization_id")
   nome                  String
@@ -5575,6 +5577,23 @@ model WhatsappRevisao {
   criadoEm   DateTime @default(now()) @map("criado_em") @db.Timestamptz(6)
 
   @@map("whatsapp_revisoes")
+}
+
+model AureliaLearningExample {
+  id             String       @id @default(uuid())
+  organizationId String       @map("organization_id")
+  userId         String?      @map("user_id")
+  entrada        String
+  intencao       String       @default("DESCONHECIDA")
+  resposta       String       @default("")
+  status         String       @default("PENDENTE")
+  criadoEm       DateTime     @default(now()) @map("criado_em") @db.Timestamptz(6)
+  revisadoEm     DateTime?    @map("revisado_em") @db.Timestamptz(6)
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user           User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, status, criadoEm], map: "aurelia_learning_review_idx")
+  @@map("aurelia_learning_examples")
 }
 
 model WhatsappBoasVindas {
