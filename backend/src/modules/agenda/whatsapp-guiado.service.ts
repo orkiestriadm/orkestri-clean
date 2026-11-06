@@ -1,5 +1,6 @@
 import { coletarQuando, perguntaQuando } from "./whatsapp-guiado-quando";
-import { Injectable } from "@nestjs/common";
+import { Injectable, Optional } from "@nestjs/common";
+import { AureliaIaService, dadosAgendaIa, duracaoIa, ExtracaoAgenda } from './aurelia-ia.service';
 import { PrismaService } from "../../prisma/prisma.service";
 import { AuthService } from "../auth/auth.service";
 import { WhatsAppService } from "../notifications/whatsapp.service";
@@ -46,6 +47,7 @@ export class WhatsappGuiadoService {
     private auth: AuthService,
     private equipe: WhatsappEquipeService,
     private writeback: CalendarWritebackService,
+    @Optional() private ia?: AureliaIaService,
   ) {}
   private scope(user: User) {
     return {
@@ -202,8 +204,8 @@ export class WhatsappGuiadoService {
       linhas.push("Atenção: esta alteração afeta a série de compromissos.");
     return (
       linhas.join("\n") +
-      "\n\n*1* — Confirmar\n*2* — Corrigir\n*Cancelar* — Não salvar" +
-      NAV
+      (v.ia ? "\n\nPosso salvar assim? Responda *sim*, *corrigir* ou *cancelar*." :
+      "\n\n*1* — Confirmar\n*2* — Corrigir\n*Cancelar* — Não salvar" + NAV)
     );
   }
   private async lista(
@@ -343,8 +345,12 @@ export class WhatsappGuiadoService {
     u: User,
     v: any,
   ): Promise<{ estado: Estado; mensagem: string }> {
-    const campos = this.campos(v),
-      campo = campos[v.indice || 0];
+    const campos = this.campos(v);
+    if (v.ia && !v.corrigindo) {
+      while ((v.indice || 0) < campos.length && Object.prototype.hasOwnProperty.call(v, campos[v.indice || 0].key))
+        v.indice = (v.indice || 0) + 1;
+    }
+    const campo = campos[v.indice || 0];
     if (!campo)
       return { estado: { fase: "CONFIRMAR", v }, mensagem: this.resumo(v) };
     if (campo.tipo === "pessoa")
@@ -353,7 +359,8 @@ export class WhatsappGuiadoService {
     return {
       estado: { fase: "FORM", v },
       mensagem:
-        (campo.tipo === "quando" ? perguntaQuando(v.quandoParcial) : campo.pergunta) +
+        (v.ia && campo.tipo === 'repeticao' ? 'Esse compromisso se repete? Pode responder: não, diariamente, semanalmente ou mensalmente.' :
+        campo.tipo === "quando" ? perguntaQuando(v.quandoParcial) : campo.pergunta) +
         (v[campo.key] != null
           ? "\nAtual: " +
             (campo.tipo === "quando"
@@ -361,7 +368,7 @@ export class WhatsappGuiadoService {
               : String(v[campo.key]).slice(0, 160)) +
             "\nPara manter, envie *manter*."
           : "") +
-        NAV,
+        (v.ia ? '\nPara interromper, escreva cancelar.' : NAV),
     };
   }
   async tratar(
@@ -371,6 +378,24 @@ export class WhatsappGuiadoService {
     instancia: string,
     portas: PortasGuia,
   ): Promise<boolean> {
+    // Inference happens outside the transaction. The snapshot is checked again
+    // under the same advisory lock used by all guided writes.
+    let extraidoIa: ExtracaoAgenda = null;
+    let snapshotIa: string | undefined;
+    if (this.ia?.habilitada() && texto.length <= 1000 &&
+        /\b(?:agend|marc|compromisso|consulta|dentista|reuni[aã]o)\w*/i.test(texto) &&
+        !/\b(?:apagu|apag|exclu|cancel|remov|reagend|alter|mud|repete|repetir|toda|todo|diariamente|semanalmente|mensalmente)\w*/i.test(texto)) {
+      try {
+        const acesso = await this.auth.resolvePermissions(u.id);
+        const rows: any[] = await this.prisma.$queryRaw`SELECT etapa,dados FROM whatsapp_inicio WHERE user_id=${u.id} AND instancia=${instancia} AND conversa=${conversa} AND expira_em>CURRENT_TIMESTAMP`;
+        const contextos: any[] = await this.prisma.$queryRaw`SELECT contexto FROM whatsapp_contextos WHERE user_id=${u.id} AND organization_id=${u.organizationId} AND instancia=${instancia} AND conversa=${conversa}`;
+        if (permissao(acesso, 'agenda:criar') && contextos[0]?.contexto !== 'EMPRESA' &&
+            (!rows.length || rows[0]?.dados?.fase === 'MENU')) {
+          snapshotIa = JSON.stringify(rows[0] || null);
+          extraidoIa = await this.ia.extrair(texto);
+        }
+      } catch { /* Preserve the existing flow if the optional AI is unavailable. */ }
+    }
     const t = texto.trim(),
       n = simples(t),
       abrir =
@@ -435,6 +460,13 @@ export class WhatsappGuiadoService {
               await this.perguntar(tx, u, { ...v, acao, indice: 0 }),
             );
           };
+          if (extraidoIa && snapshotIa !== JSON.stringify(rows[0] || null))
+            return 'A conversa mudou enquanto eu interpretava a mensagem. Responda à última pergunta ou envie novamente. Nada foi salvo por esta mensagem.';
+          if (extraidoIa?.acao === 'criar') {
+            return form('evento.criar', dadosAgendaIa(extraidoIa));
+          }
+          if (abrir && this.ia?.habilitada() && !/^(menu|ajuda|voltar ao menu)/.test(n))
+            return salvar({ fase: 'MENU', v: {} }, 'Olá! Sou a Aurélia. Me conte o compromisso que você quer marcar, por exemplo: dentista amanhã às 14h. Se preferir ver todos os recursos, escreva *menu*.');
           if (abrir) return principal();
           if (
             state &&
@@ -446,6 +478,10 @@ export class WhatsappGuiadoService {
           if (/^(0|sair|parar)$/.test(n) && state) {
             await limpar();
             return "Tudo bem. Encerrei esta conversa. Para voltar, escreva *menu*.";
+          }
+          if (n === 'cancelar' && state?.v?.ia) {
+            await limpar();
+            return 'Cancelei este rascunho. Nada foi salvo. O que mais você precisa?';
           }
           if (n === "cancelar" && state)
             return principal("Cancelei o que ainda não estava salvo.\n\n");
@@ -938,11 +974,12 @@ export class WhatsappGuiadoService {
             });
           }
           if (state.fase === "CORRIGIR") {
-            const i = Number(t) - 1;
-            if (!/^\d$/.test(t) || !this.campos(state.v)[i])
+            const porNome = state.v.ia ? this.campos(state.v).findIndex(c => simples(c.nome) === n || c.key === n || (c.key === 'quando' && /^(data|horario|dia|hora)$/.test(n))) : -1;
+            const i = porNome >= 0 ? porNome : Number(t) - 1;
+            if ((porNome < 0 && !/^\d$/.test(t)) || !this.campos(state.v)[i])
               return salvar(
                 state,
-                "Escolha o número da informação que deseja corrigir." + NAV,
+                (state.v.ia ? 'Qual informação quer corrigir? Escreva o nome do campo: ' + this.campos(state.v).map(c => c.nome).join(', ') : "Escolha o número da informação que deseja corrigir." + NAV),
               );
             return passo(
               await this.perguntar(tx, u, {
@@ -955,6 +992,10 @@ export class WhatsappGuiadoService {
           if (state.fase === "FORM") {
             const v = { ...state.v },
               campo = this.campos(v)[v.indice || 0];
+            const respostaIa = v.ia && campo.tipo === 'duracao' ? duracaoIa(t) : undefined;
+            const repeticaoIa = v.ia && campo.tipo === 'repeticao'
+              ? ({ nao: '1', 'nao repete': '1', diariamente: '2', semanalmente: '3', mensalmente: '4' } as Record<string,string>)[n]
+              : undefined;
             if (
               v.acao === "projeto.editar" &&
               campo.key === "dataFim" &&
@@ -971,7 +1012,7 @@ export class WhatsappGuiadoService {
                 ? { valor: v[campo.key] }
                 : campo.tipo === "quando"
                   ? coletarQuando(t, v.quandoParcial)
-                  : validarCampo(campo, t, portas.evento);
+                  : validarCampo(campo, respostaIa !== undefined ? String(respostaIa) : repeticaoIa || t, portas.evento);
             if (valid.erro)
               return salvar(state, valid.erro + "\n\n" +
                 (campo.tipo === "quando" ? perguntaQuando(v.quandoParcial) : campo.pergunta) + NAV);
@@ -1015,12 +1056,12 @@ export class WhatsappGuiadoService {
                 mensagem:
                   "Qual informação quer corrigir?\n" +
                   this.campos(state.v)
-                    .map((c, i) => `*${i + 1}* — ${c.nome}`)
+                    .map((c, i) => state.v.ia ? c.nome : `*${i + 1}* — ${c.nome}`)
                     .join("\n") +
-                  NAV,
+                  (state.v.ia ? '\nEscreva o nome da informação.' : NAV),
               });
             }
-            if (!/^(1|sim|confirmar|confirmo)$/.test(n))
+            if (!/^(1|sim|confirmar|confirmo)$/.test(n) && !(state.v.ia && /^(pode salvar|pode confirmar|sim, pode salvar|sim pode salvar|pode marcar)$/.test(n)))
               return salvar(state, this.resumo(state.v));
             if (!this.pode(p, state.v.acao))
               return principal(
@@ -1032,6 +1073,10 @@ export class WhatsappGuiadoService {
             eventoSync = r.sync;
             externo = !!r.externo;
             acaoUtil("GUIADO_" + state.v.acao.toUpperCase().replace(".", "_"));
+            if (state.v.ia) {
+              await limpar();
+              return '✅ ' + r.mensagem + '\n\nSe precisar marcar outro compromisso, é só me contar.';
+            }
             return principal("✅ " + r.mensagem + "\n\n");
           }
           return principal(

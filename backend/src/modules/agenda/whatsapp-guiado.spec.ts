@@ -11,7 +11,52 @@ import {
 import { WhatsappEquipeService } from "./whatsapp-equipe.service";
 
 const user = { id: "u1", organizationId: "org1", nome: "Pessoa Teste" };
-function setup(perms = ["*"]) {
+describe('Aurélia IA integrada ao fluxo autorizado', () => {
+  const ia = (dados: any) => ({ habilitada: () => true, extrair: jest.fn().mockResolvedValue(dados) });
+  const proposta = { acao: 'criar', titulo: 'dentista', dia: 'amanhã', hora: '14h', duracao: 'uma hora' };
+  it('preenche rascunho e só grava depois da confirmação explícita', async () => {
+    const s = setup(['*'], ia(proposta));
+    await s.say('Marca dentista amanhã às 14h por uma hora');
+    expect(s.text()).toContain('se repete');
+    expect(s.db.event.create).not.toHaveBeenCalled();
+    await s.say('não');
+    expect(s.text()).toContain('Posso salvar assim?');
+    expect(s.text()).toContain('dentista');
+    expect(s.db.event.create).not.toHaveBeenCalled();
+    await s.say('pode salvar');
+    expect(s.db.event.create).toHaveBeenCalledTimes(1);
+    expect(s.db.event.create.mock.calls[0][0].data).toMatchObject({ userId: user.id, organizationId: user.organizationId, titulo: 'dentista' });
+    expect(s.wb.onEventCreated).toHaveBeenCalledWith('salvo');
+    expect(s.text()).not.toContain('Responda o número');
+  });
+  it('pergunta informações ausentes e cancela sem gravar', async () => {
+    const s = setup(['*'], ia({ ...proposta, dia: '', hora: '', duracao: '' }));
+    await s.say('Quero agendar dentista');
+    expect(s.text()).toContain('dia e o horário');
+    await s.say('cancelar');
+    expect(s.state()).toBeNull();
+    expect(s.db.event.create).not.toHaveBeenCalled();
+  });
+  it('não usa IA sem permissão e preserva o fallback', async () => {
+    const client = ia(proposta); const s = setup(['agenda:ver'], client);
+    await s.say('Marca dentista amanhã às 14h');
+    expect(client.extrair).not.toHaveBeenCalled();
+    expect(s.db.event.create).not.toHaveBeenCalled();
+    const legacy = setup(['*'], ia(null));
+    await legacy.say('menu');
+    expect(legacy.text()).toContain('Meus compromissos');
+  });
+  it('revalida a permissão na confirmação', async () => {
+    const s = setup(['*'], ia(proposta));
+    await s.say('Marca dentista amanhã às 14h por uma hora');
+    await s.say('não');
+    s.auth.resolvePermissions.mockResolvedValue(['agenda:ver']);
+    await s.say('sim');
+    expect(s.db.event.create).not.toHaveBeenCalled();
+    expect(s.text()).toContain('Seu acesso mudou');
+  });
+});
+function setup(perms = ["*"], ia?: any) {
   let state: any = null;
   const model = () => ({
     findMany: jest.fn().mockResolvedValue([]),
@@ -39,9 +84,8 @@ function setup(perms = ["*"]) {
       state = { etapa: "GUIA_REVISAR", dados: { fase: "REVISAR", v: {} } };
     return 1;
   });
-  db.$queryRaw = jest.fn(async () =>
-    state ? [JSON.parse(JSON.stringify(state))] : [],
-  );
+  db.$queryRaw = jest.fn(async (sql: any) => sql.join('').includes('FROM whatsapp_contextos')
+    ? [] : state ? [JSON.parse(JSON.stringify(state))] : []);
   db.$transaction = jest.fn(async (fn: any) => fn(db));
   const wa: any = { sendToJid: jest.fn().mockResolvedValue(true) };
   const auth: any = { resolvePermissions: jest.fn().mockResolvedValue(perms) };
@@ -53,7 +97,7 @@ function setup(perms = ["*"]) {
     onEventUpdated: jest.fn().mockResolvedValue(undefined),
     onEventDeleted: jest.fn().mockResolvedValue(undefined),
   };
-  const service = new WhatsappGuiadoService(db, wa, auth, equipe, wb);
+  const service = new WhatsappGuiadoService(db, wa, auth, equipe, wb, ia);
   const ports: any = {
     evento: (t: string) => parseComandoEvento("Evento: " + t, new Date()),
     gasto: (t: string) => parseComandoGasto(t, new Date(), true),

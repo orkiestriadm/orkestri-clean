@@ -4,6 +4,7 @@ import { WhatsappMediaService, WhatsappAnexosController } from "./whatsapp-media
 import { WhatsappContextoService, contextoSolicitado, comandoEmpresarial } from "./whatsapp-contexto.service";
 import { WhatsappEquipeService } from "./whatsapp-equipe.service";
 import { WhatsappLinguagemService } from "./whatsapp-linguagem.service";
+import { AureliaIaService } from './aurelia-ia.service';
 import { dataTarefa } from "./whatsapp-rotina-datas";
 import { identificarExecucao, acaoUtil, abrirMensagem } from "./whatsapp-execucao";
 import { WhatsappInicioService } from "../cadastro-whatsapp/whatsapp-inicio.service";
@@ -2249,6 +2250,6 @@ export class WhatsappInboundController {
 @Module({
   imports: [NotificationsModule, AuthModule, ReferralModule, AssinaturaModule, CadastroWhatsappModule, IntegracoesModule],
   controllers: [WhatsappInboundController, WhatsappOperacaoController, WhatsappAnexosController],
-  providers: [WhatsappInboundService, { provide: "WHATSAPP_INBOUND", useExisting: WhatsappInboundService }, WhatsappRotinaService, WhatsappContextoService, WhatsappEquipeService, WhatsappLinguagemService, WhatsappMediaService, WhatsappGuiadoService],
+  providers: [WhatsappInboundService, { provide: "WHATSAPP_INBOUND", useExisting: WhatsappInboundService }, WhatsappRotinaService, WhatsappContextoService, WhatsappEquipeService, WhatsappLinguagemService, WhatsappMediaService, WhatsappGuiadoService, AureliaIaService],
 })
 export class WhatsappInboundModule {}
