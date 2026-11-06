@@ -614,7 +614,7 @@ export class WhatsappGuiadoService {
                             60000,
                         ),
                       )
-                    : 30,
+                    : 60,
                   recorrencia: e.recorrencia || null,
                   recorrenciaFim: e.recorrenciaFim
                     ? diaSaoPaulo(new Date(e.recorrenciaFim))
@@ -1271,7 +1271,7 @@ export class WhatsappGuiadoService {
         inicio,
         fim: v.diaTodo
           ? null
-          : new Date(inicio.getTime() + (v.duracao || 30) * 60000),
+          : new Date(inicio.getTime() + (v.duracao || 60) * 60000),
         diaTodo: !!v.diaTodo,
         ...(op === "criar"
           ? {

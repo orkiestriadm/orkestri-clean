@@ -450,8 +450,8 @@ describe("Data e horário do compromisso em mensagens separadas", () => {
     // Nova instância comprova persistência entre mensagens/webhooks.
     const resumed = new WhatsappGuiadoService(s.db, s.wa, s.auth, s.equipe, s.wb);
     await resumed.tratar(user, "14:30", "chat", "inst", s.ports);
-    expect(s.text()).toContain("Quanto tempo");
-    for (const t of ["60", "1"]) await s.say(t);
+    expect(s.text()).toContain("repete");
+    for (const t of ["1"]) await s.say(t);
     expect(s.text()).toContain("10/12/2026");
     expect(s.db.event.create).not.toHaveBeenCalled();
     await s.say("1");
@@ -465,7 +465,7 @@ describe("Data e horário do compromisso em mensagens separadas", () => {
     const s=setup();for(const t of ["menu","1","1","Consulta","às 14h30"]) await s.say(t);
     expect(s.text()).toContain("Qual é o dia");
     await s.say("10 de dezembro de 2026");
-    expect(s.text()).toContain("Quanto tempo");expect(s.state().dados.v.quando).toBe("2026-12-10T17:30:00.000Z");
+    expect(s.text()).toContain("repete");expect(s.state().dados.v.quando).toBe("2026-12-10T17:30:00.000Z");
   });
   it("mantém a data após horário inválido e aceita substituí-la", async () => {
     const s=setup();for(const t of ["menu","1","1","Consulta","10/12/2026","25h"])await s.say(t);
@@ -482,6 +482,6 @@ describe("Data e horário do compromisso em mensagens separadas", () => {
     const s=setup();for(const t of ["menu","1","1","Consulta","31 de fevereiro de 2027","28/10/2026"])await s.say(t);
     expect(s.state().dados.v.quando).toBeUndefined();expect(s.text()).toContain("passado");expect(s.db.event.create).not.toHaveBeenCalled();
     await s.say("hoje");await s.say("08h");expect(s.text()).toContain("passou");expect(s.db.event.create).not.toHaveBeenCalled();
-    await s.say("14h");expect(s.text()).toContain("Quanto tempo");
+    await s.say("14h");expect(s.text()).toContain("repete");
   });
 });

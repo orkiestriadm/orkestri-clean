@@ -53,13 +53,8 @@ export function camposGuia(acao: string): CampoGuia[] {
         pergunta: "Qual é o dia e o horário? Exemplo: *amanhã às 14h*.",
         tipo: "quando",
       },
-      {
-        key: "duracao",
-        nome: "Duração",
-        pergunta:
-          "Quanto tempo vai durar? Envie os minutos, por exemplo *30*. Uma hora é *60*.",
-        tipo: "duracao",
-      },
+      // Compromissos têm duração padrão de 60 minutos. Não interrompa o
+      // cadastro perguntando isso: a pessoa pode ajustar depois no sistema.
       ...(acao === "evento.criar"
         ? [
             {
