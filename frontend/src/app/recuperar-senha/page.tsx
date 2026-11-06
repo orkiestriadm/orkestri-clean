@@ -101,13 +101,18 @@ export default function RecuperarSenhaPage() {
    * Aurélia (gravada como `5514…`) cair em "não encontramos este número".
    */
   const whatsappLimpo = whatsapp.replace(/\D/g, "");
+  // O cadastro da Aurélia guarda números com o código do Brasil. A pessoa
+  // pode digitar só DDD + número; envie para a API no mesmo formato do cadastro.
+  const whatsappApi = whatsappLimpo.length === 10 || whatsappLimpo.length === 11
+    ? `55${whatsappLimpo}`
+    : whatsappLimpo;
 
   const handleEnviarOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     if (whatsappLimpo.length < 10) { setError("Informe o número com DDD."); return; }
     setLoading(true); setError("");
     try {
-      const { data } = await api.post("/auth/enviar-otp", { whatsapp: whatsappLimpo });
+      const { data } = await api.post("/auth/enviar-otp", { whatsapp: whatsappApi });
       // Sem WhatsApp cadastrado não adianta ir para a tela de código: a pessoa
       // ficaria esperando um código que nunca chega, sem saber por quê. Sete das
       // doze contas desta organização estão nessa situação.
@@ -123,7 +128,7 @@ export default function RecuperarSenhaPage() {
     if (codigo.length !== 6) { setError("O código tem 6 dígitos."); return; }
     setLoading(true); setError("");
     try {
-      const { data } = await api.post("/auth/verificar-otp", { whatsapp: whatsappLimpo, codigo });
+      const { data } = await api.post("/auth/verificar-otp", { whatsapp: whatsappApi, codigo });
       // O token vale 3 minutos — daí ir direto para a senha, sem tela no meio.
       setResetToken(data.resetToken);
       setStep("nova-senha");
