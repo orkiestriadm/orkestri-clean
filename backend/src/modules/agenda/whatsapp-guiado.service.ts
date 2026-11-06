@@ -1129,6 +1129,18 @@ export class WhatsappGuiadoService {
             );
           }
           if (state.fase === "CONFIRMAR") {
+            if (state.v.ia && state.v.quando && /\b(?:n[aã]o|corrig|troca|melhor|muda|ajust)/i.test(t)) {
+              const ajuste = comandoAgenda(`reunião ${t}`);
+              if (ajuste?.hora) {
+                const atual = new Date(state.v.quando);
+                const [hora, minuto] = ajuste.hora.split(':').map(Number);
+                const corrigido = new Date(Date.UTC(atual.getUTCFullYear(), atual.getUTCMonth(), atual.getUTCDate(), hora + 3, minuto, 0));
+                if (corrigido.getTime() > Date.now()) {
+                  state.v.quando = corrigido.toISOString();
+                  return passo({ estado: { fase: "CONFIRMAR", v: state.v }, mensagem: this.resumo(state.v) });
+                }
+              }
+            }
             if (t === "2" || n === "corrigir") {
               if (
                 !this.campos(state.v).length ||
