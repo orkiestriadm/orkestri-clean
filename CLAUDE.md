@@ -1,8 +1,10 @@
 ## Referência atual de produção — Atualizado em 05/11/2026
 
 - **Pasta principal oficial (local):** `C:\orkestri-clean` (alinhada com a produção atual).
-- **Branch remota de referência (GitHub):** `origin/claude/orkiestri-audit-benchmark-4a28b4` (ver `docs/DEPLOY_GOOGLE_CALENDAR_520_2026-11-05.md`).
-- **Versões em produção e no `http://localhost`:** API `5.2.0` | Frontend `5.2.0` | Website `3.17.0`.
+- **Branch remota de referência (GitHub):** `origin/claude/orkiestri-audit-benchmark-4a28b4` (API `8b13117`, ver `docs/DEPLOY_AURELIA_IA_521_2026-11-05.md`).
+- **Versões em produção:** API `5.2.1` | Frontend `5.2.0` | Website `3.17.0`.
+
+Localhost não atualizado neste deploy: última API local registrada `5.2.0`.
 
 # Instruções para o Claude (e demais IAs)
 
@@ -11,3 +13,4 @@
 3. **Ao iniciar qualquer sessão:** rode `git fetch origin` e `git pull --ff-only` para garantir que está com a última atualização deixada por outra IA (Antigravity, Codex ou Claude).
 4. **Ao concluir qualquer atualização ou deploy autorizado:** faça `git commit` e `git push` para a branch compartilhada no GitHub e mantenha `AGENTS.md` e `CLAUDE.md` atualizados com a versão e commit vigentes, para que todas as IAs permaneçam sincronizadas automaticamente.
 5. **Deploy em produção exige autorização expressa:** nunca publicar em produção, aplicar migrations remotas ou acionar serviços reais sem pedido explícito do usuário.
+

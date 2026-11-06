@@ -66,7 +66,7 @@ documentadas em `OPERACAO-SERVIDOR.md`.
 - Com esquema restrito: exemplos simples ~3–12 s; frases ambíguas ainda falham.
 - Testes locais: 5 suítes, 99 testes passando, incluindo permissões, confirmação,
   cancelamento, isolamento dos registros, indisponibilidade e fluxo legado.
-- Build Nest local passou. Build Docker e publicação: em andamento.
+- Build Nest e Docker passaram. Publicação concluída em 05/11/2026 às 22:03 (São Paulo).
 - Não foram disparadas mensagens reais nem criados compromissos de clientes
   durante a validação técnica.
 
@@ -83,3 +83,22 @@ Não apresentar este release como conversa livre completa. A máquina atende uma
 inferência por vez; um teste curto não determina a capacidade contínua para todos
 os clientes. Frases não compreendidas usam o fluxo existente. Não prometer latência
 fixa ou atendimento simultâneo de 5–10 conversas com IA.
+
+## Publicação concluída
+
+- API em produção: **5.2.1**, commit de implementação **8b13117**.
+- Imagem: `orkestri/api:aurelia-5.2.1`, também marcada `orkestri/api:latest`.
+- Rollback preservado: `orkestri/api:rollback-before-aurelia-521`.
+- Configuração aplicada em `/opt/orkestri/docker-compose.prod.yml`; backup:
+  `docker-compose.prod.yml.bak-before-aurelia-521`.
+- Composição efetiva preservada: `docker-compose.yml`, `docker-compose.prod.yml`,
+  `website/deploy/docker-compose.website.yml`. Recriada somente a API.
+- `/api/health` público retornou `status=ok`, `version=5.2.1`; Docker: `healthy`.
+- Dentro da API em execução: `IA_ENABLED=true`; pedido fictício de dentista amanhã
+  às 14h por uma hora retornou os campos corretos em **17,3 s** (incluindo carga do modelo).
+- Cinco requisições sintéticas curtas ao Ollama concluíram entre 8,2 e 11,0 s.
+  Não equivalem a cinco conversas completas; backend continua com uma inferência por vez.
+- Migrations da imagem anterior e nova têm hash agregado idêntico; sem mudança de schema.
+- Evolution, frontend, website e demais serviços não foram recriados.
+- Localhost não foi atualizado nesta publicação: última API local registrada 5.2.0.
+- Não houve teste de ponta a ponta com número real nem gravação de compromisso real.
