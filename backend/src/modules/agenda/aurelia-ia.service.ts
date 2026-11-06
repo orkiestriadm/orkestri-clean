@@ -133,7 +133,7 @@ export class AureliaIaService {
   habilitada(): boolean { return process.env.AURELIA_IA_ENABLED === 'true'; }
   habilitadaPara(chave?: string): boolean {
     if (!this.habilitada()) return false;
-    const percentual = Math.max(0, Math.min(100, Number(process.env.AURELIA_IA_ROLLOUT_PERCENT || '100')));
+    const percentual = Math.max(0, Math.min(100, Number(process.env.AURELIA_IA_ROLLOUT_PERCENT || '10')));
     if (percentual >= 100) return true;
     if (percentual <= 0 || !chave) return false;
     let hash = 0; for (const c of chave) hash = (hash * 31 + c.charCodeAt(0)) >>> 0;

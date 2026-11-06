@@ -16,7 +16,7 @@ parcelas por causa de uma inferência experimental.
 3. **Coleta controlada:** interpretações experimentais ficam pendentes para revisão.
 4. **Memória explícita:** somente fatos salvos com consentimento, chave por usuário e validade opcional são reutilizados.
 5. **Ferramentas seguras:** agenda e gastos continuam atrás das portas determinísticas, permissões e confirmação explícita.
-6. **Ativação gradual:** `AURELIA_IA_ROLLOUT_PERCENT` permite ativar por percentual determinístico; falhas retornam ao fluxo atual.
+6. **Ativação gradual:** `AURELIA_IA_ROLLOUT_PERCENT` permite ativar por percentual determinístico; o padrão seguro é 10%; falhas retornam ao fluxo atual.
 
 Nenhuma etapa de aprendizado automático altera os pesos do modelo. A ativação
 continua protegida por flags e pode ser revertida.
