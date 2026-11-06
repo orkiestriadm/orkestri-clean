@@ -1,8 +1,8 @@
 ## Referência atual de produção — Atualizado em 05/11/2026
 
 - **Pasta principal oficial (local):** `C:\orkestri-clean` (alinhada com a produção atual).
-- **Branch remota de referência (GitHub):** `origin/claude/orkiestri-audit-benchmark-4a28b4` (API `8b13117`, ver `docs/DEPLOY_AURELIA_IA_521_2026-11-05.md`).
-- **Versões em produção:** API `5.2.1` | Frontend `5.2.0` | Website `3.17.0`.
+- **Branch remota de referência (GitHub):** `origin/claude/orkiestri-audit-benchmark-4a28b4` (API `2042368`, ver `docs/DEPLOY_AURELIA_IA_522_2026-11-05.md`).
+- **Versões em produção:** API `5.2.2` | Frontend `5.2.0` | Website `3.17.0`.
 
 Localhost não atualizado neste deploy: última API local registrada `5.2.0`.
 
