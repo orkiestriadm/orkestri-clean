@@ -1,4 +1,5 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
+import type { AureliaAprendizadoService } from './aurelia-aprendizado.service';
 import { diaCompromisso, horaCompromisso } from '../notifications/evento-alerta-datas';
 import { diaSaoPaulo, instanteSaoPaulo, somarDias } from './whatsapp-rotina-datas';
 import { horarioAmbiguo } from './whatsapp-agenda-comandos';
@@ -126,6 +127,7 @@ export function dadosAgendaIa(v: ExtracaoAgenda, agora = new Date()): Record<str
 
 @Injectable()
 export class AureliaIaService {
+  constructor(@Optional() @Inject('AURELIA_APRENDIZADO') private aprendizado?: AureliaAprendizadoService) {}
   private readonly logger = new Logger(AureliaIaService.name);
   private ocupados = 0;
   private falhas = 0;
@@ -140,20 +142,23 @@ export class AureliaIaService {
     return hash % 100 < percentual;
   }
   modoSombra(): boolean { return process.env.AURELIA_IA_SHADOW === 'true'; }
-  async extrair(texto: string): Promise<ExtracaoAgenda | null> {
+  async extrair(texto: string, escopo?: { userId: string; organizationId: string }): Promise<ExtracaoAgenda | null> {
     if (!this.habilitada() || !texto || texto.length > 1000 || this.ocupados >= 1 || Date.now() < this.pausaAte) return null;
     const endpoint = process.env.AURELIA_IA_URL;
     if (!endpoint) return null;
     this.ocupados++;
     const inicio = Date.now();
     try {
+      const exemplos = escopo && this.aprendizado ? await this.aprendizado.exemplosPara(escopo,texto).catch(() => []) : [];
       const r = await fetch(new URL('/api/chat', endpoint), {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         signal: AbortSignal.timeout(20000),
         body: JSON.stringify({ model: process.env.AURELIA_IA_MODEL || 'qwen2.5:1.5b',
           think: false, stream: false, format: SCHEMA_AGENDA_IA,
-          messages: [{ role: 'system', content: PROMPT_AGENDA_IA }, { role: 'user', content: texto }],
-          options: { temperature: 0, num_ctx: 2048, num_predict: 180, num_thread: 2 },
+          messages: [{ role: 'system', content: PROMPT_AGENDA_IA },
+            ...exemplos.flatMap(e => [{ role:'user', content:e.entrada }, { role:'assistant', content:e.resposta }]),
+            { role: 'user', content: texto }],
+          options: { temperature: 0, num_ctx: 4096, num_predict: 180, num_thread: 2 },
           keep_alive: process.env.AURELIA_IA_KEEP_ALIVE || '5m' }),
       });
       if (!r.ok) throw new Error('inferencia_indisponivel');

@@ -1,4 +1,7 @@
 import { orientacaoAurelia } from './aurelia-conversa';
+import { RotinaPessoalService } from './rotina-pessoal.service';
+import { RotinaPessoalController } from './rotina-pessoal.controller';
+import { AureliaAprendizadoController } from './aurelia-aprendizado.controller';
 import { WhatsappRotinaService, comandoRotina } from "./whatsapp-rotina.service";
 import { WhatsappOperacaoController } from "./whatsapp-operacao.controller";
 import { WhatsappMediaService, WhatsappAnexosController } from "./whatsapp-media.service";
@@ -679,6 +682,7 @@ export class WhatsappInboundService {
     @Optional() private eventoAlertas?: EventoAlertaService,
     @Optional() private guiado?: WhatsappGuiadoService,
     private assinatura: AssinaturaService = undefined,
+    @Optional() private pessoal?: RotinaPessoalService,
   ) {
     // Conserva a chamada programática de cinco argumentos da integração de
     // pagamentos. No Nest, os onze serviços originais são injetados por tipo,
@@ -1842,6 +1846,7 @@ export class WhatsappInboundService {
       await this.contexto.trocar(usuarioEntrada,inst,remoteJid,'PESSOAL');
       texto = 'ajuda';
     }
+    if (usuarioEntrada && this.pessoal && await this.pessoal.tratar(usuarioEntrada,texto,remoteJid,inst)) return;
     if (usuarioEntrada && this.guiado && await this.guiado.tratarConversa(usuarioEntrada,texto,remoteJid,inst,{
       evento: t => parseComandoEvento('Evento: '+t,new Date()),
       gasto: t => parseComandoGasto(t,new Date(),true),
@@ -2220,7 +2225,7 @@ export class WhatsappInboundController {
 
 @Module({
   imports: [NotificationsModule, AuthModule, ReferralModule, AssinaturaModule, CadastroWhatsappModule, IntegracoesModule],
-  controllers: [WhatsappInboundController, WhatsappOperacaoController, WhatsappAnexosController],
-  providers: [WhatsappInboundService, { provide: "WHATSAPP_INBOUND", useExisting: WhatsappInboundService }, WhatsappRotinaService, WhatsappContextoService, WhatsappEquipeService, WhatsappLinguagemService, WhatsappMediaService, WhatsappGuiadoService, AureliaIaService, AureliaAprendizadoService],
+  controllers: [WhatsappInboundController, WhatsappOperacaoController, WhatsappAnexosController, RotinaPessoalController, AureliaAprendizadoController],
+  providers: [WhatsappInboundService, { provide: "WHATSAPP_INBOUND", useExisting: WhatsappInboundService }, WhatsappRotinaService, WhatsappContextoService, WhatsappEquipeService, WhatsappLinguagemService, WhatsappMediaService, WhatsappGuiadoService, AureliaIaService, AureliaAprendizadoService, { provide:'AURELIA_APRENDIZADO', useExisting:AureliaAprendizadoService }, RotinaPessoalService],
 })
 export class WhatsappInboundModule {}

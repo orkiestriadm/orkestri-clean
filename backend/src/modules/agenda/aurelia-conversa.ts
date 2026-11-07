@@ -2,7 +2,8 @@ export function orientacaoAurelia(agenda = true, gastos = true): string {
   return 'Oiee, eu sou a Aurélia, assistente e assessora do Orkiestri. 😊\n\nDiga o que você quer fazer e receba a notificação pelo WhatsApp!!! 📲' +
     (agenda ? '\n\n📅 Para marcar um compromisso em sua agenda escreva:\n“Dentista hoje às 17h”.' : '') +
     (gastos ? '\n\n💰 Para anotar um gasto, escreva:\n“Almoço 30 reais no Pix”.' : '') +
-    '\n\nEu repito os detalhes e pergunto se está tudo certo antes de salvar. ✅' +
+    '\n\nPara compromissos e gastos, eu confiro os detalhes com você antes de salvar. ✅' +
+    (agenda ? '\n\n🔔 Lembrete rápido, sem confirmação: “Me lembre de beber água daqui 15m”.\nPara marcar um hábito: “Faça check-in no hábito Academia”.' : '') +
     '\n\nPara usar outras funções, abra o Orkiestri no navegador ou app.\nwww.orkiestri.com';
 }
 

@@ -55,6 +55,16 @@ describe('Atendimento conversacional público',()=>{
   });
 });
 describe('Aurélia IA integrada ao fluxo autorizado', () => {
+  it('corrige exatamente "não, às 11h" e preserva o dia perto da meia-noite', async () => {
+    const s=setup();
+    await s.say('reunião nova amanhã às 23h'); await s.say('não');
+    const antes=s.state().dados.v.quando;
+    await s.say('não, às 11h');
+    expect(s.text()).toContain('11:00');
+    const local=(d:string)=>new Date(d).toLocaleDateString('en-CA',{timeZone:'America/Sao_Paulo'});
+    expect(local(s.state().dados.v.quando)).toBe(local(antes));
+    expect(s.db.event.create).not.toHaveBeenCalled();
+  });
   it.each(['cancela','deixa pra lá','não salva','desisti'])('cancela um rascunho com %s', async (frase) => {
     const s = setup();
     await s.say('Aurélia, anota aí: dentista amanhã');

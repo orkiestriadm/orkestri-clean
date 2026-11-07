@@ -101,6 +101,9 @@ export const NAV: NavGroup[] = [
     id: "space", produto: "Space", descritor: "Agenda", icon: CalendarDays,
     items: [
       { href: "/dashboard/agenda",    label: "Agenda",         icon: CalendarDays, permission: "agenda:ver" },
+      { href: "/dashboard/lembretes", label: "Lembretes", icon: Bell, permission: "agenda:ver" },
+      { href: "/dashboard/habitos", label: "Hábitos", icon: CheckCircle2, permission: "agenda:ver" },
+      { href: "/dashboard/aurelia", label: "Minha Aurélia", icon: MessageCircle, permission: null },
       { href: "/dashboard/keep",      label: "Keep",           icon: StickyNote,   permission: "keep:ver" },
     ],
   },

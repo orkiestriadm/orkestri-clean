@@ -5598,6 +5598,49 @@ model AureliaLearningExample {
   @@map("aurelia_learning_examples")
 }
 
+model PersonalReminder {
+  id String @id @default(uuid())
+  userId String @map("user_id")
+  organizationId String @map("organization_id")
+  titulo String
+  quando DateTime @db.Timestamptz(6)
+  status String @default("PENDENTE")
+  instancia String?
+  origem String? @unique
+  enviadoEm DateTime? @map("enviado_em") @db.Timestamptz(6)
+  criadoEm DateTime @default(now()) @map("criado_em") @db.Timestamptz(6)
+  atualizadoEm DateTime @updatedAt @map("atualizado_em") @db.Timestamptz(6)
+  @@index([userId, organizationId, quando])
+  @@index([status, quando])
+  @@map("personal_reminders")
+}
+
+model PersonalHabit {
+  id String @id @default(uuid())
+  userId String @map("user_id")
+  organizationId String @map("organization_id")
+  titulo String
+  nomeNormalizado String @map("nome_normalizado")
+  dias Int @default(30)
+  inicio String
+  cor String @default("#f97316")
+  arquivado Boolean @default(false)
+  criadoEm DateTime @default(now()) @map("criado_em")
+  checkins HabitCheckin[]
+  @@unique([userId, organizationId, nomeNormalizado])
+  @@map("personal_habits")
+}
+
+model HabitCheckin {
+  id String @id @default(uuid())
+  habitId String @map("habit_id")
+  dia String
+  criadoEm DateTime @default(now()) @map("criado_em")
+  habit PersonalHabit @relation(fields: [habitId], references: [id], onDelete: Cascade)
+  @@unique([habitId, dia])
+  @@map("habit_checkins")
+}
+
 model AureliaMemoria {
   id String @id @default(uuid())
   organizationId String @map("organization_id")

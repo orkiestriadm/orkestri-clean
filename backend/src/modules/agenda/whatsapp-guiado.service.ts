@@ -82,7 +82,8 @@ export class WhatsappGuiadoService {
         return true;
       }
     }
-    if (state?.v?.ia || comandoAgenda(pedido) || variosCompromissos(pedido) || financeiro) {
+    const consultarIa = this.ia?.habilitadaPara?.(u.id) && /\b(?:agend|marc|compromisso|consulta|dentista|reuni[aã]o)\w*/i.test(pedido);
+    if (state?.v?.ia || comandoAgenda(pedido) || variosCompromissos(pedido) || financeiro || consultarIa) {
       if (await this.tratar(u,pedido,conversa,instancia,portas)) return true;
     }
     await say(orientacaoAurelia(this.pode(p,'evento.criar'),this.pode(p,'gasto.criar')));
@@ -434,9 +435,9 @@ export class WhatsappGuiadoService {
         if (permissao(acesso, 'agenda:criar') && contextos[0]?.contexto !== 'EMPRESA' &&
             (!rows.length || rows[0]?.dados?.fase === 'MENU')) {
           snapshotIa = JSON.stringify(rows[0] || null);
-          const interpretacao = comando || await this.ia.extrair(texto);
+          const interpretacao = comando || await this.ia.extrair(texto, { userId: u.id, organizationId: u.organizationId });
           if (this.ia?.modoSombra?.() && !comando && interpretacao && this.aprendizado) {
-            void this.aprendizado.registrarPendente({ organizationId: u.organizationId, userId: u.id, entrada: texto, intencao: interpretacao.acao }).catch(() => undefined);
+            await this.aprendizado.registrarPendente({ organizationId: u.organizationId, userId: u.id, entrada: texto, intencao: interpretacao.acao, resposta: JSON.stringify(interpretacao) }).catch(() => undefined);
             extraidoIa = null;
           } else extraidoIa = interpretacao;
         }
@@ -464,6 +465,7 @@ export class WhatsappGuiadoService {
     let externo = false,
       eventoSync: any = null,
       gravando = false;
+    let exemploConfirmado: any = null;
     try {
       const p = await this.auth.resolvePermissions(u.id);
       const resultado = await this.prisma.$transaction(
@@ -523,15 +525,19 @@ export class WhatsappGuiadoService {
             return 'Identifiquei mais de um compromisso. Envie um de cada vez, começando pelo primeiro. Não gravei nenhum compromisso desta mensagem.';
           // Correções curtas como "não, às 11h" precisam ser resolvidas antes
           // da interpretação geral da IA, que poderia recriar o rascunho antigo.
-          const correcaoHoraAntesIa = texto.match(/\b(?:n[aã]o|corrig\w*|troca\w*|melhor|muda\w*|ajust\w*)\b.*?\b(?:[àa]s|as|para)\s*(\d{1,2})(?:(?::|h)\s*(\d{2}))?\s*h?\b/i);
+          const correcaoHoraAntesIa = n.match(/\b(?:nao|corrig\w*|troca\w*|melhor|muda\w*|ajust\w*)\b.*?\b(?:as|para)\s*(\d{1,2})(?:(?::|h)\s*(\d{2}))?\s*h?\b/i);
           if (state?.v?.quando && correcaoHoraAntesIa && state.fase === 'CONFIRMAR') {
             const atual = new Date(state.v.quando);
             const hora = Number(correcaoHoraAntesIa[1]);
             const minuto = Number(correcaoHoraAntesIa[2] || 0);
             if (hora <= 23 && minuto <= 59) {
-              const corrigido = new Date(Date.UTC(atual.getUTCFullYear(), atual.getUTCMonth(), atual.getUTCDate(), hora + 3, minuto, 0));
+              const corrigido = instanteSaoPaulo(diaSaoPaulo(atual), String(hora).padStart(2,'0'), String(minuto).padStart(2,'0'));
               if (corrigido.getTime() > Date.now()) {
                 state.v.quando = corrigido.toISOString();
+                if (state.v.aprendizado) {
+                  state.v.aprendizado.entrada += '\nCorreção: ' + texto;
+                  state.v.aprendizado.extracao.hora = texto.match(/\d{1,2}(?:(?::|h)\d{2})?\s*h?/)[0].trim();
+                }
                 return salvar({ fase: 'CONFIRMAR', v: state.v }, this.resumo(state.v));
               }
             }
@@ -539,7 +545,7 @@ export class WhatsappGuiadoService {
           if (extraidoIa && snapshotIa !== JSON.stringify(rows[0] || null))
             return 'A conversa mudou enquanto eu interpretava a mensagem. Responda à última pergunta ou envie novamente. Nada foi salvo por esta mensagem.';
           if (extraidoIa?.acao === 'criar') {
-            return form('evento.criar', dadosAgendaIa(extraidoIa));
+            return form('evento.criar', { ...dadosAgendaIa(extraidoIa), aprendizado: { entrada: texto, extracao: extraidoIa } });
           }
           if (abrir && this.ia?.habilitada() && !/^(menu|ajuda|voltar ao menu)/.test(n))
             return salvar({ fase: 'MENU', v: {} }, 'Oiee, eu sou a Aurélia, assistente e assessora do Orkiestri.\n\nMe conte o compromisso que você quer marcar. Por exemplo: dentista amanhã às 14h.');
@@ -559,7 +565,7 @@ export class WhatsappGuiadoService {
             await limpar();
             return 'Cancelei este rascunho. Nada foi salvo. O que mais você precisa?';
           }
-          const correcaoHora = texto.match(/\b(?:n[aã]o|corrig\w*|troca\w*|melhor|muda\w*|ajust\w*)\b.*?\b(?:[àa]s|as|para)\s*(\d{1,2})(?:(?::|h)\s*(\d{2}))?\s*h?\b/i);
+          const correcaoHora = n.match(/\b(?:nao|corrig\w*|troca\w*|melhor|muda\w*|ajust\w*)\b.*?\b(?:as|para)\s*(\d{1,2})(?:(?::|h)\s*(\d{2}))?\s*h?\b/i);
           if (state?.v?.quando && correcaoHora) {
             const ajuste = correcaoHora;
             if (ajuste) {
@@ -567,7 +573,7 @@ export class WhatsappGuiadoService {
               const hora = Number(ajuste[1]);
               const minuto = Number(ajuste[2] || 0);
               if (hora <= 23 && minuto <= 59) {
-                const corrigido = new Date(Date.UTC(atual.getUTCFullYear(), atual.getUTCMonth(), atual.getUTCDate(), hora + 3, minuto, 0));
+                const corrigido = instanteSaoPaulo(diaSaoPaulo(atual), String(hora).padStart(2,'0'), String(minuto).padStart(2,'0'));
                 if (corrigido.getTime() > Date.now()) {
                   state.v.quando = corrigido.toISOString();
                   return salvar({ fase: 'CONFIRMAR', v: state.v }, this.resumo(state.v));
@@ -1187,6 +1193,11 @@ export class WhatsappGuiadoService {
             gravando = true;
             await antesDeEfeito();
             const r = await this.executar(tx, u, state.v, portas);
+            if (state.v.aprendizado && state.v.acao === 'evento.criar') {
+              const a = state.v.aprendizado, previsto = dadosAgendaIa(a.extracao);
+              if (previsto.quando === state.v.quando && previsto.titulo === state.v.titulo)
+                exemploConfirmado = { organizationId: u.organizationId, userId: u.id, entrada: a.entrada, intencao: 'criar', resposta: JSON.stringify(a.extracao) };
+            }
             eventoSync = r.sync;
             externo = !!r.externo;
             acaoUtil("GUIADO_" + state.v.acao.toUpperCase().replace(".", "_"));
@@ -1203,6 +1214,7 @@ export class WhatsappGuiadoService {
         { timeout: 30000 },
       );
       if (resultado === null) return false;
+      if (exemploConfirmado && this.aprendizado) await this.aprendizado.registrarPendente(exemploConfirmado).catch(() => undefined);
       if (eventoSync) {
         if (eventoSync.tipo === "excluir")
           await this.writeback.onEventDeleted(eventoSync.snap).catch(() => {});

@@ -15,7 +15,7 @@
  * versão nenhuma, porque dá falsa confiança.
  */
 
-export const VERSAO = "5.2.0";
+export const VERSAO = "5.3.0";
 
 /**
  * Data da versão, escrita à mão junto com o bump.
@@ -23,10 +23,10 @@ export const VERSAO = "5.2.0";
  * Não é gerada no build: `new Date()` no bundle muda a cada compilação, e duas
  * builds do mesmo código pareceriam versões diferentes.
  */
-export const VERSAO_DATA = "2026-11-05";
+export const VERSAO_DATA = "2026-11-07";
 
 /** Nome da entrega, para dar contexto ao número. */
-export const VERSAO_NOME = "Integracao Space com Google Agenda";
+export const VERSAO_NOME = "Lembretes, hábitos e aprendizado da Aurélia";
 
 /**
  * Histórico exibido na tela Sobre, do mais recente para o mais antigo.

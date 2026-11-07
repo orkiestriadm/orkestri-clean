@@ -1,0 +1,6 @@
+# Incluído somente no deploy de produção. O ambiente local não envia lembretes.
+services:
+  api:
+    environment:
+      ROTINA_LEMBRETES_ENABLED: "true"
+      AURELIA_IA_ROLLOUT_PERCENT: "100"

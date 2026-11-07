@@ -206,6 +206,10 @@ CONFIG=\$($SUDO docker inspect orkestri_api --format '{{index .Config.Labels \"c
 ARGS=''
 IFS=',' ; for c in \$CONFIG ; do ARGS=\"\$ARGS -f \$c\" ; done ; unset IFS
 [ -z \"\$ARGS\" ] && ARGS='-f docker-compose.yml -f docker-compose.override.yml'
+# A configuração de lembretes é versionada e nunca usada no localhost.
+if [ '$AMBIENTE' = 'producao' ] && [ -f '$DIR/backend/deploy/rotina.production.yml' ]; then
+  case \"\$ARGS\" in *rotina.production.yml*) ;; *) ARGS=\"\$ARGS -f $DIR/backend/deploy/rotina.production.yml\" ;; esac
+fi
 echo \"    compose:\$ARGS\"
 
 # O sentinela carrega o código de saída do compose: é por ele que o lado de cá

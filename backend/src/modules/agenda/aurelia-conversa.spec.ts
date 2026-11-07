@@ -3,7 +3,9 @@ describe('Conversa e parcelas mensais',()=>{
   it('orienta agenda e financeiro sem menus numéricos',()=>{
     const t=orientacaoAurelia();
     expect(t).toContain('Dentista hoje às 17h');
-    expect(t).toContain('lançar barrinha');
+    expect(t).toContain('Almoço 30 reais no Pix');
+    expect(t).toContain('Me lembre de beber água daqui 15m');
+    expect(t).toContain('Faça check-in no hábito Academia');
     expect(t).not.toMatch(/responda.*número|\*[0-9]\*|digite [0-9]/i);
     expect(orientacaoAurelia(false,false)).not.toContain('lançar');
   });
