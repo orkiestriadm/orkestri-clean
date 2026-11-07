@@ -1,10 +1,10 @@
-## Referência atual de produção — Atualizado em 06/11/2026
+## Referência atual de produção — Atualizado em 07/11/2026
 
 - **Pasta principal oficial (local):** `C:\orkestri-clean` (branch local `producao-5.1.3` rastreando `origin/claude/orkiestri-audit-benchmark-4a28b4`).
-- **Branch remota de referência (GitHub):** `origin/claude/orkiestri-audit-benchmark-4a28b4` (API `87fed65`, ver `docs/DEPLOY_AURELIA_IA_INDEPENDENTE_2026-11-06.md`).
+- **Branch remota de referência (GitHub):** `origin/claude/orkiestri-audit-benchmark-4a28b4` (deploy `d2fabd1`, código `3a4a730`; ver `docs/DEPLOY_ROTINA_APRENDIZADO_530_2026-11-07.md`).
 - **Versões em produção:**
-  - **API:** `5.2.3` (Aurélia independente em seis etapas)
-  - **Frontend (Painel):** `5.2.0`
+  - **API:** `5.3.0` (lembretes, hábitos e aprendizado revisado da Aurélia)
+  - **Frontend (Painel):** `5.3.0`
   - **Website:** `3.17.0`
 - **Localhost:** não atualizado neste deploy; última API local registrada `5.2.0`.
 - **Histórico antigo:** A antiga linha Hub foi preservada em backup externo (`C:\orkestri-backup-hub-20261104`) e na branch local `codex/preserva-hub-20261104`. O foco total do projeto é exclusivamente o sistema atual em produção.
